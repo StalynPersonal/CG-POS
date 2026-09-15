@@ -36,7 +36,7 @@ internal static class FormatoMaestros
         foreach (var d in paquete.UnidadesMedida ?? []) yield return new(TipoMaestro.UnidadMedida, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.Impuestos ?? []) yield return new(TipoMaestro.Impuesto, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.Articulos ?? []) yield return new(TipoMaestro.Articulo, d.Id, d.Codigo, null, d);
-        foreach (var d in paquete.Clientes ?? []) yield return new(TipoMaestro.Cliente, d.Id, $"{d.TipoDocumento}:{d.Documento?.Trim()}", null, d);
+        foreach (var d in paquete.Clientes ?? []) yield return new(TipoMaestro.Cliente, d.Id, $"{d.TipoDocumento}:{DocumentoNormalizado(d.Documento)}", null, d);
         foreach (var d in paquete.FormasPago ?? []) yield return new(TipoMaestro.FormaPago, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.Bancos ?? []) yield return new(TipoMaestro.Banco, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.TiposTarjeta ?? []) yield return new(TipoMaestro.TipoTarjeta, d.Id, d.Codigo, null, d);
@@ -90,6 +90,10 @@ internal static class FormatoMaestros
     public static T Leer<T>(MaestroCentral fila) =>
         JsonSerializer.Deserialize<T>(fila.Contenido, OpcionesJson.Predeterminadas)
         ?? throw new InvalidOperationException($"El maestro {fila.Tipo} {fila.Id} está vacío.");
+
+    /// <summary>Documento sin guiones ni espacios, para que "001-1234567-8" y "00112345678" sean el mismo cliente.</summary>
+    public static string? DocumentoNormalizado(string? documento) =>
+        string.IsNullOrWhiteSpace(documento) ? documento?.Trim() : CgPos.Dominio.Fiscal.DocumentoIdentidad.Normalizar(documento);
 
     public static string? CedulaNormalizada(string? cedula)
     {

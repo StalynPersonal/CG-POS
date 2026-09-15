@@ -1,0 +1,200 @@
+@* Alta o edición de un cliente con sus direcciones de envío. El tipo y el número de documento no cambian después de crearlo. *@
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Catalogo
+@using CgPos.Dominio.Fiscal
+@inject ClienteCentral Central
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudSelect T="TipoDocumentoIdentidad" @bind-Value="_tipoDocumento" Label="Tipo de documento" Variant="Variant.Outlined" Disabled="@(Cliente is not null)"
+                           ToStringFunc="EtiquetasCliente.Documento">
+                    @foreach (var tipo in EtiquetasCliente.Documentos)
+                    {
+                        <MudSelectItem T="TipoDocumentoIdentidad" Value="@tipo">@EtiquetasCliente.Documento(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" @bind-Value="_documento" Label="Documento" Variant="Variant.Outlined" Disabled="@(Cliente is not null)"
+                              HelperText="@(Cliente is null ? "Cédula de 11 dígitos o RNC de 9, con o sin guiones. No cambia después de crearlo." : "No cambia: para otro documento cree otro cliente.")" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_nombre" Label="Nombre o razón social" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" InputType="InputType.Email" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="TipoComprobante" @bind-Value="_comprobante" Label="Comprobante predeterminado" Variant="Variant.Outlined" ToStringFunc="EtiquetasCliente.Comprobante">
+                    @foreach (var tipo in EtiquetasCliente.Comprobantes)
+                    {
+                        <MudSelectItem T="TipoComprobante" Value="@tipo">@EtiquetasCliente.Comprobante(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="ListaPrecio" @bind-Value="_lista" Label="Lista de precios" Variant="Variant.Outlined" ToStringFunc="EtiquetasCliente.Lista">
+                    @foreach (var lista in EtiquetasCliente.Listas)
+                    {
+                        <MudSelectItem T="ListaPrecio" Value="@lista">@EtiquetasCliente.Lista(lista)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSwitch T="bool" @bind-Value="_exonerado" Label="Exonerado de ITBIS" Color="Color.Secondary" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSwitch T="bool" @bind-Value="_retencion" Label="Aplica retención" Color="Color.Secondary" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSwitch T="bool" @bind-Value="_activo" Label="@(_activo ? "Activo" : "Inactivo")" Color="Color.Secondary" />
+            </MudItem>
+
+            <MudItem xs="12" Class="d-flex align-center justify-space-between">
+                <MudText Typo="Typo.subtitle1">Direcciones de envío</MudText>
+                <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddLocationAlt" OnClick="AgregarDireccion">Agregar dirección</MudButton>
+            </MudItem>
+            @if (_direcciones.Count == 0)
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.body2" Class="cg-central__detalle">Sin direcciones.</MudText>
+                </MudItem>
+            }
+            @foreach (var direccion in _direcciones)
+            {
+                <MudItem xs="12">
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" sm="4">
+                                <MudTextField T="string" @bind-Value="direccion.Alias" Label="Alias" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="8">
+                                <MudTextField T="string" @bind-Value="direccion.Direccion" Label="Dirección" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudTextField T="string" @bind-Value="direccion.Sector" Label="Sector" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudTextField T="string" @bind-Value="direccion.Ciudad" Label="Ciudad" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudTextField T="string" @bind-Value="direccion.Telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="8">
+                                <MudTextField T="string" @bind-Value="direccion.Referencia" Label="Referencia" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4" Class="d-flex align-center justify-space-between">
+                                <MudCheckBox T="bool" Value="@(_principalId == direccion.Id)" ValueChanged="@((bool marcado) => { if (marcado) _principalId = direccion.Id; })"
+                                             Label="Principal" Color="Color.Secondary" Dense="true" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => QuitarDireccion(direccion)" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+
+            @if (_mensaje is not null)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private sealed class DireccionEditable
+    {
+        public Guid Id { get; init; } = Guid.CreateVersion7();
+        public string? Alias { get; set; }
+        public string? Direccion { get; set; }
+        public string? Sector { get; set; }
+        public string? Ciudad { get; set; }
+        public string? Referencia { get; set; }
+        public string? Telefono { get; set; }
+    }
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public ClienteCarga? Cliente { get; set; }
+
+    private readonly List<DireccionEditable> _direcciones = [];
+    private TipoDocumentoIdentidad _tipoDocumento = TipoDocumentoIdentidad.Cedula;
+    private string? _documento;
+    private string? _nombre;
+    private string? _telefono;
+    private string? _correo;
+    private TipoComprobante _comprobante = TipoComprobante.FacturaConsumo;
+    private ListaPrecio _lista = ListaPrecio.Detalle;
+    private bool _exonerado;
+    private bool _retencion;
+    private bool _activo = true;
+    private Guid? _principalId;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override void OnInitialized()
+    {
+        if (Cliente is not { } c)
+            return;
+
+        (_tipoDocumento, _documento, _nombre, _telefono, _correo) = (c.TipoDocumento, c.Documento, c.Nombre, c.Telefono, c.Correo);
+        (_comprobante, _lista, _exonerado, _retencion, _activo) = (c.TipoComprobante, c.ListaPrecio, c.ExoneradoItbis, c.AplicaRetencion, c.Activo);
+        foreach (var d in c.Direcciones ?? [])
+            _direcciones.Add(new DireccionEditable { Id = d.Id, Alias = d.Alias, Direccion = d.Direccion, Sector = d.Sector, Ciudad = d.Ciudad, Referencia = d.Referencia, Telefono = d.Telefono });
+        _principalId = c.Direcciones?.FirstOrDefault(d => d.EsPrincipal)?.Id ?? _direcciones.FirstOrDefault()?.Id;
+    }
+
+    private void AgregarDireccion()
+    {
+        var nueva = new DireccionEditable { Alias = _direcciones.Count == 0 ? "Principal" : null };
+        _direcciones.Add(nueva);
+        _principalId ??= nueva.Id;
+    }
+
+    private void QuitarDireccion(DireccionEditable direccion)
+    {
+        _direcciones.Remove(direccion);
+        if (_principalId == direccion.Id)
+            _principalId = _direcciones.FirstOrDefault()?.Id;
+    }
+
+    private static string? Opcional(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    private async Task GuardarAsync()
+    {
+        _mensaje = string.IsNullOrWhiteSpace(_documento) ? $"Indique el número de {EtiquetasCliente.Documento(_tipoDocumento).ToLowerInvariant()}."
+            : string.IsNullOrWhiteSpace(_nombre) ? "Indique el nombre o la razón social."
+            : _direcciones.Any(d => string.IsNullOrWhiteSpace(d.Alias) || string.IsNullOrWhiteSpace(d.Direccion)) ? "Cada dirección necesita alias y dirección."
+            : null;
+        if (_mensaje is not null)
+            return;
+
+        var direcciones = _direcciones
+            .Select(d => new DireccionClienteCarga(d.Id, d.Alias?.Trim() ?? string.Empty, d.Direccion?.Trim() ?? string.Empty, Opcional(d.Sector), Opcional(d.Ciudad),
+                Opcional(d.Referencia), Opcional(d.Telefono), d.Id == _principalId))
+            .ToList();
+        var cliente = new ClienteCarga(Cliente?.Id ?? Guid.CreateVersion7(), _tipoDocumento, _documento?.Trim() ?? string.Empty, _nombre?.Trim() ?? string.Empty,
+            _comprobante, _exonerado, _retencion, _lista, Opcional(_telefono), Opcional(_correo), direcciones, _activo);
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Central.GuardarClienteAsync(cliente);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el cliente.";
+    }
+}

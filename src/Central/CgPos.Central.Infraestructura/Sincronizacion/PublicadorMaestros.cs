@@ -75,7 +75,7 @@ internal sealed class PublicadorMaestros(
             }
             catch (ArgumentException excepcion)
             {
-                errores.Add($"Rol de caja '{rol.Codigo}': {excepcion.Message}");
+                errores.Add($"Rol de caja '{rol.Codigo}': {ValidacionMaestros.MensajeError(excepcion)}");
             }
         }
 
@@ -88,7 +88,7 @@ internal sealed class PublicadorMaestros(
             }
             catch (ArgumentException excepcion)
             {
-                errores.Add($"{etiqueta}: {excepcion.Message}");
+                errores.Add($"{etiqueta}: {ValidacionMaestros.MensajeError(excepcion)}");
                 continue;
             }
 
@@ -165,7 +165,7 @@ internal sealed class PublicadorMaestros(
         catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
         {
             contexto.ChangeTracker.Clear();
-            throw new PublicacionInvalidaExcepcion([excepcion.Message]);
+            throw new PublicacionInvalidaExcepcion([ValidacionMaestros.MensajeError(excepcion)]);
         }
     }
 
@@ -259,6 +259,9 @@ internal sealed class PublicadorMaestros(
                 errores.Add($"La denominación {publicado.Codigo} no puede cambiar de moneda, valor ni tipo; cree una nueva.");
             else if (fila.Tipo == TipoMaestro.FormaPago && FormatoMaestros.Leer<FormaPagoCarga>(publicado).Tipo != ((FormaPagoCarga)fila.Dato).Tipo)
                 errores.Add($"No se puede cambiar el tipo de la forma de pago '{publicado.Codigo}'; cree una nueva.");
+            // La caja no aplica un cambio de documento: el cliente quedaría con documentos distintos en el Central y en las cajas.
+            else if (fila.Tipo == TipoMaestro.Cliente && cambiaCodigo)
+                errores.Add($"No se puede cambiar el documento del cliente '{FormatoMaestros.Leer<ClienteCarga>(publicado).Documento}'; cree otro cliente.");
         }
     }
 

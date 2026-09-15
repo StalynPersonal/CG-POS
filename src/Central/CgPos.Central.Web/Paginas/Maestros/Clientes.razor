@@ -1,0 +1,114 @@
+@page "/clientes"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarMaestros)]
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Clientes · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Clientes</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Clientes registrados con su comprobante, lista de precios y direcciones de envío.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="() => AbrirDialogoAsync(null)">Nuevo cliente</MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los clientes. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosMaestroCentral<ClienteCarga>" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+              Elevation="0" RowsPerPage="25">
+        <ToolBarContent>
+            <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="Buscar por documento, nombre, teléfono o correo"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Documento</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Comprobante</MudTh>
+            <MudTh>Lista de precios</MudTh>
+            <MudTh>Direcciones</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Modificado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Documento"><strong>@context.Dato.Documento</strong><div class="cg-central__detalle">@EtiquetasCliente.Documento(context.Dato.TipoDocumento)</div></MudTd>
+            <MudTd DataLabel="Nombre">
+                @context.Dato.Nombre
+                @if (context.Dato.Telefono is not null || context.Dato.Correo is not null)
+                {
+                    <div class="cg-central__detalle">@string.Join(" · ", new[] { context.Dato.Telefono, context.Dato.Correo }.Where(t => t is not null))</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Comprobante">
+                @EtiquetasCliente.Comprobante(context.Dato.TipoComprobante)
+                @if (context.Dato.ExoneradoItbis)
+                {
+                    <div class="cg-central__detalle">Exonerado de ITBIS</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Lista de precios">@EtiquetasCliente.Lista(context.Dato.ListaPrecio)</MudTd>
+            <MudTd DataLabel="Direcciones">@(context.Dato.Direcciones?.Count ?? 0)</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Dato.Activo)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Modificado">
+                <div>@context.ModificadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="cg-central__detalle">@context.ModificadoPor</div>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context.Dato)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay clientes que coincidan.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<DatosMaestroCentral<ClienteCarga>>? _tabla;
+    private string? _buscar;
+    private bool _error;
+
+    private async Task<TableData<DatosMaestroCentral<ClienteCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarClientesAsync(_buscar, estado.Page, estado.PageSize, cancelacion);
+        _error = pagina is null;
+        return new TableData<DatosMaestroCentral<ClienteCarga>> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private Task BuscarAsync(string? texto)
+    {
+        _buscar = texto;
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private async Task AbrirDialogoAsync(ClienteCarga? cliente)
+    {
+        var parametros = new DialogParameters<DialogoCliente> { { d => d.Cliente, cliente } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoCliente>(cliente is null ? "Nuevo cliente" : $"Editar cliente {cliente.Documento}", parametros, opciones);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(cliente is null ? "Cliente creado." : "Cliente actualizado.", Severity.Success);
+        await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+    }
+}

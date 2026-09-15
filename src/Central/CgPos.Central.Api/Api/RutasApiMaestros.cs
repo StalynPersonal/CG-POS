@@ -36,6 +36,10 @@ public static class RutasApiMaestros
         Catalogo<MotivoDevolucionCarga>(maestros, "motivos-devolucion", TipoMaestro.MotivoDevolucion, d => d.Id, d => new PaqueteMaestros(MotivosDevolucion: [d]));
         Catalogo<AlmacenCarga>(maestros, "almacenes", TipoMaestro.Almacen, d => d.Id, d => new PaqueteMaestros(Almacenes: [d]));
 
+        maestros.MapGet("/clientes", async (string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.BuscarAsync<ClienteCarga>(TipoMaestro.Cliente, buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
+        Catalogo<ClienteCarga>(maestros, "clientes", TipoMaestro.Cliente, d => d.Id, d => new PaqueteMaestros(Clientes: [d]), listar: false);
+
         maestros.MapGet("/articulos", BuscarArticulosAsync);
         maestros.MapPut("/articulos/{articuloId:guid}", async (Guid articuloId, ArticuloCarga articulo, ClaimsPrincipal usuario, IServicioMaestrosCentral servicio,
                 CancellationToken cancelacion) =>

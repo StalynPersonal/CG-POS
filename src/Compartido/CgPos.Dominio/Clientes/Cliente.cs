@@ -125,7 +125,12 @@ public sealed class Cliente : Entidad
 
         return valido
             ? normalizado
-            : throw new ArgumentException($"El documento '{documento}' no tiene formato de {tipo}.", nameof(documento));
+            : throw new ArgumentException($"El documento '{documento}' no tiene formato de {tipo switch
+            {
+                TipoDocumentoIdentidad.Rnc => "RNC (9 dígitos)",
+                TipoDocumentoIdentidad.Cedula => "cédula (11 dígitos)",
+                _ => "pasaporte",
+            }}.", nameof(documento));
     }
 }
 

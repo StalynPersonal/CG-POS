@@ -29,7 +29,7 @@ public static class ValidacionMaestros
             }
             catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
             {
-                errores.Add($"{etiqueta}: {excepcion.Message}");
+                errores.Add($"{etiqueta}: {MensajeError(excepcion)}");
             }
         }
 
@@ -141,5 +141,17 @@ public static class ValidacionMaestros
             Probar($"Almacén '{d.Codigo}'", () => Almacen.Crear(d.Codigo, d.Nombre, d.SucursalId, d.Direccion, d.Id));
 
         return errores;
+    }
+
+    /// <summary>Mensaje de una regla del dominio para mostrar al usuario, sin el "(Parameter 'x')" ni el valor que .NET agrega a los errores de argumento.</summary>
+    public static string MensajeError(Exception excepcion)
+    {
+        ArgumentNullException.ThrowIfNull(excepcion);
+        var mensaje = excepcion.Message;
+        if (excepcion is ArgumentException { ParamName: { } parametro }
+            && mensaje.IndexOf($" (Parameter '{parametro}')", StringComparison.Ordinal) is var corte and >= 0)
+            mensaje = mensaje[..corte];
+
+        return mensaje;
     }
 }
