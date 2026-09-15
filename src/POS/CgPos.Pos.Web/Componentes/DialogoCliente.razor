@@ -41,13 +41,13 @@
             </div>
 
             <div class="cg-cliente__campos">
-                <div @onclick="() => _campo = Campo.Documento">
+                <div @onclick="() => _campo = Campo.Documento" @onfocusin="() => _campo = Campo.Documento">
                     <MudTextField T="string" @bind-Value="_documento" Label="RNC o cédula" Variant="Variant.Outlined" Immediate="true"
                                   AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Documento)" />
                 </div>
                 @if (_pedirNombre)
                 {
-                    <div @onclick="() => _campo = Campo.Nombre">
+                    <div @onclick="() => _campo = Campo.Nombre" @onfocusin="() => _campo = Campo.Nombre">
                         <MudTextField T="string" @bind-Value="_nombre" Label="Nombre del cliente" Variant="Variant.Outlined" Immediate="true"
                                       OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Nombre)" />
                     </div>
@@ -81,20 +81,20 @@
             else
             {
                 <div class="cg-cliente__campos">
-                    <div @onclick="() => _campo = Campo.Cedula">
+                    <div @onclick="() => _campo = Campo.Cedula" @onfocusin="() => _campo = Campo.Cedula">
                         <MudTextField T="string" @bind-Value="_cedula" Label="Cédula o tarjeta de fidelidad" Variant="Variant.Outlined" Immediate="true"
                                       OnKeyDown="AlTeclearFidelidadAsync" Class="@ClaseCampo(Campo.Cedula)" />
                     </div>
                     @if (_inscribir)
                     {
-                        <div @onclick="() => _campo = Campo.NombreMiembro">
+                        <div @onclick="() => _campo = Campo.NombreMiembro" @onfocusin="() => _campo = Campo.NombreMiembro">
                             <MudTextField T="string" @bind-Value="_nombreMiembro" Label="Nombre (vacío = padrón DGII)" Variant="Variant.Outlined" Immediate="true"
                                           Class="@ClaseCampo(Campo.NombreMiembro)" />
                         </div>
-                        <div @onclick="() => _campo = Campo.Telefono">
+                        <div @onclick="() => _campo = Campo.Telefono" @onfocusin="() => _campo = Campo.Telefono">
                             <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Telefono)" />
                         </div>
-                        <div @onclick="() => _campo = Campo.Correo">
+                        <div @onclick="() => _campo = Campo.Correo" @onfocusin="() => _campo = Campo.Correo">
                             <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Correo)" />
                         </div>
                     }

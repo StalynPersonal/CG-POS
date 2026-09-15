@@ -57,12 +57,15 @@ internal sealed class ServicioMantenimiento(
         var ruta = Path.Combine(carpeta, $"{baseDatos}_{TimeZoneInfo.ConvertTime(fecha, reloj.LocalTimeZone):yyyyMMdd_HHmmss}.bak");
         try
         {
-            // BACKUP no admite transacción de usuario; el nombre de la base va escapado y la ruta como parámetro.
+            // BACKUP no admite transacción de usuario ni el nombre de la base como parámetro: el nombre sale de la cadena de conexión
+            // y va escapado entre corchetes; la ruta y la descripción sí van como parámetros.
             contexto.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
+#pragma warning disable EF1002
             await contexto.Database.ExecuteSqlRawAsync(
                 $"BACKUP DATABASE [{baseDatos.Replace("]", "]]", StringComparison.Ordinal)}] TO DISK = @ruta WITH INIT, CHECKSUM, NAME = @nombre",
                 [new SqlParameter("@ruta", ruta), new SqlParameter("@nombre", $"CG-POS {baseDatos}")],
                 cancelacion);
+#pragma warning restore EF1002
 
             estado.UltimoRespaldoCorrecto = fecha;
             registro.LogInformation("Respaldo de la base {BaseDatos} en {Ruta}", baseDatos, ruta);
