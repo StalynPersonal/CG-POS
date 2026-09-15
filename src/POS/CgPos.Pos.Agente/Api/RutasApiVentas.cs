@@ -65,6 +65,13 @@ public static class RutasApiVentas
         ventas.MapDelete("/{ventaId:guid}/cliente", (Guid ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.QuitarClienteAsync(sesion, ventaId, cancelacion))));
 
+        // Programa de fidelidad (C10): la cédula del miembro habilita sus ofertas y acumula al cobrar.
+        ventas.MapPost("/{ventaId:guid}/fidelidad", (Guid ventaId, SolicitudAsignarFidelidad solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.AsignarFidelidadAsync(sesion, ventaId, solicitud.Cedula ?? string.Empty, cancelacion))));
+
+        ventas.MapDelete("/{ventaId:guid}/fidelidad", (Guid ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.QuitarFidelidadAsync(sesion, ventaId, cancelacion))));
+
         ventas.MapPut("/{ventaId:guid}/comprobante", (Guid ventaId, SolicitudCambiarComprobante solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.CambiarComprobanteAsync(sesion, ventaId, solicitud.TipoComprobante, solicitud.AutorizacionId, cancelacion))));
 

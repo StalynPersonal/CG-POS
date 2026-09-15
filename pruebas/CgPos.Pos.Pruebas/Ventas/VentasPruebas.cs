@@ -1,4 +1,5 @@
 using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Promociones;
 using CgPos.Contratos.Ventas;
@@ -12,6 +13,7 @@ using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Devoluciones;
 using CgPos.Pos.Aplicacion.Ecf;
+using CgPos.Pos.Aplicacion.Fidelidad;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -841,6 +843,72 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             [new SolicitudPago(caja.Catalogo.FormaNotaCredito, total, encfNota)], null));
         Assert.Equal(CodigoResultadoVenta.PagoInvalido, excedido.Resultado);
         Assert.Contains("disponibles", excedido.Mensaje);
+    }
+
+    [SkippableFact]
+    public async Task Miembro_de_fidelidad_acumula_por_reglas_y_nivel_canjea_con_autorizacion_y_la_devolucion_reversa()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        // Inscripción desde la caja sin interrumpir la venta (RF-237).
+        var nueva = EscenarioCatalogo.CedulaAleatoriaValida();
+        var inscripcion = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s =>
+            s.InscribirAsync(caja.Cajero, new SolicitudInscripcionFidelidad(nueva, "Cliente Nuevo", "809-555-0000", "nuevo@correo.do")));
+        Assert.True(inscripcion.Exitosa, inscripcion.Mensaje);
+        Assert.Equal(0, inscripcion.Miembro!.SaldoDisponible);
+        Assert.True(inscripcion.Miembro.PendienteDeConfirmar);
+        var repetida = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s =>
+            s.InscribirAsync(caja.Cajero, new SolicitudInscripcionFidelidad(nueva, "Otro nombre", null, null)));
+        Assert.Equal(CodigoResultadoFidelidad.YaInscrito, repetida.Resultado);
+
+        // La cédula es el ID/PIN del miembro (RF-236).
+        var venta = await caja.VentaActualAsync();
+        var noInscrita = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AsignarFidelidadAsync(caja.Cajero, venta.Id, EscenarioCatalogo.CedulaAleatoriaValida()));
+        Assert.Equal(CodigoResultadoVenta.NoInscritoFidelidad, noInscrita.Resultado);
+        var asignada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarFidelidadAsync(caja.Cajero, venta.Id, caja.Catalogo.CedulaMiembro));
+        Assert.True(asignada.Exitosa, asignada.Mensaje);
+        Assert.Equal("Oro", asignada.Venta!.Fidelidad!.Nivel);
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+
+        // Canje (RF-239): primero se valida el saldo y después se pide la clave del supervisor.
+        var excedido = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaPuntos, EscenarioCatalogo.SaldoMiembro + 1m), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.Equal(CodigoResultadoVenta.PagoInvalido, excedido.Resultado);
+        Assert.Contains("puntos disponibles", excedido.Mensaje);
+
+        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaPuntos, 100m), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)];
+        var sinAutorizacion = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinAutorizacion.Resultado);
+        Assert.Equal(CatalogoPermisos.CanjearPuntos, sinAutorizacion.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CanjearPuntos, "Canje del cliente");
+        var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, autorizacion));
+        Assert.True(cobrada.Exitosa, cobrada.Mensaje);
+
+        // Cincel de 850 en ferretería: 2 puntos por cada 100 = 17, × 1.5 del nivel Oro, sobre lo no pagado con puntos (750 de 850) = 22.
+        var fidelidad = cobrada.Venta!.Fidelidad!;
+        Assert.Equal(22, fidelidad.PuntosAcumulados);
+        Assert.Equal(100, fidelidad.PuntosCanjeados);
+        Assert.Equal(2, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.MovimientosPuntos.CountAsync(m => m.VentaId == venta.Id)));
+
+        var saldo = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s => s.ConsultarAsync(caja.Cajero, caja.Catalogo.CedulaMiembro));
+        Assert.True(saldo.Exitosa, saldo.Mensaje);
+        Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100 + 22, saldo.Miembro!.SaldoDisponible);
+
+        // La nota de crédito reversa los puntos acumulados en la compra (RF-244, RN-21).
+        var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, cobrada.Venta.NumeroTransaccion));
+        var linea = Assert.Single(buscada.Factura!.Lineas);
+        var autorizacionDevolucion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Artículo defectuoso");
+        var devolucion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero,
+            new SolicitudDevolucion(cobrada.Venta.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
+                caja.Catalogo.CodigoMotivoDevolucion, null, autorizacionDevolucion)));
+        Assert.True(devolucion.Exitosa, devolucion.Mensaje);
+        Assert.Equal(22, devolucion.NotaCredito!.PuntosReversados);
+
+        var despues = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s => s.ConsultarAsync(caja.Cajero, caja.Catalogo.CedulaMiembro));
+        Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100, despues.Miembro!.SaldoDisponible);
     }
 
     private static class BalanzaPrueba

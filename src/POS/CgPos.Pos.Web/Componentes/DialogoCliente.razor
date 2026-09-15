@@ -1,4 +1,5 @@
-@* Cliente y comprobante de la venta (F12): RNC o cédula contra el padrón DGII y los clientes registrados (RF-13, RF-127). *@
+@* Cliente, comprobante y programa de fidelidad de la venta (F12): RNC o cédula contra el padrón DGII y los clientes registrados (RF-13, RF-127);
+   la cédula del miembro como ID/PIN, con inscripción sin interrumpir la venta (RF-126, RF-236, RF-237). *@
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
 
@@ -55,6 +56,53 @@
                            StartIcon="@Icons.Material.Filled.PersonSearch" Style="min-height: var(--cg-toque-minimo)">Asignar</MudButton>
             </div>
 
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Programa de fidelidad</MudText>
+            @if (_venta.Fidelidad is { } fidelidad)
+            {
+                <div class="cg-cliente__actual">
+                    <div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 700">★ @fidelidad.Nombre@(fidelidad.Nivel is null ? null : $" · {fidelidad.Nivel}")</MudText>
+                        <MudText Typo="Typo.body2">
+                            Cédula @fidelidad.Cedula
+                            @if (_miembro is { } miembro)
+                            {
+                                <span> · @miembro.SaldoDisponible.ToString("N0") puntos disponibles</span>
+                                @if (miembro.ProximoVencimiento is { } vence && miembro.PuntosPorVencer > 0)
+                                {
+                                    <span> · @miembro.PuntosPorVencer.ToString("N0") vencen el @vence.ToString("dd/MM/yyyy")</span>
+                                }
+                            }
+                        </MudText>
+                    </div>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarFidelidadAsync"
+                               StartIcon="@Icons.Material.Filled.StarBorder" Style="min-height: var(--cg-toque-minimo)">Quitar miembro</MudButton>
+                </div>
+            }
+            else
+            {
+                <div class="cg-cliente__campos">
+                    <div @onclick="() => _campo = Campo.Cedula">
+                        <MudTextField T="string" @bind-Value="_cedula" Label="Cédula o tarjeta de fidelidad" Variant="Variant.Outlined" Immediate="true"
+                                      OnKeyDown="AlTeclearFidelidadAsync" Class="@ClaseCampo(Campo.Cedula)" />
+                    </div>
+                    @if (_inscribir)
+                    {
+                        <div @onclick="() => _campo = Campo.NombreMiembro">
+                            <MudTextField T="string" @bind-Value="_nombreMiembro" Label="Nombre (vacío = padrón DGII)" Variant="Variant.Outlined" Immediate="true"
+                                          Class="@ClaseCampo(Campo.NombreMiembro)" />
+                        </div>
+                        <div @onclick="() => _campo = Campo.Telefono">
+                            <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Telefono)" />
+                        </div>
+                        <div @onclick="() => _campo = Campo.Correo">
+                            <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Correo)" />
+                        </div>
+                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarFidelidadAsync"
+                               StartIcon="@Icons.Material.Filled.Stars" Style="min-height: var(--cg-toque-minimo)">@(_inscribir ? "Inscribir y asignar" : "Asignar")</MudButton>
+                </div>
+            }
+
             @if (_procesando)
             {
                 <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
@@ -64,9 +112,9 @@
                 <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
             }
 
-            <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => AsignarAsync()"
-                           Modo="@(_campo == Campo.Documento ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)" PermitirDecimal="false"
-                           PermitirCambioModo="@(_campo == Campo.Nombre)" LongitudMaxima="@(_campo == Campo.Documento ? 13 : 150)" TextoConfirmar="Asignar" />
+            <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => ConfirmarAsync()"
+                           Modo="@(CampoNumerico ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)" PermitirDecimal="false"
+                           PermitirCambioModo="@(!CampoNumerico)" LongitudMaxima="@LongitudCampo" TextoConfirmar="Asignar" />
         </div>
     </DialogContent>
     <DialogActions>
@@ -80,23 +128,50 @@
     {
         Documento,
         Nombre,
+        Cedula,
+        NombreMiembro,
+        Telefono,
+        Correo,
     }
 
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
     [Parameter, EditorRequired] public DatosVenta Venta { get; set; } = default!;
 
+    private readonly Dictionary<Campo, string?> _valores = [];
     private DatosVenta _venta = default!;
-    private string? _documento;
-    private string? _nombre;
+    private DatosMiembroFidelidad? _miembro;
     private string? _mensaje;
     private bool _pedirNombre;
+    private bool _inscribir;
     private bool _procesando;
     private Campo _campo = Campo.Documento;
 
-    protected override void OnInitialized() => _venta = Venta;
+    private string? _documento { get => _valores.GetValueOrDefault(Campo.Documento); set => _valores[Campo.Documento] = value; }
+    private string? _nombre { get => _valores.GetValueOrDefault(Campo.Nombre); set => _valores[Campo.Nombre] = value; }
+    private string? _cedula { get => _valores.GetValueOrDefault(Campo.Cedula); set => _valores[Campo.Cedula] = value; }
+    private string? _nombreMiembro { get => _valores.GetValueOrDefault(Campo.NombreMiembro); set => _valores[Campo.NombreMiembro] = value; }
+    private string? _telefono { get => _valores.GetValueOrDefault(Campo.Telefono); set => _valores[Campo.Telefono] = value; }
+    private string? _correo { get => _valores.GetValueOrDefault(Campo.Correo); set => _valores[Campo.Correo] = value; }
 
-    private string ValorCampoActivo => (_campo == Campo.Documento ? _documento : _nombre) ?? string.Empty;
+    protected override async Task OnInitializedAsync()
+    {
+        _venta = Venta;
+        await CargarMiembroAsync();
+    }
+
+    private string ValorCampoActivo => _valores.GetValueOrDefault(_campo) ?? string.Empty;
+
+    private bool CampoNumerico => _campo is Campo.Documento or Campo.Cedula or Campo.Telefono;
+
+    private int LongitudCampo => _campo switch
+    {
+        Campo.Documento or Campo.Cedula => 13,
+        Campo.Telefono => 20,
+        _ => 150,
+    };
+
+    private bool CampoDeFidelidad => _campo is Campo.Cedula or Campo.NombreMiembro or Campo.Telefono or Campo.Correo;
 
     private string? ClaseCampo(Campo campo) => _campo == campo ? "cg-campo-activo" : null;
 
@@ -108,15 +183,13 @@
         _ => "Documento",
     };
 
-    private void AlCambiarTeclado(string valor)
-    {
-        if (_campo == Campo.Documento)
-            _documento = valor;
-        else
-            _nombre = valor;
-    }
+    private void AlCambiarTeclado(string valor) => _valores[_campo] = valor;
+
+    private Task ConfirmarAsync() => CampoDeFidelidad ? AsignarFidelidadAsync() : AsignarAsync();
 
     private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? AsignarAsync() : Task.CompletedTask;
+
+    private Task AlTeclearFidelidadAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? AsignarFidelidadAsync() : Task.CompletedTask;
 
     private async Task AsignarAsync()
     {
@@ -132,6 +205,35 @@
 
     private Task QuitarAsync() => EjecutarAsync(async () => await Cliente.QuitarClienteAsync(_venta.Id));
 
+    /// <summary>Asigna el miembro por su cédula; si no está inscrito se piden sus datos y se inscribe en el mismo paso.</summary>
+    private async Task AsignarFidelidadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_cedula))
+        {
+            _mensaje = "Digite o escanee la cédula del miembro.";
+            _campo = Campo.Cedula;
+            return;
+        }
+
+        if (_inscribir)
+        {
+            _procesando = true;
+            var inscripcion = await Cliente.InscribirFidelidadAsync(new SolicitudInscripcionFidelidad(_cedula.Trim(), Vacio(_nombreMiembro), Vacio(_telefono), Vacio(_correo)));
+            _procesando = false;
+            if (inscripcion is { Exitosa: false, Resultado: not CodigoResultadoFidelidad.YaInscrito })
+            {
+                _mensaje = inscripcion.Mensaje;
+                if (inscripcion.Resultado == CodigoResultadoFidelidad.NombreRequerido)
+                    _campo = Campo.NombreMiembro;
+                return;
+            }
+        }
+
+        await EjecutarAsync(async () => await Cliente.AsignarFidelidadAsync(_venta.Id, _cedula.Trim()));
+    }
+
+    private Task QuitarFidelidadAsync() => EjecutarAsync(async () => await Cliente.QuitarFidelidadAsync(_venta.Id));
+
     private Task CambiarComprobanteAsync(TipoComprobante tipo)
     {
         if (tipo == _venta.TipoComprobante)
@@ -142,6 +244,9 @@
             $"Cambiar el comprobante a {ReglasComprobante.Nombre(tipo)}",
             _venta.NumeroTransaccion));
     }
+
+    private async Task CargarMiembroAsync() =>
+        _miembro = _venta.Fidelidad is { } fidelidad ? (await Cliente.ConsultarFidelidadAsync(fidelidad.Cedula)).Miembro : null;
 
     private async Task EjecutarAsync(Func<Task<RespuestaVenta?>> operacion)
     {
@@ -163,14 +268,22 @@
             _pedirNombre = true;
             _campo = Campo.Nombre;
         }
+        else if (respuesta.Resultado == CodigoResultadoVenta.NoInscritoFidelidad)
+        {
+            _inscribir = true;
+            _campo = Campo.NombreMiembro;
+        }
         else if (respuesta.Exitosa)
         {
-            _documento = null;
-            _nombre = null;
+            _valores.Clear();
             _pedirNombre = false;
+            _inscribir = false;
             _campo = Campo.Documento;
+            await CargarMiembroAsync();
         }
 
         _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
     }
+
+    private static string? Vacio(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
 }

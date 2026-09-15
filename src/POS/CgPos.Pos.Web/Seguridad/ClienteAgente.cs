@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Fidelidad;
 using CgPos.Contratos.Pantallas;
 using CgPos.Contratos.Seguridad;
 using CgPos.Contratos.Serializacion;
@@ -103,6 +104,21 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     public Task<RespuestaVenta> QuitarClienteAsync(Guid ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/cliente", null, ErrorVenta, cancelacion);
+
+    // ---------- Programa de fidelidad (C10) ----------
+
+    public Task<RespuestaVenta> AsignarFidelidadAsync(Guid ventaId, string cedula, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/fidelidad", new SolicitudAsignarFidelidad(cedula), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> QuitarFidelidadAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/fidelidad", null, ErrorVenta, cancelacion);
+
+    public Task<RespuestaFidelidad> ConsultarFidelidadAsync(string cedula, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaFidelidad>(HttpMethod.Get, $"api/fidelidad/miembros/{Uri.EscapeDataString(cedula)}", null,
+            mensaje => new RespuestaFidelidad(CodigoResultadoFidelidad.NoInscrito, mensaje, null), cancelacion);
+
+    public Task<RespuestaFidelidad> InscribirFidelidadAsync(SolicitudInscripcionFidelidad solicitud, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/fidelidad/miembros", solicitud, mensaje => new RespuestaFidelidad(CodigoResultadoFidelidad.DatosInvalidos, mensaje, null), cancelacion);
 
     public Task<RespuestaVenta> CambiarComprobanteAsync(Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/comprobante", new SolicitudCambiarComprobante(tipo, autorizacionId), ErrorVenta, cancelacion);

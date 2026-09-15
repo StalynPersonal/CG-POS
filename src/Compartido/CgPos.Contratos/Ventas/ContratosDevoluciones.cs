@@ -98,7 +98,8 @@ public sealed record DatosNotaCredito(
     EstadoNotaCredito Estado,
     DateTimeOffset CreadaEn,
     IReadOnlyList<DatosLineaNotaCredito> Lineas,
-    DatosComprobanteElectronico? Comprobante);
+    DatosComprobanteElectronico? Comprobante,
+    int PuntosReversados = 0);
 
 /// <summary>Mensaje para el Central: la nota de crédito y su XML firmado. Su saldo solo está disponible en otras tiendas al sincronizar (RF-235).</summary>
 public sealed record DocumentoNotaCreditoEmitida(DatosNotaCredito NotaCredito, Guid SucursalId, Guid CajaId, Guid? TurnoId, DocumentoElectronicoParaCentral Ecf);

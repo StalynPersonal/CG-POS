@@ -53,6 +53,10 @@ else
                     <div class="cg-venta__valor">@(_venta.Cliente?.Documento ?? "—")</div>
                     <div class="cg-venta__etiqueta">Nombre del cliente</div>
                     <div class="cg-venta__cliente-nombre @(_venta.Cliente is null ? null : "cg-venta__cliente-nombre--asignado")">@(_venta.Cliente?.Nombre ?? "Cliente contado")</div>
+                    @if (_venta.Fidelidad is { } fidelidad)
+                    {
+                        <div class="cg-venta__promo" title="Programa de fidelidad">★ @fidelidad.Nombre@(fidelidad.Nivel is null ? null : $" · {fidelidad.Nivel}")</div>
+                    }
                 </div>
                 <div class="cg-venta__transaccion">
                     <div class="cg-venta__etiqueta">Transacción Nº</div>

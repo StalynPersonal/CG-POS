@@ -61,6 +61,18 @@ public static class ClavesParametros
     /// <summary>Código ISO de la moneda local de la caja; debe existir activa en el maestro de monedas.</summary>
     public const string MonedaLocal = "General.MonedaLocal";
 
+    /// <summary>Valor en moneda local de cada punto de fidelidad al canjearlo (RF-239). Sin él no se canjean puntos.</summary>
+    public const string ValorPuntoFidelidad = "Fidelidad.ValorPunto";
+
+    /// <summary>Meses de vigencia de los puntos acumulados (RF-242). Opcional: sin él la caja no les pone vencimiento.</summary>
+    public const string MesesVigenciaPuntos = "Fidelidad.MesesVigenciaPuntos";
+
+    /// <summary>Puntos mínimos por canje. Opcional.</summary>
+    public const string MinimoPuntosCanje = "Fidelidad.MinimoPuntosCanje";
+
+    /// <summary>Máximo de puntos que se canjean por transacción mientras la caja no confirma el saldo con el Central (RF-243). Opcional.</summary>
+    public const string MaximoPuntosCanjeSinConexion = "Fidelidad.MaximoPuntosCanjeSinConexion";
+
     public const string IntentosMaximosPin = "Seguridad.IntentosMaximosPin";
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
 

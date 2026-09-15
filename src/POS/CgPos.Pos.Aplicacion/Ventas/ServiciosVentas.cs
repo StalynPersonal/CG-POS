@@ -45,6 +45,11 @@ public interface IServicioVentas
 
     Task<RespuestaVenta> QuitarClienteAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
 
+    /// <summary>Asigna el miembro del programa de fidelidad por su cédula (RF-126, RF-236); si no está inscrito responde <see cref="CodigoResultadoVenta.NoInscritoFidelidad"/>.</summary>
+    Task<RespuestaVenta> AsignarFidelidadAsync(SesionUsuario sesion, Guid ventaId, string cedula, CancellationToken cancelacion = default);
+
+    Task<RespuestaVenta> QuitarFidelidadAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
     /// <summary>Cambiar el comprobante a mano requiere permiso (RF-108, RF-127).</summary>
     Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default);
 

@@ -63,6 +63,12 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<MotivoDescuento> MotivosDescuento => Set<MotivoDescuento>();
     public DbSet<TopeDescuento> TopesDescuento => Set<TopeDescuento>();
 
+    // Fidelidad (M11)
+    public DbSet<CgPos.Dominio.Fidelidad.NivelFidelidad> NivelesFidelidad => Set<CgPos.Dominio.Fidelidad.NivelFidelidad>();
+    public DbSet<CgPos.Dominio.Fidelidad.ReglaAcumulacion> ReglasAcumulacion => Set<CgPos.Dominio.Fidelidad.ReglaAcumulacion>();
+    public DbSet<CgPos.Dominio.Fidelidad.MiembroFidelidad> MiembrosFidelidad => Set<CgPos.Dominio.Fidelidad.MiembroFidelidad>();
+    public DbSet<CgPos.Dominio.Fidelidad.MovimientoPuntos> MovimientosPuntos => Set<CgPos.Dominio.Fidelidad.MovimientoPuntos>();
+
     // Cobro (M08)
     public DbSet<TasaCambio> TasasCambio => Set<TasaCambio>();
     public DbSet<OperacionTerminal> OperacionesTerminal => Set<OperacionTerminal>();

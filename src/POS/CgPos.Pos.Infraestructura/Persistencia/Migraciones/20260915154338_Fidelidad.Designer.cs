@@ -4,6 +4,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosPos))]
-    partial class ContextoDatosPosModelSnapshot : ModelSnapshot
+    [Migration("20260915154338_Fidelidad")]
+    partial class Fidelidad
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

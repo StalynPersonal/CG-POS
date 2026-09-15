@@ -95,6 +95,9 @@ public sealed record ClienteVenta(
     string Nombre,
     TipoComprobante ComprobantePredeterminado);
 
+/// <summary>Miembro del programa de fidelidad asignado a la venta.</summary>
+public sealed record MiembroVenta(Guid MiembroId, string Cedula, string Nombre, string? Nivel);
+
 /// <summary>Qué comprobantes se emiten en una venta de caja y qué documento del comprador exige cada uno (RF-27).</summary>
 public static class ReglasComprobante
 {
@@ -182,6 +185,16 @@ public sealed class Venta : Entidad
 
     /// <summary>Monto tope que pidió el cliente; se avisa al superarlo (RF-18).</summary>
     public decimal? LimiteCompra { get; private set; }
+
+    // Programa de fidelidad (M11): la cédula identifica al miembro (RF-236).
+    public Guid? FidelidadMiembroId { get; private set; }
+    public string? FidelidadCedula { get; private set; }
+    public string? FidelidadNombre { get; private set; }
+    public string? FidelidadNivel { get; private set; }
+    public int PuntosAcumulados { get; private set; }
+    public int PuntosCanjeados { get; private set; }
+
+    public bool TieneFidelidad => FidelidadMiembroId is not null;
 
     /// <summary>Cuándo se puso en espera (RF-22, RF-197).</summary>
     public DateTimeOffset? PuestaEnEsperaEn { get; private set; }
@@ -410,6 +423,43 @@ public sealed class Venta : Entidad
         ActualizadaEn = ahora;
     }
 
+    /// <summary>Identifica al miembro del programa de fidelidad (RF-126, RF-236): habilita sus ofertas exclusivas y acumula al cobrar.</summary>
+    public void AsignarFidelidad(MiembroVenta miembro, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(miembro);
+        AsegurarEditable();
+
+        FidelidadMiembroId = Validar.Id(miembro.MiembroId, "Miembro");
+        FidelidadCedula = Validar.Texto(miembro.Cedula, "Cédula", LargoMaximoDocumento);
+        FidelidadNombre = Validar.Texto(miembro.Nombre, "Nombre del miembro", LargoMaximoNombreCliente);
+        FidelidadNivel = Validar.TextoOpcional(miembro.Nivel, "Nivel", LargoMaximoNombreCliente);
+        ActualizadaEn = ahora;
+    }
+
+    public void QuitarFidelidad(DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        FidelidadMiembroId = null;
+        FidelidadCedula = null;
+        FidelidadNombre = null;
+        FidelidadNivel = null;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Puntos que acumuló y canjeó la venta cobrada (RF-238, RF-239).</summary>
+    public void RegistrarPuntos(int acumulados, int canjeados)
+    {
+        if (Estado != EstadoVenta.Cobrada)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, "Los puntos se registran al cobrar la venta.");
+        ArgumentOutOfRangeException.ThrowIfNegative(acumulados);
+        ArgumentOutOfRangeException.ThrowIfNegative(canjeados);
+        if (!TieneFidelidad && acumulados + canjeados > 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, "La venta no tiene un miembro del programa de fidelidad.");
+
+        PuntosAcumulados = acumulados;
+        PuntosCanjeados = canjeados;
+    }
+
     /// <summary>Cambia el comprobante (RF-127); valida que el cliente tenga el documento que el tipo exige.</summary>
     public void CambiarComprobante(TipoComprobante tipo, DateTimeOffset ahora)
     {
@@ -468,13 +518,14 @@ public sealed class Venta : Entidad
     /// no reciben ofertas (RN-08).
     /// </summary>
     /// <param name="ahoraLocal">Fecha y hora local de la caja, para los días y horas de las ofertas.</param>
-    public void RecalcularPromociones(IReadOnlyCollection<Promocion> promociones, Guid sucursalId, DateTimeOffset ahoraLocal, bool clienteFidelidad = false)
+    /// <remarks>Las ofertas exclusivas del programa de fidelidad solo aplican con un miembro asignado (RF-207).</remarks>
+    public void RecalcularPromociones(IReadOnlyCollection<Promocion> promociones, Guid sucursalId, DateTimeOffset ahoraLocal)
     {
         ArgumentNullException.ThrowIfNull(promociones);
         if (Estado != EstadoVenta.EnCurso)
             return;
 
-        var vigentes = promociones.Where(p => p.EstaVigente(sucursalId, ahoraLocal) && (clienteFidelidad || !p.SoloFidelidad)).ToList();
+        var vigentes = promociones.Where(p => p.EstaVigente(sucursalId, ahoraLocal) && (TieneFidelidad || !p.SoloFidelidad)).ToList();
 
         foreach (var grupo in _lineas.Where(l => l.EstaActiva).GroupBy(l => l.ArticuloId))
         {
@@ -785,6 +836,8 @@ public sealed class Venta : Entidad
                 TipoFormaPago.BonoRegalo or TipoFormaPago.TarjetaRegalo => "Escanee el serial del bono o tarjeta de regalo.",
                 _ => $"Falta la referencia de {forma.Nombre}.",
             });
+        if (forma.Tipo == TipoFormaPago.Puntos && !TieneFidelidad)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, "Para canjear puntos asigne primero la cédula del cliente en el programa de fidelidad.");
         if (forma.RequiereBanco && pago.BancoId is null)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, $"Seleccione el banco de {forma.Nombre}.");
         if (!forma.PermiteComprobanteFiscal && TipoComprobante != TipoComprobante.FacturaConsumo)

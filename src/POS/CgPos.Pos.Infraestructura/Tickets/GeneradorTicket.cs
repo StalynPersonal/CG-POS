@@ -147,6 +147,18 @@ internal static class GeneradorTicket
         Separador();
         Agregar($"Artículos: {venta.Totales.CantidadArticulos.ToString("0.###", cultura)}");
 
+        // Programa de fidelidad (RF-238, RF-239).
+        if (venta.Fidelidad is { } fidelidad)
+        {
+            Separador();
+            foreach (var parte in Envolver($"Fidelidad: {fidelidad.Nombre}{(fidelidad.Nivel is null ? null : $" ({fidelidad.Nivel})")}"))
+                Agregar(parte);
+            if (fidelidad.PuntosAcumulados > 0)
+                Agregar(Columnas("Puntos ganados", fidelidad.PuntosAcumulados.ToString("N0", cultura)));
+            if (fidelidad.PuntosCanjeados > 0)
+                Agregar(Columnas("Puntos canjeados", fidelidad.PuntosCanjeados.ToString("N0", cultura)));
+        }
+
         // Representación impresa del e-CF (RF-221): código de seguridad, fecha de firma y QR del timbre.
         if (venta.Comprobante is { } ecf)
         {
@@ -215,6 +227,8 @@ internal static class GeneradorTicket
         if (nota.ImpuestoRetenido > 0)
             Importe("ITBIS retenido (fuera de plazo)", nota.ImpuestoRetenido);
         Importe($"TOTAL {Simbolo(encabezado, nota.Moneda)}", nota.Total, Estilo.Titulo);
+        if (nota.PuntosReversados > 0)
+            Agregar(Columnas("Puntos de fidelidad reversados", nota.PuntosReversados.ToString("N0", cultura)));
 
         if (!copiaContabilidad)
         {

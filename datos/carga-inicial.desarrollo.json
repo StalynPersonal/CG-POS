@@ -68,7 +68,8 @@
         "Devoluciones.Registrar",
         "Devoluciones.Autorizar",
         "Pendientes.Marcar",
-        "Cobro.AprobacionManualTarjeta"
+        "Cobro.AprobacionManualTarjeta",
+        "Fidelidad.CanjearPuntos"
       ]
     },
     {
@@ -149,6 +150,10 @@
     { "id": "01990000-0000-7000-8000-000000000524", "clave": "Pantallas.MensajeBienvenida", "valor": "¡Bienvenido a Ferretería Contreras!", "descripcion": "Mensaje de bienvenida de la pantalla del cliente" },
     { "id": "01990000-0000-7000-8000-000000000525", "clave": "Pantallas.MensajeDespedida", "valor": "¡Gracias por su compra!", "descripcion": "Mensaje de la pantalla del cliente al cobrar" },
     { "id": "01990000-0000-7000-8000-000000000526", "clave": "Pantallas.SegundosPorImagen", "valor": "6", "descripcion": "Segundos que se muestra cada imagen de publicidad" },
-    { "id": "01990000-0000-7000-8000-000000000527", "clave": "General.MonedaLocal", "valor": "DOP", "descripcion": "Código ISO de la moneda local de la caja (debe existir en el maestro de monedas)" }
+    { "id": "01990000-0000-7000-8000-000000000527", "clave": "General.MonedaLocal", "valor": "DOP", "descripcion": "Código ISO de la moneda local de la caja (debe existir en el maestro de monedas)" },
+    { "id": "01990000-0000-7000-8000-000000000528", "clave": "Fidelidad.ValorPunto", "valor": "1", "descripcion": "Valor en moneda local de cada punto al canjearlo" },
+    { "id": "01990000-0000-7000-8000-000000000529", "clave": "Fidelidad.MesesVigenciaPuntos", "valor": "12", "descripcion": "Meses de vigencia de los puntos acumulados" },
+    { "id": "01990000-0000-7000-8000-000000000530", "clave": "Fidelidad.MinimoPuntosCanje", "valor": "50", "descripcion": "Puntos mínimos por canje" },
+    { "id": "01990000-0000-7000-8000-000000000531", "clave": "Fidelidad.MaximoPuntosCanjeSinConexion", "valor": "2000", "descripcion": "Puntos máximos por transacción sin confirmar el saldo con el Central" }
   ]
 }

@@ -3,6 +3,17 @@
     { "id": "01990000-0000-7000-8001-000000001001", "codigo": "DOP", "nombre": "Peso dominicano", "simbolo": "RD$" },
     { "id": "01990000-0000-7000-8001-000000001002", "codigo": "USD", "nombre": "Dólar estadounidense", "simbolo": "US$" }
   ],
+  "nivelesFidelidad": [
+    { "id": "01990000-0000-7000-8001-000000001101", "codigo": "CLASICO", "nombre": "Clásico", "orden": 1, "factorAcumulacion": 1 },
+    { "id": "01990000-0000-7000-8001-000000001102", "codigo": "ORO", "nombre": "Oro", "orden": 2, "factorAcumulacion": 1.5 }
+  ],
+  "reglasAcumulacion": [
+    { "id": "01990000-0000-7000-8001-000000001201", "codigo": "GENERAL", "nombre": "Un punto por cada RD$100", "tipo": "Monto", "montoBase": 100, "puntos": 1 },
+    { "id": "01990000-0000-7000-8001-000000001202", "codigo": "FER-DOBLE", "nombre": "Ferretería doble", "tipo": "Familia", "montoBase": 100, "puntos": 2, "referenciaId": "01990000-0000-7000-8001-000000000101" }
+  ],
+  "miembrosFidelidad": [
+    { "id": "01990000-0000-7000-8001-000000001301", "cedula": "00113918205", "nombre": "Cliente Ejemplo Pérez", "telefono": "809-555-0103", "nivelId": "01990000-0000-7000-8001-000000001102", "saldoPuntos": 1200, "saldoAl": "2026-09-14T00:00:00-04:00", "puntosPorVencer": 150, "proximoVencimiento": "2026-12-31" }
+  ],
   "familias": [
     { "id": "01990000-0000-7000-8001-000000000101", "codigo": "FER", "nombre": "Ferretería" },
     { "id": "01990000-0000-7000-8001-000000000102", "codigo": "CON", "nombre": "Materiales de construcción" },

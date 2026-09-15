@@ -45,6 +45,9 @@ public static class CatalogoPermisos
     public const string MarcarPendiente = "Pendientes.Marcar";
     public const string AprobacionManualTarjeta = "Cobro.AprobacionManualTarjeta";
 
+    // Fidelidad
+    public const string CanjearPuntos = "Fidelidad.CanjearPuntos";
+
     public static IReadOnlyList<DefinicionPermiso> Todos { get; } =
     [
         new(AutorizarOperaciones, "Seguridad", "Autorizar operaciones de otros usuarios (clave de supervisor)"),
@@ -76,6 +79,8 @@ public static class CatalogoPermisos
         new(AutorizarDevolucion, "Devoluciones", "Autorizar devoluciones"),
         new(MarcarPendiente, "Pendientes", "Marcar artículos como pendientes de entrega o envío"),
         new(AprobacionManualTarjeta, "Cobro", "Registrar aprobación manual de tarjeta (contingencia)"),
+
+        new(CanjearPuntos, "Fidelidad", "Canjear puntos de fidelidad como forma de pago"),
     ];
 
     private static readonly FrozenSet<string> Codigos = Todos.Select(p => p.Codigo).ToFrozenSet(StringComparer.Ordinal);

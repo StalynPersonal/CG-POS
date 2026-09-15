@@ -1,6 +1,7 @@
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Fidelidad;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Turnos;
@@ -13,6 +14,7 @@ using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Ecf;
+using CgPos.Pos.Infraestructura.Fidelidad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using CgPos.Pos.Infraestructura.Ventas;
@@ -35,7 +37,8 @@ internal static class ConversionesDevolucion
             documento is null
                 ? null
                 : new DatosComprobanteElectronico(documento.Encf, documento.TipoComprobante, documento.CodigoSeguridad, documento.FechaFirma,
-                    documento.UrlTimbre, documento.Estado));
+                    documento.UrlTimbre, documento.Estado),
+            devolucion.PuntosReversados);
 
     /// <summary>Cantidad e importe ya devueltos por línea de la factura (RF-42).</summary>
     public static Dictionary<int, DevueltoLinea> Devuelto(this IEnumerable<Devolucion> devoluciones) =>
@@ -124,6 +127,7 @@ internal sealed class ServicioDevoluciones(
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
         Devolucion devolucion;
         EmisionEcf emision;
+        MovimientoPuntos? reversoPuntos = null;
         try
         {
             var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.NotaCredito, cancelacion);
@@ -138,6 +142,20 @@ internal sealed class ServicioDevoluciones(
 
             emision = await emisorEcf.EmitirNotaCreditoAsync(devolucion, cancelacion);
             devolucion.AsignarComprobante(emision.Documento.Encf);
+
+            // La devolución reversa los puntos que acumuló la compra, en proporción a lo devuelto (RF-244, RN-21).
+            if (venta.TieneFidelidad && venta.PuntosAcumulados > 0)
+            {
+                var yaReversados = await contexto.Devoluciones.AsNoTracking().Where(d => d.VentaOrigenId == venta.Id).SumAsync(d => d.PuntosReversados, cancelacion);
+                var puntos = ReglasFidelidad.PuntosAReversar(venta.PuntosAcumulados, yaReversados, venta.CalcularTotales().Total, devolucion.Total, devolucion.EsTotal);
+                if (puntos > 0)
+                {
+                    var miembro = await contexto.MiembrosFidelidad.AsNoTracking().SingleAsync(m => m.Id == venta.FidelidadMiembroId, cancelacion);
+                    reversoPuntos = MovimientoPuntos.Reverso(miembro, puntos, venta.Id, devolucion.Id, devolucion.Numero, devolucion.CajaId, ahora);
+                    contexto.MovimientosPuntos.Add(reversoPuntos);
+                    devolucion.RegistrarReversoPuntos(puntos);
+                }
+            }
         }
         catch (ReglaDevolucionExcepcion excepcion)
         {
@@ -160,6 +178,8 @@ internal sealed class ServicioDevoluciones(
         var datos = devolucion.ADatos(emision.Documento, Hoy);
         bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Id,
             new DocumentoNotaCreditoEmitida(datos, devolucion.SucursalId, devolucion.CajaId, devolucion.TurnoId, emision.ParaCentral));
+        if (reversoPuntos is not null)
+            bandejaSalida.Encolar("Fidelidad.MovimientoPuntos", reversoPuntos.Id, reversoPuntos.ADocumento(devolucion.SucursalId));
         auditoria.Registrar(new EntradaAuditoria("Devoluciones.NotaCreditoEmitida", TipoEntidadDevolucion, devolucion.Numero,
             Detalle: new
             {

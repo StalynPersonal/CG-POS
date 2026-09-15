@@ -114,7 +114,14 @@ public sealed record DatosVenta(
     decimal Devuelta = 0m,
     decimal RedondeoEfectivo = 0m,
     DateTimeOffset? CobradaEn = null,
-    DatosComprobanteElectronico? Comprobante = null);
+    DatosComprobanteElectronico? Comprobante = null,
+    DatosFidelidadVenta? Fidelidad = null);
+
+/// <summary>Miembro del programa de fidelidad de la venta y los puntos que acumuló y canjeó al cobrar.</summary>
+public sealed record DatosFidelidadVenta(Guid MiembroId, string Cedula, string Nombre, string? Nivel, int PuntosAcumulados, int PuntosCanjeados);
+
+/// <summary>Cédula del miembro del programa de fidelidad (ID/PIN, RF-236).</summary>
+public sealed record SolicitudAsignarFidelidad(string Cedula);
 
 /// <summary>Resumen de una factura en espera del cajero en su turno (RF-22, RF-197).</summary>
 public sealed record DatosVentaEnEspera(
@@ -191,6 +198,7 @@ public enum CodigoResultadoVenta
     CertificadoNoCargado,
     ComprobanteNoDisponible,
     EcfInvalido,
+    NoInscritoFidelidad,
 }
 
 /// <summary>Resultado de una operación sobre la venta: la venta actualizada o el motivo del rechazo.</summary>

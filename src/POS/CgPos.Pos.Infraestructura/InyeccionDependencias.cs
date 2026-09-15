@@ -88,6 +88,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IServicioTurnos, ServicioTurnos>();
         servicios.AddScoped<IServicioCaja, Turnos.ServicioCaja>();
         servicios.AddScoped<Aplicacion.Devoluciones.IServicioDevoluciones, Devoluciones.ServicioDevoluciones>();
+        servicios.AddScoped<Aplicacion.Fidelidad.IServicioFidelidad, Fidelidad.ServicioFidelidad>();
         servicios.AddScoped<ServicioVentas>();
         servicios.AddScoped<IServicioVentas>(proveedor => proveedor.GetRequiredService<ServicioVentas>());
         servicios.AddScoped<IServicioCobro>(proveedor => proveedor.GetRequiredService<ServicioVentas>());

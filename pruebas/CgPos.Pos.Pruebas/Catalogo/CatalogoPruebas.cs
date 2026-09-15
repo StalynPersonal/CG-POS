@@ -327,7 +327,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var cobro = await ambito.ServiceProvider.GetRequiredService<IConsultaCatalogoCobro>().ObtenerAsync();
 
         var mias = cobro.FormasPago.Where(f => f.Codigo.EndsWith(escenario.Sufijo)).ToList();
-        Assert.Equal(new[] { $"EFE{escenario.Sufijo}", $"TAR{escenario.Sufijo}", $"NC{escenario.Sufijo}" }, mias.Select(f => f.Codigo));
+        Assert.Equal(new[] { $"EFE{escenario.Sufijo}", $"TAR{escenario.Sufijo}", $"NC{escenario.Sufijo}", $"PUN{escenario.Sufijo}" }, mias.Select(f => f.Codigo));
         Assert.True(mias[0].AbreGaveta);
         Assert.Contains(cobro.Bancos, b => b.Id == escenario.Banco);
         Assert.Contains(cobro.TiposTarjeta, t => t.Id == escenario.TipoTarjeta);

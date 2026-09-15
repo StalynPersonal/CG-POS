@@ -3,6 +3,7 @@ using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Fidelidad;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
@@ -17,6 +18,7 @@ using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Ecf;
+using CgPos.Pos.Infraestructura.Fidelidad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +50,10 @@ internal static class ConversionesVenta
 
         var cliente = venta.ClienteNombre is { } nombre
             ? new DatosClienteVenta(venta.ClienteId, venta.ClienteTipoDocumento, venta.ClienteDocumento, nombre)
+            : null;
+
+        var fidelidad = venta.FidelidadMiembroId is { } miembroId
+            ? new DatosFidelidadVenta(miembroId, venta.FidelidadCedula!, venta.FidelidadNombre!, venta.FidelidadNivel, venta.PuntosAcumulados, venta.PuntosCanjeados)
             : null;
 
         return new DatosVenta(
@@ -96,7 +102,8 @@ internal static class ConversionesVenta
             documento is null
                 ? null
                 : new DatosComprobanteElectronico(documento.Encf, documento.TipoComprobante, documento.CodigoSeguridad, documento.FechaFirma, documento.UrlTimbre,
-                    documento.Estado, venceSecuencia));
+                    documento.Estado, venceSecuencia),
+            fidelidad);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -295,6 +302,17 @@ internal sealed class ServicioVentas(
         if (solicitados.Rechazo is { } pagoRechazado)
             return new RespuestaCobro(pagoRechazado.Codigo, pagoRechazado.Mensaje, null, null, Datos(venta));
 
+        // El canje de puntos requiere permiso o clave de supervisor (RF-239); el saldo ya se validó.
+        ResultadoPermiso? permisoCanje = null;
+        if (solicitados.PuntosCanjeados > 0)
+        {
+            permisoCanje = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.CanjearPuntos, autorizacionId, TipoEntidadVenta, venta.NumeroTransaccion, cancelacion);
+            if (!permisoCanje.Permitido)
+                return new RespuestaCobro(
+                    permisoCanje.AutorizacionRechazada ? CodigoResultadoVenta.AutorizacionInvalida : CodigoResultadoVenta.RequiereAutorizacion,
+                    "El canje de puntos requiere autorización de un supervisor.", null, null, Datos(venta), CatalogoPermisos.CanjearPuntos);
+        }
+
         var paso = await parametros.ObtenerDecimalAsync(ClavesParametros.PasoRedondeoEfectivo, sesion.CajaId, cancelacion);
         ResultadoCobro resultado;
         try
@@ -310,6 +328,8 @@ internal sealed class ServicioVentas(
 
         foreach (var operacion in solicitados.Operaciones)
             operacion.MarcarUsada();
+
+        var movimientosPuntos = await PuntosDelCobroAsync(venta, resultado, solicitados.PuntosCanjeados, ahora, cancelacion);
 
         // El e-CF se emite y firma dentro de la misma transacción del cobro: si algo falla no se consume la secuencia.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
@@ -336,6 +356,13 @@ internal sealed class ServicioVentas(
                 new DocumentoConsumoNotaCredito(nota.Id, nota.Encf, venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, saldo, ahora));
         }
 
+        // Puntos acumulados y canjeados: van al Central, que lleva el saldo oficial.
+        foreach (var movimiento in movimientosPuntos)
+        {
+            contexto.MovimientosPuntos.Add(movimiento);
+            bandejaSalida.Encolar("Fidelidad.MovimientoPuntos", movimiento.Id, movimiento.ADocumento(venta.SucursalId));
+        }
+
         // Documento, e-CF, mensaje para el Central y auditoría en la misma transacción (RF-270).
         var datosVenta = venta.ADatos(_montoIdentificacion, emision.Documento, emision.VenceSecuencia);
         bandejaSalida.Encolar("Venta.Cobrada", venta.Id,
@@ -349,10 +376,13 @@ internal sealed class ServicioVentas(
                 resultado.Devuelta,
                 resultado.Redondeo,
                 Pagos = venta.Pagos.Select(p => new { p.FormaPagoCodigo, p.MontoRecibido, p.MontoAplicado, p.Referencia, p.AprobacionManual }),
+                venta.FidelidadCedula,
+                venta.PuntosAcumulados,
+                venta.PuntosCanjeados,
             },
-            Motivo: permiso?.Motivo,
+            Motivo: (permiso ?? permisoCanje)?.Motivo,
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
-            AutorizadoPor: permiso is null ? null : Autorizador(permiso)));
+            AutorizadoPor: (permiso ?? permisoCanje) is { } autorizo ? Autorizador(autorizo) : null));
 
         try
         {
@@ -434,9 +464,48 @@ internal sealed class ServicioVentas(
         IReadOnlyList<PagoSolicitado> Pagos,
         IReadOnlyList<OperacionTerminal> Operaciones,
         IReadOnlyList<(Devolucion Nota, decimal Monto)> NotasCredito,
-        (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo)
+        (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo,
+        int PuntosCanjeados = 0)
     {
         public static PagosArmados Rechazado(CodigoResultadoVenta codigo, string mensaje) => new([], [], [], (codigo, mensaje));
+    }
+
+    /// <summary>
+    /// Puntos de la venta cobrada de un miembro (RF-238, RF-239): acumula según las reglas vigentes y el factor de su nivel sobre lo que no
+    /// pagó con puntos, y registra el canje. Sin reglas configuradas no acumula.
+    /// </summary>
+    private async Task<IReadOnlyList<MovimientoPuntos>> PuntosDelCobroAsync(Venta venta, ResultadoCobro resultado, int puntosCanjeados, DateTimeOffset ahora,
+        CancellationToken cancelacion)
+    {
+        if (!venta.TieneFidelidad)
+            return [];
+
+        var miembro = await contexto.MiembrosFidelidad.AsNoTracking().SingleAsync(m => m.Id == venta.FidelidadMiembroId, cancelacion);
+        var reglas = await contexto.ReglasAcumulacion.AsNoTracking().Where(r => r.Activa).ToListAsync(cancelacion);
+        var factor = miembro.NivelId is { } nivelId
+            ? await contexto.NivelesFidelidad.AsNoTracking().Where(n => n.Id == nivelId && n.Activo).Select(n => (decimal?)n.FactorAcumulacion).FirstOrDefaultAsync(cancelacion)
+            : null;
+
+        var pagadoConPuntos = venta.Pagos.Where(p => p.Tipo == TipoFormaPago.Puntos).Sum(p => p.MontoAplicado);
+        var proporcion = resultado.TotalCobrado <= 0 ? 0m : 1m - pagadoConPuntos / resultado.TotalCobrado;
+        var ahoraLocal = reloj.GetLocalNow();
+        var acumulados = ReglasFidelidad.CalcularPuntos(
+            venta.Lineas.Where(l => l.EstaActiva).Select(l => new LineaPuntuable(l.ArticuloId, l.FamiliaId, l.PromocionId, l.ImporteConImpuesto)),
+            reglas, factor ?? 1m, proporcion, ahoraLocal);
+        venta.RegistrarPuntos(acumulados, puntosCanjeados);
+
+        var movimientos = new List<MovimientoPuntos>();
+        if (acumulados > 0)
+        {
+            var meses = await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.MesesVigenciaPuntos, venta.CajaId, cancelacion);
+            DateOnly? vence = meses is { } vigencia ? DateOnly.FromDateTime(ahoraLocal.DateTime).AddMonths((int)vigencia) : null;
+            movimientos.Add(MovimientoPuntos.Acumulacion(miembro, acumulados, venta.Id, venta.NumeroTransaccion, venta.CajaId, ahora, vence));
+        }
+
+        if (puntosCanjeados > 0)
+            movimientos.Add(MovimientoPuntos.Canje(miembro, puntosCanjeados, venta.Id, venta.NumeroTransaccion, venta.CajaId, ahora));
+
+        return movimientos;
     }
 
     /// <summary>Completa cada pago con los datos del maestro, la tasa del día y la aprobación registrada del terminal.</summary>
@@ -455,13 +524,12 @@ internal sealed class ServicioVentas(
         var solicitados = new List<PagoSolicitado>();
         var usadas = new List<OperacionTerminal>();
         var notas = new List<(Devolucion Nota, decimal Monto)>();
+        var puntosCanje = 0;
         var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
         foreach (var pago in pagos)
         {
             if (!formas.TryGetValue(pago.FormaPagoId, out var forma))
                 return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, "La forma de pago no existe o está inactiva.");
-            if (forma.Tipo == TipoFormaPago.Puntos)
-                return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, $"{forma.Nombre} todavía no está disponible en esta caja.");
 
             var referencia = pago.Referencia;
             var ultimosDigitos = pago.UltimosDigitos;
@@ -512,6 +580,32 @@ internal sealed class ServicioVentas(
                 referencia = nota.Encf;
             }
 
+            // Puntos del miembro de la venta al valor configurado, con saldo, mínimo y tope sin conexión (RF-239, RF-243).
+            if (forma.Tipo == TipoFormaPago.Puntos)
+            {
+                if (!venta.TieneFidelidad)
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, "Para canjear puntos asigne primero la cédula del cliente en el programa de fidelidad.");
+
+                var valorPunto = await parametros.ObtenerDecimalAsync(ClavesParametros.ValorPuntoFidelidad, venta.CajaId, cancelacion);
+                var puntos = ReglasFidelidad.PuntosParaMonto(decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero), valorPunto);
+                var miembro = await contexto.MiembrosFidelidad.AsNoTracking().SingleAsync(m => m.Id == venta.FidelidadMiembroId, cancelacion);
+                var disponibles = await contexto.SaldoPuntosAsync(miembro, hoy, cancelacion) - puntosCanje;
+                var minimo = await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.MinimoPuntosCanje, venta.CajaId, cancelacion);
+                var maximo = await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.MaximoPuntosCanjeSinConexion, venta.CajaId, cancelacion);
+
+                if (puntos > disponibles)
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido,
+                        $"{miembro.Nombre} tiene {Math.Max(0, disponibles):N0} puntos disponibles; {venta.SimboloMoneda}{pago.MontoRecibido:N2} requieren {puntos:N0}.");
+                if (minimo is { } puntosMinimos && puntos < puntosMinimos)
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, $"El canje mínimo es de {puntosMinimos:N0} puntos.");
+                if (maximo is { } puntosMaximos && puntosCanje + puntos > puntosMaximos)
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido,
+                        $"Mientras la caja no confirme el saldo con el Central se canjean hasta {puntosMaximos:N0} puntos por transacción.");
+
+                puntosCanje += puntos;
+                referencia = $"{puntos} pts · {miembro.Cedula}";
+            }
+
             var formaCobro = new FormaPagoParaCobro(forma.Id, forma.Codigo, forma.Nombre, forma.Tipo, forma.Moneda, forma.PermiteDevuelta,
                 forma.RequiereReferencia, forma.RequiereBanco, forma.PermiteComprobanteFiscal, forma.AbreGaveta);
 
@@ -529,7 +623,7 @@ internal sealed class ServicioVentas(
                 operacionId));
         }
 
-        return new PagosArmados(solicitados, usadas, notas, null);
+        return new PagosArmados(solicitados, usadas, notas, null, puntosCanje);
     }
 
     private Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
@@ -675,6 +769,41 @@ internal sealed class ServicioVentas(
             return rechazo;
 
         return await EjecutarAsync(venta!, () => venta!.QuitarCliente(reloj.GetUtcNow()), cancelacion);
+    }
+
+    public async Task<RespuestaVenta> AsignarFidelidadAsync(SesionUsuario sesion, Guid ventaId, string cedula, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        string normalizada;
+        try
+        {
+            normalizada = MiembroFidelidad.ValidarCedula(cedula);
+        }
+        catch (ArgumentException)
+        {
+            return new RespuestaVenta(CodigoResultadoVenta.DocumentoInvalido, "Digite la cédula del miembro del programa de fidelidad (11 dígitos).", Datos(venta!));
+        }
+
+        var miembro = await contexto.MiembrosFidelidad.AsNoTracking().SingleOrDefaultAsync(m => m.Cedula == normalizada && m.Activo, cancelacion);
+        if (miembro is null)
+            return new RespuestaVenta(CodigoResultadoVenta.NoInscritoFidelidad,
+                $"La cédula {normalizada} no está inscrita en el programa de fidelidad. Puede inscribirla ahora.", Datos(venta!));
+
+        var nivel = await contexto.NombreNivelAsync(miembro.NivelId, cancelacion);
+        return await EjecutarAsync(venta!, () => venta!.AsignarFidelidad(new MiembroVenta(miembro.Id, miembro.Cedula, miembro.Nombre, nivel), reloj.GetUtcNow()),
+            cancelacion);
+    }
+
+    public async Task<RespuestaVenta> QuitarFidelidadAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        return await EjecutarAsync(venta!, () => venta!.QuitarFidelidad(reloj.GetUtcNow()), cancelacion);
     }
 
     public async Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default)

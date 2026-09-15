@@ -25,7 +25,43 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<TasaCambioCarga>? TasasCambio = null,
     IReadOnlyList<SecuenciaEcfCarga>? SecuenciasEcf = null,
     IReadOnlyList<MotivoDevolucionCarga>? MotivosDevolucion = null,
-    IReadOnlyList<MonedaCarga>? Monedas = null);
+    IReadOnlyList<MonedaCarga>? Monedas = null,
+    IReadOnlyList<NivelFidelidadCarga>? NivelesFidelidad = null,
+    IReadOnlyList<ReglaAcumulacionCarga>? ReglasAcumulacion = null,
+    IReadOnlyList<MiembroFidelidadCarga>? MiembrosFidelidad = null);
+
+/// <summary>Nivel del programa de fidelidad (RF-241): el factor multiplica los puntos que acumula.</summary>
+public sealed record NivelFidelidadCarga(Guid Id, string Codigo, string Nombre, int Orden, decimal FactorAcumulacion, bool Activo = true);
+
+/// <summary>Regla de acumulación (RF-238): <paramref name="Puntos"/> por cada <paramref name="MontoBase"/> comprado de lo que abarca.</summary>
+/// <param name="ReferenciaId">Familia, artículo o promoción según el tipo.</param>
+public sealed record ReglaAcumulacionCarga(
+    Guid Id,
+    string Codigo,
+    string Nombre,
+    CgPos.Dominio.Fidelidad.TipoReglaAcumulacion Tipo,
+    decimal MontoBase,
+    decimal Puntos,
+    Guid? ReferenciaId = null,
+    DayOfWeek? DiaSemana = null,
+    DateTimeOffset? VigenteDesde = null,
+    DateTimeOffset? VigenteHasta = null,
+    bool Activa = true);
+
+/// <summary>Miembro del programa con el saldo que calculó el Central (RF-240, RF-242).</summary>
+public sealed record MiembroFidelidadCarga(
+    Guid Id,
+    string Cedula,
+    string Nombre,
+    string? Telefono = null,
+    string? Correo = null,
+    Guid? NivelId = null,
+    int SaldoPuntos = 0,
+    DateTimeOffset? SaldoAl = null,
+    int PuntosPorVencer = 0,
+    DateOnly? ProximoVencimiento = null,
+    DateTimeOffset? InscritoEn = null,
+    bool Activo = true);
 
 /// <summary>Moneda del maestro del Central (ISO 4217) con su símbolo para pantallas y tickets.</summary>
 public sealed record MonedaCarga(Guid Id, string Codigo, string Nombre, string Simbolo, bool Activa = true);

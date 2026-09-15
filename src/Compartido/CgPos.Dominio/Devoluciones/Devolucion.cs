@@ -138,6 +138,9 @@ public sealed class Devolucion : Entidad
 
     public string SimboloMoneda { get; private set; } = string.Empty;
 
+    /// <summary>Puntos de fidelidad reversados de la compra original (RF-244, RN-21).</summary>
+    public int PuntosReversados { get; private set; }
+
     public DateOnly VenceEn { get; private set; }
     public DateTimeOffset CreadaEn { get; private set; }
 
@@ -252,6 +255,12 @@ public sealed class Devolucion : Entidad
 
     public EstadoNotaCredito EstadoSaldo(DateOnly hoy) =>
         Saldo <= 0m ? EstadoNotaCredito.Consumida : hoy > VenceEn ? EstadoNotaCredito.Vencida : EstadoNotaCredito.Vigente;
+
+    public void RegistrarReversoPuntos(int puntos)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(puntos);
+        PuntosReversados = puntos;
+    }
 
     /// <summary>Consume saldo de la nota como forma de pago de otra venta (RF-36, RF-38). Devuelve el saldo que queda (RF-43).</summary>
     public decimal Consumir(Guid ventaId, string ventaNumero, Guid cajaId, decimal monto, DateOnly hoy, DateTimeOffset ahora)

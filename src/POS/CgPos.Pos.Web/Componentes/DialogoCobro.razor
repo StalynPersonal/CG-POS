@@ -68,6 +68,13 @@
                             }
                         </MudText>
 
+                        @if (seleccionada.Tipo == TipoFormaPago.Puntos && _miembro is { } miembro)
+                        {
+                            <MudText Typo="Typo.body2">
+                                @miembro.Nombre · @miembro.SaldoDisponible.ToString("N0") puntos disponibles@(miembro.ValorEnMoneda is { } valor ? $" (equivalen a {valor:C})" : null)
+                            </MudText>
+                        }
+
                         <div @onclick="() => _campo = Campo.Monto">
                             <MudTextField T="string" @bind-Value="_monto" Label="@($"Monto ({seleccionada.Moneda})")" Variant="Variant.Outlined" Immediate="true"
                                           AutoFocus="true" Class="@($"cg-dialogo-teclado__campo {ClaseCampo(Campo.Monto)}")" />
@@ -179,6 +186,7 @@
     private readonly List<PagoAgregado> _pagos = [];
     private DatosCatalogoCobro? _catalogo;
     private DatosFormaPago? _forma;
+    private DatosMiembroFidelidad? _miembro;
     private string _monto = string.Empty;
     private string _referencia = string.Empty;
     private string _digitos = string.Empty;
@@ -215,6 +223,10 @@
             return;
         }
 
+        // Saldo de puntos del miembro para canjearlos (RF-239, RF-240).
+        if (Venta.Fidelidad is { } fidelidad)
+            _miembro = (await Cliente.ConsultarFidelidadAsync(fidelidad.Cedula)).Miembro;
+
         if (_catalogo.FormasPago.FirstOrDefault(Disponible) is { } primera)
             SeleccionarForma(primera);
     }
@@ -225,7 +237,7 @@
 
     /// <summary>Los puntos llegan con la fidelidad; bonos no aplican con crédito fiscal (RF-117); sin tasa no hay dólares.</summary>
     private bool Disponible(DatosFormaPago forma) =>
-        forma.Tipo is not TipoFormaPago.Puntos
+        (forma.Tipo is not TipoFormaPago.Puntos || Venta.Fidelidad is not null)
         && (forma.Moneda == MonedaLocal || Tasa(forma.Moneda) is not null)
         && (forma.PermiteComprobanteFiscal || Venta.TipoComprobante == TipoComprobante.FacturaConsumo);
 
@@ -432,7 +444,8 @@
 
         if (respuesta.Resultado is CodigoResultadoVenta.RequiereAutorizacion or CodigoResultadoVenta.AutorizacionInvalida && respuesta.PermisoRequerido is { } permiso)
         {
-            var autorizacion = await Autorizaciones.SolicitarAsync(permiso, "Aprobación manual de tarjeta", "Venta", Venta.NumeroTransaccion);
+            var descripcion = permiso == CatalogoPermisos.CanjearPuntos ? "Canje de puntos de fidelidad" : "Aprobación manual de tarjeta";
+            var autorizacion = await Autorizaciones.SolicitarAsync(permiso, descripcion, "Venta", Venta.NumeroTransaccion);
             if (autorizacion is null)
             {
                 _procesando = false;

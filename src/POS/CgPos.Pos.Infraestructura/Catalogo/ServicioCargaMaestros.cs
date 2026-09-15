@@ -67,6 +67,9 @@ internal sealed class ServicioCargaMaestros(
         var secuenciasEcf = paquete.SecuenciasEcf ?? [];
         var motivosDevolucion = paquete.MotivosDevolucion ?? [];
         var monedas = paquete.Monedas ?? [];
+        var nivelesFidelidad = paquete.NivelesFidelidad ?? [];
+        var reglasAcumulacion = paquete.ReglasAcumulacion ?? [];
+        var miembrosFidelidad = paquete.MiembrosFidelidad ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -109,6 +112,12 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarSecuenciaEcfAsync(dato, cancelacion);
             foreach (var dato in motivosDevolucion)
                 await AplicarMotivoDevolucionAsync(dato, cancelacion);
+            foreach (var dato in nivelesFidelidad)
+                await AplicarNivelFidelidadAsync(dato, cancelacion);
+            foreach (var dato in reglasAcumulacion)
+                await AplicarReglaAcumulacionAsync(dato, cancelacion);
+            foreach (var dato in miembrosFidelidad)
+                await AplicarMiembroFidelidadAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -448,6 +457,75 @@ internal sealed class ServicioCargaMaestros(
         promocion.AsignarAlcance(dato.Articulos, dato.Familias, dato.Sucursales);
         promocion.ConfigurarFidelidad(dato.SoloFidelidad);
         if (dato.Activa) promocion.Activar(); else promocion.Desactivar();
+    }
+
+    private async Task AplicarNivelFidelidadAsync(NivelFidelidadCarga dato, CancellationToken cancelacion)
+    {
+        var nivel = await contexto.NivelesFidelidad.SingleOrDefaultAsync(n => n.Id == dato.Id, cancelacion);
+        if (nivel is null)
+        {
+            nivel = Dominio.Fidelidad.NivelFidelidad.Crear(dato.Codigo, dato.Nombre, dato.Orden, dato.FactorAcumulacion, dato.Id);
+            contexto.NivelesFidelidad.Add(nivel);
+            _creados++;
+        }
+        else
+        {
+            if (nivel.Codigo != dato.Codigo.Trim().ToUpperInvariant())
+                throw new InvalidOperationException($"No se puede cambiar el código del nivel de fidelidad '{nivel.Codigo}'.");
+            nivel.Actualizar(dato.Nombre, dato.Orden, dato.FactorAcumulacion);
+            _actualizados++;
+        }
+
+        if (dato.Activo) nivel.Activar(); else nivel.Desactivar();
+    }
+
+    private async Task AplicarReglaAcumulacionAsync(ReglaAcumulacionCarga dato, CancellationToken cancelacion)
+    {
+        var regla = await contexto.ReglasAcumulacion.SingleOrDefaultAsync(r => r.Id == dato.Id, cancelacion);
+        if (regla is null)
+        {
+            regla = Dominio.Fidelidad.ReglaAcumulacion.Crear(dato.Codigo, dato.Nombre, dato.Tipo, dato.MontoBase, dato.Puntos, dato.ReferenciaId, dato.DiaSemana,
+                dato.VigenteDesde, dato.VigenteHasta, dato.Id);
+            contexto.ReglasAcumulacion.Add(regla);
+            _creados++;
+        }
+        else
+        {
+            if (regla.Codigo != dato.Codigo.Trim().ToUpperInvariant())
+                throw new InvalidOperationException($"No se puede cambiar el código de la regla de acumulación '{regla.Codigo}'.");
+            regla.Actualizar(dato.Nombre, dato.Tipo, dato.MontoBase, dato.Puntos, dato.ReferenciaId, dato.DiaSemana, dato.VigenteDesde, dato.VigenteHasta);
+            _actualizados++;
+        }
+
+        if (dato.Activa) regla.Activar(); else regla.Desactivar();
+    }
+
+    /// <summary>Miembros y saldos que calcula el Central; una inscripción hecha en caja se confirma con el mismo Id.</summary>
+    private async Task AplicarMiembroFidelidadAsync(MiembroFidelidadCarga dato, CancellationToken cancelacion)
+    {
+        var cedula = Dominio.Fidelidad.MiembroFidelidad.ValidarCedula(dato.Cedula);
+        var miembro = await contexto.MiembrosFidelidad.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion);
+        if (miembro is null)
+        {
+            if (await contexto.MiembrosFidelidad.AnyAsync(m => m.Cedula == cedula, cancelacion))
+                throw new InvalidOperationException($"La cédula {cedula} ya está inscrita en la caja con otro Id; el Central debe conservar el Id de la inscripción.");
+
+            miembro = Dominio.Fidelidad.MiembroFidelidad.DesdeCentral(cedula, dato.Nombre, dato.InscritoEn ?? reloj.GetUtcNow(), dato.Id);
+            contexto.MiembrosFidelidad.Add(miembro);
+            _creados++;
+        }
+        else
+        {
+            if (miembro.Cedula != cedula)
+                throw new InvalidOperationException($"No se puede cambiar la cédula del miembro {miembro.Cedula}.");
+            _actualizados++;
+        }
+
+        miembro.ActualizarContacto(dato.Nombre, dato.Telefono, dato.Correo);
+        miembro.AsignarNivel(dato.NivelId);
+        if (dato.SaldoAl is { } saldoAl)
+            miembro.SincronizarSaldo(dato.SaldoPuntos, saldoAl, dato.PuntosPorVencer, dato.ProximoVencimiento);
+        if (dato.Activo) miembro.Activar(); else miembro.Desactivar();
     }
 
     private async Task AplicarMotivoDescuentoAsync(MotivoDescuentoCarga dato, CancellationToken cancelacion)

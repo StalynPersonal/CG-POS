@@ -36,6 +36,15 @@ public sealed class EscenarioCatalogo
     public Guid FormaNotaCredito { get; } = Guid.CreateVersion7();
     public Guid TopeGeneral { get; } = Guid.CreateVersion7();
     public Guid MotivoDevolucion { get; } = Guid.CreateVersion7();
+    public Guid FormaPuntos { get; } = Guid.CreateVersion7();
+    public Guid NivelOro { get; } = Guid.CreateVersion7();
+    public Guid ReglaGeneral { get; } = Guid.CreateVersion7();
+    public Guid ReglaFerreteria { get; } = Guid.CreateVersion7();
+    public Guid Miembro { get; } = Guid.CreateVersion7();
+    public string CedulaMiembro { get; } = CedulaAleatoriaValida();
+
+    /// <summary>Saldo que el Central sincronizó para el miembro del escenario.</summary>
+    public const int SaldoMiembro = 500;
     public string CodigoMotivoDevolucion => $"DEF{Sufijo}";
 
     public string CodigoFerreteria => $"FER{Sufijo}";
@@ -117,6 +126,20 @@ public sealed class EscenarioCatalogo
                 new FormaPagoCarga(FormaTarjeta, $"TAR{Sufijo}", "Tarjeta", TipoFormaPago.Tarjeta, 2, "DOP"),
                 new FormaPagoCarga(FormaEfectivo, $"EFE{Sufijo}", "Efectivo", TipoFormaPago.Efectivo, 1, "DOP"),
                 new FormaPagoCarga(FormaNotaCredito, $"NC{Sufijo}", "Nota de crédito", TipoFormaPago.NotaCredito, 3, "DOP", RequiereReferencia: true, PermiteDevuelta: false),
+                new FormaPagoCarga(FormaPuntos, $"PUN{Sufijo}", "Puntos", TipoFormaPago.Puntos, 4, "DOP"),
+            ],
+            // Programa de fidelidad: 1 punto por cada 100 en todo y 2 en ferretería; el nivel Oro acumula 50 % más.
+            NivelesFidelidad: [new NivelFidelidadCarga(NivelOro, $"ORO{Sufijo}", "Oro", 2, 1.5m)],
+            ReglasAcumulacion:
+            [
+                new ReglaAcumulacionCarga(ReglaGeneral, $"GEN{Sufijo}", "Compras en general", CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Monto, 100m, 1m),
+                new ReglaAcumulacionCarga(ReglaFerreteria, $"FER{Sufijo}", "Ferretería doble", CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Familia, 100m, 2m,
+                    FamiliaFerreteria),
+            ],
+            MiembrosFidelidad:
+            [
+                new MiembroFidelidadCarga(Miembro, CedulaMiembro, $"Miembro {Sufijo}", NivelId: NivelOro, SaldoPuntos: SaldoMiembro,
+                    SaldoAl: EscenarioSeguridad.Inicio.AddDays(-1)),
             ],
             MotivosDevolucion: [new MotivoDevolucionCarga(MotivoDevolucion, CodigoMotivoDevolucion, "Artículo defectuoso")],
             Bancos: [new BancoCarga(Banco, $"BAN{Sufijo}", $"Banco {Sufijo}")],
@@ -149,6 +172,16 @@ public sealed class EscenarioCatalogo
                 if (DocumentoIdentidad.RncValido(candidato))
                     return candidato;
             }
+        }
+    }
+
+    public static string CedulaAleatoriaValida()
+    {
+        while (true)
+        {
+            var candidata = Random.Shared.NextInt64(1_000_000_000L, 9_999_999_999L).ToString() + Random.Shared.Next(0, 10);
+            if (DocumentoIdentidad.CedulaValida(candidata))
+                return candidata;
         }
     }
 

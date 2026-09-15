@@ -111,7 +111,7 @@ public sealed class EscenarioSeguridad
                      CatalogoPermisos.DescuentoLinea, CatalogoPermisos.DescuentoFactura, CatalogoPermisos.DesactivarPromocion,
                      CatalogoPermisos.AprobacionManualTarjeta, CatalogoPermisos.AbrirGaveta, CatalogoPermisos.CerrarTurno,
                      CatalogoPermisos.RetiroEfectivo, CatalogoPermisos.RelevoCajero, CatalogoPermisos.PreCierre, CatalogoPermisos.ReabrirCierre,
-                     CatalogoPermisos.AutorizarDevolucion]),
+                     CatalogoPermisos.AutorizarDevolucion, CatalogoPermisos.CanjearPuntos]),
             ],
             Usuarios:
             [
@@ -124,6 +124,9 @@ public sealed class EscenarioSeguridad
             Parametros:
             [
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MonedaLocal, "DOP", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.ValorPuntoFidelidad, "1", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MesesVigenciaPuntos, "12", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MaximoPuntosCanjeSinConexion, "5000", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosPin, "3", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosBloqueo, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosVigenciaAutorizacion, "5", CajaId: CajaUno),

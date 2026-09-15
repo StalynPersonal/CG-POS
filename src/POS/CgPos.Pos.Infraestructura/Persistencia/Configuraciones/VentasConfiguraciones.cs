@@ -53,6 +53,7 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
         constructor.Property(v => v.MotivoDescuentoFactura).HasMaxLength(Venta.LargoMaximoMotivo);
         constructor.Property(v => v.DescuentoFacturaAutorizadoPorNombre).HasMaxLength(Venta.LargoMaximoUsuario);
         constructor.Ignore(v => v.TieneLineasActivas);
+        constructor.ConfigurarFidelidad();
 
         constructor.HasIndex(v => v.NumeroTransaccion).IsUnique();
         constructor.HasIndex(v => new { v.CajaId, v.Secuencia }).IsUnique();
