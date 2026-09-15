@@ -58,6 +58,8 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             anfitrion.UseSetting($"ConnectionStrings:{InyeccionDependencias.NombreConexion}", cadenaConexion);
             anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", configuracion["BaseDatos:NivelCompatibilidad"]);
             anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "central.desarrollo.json"));
+            anfitrion.UseSetting("CargaInicialCajas:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "carga-inicial.desarrollo.json"));
+            anfitrion.UseSetting("Maestros:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "maestros.desarrollo.json"));
             anfitrion.UseSetting(EmisorTokensCentral.ClaveConfiguracion, Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             anfitrion.UseSetting(ExtensionesSeguridadCentral.ClaveExigirHttps, "true");
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);

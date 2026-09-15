@@ -71,6 +71,29 @@ internal sealed class ConflictoSincronizacionConfiguracion : IEntityTypeConfigur
     }
 }
 
+internal sealed class MaestroCentralConfiguracion : IEntityTypeConfiguration<MaestroCentral>
+{
+    public void Configure(EntityTypeBuilder<MaestroCentral> constructor)
+    {
+        constructor.ToTable("MaestrosCentral");
+        constructor.HasKey(m => new { m.Tipo, m.Id });
+
+        constructor.Property(m => m.Tipo).HasConversion<string>().HasMaxLength(40);
+        constructor.Property(m => m.Codigo).HasMaxLength(MaestroCentral.LargoMaximoCodigo);
+        constructor.Property(m => m.Contenido).IsRequired().Metadata.SetMaxLength(null);
+        constructor.Property(m => m.ModificadoPor).HasMaxLength(MaestroCentral.LargoMaximoUsuario).IsRequired();
+
+        constructor.HasOne<Caja>().WithMany().HasForeignKey(m => m.CajaId).OnDelete(DeleteBehavior.Restrict);
+
+        // Un código (artículo, cédula del miembro…) no se repite dentro de su tipo.
+        constructor.HasIndex(m => new { m.Tipo, m.Codigo }).IsUnique().HasFilter("[Codigo] IS NOT NULL");
+
+        // La bajada a las cajas filtra por versión de fila.
+        constructor.Property<long>(ContextoDatosCentral.ColumnaVersion).IsRowVersion().HasConversion<byte[]>();
+        constructor.HasIndex(ContextoDatosCentral.ColumnaVersion);
+    }
+}
+
 internal sealed class EstadoSincronizacionCajaConfiguracion : IEntityTypeConfiguration<EstadoSincronizacionCaja>
 {
     public void Configure(EntityTypeBuilder<EstadoSincronizacionCaja> constructor)

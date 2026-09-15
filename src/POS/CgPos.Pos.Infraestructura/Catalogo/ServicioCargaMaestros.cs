@@ -507,12 +507,12 @@ internal sealed class ServicioCargaMaestros(
     private async Task AplicarMiembroFidelidadAsync(MiembroFidelidadCarga dato, CancellationToken cancelacion)
     {
         var cedula = Dominio.Fidelidad.MiembroFidelidad.ValidarCedula(dato.Cedula);
-        var miembro = await contexto.MiembrosFidelidad.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion);
+        // La misma persona inscrita sin conexión en dos cajas llega del Central con el Id que conservó (RN-24): esta caja actualiza su registro por la
+        // cédula (los movimientos de puntos viajan con la cédula) en lugar de detener la sincronización.
+        var miembro = await contexto.MiembrosFidelidad.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion)
+            ?? await contexto.MiembrosFidelidad.SingleOrDefaultAsync(m => m.Cedula == cedula, cancelacion);
         if (miembro is null)
         {
-            if (await contexto.MiembrosFidelidad.AnyAsync(m => m.Cedula == cedula, cancelacion))
-                throw new InvalidOperationException($"La cédula {cedula} ya está inscrita en la caja con otro Id; el Central debe conservar el Id de la inscripción.");
-
             miembro = Dominio.Fidelidad.MiembroFidelidad.DesdeCentral(cedula, dato.Nombre, dato.InscritoEn ?? reloj.GetUtcNow(), dato.Id);
             contexto.MiembrosFidelidad.Add(miembro);
             _creados++;

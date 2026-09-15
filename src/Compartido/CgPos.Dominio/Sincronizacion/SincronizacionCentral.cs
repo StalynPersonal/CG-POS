@@ -143,6 +143,9 @@ public enum TipoConflictoSincronizacion
 
     /// <summary>El mensaje está incompleto o su contenido no se puede leer.</summary>
     DocumentoInvalido,
+
+    /// <summary>Una caja inscribió en fidelidad una cédula que el Central ya tiene con otro Id: se conserva la del Central.</summary>
+    MiembroDuplicado,
 }
 
 /// <summary>
@@ -226,7 +229,23 @@ public sealed class EstadoSincronizacionCaja
     public DateTimeOffset? UltimoRechazoEn { get; private set; }
     public string? UltimoError { get; private set; }
 
+    /// <summary>Última vez que la caja pidió maestros.</summary>
+    public DateTimeOffset? UltimaDescargaEn { get; private set; }
+
+    /// <summary>Versión de maestros que la caja ya tenía aplicada al pedir la última descarga.</summary>
+    public long VersionMaestrosConfirmada { get; private set; }
+
+    /// <summary>Versión hasta la que se le entregaron maestros en la última descarga.</summary>
+    public long VersionMaestrosEntregada { get; private set; }
+
     public static EstadoSincronizacionCaja Crear(Guid cajaId) => new() { CajaId = Validar.Id(cajaId, "Caja") };
+
+    public void RegistrarDescarga(DateTimeOffset ahora, long desde, long hasta)
+    {
+        UltimaDescargaEn = ahora;
+        VersionMaestrosConfirmada = desde;
+        VersionMaestrosEntregada = hasta;
+    }
 
     public void RegistrarRecepcion(DateTimeOffset ahora)
     {

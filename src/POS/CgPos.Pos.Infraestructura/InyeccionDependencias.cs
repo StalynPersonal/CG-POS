@@ -99,6 +99,7 @@ public static class InyeccionDependencias
         servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoConexionCentral, EstadoConexionCentral>();
         servicios.AddSingleton(_ => FabricaClienteCentral.Crear(configuracion));
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
+        servicios.AddScoped<Aplicacion.Sincronizacion.IDescargaMaestros, DescargaMaestros>();
         servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();
 
         // Mantenimiento de la caja: respaldo, purga controlada, hora y alertas.

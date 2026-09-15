@@ -244,6 +244,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 
 - **Bandeja de salida:** todo documento (venta, nota de crédito, cierre, pendiente, movimiento de puntos…) se guarda con su mensaje en la misma transacción. Un servicio en segundo plano del Agente lo envía cada `Sincronizacion:IntervaloSegundos` en orden de creación, con el Id del mensaje como clave de idempotencia y el SHA-256 del contenido. Sin comunicación detiene el lote y reintenta con espera progresiva (`EsperaInicialSegundos` duplicada hasta `EsperaMaximaSegundos`); la caja sigue operando.
 - **Central:** `Central:Url` para el Central real (`POST api/sincronizacion/mensajes`), con `Caja:Id` y `Central:Secreto` (la credencial que el Central emite para la caja; la caja la cambia por un token de dispositivo), o `Central:Modo = Simulado`, que guarda los mensajes en `Central:CarpetaSimulada` con la misma idempotencia y validación de hash. Sin ninguno, la barra muestra «Sin Central».
+- **Maestros del Central:** cada `Sincronizacion:IntervaloMaestrosSegundos` (y al arrancar) la caja pide lo cambiado desde la versión que ya aplicó y lo aplica con las mismas cargas de organización y maestros; la marca solo avanza si todo se aplicó. Una caja nueva con `Central:Url`, `Caja:Id` y `Central:Secreto` se aprovisiona sola en el primer ciclo. Un miembro de fidelidad que llega del Central con una cédula ya inscrita en la caja actualiza el registro local.
 - **XML de e-CF:** al confirmarse la venta o la nota de crédito, el e-CF queda *Sincronizado* y su XML pasa de `Pendientes` a `Enviados`; nada sale de `Pendientes` sin confirmación del Central.
 - **Mantenimiento** (cada `Mantenimiento:IntervaloMinutos`): verificación de la hora contra `Reloj:ServidorNtp`; respaldo diario de la base desde `Respaldo:Hora` en `Respaldo:Carpeta` (vacía = carpeta de respaldos de la instancia; la cuenta del servicio de SQL Server debe poder escribir en ella); purga de XML enviados, mensajes confirmados y respaldos según los parámetros de retención.
 - **Alertas en la barra de estado:** tamaño de la base, documentos atrasados sin sincronizar, hora desfasada y respaldo fallido.
@@ -268,7 +269,7 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 - API: <http://localhost:5280> en desarrollo (`Central:ExigirHttps = false`). En producción escucha en `https://*:7280` y rechaza las API por HTTP; el certificado del servidor se configura en `Kestrel:Certificates:Default`.
 - Salud del servicio y la base: `/salud`.
-- Al arrancar aplica las migraciones y `CargaInicial:Archivo` (en desarrollo `datos/central.desarrollo.json`: empresa, sucursal, cajas, parámetros, roles y usuarios del Central). Usuarios de prueba:
+- Al arrancar aplica las migraciones y `CargaInicial:Archivo` (en desarrollo `datos/central.desarrollo.json`: empresa, sucursal, cajas, parámetros, roles y usuarios del Central). En desarrollo también publica para las cajas `CargaInicialCajas:Archivo` (roles, usuarios y parámetros de caja, `datos/carga-inicial.desarrollo.json`) y `Maestros:Archivo` (`datos/maestros.desarrollo.json`). Usuarios de prueba:
 
 | Usuario | Contraseña | Rol |
 |---|---|---|
@@ -298,6 +299,14 @@ dotnet run --project src/Central/CgPos.Central.Api
 - `POST /api/sincronizacion/mensajes` (token de dispositivo): el Central valida que el mensaje sea de la caja autenticada, el SHA-256 del contenido y el del XML del e-CF, y guarda el documento una sola vez. Un reenvío con el mismo contenido responde *Duplicado* y la caja lo da por confirmado; lo rechazado responde 422 y la caja reintenta más tarde.
 - Los e-CF recibidos quedan pendientes de envío a la DGII (fase H4), con el XML firmado y su hash; un e-NCF se registra una sola vez.
 - **Conflictos** (el Central es autoridad sobre maestros y configuración; la caja sobre sus transacciones): otro contenido con el mismo Id, hash o XML alterado, mensaje de otra caja o e-NCF repetido quedan registrados una vez por mensaje (con sus repeticiones), en auditoría y en el log. Un e-NCF repetido no rechaza la transacción.
+
+### Maestros para las cajas
+
+- **Publicación:** el Central guarda los maestros en el mismo formato de carga que aplica la caja (artículos, precios, clientes, formas de pago, promociones, fidelidad, almacenes, rangos de e-CF, roles y usuarios de caja). Antes de publicar valida cada registro con las reglas del dominio, las referencias (familia, unidad e impuesto del artículo, moneda, caja, sucursal, nivel) y que los códigos y códigos de barras no se repitan: un maestro inválido no llega a detener a las cajas. Los PIN y carnés se publican solo como hash, con el formato que verifica la caja.
+- **Bajada incremental:** `GET /api/sincronizacion/maestros?desde={versión}` (token de dispositivo) entrega lo cambiado por versión de fila (rowversion) hasta la última versión confirmada; publicar lo mismo no genera versión nueva. Desde 0 es el aprovisionamiento completo de una caja nueva. La respuesta se comprime.
+- **Alcance por caja:** baja la organización completa, los parámetros generales, los de su sucursal y los suyos (nunca los `Central.*`) y solo sus rangos de e-CF. El estado de cada caja guarda su última descarga y la versión confirmada y entregada.
+- **Inscripciones de fidelidad hechas en caja:** se publican como miembros para todas las cajas con el Id de la caja; si la cédula ya estaba en el Central con otro Id se conserva la del Central y queda un conflicto *MiembroDuplicado*.
+- **Pendiente:** el padrón DGII se sigue importando en cada caja desde el archivo de la DGII hasta definir su distribución; los parámetros eliminados en el Central no se borran en las cajas.
 
 ```powershell
 dotnet ef database update --project src/Central/CgPos.Central.Infraestructura --startup-project src/Central/CgPos.Central.Api

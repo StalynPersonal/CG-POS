@@ -2,7 +2,10 @@ using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
+using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Fidelidad;
 using CgPos.Contratos.Serializacion;
+using CgPos.Dominio.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Fiscal;
@@ -59,6 +62,9 @@ internal sealed class ServicioRecepcion(
 
         if (ecf is not null)
             await RegistrarComprobanteAsync(documento, ecf, ahora, cancelacion);
+
+        if (mensaje.TipoMensaje == TiposMensaje.InscripcionFidelidad)
+            await PublicarInscripcionAsync(documento, ahora, cancelacion);
 
         estado.RegistrarRecepcion(ahora);
 
@@ -120,6 +126,52 @@ internal sealed class ServicioRecepcion(
         await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.EncfDuplicado,
             $"El e-NCF {encf} ya se recibió en el documento {anterior.DocumentoId} de la caja {anterior.CajaId}. La transacción se guardó; el comprobante no se registró de nuevo para la DGII.",
             ahora, cancelacion);
+    }
+
+    /// <summary>
+    /// Una inscripción de fidelidad hecha en caja (RF-237) se publica como miembro para todas las cajas con el Id de la caja. Si la cédula ya está en el
+    /// Central con otro Id (dos cajas sin conexión), se conserva la del Central y el conflicto queda registrado (RN-24).
+    /// </summary>
+    private async Task PublicarInscripcionAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        DocumentoInscripcionFidelidad? inscripcion = null;
+        string? cedula = null;
+        try
+        {
+            inscripcion = JsonSerializer.Deserialize<DocumentoInscripcionFidelidad>(documento.Contenido, OpcionesJson.Predeterminadas);
+            if (inscripcion is not null)
+                cedula = MiembroFidelidad.ValidarCedula(inscripcion.Cedula);
+        }
+        catch (Exception excepcion) when (excepcion is JsonException or ArgumentException)
+        {
+        }
+
+        if (inscripcion is null || cedula is null || inscripcion.MiembroId == Guid.Empty)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                "La inscripción de fidelidad no se pudo leer (cédula o miembro inválido); se guardó sin publicar el miembro.", ahora, cancelacion);
+            return;
+        }
+
+        if (await contexto.MaestrosCentral.AnyAsync(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Id == inscripcion.MiembroId, cancelacion))
+            return;
+
+        var existente = await contexto.MaestrosCentral
+            .Where(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Codigo == cedula)
+            .Select(m => (Guid?)m.Id)
+            .FirstOrDefaultAsync(cancelacion);
+
+        if (existente is { } idCentral)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.MiembroDuplicado,
+                $"La cédula {cedula} ya está inscrita en el Central (miembro {idCentral}); se conserva esa inscripción y la caja actualiza su registro con ella. La caja la había inscrito como {inscripcion.MiembroId}.",
+                ahora, cancelacion);
+            return;
+        }
+
+        var miembro = new MiembroFidelidadCarga(inscripcion.MiembroId, cedula, inscripcion.Nombre, inscripcion.Telefono, inscripcion.Correo, InscritoEn: inscripcion.InscritoEn);
+        contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null,
+            JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, $"Inscripción en caja {documento.CajaId}"));
     }
 
     private async Task<RespuestaRecepcionCentral> RechazarAsync(MensajeSincronizacion mensaje, CajaRemitente remitente, EstadoSincronizacionCaja estado,

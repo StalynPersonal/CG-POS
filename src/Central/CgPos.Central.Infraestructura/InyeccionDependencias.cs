@@ -44,6 +44,8 @@ public static class InyeccionDependencias
 
         // Sincronización con las cajas (M14).
         servicios.AddScoped<Aplicacion.Sincronizacion.IServicioRecepcion, Sincronizacion.ServicioRecepcion>();
+        servicios.AddScoped<Aplicacion.Sincronizacion.IPublicadorMaestros, Sincronizacion.PublicadorMaestros>();
+        servicios.AddScoped<Aplicacion.Sincronizacion.IServicioBajadaMaestros, Sincronizacion.ServicioBajadaMaestros>();
 
         return servicios;
     }

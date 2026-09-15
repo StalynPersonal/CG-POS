@@ -140,7 +140,7 @@ public class CentralPruebas : IDisposable
 }
 
 /// <summary>Central de prueba con una respuesta fija, para el procesador de la bandeja de salida.</summary>
-public sealed class CentralDePrueba(ResultadoEnvioCentral resultado) : IClienteCentral
+public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBajadaMaestros? bajada = null) : IClienteCentral
 {
     public int Recibidos { get; private set; }
 
@@ -151,4 +151,7 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado) : IClienteC
         Recibidos++;
         return Task.FromResult(resultado);
     }
+
+    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoBajadaCentral.Recibido(bajada ?? new PaqueteBajadaMaestros(desde, desde, null, null)));
 }

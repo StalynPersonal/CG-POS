@@ -54,5 +54,16 @@ public enum EstadoRecepcion
     Rechazado,
 }
 
+/// <summary>
+/// Maestros que bajan a una caja (RF-269, RF-273): todo lo que cambió en el Central con versión mayor a <paramref name="Desde"/> y hasta
+/// <paramref name="Hasta"/>, que la caja guarda como su nueva marca al aplicarlo. Con <c>Desde = 0</c> es el aprovisionamiento completo (RF-281).
+/// </summary>
+/// <param name="Organizacion">Empresa, sucursales, cajas, parámetros, roles y usuarios de caja; nulo si nada de eso cambió.</param>
+/// <param name="Maestros">Catálogo, precios, promociones, fidelidad, rangos de e-CF…; nulo si nada cambió.</param>
+public sealed record PaqueteBajadaMaestros(long Desde, long Hasta, CargaInicial.PaqueteCargaInicial? Organizacion, Catalogo.PaqueteMaestros? Maestros)
+{
+    public bool SinCambios => Organizacion is null && Maestros is null;
+}
+
 /// <summary>Respuesta del Central a la recepción de un mensaje.</summary>
 public sealed record RespuestaRecepcionCentral(EstadoRecepcion Estado, string? Error = null);

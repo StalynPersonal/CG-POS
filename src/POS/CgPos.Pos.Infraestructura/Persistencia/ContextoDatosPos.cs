@@ -19,6 +19,7 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     // Sincronización y auditoría
     public DbSet<MensajeSalida> BandejaSalida => Set<MensajeSalida>();
     public DbSet<RegistroAuditoria> Auditoria => Set<RegistroAuditoria>();
+    public DbSet<MarcaSincronizacion> MarcasSincronizacion => Set<MarcaSincronizacion>();
 
     // Organización (M01)
     public DbSet<Empresa> Empresas => Set<Empresa>();

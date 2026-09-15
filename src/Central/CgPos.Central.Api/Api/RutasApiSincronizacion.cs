@@ -31,6 +31,12 @@ public static class RutasApiSincronizacion
                     : Results.Ok(respuesta);
             });
 
+        // Bajada de maestros (RF-269, RF-273): lo cambiado desde la versión que la caja ya aplicó; desde 0 es el aprovisionamiento (RF-281).
+        sincronizacion.MapGet("/maestros", async (long? desde, ClaimsPrincipal usuario, IServicioBajadaMaestros servicio, CancellationToken cancelacion) =>
+            EmisorTokensCentral.LeerDispositivo(usuario) is { } caja
+                ? Results.Ok(await servicio.ObtenerAsync(new CajaRemitente(caja.CajaId, caja.SucursalId), desde ?? 0, cancelacion))
+                : Results.Unauthorized());
+
         return aplicacion;
     }
 }

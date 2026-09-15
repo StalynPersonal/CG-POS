@@ -1125,6 +1125,49 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Descarga_de_maestros_aplica_organizacion_y_catalogo_y_la_marca_solo_avanza_si_se_aplica()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var escenario = caja.Escenario;
+
+        Task<ResultadoDescargaMaestros> DescargarAsync(PaqueteBajadaMaestros paquete) =>
+            caja.EjecutarAsync<IServiceProvider, ResultadoDescargaMaestros>(proveedor =>
+                ActivatorUtilities.CreateInstance<CgPos.Pos.Infraestructura.Sincronizacion.DescargaMaestros>(proveedor, new CentralDePrueba(ResultadoEnvioCentral.Recibido(), paquete))
+                    .DescargarAsync());
+
+        Task<long> MarcaAsync() =>
+            caja.EjecutarAsync<ContextoDatosPos, long>(async contexto =>
+                await contexto.MarcasSincronizacion.Where(m => m.Clave == MarcaSincronizacion.VersionMaestros).Select(m => (long?)m.Valor).SingleOrDefaultAsync() ?? 0);
+
+        var desde = await MarcaAsync();
+        var familia = new FamiliaCarga(Guid.CreateVersion7(), $"DESC{escenario.Sufijo}", "Familia bajada del Central");
+        var clave = $"Pruebas.Descarga{escenario.Sufijo}";
+        var organizacion = new CgPos.Contratos.CargaInicial.PaqueteCargaInicial(
+            new CgPos.Contratos.CargaInicial.EmpresaCarga(Empresa, "999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
+            Parametros: [new CgPos.Contratos.CargaInicial.ParametroCarga(Guid.CreateVersion7(), clave, "valor del Central", CajaId: escenario.CajaUno)]);
+
+        var aplicada = await DescargarAsync(new PaqueteBajadaMaestros(desde, desde + 500, organizacion, new PaqueteMaestros(Familias: [familia])));
+        Assert.True(aplicada.Descargado, aplicada.Error);
+        Assert.Equal(desde + 500, await MarcaAsync());
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Familias.AnyAsync(f => f.Id == familia.Id)));
+        Assert.Equal("valor del Central", await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Organizacion.IParametros, string?>(p => p.ObtenerAsync(clave, escenario.CajaUno)));
+
+        // Un paquete que la caja no puede aplicar no mueve la marca: el próximo ciclo lo vuelve a pedir.
+        var articuloSinFamilia = new ArticuloCarga(Guid.CreateVersion7(), $"SINFAM{escenario.Sufijo}", "Artículo sin familia", Guid.CreateVersion7(), Guid.CreateVersion7(),
+            Guid.CreateVersion7(), 100m);
+        var rechazada = await DescargarAsync(new PaqueteBajadaMaestros(desde + 500, desde + 900, null, new PaqueteMaestros(Articulos: [articuloSinFamilia])));
+        Assert.False(rechazada.Descargado);
+        Assert.Contains("familia inexistente", rechazada.Error);
+        Assert.Equal(desde + 500, await MarcaAsync());
+
+        // Sin cambios, la marca llega a la versión que informó el Central.
+        var sinCambios = await DescargarAsync(new PaqueteBajadaMaestros(desde + 500, desde + 600, null, null));
+        Assert.True(sinCambios.Descargado);
+        Assert.Equal(desde + 600, await MarcaAsync());
+    }
+
+    [SkippableFact]
     public async Task Mantenimiento_purga_solo_lo_confirmado_vencido_alerta_y_respalda_la_base()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

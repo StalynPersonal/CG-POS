@@ -38,6 +38,13 @@ try
     constructor.Services.AgregarInfraestructuraCentral(constructor.Configuration);
     constructor.Services.AgregarSeguridadCentral();
 
+    // La bajada de maestros de una caja nueva puede ser grande: se comprime (solo esa ruta, sin tokens ni secretos en la respuesta).
+    constructor.Services.AddResponseCompression(opciones =>
+    {
+        opciones.EnableForHttps = true;
+        opciones.MimeTypes = ["application/json"];
+    });
+
     constructor.Services.AddHealthChecks()
         .AddDbContextCheck<ContextoDatosCentral>("base-datos");
 
@@ -64,6 +71,8 @@ try
         }
     });
 
+    aplicacion.UseWhen(contexto => contexto.Request.Path.StartsWithSegments("/api/sincronizacion/maestros"), rama => rama.UseResponseCompression());
+
     aplicacion.UseAuthentication();
     aplicacion.UseAuthorization();
 
@@ -77,6 +86,15 @@ try
     // Datos iniciales desde archivo (instalación o desarrollo). Es idempotente.
     if (aplicacion.Configuration["CargaInicial:Archivo"] is { Length: > 0 } archivoCarga)
         await aplicacion.Services.AplicarCargaInicialCentralAsync(Path.GetFullPath(archivoCarga, aplicacion.Environment.ContentRootPath));
+
+    // Seguridad, parámetros y maestros para las cajas desde archivos con el formato de la caja (instalación o desarrollo). Solo lo cambiado baja.
+    if (aplicacion.Configuration["CargaInicialCajas:Archivo"] is { Length: > 0 } archivoCajas)
+        await CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarSeguridadCajasDesdeArchivoAsync(aplicacion.Services,
+            Path.GetFullPath(archivoCajas, aplicacion.Environment.ContentRootPath));
+
+    if (aplicacion.Configuration["Maestros:Archivo"] is { Length: > 0 } archivoMaestros)
+        await CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarMaestrosDesdeArchivoAsync(aplicacion.Services,
+            Path.GetFullPath(archivoMaestros, aplicacion.Environment.ContentRootPath));
 
     await aplicacion.RunAsync();
 }

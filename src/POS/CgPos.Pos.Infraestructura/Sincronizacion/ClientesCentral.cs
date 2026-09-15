@@ -60,15 +60,20 @@ internal static class FabricaClienteCentral
 
 internal sealed class CentralNoConfigurado : IClienteCentral
 {
+    private const string Motivo = "La caja no tiene un Central configurado.";
+
     public bool Configurado => false;
 
     public Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default) =>
-        Task.FromResult(ResultadoEnvioCentral.SinConexion("La caja no tiene un Central configurado."));
+        Task.FromResult(ResultadoEnvioCentral.SinConexion(Motivo));
+
+    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoBajadaCentral.SinConexion(Motivo));
 }
 
 /// <summary>
-/// Central simulado hasta la Etapa 2 (H2): guarda cada mensaje en una carpeta local aplicando las mismas reglas que tendrá el Central:
-/// valida el hash del contenido y confirma sin duplicar un Id ya recibido con el mismo contenido (RN-25).
+/// Central simulado sin servidor: guarda cada mensaje en una carpeta local aplicando las mismas reglas que el Central (hash del contenido y un Id
+/// recibido una sola vez, RN-25). No publica maestros: la caja se carga desde archivos.
 /// </summary>
 internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 {
@@ -83,6 +88,9 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
             ? ResultadoEnvioCentral.Recibido()
             : ResultadoEnvioCentral.Rechazado(respuesta.Error ?? "El Central simulado rechazó el mensaje.");
     }
+
+    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoBajadaCentral.Recibido(new PaqueteBajadaMaestros(desde, desde, null, null)));
 
     public async Task<RespuestaRecepcionCentral> RecibirAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {
@@ -105,16 +113,21 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 }
 
 /// <summary>
-/// Envío al Central por HTTPS (RF-275): la caja cambia su credencial de dispositivo por un token de pocos minutos, que guarda en memoria, y hace POST a
-/// <see cref="RutaRecepcion"/> con la clave de idempotencia y el hash del contenido en los encabezados.
-/// Errores de red, tiempo de espera o respuestas 5xx cuentan como sin conexión y se reintentan.
+/// Comunicación con el Central por HTTPS (RF-275): la caja cambia su credencial de dispositivo por un token de pocos minutos, que guarda en memoria.
+/// Sube la bandeja de salida a <see cref="RutaRecepcion"/> con la clave de idempotencia y el hash del contenido, y baja los maestros de
+/// <see cref="RutaMaestros"/>. Errores de red, tiempo de espera o respuestas 5xx cuentan como sin conexión y se reintentan.
 /// </summary>
 internal sealed class ClienteCentralHttp : IClienteCentral
 {
     public const string RutaRecepcion = "api/sincronizacion/mensajes";
+    public const string RutaMaestros = "api/sincronizacion/maestros";
     public const string RutaToken = "api/dispositivos/token";
 
-    private static readonly SocketsHttpHandler Manejador = new() { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+    private static readonly SocketsHttpHandler Manejador = new()
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        AutomaticDecompression = DecompressionMethods.All,
+    };
 
     // El token se renueva un poco antes de vencer para no usarlo en el límite.
     private static readonly TimeSpan MargenRenovacion = TimeSpan.FromMinutes(1);
@@ -144,8 +157,72 @@ internal sealed class ClienteCentralHttp : IClienteCentral
 
     public async Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {
+        var (respuesta, fallo) = await SolicitarAsync(() =>
+        {
+            var solicitud = new HttpRequestMessage(HttpMethod.Post, RutaRecepcion) { Content = JsonContent.Create(mensaje, options: OpcionesJson.Predeterminadas) };
+            solicitud.Headers.Add("Idempotency-Key", mensaje.Id.ToString());
+            solicitud.Headers.Add("X-Contenido-Sha256", mensaje.HashContenido);
+            return solicitud;
+        }, cancelacion);
+
+        if (fallo is not null)
+            return fallo;
+
+        // Sin fallo, SolicitarAsync siempre devuelve la respuesta.
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                return await InterpretarRecepcionAsync(respuesta, cancelacion);
+            }
+            catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
+            {
+                return SinConexionPor(excepcion);
+            }
+        }
+    }
+
+    public async Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default)
+    {
+        var (respuesta, fallo) = await SolicitarAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"{RutaMaestros}?desde={desde.ToString(CultureInfo.InvariantCulture)}"), cancelacion);
+
+        if (fallo is not null)
+            return new ResultadoBajadaCentral(null, fallo.CentralRespondio, fallo.Error);
+
+        // Sin fallo, SolicitarAsync siempre devuelve la respuesta.
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                if ((int)respuesta.StatusCode >= 500)
+                    return ResultadoBajadaCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} ({respuesta.ReasonPhrase}).");
+
+                if (!respuesta.IsSuccessStatusCode)
+                    return ResultadoBajadaCentral.Rechazado(
+                        $"El Central rechazó la descarga de maestros ({(int)respuesta.StatusCode}): {await respuesta.Content.ReadAsStringAsync(cancelacion)}");
+
+                var paquete = await respuesta.Content.ReadFromJsonAsync<PaqueteBajadaMaestros>(OpcionesJson.Predeterminadas, cancelacion);
+                return paquete is null ? ResultadoBajadaCentral.Rechazado("El Central respondió la descarga sin datos.") : ResultadoBajadaCentral.Recibido(paquete);
+            }
+            catch (JsonException excepcion)
+            {
+                return ResultadoBajadaCentral.Rechazado($"La descarga de maestros del Central no es válida: {excepcion.Message}");
+            }
+            catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
+            {
+                return ResultadoBajadaCentral.SinConexion(SinConexionPor(excepcion).Error!);
+            }
+        }
+    }
+
+    /// <summary>Envía la solicitud con el token de la caja; si el Central no lo acepta (venció o se revocó) pide otro una sola vez.</summary>
+    private async Task<(HttpResponseMessage? Respuesta, ResultadoEnvioCentral? Fallo)> SolicitarAsync(Func<HttpRequestMessage> crearSolicitud, CancellationToken cancelacion)
+    {
         if (_cajaId == Guid.Empty || _secreto is null)
-            return ResultadoEnvioCentral.SinConexion($"La caja no tiene credencial del Central ({ClavesSincronizacion.CajaId} y {ClavesSincronizacion.SecretoCaja}).");
+            return (null, ResultadoEnvioCentral.SinConexion($"La caja no tiene credencial del Central ({ClavesSincronizacion.CajaId} y {ClavesSincronizacion.SecretoCaja})."));
 
         try
         {
@@ -153,29 +230,27 @@ internal sealed class ClienteCentralHttp : IClienteCentral
             {
                 var (token, fallo) = await ObtenerTokenAsync(renovar: intento > 1, cancelacion);
                 if (fallo is not null)
-                    return fallo;
+                    return (null, fallo);
 
-                using var solicitud = new HttpRequestMessage(HttpMethod.Post, RutaRecepcion) { Content = JsonContent.Create(mensaje, options: OpcionesJson.Predeterminadas) };
-                solicitud.Headers.Add("Idempotency-Key", mensaje.Id.ToString());
-                solicitud.Headers.Add("X-Contenido-Sha256", mensaje.HashContenido);
-                solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                HttpResponseMessage respuesta;
+                using (var solicitud = crearSolicitud())
+                {
+                    solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                    respuesta = await _http.SendAsync(solicitud, cancelacion);
+                }
 
-                using var respuesta = await _http.SendAsync(solicitud, cancelacion);
-
-                // El token venció o se revocó desde que se obtuvo: se pide otro una sola vez.
                 if (respuesta.StatusCode == HttpStatusCode.Unauthorized && intento == 1)
+                {
+                    respuesta.Dispose();
                     continue;
+                }
 
-                return await InterpretarAsync(respuesta, cancelacion);
+                return (respuesta, null);
             }
         }
-        catch (HttpRequestException excepcion)
+        catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
         {
-            return ResultadoEnvioCentral.SinConexion($"Sin comunicación con el Central: {excepcion.Message}");
-        }
-        catch (TaskCanceledException) when (!cancelacion.IsCancellationRequested)
-        {
-            return ResultadoEnvioCentral.SinConexion("Se agotó el tiempo de espera con el Central.");
+            return (null, SinConexionPor(excepcion));
         }
     }
 
@@ -196,7 +271,8 @@ internal sealed class ClienteCentralHttp : IClienteCentral
             if (!respuesta.IsSuccessStatusCode || cuerpo is not { Exitoso: true, Token: { Length: > 0 } token })
             {
                 var motivo = cuerpo?.Mensaje ?? await respuesta.Content.ReadAsStringAsync(cancelacion);
-                return (null, ResultadoEnvioCentral.Rechazado($"El Central no autenticó la caja: {(string.IsNullOrWhiteSpace(motivo) ? ((int)respuesta.StatusCode).ToString(CultureInfo.InvariantCulture) : motivo)}"));
+                return (null, ResultadoEnvioCentral.Rechazado(
+                    $"El Central no autenticó la caja: {(string.IsNullOrWhiteSpace(motivo) ? ((int)respuesta.StatusCode).ToString(CultureInfo.InvariantCulture) : motivo)}"));
             }
 
             _token = token;
@@ -209,7 +285,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
         }
     }
 
-    private static async Task<ResultadoEnvioCentral> InterpretarAsync(HttpResponseMessage respuesta, CancellationToken cancelacion)
+    private static async Task<ResultadoEnvioCentral> InterpretarRecepcionAsync(HttpResponseMessage respuesta, CancellationToken cancelacion)
     {
         if ((int)respuesta.StatusCode >= 500)
             return ResultadoEnvioCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} ({respuesta.ReasonPhrase}).");
@@ -225,6 +301,14 @@ internal sealed class ClienteCentralHttp : IClienteCentral
 
         return ResultadoEnvioCentral.Rechazado(cuerpo?.Error ?? $"El Central rechazó el mensaje ({(int)respuesta.StatusCode}).");
     }
+
+    private static bool EsFallaDeComunicacion(Exception excepcion, CancellationToken cancelacion) =>
+        excepcion is HttpRequestException || (excepcion is TaskCanceledException && !cancelacion.IsCancellationRequested);
+
+    private static ResultadoEnvioCentral SinConexionPor(Exception excepcion) =>
+        excepcion is TaskCanceledException
+            ? ResultadoEnvioCentral.SinConexion("Se agotó el tiempo de espera con el Central.")
+            : ResultadoEnvioCentral.SinConexion($"Sin comunicación con el Central: {excepcion.Message}");
 
     private static async Task<T?> LeerJsonAsync<T>(HttpResponseMessage respuesta, CancellationToken cancelacion) where T : class
     {

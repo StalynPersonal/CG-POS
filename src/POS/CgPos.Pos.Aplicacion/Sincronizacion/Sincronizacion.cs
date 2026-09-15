@@ -20,6 +20,9 @@ public static class ClavesSincronizacion
     public const string CarpetaSimulada = "Central:CarpetaSimulada";
 
     public const string IntervaloSegundos = "Sincronizacion:IntervaloSegundos";
+
+    /// <summary>Cada cuánto la caja pide al Central los maestros cambiados (RF-269, RF-273).</summary>
+    public const string IntervaloMaestrosSegundos = "Sincronizacion:IntervaloMaestrosSegundos";
     public const string TamanoLote = "Sincronizacion:TamanoLote";
     public const string EsperaInicialSegundos = "Sincronizacion:EsperaInicialSegundos";
     public const string EsperaMaximaSegundos = "Sincronizacion:EsperaMaximaSegundos";
@@ -45,6 +48,20 @@ public interface IClienteCentral
     bool Configurado { get; }
 
     Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default);
+
+    /// <summary>Pide los maestros cambiados desde la versión que la caja ya aplicó (0 = aprovisionamiento completo).</summary>
+    Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default);
+}
+
+/// <summary>Resultado de pedir maestros al Central.</summary>
+/// <param name="CentralRespondio">Falso si no hubo comunicación: se reintenta en el próximo ciclo.</param>
+public sealed record ResultadoBajadaCentral(PaqueteBajadaMaestros? Paquete, bool CentralRespondio, string? Error)
+{
+    public static ResultadoBajadaCentral Recibido(PaqueteBajadaMaestros paquete) => new(paquete, true, null);
+
+    public static ResultadoBajadaCentral Rechazado(string error) => new(null, true, error);
+
+    public static ResultadoBajadaCentral SinConexion(string error) => new(null, false, error);
 }
 
 /// <summary>Último contacto con el Central, para el indicador de conexión (RF-192).</summary>
@@ -65,4 +82,17 @@ public sealed record ResultadoProcesoBandeja(int Tomados, int Confirmados, int F
 public interface IProcesadorBandejaSalida
 {
     Task<ResultadoProcesoBandeja> ProcesarAsync(CancellationToken cancelacion = default);
+}
+
+/// <param name="Descargado">Se recibió y aplicó un paquete (aunque viniera sin cambios).</param>
+/// <param name="Version">Versión de maestros que la caja tiene aplicada después de la descarga.</param>
+public sealed record ResultadoDescargaMaestros(bool Descargado, long Version, int Creados, int Actualizados, string? Error);
+
+/// <summary>
+/// Baja del Central la organización, la seguridad y los maestros cambiados y los aplica con las mismas cargas de la caja (RF-269, RF-273).
+/// La marca de versión solo avanza si todo se aplicó; una caja nueva se aprovisiona con la primera descarga (RF-281).
+/// </summary>
+public interface IDescargaMaestros
+{
+    Task<ResultadoDescargaMaestros> DescargarAsync(CancellationToken cancelacion = default);
 }

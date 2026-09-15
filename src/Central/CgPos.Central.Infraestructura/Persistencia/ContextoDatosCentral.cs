@@ -27,10 +27,18 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Sincronizacion.ComprobanteRecibido> ComprobantesRecibidos => Set<CgPos.Dominio.Sincronizacion.ComprobanteRecibido>();
     public DbSet<CgPos.Dominio.Sincronizacion.ConflictoSincronizacion> ConflictosSincronizacion => Set<CgPos.Dominio.Sincronizacion.ConflictoSincronizacion>();
     public DbSet<CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja> EstadosSincronizacionCaja => Set<CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja>();
+    public DbSet<CgPos.Dominio.Sincronizacion.MaestroCentral> MaestrosCentral => Set<CgPos.Dominio.Sincronizacion.MaestroCentral>();
+
+    /// <summary>Versión de fila (rowversion) de lo que baja a las cajas: permite entregar solo lo cambiado (RF-273).</summary>
+    public const string ColumnaVersion = "Version";
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosCentral).Assembly);
+
+        // La de los maestros publicados se define en su configuración, junto con su índice.
+        foreach (var tipo in new[] { typeof(Empresa), typeof(Sucursal), typeof(Caja), typeof(Parametro) })
+            constructorModelo.Entity(tipo).Property<long>(ColumnaVersion).IsRowVersion().HasConversion<byte[]>();
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder constructorConvenciones)
