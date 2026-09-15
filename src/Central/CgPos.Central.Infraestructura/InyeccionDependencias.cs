@@ -38,6 +38,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IParametrosCentral, ServicioParametrosCentral>();
         servicios.AddScoped<IServicioOrganizacion, ServicioOrganizacionCentral>();
         servicios.AddScoped<IServicioConfiguracionCajas, ServicioConfiguracionCajas>();
+        servicios.AddScoped<CgPos.Central.Aplicacion.Maestros.IServicioMaestrosCentral, Maestros.ServicioMaestrosCentral>();
         servicios.AddScoped<ICargaInicialCentral, ServicioCargaInicialCentral>();
 
         // Seguridad (M02): sesiones del Central Manager y credenciales de las cajas.

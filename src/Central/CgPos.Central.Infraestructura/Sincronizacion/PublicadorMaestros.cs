@@ -35,6 +35,7 @@ internal sealed class PublicadorMaestros(
         var existentes = await CargarExistentesAsync(filas.Select(f => f.Tipo), cancelacion);
 
         ValidarUnicos(filas, existentes.Values, errores);
+        ValidarInmutables(filas, existentes, errores);
         await ValidarReferenciasAsync(paquete, existentes.Values, errores, cancelacion);
         if (errores.Count > 0)
             throw new PublicacionInvalidaExcepcion(errores);
@@ -225,6 +226,40 @@ internal sealed class PublicadorMaestros(
         }
 
         return cambiados;
+    }
+
+    /// <summary>Maestros cuyo código la caja no deja cambiar: se identifica con él en sus documentos.</summary>
+    private static readonly Dictionary<TipoMaestro, string> CodigoInmutable = new()
+    {
+        [TipoMaestro.Articulo] = "del artículo",
+        [TipoMaestro.Moneda] = "de la moneda",
+        [TipoMaestro.Promocion] = "de la promoción",
+        [TipoMaestro.NivelFidelidad] = "del nivel de fidelidad",
+        [TipoMaestro.ReglaAcumulacion] = "de la regla de acumulación",
+        [TipoMaestro.Almacen] = "del almacén",
+        [TipoMaestro.MiembroFidelidad] = "(cédula) del miembro de fidelidad",
+    };
+
+    /// <summary>Lo que la caja rechaza cambiar se valida antes de publicar: un maestro así detendría su sincronización.</summary>
+    private static void ValidarInmutables(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, List<string> errores)
+    {
+        foreach (var fila in filas)
+        {
+            if (!existentes.TryGetValue((fila.Tipo, fila.Id), out var publicado))
+                continue;
+
+            // El código del artículo se compara exacto, como en la caja; los demás se guardan en mayúsculas.
+            var cambiaCodigo = fila.Tipo == TipoMaestro.Articulo
+                ? FormatoMaestros.Leer<ArticuloCarga>(publicado).Codigo.Trim() != ((ArticuloCarga)fila.Dato).Codigo?.Trim()
+                : !string.Equals(publicado.Codigo, fila.Codigo?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+            if (CodigoInmutable.TryGetValue(fila.Tipo, out var descripcion) && cambiaCodigo)
+                errores.Add($"No se puede cambiar el código {descripcion} '{publicado.Codigo}'; cree uno nuevo.");
+            else if (fila.Tipo == TipoMaestro.Denominacion && cambiaCodigo)
+                errores.Add($"La denominación {publicado.Codigo} no puede cambiar de moneda, valor ni tipo; cree una nueva.");
+            else if (fila.Tipo == TipoMaestro.FormaPago && FormatoMaestros.Leer<FormaPagoCarga>(publicado).Tipo != ((FormaPagoCarga)fila.Dato).Tipo)
+                errores.Add($"No se puede cambiar el tipo de la forma de pago '{publicado.Codigo}'; cree una nueva.");
+        }
     }
 
     private static string EtiquetaRango(SecuenciaEcfCarga rango) => $"E{(int)rango.TipoComprobante} {rango.Desde}–{rango.Hasta}";

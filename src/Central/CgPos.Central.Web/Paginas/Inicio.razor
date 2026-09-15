@@ -26,6 +26,14 @@
             <MudButton Href="organizacion/parametros" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Configurar</MudButton>
         </MudPaper>
     </AuthorizeView>
+    <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarMaestros">
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudIcon Icon="@Icons.Material.Filled.Inventory2" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6">Catálogos</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Monedas, familias, impuestos, formas de pago y demás maestros que usan las cajas.</MudText>
+            <MudButton Href="maestros" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Administrar</MudButton>
+        </MudPaper>
+    </AuthorizeView>
     <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
         <MudPaper Elevation="1" Class="cg-central__tarjeta">
             <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />

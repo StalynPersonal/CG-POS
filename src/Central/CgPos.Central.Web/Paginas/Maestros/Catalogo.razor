@@ -1,0 +1,167 @@
+@page "/maestros/{Ruta}"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarMaestros)]
+@using System.Globalization
+@using System.Text.Json.Nodes
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>@(_definicion?.Titulo ?? "Catálogo") · CG-POS Central</PageTitle>
+
+@if (_definicion is null)
+{
+    <MudAlert Severity="Severity.Warning">El catálogo "@Ruta" no existe. <MudLink Href="maestros">Ver los catálogos</MudLink></MudAlert>
+    return;
+}
+
+<MudBreadcrumbs Items="_migas" Class="px-0 pt-0" />
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">@_definicion.Titulo</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">@_definicion.Descripcion</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => AbrirDialogoAsync(null)">
+        @_definicion.TextoNuevo
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudo cargar el catálogo. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosMaestroCentral<JsonObject>" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            @foreach (var campo in Columnas)
+            {
+                <MudTh>@(campo.EsEstado ? "Estado" : campo.Etiqueta)</MudTh>
+            }
+            <MudTh>Modificado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @foreach (var campo in Columnas)
+            {
+                <MudTd DataLabel="@campo.Etiqueta">
+                    @if (campo.EsEstado)
+                    {
+                        @if (ValoresCatalogo.Leer(context.Dato, campo) is true)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                        }
+                    }
+                    else if (campo.Nombre == "codigo")
+                    {
+                        <strong>@Mostrar(context.Dato, campo)</strong>
+                    }
+                    else
+                    {
+                        @Mostrar(context.Dato, campo)
+                    }
+                </MudTd>
+            }
+            <MudTd DataLabel="Modificado">
+                <div>@context.ModificadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="cg-central__detalle">@context.ModificadoPor</div>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context.Dato)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay registros que coincidan.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [Parameter] public string Ruta { get; set; } = string.Empty;
+
+    private DefinicionCatalogo? _definicion;
+    private IReadOnlyList<DatosMaestroCentral<JsonObject>> _registros = [];
+    private IReadOnlyList<OpcionCatalogo> _monedas = [];
+    private IReadOnlyList<OpcionCatalogo> _sucursales = [];
+    private List<BreadcrumbItem> _migas = [];
+    private string? _filtro;
+    private bool _cargando = true;
+    private bool _error;
+
+    private IEnumerable<CampoCatalogo> Columnas => _definicion?.Campos.Where(c => c.EnTabla) ?? [];
+
+    private IEnumerable<DatosMaestroCentral<JsonObject>> Filtrados => string.IsNullOrWhiteSpace(_filtro)
+        ? _registros
+        : _registros.Where(r => Columnas.Any(c => Mostrar(r.Dato, c).Contains(_filtro.Trim(), StringComparison.CurrentCultureIgnoreCase)));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _definicion = DefinicionesCatalogos.Buscar(Ruta);
+        if (_definicion is null)
+            return;
+
+        _migas = [new("Catálogos", "maestros"), new(_definicion.Titulo, null, disabled: true)];
+        _filtro = null;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var registros = await Cliente.ListarCatalogoAsync(_definicion!.Ruta);
+        _error = registros is null;
+        _registros = registros ?? [];
+
+        if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Moneda))
+            _monedas = (await Cliente.ListarCatalogoAsync("monedas") ?? [])
+                .Select(m => new OpcionCatalogo(m.Dato["codigo"]!.GetValue<string>(), $"{m.Dato["codigo"]} · {m.Dato["nombre"]}"))
+                .ToList();
+
+        if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Sucursal))
+            _sucursales = (await Cliente.ListarSucursalesMaestrosAsync() ?? []).Select(s => new OpcionCatalogo(s.Id.ToString(), $"{s.Codigo} · {s.Nombre}")).ToList();
+
+        _cargando = false;
+    }
+
+    private string Mostrar(JsonObject dato, CampoCatalogo campo)
+    {
+        var valor = ValoresCatalogo.Leer(dato, campo);
+        return campo.Tipo switch
+        {
+            _ when valor is null => string.Empty,
+            TipoCampoCatalogo.Decimal => ((decimal)valor).ToString("#,##0.####", CultureInfo.CurrentCulture),
+            TipoCampoCatalogo.Booleano => (bool)valor ? "Sí" : "No",
+            TipoCampoCatalogo.SiNoSegunTipo => valor switch { "true" => "Sí", "false" => "No", _ => "Según el tipo" },
+            TipoCampoCatalogo.Opciones => campo.Opciones.FirstOrDefault(o => o.Valor == (string)valor)?.Etiqueta ?? (string)valor,
+            TipoCampoCatalogo.Sucursal => _sucursales.FirstOrDefault(o => o.Valor == (string)valor)?.Etiqueta ?? (string)valor,
+            TipoCampoCatalogo.FechaHora => ((DateTimeOffset)valor).ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+            _ => Convert.ToString(valor, CultureInfo.CurrentCulture) ?? string.Empty,
+        };
+    }
+
+    private async Task AbrirDialogoAsync(JsonObject? dato)
+    {
+        var parametros = new DialogParameters<DialogoCatalogo>
+        {
+            { d => d.Definicion, _definicion },
+            { d => d.Dato, dato },
+            { d => d.Monedas, _monedas },
+            { d => d.Sucursales, _sucursales },
+        };
+        var titulo = dato is null ? _definicion!.TextoNuevo : $"Editar {Mostrar(dato, _definicion!.Campos[0])}";
+        var referencia = await Dialogos.ShowAsync<DialogoCatalogo>(titulo, parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Guardado. Baja a las cajas en su próxima sincronización.", Severity.Success);
+        await CargarAsync();
+    }
+}

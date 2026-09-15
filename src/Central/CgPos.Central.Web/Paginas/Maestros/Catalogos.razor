@@ -1,0 +1,23 @@
+@page "/maestros"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarMaestros)]
+
+<PageTitle>Catálogos · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Catálogos</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Maestros que usan las cajas. Cada cambio se valida con las reglas de la caja y baja en su próxima sincronización.</MudText>
+    </div>
+</div>
+
+<div class="cg-central__tarjetas">
+    @foreach (var catalogo in DefinicionesCatalogos.Todos)
+    {
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudIcon Icon="@catalogo.Icono" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6">@catalogo.Titulo</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">@catalogo.Descripcion</MudText>
+            <MudButton Href="@($"maestros/{catalogo.Ruta}")" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Administrar</MudButton>
+        </MudPaper>
+    }
+</div>

@@ -43,6 +43,11 @@
                     <MudNavLink Href="organizacion/parametros" Icon="@Icons.Material.Filled.Tune">Parámetros</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarMaestros">
+                <MudNavGroup Title="Maestros" Icon="@Icons.Material.Filled.Inventory2" Expanded="true">
+                    <MudNavLink Href="maestros" Icon="@Icons.Material.Filled.ListAlt">Catálogos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">
                 <MudNavGroup Title="Fiscal" Icon="@Icons.Material.Filled.ReceiptLong" Expanded="true">
                     <MudNavLink Href="fiscal/secuencias" Icon="@Icons.Material.Filled.FormatListNumbered">Rangos de e-CF</MudNavLink>

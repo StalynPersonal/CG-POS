@@ -139,6 +139,18 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
             ? EnviarAsync(HttpMethod.Put, $"api/usuarios-caja/usuarios/{id}", solicitud)
             : EnviarAsync(HttpMethod.Post, "api/usuarios-caja/usuarios", solicitud);
 
+    // ---------- Catálogos de maestros ----------
+
+    /// <param name="ruta">Ruta del catálogo (ej. "familias"); los registros llegan en su formato de carga.</param>
+    public Task<IReadOnlyList<DatosMaestroCentral<System.Text.Json.Nodes.JsonObject>>?> ListarCatalogoAsync(string ruta) =>
+        ListarAsync<DatosMaestroCentral<System.Text.Json.Nodes.JsonObject>>($"api/maestros/{ruta}");
+
+    /// <summary>Crea o cambia el registro con ese Id.</summary>
+    public Task<RespuestaAdministracion> GuardarCatalogoAsync(string ruta, Guid id, System.Text.Json.Nodes.JsonObject dato) =>
+        EnviarAsync(HttpMethod.Put, $"api/maestros/{ruta}/{id}", dato);
+
+    public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesMaestrosAsync() => ListarAsync<DatosSucursal>("api/maestros/sucursales");
+
     // ---------- Comunes ----------
 
     /// <returns>Nulo si no se pudo consultar (sin comunicación, sesión vencida o sin permiso).</returns>

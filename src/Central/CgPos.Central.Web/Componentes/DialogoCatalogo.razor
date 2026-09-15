@@ -1,0 +1,149 @@
+@* Alta o edición de un registro de un catálogo de maestros, con los campos de su definición. Conserva las propiedades que el formulario no muestra. *@
+@using System.Text.Json.Nodes
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            @foreach (var campo in Definicion.Campos)
+            {
+                var deshabilitado = campo.FijoAlEditar && Dato is not null;
+                switch (campo.Tipo)
+                {
+                    case TipoCampoCatalogo.Decimal:
+                        <MudNumericField T="decimal?" Value="@((decimal?)_valores[campo.Nombre])" ValueChanged="@(v => _valores[campo.Nombre] = v)" Label="@campo.Etiqueta"
+                                         Variant="Variant.Outlined" HideSpinButtons="true" Disabled="deshabilitado" HelperText="@campo.Ayuda" />
+                        break;
+                    case TipoCampoCatalogo.Entero:
+                        <MudNumericField T="int?" Value="@((int?)_valores[campo.Nombre])" ValueChanged="@(v => _valores[campo.Nombre] = v)" Label="@campo.Etiqueta"
+                                         Variant="Variant.Outlined" Disabled="deshabilitado" HelperText="@campo.Ayuda" />
+                        break;
+                    case TipoCampoCatalogo.Booleano:
+                        <MudSwitch T="bool" Value="@(_valores[campo.Nombre] is true)" ValueChanged="@(v => _valores[campo.Nombre] = v)" Label="@campo.Etiqueta"
+                                   Color="Color.Secondary" Disabled="deshabilitado" />
+                        @if (campo.Ayuda is not null)
+                        {
+                            <MudText Typo="Typo.caption" Class="cg-central__detalle mt-n3 ml-3">@campo.Ayuda</MudText>
+                        }
+                        break;
+                    case TipoCampoCatalogo.FechaHora:
+                        <div class="d-flex gap-3">
+                            <MudDatePicker Date="@_fechas.GetValueOrDefault(campo.Nombre)" DateChanged="@(v => _fechas[campo.Nombre] = v)" Label="@campo.Etiqueta"
+                                           DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Disabled="deshabilitado" />
+                            <MudTimePicker Time="@_horas.GetValueOrDefault(campo.Nombre)" TimeChanged="@(v => _horas[campo.Nombre] = v)" Label="Hora"
+                                           Variant="Variant.Outlined" Disabled="deshabilitado" />
+                        </div>
+                        break;
+                    case TipoCampoCatalogo.Texto:
+                        <MudTextField T="string" Value="@((string?)_valores[campo.Nombre])" ValueChanged="@(v => _valores[campo.Nombre] = v)" Label="@campo.Etiqueta"
+                                      Variant="Variant.Outlined" Disabled="deshabilitado" HelperText="@campo.Ayuda" />
+                        break;
+                    default:
+                        <MudSelect T="string" Value="@((string?)_valores[campo.Nombre])" ValueChanged="@(v => _valores[campo.Nombre] = v)" Label="@campo.Etiqueta"
+                                   Placeholder="@($"Seleccione {campo.Etiqueta.ToLowerInvariant()}")" Variant="Variant.Outlined" Disabled="deshabilitado"
+                                   HelperText="@campo.Ayuda" ToStringFunc="@(v => Opciones(campo).FirstOrDefault(o => o.Valor == v)?.Etiqueta ?? v)">
+                            @foreach (var opcion in Opciones(campo))
+                            {
+                                <MudSelectItem T="string" Value="@opcion.Valor">@opcion.Etiqueta</MudSelectItem>
+                            }
+                        </MudSelect>
+                        break;
+                }
+            }
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DefinicionCatalogo Definicion { get; set; } = default!;
+
+    /// <summary>Registro a editar; nulo para crear uno.</summary>
+    [Parameter] public JsonObject? Dato { get; set; }
+
+    [Parameter] public IReadOnlyList<OpcionCatalogo> Monedas { get; set; } = [];
+    [Parameter] public IReadOnlyList<OpcionCatalogo> Sucursales { get; set; } = [];
+
+    private static readonly IReadOnlyList<OpcionCatalogo> OpcionesSiNo =
+        [new(ValoresCatalogo.SegunTipo, "Según el tipo"), new("true", "Sí"), new("false", "No")];
+
+    private readonly Dictionary<string, object?> _valores = [];
+    private readonly Dictionary<string, DateTime?> _fechas = [];
+    private readonly Dictionary<string, TimeSpan?> _horas = [];
+    private string? _mensaje;
+    private bool _procesando;
+
+    private IReadOnlyList<OpcionCatalogo> Opciones(CampoCatalogo campo) => campo.Tipo switch
+    {
+        TipoCampoCatalogo.Moneda => Monedas,
+        TipoCampoCatalogo.Sucursal => Sucursales,
+        TipoCampoCatalogo.SiNoSegunTipo => OpcionesSiNo,
+        _ => campo.Opciones,
+    };
+
+    protected override void OnInitialized()
+    {
+        var dato = Dato ?? [];
+        foreach (var campo in Definicion.Campos)
+        {
+            var valor = Dato is null
+                ? campo.Tipo == TipoCampoCatalogo.SiNoSegunTipo ? ValoresCatalogo.SegunTipo : campo.Predeterminado
+                : ValoresCatalogo.Leer(dato, campo);
+            _valores[campo.Nombre] = valor;
+
+            if (campo.Tipo == TipoCampoCatalogo.FechaHora)
+            {
+                var fecha = (valor as DateTimeOffset?)?.ToLocalTime().DateTime ?? DateTime.Now;
+                _fechas[campo.Nombre] = fecha.Date;
+                _horas[campo.Nombre] = Dato is null ? TimeSpan.Zero : fecha.TimeOfDay;
+            }
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        foreach (var campo in Definicion.Campos.Where(c => c.Tipo == TipoCampoCatalogo.FechaHora))
+        {
+            if (_fechas.GetValueOrDefault(campo.Nombre) is { } fecha)
+            {
+                var local = fecha.Date + (_horas.GetValueOrDefault(campo.Nombre) ?? TimeSpan.Zero);
+                _valores[campo.Nombre] = new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local));
+            }
+            else
+            {
+                _valores[campo.Nombre] = null;
+            }
+        }
+
+        if (Definicion.Campos.FirstOrDefault(c => c.Obligatorio && ValoresCatalogo.EstaVacio(_valores[c.Nombre])) is { } faltante)
+        {
+            _mensaje = $"Indique {faltante.Etiqueta.ToLowerInvariant()}.";
+            return;
+        }
+
+        // Se parte del registro publicado para no perder lo que el formulario no muestra.
+        var registro = Dato?.DeepClone().AsObject() ?? new JsonObject { ["id"] = Guid.CreateVersion7().ToString() };
+        foreach (var campo in Definicion.Campos)
+            ValoresCatalogo.Escribir(registro, campo, _valores[campo.Nombre]);
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.GuardarCatalogoAsync(Definicion.Ruta, Guid.Parse(registro["id"]!.GetValue<string>()), registro);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el registro.";
+    }
+}
