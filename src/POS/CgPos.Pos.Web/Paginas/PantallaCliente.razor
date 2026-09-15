@@ -20,7 +20,30 @@
         }
     </header>
 
-    @if (_venta is { } venta && LineasActivas.Count > 0)
+    @if (_venta is { Estado: EstadoVenta.Cobrada } cobrada)
+    {
+        <main class="cg-pantalla-cliente__venta">
+            <section class="cg-pantalla-cliente__gracias">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="font-size: 6rem; color: var(--cg-accion)" />
+                <div class="cg-pantalla-cliente__gracias-titulo">¡Gracias por su compra!</div>
+                <div class="cg-pantalla-cliente__totales cg-pantalla-cliente__totales--cobro">
+                    <div><span>Total</span><span class="cg-numero">@((cobrada.TotalCobrado ?? cobrada.Totales.Total).ToString("N2"))</span></div>
+                    @foreach (var pago in cobrada.Pagos ?? [])
+                    {
+                        <div><span>@pago.FormaPagoNombre</span><span class="cg-numero">@pago.MontoAplicado.ToString("N2")</span></div>
+                    }
+                    @if (cobrada.Totales.Descuento > 0)
+                    {
+                        <div class="cg-pantalla-cliente__ahorro-total"><span>Usted ahorró</span><span class="cg-numero">@cobrada.Totales.Descuento.ToString("N2")</span></div>
+                    }
+                    <div class="cg-pantalla-cliente__total"><span>Devuelta</span><span class="cg-numero">RD$@cobrada.Devuelta.ToString("N2")</span></div>
+                </div>
+            </section>
+
+            <aside class="cg-pantalla-cliente__publicidad">@Carrusel</aside>
+        </main>
+    }
+    else if (_venta is { } venta && LineasActivas.Count > 0)
     {
         <main class="cg-pantalla-cliente__venta">
             <section class="cg-pantalla-cliente__detalle">

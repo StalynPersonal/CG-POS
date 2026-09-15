@@ -257,7 +257,7 @@ internal sealed class ConsultaDocumentos(ContextoDatosPos contexto) : IConsultaD
     }
 }
 
-internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto) : IConsultaCatalogoCobro
+internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvider reloj) : IConsultaCatalogoCobro
 {
     public async Task<DatosCatalogoCobro> ObtenerAsync(CancellationToken cancelacion = default)
     {
@@ -274,7 +274,16 @@ internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto) : IConsul
             .Select(d => new DatosDenominacion(d.Id, d.Moneda, d.Valor, d.Tipo))
             .ToListAsync(cancelacion);
 
-        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones);
+        // La tasa vigente más reciente de cada moneda.
+        var ahora = reloj.GetUtcNow();
+        var tasas = (await contexto.TasasCambio.AsNoTracking().Where(t => t.VigenteDesde <= ahora).ToListAsync(cancelacion))
+            .GroupBy(t => t.Moneda)
+            .Select(grupo => grupo.OrderByDescending(t => t.VigenteDesde).First())
+            .OrderBy(t => t.Moneda)
+            .Select(t => new DatosTasaCambio(t.Moneda, t.Tasa, t.VigenteDesde))
+            .ToList();
+
+        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas);
     }
 }
 

@@ -27,6 +27,9 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
 
     public string? NivelCompatibilidad { get; private set; }
 
+    /// <summary>Carpeta temporal donde la impresora de archivo deja los tickets de esta base de pruebas.</summary>
+    public string CarpetaImpresiones { get; } = Path.Combine(Path.GetTempPath(), "CgPosPruebas", $"impresiones-{Guid.NewGuid():N}");
+
     public async Task InitializeAsync()
     {
         var configuracion = new ConfigurationBuilder()
@@ -52,6 +55,7 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
             {
                 [$"ConnectionStrings:{InyeccionDependencias.NombreConexion}"] = CadenaConexion,
                 ["BaseDatos:NivelCompatibilidad"] = NivelCompatibilidad,
+                ["Perifericos:Impresora:Carpeta"] = CarpetaImpresiones,
             })
             .Build();
 
@@ -89,5 +93,8 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
         }
 
         await Servicios.DisposeAsync();
+
+        if (Directory.Exists(CarpetaImpresiones))
+            Directory.Delete(CarpetaImpresiones, recursive: true);
     }
 }

@@ -134,6 +134,38 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> SuspenderCajaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/caja/suspender", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
 
+    // ---------- Cobro y periféricos (C6) ----------
+
+    public async Task<DatosCatalogoCobro?> ObtenerCatalogoCobroAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosCatalogoCobro>("api/catalogos/cobro", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(Guid ventaId, decimal monto, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/terminal", new SolicitudCobroTarjeta(monto),
+            mensaje => new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalSinConexion, mensaje, null), cancelacion);
+
+    public Task<RespuestaOperacionTerminal> AnularUltimaTarjetaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaOperacionTerminal>(HttpMethod.Post, $"api/ventas/{ventaId}/terminal/anular-ultima", null,
+            mensaje => new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalSinConexion, mensaje, null), cancelacion);
+
+    public Task<RespuestaCobro> CobrarAsync(Guid ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/cobrar", new SolicitudCobro(pagos, autorizacionId),
+            mensaje => new RespuestaCobro(CodigoResultadoVenta.VentaNoEditable, mensaje, null, null), cancelacion);
+
+    public Task<RespuestaImpresion> ReimprimirUltimoAsync(CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaImpresion>(HttpMethod.Post, "api/impresion/reimprimir-ultimo", null, mensaje => new RespuestaImpresion(false, mensaje), cancelacion);
+
+    public Task<RespuestaVenta> AbrirGavetaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/gaveta", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
     // ---------- Descuentos y ofertas (C5) ----------
 
     public Task<RespuestaVenta> AplicarDescuentoLineaAsync(Guid ventaId, int numeroLinea, TipoDescuento tipo, decimal valor, string? motivo, Guid? autorizacionId,

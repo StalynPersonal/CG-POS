@@ -88,6 +88,28 @@ public interface IServicioVentas
     Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(SesionUsuario sesion, Guid articuloId, CancellationToken cancelacion = default);
 }
 
+/// <summary>Cobro de la venta y periféricos de caja (M08, M15 local).</summary>
+public interface IServicioCobro
+{
+    /// <summary>Envía el monto al terminal de pago y registra la operación, aprobada o no (RF-100).</summary>
+    Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, Guid ventaId, decimal monto, CancellationToken cancelacion = default);
+
+    /// <summary>Anula en el terminal la última tarjeta aprobada de la venta que aún no se aplicó (RF-214).</summary>
+    Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Cobra la venta con uno o varios pagos (RF-211). La venta cobrada, su mensaje para el Central y la auditoría se guardan
+    /// en la misma transacción; después se imprime el ticket, se abre la gaveta si corresponde (RF-112) y empieza otra venta.
+    /// </summary>
+    Task<RespuestaCobro> CobrarAsync(SesionUsuario sesion, Guid ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    /// <summary>Reimprime como copia el ticket de la última venta cobrada en la caja.</summary>
+    Task<RespuestaImpresion> ReimprimirUltimoAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
+
+    /// <summary>Abre la gaveta sin venta, con permiso (RF-112).</summary>
+    Task<RespuestaVenta> AbrirGavetaAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
+}
+
 public sealed record ResultadoPermiso(bool Permitido, bool PorAutorizacion, bool AutorizacionRechazada, Guid? SupervisorId, string? SupervisorNombre, string? Motivo)
 {
     public static ResultadoPermiso PermisoPropio { get; } = new(true, false, false, null, null, null);

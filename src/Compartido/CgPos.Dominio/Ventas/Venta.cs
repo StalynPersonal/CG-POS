@@ -1,6 +1,7 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
 
 namespace CgPos.Dominio.Ventas;
@@ -29,6 +30,9 @@ public enum CodigoErrorVenta
     ArticuloEnOferta,
     DescuentoNoPermitido,
     DescuentoInvalido,
+    PagoInvalido,
+    PagoInsuficiente,
+    DevueltaNoPermitida,
 }
 
 /// <summary>Una regla de la venta impidió la operación; el código permite a la pantalla reaccionar.</summary>
@@ -142,8 +146,10 @@ public sealed class Venta : Entidad
     public const int LargoMaximoNombreCliente = 150;
     public const int LargoMaximoDocumento = 20;
     public const decimal CantidadMaxima = 99_999m;
+    public const string MonedaLocal = "DOP";
 
     private readonly List<LineaVenta> _lineas = [];
+    private readonly List<PagoVenta> _pagos = [];
 
     private Venta()
     {
@@ -187,6 +193,21 @@ public sealed class Venta : Entidad
     public string? MotivoDescuentoFactura { get; private set; }
     public Guid? DescuentoFacturaAutorizadoPorId { get; private set; }
     public string? DescuentoFacturaAutorizadoPorNombre { get; private set; }
+
+    // Cobro (M08)
+    public DateTimeOffset? CobradaEn { get; private set; }
+    public Guid? CobradaPorId { get; private set; }
+    public string? CobradaPorNombre { get; private set; }
+
+    /// <summary>Total cobrado después del redondeo del efectivo.</summary>
+    public decimal? TotalCobrado { get; private set; }
+
+    public decimal Devuelta { get; private set; }
+
+    /// <summary>Diferencia por redondeo del efectivo (RF-216). No altera el total fiscal de la factura.</summary>
+    public decimal RedondeoEfectivo { get; private set; }
+
+    public IReadOnlyCollection<PagoVenta> Pagos => _pagos;
 
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
@@ -687,6 +708,92 @@ public sealed class Venta : Entidad
             new PreciosVigentes(linea.PrecioDetalle, linea.PrecioMayor), linea.Cantidad, SeleccionListaPrecio.Automatica);
 
     private static decimal Redondear(decimal valor) => decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Cobra la venta con uno o varios pagos (RF-211). Reglas: la devuelta solo sale de medios que la permiten, como el
+    /// efectivo (RF-30); la moneda extranjera se convierte a la tasa indicada y la devuelta es en pesos (RF-212); bonos y
+    /// tarjetas de regalo no se aceptan con comprobante de crédito fiscal, gubernamental o especial (RF-117, RF-119); una
+    /// factura de consumo grande exige identificación (RF-26); si se paga con efectivo se aplica el redondeo configurado (RF-216).
+    /// </summary>
+    /// <param name="pasoRedondeoEfectivo">Múltiplo al que se redondea el total cuando hay efectivo (ej. 1 = al peso); 0 = sin redondeo.</param>
+    public ResultadoCobro Cobrar(IReadOnlyList<PagoSolicitado> pagos, decimal pasoRedondeoEfectivo, decimal montoIdentificacion, Guid usuarioId, string usuarioNombre,
+        DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(pagos);
+        AsegurarEditable();
+
+        if (!TieneLineasActivas)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.SinLineas, "No hay artículos que cobrar.");
+        if (RequiereIdentificacion(montoIdentificacion))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DocumentoRequerido,
+                $"Una factura de consumo desde RD${montoIdentificacion:N2} exige la cédula o el RNC del cliente.");
+        if (pagos.Count == 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, "Agregue al menos una forma de pago.");
+
+        var aplicados = pagos.Select(ValidarPago).ToList();
+        var total = CalcularTotales().Total;
+
+        var hayEfectivo = pagos.Any(p => p.Forma.PermiteDevuelta);
+        var totalCobrado = hayEfectivo && pasoRedondeoEfectivo > 0
+            ? decimal.Round(total / pasoRedondeoEfectivo, 0, MidpointRounding.AwayFromZero) * pasoRedondeoEfectivo
+            : total;
+
+        var pagado = aplicados.Sum();
+        if (pagado < totalCobrado)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInsuficiente, $"Falta cobrar RD${totalCobrado - pagado:N2}.");
+
+        var devuelta = pagado - totalCobrado;
+        var conDevuelta = pagos.Select((pago, indice) => pago.Forma.PermiteDevuelta ? aplicados[indice] : 0m).Sum();
+        if (devuelta > conDevuelta)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DevueltaNoPermitida,
+                "La devuelta solo aplica al efectivo: los demás medios deben cubrir su monto exacto.");
+
+        for (var i = 0; i < pagos.Count; i++)
+            _pagos.Add(PagoVenta.Crear(Id, i + 1, pagos[i], aplicados[i]));
+
+        Estado = EstadoVenta.Cobrada;
+        CobradaEn = ahora;
+        CobradaPorId = Validar.Id(usuarioId, "Usuario");
+        CobradaPorNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario);
+        TotalCobrado = totalCobrado;
+        Devuelta = devuelta;
+        RedondeoEfectivo = totalCobrado - total;
+        ActualizadaEn = ahora;
+
+        return new ResultadoCobro(total, totalCobrado, pagado, devuelta, RedondeoEfectivo, pagos.Any(p => p.Forma.AbreGaveta));
+    }
+
+    /// <returns>Monto en pesos que abona el pago.</returns>
+    private decimal ValidarPago(PagoSolicitado pago)
+    {
+        ArgumentNullException.ThrowIfNull(pago);
+        var forma = pago.Forma;
+
+        if (pago.MontoRecibido <= 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, $"El monto de {forma.Nombre} debe ser mayor que cero.");
+        if (forma.RequiereReferencia && string.IsNullOrWhiteSpace(pago.Referencia))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, forma.Tipo switch
+            {
+                TipoFormaPago.Tarjeta => "Falta el número de aprobación de la tarjeta.",
+                TipoFormaPago.Transferencia => "Falta el número de la transferencia.",
+                TipoFormaPago.Cheque => "Falta el número del cheque.",
+                TipoFormaPago.BonoRegalo or TipoFormaPago.TarjetaRegalo => "Escanee el serial del bono o tarjeta de regalo.",
+                _ => $"Falta la referencia de {forma.Nombre}.",
+            });
+        if (forma.RequiereBanco && pago.BancoId is null)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, $"Seleccione el banco de {forma.Nombre}.");
+        if (!forma.PermiteComprobanteFiscal && TipoComprobante != TipoComprobante.FacturaConsumo)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.ComprobanteNoPermitido,
+                $"{forma.Nombre} no se acepta con comprobante {ReglasComprobante.Nombre(TipoComprobante)}.");
+
+        if (forma.Moneda == MonedaLocal)
+            return decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero);
+
+        if (pago.TasaCambio is not > 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, $"No hay tasa de cambio del día para {forma.Moneda}.");
+
+        return decimal.Round(pago.MontoRecibido * pago.TasaCambio.Value, 2, MidpointRounding.AwayFromZero);
+    }
 
     /// <summary>Una factura de consumo desde el monto indicado exige cédula o RNC del cliente (RF-26).</summary>
     public bool RequiereIdentificacion(decimal montoMinimo) =>

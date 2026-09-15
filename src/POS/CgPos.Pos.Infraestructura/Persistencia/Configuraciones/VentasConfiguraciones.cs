@@ -60,6 +60,37 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
 
         constructor.HasMany(v => v.Lineas).WithOne().HasForeignKey(l => l.VentaId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(v => v.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // Cobro (M08)
+        constructor.Property(v => v.CobradaPorNombre).HasMaxLength(Venta.LargoMaximoUsuario);
+        constructor.Property(v => v.TotalCobrado).HasPrecision(18, 2);
+        constructor.Property(v => v.Devuelta).HasPrecision(18, 2);
+        constructor.Property(v => v.RedondeoEfectivo).HasPrecision(18, 2);
+        constructor.HasIndex(v => new { v.TurnoId, v.Estado });
+        constructor.HasMany(v => v.Pagos).WithOne().HasForeignKey(p => p.VentaId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(v => v.Pagos).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class PagoVentaConfiguracion : IEntityTypeConfiguration<PagoVenta>
+{
+    public void Configure(EntityTypeBuilder<PagoVenta> constructor)
+    {
+        constructor.ToTable("PagosVenta");
+        constructor.HasKey(p => p.Id);
+        constructor.Property(p => p.Id).ValueGeneratedNever();
+        constructor.Property(p => p.FormaPagoCodigo).HasMaxLength(Dominio.Pagos.FormaPago.LargoMaximoCodigo).IsRequired();
+        constructor.Property(p => p.FormaPagoNombre).HasMaxLength(Dominio.Pagos.FormaPago.LargoMaximoNombre).IsRequired();
+        constructor.Property(p => p.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
+        constructor.Property(p => p.MontoRecibido).HasPrecision(18, 2);
+        constructor.Property(p => p.TasaCambio).HasPrecision(18, 4);
+        constructor.Property(p => p.MontoAplicado).HasPrecision(18, 2);
+        constructor.Property(p => p.Referencia).HasMaxLength(PagoVenta.LargoMaximoReferencia);
+        constructor.Property(p => p.BancoNombre).HasMaxLength(PagoVenta.LargoMaximoNombre);
+        constructor.Property(p => p.TipoTarjetaNombre).HasMaxLength(PagoVenta.LargoMaximoNombre);
+        constructor.Property(p => p.UltimosDigitos).HasMaxLength(4).IsUnicode(false);
+        constructor.HasIndex(p => new { p.VentaId, p.Numero }).IsUnique();
+        constructor.HasIndex(p => p.OperacionTerminalId);
     }
 }
 

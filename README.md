@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente) y C5 (descuentos y promociones) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente), C5 (descuentos y promociones) y C6 (cobro y periféricos) completadas.
 
 ## Stack
 
@@ -140,6 +140,16 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Descuento a la línea** (tocar el precio) y **a la factura** (segunda página): por porcentaje o monto, con motivo de la lista `motivosDescuento`. Requiere permiso o clave de supervisor. No aplica a artículos en oferta ni a familias sin descuento manual (panadería, vegetales). El de factura puede limitarse a líneas elegidas y se prorratea al centavo.
 - **Topes** (`topesDescuento`): por nivel de usuario, general, por familia o por artículo. Si el descuento supera el tope de quien autoriza, se pide la clave de un nivel superior. En desarrollo: supervisor (S001) hasta 10 % o RD$2,000; gerente (G001) hasta 30 % o RD$20,000.
 - Cada línea guarda la oferta aplicada y cada descuento queda auditado con motivo y autorizador.
+
+### Cobro y periféricos
+
+- **F8 Totalizar** abre el cobro: formas de pago del maestro en botones, monto con teclado y billetes rápidos, y en todo momento lo pagado, lo que falta o la devuelta. Admite pago mixto.
+- **Efectivo:** es el único medio que da devuelta. Si el parámetro `Caja.PasoRedondeoEfectivo` es mayor que 0, el total se redondea (ej. `1` = al peso).
+- **Dólares:** a la tasa del día (`tasasCambio` en los maestros); la devuelta es en pesos.
+- **Tarjeta:** "Pasar tarjeta" envía el monto al terminal de pago, simulado en desarrollo con `Perifericos:TerminalSimulado` y `SinConexion: true` para probar la contingencia. Quitar una tarjeta la anula en el terminal. Si la pasarela no responde, se registra la aprobación manual con autorización y queda para conciliar.
+- **Transferencia y cheque** piden banco y número; **bonos y tarjetas de regalo** piden serial y no se aceptan con crédito fiscal.
+- **Al cobrar:** la venta, sus pagos, el mensaje para el Central (`Venta.Cobrada` en la bandeja de salida) y la auditoría se guardan en una sola transacción. Después se imprime el ticket, se abre la gaveta si hubo un medio físico y empieza otra venta. La pantalla del cliente muestra el pago y la devuelta.
+- **Impresora:** `Perifericos:Impresora:Tipo` = `Archivo` deja el ticket en texto y ESC/POS en `Carpeta` (en desarrollo `src/POS/CgPos.Pos.Agente/logs/impresiones`); `Red` lo envía a `Host`:`Puerto` (9100). Reimprimir y abrir la gaveta sin venta (con permiso) están en la segunda página de teclas.
 
 ### Pantalla del cliente y monitores
 

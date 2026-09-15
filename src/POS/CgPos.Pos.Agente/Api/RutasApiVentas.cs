@@ -106,6 +106,32 @@ public static class RutasApiVentas
         api.MapGet("/articulos/{articuloId:guid}/promociones", (Guid articuloId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Results.Ok(await servicio.ListarPromocionesVigentesAsync(sesion, articuloId, cancelacion))));
 
+        // Cobro y periféricos (C6)
+        ventas.MapPost("/{ventaId:guid}/terminal", (Guid ventaId, SolicitudCobroTarjeta solicitud, ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => ResultadoTerminal(await servicio.CobrarConTerminalAsync(sesion, ventaId, solicitud.Monto, cancelacion))));
+
+        ventas.MapPost("/{ventaId:guid}/terminal/anular-ultima", (Guid ventaId, ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => ResultadoTerminal(await servicio.AnularUltimaOperacionAsync(sesion, ventaId, cancelacion))));
+
+        ventas.MapPost("/{ventaId:guid}/cobrar", (Guid ventaId, SolicitudCobro solicitud, ClaimsPrincipal usuario, IServicioCobro servicio, PublicadorPantallaCliente pantallaCliente,
+                CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion =>
+            {
+                var respuesta = await servicio.CobrarAsync(sesion, ventaId, solicitud.Pagos ?? [], solicitud.AutorizacionId, cancelacion);
+                if (!respuesta.Exitosa)
+                    return Results.UnprocessableEntity(respuesta);
+
+                // La pantalla del cliente muestra el pago y la devuelta hasta que empiece la siguiente venta.
+                await pantallaCliente.PublicarAsync(respuesta.Venta, cancelacion);
+                return Results.Ok(respuesta);
+            }));
+
+        api.MapPost("/impresion/reimprimir-ultimo", (ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Results.Ok(await servicio.ReimprimirUltimoAsync(sesion, cancelacion))));
+
+        api.MapPost("/caja/gaveta", (SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.AbrirGavetaAsync(sesion, solicitud.AutorizacionId, cancelacion))));
+
         api.MapPost("/caja/suspender", (SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.SuspenderAsync(sesion, solicitud.AutorizacionId, cancelacion))));
 
@@ -119,5 +145,8 @@ public static class RutasApiVentas
         EmisorTokens.LeerSesion(usuario) is { } sesion ? await accion(sesion) : Results.Unauthorized();
 
     private static IResult Resultado(RespuestaVenta respuesta) =>
+        respuesta.Exitosa ? Results.Ok(respuesta) : Results.UnprocessableEntity(respuesta);
+
+    private static IResult ResultadoTerminal(RespuestaOperacionTerminal respuesta) =>
         respuesta.Exitosa ? Results.Ok(respuesta) : Results.UnprocessableEntity(respuesta);
 }

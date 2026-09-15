@@ -105,7 +105,12 @@ public sealed record DatosVenta(
     bool LimiteCompraExcedido,
     bool RequiereIdentificacion,
     decimal MontoIdentificacion,
-    DatosDescuentoFactura? DescuentoFactura = null);
+    DatosDescuentoFactura? DescuentoFactura = null,
+    IReadOnlyList<DatosPagoVenta>? Pagos = null,
+    decimal? TotalCobrado = null,
+    decimal Devuelta = 0m,
+    decimal RedondeoEfectivo = 0m,
+    DateTimeOffset? CobradaEn = null);
 
 /// <summary>Resumen de una factura en espera del cajero en su turno (RF-22, RF-197).</summary>
 public sealed record DatosVentaEnEspera(
@@ -173,6 +178,12 @@ public enum CodigoResultadoVenta
     DescuentoNoPermitido,
     DescuentoInvalido,
     TopeDescuentoExcedido,
+    PagoInvalido,
+    PagoInsuficiente,
+    DevueltaNoPermitida,
+    TerminalRechazo,
+    TerminalSinConexion,
+    OperacionTerminalInvalida,
 }
 
 /// <summary>Resultado de una operación sobre la venta: la venta actualizada o el motivo del rechazo.</summary>

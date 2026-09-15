@@ -3,6 +3,7 @@ using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Turnos;
@@ -14,6 +15,7 @@ using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Persistencia;
+using CgPos.Pos.Infraestructura.Tickets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -75,7 +77,17 @@ internal static class ConversionesVenta
                     venta.MotivoDescuentoFactura,
                     venta.DescuentoFacturaAutorizadoPorNombre,
                     venta.Lineas.Sum(l => l.DescuentoFactura))
-                : null);
+                : null,
+            venta.Pagos.Count == 0
+                ? null
+                : venta.Pagos.OrderBy(p => p.Numero)
+                    .Select(p => new DatosPagoVenta(p.Numero, p.FormaPagoId, p.FormaPagoCodigo, p.FormaPagoNombre, p.Tipo, p.Moneda, p.MontoRecibido,
+                        p.TasaCambio, p.MontoAplicado, p.Referencia, p.BancoNombre, p.TipoTarjetaNombre, p.UltimosDigitos, p.AprobacionManual))
+                    .ToList(),
+            venta.TotalCobrado,
+            venta.Devuelta,
+            venta.RedondeoEfectivo,
+            venta.CobradaEn);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -100,6 +112,9 @@ internal static class ConversionesVenta
         CodigoErrorVenta.ArticuloEnOferta => CodigoResultadoVenta.ArticuloEnOferta,
         CodigoErrorVenta.DescuentoNoPermitido => CodigoResultadoVenta.DescuentoNoPermitido,
         CodigoErrorVenta.DescuentoInvalido => CodigoResultadoVenta.DescuentoInvalido,
+        CodigoErrorVenta.PagoInvalido => CodigoResultadoVenta.PagoInvalido,
+        CodigoErrorVenta.PagoInsuficiente => CodigoResultadoVenta.PagoInsuficiente,
+        CodigoErrorVenta.DevueltaNoPermitida => CodigoResultadoVenta.DevueltaNoPermitida,
         _ => CodigoResultadoVenta.VentaNoEditable,
     };
 }
@@ -179,10 +194,268 @@ internal sealed class ServicioVentas(
     IValidadorAutorizaciones autorizaciones,
     IParametros parametros,
     IBalanza balanza,
+    ITerminalPago terminal,
+    IImpresoraTicket impresora,
+    IBandejaSalida bandejaSalida,
     GeneradorSecuencias secuencias,
     IAuditoria auditoria,
-    TimeProvider reloj) : IServicioVentas
+    TimeProvider reloj) : IServicioVentas, IServicioCobro
 {
+    // ---------- Cobro y periféricos (M08) ----------
+
+    public async Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, Guid ventaId, decimal monto, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return new RespuestaOperacionTerminal(rechazo.Resultado, rechazo.Mensaje, null);
+        if (monto <= 0)
+            return new RespuestaOperacionTerminal(CodigoResultadoVenta.PagoInvalido, "El monto a cobrar con tarjeta debe ser mayor que cero.", null);
+
+        var resultado = await terminal.CobrarAsync(decimal.Round(monto, 2, MidpointRounding.AwayFromZero), venta!.NumeroTransaccion, cancelacion);
+        var operacion = OperacionTerminal.Registrar(sesion.CajaId, venta.TurnoId, venta.Id, sesion.UsuarioId, TipoOperacionTerminal.Venta, monto,
+            resultado.Aprobada, resultado.Aprobacion, resultado.UltimosDigitos, resultado.Marca, resultado.Mensaje, reloj.GetUtcNow());
+        contexto.OperacionesTerminal.Add(operacion);
+        auditoria.Registrar(new EntradaAuditoria(resultado.Aprobada ? "Cobro.TarjetaAprobada" : "Cobro.TarjetaNoAprobada", TipoEntidadVenta, venta.NumeroTransaccion,
+            Detalle: new { operacion.Id, operacion.Monto, operacion.Aprobacion, operacion.Marca, resultado.SinConexion, resultado.Mensaje },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        var datos = DatosOperacion(operacion, resultado.SinConexion);
+        return resultado.Aprobada
+            ? new RespuestaOperacionTerminal(CodigoResultadoVenta.Correcto, null, datos)
+            : new RespuestaOperacionTerminal(resultado.SinConexion ? CodigoResultadoVenta.TerminalSinConexion : CodigoResultadoVenta.TerminalRechazo,
+                resultado.Mensaje, datos);
+    }
+
+    public async Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return new RespuestaOperacionTerminal(rechazo.Resultado, rechazo.Mensaje, null);
+
+        var ultima = await contexto.OperacionesTerminal
+            .Where(o => o.VentaId == ventaId && o.Tipo == TipoOperacionTerminal.Venta && o.Estado == EstadoOperacionTerminal.Aprobada && !o.UsadaEnCobro)
+            .OrderByDescending(o => o.Fecha)
+            .FirstOrDefaultAsync(cancelacion);
+        if (ultima is null)
+            return new RespuestaOperacionTerminal(CodigoResultadoVenta.OperacionTerminalInvalida, "No hay una tarjeta aprobada pendiente de aplicar para anular.", null);
+
+        var resultado = await terminal.AnularAsync(ultima.Aprobacion ?? string.Empty, ultima.Monto, cancelacion);
+        if (!resultado.Aprobada)
+            return new RespuestaOperacionTerminal(resultado.SinConexion ? CodigoResultadoVenta.TerminalSinConexion : CodigoResultadoVenta.TerminalRechazo,
+                resultado.Mensaje ?? "El terminal no anuló la operación.", DatosOperacion(ultima, resultado.SinConexion));
+
+        ultima.MarcarAnulada();
+        var anulacion = OperacionTerminal.Registrar(sesion.CajaId, ultima.TurnoId, ultima.VentaId, sesion.UsuarioId, TipoOperacionTerminal.Anulacion, ultima.Monto,
+            true, resultado.Aprobacion, ultima.UltimosDigitos, ultima.Marca, resultado.Mensaje, reloj.GetUtcNow(), ultima.Id);
+        contexto.OperacionesTerminal.Add(anulacion);
+        auditoria.Registrar(new EntradaAuditoria("Cobro.TarjetaAnulada", TipoEntidadVenta, venta!.NumeroTransaccion,
+            Detalle: new { Anulada = ultima.Id, ultima.Monto, ultima.Aprobacion, AprobacionAnulacion = resultado.Aprobacion },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        return new RespuestaOperacionTerminal(CodigoResultadoVenta.Correcto, resultado.Mensaje, DatosOperacion(anulacion, false));
+    }
+
+    public async Task<RespuestaCobro> CobrarAsync(SesionUsuario sesion, Guid ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId,
+        CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return new RespuestaCobro(rechazo.Resultado, rechazo.Mensaje, null, null, rechazo.Venta, rechazo.PermisoRequerido);
+        if (pagos is not { Count: > 0 })
+            return new RespuestaCobro(CodigoResultadoVenta.PagoInvalido, "Agregue al menos una forma de pago.", null, null, Datos(venta!));
+
+        var ahora = reloj.GetUtcNow();
+        venta!.RecalcularPromociones(await PromocionesAsync(cancelacion), venta.SucursalId, reloj.GetLocalNow());
+
+        // La aprobación manual de tarjeta por contingencia de la pasarela requiere permiso (RF-213).
+        ResultadoPermiso? permiso = null;
+        if (pagos.Any(p => p.AprobacionManual))
+        {
+            permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AprobacionManualTarjeta, autorizacionId, TipoEntidadVenta, venta.NumeroTransaccion, cancelacion);
+            if (!permiso.Permitido)
+                return new RespuestaCobro(
+                    permiso.AutorizacionRechazada ? CodigoResultadoVenta.AutorizacionInvalida : CodigoResultadoVenta.RequiereAutorizacion,
+                    "La aprobación manual de tarjeta requiere autorización de un supervisor.", null, null, Datos(venta), CatalogoPermisos.AprobacionManualTarjeta);
+        }
+
+        var solicitados = await ArmarPagosAsync(venta, pagos, ahora, cancelacion);
+        if (solicitados.Rechazo is { } pagoRechazado)
+            return new RespuestaCobro(pagoRechazado.Codigo, pagoRechazado.Mensaje, null, null, Datos(venta));
+
+        var paso = await parametros.ObtenerDecimalAsync(ClavesParametros.PasoRedondeoEfectivo, sesion.CajaId, 0m, cancelacion);
+        ResultadoCobro resultado;
+        try
+        {
+            resultado = venta.Cobrar(solicitados.Pagos, paso, _montoIdentificacion, sesion.UsuarioId, sesion.Nombre, ahora);
+        }
+        catch (ReglaVentaExcepcion excepcion)
+        {
+            contexto.ChangeTracker.Clear();
+            var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
+            return new RespuestaCobro(excepcion.Codigo.ACodigoResultado(), excepcion.Message, null, null, Datos(ventaActual));
+        }
+
+        foreach (var operacion in solicitados.Operaciones)
+            operacion.MarcarUsada();
+
+        // Documento, mensaje para el Central y auditoría en la misma transacción (RF-270).
+        var datosVenta = Datos(venta);
+        bandejaSalida.Encolar("Venta.Cobrada", venta.Id, new DocumentoVentaCobrada(datosVenta, venta.SucursalId, venta.CajaId, venta.TurnoId, sesion.UsuarioId, ahora));
+        auditoria.Registrar(new EntradaAuditoria("Ventas.Cobrada", TipoEntidadVenta, venta.NumeroTransaccion,
+            Detalle: new
+            {
+                resultado.Total,
+                resultado.TotalCobrado,
+                resultado.Pagado,
+                resultado.Devuelta,
+                resultado.Redondeo,
+                Pagos = venta.Pagos.Select(p => new { p.FormaPagoCodigo, p.MontoRecibido, p.MontoAplicado, p.Referencia, p.AprobacionManual }),
+            },
+            Motivo: permiso?.Motivo,
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+            AutorizadoPor: permiso is null ? null : Autorizador(permiso)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        // Periféricos después de guardar: un fallo de impresora o gaveta nunca deshace el cobro.
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(await EncabezadoTicketAsync(sesion, cancelacion), datosVenta, esCopia: false), cancelacion);
+        var gaveta = resultado.AbreGaveta ? await impresora.AbrirGavetaAsync(cancelacion) : null;
+        var avisos = new[] { impresion.Correcto ? null : impresion.Mensaje, gaveta is { Correcto: false } ? gaveta.Mensaje : null }
+            .Where(aviso => aviso is not null)
+            .ToList();
+
+        var (turno, _) = await TurnoDelUsuarioAsync(sesion, cancelacion);
+        var nueva = await IniciarVentaAsync(sesion, turno!, cancelacion);
+
+        return new RespuestaCobro(
+            CodigoResultadoVenta.Correcto,
+            avisos.Count > 0 ? string.Join(" ", avisos) : null,
+            new DatosCobro(venta.NumeroTransaccion, resultado.Total, resultado.TotalCobrado, resultado.Pagado, resultado.Devuelta, resultado.Redondeo,
+                datosVenta.Pagos ?? [], impresion.Correcto, gaveta?.Correcto ?? false),
+            Datos(nueva),
+            datosVenta);
+    }
+
+    public async Task<RespuestaImpresion> ReimprimirUltimoAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
+    {
+        var ultima = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).Include(v => v.Pagos)
+            .Where(v => v.CajaId == sesion.CajaId && v.Estado == EstadoVenta.Cobrada)
+            .OrderByDescending(v => v.CobradaEn)
+            .FirstOrDefaultAsync(cancelacion);
+        if (ultima is null)
+            return new RespuestaImpresion(false, "No hay ventas cobradas para reimprimir.");
+
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(await EncabezadoTicketAsync(sesion, cancelacion), Datos(ultima), esCopia: true), cancelacion);
+        auditoria.Registrar(new EntradaAuditoria("Ventas.Reimpresion", TipoEntidadVenta, ultima.NumeroTransaccion,
+            Detalle: new { impresion.Correcto }, Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        return new RespuestaImpresion(impresion.Correcto, impresion.Correcto ? $"Copia del ticket {ultima.NumeroTransaccion} enviada a la impresora." : impresion.Mensaje);
+    }
+
+    public async Task<RespuestaVenta> AbrirGavetaAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AbrirGaveta, autorizacionId, "Caja", sesion.CajaCodigo, cancelacion);
+        if (!permiso.Permitido)
+            return permiso.AutorizacionRechazada
+                ? new RespuestaVenta(CodigoResultadoVenta.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", null, CatalogoPermisos.AbrirGaveta)
+                : new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "Abrir la gaveta sin venta requiere autorización de un supervisor.", null, CatalogoPermisos.AbrirGaveta);
+
+        auditoria.Registrar(new EntradaAuditoria("Caja.GavetaAbierta", "Caja", sesion.CajaCodigo,
+            Motivo: permiso.Motivo, Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre), AutorizadoPor: Autorizador(permiso)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        var gaveta = await impresora.AbrirGavetaAsync(cancelacion);
+        return gaveta.Correcto
+            ? new RespuestaVenta(CodigoResultadoVenta.Correcto, "Gaveta abierta.", null)
+            : new RespuestaVenta(CodigoResultadoVenta.Correcto, gaveta.Mensaje, null);
+    }
+
+    private sealed record PagosArmados(IReadOnlyList<PagoSolicitado> Pagos, IReadOnlyList<OperacionTerminal> Operaciones, (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo);
+
+    /// <summary>Completa cada pago con los datos del maestro, la tasa del día y la aprobación registrada del terminal.</summary>
+    private async Task<PagosArmados> ArmarPagosAsync(Venta venta, IReadOnlyList<SolicitudPago> pagos, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        var idsFormas = pagos.Select(p => p.FormaPagoId).Distinct().ToList();
+        var formas = await contexto.FormasPago.AsNoTracking().Where(f => idsFormas.Contains(f.Id) && f.Activa).ToDictionaryAsync(f => f.Id, cancelacion);
+        var idsBancos = pagos.Select(p => p.BancoId).OfType<Guid>().Distinct().ToList();
+        var bancos = await contexto.Bancos.AsNoTracking().Where(b => idsBancos.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Nombre, cancelacion);
+        var idsTipos = pagos.Select(p => p.TipoTarjetaId).OfType<Guid>().Distinct().ToList();
+        var tipos = await contexto.TiposTarjeta.AsNoTracking().Where(t => idsTipos.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Nombre, cancelacion);
+        var tasas = await contexto.TasasCambio.AsNoTracking().ToListAsync(cancelacion);
+        var idsOperaciones = pagos.Select(p => p.OperacionTerminalId).OfType<Guid>().Distinct().ToList();
+        var operaciones = await contexto.OperacionesTerminal.Where(o => idsOperaciones.Contains(o.Id)).ToDictionaryAsync(o => o.Id, cancelacion);
+
+        var solicitados = new List<PagoSolicitado>();
+        var usadas = new List<OperacionTerminal>();
+        foreach (var pago in pagos)
+        {
+            if (!formas.TryGetValue(pago.FormaPagoId, out var forma))
+                return new PagosArmados([], [], (CodigoResultadoVenta.PagoInvalido, "La forma de pago no existe o está inactiva."));
+            if (forma.Tipo is TipoFormaPago.NotaCredito or TipoFormaPago.Puntos)
+                return new PagosArmados([], [], (CodigoResultadoVenta.PagoInvalido, $"{forma.Nombre} todavía no está disponible en esta caja."));
+
+            var referencia = pago.Referencia;
+            var ultimosDigitos = pago.UltimosDigitos;
+            string? marca = null;
+            Guid? operacionId = null;
+
+            if (forma.Tipo == TipoFormaPago.Tarjeta && !pago.AprobacionManual)
+            {
+                if (pago.OperacionTerminalId is not { } id || !operaciones.TryGetValue(id, out var operacion) || !operacion.DisponibleParaCobro
+                    || operacion.VentaId != venta.Id || operacion.Monto != decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero)
+                    || usadas.Contains(operacion))
+                    return new PagosArmados([], [], (CodigoResultadoVenta.OperacionTerminalInvalida,
+                        "Pase la tarjeta por el terminal por el monto exacto, o registre la aprobación manual si la pasarela no responde."));
+
+                referencia = operacion.Aprobacion;
+                ultimosDigitos = operacion.UltimosDigitos;
+                marca = operacion.Marca;
+                operacionId = operacion.Id;
+                usadas.Add(operacion);
+            }
+
+            var formaCobro = new FormaPagoParaCobro(forma.Id, forma.Codigo, forma.Nombre, forma.Tipo, forma.Moneda, forma.PermiteDevuelta,
+                forma.RequiereReferencia, forma.RequiereBanco, forma.PermiteComprobanteFiscal, forma.AbreGaveta);
+
+            solicitados.Add(new PagoSolicitado(
+                formaCobro,
+                pago.MontoRecibido,
+                forma.Moneda == Venta.MonedaLocal ? null : TasaCambio.Vigente(tasas, forma.Moneda, ahora),
+                referencia,
+                pago.BancoId,
+                pago.BancoId is { } bancoId && bancos.TryGetValue(bancoId, out var banco) ? banco : null,
+                pago.TipoTarjetaId,
+                pago.TipoTarjetaId is { } tipoId && tipos.TryGetValue(tipoId, out var tipo) ? tipo : marca,
+                ultimosDigitos,
+                pago.AprobacionManual,
+                operacionId));
+        }
+
+        return new PagosArmados(solicitados, usadas, null);
+    }
+
+    private async Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion)
+    {
+        var datos = await (
+                from caja in contexto.Cajas
+                join sucursal in contexto.Sucursales on caja.SucursalId equals sucursal.Id
+                join empresa in contexto.Empresas on sucursal.EmpresaId equals empresa.Id
+                where caja.Id == sesion.CajaId
+                select new { Empresa = empresa.NombreComercial ?? empresa.RazonSocial, empresa.Rnc, EmpresaDireccion = empresa.Direccion, empresa.Telefono,
+                    Sucursal = sucursal.Nombre, SucursalDireccion = sucursal.Direccion, Caja = caja.Codigo })
+            .SingleAsync(cancelacion);
+
+        return new EncabezadoTicket(datos.Empresa, datos.Rnc, datos.EmpresaDireccion, datos.Telefono, datos.Sucursal, datos.SucursalDireccion, datos.Caja);
+    }
+
+    private static DatosOperacionTerminal DatosOperacion(OperacionTerminal operacion, bool sinConexion) =>
+        new(operacion.Id, operacion.Estado == EstadoOperacionTerminal.Aprobada, sinConexion, operacion.Monto, operacion.Aprobacion, operacion.UltimosDigitos,
+            operacion.Marca, operacion.Mensaje);
+
+    // ---------- Venta ----------
+
     private const string TipoEntidadVenta = "Venta";
 
     /// <summary>Se lee de parámetros al validar el turno, que es el primer paso de toda operación.</summary>

@@ -190,6 +190,9 @@
     { "id": "01990000-0000-7000-8001-000000001103", "codigo": "AJU-PRE", "nombre": "Ajuste de precio" },
     { "id": "01990000-0000-7000-8001-000000001104", "codigo": "GERENCIA", "nombre": "Autorizado por gerencia" }
   ],
+  "tasasCambio": [
+    { "id": "01990000-0000-7000-8001-000000001301", "moneda": "USD", "tasa": 60.25, "vigenteDesde": "2026-09-01T00:00:00-04:00" }
+  ],
   "topesDescuento": [
     { "id": "01990000-0000-7000-8001-000000001201", "nivel": 2, "porcentajeMaximo": 10, "montoMaximo": 2000 },
     { "id": "01990000-0000-7000-8001-000000001202", "nivel": 3, "porcentajeMaximo": 30, "montoMaximo": 20000 }

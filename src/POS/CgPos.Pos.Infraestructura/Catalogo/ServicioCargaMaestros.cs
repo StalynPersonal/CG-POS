@@ -62,6 +62,7 @@ internal sealed class ServicioCargaMaestros(
         var promociones = paquete.Promociones ?? [];
         var motivosDescuento = paquete.MotivosDescuento ?? [];
         var topesDescuento = paquete.TopesDescuento ?? [];
+        var tasasCambio = paquete.TasasCambio ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -95,6 +96,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarMotivoDescuentoAsync(dato, cancelacion);
             foreach (var dato in topesDescuento)
                 await AplicarTopeDescuentoAsync(dato, cancelacion);
+            foreach (var dato in tasasCambio)
+                await AplicarTasaCambioAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -434,6 +437,20 @@ internal sealed class ServicioCargaMaestros(
         }
 
         tope.Actualizar(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.FamiliaId, dato.ArticuloId);
+        _actualizados++;
+    }
+
+    private async Task AplicarTasaCambioAsync(TasaCambioCarga dato, CancellationToken cancelacion)
+    {
+        var tasa = await contexto.TasasCambio.SingleOrDefaultAsync(t => t.Id == dato.Id, cancelacion);
+        if (tasa is null)
+        {
+            contexto.TasasCambio.Add(TasaCambio.Registrar(dato.Moneda, dato.Tasa, dato.VigenteDesde, dato.Id));
+            _creados++;
+            return;
+        }
+
+        tasa.Actualizar(dato.Tasa, dato.VigenteDesde);
         _actualizados++;
     }
 }

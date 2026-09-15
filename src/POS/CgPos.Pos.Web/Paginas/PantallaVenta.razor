@@ -89,6 +89,22 @@ else
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
         }
+        @if (_ultimoCobro is { } cobro && _venta.Lineas.Count == 0)
+        {
+            <div class="cg-venta__cobro-final">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                <div>
+                    <span>Transacción @cobro.NumeroTransaccion cobrada</span>
+                    <strong>Total RD$@cobro.TotalCobrado.ToString("N2")</strong>
+                </div>
+                <div class="cg-venta__devuelta">
+                    <span>Devuelta</span>
+                    <strong>RD$@cobro.Devuelta.ToString("N2")</strong>
+                </div>
+                <span class="cg-espaciador"></span>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Print" OnClick="ReimprimirAsync">Reimprimir</MudButton>
+            </div>
+        }
         @if (_aviso is not null)
         {
             <MudAlert Severity="Severity.Info" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _aviso = null">@_aviso</MudAlert>
@@ -218,7 +234,7 @@ else
                 <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" AlPresionar="PesarAsync" />
                 <TeclaFuncion Atajo="F6" Texto="Reintegro" Icono="@Icons.Material.Filled.Autorenew" Deshabilitada="true" />
                 <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="AbrirEsperaAsync" />
-                <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="TotalizarAsync" />
                 <TeclaFuncion Atajo="F9" Texto="Suspender" Icono="@Icons.Material.Filled.DesktopAccessDisabled" Deshabilitada="true" />
                 <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" Deshabilitada="true" />
                 <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="ConsultarPrecioAsync" />
@@ -233,6 +249,8 @@ else
                 <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="AbrirDescuentoFacturaAsync" />
                 <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="AnularAsync" />
                 <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
+                <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="AbrirGavetaAsync" />
+                <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="ReimprimirAsync" />
                 <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="SalirAsync" />
             </PaginaSecundaria>
         </BarraTeclasFuncion>
@@ -269,6 +287,7 @@ else
     private string _entrada = string.Empty;
     private string? _mensaje;
     private string? _aviso;
+    private DatosCobro? _ultimoCobro;
     private int? _numeroSeleccionado;
     private bool _cargando = true;
     private bool _procesando;
@@ -562,6 +581,53 @@ else
             return respuesta;
         });
 
+    // ---------- Cobro ----------
+
+    /// <summary>F8: muestra el total con descuentos (RF-147) y abre el cobro.</summary>
+    private async Task TotalizarAsync()
+    {
+        if (_venta is null || !_venta.Lineas.Any(EsEditable))
+        {
+            _mensaje = "No hay artículos que cobrar.";
+            return;
+        }
+
+        if (_venta.RequiereIdentificacion)
+        {
+            _mensaje = $"Antes de cobrar, asigne la cédula o el RNC del cliente (factura de consumo desde RD${_venta.MontoIdentificacion:N2}).";
+            await AbrirClienteAsync();
+            return;
+        }
+
+        _barra?.MostrarPrincipal();
+        var parametros = new DialogParameters<DialogoCobro> { { dialogo => dialogo.Venta, _venta } };
+        var respuesta = await MostrarDialogoAsync<DialogoCobro, RespuestaCobro>($"Cobro · {_venta.NumeroTransaccion}", parametros, MaxWidth.ExtraLarge);
+        if (respuesta is not { Exitosa: true, NuevaVenta: { } nueva })
+            return;
+
+        _venta = nueva;
+        _ultimoCobro = respuesta.Cobro;
+        _mensaje = null;
+        _aviso = respuesta.Mensaje;
+        _numeroSeleccionado = null;
+        _codigosInternos.Clear();
+    }
+
+    private async Task ReimprimirAsync()
+    {
+        _barra?.MostrarPrincipal();
+        var respuesta = await Cliente.ReimprimirUltimoAsync();
+        _aviso = respuesta.Correcto ? respuesta.Mensaje : null;
+        _mensaje = respuesta.Correcto ? null : respuesta.Mensaje;
+        _enfocar = true;
+    }
+
+    private async Task AbrirGavetaAsync()
+    {
+        _barra?.MostrarPrincipal();
+        await EjecutarConAutorizacionAsync(autorizacion => Cliente.AbrirGavetaAsync(autorizacion), "Abrir la gaveta sin venta");
+    }
+
     // ---------- Descuentos y ofertas ----------
 
     private async Task AbrirDescuentoLineaAsync(DatosLineaVenta linea)
@@ -826,6 +892,7 @@ else
             "F4" => CambiarCantidadSeleccionadaAsync(),
             "F5" => PesarAsync(),
             "F7" => AbrirEsperaAsync(),
+            "F8" => TotalizarAsync(),
             "F11" => ConsultarPrecioAsync(),
             "F12" => AbrirClienteAsync(),
             "Escape" => SalirDeModosAsync(),

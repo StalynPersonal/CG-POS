@@ -4,6 +4,7 @@ using CgPos.Dominio.Promociones;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
@@ -470,6 +471,115 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(lineas.Single(l => l.NumeroLinea == 1).PromocionDesactivada);
         Assert.Equal(50m, lineas.Sum(l => l.DescuentoFactura));
         Assert.Equal(850m + 485m - 50m, sinOferta.Venta.Totales.Total);
+    }
+
+    [SkippableFact]
+    public async Task Cobro_en_efectivo_guarda_pagos_mensaje_para_el_central_y_ticket_y_empieza_otra_venta()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Equal(150m, cobro.Cobro!.Devuelta);
+        Assert.True(cobro.Cobro.Impreso);
+        Assert.True(cobro.Cobro.GavetaAbierta);
+        Assert.Equal(EstadoVenta.Cobrada, cobro.Venta!.Estado);
+        Assert.NotEqual(venta.Id, cobro.NuevaVenta!.Id);
+        Assert.Empty(cobro.NuevaVenta.Lineas);
+
+        var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
+            contexto.BandejaSalida.CountAsync(m => m.TipoMensaje == "Venta.Cobrada" && m.AgregadoId == venta.Id));
+        Assert.Equal(1, mensajes);
+
+        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{venta.NumeroTransaccion}.txt")));
+        Assert.Contains("DEVUELTA", ticket);
+        Assert.Contains("150.00", ticket);
+        Assert.Contains(venta.NumeroTransaccion, ticket);
+
+        var repetido = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.Equal(CodigoResultadoVenta.VentaNoEditable, repetido.Resultado);
+    }
+
+    [SkippableFact]
+    public async Task Tarjeta_pasa_por_el_terminal_se_aplica_una_vez_y_la_ultima_se_puede_anular()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+
+        var primera = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 850m));
+        Assert.True(primera.Exitosa, primera.Mensaje);
+
+        var anulada = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.AnularUltimaOperacionAsync(caja.Cajero, venta.Id));
+        Assert.True(anulada.Exitosa, anulada.Mensaje);
+
+        var conAnulada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaTarjeta, 850m, OperacionTerminalId: primera.Operacion!.Id)], null));
+        Assert.Equal(CodigoResultadoVenta.OperacionTerminalInvalida, conAnulada.Resultado);
+
+        var segunda = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 850m));
+        var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, venta.Id,
+                [new SolicitudPago(caja.Catalogo.FormaTarjeta, 850m, TipoTarjetaId: caja.Catalogo.TipoTarjeta, OperacionTerminalId: segunda.Operacion!.Id)], null));
+
+        Assert.True(cobrada.Exitosa, cobrada.Mensaje);
+        var pago = Assert.Single(cobrada.Venta!.Pagos!);
+        Assert.Equal(segunda.Operacion!.Aprobacion, pago.Referencia);
+        Assert.Equal("4242", pago.UltimosDigitos);
+        Assert.False(cobrada.Cobro!.GavetaAbierta); // la tarjeta no abre la gaveta
+    }
+
+    [SkippableFact]
+    public async Task Aprobacion_manual_de_tarjeta_requiere_autorizacion_y_queda_para_conciliar()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaTarjeta, 850m, Referencia: "MAN-778", UltimosDigitos: "1111", AprobacionManual: true)];
+
+        var sinPermiso = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
+        Assert.Equal(CatalogoPermisos.AprobacionManualTarjeta, sinPermiso.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AprobacionManualTarjeta, "Pasarela sin conexión");
+        var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, autorizacion));
+        Assert.True(cobrada.Exitosa, cobrada.Mensaje);
+
+        var paraConciliar = await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto =>
+            contexto.Set<PagoVenta>().Where(p => p.VentaId == venta.Id).Select(p => p.ParaConciliar).SingleAsync());
+        Assert.True(paraConciliar);
+    }
+
+    [SkippableFact]
+    public async Task Dolares_se_cobran_a_la_tasa_del_dia_con_devuelta_en_pesos()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var formaDolares = Guid.CreateVersion7();
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
+            FormasPago: [new FormaPagoCarga(formaDolares, $"USD{caja.Catalogo.Sufijo}", "Dólares", TipoFormaPago.MonedaExtranjera, 5, "USD")],
+            TasasCambio: [new TasaCambioCarga(Guid.CreateVersion7(), "USD", 60.25m, EscenarioSeguridad.Inicio.AddDays(-1))]), "Pruebas"));
+
+        var catalogo = await caja.EjecutarAsync<IConsultaCatalogoCobro, DatosCatalogoCobro>(s => s.ObtenerAsync());
+        Assert.Contains(catalogo.Tasas!, t => t.Moneda == "USD" && t.Tasa == 60.25m);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(formaDolares, 20m)], null));
+
+        Assert.True(cobrada.Exitosa, cobrada.Mensaje);
+        var pago = Assert.Single(cobrada.Venta!.Pagos!);
+        Assert.Equal(1205m, pago.MontoAplicado);
+        Assert.Equal(355m, cobrada.Cobro!.Devuelta);
     }
 
     private static class BalanzaPrueba

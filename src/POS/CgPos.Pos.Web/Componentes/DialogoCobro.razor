@@ -1,0 +1,475 @@
+@* Cobro de la venta (F8): formas de pago en horizontal por uso (RF-150), pago mixto con el saldo siempre visible (RF-211),
+   dólares a la tasa del día (RF-212), tarjeta por el terminal o aprobación manual por contingencia (RF-213). *@
+@using System.Globalization
+@inject ClienteAgente Cliente
+@inject ServicioAutorizacionPantalla Autorizaciones
+
+<MudDialog>
+    <DialogContent>
+        @if (_catalogo is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+        }
+        else
+        {
+            <div class="cg-cobro">
+                <section class="cg-cobro__resumen">
+                    <div class="cg-cobro__cifra"><span>Total a cobrar</span><strong>@Total.ToString("N2")</strong></div>
+                    <div class="cg-cobro__cifra"><span>Pagado</span><strong>@Pagado.ToString("N2")</strong></div>
+                    @if (Saldo > 0)
+                    {
+                        <div class="cg-cobro__cifra cg-cobro__cifra--saldo"><span>Falta</span><strong>@Saldo.ToString("N2")</strong></div>
+                    }
+                    else
+                    {
+                        <div class="cg-cobro__cifra cg-cobro__cifra--devuelta"><span>Devuelta</span><strong>@((-Saldo).ToString("N2"))</strong></div>
+                    }
+
+                    <div class="cg-cobro__pagos">
+                        @foreach (var pago in _pagos)
+                        {
+                            <div class="cg-cobro__pago">
+                                <div>
+                                    <strong>@pago.Descripcion</strong>
+                                    @if (pago.Detalle is not null)
+                                    {
+                                        <small>@pago.Detalle</small>
+                                    }
+                                </div>
+                                <span class="cg-numero">@pago.Aplicado.ToString("N2")</span>
+                                <button type="button" class="cg-venta__eliminar" title="Quitar pago" disabled="@_procesando" @onclick="() => QuitarPagoAsync(pago)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <section class="cg-cobro__formas">
+                    @foreach (var forma in _catalogo.FormasPago)
+                    {
+                        <button type="button" class="cg-cobro__forma @(forma.Id == _forma?.Id ? "cg-cobro__forma--activa" : null)"
+                                disabled="@(!Disponible(forma) || _procesando)" @onclick="() => SeleccionarForma(forma)">
+                            <MudIcon Icon="@IconoDe(forma.Tipo)" />
+                            <span>@forma.Nombre</span>
+                        </button>
+                    }
+                </section>
+
+                <section class="cg-cobro__captura">
+                    @if (_forma is { } seleccionada)
+                    {
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                            @seleccionada.Nombre
+                            @if (seleccionada.Moneda != MonedaLocal)
+                            {
+                                <span> · tasa @(Tasa(seleccionada.Moneda)?.ToString("N2") ?? "no disponible")</span>
+                            }
+                        </MudText>
+
+                        <div @onclick="() => _campo = Campo.Monto">
+                            <MudTextField T="string" @bind-Value="_monto" Label="@($"Monto ({seleccionada.Moneda})")" Variant="Variant.Outlined" Immediate="true"
+                                          AutoFocus="true" Class="@($"cg-dialogo-teclado__campo {ClaseCampo(Campo.Monto)}")" />
+                        </div>
+                        @if (seleccionada.Moneda != MonedaLocal && MontoDigitado is { } enMoneda && Tasa(seleccionada.Moneda) is { } tasa)
+                        {
+                            <MudText Typo="Typo.body1" Class="cg-descuento__estimado">Equivale a RD$@((enMoneda * tasa).ToString("N2"))</MudText>
+                        }
+
+                        @if (seleccionada.PermiteDevuelta)
+                        {
+                            <div class="cg-descuento__motivos">
+                                <button type="button" class="cg-catalogo__familia cg-catalogo__familia--activa" @onclick="MontoExacto">Exacto</button>
+                                @foreach (var denominacion in Billetes(seleccionada.Moneda))
+                                {
+                                    <button type="button" class="cg-catalogo__familia" @onclick="() => SumarBillete(denominacion.Valor)">+@denominacion.Valor.ToString("N0")</button>
+                                }
+                            </div>
+                        }
+
+                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta && _catalogo.TiposTarjeta.Count > 0)
+                        {
+                            <div class="cg-descuento__motivos">
+                                @foreach (var tipo in _catalogo.TiposTarjeta)
+                                {
+                                    <button type="button" class="cg-catalogo__familia @(tipo.Id == _tipoTarjeta ? "cg-catalogo__familia--activa" : null)"
+                                            @onclick="() => _tipoTarjeta = tipo.Id">@tipo.Nombre</button>
+                                }
+                            </div>
+                        }
+
+                        @if (seleccionada.RequiereBanco)
+                        {
+                            <div class="cg-descuento__motivos">
+                                @foreach (var banco in _catalogo.Bancos)
+                                {
+                                    <button type="button" class="cg-catalogo__familia @(banco.Id == _banco ? "cg-catalogo__familia--activa" : null)"
+                                            @onclick="() => _banco = banco.Id">@banco.Nombre</button>
+                                }
+                            </div>
+                        }
+
+                        @if (PideReferencia(seleccionada))
+                        {
+                            <div class="cg-cliente__campos">
+                                <div @onclick="() => _campo = Campo.Referencia">
+                                    <MudTextField T="string" @bind-Value="_referencia" Label="@EtiquetaReferencia(seleccionada)" Variant="Variant.Outlined" Immediate="true"
+                                                  Class="@ClaseCampo(Campo.Referencia)" />
+                                </div>
+                                @if (_contingencia)
+                                {
+                                    <div @onclick="() => _campo = Campo.Digitos">
+                                        <MudTextField T="string" @bind-Value="_digitos" Label="Últimos 4 dígitos" Variant="Variant.Outlined" Immediate="true" MaxLength="4"
+                                                      Class="@ClaseCampo(Campo.Digitos)" />
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <TecladoTactil Valor="@ValorCampo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => AgregarPagoAsync()"
+                                       Modo="@(_campo == Campo.Referencia ? ModoTeclado.Alfanumerico : ModoTeclado.Numerico)" PermitirDecimal="@(_campo == Campo.Monto)"
+                                       PermitirCambioModo="@(_campo == Campo.Referencia)" TextoConfirmar="@TextoAgregar" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body1" Color="Color.Secondary">Seleccione la forma de pago.</MudText>
+                    }
+
+                    @if (_procesando)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                    }
+                    @if (_estado is not null)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">@_estado</MudAlert>
+                    }
+                    @if (_mensaje is not null)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+                    }
+                </section>
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Disabled="_procesando" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || _pagos.Count == 0 || Saldo > 0)"
+                   StartIcon="@Icons.Material.Filled.PointOfSale" Style="min-height: var(--cg-toque-minimo); min-width: 200px; font-size: 1.2rem" OnClick="CobrarAsync">Cobrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const string MonedaLocal = "DOP";
+
+    private enum Campo
+    {
+        Monto,
+        Referencia,
+        Digitos,
+    }
+
+    private sealed record PagoAgregado(SolicitudPago Solicitud, string Descripcion, string? Detalle, decimal Aplicado, bool EsTerminal);
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosVenta Venta { get; set; } = default!;
+
+    private readonly List<PagoAgregado> _pagos = [];
+    private DatosCatalogoCobro? _catalogo;
+    private DatosFormaPago? _forma;
+    private string _monto = string.Empty;
+    private string _referencia = string.Empty;
+    private string _digitos = string.Empty;
+    private Guid? _banco;
+    private Guid? _tipoTarjeta;
+    private bool _contingencia;
+    private bool _procesando;
+    private string? _mensaje;
+    private string? _estado;
+    private Campo _campo = Campo.Monto;
+
+    private decimal Total => Venta.Totales.Total;
+    private decimal Pagado => _pagos.Sum(p => p.Aplicado);
+    private decimal Saldo => Total - Pagado;
+
+    private decimal? MontoDigitado =>
+        decimal.TryParse(_monto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var valor) && valor > 0 ? valor : null;
+
+    private string ValorCampo => _campo switch
+    {
+        Campo.Monto => _monto,
+        Campo.Referencia => _referencia,
+        _ => _digitos,
+    };
+
+    private string TextoAgregar => _forma?.Tipo == TipoFormaPago.Tarjeta && !_contingencia ? "Pasar tarjeta" : "Agregar";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _catalogo = await Cliente.ObtenerCatalogoCobroAsync();
+        if (_catalogo is null)
+        {
+            _mensaje = "No se pudieron cargar las formas de pago.";
+            return;
+        }
+
+        if (_catalogo.FormasPago.FirstOrDefault(Disponible) is { } primera)
+            SeleccionarForma(primera);
+    }
+
+    private string? ClaseCampo(Campo campo) => _campo == campo ? "cg-campo-activo" : null;
+
+    private decimal? Tasa(string moneda) => _catalogo?.Tasas?.FirstOrDefault(t => t.Moneda == moneda)?.Tasa;
+
+    /// <summary>Nota de crédito y puntos llegan en fases posteriores; bonos no aplican con crédito fiscal (RF-117); sin tasa no hay dólares.</summary>
+    private bool Disponible(DatosFormaPago forma) =>
+        forma.Tipo is not (TipoFormaPago.NotaCredito or TipoFormaPago.Puntos)
+        && (forma.Moneda == MonedaLocal || Tasa(forma.Moneda) is not null)
+        && (forma.PermiteComprobanteFiscal || Venta.TipoComprobante == TipoComprobante.FacturaConsumo);
+
+    private bool PideReferencia(DatosFormaPago forma) => forma.Tipo == TipoFormaPago.Tarjeta ? _contingencia : forma.RequiereReferencia;
+
+    private static string EtiquetaReferencia(DatosFormaPago forma) => forma.Tipo switch
+    {
+        TipoFormaPago.Tarjeta => "Número de aprobación",
+        TipoFormaPago.Transferencia => "Número de transferencia",
+        TipoFormaPago.Cheque => "Número de cheque",
+        TipoFormaPago.BonoRegalo or TipoFormaPago.TarjetaRegalo => "Serial",
+        _ => "Referencia",
+    };
+
+    private IEnumerable<DatosDenominacion> Billetes(string moneda) =>
+        _catalogo!.Denominaciones.Where(d => d.Moneda == moneda && d.Tipo == TipoDenominacion.Billete && d.Valor >= (moneda == MonedaLocal ? 100 : 5)).OrderBy(d => d.Valor);
+
+    private void SeleccionarForma(DatosFormaPago forma)
+    {
+        _forma = forma;
+        _referencia = string.Empty;
+        _digitos = string.Empty;
+        _banco = null;
+        _tipoTarjeta = null;
+        _contingencia = false;
+        _mensaje = null;
+        _campo = Campo.Monto;
+        _monto = SaldoEn(forma).ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Lo que falta, en la moneda de la forma de pago (redondeado hacia arriba para no quedar corto).</summary>
+    private decimal SaldoEn(DatosFormaPago forma)
+    {
+        var saldo = Math.Max(0m, Saldo);
+        if (forma.Moneda == MonedaLocal)
+            return saldo;
+
+        return Tasa(forma.Moneda) is > 0 and var tasa ? Math.Ceiling(saldo / tasa * 100m) / 100m : 0m;
+    }
+
+    private void MontoExacto()
+    {
+        if (_forma is not null)
+            _monto = SaldoEn(_forma).ToString("0.##", CultureInfo.InvariantCulture);
+        _campo = Campo.Monto;
+    }
+
+    private void SumarBillete(decimal valor)
+    {
+        // El primer billete reemplaza el monto sugerido; los siguientes se suman.
+        var actual = _campo == Campo.Monto && _monto != SaldoEn(_forma!).ToString("0.##", CultureInfo.InvariantCulture) ? MontoDigitado ?? 0m : 0m;
+        _monto = (actual + valor).ToString("0.##", CultureInfo.InvariantCulture);
+        _campo = Campo.Monto;
+    }
+
+    private void AlCambiarTeclado(string valor)
+    {
+        switch (_campo)
+        {
+            case Campo.Monto:
+                _monto = valor;
+                break;
+            case Campo.Referencia:
+                _referencia = valor;
+                break;
+            default:
+                _digitos = valor.Length > 4 ? valor[..4] : valor;
+                break;
+        }
+    }
+
+    private async Task AgregarPagoAsync()
+    {
+        if (_forma is not { } forma || _procesando)
+            return;
+
+        if (MontoDigitado is not { } monto)
+        {
+            _mensaje = "Digite el monto.";
+            _campo = Campo.Monto;
+            return;
+        }
+
+        if (forma.Moneda == MonedaLocal && !forma.PermiteDevuelta && monto > Math.Max(0m, Saldo))
+        {
+            _mensaje = $"{forma.Nombre} no da devuelta: el monto no puede superar lo que falta (RD${Math.Max(0m, Saldo):N2}).";
+            return;
+        }
+
+        if (forma.RequiereBanco && _banco is null)
+        {
+            _mensaje = "Seleccione el banco.";
+            return;
+        }
+
+        if (forma.Tipo == TipoFormaPago.Tarjeta && !_contingencia)
+        {
+            await PasarTarjetaAsync(forma, monto);
+            return;
+        }
+
+        if (PideReferencia(forma) && string.IsNullOrWhiteSpace(_referencia))
+        {
+            _mensaje = $"Digite el {EtiquetaReferencia(forma).ToLowerInvariant()}.";
+            _campo = Campo.Referencia;
+            return;
+        }
+
+        var tasa = forma.Moneda == MonedaLocal ? 1m : Tasa(forma.Moneda) ?? 0m;
+        var banco = _catalogo!.Bancos.FirstOrDefault(b => b.Id == _banco)?.Nombre;
+        var detalle = string.Join(" · ", new[]
+        {
+            forma.Moneda == MonedaLocal ? null : $"{monto:N2} {forma.Moneda} @ {tasa:N2}",
+            banco,
+            string.IsNullOrWhiteSpace(_referencia) ? null : $"Ref. {_referencia}",
+            _contingencia ? "Aprobación manual" : null,
+        }.Where(texto => texto is not null));
+
+        _pagos.Add(new PagoAgregado(
+            new SolicitudPago(forma.Id, monto, Vacio(_referencia), _banco, _tipoTarjeta, Vacio(_digitos), _contingencia),
+            forma.Nombre,
+            detalle.Length > 0 ? detalle : null,
+            decimal.Round(monto * tasa, 2, MidpointRounding.AwayFromZero),
+            EsTerminal: false));
+
+        SeleccionarForma(forma);
+    }
+
+    private async Task PasarTarjetaAsync(DatosFormaPago forma, decimal monto)
+    {
+        _procesando = true;
+        _mensaje = null;
+        _estado = "Siga las instrucciones en el terminal de pago…";
+        StateHasChanged();
+
+        var respuesta = await Cliente.CobrarConTerminalAsync(Venta.Id, monto);
+        _procesando = false;
+        _estado = null;
+
+        if (respuesta is { Exitosa: true, Operacion: { } operacion })
+        {
+            var tipo = _catalogo!.TiposTarjeta.FirstOrDefault(t => t.Id == _tipoTarjeta)?.Nombre ?? operacion.Marca;
+            _pagos.Add(new PagoAgregado(
+                new SolicitudPago(forma.Id, monto, TipoTarjetaId: _tipoTarjeta, OperacionTerminalId: operacion.Id),
+                $"{forma.Nombre} {tipo}",
+                $"****{operacion.UltimosDigitos} · Aprob. {operacion.Aprobacion}",
+                monto,
+                EsTerminal: true));
+            SeleccionarForma(forma);
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje;
+        if (respuesta.Resultado == CodigoResultadoVenta.TerminalSinConexion)
+        {
+            // Contingencia (RF-213): se registra la aprobación del banco a mano y queda para conciliar.
+            _contingencia = true;
+            _campo = Campo.Referencia;
+            _mensaje += " Registre la aprobación manual; se pedirá autorización al cobrar.";
+        }
+    }
+
+    private async Task QuitarPagoAsync(PagoAgregado pago)
+    {
+        if (pago.EsTerminal)
+        {
+            // En el terminal solo se anula la última tarjeta aprobada (RF-214).
+            if (!ReferenceEquals(_pagos.LastOrDefault(p => p.EsTerminal), pago))
+            {
+                _mensaje = "Quite primero la última tarjeta pasada.";
+                return;
+            }
+
+            _procesando = true;
+            _estado = "Anulando en el terminal de pago…";
+            var anulacion = await Cliente.AnularUltimaTarjetaAsync(Venta.Id);
+            _procesando = false;
+            _estado = null;
+
+            if (!anulacion.Exitosa)
+            {
+                _mensaje = anulacion.Mensaje;
+                return;
+            }
+        }
+
+        _pagos.Remove(pago);
+        if (_forma is { } forma)
+            SeleccionarForma(forma);
+    }
+
+    private async Task CobrarAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var solicitudes = _pagos.Select(p => p.Solicitud).ToList();
+        var respuesta = await Cliente.CobrarAsync(Venta.Id, solicitudes, null);
+
+        if (respuesta.Resultado is CodigoResultadoVenta.RequiereAutorizacion or CodigoResultadoVenta.AutorizacionInvalida && respuesta.PermisoRequerido is { } permiso)
+        {
+            var autorizacion = await Autorizaciones.SolicitarAsync(permiso, "Aprobación manual de tarjeta", "Venta", Venta.NumeroTransaccion);
+            if (autorizacion is null)
+            {
+                _procesando = false;
+                return;
+            }
+
+            if (autorizacion.AutorizacionId is { } autorizacionId)
+                respuesta = await Cliente.CobrarAsync(Venta.Id, solicitudes, autorizacionId);
+        }
+
+        _procesando = false;
+        if (respuesta.Exitosa)
+        {
+            Dialogo.Close(DialogResult.Ok(respuesta));
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje;
+    }
+
+    private void Cancelar()
+    {
+        if (_pagos.Any(p => p.EsTerminal))
+        {
+            _mensaje = "Hay tarjetas aprobadas: quítelas (se anulan en el terminal) antes de cancelar el cobro.";
+            return;
+        }
+
+        Dialogo.Cancel();
+    }
+
+    private static string? Vacio(string texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    private static string IconoDe(TipoFormaPago tipo) => tipo switch
+    {
+        TipoFormaPago.Efectivo => Icons.Material.Filled.Payments,
+        TipoFormaPago.Tarjeta => Icons.Material.Filled.CreditCard,
+        TipoFormaPago.Transferencia => Icons.Material.Filled.AccountBalance,
+        TipoFormaPago.Cheque => Icons.Material.Filled.Receipt,
+        TipoFormaPago.BonoRegalo => Icons.Material.Filled.CardGiftcard,
+        TipoFormaPago.TarjetaRegalo => Icons.Material.Filled.Redeem,
+        TipoFormaPago.NotaCredito => Icons.Material.Filled.AssignmentReturn,
+        TipoFormaPago.PrestamoBancario => Icons.Material.Filled.AccountBalanceWallet,
+        TipoFormaPago.Puntos => Icons.Material.Filled.Stars,
+        TipoFormaPago.MonedaExtranjera => Icons.Material.Filled.AttachMoney,
+        _ => Icons.Material.Filled.Payment,
+    };
+}

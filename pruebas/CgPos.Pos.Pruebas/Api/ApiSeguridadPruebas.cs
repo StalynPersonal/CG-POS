@@ -51,6 +51,7 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("Maestros:PadronDgii", Path.Combine(datos, "padron-dgii.desarrollo.txt"));
             anfitrion.UseSetting("Caja:Id", CajaDesarrollo);
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
+            anfitrion.UseSetting("Perifericos:Impresora:Carpeta", _baseDatos.CarpetaImpresiones);
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
         });
 

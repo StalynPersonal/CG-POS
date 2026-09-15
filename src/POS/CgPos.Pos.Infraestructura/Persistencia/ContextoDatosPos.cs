@@ -56,6 +56,10 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<MotivoDescuento> MotivosDescuento => Set<MotivoDescuento>();
     public DbSet<TopeDescuento> TopesDescuento => Set<TopeDescuento>();
 
+    // Cobro (M08)
+    public DbSet<TasaCambio> TasasCambio => Set<TasaCambio>();
+    public DbSet<OperacionTerminal> OperacionesTerminal => Set<OperacionTerminal>();
+
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosPos).Assembly);

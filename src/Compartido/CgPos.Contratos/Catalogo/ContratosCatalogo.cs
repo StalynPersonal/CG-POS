@@ -21,7 +21,13 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<DenominacionCarga>? Denominaciones = null,
     IReadOnlyList<PromocionCarga>? Promociones = null,
     IReadOnlyList<MotivoDescuentoCarga>? MotivosDescuento = null,
-    IReadOnlyList<TopeDescuentoCarga>? TopesDescuento = null);
+    IReadOnlyList<TopeDescuentoCarga>? TopesDescuento = null,
+    IReadOnlyList<TasaCambioCarga>? TasasCambio = null);
+
+/// <summary>Tasa del día de SAP B1: pesos por unidad de la moneda (RF-212).</summary>
+public sealed record TasaCambioCarga(Guid Id, string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);
+
+public sealed record DatosTasaCambio(string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);
 
 /// <summary>Oferta del Central (RF-59). Vacíos en sucursales = todas; los días y horas son locales.</summary>
 public sealed record PromocionCarga(
@@ -249,6 +255,7 @@ public sealed record DatosCatalogoCobro(
     IReadOnlyList<DatosFormaPago> FormasPago,
     IReadOnlyList<DatosBanco> Bancos,
     IReadOnlyList<DatosTipoTarjeta> TiposTarjeta,
-    IReadOnlyList<DatosDenominacion> Denominaciones);
+    IReadOnlyList<DatosDenominacion> Denominaciones,
+    IReadOnlyList<DatosTasaCambio>? Tasas = null);
 
 public sealed record DatosFamilia(Guid Id, string Codigo, string Nombre, bool EsNoCodificada);

@@ -67,14 +67,19 @@ public static class InyeccionDependencias
         servicios.AddScoped<IConsultaCatalogoCobro, ConsultaCatalogoCobro>();
         servicios.AddScoped<IServicioPrecios, ServicioPrecios>();
 
-        // Periféricos (simulados hasta definir modelos)
+        // Periféricos (simulados hasta definir modelos; la impresora se elige por configuración)
         servicios.AddSingleton<IBalanza>(new BalanzaSimulada(configuracion));
+        servicios.AddSingleton<ITerminalPago>(new TerminalPagoSimulado(configuracion));
+        servicios.AddSingleton<IImpresoraTicket>(proveedor => new ImpresoraTicket(configuracion,
+            proveedor.GetRequiredService<TimeProvider>(), proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ImpresoraTicket>>()));
 
         // Turnos y ventas (M13, M05)
         servicios.AddScoped<GeneradorSecuencias>();
         servicios.AddScoped<IValidadorAutorizaciones, ValidadorAutorizaciones>();
         servicios.AddScoped<IServicioTurnos, ServicioTurnos>();
-        servicios.AddScoped<IServicioVentas, ServicioVentas>();
+        servicios.AddScoped<ServicioVentas>();
+        servicios.AddScoped<IServicioVentas>(proveedor => proveedor.GetRequiredService<ServicioVentas>());
+        servicios.AddScoped<IServicioCobro>(proveedor => proveedor.GetRequiredService<ServicioVentas>());
         servicios.AddScoped<IEstadoSincronizacion>(proveedor => new ServicioEstadoSincronizacion(proveedor.GetRequiredService<ContextoDatosPos>(), configuracion));
 
         return servicios;

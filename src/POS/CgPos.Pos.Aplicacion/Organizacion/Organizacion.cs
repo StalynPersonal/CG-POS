@@ -41,6 +41,9 @@ public static class ClavesParametros
     /// <summary>Total desde el cual la factura de consumo exige cédula o RNC (RF-26, RF-171). Por defecto 250000.</summary>
     public const string MontoIdentificacionConsumo = "Fiscal.MontoIdentificacionConsumo";
 
+    /// <summary>Múltiplo al que se redondea el total cobrado con efectivo, ej. 1 = al peso (RF-216). Por defecto 0 = sin redondeo.</summary>
+    public const string PasoRedondeoEfectivo = "Caja.PasoRedondeoEfectivo";
+
     // Etiquetas de balanza (RF-180)
     public const string BalanzaPrefijoPeso = "Balanza.PrefijoPeso";
     public const string BalanzaPrefijoPrecio = "Balanza.PrefijoPrecio";
