@@ -261,6 +261,13 @@ else
             <span># TRX → @_venta.NumeroTransaccion</span>
             <span>Versión @Version</span>
             <span class="cg-espaciador"></span>
+            @if (_ecf is not null)
+            {
+                <button type="button" class="cg-venta__ecf cg-venta__ecf--@ClaseEcf" title="@string.Join("\n", _ecf.Alertas)" @onclick="AbrirCertificadoAsync">
+                    <MudIcon Icon="@(_ecf.CertificadoCargado ? Icons.Material.Filled.VerifiedUser : Icons.Material.Filled.Key)" Size="Size.Small" />
+                    @TextoEcf
+                </button>
+            }
             <span class="cg-venta__sincronizacion cg-venta__sincronizacion--@ClaseSincronizacion">
                 <MudIcon Icon="@IconoSincronizacion" Size="Size.Small" />
                 @TextoSincronizacion
@@ -282,6 +289,8 @@ else
     private DatosEstadoTurno? _estadoTurno;
     private DatosVenta? _venta;
     private DatosEstadoSincronizacion? _sincronizacion;
+    private DatosEstadoEcf? _ecf;
+    private bool _certificadoSolicitado;
     private BarraTeclasFuncion? _barra;
     private ElementReference _campoEscaneo;
     private string _entrada = string.Empty;
@@ -921,11 +930,21 @@ else
         try
         {
             _sincronizacion = await Cliente.ObtenerEstadoSincronizacionAsync(cancelacion);
+            _ecf = await Cliente.ObtenerEstadoEcfAsync(cancelacion);
             while (await temporizador.WaitForNextTickAsync(cancelacion))
             {
                 _ahora = DateTime.Now;
                 if (++segundos % 15 == 0)
                     _sincronizacion = await Cliente.ObtenerEstadoSincronizacionAsync(cancelacion);
+                if (segundos % 60 == 0)
+                    _ecf = await Cliente.ObtenerEstadoEcfAsync(cancelacion) ?? _ecf;
+
+                // Al iniciar la jornada se pide el PIN del certificado una sola vez; luego queda en la barra de estado.
+                if (_ecf is { CertificadoCargado: false } && !_certificadoSolicitado && _venta is not null && !_dialogoAbierto && !_suspendida)
+                {
+                    _certificadoSolicitado = true;
+                    await InvokeAsync(AbrirCertificadoAsync);
+                }
 
                 await InvokeAsync(StateHasChanged);
             }
@@ -970,6 +989,41 @@ else
         var original = _venta?.Lineas.FirstOrDefault(l => l.NumeroLinea == linea.LineaAnuladaNumero);
         return original is null ? 0m : -original.ImporteBruto;
     }
+
+    private async Task AbrirCertificadoAsync()
+    {
+        if (_ecf is { CertificadoCargado: true })
+        {
+            // Con el certificado cargado, el botón solo muestra las alertas fiscales.
+            _aviso = _ecf.Alertas.Count == 0 ? "Facturación electrónica al día." : null;
+            _mensaje = _ecf.Alertas.Count == 0 ? null : string.Join(" ", _ecf.Alertas);
+            return;
+        }
+
+        var parametros = new DialogParameters<DialogoCertificado> { { dialogo => dialogo.Estado, _ecf } };
+        if (await MostrarDialogoAsync<DialogoCertificado, DatosEstadoEcf>("Certificado digital", parametros, MaxWidth.Small) is { } estado)
+        {
+            _ecf = estado;
+            _aviso = "Certificado digital cargado. La caja puede facturar.";
+            _mensaje = null;
+        }
+
+        StateHasChanged();
+    }
+
+    private string ClaseEcf => _ecf switch
+    {
+        { CertificadoCargado: false } => "error",
+        { Alertas.Count: > 0 } => "alerta",
+        _ => "correcto",
+    };
+
+    private string TextoEcf => _ecf switch
+    {
+        { CertificadoCargado: false } => "e-CF: digite el PIN",
+        { Alertas.Count: > 0 } estado => $"e-CF: {estado.Alertas.Count} alerta(s)",
+        _ => "e-CF listo",
+    };
 
     private string ClaseSincronizacion => _sincronizacion switch
     {

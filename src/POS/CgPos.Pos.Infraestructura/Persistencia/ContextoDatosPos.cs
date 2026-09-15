@@ -60,6 +60,10 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<TasaCambio> TasasCambio => Set<TasaCambio>();
     public DbSet<OperacionTerminal> OperacionesTerminal => Set<OperacionTerminal>();
 
+    // Facturación electrónica (M09)
+    public DbSet<SecuenciaEcf> SecuenciasEcf => Set<SecuenciaEcf>();
+    public DbSet<DocumentoElectronico> DocumentosElectronicos => Set<DocumentoElectronico>();
+
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosPos).Assembly);

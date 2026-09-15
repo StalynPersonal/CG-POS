@@ -193,6 +193,14 @@
   "tasasCambio": [
     { "id": "01990000-0000-7000-8001-000000001301", "moneda": "USD", "tasa": 60.25, "vigenteDesde": "2026-09-01T00:00:00-04:00" }
   ],
+  "secuenciasEcf": [
+    { "id": "01990000-0000-7000-8001-000000001401", "cajaId": "01990000-0000-7000-8000-000000000201", "tipoComprobante": "FacturaConsumo", "desde": 1, "hasta": 50000, "venceEn": "2027-12-31" },
+    { "id": "01990000-0000-7000-8001-000000001402", "cajaId": "01990000-0000-7000-8000-000000000201", "tipoComprobante": "FacturaCreditoFiscal", "desde": 1, "hasta": 5000, "venceEn": "2027-12-31" },
+    { "id": "01990000-0000-7000-8001-000000001403", "cajaId": "01990000-0000-7000-8000-000000000201", "tipoComprobante": "RegimenesEspeciales", "desde": 1, "hasta": 500, "venceEn": "2027-12-31" },
+    { "id": "01990000-0000-7000-8001-000000001404", "cajaId": "01990000-0000-7000-8000-000000000201", "tipoComprobante": "Gubernamental", "desde": 1, "hasta": 500, "venceEn": "2027-12-31" },
+    { "id": "01990000-0000-7000-8001-000000001405", "cajaId": "01990000-0000-7000-8000-000000000201", "tipoComprobante": "NotaCredito", "desde": 1, "hasta": 5000, "venceEn": "2027-12-31" },
+    { "id": "01990000-0000-7000-8001-000000001406", "cajaId": "01990000-0000-7000-8000-000000000202", "tipoComprobante": "FacturaConsumo", "desde": 50001, "hasta": 100000, "venceEn": "2027-12-31" }
+  ],
   "topesDescuento": [
     { "id": "01990000-0000-7000-8001-000000001201", "nivel": 2, "porcentajeMaximo": 10, "montoMaximo": 2000 },
     { "id": "01990000-0000-7000-8001-000000001202", "nivel": 3, "porcentajeMaximo": 30, "montoMaximo": 20000 }

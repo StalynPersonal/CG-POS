@@ -52,6 +52,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("Caja:Id", CajaDesarrollo);
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
             anfitrion.UseSetting("Perifericos:Impresora:Carpeta", _baseDatos.CarpetaImpresiones);
+            anfitrion.UseSetting("Ecf:CarpetaXml", _baseDatos.CarpetaEcf);
+            anfitrion.UseSetting("Ecf:Certificado:Ruta", _baseDatos.RutaCertificado);
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
         });
 

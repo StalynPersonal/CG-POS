@@ -25,4 +25,19 @@ public static class CertificadoFirma
 
     public static X509Certificate2 CargarPkcs12DesdeArchivo(string ruta, string pin) =>
         CargarPkcs12(File.ReadAllBytes(ruta), pin);
+
+    /// <summary>
+    /// Crea un certificado autofirmado RSA-2048 en formato .p12. Solo para desarrollo y pruebas: el certificado real de cada
+    /// caja lo emite una entidad certificadora autorizada por la DGII.
+    /// </summary>
+    public static byte[] CrearAutofirmadoDesarrollo(string sujeto, string pin, DateTimeOffset desde, DateTimeOffset hasta)
+    {
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var solicitud = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+            sujeto, rsa, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        solicitud.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation, critical: true));
+
+        using var certificado = solicitud.CreateSelfSigned(desde, hasta);
+        return certificado.Export(X509ContentType.Pkcs12, pin);
+    }
 }

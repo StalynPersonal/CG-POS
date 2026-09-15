@@ -9,6 +9,7 @@ using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Catalogo;
+using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -582,6 +583,81 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(355m, cobrada.Cobro!.Devuelta);
     }
 
+    [SkippableFact]
+    public async Task Cobro_emite_el_e_cf_firmado_con_secuencia_consecutiva_y_lo_deja_pendiente_de_sincronizar()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var primera = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(primera.Exitosa, primera.Mensaje);
+        var comprobante = primera.Venta!.Comprobante!;
+        var encfPrimera = $"E32{caja.DesdeSecuencia:0000000000}";
+        Assert.Equal(encfPrimera, comprobante.Encf);
+        Assert.Equal(EstadoDocumentoElectronico.PendienteSincronizar, comprobante.Estado);
+        Assert.Equal(6, comprobante.CodigoSeguridad.Length);
+        Assert.Contains("ConsultaTimbreFC", comprobante.UrlTimbre);
+
+        var documento = await caja.EjecutarAsync<ContextoDatosPos, DocumentoElectronico>(contexto =>
+            contexto.DocumentosElectronicos.Include(d => d.Historial).SingleAsync(d => d.VentaId == primera.Venta.Id));
+        Assert.Equal(2, documento.Historial.Count); // Emitido → Pendiente por sincronizar
+        Assert.StartsWith(Path.Combine(baseDatos.CarpetaEcf, "Pendientes"), documento.RutaXml);
+
+        var xml = await File.ReadAllTextAsync(documento.RutaXml);
+        Assert.True(CgPos.ECF.Firma.VerificadorFirmaEcf.Verificar(xml).EsValida);
+        Assert.Contains($"<eNCF>{encfPrimera}</eNCF>", xml);
+        Assert.Equal(documento.HashXml, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(xml))));
+
+        var mensaje = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.BandejaSalida.Where(m => m.AgregadoId == primera.Venta.Id).Select(m => m.Contenido).SingleAsync());
+        Assert.Contains(encfPrimera, mensaje);
+
+        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{primera.Venta.NumeroTransaccion}.txt")));
+        Assert.Contains($"e-NCF: {encfPrimera}", ticket);
+        Assert.Contains($"Código de seguridad: {comprobante.CodigoSeguridad}", ticket);
+
+        var segunda = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.Equal($"E32{caja.DesdeSecuencia + 1:0000000000}", segunda.Venta!.Comprobante!.Encf);
+    }
+
+    [SkippableFact]
+    public async Task Sin_certificado_cargado_no_se_cobra_ni_se_consume_la_secuencia()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, cargarCertificado: false);
+
+        var rechazo = await caja.CobrarCincelEnEfectivoAsync();
+
+        Assert.Equal(CodigoResultadoVenta.CertificadoNoCargado, rechazo.Resultado);
+        Assert.Equal(EstadoVenta.EnCurso, rechazo.Venta!.Estado);
+        var ultimo = await caja.EjecutarAsync<ContextoDatosPos, long>(contexto =>
+            contexto.SecuenciasEcf.Where(s => s.CajaId == caja.Escenario.CajaUno && s.TipoComprobante == TipoComprobante.FacturaConsumo).Select(s => s.Ultimo).SingleAsync());
+        Assert.Equal(caja.DesdeSecuencia - 1, ultimo);
+
+        var estado = await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.False(estado.CertificadoCargado);
+        Assert.Contains(estado.Alertas, a => a.Contains("PIN del certificado"));
+
+        var incorrecto = await caja.EjecutarAsync<IServicioEcf, RespuestaCertificado>(s => s.CargarCertificadoAsync(caja.Cajero, "PIN-malo"));
+        Assert.False(incorrecto.Correcto);
+        var correcto = await caja.EjecutarAsync<IServicioEcf, RespuestaCertificado>(s => s.CargarCertificadoAsync(caja.Cajero, BaseDatosPruebas.PinCertificado));
+        Assert.True(correcto.Correcto, correcto.Mensaje);
+    }
+
+    [SkippableFact]
+    public async Task Secuencia_agotada_bloquea_el_cobro_y_el_estado_lo_alerta()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, hastaSecuenciaConsumo: 1);
+
+        Assert.True((await caja.CobrarCincelEnEfectivoAsync()).Exitosa);
+        var agotada = await caja.CobrarCincelEnEfectivoAsync();
+
+        Assert.Equal(CodigoResultadoVenta.ComprobanteNoDisponible, agotada.Resultado);
+        var estado = await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.Contains(estado.Alertas, a => a.Contains("E32") && a.Contains("No hay secuencia"));
+    }
+
     private static class BalanzaPrueba
     {
         public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;
@@ -653,13 +729,26 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         public SesionUsuario Cajero { get; private set; } = null!;
         public SesionUsuario CajeroDos { get; private set; } = null!;
 
-        public static async Task<CajaEnPruebas> CrearAsync(BaseDatosPruebas baseDatos, Guid empresa, bool abrirTurno = true)
+        public static async Task<CajaEnPruebas> CrearAsync(BaseDatosPruebas baseDatos, Guid empresa, bool abrirTurno = true, bool cargarCertificado = true,
+            long hastaSecuenciaConsumo = 1000)
         {
-            var caja = new CajaEnPruebas(baseDatos, await EscenarioSeguridad.CrearAsync(baseDatos, empresa));
+            var caja = new CajaEnPruebas(baseDatos, await EscenarioSeguridad.CrearAsync(baseDatos, empresa)) { _cargarCertificado = cargarCertificado };
             caja.PrepararProveedor();
 
             // Los maestros se cargan con el mismo reloj de la prueba, para que los precios ya estén vigentes.
             await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(caja.Catalogo.Paquete(), "Pruebas"));
+
+            // Rangos de e-CF de la caja (los asigna el Central). Como en la realidad, cada caja tiene un rango distinto:
+            // las pruebas de la clase comparten base y el e-NCF es único.
+            var vence = new DateOnly(2027, 12, 31);
+            var desde = caja.DesdeSecuencia;
+            await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(SecuenciasEcf:
+            [
+                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.FacturaConsumo, desde, desde + hastaSecuenciaConsumo - 1, vence),
+                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.FacturaCreditoFiscal, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.RegimenesEspeciales, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.Gubernamental, desde, desde + 999, vence),
+            ]), "Pruebas"));
 
             caja.Cajero = await caja.IngresarAsync(caja.Escenario.CodigoCajero, EscenarioSeguridad.PinCajero);
             caja.CajeroDos = await caja.IngresarAsync(caja.Escenario.CodigoCajeroDos, EscenarioSeguridad.PinCajeroDos);
@@ -702,6 +791,14 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             return respuesta.Venta!;
         }
 
+        /// <summary>Venta nueva con un cincel cobrada con RD$1,000 en efectivo.</summary>
+        public async Task<RespuestaCobro> CobrarCincelEnEfectivoAsync()
+        {
+            var venta = await VentaActualAsync();
+            await AgregarAsync(venta.Id, Catalogo.BarrasCincel);
+            return await EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(Cajero, venta.Id, [new SolicitudPago(Catalogo.FormaEfectivo, 1000m)], null));
+        }
+
         public Task<ResultadoCargaMaestros> CargarOfertasAsync(params PromocionCarga[] promociones) =>
             EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(Promociones: promociones), "Pruebas"));
 
@@ -715,10 +812,21 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         public async ValueTask DisposeAsync() => await _proveedor.DisposeAsync();
 
+        private static long _siguienteRango;
+
+        private bool _cargarCertificado = true;
+
+        /// <summary>Primer número del rango de e-CF de esta caja de prueba.</summary>
+        public long DesdeSecuencia { get; } = Interlocked.Increment(ref _siguienteRango) * 10_000 + 1;
+
         private void PrepararProveedor()
         {
             (_proveedor, var reloj) = Escenario.CrearProveedor(Escenario.CajaUno);
             Reloj = reloj;
+
+            // El certificado vive en memoria del proveedor, como en el Agente: se carga con su PIN (RF-217).
+            if (_cargarCertificado)
+                Assert.Null(_proveedor.GetRequiredService<CgPos.Pos.Aplicacion.Ecf.ICertificadoCaja>().Cargar(BaseDatosPruebas.PinCertificado));
         }
 
         private async Task<SesionUsuario> IngresarAsync(string codigo, string pin)

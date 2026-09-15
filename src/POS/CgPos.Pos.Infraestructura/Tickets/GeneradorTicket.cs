@@ -32,6 +32,9 @@ internal static class GeneradorTicket
         Negrita,
         Centrado,
         Titulo,
+
+        /// <summary>El texto es el contenido de un código QR (URL del timbre del e-CF).</summary>
+        Qr,
     }
 
     static GeneradorTicket() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -57,7 +60,16 @@ internal static class GeneradorTicket
         Separador();
 
         Agregar($"{ReglasComprobante.Nombre(venta.TipoComprobante).ToUpper(cultura)} (E{(int)venta.TipoComprobante})", Estilo.Negrita);
-        Agregar("NCF: pendiente de emisión e-CF");
+        if (venta.Comprobante is { } encabezadoEcf)
+        {
+            Agregar($"e-NCF: {encabezadoEcf.Encf}", Estilo.Negrita);
+            if (encabezadoEcf.VenceSecuencia is { } vence)
+                Agregar($"Válido hasta: {vence.ToString("dd/MM/yyyy", cultura)}");
+        }
+        else
+        {
+            Agregar("e-NCF: pendiente de emisión");
+        }
         Agregar($"Transacción: {venta.NumeroTransaccion}");
         Agregar($"Fecha: {(venta.CobradaEn ?? venta.IniciadaEn).ToOffset(TimeSpan.FromHours(-4)).ToString("dd/MM/yyyy h:mm tt", cultura)}");
         Agregar($"Cajero: {venta.UsuarioNombre}");
@@ -126,9 +138,24 @@ internal static class GeneradorTicket
 
         Separador();
         Agregar($"Artículos: {venta.Totales.CantidadArticulos.ToString("0.###", cultura)}");
+
+        // Representación impresa del e-CF (RF-221): código de seguridad, fecha de firma y QR del timbre.
+        if (venta.Comprobante is { } ecf)
+        {
+            Separador();
+            Agregar($"Código de seguridad: {ecf.CodigoSeguridad}");
+            Agregar($"Fecha de firma: {ecf.FechaFirma.ToOffset(TimeSpan.FromHours(-4)).ToString("dd-MM-yyyy HH:mm:ss", cultura)}");
+            Agregar(ecf.UrlTimbre, Estilo.Qr);
+        }
+
         Agregar("¡Gracias por su compra!", Estilo.Centrado);
 
-        var texto = string.Join('\n', lineas.Select(l => l.Estilo is Estilo.Centrado or Estilo.Titulo ? Centrar(l.Texto) : l.Texto));
+        var texto = string.Join('\n', lineas.SelectMany(l => l.Estilo switch
+        {
+            Estilo.Centrado or Estilo.Titulo => [Centrar(l.Texto)],
+            Estilo.Qr => ["[QR del timbre e-CF]", .. Trozos(l.Texto)],
+            _ => new[] { l.Texto },
+        }));
         return new DocumentoImpresion($"ticket-{venta.NumeroTransaccion}{(esCopia ? "-copia" : null)}", texto, EscPos(lineas));
     }
 
@@ -143,6 +170,22 @@ internal static class GeneradorTicket
 
         foreach (var (texto, estilo) in lineas)
         {
+            if (estilo == Estilo.Qr)
+            {
+                // Código QR nativo de la impresora (GS ( k): modelo 2, módulo 5, corrección M.
+                var datos = Encoding.ASCII.GetBytes(texto);
+                var largo = datos.Length + 3;
+                Escribir(0x1B, 0x61, 1);
+                Escribir(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00);
+                Escribir(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x05);
+                Escribir(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31);
+                Escribir(0x1D, 0x28, 0x6B, (byte)(largo & 0xFF), (byte)(largo >> 8), 0x31, 0x50, 0x30);
+                bytes.Write(datos);
+                Escribir(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30);
+                Escribir(0x0A);
+                continue;
+            }
+
             Escribir(0x1B, 0x61, (byte)(estilo is Estilo.Centrado or Estilo.Titulo ? 1 : 0)); // alineación
             Escribir(0x1B, 0x45, (byte)(estilo is Estilo.Negrita or Estilo.Titulo ? 1 : 0)); // negrita
             Escribir(0x1D, 0x21, (byte)(estilo == Estilo.Titulo ? 0x01 : 0x00));             // doble alto en títulos
@@ -161,6 +204,12 @@ internal static class GeneradorTicket
         var espacio = Ancho - derecha.Length - 1;
         var recortada = izquierda.Length > espacio ? izquierda[..espacio] : izquierda;
         return recortada.PadRight(espacio) + " " + derecha;
+    }
+
+    private static IEnumerable<string> Trozos(string texto)
+    {
+        for (var inicio = 0; inicio < texto.Length; inicio += Ancho)
+            yield return texto.Substring(inicio, Math.Min(Ancho, texto.Length - inicio));
     }
 
     private static string Centrar(string texto) =>

@@ -1,0 +1,64 @@
+@* PIN del certificado digital de la caja (RF-217). El PIN solo viaja al Agente local y no se guarda. *@
+@inject ClienteAgente Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-dialogo-teclado">
+            <MudText Typo="Typo.body1">
+                Para emitir comprobantes electrónicos, digite el PIN del certificado digital de la caja.
+            </MudText>
+            @if (Estado is { CertificadoConfigurado: false })
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">La caja no tiene certificado digital instalado. Llame a soporte.</MudAlert>
+            }
+            <MudTextField T="string" @bind-Value="_pin" Label="PIN del certificado" Variant="Variant.Outlined" Immediate="true" InputType="InputType.Password"
+                          AutoFocus="true" OnKeyDown="AlTeclear" Disabled="_procesando" Class="cg-campo-activo cg-dialogo-teclado__campo" />
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+            <TecladoTactil @bind-Valor="_pin" AlConfirmar="_ => CargarAsync()" Modo="ModoTeclado.Numerico" PermitirDecimal="false"
+                           PermitirCambioModo="true" TextoConfirmar="Cargar" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Disabled="_procesando" Style="min-height: var(--cg-toque-minimo); min-width: 140px"
+                   OnClick="() => Dialogo.Cancel()">Más tarde</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosEstadoEcf? Estado { get; set; }
+
+    private string _pin = string.Empty;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private async Task AlTeclear(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+            await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        if (_procesando || string.IsNullOrEmpty(_pin))
+            return;
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.CargarCertificadoAsync(_pin);
+        _procesando = false;
+        _pin = string.Empty;
+
+        if (respuesta is { Correcto: true, Estado: { } estado })
+        {
+            Dialogo.Close(DialogResult.Ok(estado));
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje;
+    }
+}

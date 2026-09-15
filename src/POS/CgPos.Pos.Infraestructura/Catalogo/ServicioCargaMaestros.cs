@@ -3,6 +3,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
+using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
 using CgPos.Pos.Aplicacion.Abstracciones;
@@ -63,6 +64,7 @@ internal sealed class ServicioCargaMaestros(
         var motivosDescuento = paquete.MotivosDescuento ?? [];
         var topesDescuento = paquete.TopesDescuento ?? [];
         var tasasCambio = paquete.TasasCambio ?? [];
+        var secuenciasEcf = paquete.SecuenciasEcf ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -98,6 +100,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarTopeDescuentoAsync(dato, cancelacion);
             foreach (var dato in tasasCambio)
                 await AplicarTasaCambioAsync(dato, cancelacion);
+            foreach (var dato in secuenciasEcf)
+                await AplicarSecuenciaEcfAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -452,5 +456,24 @@ internal sealed class ServicioCargaMaestros(
 
         tasa.Actualizar(dato.Tasa, dato.VigenteDesde);
         _actualizados++;
+    }
+
+    private async Task AplicarSecuenciaEcfAsync(SecuenciaEcfCarga dato, CancellationToken cancelacion)
+    {
+        var secuencia = await contexto.SecuenciasEcf.SingleOrDefaultAsync(s => s.Id == dato.Id, cancelacion);
+        if (secuencia is null)
+        {
+            secuencia = SecuenciaEcf.Asignar(dato.CajaId, dato.TipoComprobante, dato.Desde, dato.Hasta, dato.VenceEn, dato.Id);
+            contexto.SecuenciasEcf.Add(secuencia);
+            _creados++;
+        }
+        else
+        {
+            if (secuencia.CajaId != dato.CajaId || secuencia.TipoComprobante != dato.TipoComprobante || secuencia.Desde != dato.Desde)
+                throw new InvalidOperationException("Un rango de e-CF no cambia de caja, tipo ni inicio; asigne un rango nuevo.");
+            _actualizados++;
+        }
+
+        secuencia.Actualizar(dato.Hasta, dato.VenceEn, dato.Activa);
     }
 }

@@ -27,8 +27,18 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
 
     public string? NivelCompatibilidad { get; private set; }
 
+    public const string PinCertificado = "PIN-Pruebas-1234";
+
+    private readonly string _carpetaTemporal = Path.Combine(Path.GetTempPath(), "CgPosPruebas", Guid.NewGuid().ToString("N"));
+
     /// <summary>Carpeta temporal donde la impresora de archivo deja los tickets de esta base de pruebas.</summary>
-    public string CarpetaImpresiones { get; } = Path.Combine(Path.GetTempPath(), "CgPosPruebas", $"impresiones-{Guid.NewGuid():N}");
+    public string CarpetaImpresiones => Path.Combine(_carpetaTemporal, "impresiones");
+
+    /// <summary>Carpeta temporal de los XML de e-CF.</summary>
+    public string CarpetaEcf => Path.Combine(_carpetaTemporal, "ecf");
+
+    /// <summary>Certificado autofirmado de pruebas (PIN <see cref="PinCertificado"/>).</summary>
+    public string RutaCertificado => Path.Combine(_carpetaTemporal, "certificado-pruebas.p12");
 
     public async Task InitializeAsync()
     {
@@ -50,12 +60,18 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
         }.ConnectionString;
         NivelCompatibilidad = configuracion["BaseDatos:NivelCompatibilidad"];
 
+        Directory.CreateDirectory(_carpetaTemporal);
+        await File.WriteAllBytesAsync(RutaCertificado, CgPos.ECF.Firma.CertificadoFirma.CrearAutofirmadoDesarrollo(
+            "CN=CAJA PRUEBAS, O=Contreras Group, C=DO", PinCertificado, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1)));
+
         _configuracionAplicacion = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"ConnectionStrings:{InyeccionDependencias.NombreConexion}"] = CadenaConexion,
                 ["BaseDatos:NivelCompatibilidad"] = NivelCompatibilidad,
                 ["Perifericos:Impresora:Carpeta"] = CarpetaImpresiones,
+                ["Ecf:CarpetaXml"] = CarpetaEcf,
+                ["Ecf:Certificado:Ruta"] = RutaCertificado,
             })
             .Build();
 
@@ -94,7 +110,7 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
 
         await Servicios.DisposeAsync();
 
-        if (Directory.Exists(CarpetaImpresiones))
-            Directory.Delete(CarpetaImpresiones, recursive: true);
+        if (Directory.Exists(_carpetaTemporal))
+            Directory.Delete(_carpetaTemporal, recursive: true);
     }
 }

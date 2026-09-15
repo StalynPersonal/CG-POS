@@ -592,3 +592,9 @@
 .cg-venta__sincronizacion--enlinea { color: var(--cg-accion); }
 .cg-venta__sincronizacion--sinconexion { color: var(--cg-advertencia); }
 .cg-venta__sincronizacion--error { color: var(--cg-peligro); }
+.cg-venta__ecf { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-weight: 600; background: none; border: 1px solid currentColor;
+    border-radius: 12px; padding: 0 10px; cursor: pointer; }
+.cg-venta__ecf--correcto { color: var(--cg-accion); }
+.cg-venta__ecf--alerta { color: var(--cg-advertencia); }
+.cg-venta__ecf--error { color: var(--cg-peligro); animation: cg-parpadeo 1.6s ease-in-out infinite; }
+@keyframes cg-parpadeo { 50% { opacity: .55; } }

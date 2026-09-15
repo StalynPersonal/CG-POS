@@ -224,6 +224,10 @@ csx/
 # Microsoft Azure Emulator
 ecf/
 rcf/
+# CG-POS: las carpetas Ecf del código fuente (facturación electrónica) sí se versionan.
+!src/**/Ecf/
+# Certificados digitales nunca se versionan.
+*.p12
 
 # Windows Store app package directories and files
 AppPackages/

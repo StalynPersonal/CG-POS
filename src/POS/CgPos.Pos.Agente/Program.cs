@@ -63,6 +63,7 @@ try
     aplicacion.MapearApiSeguridad();
     aplicacion.MapearApiCatalogo();
     aplicacion.MapearApiVentas();
+    aplicacion.MapearApiEcf();
     aplicacion.MapearPantallaCliente();
 
     // Pantallas de la caja (Blazor Wasm de CgPos.Pos.Web), servidas localmente.
@@ -89,6 +90,10 @@ try
         var padron = await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.ImportarPadronDgiiAsync(aplicacion.Services, archivoPadron);
         Log.Information("Padrón DGII importado: {Validos} registros válidos de {Leidas} líneas", padron.RegistrosValidos, padron.LineasLeidas);
     }
+
+    // Solo desarrollo: certificado autofirmado cargado con un PIN de configuración. En producción el PIN lo digita un usuario.
+    if (aplicacion.Configuration[CgPos.Pos.Aplicacion.Ecf.ClavesEcf.PinDesarrollo] is { Length: > 0 } pinDesarrollo)
+        CgPos.Pos.Infraestructura.Ecf.ExtensionesEcf.PrepararCertificadoDesarrollo(aplicacion.Services, aplicacion.Configuration, pinDesarrollo);
 
     await using (var ambito = aplicacion.Services.CreateAsyncScope())
     {

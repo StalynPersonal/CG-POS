@@ -3,6 +3,7 @@
 @using System.Globalization
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
+@inject IDialogService Dialogos
 
 <MudDialog>
     <DialogContent>
@@ -433,6 +434,15 @@
 
             if (autorizacion.AutorizacionId is { } autorizacionId)
                 respuesta = await Cliente.CobrarAsync(Venta.Id, solicitudes, autorizacionId);
+        }
+
+        // Sin certificado no hay e-CF: se pide el PIN y se reintenta el cobro sin perder los pagos (RF-217).
+        if (respuesta.Resultado == CodigoResultadoVenta.CertificadoNoCargado)
+        {
+            var opciones = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false, CloseOnEscapeKey = true };
+            var referencia = await Dialogos.ShowAsync<DialogoCertificado>("Certificado digital", opciones);
+            if (await referencia.Result is { Canceled: false })
+                respuesta = await Cliente.CobrarAsync(Venta.Id, solicitudes, null);
         }
 
         _procesando = false;

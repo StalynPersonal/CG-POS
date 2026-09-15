@@ -233,6 +233,23 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
+    // ---------- Facturación electrónica (C7) ----------
+
+    public async Task<DatosEstadoEcf?> ObtenerEstadoEcfAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosEstadoEcf>("api/ecf/estado", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaCertificado> CargarCertificadoAsync(string pin, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/ecf/certificado", new SolicitudCargarCertificado(pin), mensaje => new RespuestaCertificado(false, mensaje, null), cancelacion);
+
     public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarArticulosAsync(string texto, CancellationToken cancelacion = default)
     {
         try

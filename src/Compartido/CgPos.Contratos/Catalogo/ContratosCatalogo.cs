@@ -22,7 +22,11 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<PromocionCarga>? Promociones = null,
     IReadOnlyList<MotivoDescuentoCarga>? MotivosDescuento = null,
     IReadOnlyList<TopeDescuentoCarga>? TopesDescuento = null,
-    IReadOnlyList<TasaCambioCarga>? TasasCambio = null);
+    IReadOnlyList<TasaCambioCarga>? TasasCambio = null,
+    IReadOnlyList<SecuenciaEcfCarga>? SecuenciasEcf = null);
+
+/// <summary>Rango de e-CF que el Central asigna a una caja (RF-28). Ampliar el mismo Id extiende el rango.</summary>
+public sealed record SecuenciaEcfCarga(Guid Id, Guid CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, bool Activa = true);
 
 /// <summary>Tasa del día de SAP B1: pesos por unidad de la moneda (RF-212).</summary>
 public sealed record TasaCambioCarga(Guid Id, string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);

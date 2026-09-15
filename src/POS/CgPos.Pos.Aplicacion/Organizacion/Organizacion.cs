@@ -44,6 +44,12 @@ public static class ClavesParametros
     /// <summary>Múltiplo al que se redondea el total cobrado con efectivo, ej. 1 = al peso (RF-216). Por defecto 0 = sin redondeo.</summary>
     public const string PasoRedondeoEfectivo = "Caja.PasoRedondeoEfectivo";
 
+    /// <summary>Porcentaje restante de una secuencia de e-CF desde el cual se alerta (RF-225). Por defecto 10.</summary>
+    public const string PorcentajeAlertaSecuenciaEcf = "Fiscal.PorcentajeAlertaSecuenciaEcf";
+
+    /// <summary>Días antes del vencimiento del certificado para alertar (RF-230). Por defecto 30.</summary>
+    public const string DiasAlertaCertificado = "Fiscal.DiasAlertaCertificado";
+
     // Etiquetas de balanza (RF-180)
     public const string BalanzaPrefijoPeso = "Balanza.PrefijoPeso";
     public const string BalanzaPrefijoPrecio = "Balanza.PrefijoPrecio";
