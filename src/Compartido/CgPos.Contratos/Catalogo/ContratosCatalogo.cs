@@ -1,6 +1,7 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Promociones;
 
 namespace CgPos.Contratos.Catalogo;
 
@@ -17,7 +18,42 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<FormaPagoCarga>? FormasPago = null,
     IReadOnlyList<BancoCarga>? Bancos = null,
     IReadOnlyList<TipoTarjetaCarga>? TiposTarjeta = null,
-    IReadOnlyList<DenominacionCarga>? Denominaciones = null);
+    IReadOnlyList<DenominacionCarga>? Denominaciones = null,
+    IReadOnlyList<PromocionCarga>? Promociones = null,
+    IReadOnlyList<MotivoDescuentoCarga>? MotivosDescuento = null,
+    IReadOnlyList<TopeDescuentoCarga>? TopesDescuento = null);
+
+/// <summary>Oferta del Central (RF-59). Vacíos en sucursales = todas; los días y horas son locales.</summary>
+public sealed record PromocionCarga(
+    Guid Id,
+    string Codigo,
+    string Nombre,
+    TipoPromocion Tipo,
+    decimal Valor,
+    DateTimeOffset VigenteDesde,
+    DateTimeOffset VigenteHasta,
+    IReadOnlyList<Guid>? Articulos = null,
+    IReadOnlyList<Guid>? Familias = null,
+    IReadOnlyList<Guid>? Sucursales = null,
+    int? CantidadLleva = null,
+    int? CantidadPaga = null,
+    decimal? CantidadMinima = null,
+    decimal? LimitePorCliente = null,
+    DiasSemana Dias = DiasSemana.Todos,
+    TimeOnly? HoraDesde = null,
+    TimeOnly? HoraHasta = null,
+    bool SoloFidelidad = false,
+    bool Activa = true);
+
+public sealed record MotivoDescuentoCarga(Guid Id, string Codigo, string Nombre, bool Activo = true);
+
+/// <summary>Tope de descuento por nivel: general, o para una familia o un artículo (RF-202).</summary>
+public sealed record TopeDescuentoCarga(Guid Id, int Nivel, decimal? PorcentajeMaximo, decimal? MontoMaximo, Guid? FamiliaId = null, Guid? ArticuloId = null);
+
+public sealed record DatosMotivoDescuento(string Codigo, string Nombre);
+
+/// <summary>Oferta vigente de un artículo, para la consulta de precio (RF-24) y la columna Promo (RF-141).</summary>
+public sealed record DatosPromocionVigente(Guid Id, string Codigo, string Nombre, string Descripcion, TipoPromocion Tipo, DateTimeOffset VigenteHasta);
 
 public sealed record FamiliaCarga(Guid Id, string Codigo, string Nombre, bool PermiteDescuentoManual = true, bool EsNoCodificada = false, bool Activa = true);
 

@@ -1,6 +1,7 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Promociones;
 
 namespace CgPos.Dominio.Ventas;
 
@@ -25,6 +26,9 @@ public enum CodigoErrorVenta
     SinLineas,
     RequiereSerial,
     SerialDuplicado,
+    ArticuloEnOferta,
+    DescuentoNoPermitido,
+    DescuentoInvalido,
 }
 
 /// <summary>Una regla de la venta impidió la operación; el código permite a la pantalla reaccionar.</summary>
@@ -63,7 +67,20 @@ public sealed record TotalesVenta(
     decimal Total,
     int CantidadLineas,
     decimal CantidadArticulos,
-    IReadOnlyList<DesgloseImpuesto> Desglose);
+    IReadOnlyList<DesgloseImpuesto> Desglose,
+    decimal Descuento = 0m);
+
+public enum TipoDescuento
+{
+    Porcentaje,
+    Monto,
+}
+
+/// <param name="Base">Importe sobre el que se calcula el descuento.</param>
+public sealed record VistaPreviaDescuento(decimal Monto, decimal Porcentaje, decimal Base);
+
+/// <param name="LineasExcluidas">Líneas elegidas que no toman el descuento (en oferta o de familias sin descuento manual, RF-204).</param>
+public sealed record ResultadoDescuentoFactura(decimal Monto, decimal Porcentaje, IReadOnlyList<int> LineasExcluidas);
 
 /// <summary>Cliente asignado a la venta: registrado, del padrón DGII o solo con documento.</summary>
 public sealed record ClienteVenta(
@@ -160,6 +177,17 @@ public sealed class Venta : Entidad
     /// <summary>Cuándo se puso en espera (RF-22, RF-197).</summary>
     public DateTimeOffset? PuestaEnEsperaEn { get; private set; }
 
+    // Descuento a la factura (RF-200, RF-201): se guarda la definición y se prorratea en cada cambio.
+    public TipoDescuento? DescuentoFacturaTipo { get; private set; }
+    public decimal? DescuentoFacturaValor { get; private set; }
+
+    /// <summary>Números de línea a los que se limitó el descuento, separados por coma; nulo = todas.</summary>
+    public string? DescuentoFacturaLineas { get; private set; }
+
+    public string? MotivoDescuentoFactura { get; private set; }
+    public Guid? DescuentoFacturaAutorizadoPorId { get; private set; }
+    public string? DescuentoFacturaAutorizadoPorNombre { get; private set; }
+
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
     public static string FormatearNumero(string codigoSucursal, string codigoCaja, long secuencia) =>
@@ -250,6 +278,7 @@ public sealed class Venta : Entidad
 
         var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio);
         _lineas.Add(linea);
+        ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
         return linea;
     }
@@ -270,6 +299,7 @@ public sealed class Venta : Entidad
             new PreciosVigentes(linea.PrecioDetalle, linea.PrecioMayor), normalizada, SeleccionListaPrecio.Automatica);
 
         linea.CambiarCantidad(normalizada, precio);
+        ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
     }
 
@@ -284,6 +314,7 @@ public sealed class Venta : Entidad
         linea.MarcarAnulada();
         var reverso = LineaVenta.CrearReverso(Id, SiguienteNumeroLinea(), linea);
         _lineas.Add(reverso);
+        ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
         return reverso;
     }
@@ -404,6 +435,259 @@ public sealed class Venta : Entidad
         ActualizadaEn = ahora;
     }
 
+    /// <summary>
+    /// Recalcula las ofertas vigentes (RF-61, RF-69). Agrupa las líneas activas por artículo (así un 2x1 cuenta aunque se
+    /// escanee de a uno), parte del precio automático (detalle o mayor por cantidad) y aplica la oferta más favorable solo si
+    /// deja el grupo más barato que ese precio (RN-11, RF-124). Los grupos con descuento manual o con la oferta desactivada
+    /// no reciben ofertas (RN-08).
+    /// </summary>
+    /// <param name="ahoraLocal">Fecha y hora local de la caja, para los días y horas de las ofertas.</param>
+    public void RecalcularPromociones(IReadOnlyCollection<Promocion> promociones, Guid sucursalId, DateTimeOffset ahoraLocal, bool clienteFidelidad = false)
+    {
+        ArgumentNullException.ThrowIfNull(promociones);
+        if (Estado != EstadoVenta.EnCurso)
+            return;
+
+        var vigentes = promociones.Where(p => p.EstaVigente(sucursalId, ahoraLocal) && (clienteFidelidad || !p.SoloFidelidad)).ToList();
+
+        foreach (var grupo in _lineas.Where(l => l.EstaActiva).GroupBy(l => l.ArticuloId))
+        {
+            var lineas = grupo.OrderBy(l => l.NumeroLinea).ToList();
+            var desactivada = lineas.Any(l => l.PromocionDesactivada);
+
+            foreach (var linea in lineas)
+            {
+                linea.QuitarPromocion(desactivada);
+                if (linea.ImporteEtiqueta is null)
+                    linea.EstablecerPrecio(PrecioAutomatico(linea));
+            }
+
+            var primera = lineas[0];
+            if (desactivada || lineas.Any(l => l.DescuentoManual > 0))
+                continue;
+
+            var candidatas = vigentes.Where(p => p.AplicaA(primera.ArticuloId, primera.FamiliaId)).ToList();
+            if (candidatas.Count == 0)
+                continue;
+
+            var cantidad = lineas.Sum(l => l.Cantidad);
+            var brutoDetalle = lineas.Sum(l => l.ImporteEtiqueta ?? Redondear(l.Cantidad * l.PrecioDetalle));
+            var brutoActual = lineas.Sum(l => l.ImporteBruto);
+            var precioUnitario = lineas.All(l => l.ImporteEtiqueta is null) ? primera.PrecioDetalle : brutoDetalle / cantidad;
+
+            var mejor = candidatas
+                .Select(p => (Promocion: p, Descuento: MotorPromociones.CalcularDescuento(p, cantidad, precioUnitario, brutoDetalle)))
+                .Where(x => x.Descuento > 0)
+                .OrderByDescending(x => x.Descuento)
+                .ThenBy(x => x.Promocion.Codigo, StringComparer.Ordinal)
+                .FirstOrDefault();
+
+            if (mejor.Promocion is null || brutoDetalle - mejor.Descuento >= brutoActual)
+                continue;
+
+            // Las ofertas se calculan sobre el precio de detalle: el grupo deja el precio por mayor.
+            var detalle = new PrecioDeterminado(ListaPrecio.Detalle, primera.PrecioDetalle, MotivoPrecio.PrecioDetalle, false);
+            foreach (var linea in lineas.Where(l => l.ImporteEtiqueta is null))
+                linea.EstablecerPrecio(detalle);
+
+            var partes = MotorPromociones.Prorratear(mejor.Descuento, lineas.Select(l => l.ImporteBruto).ToList());
+            for (var i = 0; i < lineas.Count; i++)
+                lineas[i].AsignarPromocion(mejor.Promocion, partes[i]);
+        }
+
+        ProrratearDescuentoFactura();
+    }
+
+    /// <summary>Desactiva la oferta del artículo en esta venta (con permiso, RF-124) para que admita descuento manual.</summary>
+    public void DesactivarPromocion(int numeroLinea, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        var linea = LineaActiva(numeroLinea);
+        if (!linea.TienePromocionActiva)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido, $"La línea {numeroLinea} no tiene una oferta aplicada.");
+
+        foreach (var delArticulo in _lineas.Where(l => l.EstaActiva && l.ArticuloId == linea.ArticuloId))
+        {
+            delArticulo.QuitarPromocion(desactivada: true);
+            if (delArticulo.ImporteEtiqueta is null)
+                delArticulo.EstablecerPrecio(PrecioAutomatico(delArticulo));
+        }
+
+        ProrratearDescuentoFactura();
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Valida y calcula un descuento de línea sin aplicarlo, para revisar el tope del autorizador (RF-202).</summary>
+    public VistaPreviaDescuento PrevisualizarDescuentoLinea(int numeroLinea, TipoDescuento tipo, decimal valor)
+    {
+        AsegurarEditable();
+        var linea = LineaActiva(numeroLinea);
+
+        if (!linea.PermiteDescuentoManual)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoNoPermitido, $"{linea.Descripcion} es de una familia que no admite descuento manual; solo ofertas.");
+        if (linea.TienePromocionActiva)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.ArticuloEnOferta,
+                $"{linea.Descripcion} tiene la oferta {linea.PromocionCodigo}. Desactívela para aplicar un descuento manual.");
+
+        var baseDescuento = linea.ImporteBruto;
+        var monto = CalcularMontoDescuento(tipo, valor, baseDescuento);
+        return new VistaPreviaDescuento(monto, PorcentajeDe(monto, baseDescuento), baseDescuento);
+    }
+
+    /// <summary>Descuento por monto o porcentaje a una línea (RF-199), con motivo y quién lo autorizó (RF-203).</summary>
+    public LineaVenta AplicarDescuentoLinea(int numeroLinea, TipoDescuento tipo, decimal valor, string motivo, Guid? autorizadoPorId, string? autorizadoPorNombre,
+        DateTimeOffset ahora)
+    {
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.MotivoRequerido, "Indique el motivo del descuento.");
+
+        var vista = PrevisualizarDescuentoLinea(numeroLinea, tipo, valor);
+        var linea = LineaActiva(numeroLinea);
+        linea.AplicarDescuentoManual(vista.Monto, tipo, valor, Validar.Texto(motivo, "Motivo", LargoMaximoMotivo),
+            autorizadoPorId, Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoUsuario));
+
+        ProrratearDescuentoFactura();
+        ActualizadaEn = ahora;
+        return linea;
+    }
+
+    public void QuitarDescuentoLinea(int numeroLinea, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        LineaActiva(numeroLinea).QuitarDescuentoManual();
+        ProrratearDescuentoFactura();
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>
+    /// Descuento a la factura por monto o porcentaje (RF-200), a todas las líneas o a las elegidas (RF-201). Se prorratea por
+    /// línea al centavo; las líneas en oferta o de familias sin descuento manual quedan fuera y se informan (RF-204).
+    /// </summary>
+    public ResultadoDescuentoFactura AplicarDescuentoFactura(TipoDescuento tipo, decimal valor, IReadOnlyCollection<int>? lineas, string motivo,
+        Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.MotivoRequerido, "Indique el motivo del descuento.");
+
+        var seleccion = lineas is { Count: > 0 } ? lineas.Distinct().Order().ToList() : null;
+        var (elegibles, excluidas) = ClasificarParaDescuentoFactura(seleccion);
+        if (elegibles.Count == 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido,
+                "Ninguna línea admite el descuento: están en oferta o su familia no admite descuento manual.");
+
+        var baseTotal = elegibles.Sum(BaseDescuentoFactura);
+        var monto = CalcularMontoDescuento(tipo, valor, baseTotal);
+
+        DescuentoFacturaTipo = tipo;
+        DescuentoFacturaValor = valor;
+        DescuentoFacturaLineas = seleccion is null ? null : string.Join(',', seleccion);
+        MotivoDescuentoFactura = Validar.Texto(motivo, "Motivo", LargoMaximoMotivo);
+        DescuentoFacturaAutorizadoPorId = autorizadoPorId;
+        DescuentoFacturaAutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoUsuario);
+
+        ProrratearDescuentoFactura();
+        ActualizadaEn = ahora;
+        return new ResultadoDescuentoFactura(_lineas.Sum(l => l.DescuentoFactura), PorcentajeDe(monto, baseTotal), excluidas);
+    }
+
+    /// <summary>Calcula el descuento a la factura sin aplicarlo, para revisar el tope del autorizador (RF-202).</summary>
+    public VistaPreviaDescuento PrevisualizarDescuentoFactura(TipoDescuento tipo, decimal valor, IReadOnlyCollection<int>? lineas)
+    {
+        AsegurarEditable();
+        var seleccion = lineas is { Count: > 0 } ? lineas.Distinct().Order().ToList() : null;
+        var (elegibles, _) = ClasificarParaDescuentoFactura(seleccion);
+        if (elegibles.Count == 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido,
+                "Ninguna línea admite el descuento: están en oferta o su familia no admite descuento manual.");
+
+        var baseTotal = elegibles.Sum(BaseDescuentoFactura);
+        var monto = CalcularMontoDescuento(tipo, valor, baseTotal);
+        return new VistaPreviaDescuento(monto, PorcentajeDe(monto, baseTotal), baseTotal);
+    }
+
+    public void QuitarDescuentoFactura(DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        DescuentoFacturaTipo = null;
+        DescuentoFacturaValor = null;
+        DescuentoFacturaLineas = null;
+        MotivoDescuentoFactura = null;
+        DescuentoFacturaAutorizadoPorId = null;
+        DescuentoFacturaAutorizadoPorNombre = null;
+        ProrratearDescuentoFactura();
+        ActualizadaEn = ahora;
+    }
+
+    private void ProrratearDescuentoFactura()
+    {
+        foreach (var linea in _lineas)
+            linea.AsignarDescuentoFactura(0m);
+
+        if (DescuentoFacturaTipo is not { } tipo || DescuentoFacturaValor is not { } valor)
+            return;
+
+        var seleccion = DescuentoFacturaLineas?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(numero => int.Parse(numero, System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        var (elegibles, _) = ClasificarParaDescuentoFactura(seleccion);
+        if (elegibles.Count == 0)
+            return;
+
+        var bases = elegibles.Select(BaseDescuentoFactura).ToList();
+        if (tipo == TipoDescuento.Porcentaje)
+        {
+            for (var i = 0; i < elegibles.Count; i++)
+                elegibles[i].AsignarDescuentoFactura(Redondear(bases[i] * valor / 100m));
+            return;
+        }
+
+        var partes = MotorPromociones.Prorratear(Math.Min(valor, bases.Sum()), bases);
+        for (var i = 0; i < elegibles.Count; i++)
+            elegibles[i].AsignarDescuentoFactura(partes[i]);
+    }
+
+    private (List<LineaVenta> Elegibles, List<int> Excluidas) ClasificarParaDescuentoFactura(IReadOnlyCollection<int>? seleccion)
+    {
+        var candidatas = _lineas
+            .Where(l => l.EstaActiva && (seleccion is null || seleccion.Contains(l.NumeroLinea)))
+            .OrderBy(l => l.NumeroLinea)
+            .ToList();
+        var elegibles = candidatas.Where(l => l.PermiteDescuentoManual && !l.TienePromocionActiva).ToList();
+        var excluidas = candidatas.Except(elegibles).Select(l => l.NumeroLinea).ToList();
+        return (elegibles, excluidas);
+    }
+
+    private static decimal BaseDescuentoFactura(LineaVenta linea) => linea.ImporteBruto - linea.DescuentoPromocion - linea.DescuentoManual;
+
+    private static decimal CalcularMontoDescuento(TipoDescuento tipo, decimal valor, decimal baseDescuento)
+    {
+        if (!Enum.IsDefined(tipo))
+            throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de descuento no válido.");
+
+        if (tipo == TipoDescuento.Porcentaje)
+        {
+            if (valor is not (> 0 and <= 100))
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido, "El porcentaje de descuento debe ser mayor que 0 y hasta 100.");
+            return Redondear(baseDescuento * valor / 100m);
+        }
+
+        var monto = Redondear(valor);
+        if (monto <= 0 || monto > baseDescuento)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido, $"El descuento debe ser mayor que cero y no superar {baseDescuento:N2}.");
+        return monto;
+    }
+
+    private static decimal PorcentajeDe(decimal monto, decimal baseDescuento) =>
+        baseDescuento <= 0 ? 0m : decimal.Round(monto / baseDescuento * 100m, 2, MidpointRounding.AwayFromZero);
+
+    private static PrecioDeterminado PrecioAutomatico(LineaVenta linea) =>
+        ReglasPrecio.Determinar(linea.CodigoInterno, linea.TipoArticulo, linea.CantidadMinimaMayor,
+            new PreciosVigentes(linea.PrecioDetalle, linea.PrecioMayor), linea.Cantidad, SeleccionListaPrecio.Automatica);
+
+    private static decimal Redondear(decimal valor) => decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
+
     /// <summary>Una factura de consumo desde el monto indicado exige cédula o RNC del cliente (RF-26).</summary>
     public bool RequiereIdentificacion(decimal montoMinimo) =>
         TipoComprobante == TipoComprobante.FacturaConsumo
@@ -443,7 +727,8 @@ public sealed class Venta : Entidad
             desglose.Sum(d => d.Total),
             activas.Count,
             cantidadArticulos,
-            desglose);
+            desglose,
+            activas.Sum(l => l.DescuentoTotal));
     }
 
     private void AsegurarEditable()
@@ -483,6 +768,34 @@ public sealed class LineaVenta : Entidad
 
     /// <summary>Serial del artículo vendido, para la garantía (RF-17).</summary>
     public string? Serial { get; private set; }
+
+    // Oferta aplicada: queda registrada por línea para el reporte de efecto promocional (RF-210).
+    public Guid? PromocionId { get; private set; }
+    public string? PromocionCodigo { get; private set; }
+    public string? PromocionNombre { get; private set; }
+
+    /// <summary>Texto corto de la oferta para la columna Promo, ej. "2x1" o "-15%" (RF-143).</summary>
+    public string? PromocionDescripcion { get; private set; }
+
+    public decimal DescuentoPromocion { get; private set; }
+
+    /// <summary>La oferta se desactivó con permiso para permitir un descuento manual (RF-124).</summary>
+    public bool PromocionDesactivada { get; private set; }
+
+    // Descuento manual de la línea (RF-199, RF-203)
+    public decimal DescuentoManual { get; private set; }
+    public TipoDescuento? DescuentoManualTipo { get; private set; }
+    public decimal? DescuentoManualValor { get; private set; }
+    public string? MotivoDescuento { get; private set; }
+    public Guid? DescuentoAutorizadoPorId { get; private set; }
+    public string? DescuentoAutorizadoPorNombre { get; private set; }
+
+    /// <summary>Parte de esta línea del descuento a la factura, prorrateado para impuestos y e-CF (RF-200, RN-07).</summary>
+    public decimal DescuentoFactura { get; private set; }
+
+    public bool TienePromocionActiva => PromocionId is not null;
+
+    public decimal DescuentoTotal => DescuentoPromocion + DescuentoManual + DescuentoFactura;
 
     public Guid VentaId { get; private set; }
     public int NumeroLinea { get; private set; }
@@ -528,9 +841,13 @@ public sealed class LineaVenta : Entidad
 
     public bool EstaActiva => !Anulada && !EsReverso;
 
-    public decimal ImporteConImpuesto => EsReverso
+    /// <summary>Importe antes de descuentos, con impuesto.</summary>
+    public decimal ImporteBruto => EsReverso
         ? 0m
         : ImporteEtiqueta ?? decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero);
+
+    /// <summary>Importe a cobrar, con impuesto y después de ofertas y descuentos.</summary>
+    public decimal ImporteConImpuesto => EsReverso ? 0m : Math.Max(0m, ImporteBruto - DescuentoTotal);
 
     internal static LineaVenta Crear(Guid ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad, PrecioDeterminado precio,
         decimal? importeEtiqueta, bool leidaDeBalanza, string? serial) =>
@@ -601,9 +918,67 @@ public sealed class LineaVenta : Entidad
     internal void CambiarCantidad(decimal cantidad, PrecioDeterminado precio)
     {
         Cantidad = cantidad;
+        EstablecerPrecio(precio);
+    }
+
+    internal void EstablecerPrecio(PrecioDeterminado precio)
+    {
         PrecioUnitario = precio.PrecioUnitario;
         Lista = precio.Lista;
         MotivoPrecio = precio.Motivo;
+        RecalcularDescuentoManual();
+    }
+
+    internal void QuitarPromocion(bool desactivada)
+    {
+        PromocionId = null;
+        PromocionCodigo = null;
+        PromocionNombre = null;
+        PromocionDescripcion = null;
+        DescuentoPromocion = 0m;
+        PromocionDesactivada = desactivada;
+    }
+
+    internal void AsignarPromocion(Promocion promocion, decimal descuento)
+    {
+        PromocionId = promocion.Id;
+        PromocionCodigo = promocion.Codigo;
+        PromocionNombre = promocion.Nombre;
+        PromocionDescripcion = promocion.DescripcionCorta;
+        DescuentoPromocion = descuento;
+    }
+
+    internal void AplicarDescuentoManual(decimal monto, TipoDescuento tipo, decimal valor, string motivo, Guid? autorizadoPorId, string? autorizadoPorNombre)
+    {
+        DescuentoManual = monto;
+        DescuentoManualTipo = tipo;
+        DescuentoManualValor = valor;
+        MotivoDescuento = motivo;
+        DescuentoAutorizadoPorId = autorizadoPorId;
+        DescuentoAutorizadoPorNombre = autorizadoPorNombre;
+    }
+
+    internal void QuitarDescuentoManual()
+    {
+        DescuentoManual = 0m;
+        DescuentoManualTipo = null;
+        DescuentoManualValor = null;
+        MotivoDescuento = null;
+        DescuentoAutorizadoPorId = null;
+        DescuentoAutorizadoPorNombre = null;
+    }
+
+    internal void AsignarDescuentoFactura(decimal monto) => DescuentoFactura = monto;
+
+    /// <summary>Si cambia la cantidad o el precio, el porcentaje se recalcula y el monto nunca supera el nuevo importe.</summary>
+    private void RecalcularDescuentoManual()
+    {
+        if (DescuentoManualTipo is not { } tipo || DescuentoManualValor is not { } valor)
+            return;
+
+        DescuentoManual = tipo == TipoDescuento.Porcentaje
+            ? decimal.Round(ImporteBruto * valor / 100m, 2, MidpointRounding.AwayFromZero)
+            : Math.Min(valor, ImporteBruto);
     }
 
     internal void MarcarAnulada() => Anulada = true;

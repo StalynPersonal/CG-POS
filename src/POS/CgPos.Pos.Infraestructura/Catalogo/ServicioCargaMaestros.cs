@@ -4,6 +4,7 @@ using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Promociones;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -58,8 +59,13 @@ internal sealed class ServicioCargaMaestros(
         var bancos = paquete.Bancos ?? [];
         var tiposTarjeta = paquete.TiposTarjeta ?? [];
         var denominaciones = paquete.Denominaciones ?? [];
+        var promociones = paquete.Promociones ?? [];
+        var motivosDescuento = paquete.MotivosDescuento ?? [];
+        var topesDescuento = paquete.TopesDescuento ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
+        if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
+            throw new CargaMaestrosInvalidaExcepcion([$"Código de promoción repetido en el paquete: {repetida.Key}."]);
 
         try
         {
@@ -83,6 +89,12 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarTipoTarjetaAsync(dato, cancelacion);
             foreach (var dato in denominaciones)
                 await AplicarDenominacionAsync(dato, cancelacion);
+            foreach (var dato in promociones)
+                await AplicarPromocionAsync(dato, cancelacion);
+            foreach (var dato in motivosDescuento)
+                await AplicarMotivoDescuentoAsync(dato, cancelacion);
+            foreach (var dato in topesDescuento)
+                await AplicarTopeDescuentoAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -367,5 +379,61 @@ internal sealed class ServicioCargaMaestros(
         }
 
         if (dato.Activa) denominacion.Activar(); else denominacion.Desactivar();
+    }
+
+    private async Task AplicarPromocionAsync(PromocionCarga dato, CancellationToken cancelacion)
+    {
+        var promocion = await contexto.Promociones.SingleOrDefaultAsync(p => p.Id == dato.Id, cancelacion);
+        if (promocion is null)
+        {
+            promocion = Promocion.Crear(dato.Codigo, dato.Nombre, dato.Tipo, dato.Valor, dato.VigenteDesde, dato.VigenteHasta, dato.Id);
+            contexto.Promociones.Add(promocion);
+            _creados++;
+        }
+        else
+        {
+            if (promocion.Codigo != dato.Codigo.Trim().ToUpperInvariant())
+                throw new InvalidOperationException($"No se puede cambiar el código de la promoción ({promocion.Codigo} → {dato.Codigo.Trim()}).");
+            promocion.Actualizar(dato.Nombre, dato.Tipo, dato.Valor, dato.VigenteDesde, dato.VigenteHasta);
+            _actualizados++;
+        }
+
+        promocion.ConfigurarCantidades(dato.CantidadLleva, dato.CantidadPaga, dato.CantidadMinima, dato.LimitePorCliente);
+        promocion.Programar(dato.Dias, dato.HoraDesde, dato.HoraHasta);
+        promocion.AsignarAlcance(dato.Articulos, dato.Familias, dato.Sucursales);
+        promocion.ConfigurarFidelidad(dato.SoloFidelidad);
+        if (dato.Activa) promocion.Activar(); else promocion.Desactivar();
+    }
+
+    private async Task AplicarMotivoDescuentoAsync(MotivoDescuentoCarga dato, CancellationToken cancelacion)
+    {
+        var motivo = await contexto.MotivosDescuento.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion);
+        if (motivo is null)
+        {
+            motivo = MotivoDescuento.Crear(dato.Codigo, dato.Nombre, dato.Id);
+            contexto.MotivosDescuento.Add(motivo);
+            _creados++;
+        }
+        else
+        {
+            motivo.CambiarNombre(dato.Nombre);
+            _actualizados++;
+        }
+
+        if (dato.Activo) motivo.Activar(); else motivo.Desactivar();
+    }
+
+    private async Task AplicarTopeDescuentoAsync(TopeDescuentoCarga dato, CancellationToken cancelacion)
+    {
+        var tope = await contexto.TopesDescuento.SingleOrDefaultAsync(t => t.Id == dato.Id, cancelacion);
+        if (tope is null)
+        {
+            contexto.TopesDescuento.Add(TopeDescuento.Crear(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.FamiliaId, dato.ArticuloId, dato.Id));
+            _creados++;
+            return;
+        }
+
+        tope.Actualizar(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.FamiliaId, dato.ArticuloId);
+        _actualizados++;
     }
 }

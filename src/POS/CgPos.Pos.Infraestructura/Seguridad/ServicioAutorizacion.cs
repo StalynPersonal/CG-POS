@@ -22,7 +22,7 @@ internal sealed class ServicioAutorizacion(
         if (!CatalogoPermisos.Existe(solicitud.Permiso))
             return ResultadoAutorizacion.Rechazo(MotivoRechazoAutorizacion.PermisoInexistente);
 
-        if (solicitud.Solicitante.TienePermiso(solicitud.Permiso))
+        if (!solicitud.ForzarSupervisor && solicitud.Solicitante.TienePermiso(solicitud.Permiso))
             return ResultadoAutorizacion.SinSupervisor();
 
         var motivo = solicitud.Motivo?.Trim();
@@ -40,7 +40,9 @@ internal sealed class ServicioAutorizacion(
             ResultadoVerificacion.Inactivo or ResultadoVerificacion.RolInactivo => ResultadoAutorizacion.Rechazo(MotivoRechazoAutorizacion.SupervisorInactivo),
             _ when !verificacion.Rol!.TienePermiso(CatalogoPermisos.AutorizarOperaciones) || !verificacion.Rol.TienePermiso(solicitud.Permiso)
                 => ResultadoAutorizacion.Rechazo(MotivoRechazoAutorizacion.SinPermisoParaAutorizar),
-            _ when verificacion.Rol!.Nivel < solicitud.Solicitante.Nivel => ResultadoAutorizacion.Rechazo(MotivoRechazoAutorizacion.NivelInsuficiente),
+            _ when verificacion.Rol!.Nivel < solicitud.Solicitante.Nivel
+                   || (solicitud.ForzarSupervisor && verificacion.Rol.Nivel <= solicitud.Solicitante.Nivel)
+                => ResultadoAutorizacion.Rechazo(MotivoRechazoAutorizacion.NivelInsuficiente),
             _ => ResultadoAutorizacion.Conceder(Guid.CreateVersion7(), verificacion.Usuario!.Id, verificacion.Usuario.Nombre),
         };
 

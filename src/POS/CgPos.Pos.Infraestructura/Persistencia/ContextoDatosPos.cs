@@ -4,6 +4,7 @@ using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 using CgPos.Dominio.Seguridad;
@@ -49,6 +50,11 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Turno> Turnos => Set<Turno>();
     public DbSet<Venta> Ventas => Set<Venta>();
     public DbSet<AutorizacionOtorgada> AutorizacionesOtorgadas => Set<AutorizacionOtorgada>();
+
+    // Descuentos y promociones (M06, M07)
+    public DbSet<Promocion> Promociones => Set<Promocion>();
+    public DbSet<MotivoDescuento> MotivosDescuento => Set<MotivoDescuento>();
+    public DbSet<TopeDescuento> TopesDescuento => Set<TopeDescuento>();
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {

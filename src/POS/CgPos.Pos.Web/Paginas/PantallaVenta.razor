@@ -68,6 +68,10 @@ else
             <section class="cg-venta__bloque cg-venta__totales">
                 <div class="cg-venta__total-fila"><span>Subtotal</span><span class="cg-numero">@_venta.Totales.Subtotal.ToString("N2")</span></div>
                 <div class="cg-venta__total-fila"><span>ITBIS</span><span class="cg-numero">@_venta.Totales.Impuesto.ToString("N2")</span></div>
+                @if (_venta.Totales.Descuento > 0)
+                {
+                    <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Descuentos</span><span class="cg-numero">−@_venta.Totales.Descuento.ToString("N2")</span></div>
+                }
                 <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (RD$)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
             </section>
         </header>
@@ -84,6 +88,10 @@ else
         @if (_mensaje is not null)
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
+        }
+        @if (_aviso is not null)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _aviso = null">@_aviso</MudAlert>
         }
         @if (_venta.RequiereIdentificacion)
         {
@@ -140,6 +148,18 @@ else
                         {
                             <div class="cg-venta__nota">Serial @linea.Serial</div>
                         }
+                        @if (!linea.EsReverso && linea.DescuentoPromocion > 0)
+                        {
+                            <div class="cg-venta__nota cg-venta__nota--ahorro">Oferta @linea.PromocionCodigo: −@linea.DescuentoPromocion.ToString("N2")</div>
+                        }
+                        @if (!linea.EsReverso && linea.DescuentoManual > 0)
+                        {
+                            <div class="cg-venta__nota cg-venta__nota--ahorro">Descuento (@linea.MotivoDescuento): −@linea.DescuentoManual.ToString("N2")</div>
+                        }
+                        @if (!linea.EsReverso && linea.DescuentoFactura > 0)
+                        {
+                            <div class="cg-venta__nota cg-venta__nota--ahorro">Descuento a la factura: −@linea.DescuentoFactura.ToString("N2")</div>
+                        }
                     </MudTd>
                     <MudTd Class="@ClaseCelda(linea)">@linea.UnidadMedidaCodigo</MudTd>
                     <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">
@@ -152,9 +172,31 @@ else
                             @FormatoCantidad(linea)
                         }
                     </MudTd>
-                    <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">@(linea.EsReverso ? null : linea.PrecioUnitario.ToString("N2"))</MudTd>
+                    <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">
+                        @if (EsEditable(linea))
+                        {
+                            <span class="cg-venta__cantidad" title="Descuento a la línea" @onclick="() => AbrirDescuentoLineaAsync(linea)" @onclick:stopPropagation="true">
+                                @linea.PrecioUnitario.ToString("N2")
+                            </span>
+                        }
+                        else if (!linea.EsReverso)
+                        {
+                            @linea.PrecioUnitario.ToString("N2")
+                        }
+                    </MudTd>
                     <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">@ImporteMostrado(linea).ToString("N2")</MudTd>
                     <MudTd Class="@ClaseCelda(linea)">
+                        @if (!linea.EsReverso && linea.PromocionDescripcion is not null)
+                        {
+                            <button type="button" class="cg-venta__promo" title="@linea.PromocionNombre"
+                                    @onclick="() => AbrirOfertaAsync(linea)" @onclick:stopPropagation="true">@linea.PromocionDescripcion</button>
+                        }
+                        @if (!linea.EsReverso && linea.DescuentoManual > 0)
+                        {
+                            <span class="cg-venta__promo cg-venta__promo--manual">
+                                @(linea.DescuentoManualTipo == TipoDescuento.Porcentaje ? $"-{linea.DescuentoManualValor:0.##}%" : "Desc.")
+                            </span>
+                        }
                         @if (!linea.EsReverso && linea.Lista == ListaPrecio.Mayor)
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">Mayor</MudChip>
@@ -187,8 +229,8 @@ else
                 <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="EliminarSeleccionadaAsync" />
                 <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="AlternarModoEliminar" />
                 <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="LimpiarAsync" />
-                <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" Deshabilitada="true" />
-                <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" Deshabilitada="true" />
+                <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" AlPresionar="DescuentoLineaSeleccionadaAsync" />
+                <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="AbrirDescuentoFacturaAsync" />
                 <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="AnularAsync" />
                 <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
                 <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="SalirAsync" />
@@ -226,6 +268,7 @@ else
     private ElementReference _campoEscaneo;
     private string _entrada = string.Empty;
     private string? _mensaje;
+    private string? _aviso;
     private int? _numeroSeleccionado;
     private bool _cargando = true;
     private bool _procesando;
@@ -519,6 +562,78 @@ else
             return respuesta;
         });
 
+    // ---------- Descuentos y ofertas ----------
+
+    private async Task AbrirDescuentoLineaAsync(DatosLineaVenta linea)
+    {
+        _numeroSeleccionado = linea.NumeroLinea;
+
+        if (!linea.PermiteDescuentoManual)
+        {
+            _mensaje = $"{linea.Descripcion} no admite descuento manual; solo ofertas.";
+            return;
+        }
+
+        if (linea.PromocionCodigo is not null)
+        {
+            // Primero se ve o se desactiva la oferta (RF-124).
+            await AbrirOfertaAsync(linea);
+            return;
+        }
+
+        var parametros = new DialogParameters<DialogoDescuento>
+        {
+            { dialogo => dialogo.Venta, _venta! },
+            { dialogo => dialogo.NumeroLinea, linea.NumeroLinea },
+        };
+        AplicarResultadoDialogo(await MostrarDialogoAsync<DialogoDescuento, RespuestaVenta>("Descuento a la línea", parametros, MaxWidth.Medium));
+    }
+
+    private Task DescuentoLineaSeleccionadaAsync()
+    {
+        _barra?.MostrarPrincipal();
+        var linea = LineaSeleccionada is { } seleccionada && EsEditable(seleccionada)
+            ? seleccionada
+            : _venta?.Lineas.LastOrDefault(EsEditable);
+
+        if (linea is null)
+        {
+            _mensaje = "No hay una línea para descontar.";
+            return Task.CompletedTask;
+        }
+
+        return AbrirDescuentoLineaAsync(linea);
+    }
+
+    private async Task AbrirDescuentoFacturaAsync()
+    {
+        if (_venta is null || !_venta.Lineas.Any(EsEditable))
+        {
+            _mensaje = "No hay artículos para descontar.";
+            return;
+        }
+
+        _barra?.MostrarPrincipal();
+        var parametros = new DialogParameters<DialogoDescuento> { { dialogo => dialogo.Venta, _venta } };
+        AplicarResultadoDialogo(await MostrarDialogoAsync<DialogoDescuento, RespuestaVenta>("Descuento a la factura", parametros, MaxWidth.Medium));
+    }
+
+    private async Task AbrirOfertaAsync(DatosLineaVenta linea)
+    {
+        var parametros = new DialogParameters<DialogoOferta>
+        {
+            { dialogo => dialogo.Venta, _venta! },
+            { dialogo => dialogo.NumeroLinea, linea.NumeroLinea },
+        };
+        AplicarResultadoDialogo(await MostrarDialogoAsync<DialogoOferta, RespuestaVenta>("Oferta", parametros, MaxWidth.Small));
+    }
+
+    private void AplicarResultadoDialogo(RespuestaVenta? respuesta)
+    {
+        if (respuesta is not null)
+            AplicarRespuesta(respuesta);
+    }
+
     // ---------- Cliente, límite, espera, anular y suspender ----------
 
     private async Task AbrirClienteAsync()
@@ -655,6 +770,7 @@ else
         }
 
         _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+        _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
 
         if (respuesta.Exitosa && seleccionarUltima && _venta is not null)
             _numeroSeleccionado = _venta.Lineas.Where(linea => !linea.EsReverso).Select(linea => (int?)linea.NumeroLinea).Max();
@@ -782,10 +898,10 @@ else
     private decimal ImporteMostrado(DatosLineaVenta linea)
     {
         if (!linea.EsReverso)
-            return Math.Round(linea.Cantidad * linea.PrecioUnitario, 2, MidpointRounding.AwayFromZero);
+            return linea.Anulada ? linea.ImporteBruto : linea.Importe;
 
         var original = _venta?.Lineas.FirstOrDefault(l => l.NumeroLinea == linea.LineaAnuladaNumero);
-        return original is null ? 0m : -Math.Round(original.Cantidad * original.PrecioUnitario, 2, MidpointRounding.AwayFromZero);
+        return original is null ? 0m : -original.ImporteBruto;
     }
 
     private string ClaseSincronizacion => _sincronizacion switch

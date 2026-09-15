@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base) y C4 (venta avanzada y pantalla del cliente) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente) y C5 (descuentos y promociones) completadas.
 
 ## Stack
 
@@ -132,6 +132,14 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Serializados:** al escanearlos se pide el serial; no se repite en la misma venta.
 - **Balanza (F5):** un pesado sin etiqueta toma el peso estable de la balanza menos la tara del artículo. En desarrollo la balanza está simulada (`Perifericos:BalanzaSimulada:Peso`).
 - **Catálogo en mosaicos:** botón junto al campo de escaneo; muestra los artículos con `mostrarEnCatalogo`.
+
+### Descuentos y ofertas
+
+- **Ofertas** (`promociones` en los maestros): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde una cantidad. Se limitan por artículos o familias, sucursales, fechas, días de la semana, horas y unidades por cliente. Se recalculan en cada operación sumando todas las líneas del mismo artículo, y si aplican varias gana la más favorable para el cliente. Una oferta solo reemplaza el precio por mayor si deja mejor precio.
+- **Columna Promo:** muestra la oferta (ej. `2x1`, `-15%`). Al tocarla se ve el detalle, las ofertas vigentes y la opción de **desactivarla**, que requiere permiso.
+- **Descuento a la línea** (tocar el precio) y **a la factura** (segunda página): por porcentaje o monto, con motivo de la lista `motivosDescuento`. Requiere permiso o clave de supervisor. No aplica a artículos en oferta ni a familias sin descuento manual (panadería, vegetales). El de factura puede limitarse a líneas elegidas y se prorratea al centavo.
+- **Topes** (`topesDescuento`): por nivel de usuario, general, por familia o por artículo. Si el descuento supera el tope de quien autoriza, se pide la clave de un nivel superior. En desarrollo: supervisor (S001) hasta 10 % o RD$2,000; gerente (G001) hasta 30 % o RD$20,000.
+- Cada línea guarda la oferta aplicada y cada descuento queda auditado con motivo y autorizador.
 
 ### Pantalla del cliente y monitores
 

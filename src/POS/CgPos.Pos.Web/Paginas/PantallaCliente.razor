@@ -43,6 +43,16 @@
                                         <span class="cg-pantalla-cliente__etiqueta">Precio por mayor</span>
                                     }
                                 </div>
+                                @if (AhorroDe(linea) is > 0 and var ahorro)
+                                {
+                                    <div class="cg-pantalla-cliente__ahorro">
+                                        Ahorro −@ahorro.ToString("N2")
+                                        @if (linea.PromocionDescripcion is not null)
+                                        {
+                                            <span class="cg-pantalla-cliente__etiqueta">Oferta @linea.PromocionDescripcion</span>
+                                        }
+                                    </div>
+                                }
                             </div>
                             <div class="cg-numero cg-pantalla-cliente__importe">@linea.Importe.ToString("N2")</div>
                         </div>
@@ -53,6 +63,10 @@
                     <div><span>Artículos</span><span class="cg-numero">@venta.Totales.CantidadArticulos.ToString("0.###")</span></div>
                     <div><span>Subtotal</span><span class="cg-numero">@venta.Totales.Subtotal.ToString("N2")</span></div>
                     <div><span>ITBIS</span><span class="cg-numero">@venta.Totales.Impuesto.ToString("N2")</span></div>
+                    @if (venta.Totales.Descuento > 0)
+                    {
+                        <div class="cg-pantalla-cliente__ahorro-total"><span>Usted ahorra</span><span class="cg-numero">@venta.Totales.Descuento.ToString("N2")</span></div>
+                    }
                     <div class="cg-pantalla-cliente__total"><span>Total RD$</span><span class="cg-numero">@venta.Totales.Total.ToString("N2")</span></div>
                 </div>
             </section>
@@ -77,6 +91,8 @@
     private bool _conectado;
     private int _indiceImagen;
     private DateTime _ahora = DateTime.Now;
+
+    private static decimal AhorroDe(DatosLineaVenta linea) => linea.DescuentoPromocion + linea.DescuentoManual + linea.DescuentoFactura;
 
     private IReadOnlyList<DatosLineaVenta> LineasActivas =>
         _venta?.Lineas.Where(linea => !linea.EsReverso && !linea.Anulada).ToList() ?? [];

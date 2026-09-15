@@ -68,6 +68,9 @@
     [Parameter] public string? TipoEntidad { get; set; }
     [Parameter] public string? EntidadId { get; set; }
 
+    /// <summary>Pedir clave de un nivel superior aunque el usuario tenga el permiso (ej. descuento que excede su tope).</summary>
+    [Parameter] public bool ForzarSupervisor { get; set; }
+
     private string? _motivo;
     private string? _codigo;
     private string? _pin;
@@ -125,8 +128,8 @@
         }
 
         var solicitud = porCarne
-            ? new SolicitudAutorizacion(Permiso, _motivo, CodigoBarras: _carne, TipoEntidad: TipoEntidad, EntidadId: EntidadId)
-            : new SolicitudAutorizacion(Permiso, _motivo, _codigo!.Trim(), _pin, TipoEntidad: TipoEntidad, EntidadId: EntidadId);
+            ? new SolicitudAutorizacion(Permiso, _motivo, CodigoBarras: _carne, TipoEntidad: TipoEntidad, EntidadId: EntidadId, ForzarSupervisor: ForzarSupervisor)
+            : new SolicitudAutorizacion(Permiso, _motivo, _codigo!.Trim(), _pin, TipoEntidad: TipoEntidad, EntidadId: EntidadId, ForzarSupervisor: ForzarSupervisor);
 
         _procesando = true;
         _mensaje = null;

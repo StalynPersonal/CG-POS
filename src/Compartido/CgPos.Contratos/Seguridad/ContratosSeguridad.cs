@@ -33,7 +33,8 @@ public sealed record SolicitudAutorizacion(
     string? Pin = null,
     string? CodigoBarras = null,
     string? TipoEntidad = null,
-    string? EntidadId = null);
+    string? EntidadId = null,
+    bool ForzarSupervisor = false);
 
 public sealed record RespuestaAutorizacion(
     bool Concedida,

@@ -107,7 +107,8 @@ public sealed class EscenarioSeguridad
                 new RolCarga(RolCajero, $"CAJ{Sufijo}", "Cajero", 1, [CatalogoPermisos.RegistrarVenta, CatalogoPermisos.AbrirTurno]),
                 new RolCarga(RolSupervisor, $"SUP{Sufijo}", "Supervisor", 2,
                     [CatalogoPermisos.AutorizarOperaciones, CatalogoPermisos.EliminarLinea, CatalogoPermisos.LimpiarPantalla, CatalogoPermisos.AnularVenta,
-                     CatalogoPermisos.RegistrarVenta, CatalogoPermisos.CambiarComprobante, CatalogoPermisos.SuspenderVenta]),
+                     CatalogoPermisos.RegistrarVenta, CatalogoPermisos.CambiarComprobante, CatalogoPermisos.SuspenderVenta,
+                     CatalogoPermisos.DescuentoLinea, CatalogoPermisos.DescuentoFactura, CatalogoPermisos.DesactivarPromocion]),
             ],
             Usuarios:
             [

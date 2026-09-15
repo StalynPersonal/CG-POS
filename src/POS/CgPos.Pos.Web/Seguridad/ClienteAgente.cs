@@ -7,6 +7,7 @@ using CgPos.Contratos.Seguridad;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Ventas;
 
 namespace CgPos.Pos.Web.Seguridad;
 
@@ -132,6 +133,49 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     public Task<RespuestaVenta> SuspenderCajaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/caja/suspender", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
+    // ---------- Descuentos y ofertas (C5) ----------
+
+    public Task<RespuestaVenta> AplicarDescuentoLineaAsync(Guid ventaId, int numeroLinea, TipoDescuento tipo, decimal valor, string? motivo, Guid? autorizacionId,
+        CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/{numeroLinea}/descuento", new SolicitudDescuentoLinea(tipo, valor, motivo, autorizacionId), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> QuitarDescuentoLineaAsync(Guid ventaId, int numeroLinea, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/lineas/{numeroLinea}/descuento", null, ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> AplicarDescuentoFacturaAsync(Guid ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas, string? motivo,
+        Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/descuento", new SolicitudDescuentoFactura(tipo, valor, lineas, motivo, autorizacionId), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> QuitarDescuentoFacturaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/descuento", null, ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> DesactivarOfertaAsync(Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/{numeroLinea}/desactivar-oferta", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
+    public async Task<IReadOnlyList<DatosMotivoDescuento>> ListarMotivosDescuentoAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosMotivoDescuento>>("api/descuentos/motivos", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(Guid articuloId, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosPromocionVigente>>($"api/articulos/{articuloId}/promociones", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+    }
 
     public async Task<DatosConsultaDocumento?> ConsultarDocumentoAsync(string documento, CancellationToken cancelacion = default)
     {

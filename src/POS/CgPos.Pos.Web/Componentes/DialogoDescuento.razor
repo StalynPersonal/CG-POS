@@ -1,0 +1,237 @@
+@* Descuento manual a una línea (tocar el precio) o a la factura: monto o porcentaje, motivo y líneas elegidas (RF-141, RF-199 a RF-203). *@
+@using System.Globalization
+@inject ClienteAgente Cliente
+@inject ServicioAutorizacionPantalla Autorizaciones
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-descuento">
+            <div class="cg-cliente__actual">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                        @(EsFactura ? $"Descuento a la factura {Venta.NumeroTransaccion}" : $"Descuento a la línea {NumeroLinea}")
+                    </MudText>
+                    @if (Linea is { } linea)
+                    {
+                        <MudText Typo="Typo.h6" Style="font-weight: 700">@linea.Descripcion</MudText>
+                        <MudText Typo="Typo.body2">@linea.Cantidad.ToString("N" + linea.DecimalesCantidad) × @linea.PrecioUnitario.ToString("N2") = RD$@linea.ImporteBruto.ToString("N2")</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h6" Style="font-weight: 700">Total RD$@Venta.Totales.Total.ToString("N2")</MudText>
+                    }
+                </div>
+                @if (TieneDescuento)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarAsync"
+                               StartIcon="@Icons.Material.Filled.MoneyOff" Style="min-height: var(--cg-toque-minimo)">Quitar descuento</MudButton>
+                }
+            </div>
+
+            <div class="cg-descuento__cuerpo">
+                <div class="cg-descuento__datos">
+                    <div class="cg-descuento__tipos">
+                        <button type="button" class="cg-cliente__comprobante @(_tipo == TipoDescuento.Porcentaje ? "cg-cliente__comprobante--activo" : null)"
+                                @onclick="() => _tipo = TipoDescuento.Porcentaje">
+                            <span class="cg-cliente__codigo-ecf">%</span><span>Porcentaje</span>
+                        </button>
+                        <button type="button" class="cg-cliente__comprobante @(_tipo == TipoDescuento.Monto ? "cg-cliente__comprobante--activo" : null)"
+                                @onclick="() => _tipo = TipoDescuento.Monto">
+                            <span class="cg-cliente__codigo-ecf">RD$</span><span>Monto</span>
+                        </button>
+                    </div>
+
+                    <MudTextField T="string" @bind-Value="_valor" Label="@(_tipo == TipoDescuento.Porcentaje ? "Porcentaje (%)" : "Monto (RD$)")"
+                                  Variant="Variant.Outlined" Immediate="true" AutoFocus="true" Class="cg-campo-activo cg-dialogo-teclado__campo" />
+                    @if (MontoEstimado is { } monto)
+                    {
+                        <MudText Typo="Typo.subtitle1" Class="cg-descuento__estimado">Descuento estimado: RD$@monto.ToString("N2")</MudText>
+                    }
+
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Motivo</MudText>
+                    @if (_motivos.Count > 0)
+                    {
+                        <div class="cg-descuento__motivos">
+                            @foreach (var motivo in _motivos)
+                            {
+                                <button type="button" class="cg-catalogo__familia @(string.Equals(_motivo, motivo.Nombre, StringComparison.OrdinalIgnoreCase) ? "cg-catalogo__familia--activa" : null)"
+                                        @onclick="() => _motivo = motivo.Nombre">@motivo.Nombre</button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" Immediate="true" />
+                    }
+
+                    @if (EsFactura)
+                    {
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Aplicar a (sin marcar = todas las que admiten descuento)</MudText>
+                        <div class="cg-descuento__lineas">
+                            @foreach (var candidata in LineasActivas)
+                            {
+                                var elegible = candidata.PermiteDescuentoManual && candidata.PromocionCodigo is null;
+                                <label class="cg-descuento__linea @(elegible ? null : "cg-descuento__linea--excluida")">
+                                    <input type="checkbox" checked="@_seleccion.Contains(candidata.NumeroLinea)" disabled="@(!elegible)"
+                                           @onchange="evento => Alternar(candidata.NumeroLinea, evento.Value is true)" />
+                                    <span class="cg-descuento__linea-texto">
+                                        @candidata.NumeroLinea · @candidata.Descripcion
+                                        @if (!elegible)
+                                        {
+                                            <small>@(candidata.PromocionCodigo is not null ? $"En oferta {candidata.PromocionDescripcion}" : "No admite descuento manual")</small>
+                                        }
+                                    </span>
+                                    <span class="cg-numero">@candidata.Importe.ToString("N2")</span>
+                                </label>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <TecladoTactil @bind-Valor="_valor" AlConfirmar="_ => AplicarAsync()" PermitirCambioModo="false" LongitudMaxima="10" TextoConfirmar="Aplicar" />
+            </div>
+
+            @if (_procesando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" StartIcon="@Icons.Material.Filled.Discount"
+                   Style="min-height: var(--cg-toque-minimo); min-width: 160px" OnClick="AplicarAsync">Aplicar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosVenta Venta { get; set; } = default!;
+
+    /// <summary>Línea a descontar; nulo para el descuento a la factura.</summary>
+    [Parameter] public int? NumeroLinea { get; set; }
+
+    private readonly HashSet<int> _seleccion = [];
+    private IReadOnlyList<DatosMotivoDescuento> _motivos = [];
+    private TipoDescuento _tipo = TipoDescuento.Porcentaje;
+    private string _valor = string.Empty;
+    private string? _motivo;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private bool EsFactura => NumeroLinea is null;
+
+    private DatosLineaVenta? Linea => NumeroLinea is { } numero ? Venta.Lineas.FirstOrDefault(l => l.NumeroLinea == numero) : null;
+
+    private IEnumerable<DatosLineaVenta> LineasActivas => Venta.Lineas.Where(l => !l.EsReverso && !l.Anulada);
+
+    private bool TieneDescuento => EsFactura ? Venta.DescuentoFactura is not null : Linea is { DescuentoManual: > 0 };
+
+    /// <summary>Estimado en pantalla; el Agente calcula el definitivo (prorrateo y redondeo por línea).</summary>
+    private decimal? MontoEstimado
+    {
+        get
+        {
+            if (!decimal.TryParse(_valor, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var valor) || valor <= 0)
+                return null;
+
+            var baseDescuento = Linea is { } linea
+                ? linea.ImporteBruto
+                : LineasActivas
+                    .Where(l => l.PermiteDescuentoManual && l.PromocionCodigo is null && (_seleccion.Count == 0 || _seleccion.Contains(l.NumeroLinea)))
+                    .Sum(l => l.ImporteBruto - l.DescuentoPromocion - l.DescuentoManual);
+
+            return _tipo == TipoDescuento.Porcentaje ? decimal.Round(baseDescuento * valor / 100m, 2) : Math.Min(valor, baseDescuento);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Se precarga el descuento vigente para editarlo.
+        if (EsFactura && Venta.DescuentoFactura is { } actual)
+        {
+            _tipo = actual.Tipo;
+            _valor = actual.Valor.ToString("0.##", CultureInfo.InvariantCulture);
+            _motivo = actual.Motivo;
+            _seleccion.UnionWith(actual.Lineas ?? []);
+        }
+        else if (Linea is { DescuentoManualTipo: { } tipo, DescuentoManualValor: { } valor } linea)
+        {
+            _tipo = tipo;
+            _valor = valor.ToString("0.##", CultureInfo.InvariantCulture);
+            _motivo = linea.MotivoDescuento;
+        }
+
+        _motivos = await Cliente.ListarMotivosDescuentoAsync();
+    }
+
+    private void Alternar(int numeroLinea, bool marcado)
+    {
+        if (marcado)
+            _seleccion.Add(numeroLinea);
+        else
+            _seleccion.Remove(numeroLinea);
+    }
+
+    private async Task AplicarAsync()
+    {
+        if (_procesando)
+            return;
+
+        if (!decimal.TryParse(_valor, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var valor) || valor <= 0)
+        {
+            _mensaje = "Digite el valor del descuento.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_motivo))
+        {
+            _mensaje = "Seleccione el motivo del descuento.";
+            return;
+        }
+
+        var texto = _tipo == TipoDescuento.Porcentaje ? $"{valor:0.##}%" : $"RD${valor:N2}";
+        var lineas = _seleccion.Count > 0 ? _seleccion.Order().ToList() : null;
+        var motivo = _motivo;
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Autorizaciones.EjecutarVentaAsync(
+            autorizacion => EsFactura
+                ? Cliente.AplicarDescuentoFacturaAsync(Venta.Id, _tipo, valor, lineas, motivo, autorizacion)
+                : Cliente.AplicarDescuentoLineaAsync(Venta.Id, NumeroLinea!.Value, _tipo, valor, motivo, autorizacion),
+            EsFactura ? $"Descuento de {texto} a la factura" : $"Descuento de {texto} a {Linea?.Descripcion}",
+            Venta.NumeroTransaccion);
+        _procesando = false;
+
+        if (respuesta is null)
+            return;
+
+        if (respuesta.Exitosa)
+        {
+            Dialogo.Close(DialogResult.Ok(respuesta));
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje;
+    }
+
+    private async Task QuitarAsync()
+    {
+        _procesando = true;
+        var respuesta = EsFactura
+            ? await Cliente.QuitarDescuentoFacturaAsync(Venta.Id)
+            : await Cliente.QuitarDescuentoLineaAsync(Venta.Id, NumeroLinea!.Value);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(respuesta));
+        else
+            _mensaje = respuesta.Mensaje;
+    }
+}

@@ -36,6 +36,15 @@
                             </div>
                         }
                     </div>
+                    @if (_ofertas.Count > 0)
+                    {
+                        <div class="cg-descuento__motivos mt-3">
+                            @foreach (var oferta in _ofertas)
+                            {
+                                <span class="cg-venta__promo">@oferta.Descripcion · @oferta.Nombre</span>
+                            }
+                        </div>
+                    }
                 </MudPaper>
             }
             else if (_mensaje is not null)
@@ -57,6 +66,7 @@
 
     private string _codigo = string.Empty;
     private DatosArticuloVenta? _articulo;
+    private IReadOnlyList<DatosPromocionVigente> _ofertas = [];
     private string? _mensaje;
     private bool _consultando;
 
@@ -71,6 +81,7 @@
 
         _consultando = true;
         _articulo = await Cliente.ConsultarArticuloAsync(codigo);
+        _ofertas = _articulo is null ? [] : await Cliente.ListarPromocionesVigentesAsync(_articulo.ArticuloId);
         _mensaje = _articulo is null ? $"No se encontró el artículo {codigo}." : null;
         _consultando = false;
 

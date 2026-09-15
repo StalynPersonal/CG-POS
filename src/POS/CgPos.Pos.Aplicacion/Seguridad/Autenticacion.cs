@@ -90,13 +90,17 @@ public enum MotivoRechazoAutorizacion
 /// <param name="Permiso">Permiso de la operación (del catálogo).</param>
 /// <param name="Motivo">Motivo obligatorio cuando se requiere supervisor.</param>
 /// <param name="CredencialSupervisor">Credencial del supervisor que autoriza.</param>
+/// <param name="ForzarSupervisor">
+/// Pide clave aunque el solicitante tenga el permiso, y exige un nivel mayor que el suyo: para lo que excede su tope (RN-10).
+/// </param>
 public sealed record SolicitudAutorizacionSupervisor(
     SesionUsuario Solicitante,
     string Permiso,
     string Motivo,
     CredencialUsuario CredencialSupervisor,
     string? TipoEntidad = null,
-    string? EntidadId = null);
+    string? EntidadId = null,
+    bool ForzarSupervisor = false);
 
 public sealed record ResultadoAutorizacion(
     bool Concedida,

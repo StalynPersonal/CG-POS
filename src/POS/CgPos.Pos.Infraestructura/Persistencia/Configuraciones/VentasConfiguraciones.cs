@@ -1,5 +1,6 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Organizacion;
+using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
@@ -46,6 +47,9 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
         constructor.Property(v => v.ClienteDocumento).HasMaxLength(Venta.LargoMaximoDocumento).IsUnicode(false);
         constructor.Property(v => v.ClienteNombre).HasMaxLength(Venta.LargoMaximoNombreCliente);
         constructor.Property(v => v.LimiteCompra).HasPrecision(18, 2);
+        constructor.Property(v => v.DescuentoFacturaLineas).HasMaxLength(2000).IsUnicode(false);
+        constructor.Property(v => v.MotivoDescuentoFactura).HasMaxLength(Venta.LargoMaximoMotivo);
+        constructor.Property(v => v.DescuentoFacturaAutorizadoPorNombre).HasMaxLength(Venta.LargoMaximoUsuario);
         constructor.Ignore(v => v.TieneLineasActivas);
 
         constructor.HasIndex(v => v.NumeroTransaccion).IsUnique();
@@ -72,8 +76,20 @@ internal sealed class LineaVentaConfiguracion : IEntityTypeConfiguration<LineaVe
         constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.PorcentajeImpuesto).HasPrecision(5, 2);
         constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);
+        constructor.Property(l => l.PromocionCodigo).HasMaxLength(Promocion.LargoMaximoCodigo);
+        constructor.Property(l => l.PromocionNombre).HasMaxLength(Promocion.LargoMaximoNombre);
+        constructor.Property(l => l.PromocionDescripcion).HasMaxLength(60);
+        constructor.Property(l => l.DescuentoPromocion).HasPrecision(18, 2);
+        constructor.Property(l => l.DescuentoManual).HasPrecision(18, 2);
+        constructor.Property(l => l.DescuentoFactura).HasPrecision(18, 2);
+        constructor.Property(l => l.MotivoDescuento).HasMaxLength(Venta.LargoMaximoMotivo);
+        constructor.Property(l => l.DescuentoAutorizadoPorNombre).HasMaxLength(Venta.LargoMaximoUsuario);
         constructor.Ignore(l => l.EstaActiva);
+        constructor.Ignore(l => l.ImporteBruto);
         constructor.Ignore(l => l.ImporteConImpuesto);
+        constructor.Ignore(l => l.DescuentoTotal);
+        constructor.Ignore(l => l.TienePromocionActiva);
+        constructor.HasIndex(l => l.PromocionId);
 
         constructor.HasIndex(l => new { l.VentaId, l.NumeroLinea }).IsUnique();
     }

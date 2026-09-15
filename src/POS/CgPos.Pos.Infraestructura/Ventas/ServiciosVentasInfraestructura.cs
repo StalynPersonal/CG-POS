@@ -3,6 +3,7 @@ using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
@@ -34,7 +35,10 @@ internal static class ConversionesVenta
             .Select(l => new DatosLineaVenta(
                 l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo, l.UnidadMedidaCodigo,
                 l.DecimalesCantidad, l.Cantidad, l.PrecioUnitario, l.ImporteConImpuesto, l.PorcentajeImpuesto, l.Lista, l.MotivoPrecio,
-                l.LeidaDeBalanza, l.EsReverso, l.LineaAnuladaNumero, l.Anulada, l.Serial))
+                l.LeidaDeBalanza, l.EsReverso, l.LineaAnuladaNumero, l.Anulada, l.Serial,
+                l.PromocionCodigo, l.PromocionNombre, l.PromocionDescripcion, l.DescuentoPromocion, l.PromocionDesactivada,
+                l.DescuentoManual, l.DescuentoManualTipo, l.DescuentoManualValor, l.MotivoDescuento, l.DescuentoAutorizadoPorNombre,
+                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual))
             .ToList();
 
         var cliente = venta.ClienteNombre is { } nombre
@@ -55,13 +59,23 @@ internal static class ConversionesVenta
                 totales.Total,
                 totales.CantidadLineas,
                 totales.CantidadArticulos,
-                totales.Desglose.Select(d => new DatosDesgloseImpuesto(d.Porcentaje, d.IndicadorFacturacion, d.Base, d.Impuesto, d.Total)).ToList()),
+                totales.Desglose.Select(d => new DatosDesgloseImpuesto(d.Porcentaje, d.IndicadorFacturacion, d.Base, d.Impuesto, d.Total)).ToList(),
+                totales.Descuento),
             venta.TipoComprobante,
             cliente,
             venta.LimiteCompra,
             venta.LimiteCompra is { } limite && totales.Total > limite,
             venta.TipoComprobante == TipoComprobante.FacturaConsumo && venta.ClienteDocumento is null && totales.Total >= montoIdentificacion,
-            montoIdentificacion);
+            montoIdentificacion,
+            venta.DescuentoFacturaTipo is { } tipoDescuento
+                ? new DatosDescuentoFactura(
+                    tipoDescuento,
+                    venta.DescuentoFacturaValor ?? 0m,
+                    venta.DescuentoFacturaLineas?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList(),
+                    venta.MotivoDescuentoFactura,
+                    venta.DescuentoFacturaAutorizadoPorNombre,
+                    venta.Lineas.Sum(l => l.DescuentoFactura))
+                : null);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -83,6 +97,9 @@ internal static class ConversionesVenta
         CodigoErrorVenta.SinLineas => CodigoResultadoVenta.SinLineas,
         CodigoErrorVenta.RequiereSerial => CodigoResultadoVenta.RequiereSerial,
         CodigoErrorVenta.SerialDuplicado => CodigoResultadoVenta.SerialDuplicado,
+        CodigoErrorVenta.ArticuloEnOferta => CodigoResultadoVenta.ArticuloEnOferta,
+        CodigoErrorVenta.DescuentoNoPermitido => CodigoResultadoVenta.DescuentoNoPermitido,
+        CodigoErrorVenta.DescuentoInvalido => CodigoResultadoVenta.DescuentoInvalido,
         _ => CodigoResultadoVenta.VentaNoEditable,
     };
 }
@@ -170,6 +187,8 @@ internal sealed class ServicioVentas(
 
     /// <summary>Se lee de parámetros al validar el turno, que es el primer paso de toda operación.</summary>
     private decimal _montoIdentificacion = ReglasComprobante.MontoIdentificacionConsumoPredeterminado;
+
+    private IReadOnlyList<Promocion>? _promociones;
 
     public async Task<RespuestaVenta> ObtenerActualAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
     {
@@ -404,6 +423,7 @@ internal sealed class ServicioVentas(
         }
 
         enEspera.Retomar(ahora);
+        enEspera.RecalcularPromociones(await PromocionesAsync(cancelacion), enEspera.SucursalId, reloj.GetLocalNow());
         auditoria.Registrar(new EntradaAuditoria("Ventas.Retomada", TipoEntidadVenta, enEspera.NumeroTransaccion,
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
         await contexto.SaveChangesAsync(cancelacion);
@@ -485,9 +505,13 @@ internal sealed class ServicioVentas(
 
     private async Task<RespuestaVenta> EjecutarAsync(Venta venta, Action operacion, CancellationToken cancelacion)
     {
+        var promociones = await PromocionesAsync(cancelacion);
         try
         {
             operacion();
+
+            // Toda operación deja las ofertas al día: cantidades, líneas, días y horas pueden haber cambiado (RF-208).
+            venta.RecalcularPromociones(promociones, venta.SucursalId, reloj.GetLocalNow());
             await contexto.SaveChangesAsync(cancelacion);
             return Correcta(venta);
         }
@@ -498,6 +522,219 @@ internal sealed class ServicioVentas(
             var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
             return new RespuestaVenta(excepcion.Codigo.ACodigoResultado(), excepcion.Message, Datos(ventaActual));
         }
+    }
+
+    public async Task<RespuestaVenta> AplicarDescuentoLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, TipoDescuento tipo, decimal valor,
+        string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        if (await ValidarMotivoAsync(motivo, cancelacion) is { } motivoInvalido)
+            return new RespuestaVenta(CodigoResultadoVenta.MotivoRequerido, motivoInvalido, Datos(venta!));
+
+        // Se valida el descuento antes de pedir clave de supervisor.
+        VistaPreviaDescuento vista;
+        try
+        {
+            vista = venta!.PrevisualizarDescuentoLinea(numeroLinea, tipo, valor);
+        }
+        catch (ReglaVentaExcepcion excepcion)
+        {
+            return new RespuestaVenta(excepcion.Codigo.ACodigoResultado(), excepcion.Message, Datos(venta!));
+        }
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.DescuentoLinea, autorizacionId, TipoEntidadVenta, venta.NumeroTransaccion, cancelacion);
+        if (!permiso.Permitido)
+            return SinPermiso(permiso, CatalogoPermisos.DescuentoLinea, venta);
+
+        var linea = venta.Lineas.Single(l => l.NumeroLinea == numeroLinea && l.EstaActiva);
+        if (await RechazoPorTopeAsync(sesion, permiso, CatalogoPermisos.DescuentoLinea, linea.ArticuloId, linea.FamiliaId, vista, venta, cancelacion) is { } excedido)
+            return excedido;
+
+        return await EjecutarAsync(venta, () =>
+        {
+            venta.AplicarDescuentoLinea(numeroLinea, tipo, valor, motivo!.Trim(), permiso.SupervisorId ?? sesion.UsuarioId, permiso.SupervisorNombre ?? sesion.Nombre,
+                reloj.GetUtcNow());
+            auditoria.Registrar(new EntradaAuditoria("Ventas.DescuentoLinea", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: new { Linea = numeroLinea, linea.CodigoInterno, Tipo = tipo, Valor = valor, vista.Monto, vista.Porcentaje },
+                Motivo: motivo,
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+                AutorizadoPor: Autorizador(permiso)));
+        }, cancelacion);
+    }
+
+    public async Task<RespuestaVenta> QuitarDescuentoLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        return await EjecutarAsync(venta!, () => venta!.QuitarDescuentoLinea(numeroLinea, reloj.GetUtcNow()), cancelacion);
+    }
+
+    public async Task<RespuestaVenta> AplicarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas,
+        string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        if (await ValidarMotivoAsync(motivo, cancelacion) is { } motivoInvalido)
+            return new RespuestaVenta(CodigoResultadoVenta.MotivoRequerido, motivoInvalido, Datos(venta!));
+
+        VistaPreviaDescuento vista;
+        try
+        {
+            vista = venta!.PrevisualizarDescuentoFactura(tipo, valor, lineas);
+        }
+        catch (ReglaVentaExcepcion excepcion)
+        {
+            return new RespuestaVenta(excepcion.Codigo.ACodigoResultado(), excepcion.Message, Datos(venta!));
+        }
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.DescuentoFactura, autorizacionId, TipoEntidadVenta, venta.NumeroTransaccion, cancelacion);
+        if (!permiso.Permitido)
+            return SinPermiso(permiso, CatalogoPermisos.DescuentoFactura, venta);
+
+        if (await RechazoPorTopeAsync(sesion, permiso, CatalogoPermisos.DescuentoFactura, null, null, vista, venta, cancelacion) is { } excedido)
+            return excedido;
+
+        ResultadoDescuentoFactura? resultado = null;
+        var respuesta = await EjecutarAsync(venta, () =>
+        {
+            resultado = venta.AplicarDescuentoFactura(tipo, valor, lineas, motivo!.Trim(), permiso.SupervisorId ?? sesion.UsuarioId,
+                permiso.SupervisorNombre ?? sesion.Nombre, reloj.GetUtcNow());
+            auditoria.Registrar(new EntradaAuditoria("Ventas.DescuentoFactura", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: new { Tipo = tipo, Valor = valor, Lineas = lineas, resultado.Monto, resultado.Porcentaje, resultado.LineasExcluidas },
+                Motivo: motivo,
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+                AutorizadoPor: Autorizador(permiso)));
+        }, cancelacion);
+
+        if (!respuesta.Exitosa || resultado is not { LineasExcluidas.Count: > 0 } conExcluidas)
+            return respuesta;
+
+        return respuesta with
+        {
+            Mensaje = $"Las líneas {string.Join(", ", conExcluidas.LineasExcluidas)} no tomaron el descuento: están en oferta o su familia no admite descuento manual.",
+            LineasExcluidas = conExcluidas.LineasExcluidas,
+        };
+    }
+
+    public async Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        return await EjecutarAsync(venta!, () => venta!.QuitarDescuentoFactura(reloj.GetUtcNow()), cancelacion);
+    }
+
+    public async Task<RespuestaVenta> DesactivarPromocionAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        var linea = venta!.Lineas.FirstOrDefault(l => l.NumeroLinea == numeroLinea && l.EstaActiva);
+        if (linea is not { TienePromocionActiva: true })
+            return new RespuestaVenta(CodigoResultadoVenta.DescuentoInvalido, $"La línea {numeroLinea} no tiene una oferta aplicada.", Datos(venta));
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.DesactivarPromocion, autorizacionId, TipoEntidadVenta, venta.NumeroTransaccion, cancelacion);
+        if (!permiso.Permitido)
+            return SinPermiso(permiso, CatalogoPermisos.DesactivarPromocion, venta);
+
+        var promocion = new { linea.PromocionCodigo, linea.PromocionNombre, linea.CodigoInterno, Descuento = linea.DescuentoPromocion };
+        return await EjecutarAsync(venta, () =>
+        {
+            venta.DesactivarPromocion(numeroLinea, reloj.GetUtcNow());
+            auditoria.Registrar(new EntradaAuditoria("Promociones.Desactivada", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: promocion,
+                Motivo: permiso.Motivo,
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+                AutorizadoPor: Autorizador(permiso)));
+        }, cancelacion);
+    }
+
+    public async Task<IReadOnlyList<DatosMotivoDescuento>> ListarMotivosDescuentoAsync(CancellationToken cancelacion = default) =>
+        await contexto.MotivosDescuento.AsNoTracking()
+            .Where(m => m.Activo)
+            .OrderBy(m => m.Nombre)
+            .Select(m => new DatosMotivoDescuento(m.Codigo, m.Nombre))
+            .ToListAsync(cancelacion);
+
+    public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(SesionUsuario sesion, Guid articuloId, CancellationToken cancelacion = default)
+    {
+        var familiaId = await contexto.Articulos.Where(a => a.Id == articuloId).Select(a => (Guid?)a.FamiliaId).SingleOrDefaultAsync(cancelacion);
+        if (familiaId is null)
+            return [];
+
+        var ahoraLocal = reloj.GetLocalNow();
+        return (await PromocionesAsync(cancelacion))
+            .Where(p => p.EstaVigente(sesion.SucursalId, ahoraLocal) && p.AplicaA(articuloId, familiaId.Value))
+            .OrderBy(p => p.VigenteHasta)
+            .Select(p => new DatosPromocionVigente(p.Id, p.Codigo, p.Nombre, p.DescripcionCorta, p.Tipo, p.VigenteHasta))
+            .ToList();
+    }
+
+    /// <summary>Ofertas activas en su rango de fechas; los días, horas y sucursal los filtra el dominio.</summary>
+    private async Task<IReadOnlyList<Promocion>> PromocionesAsync(CancellationToken cancelacion)
+    {
+        if (_promociones is not null)
+            return _promociones;
+
+        var ahora = reloj.GetUtcNow();
+        _promociones = await contexto.Promociones.AsNoTracking()
+            .Where(p => p.Activa && p.VigenteDesde <= ahora && p.VigenteHasta >= ahora)
+            .ToListAsync(cancelacion);
+        return _promociones;
+    }
+
+    /// <summary>Si hay motivos configurados, el motivo debe ser uno de ellos (por nombre o código).</summary>
+    private async Task<string?> ValidarMotivoAsync(string? motivo, CancellationToken cancelacion)
+    {
+        if (string.IsNullOrWhiteSpace(motivo))
+            return "Seleccione el motivo del descuento.";
+
+        var configurados = await contexto.MotivosDescuento.AsNoTracking().Where(m => m.Activo).Select(m => new { m.Codigo, m.Nombre }).ToListAsync(cancelacion);
+        var buscado = motivo.Trim();
+        return configurados.Count == 0 || configurados.Any(m => string.Equals(m.Nombre, buscado, StringComparison.OrdinalIgnoreCase)
+                                                                || string.Equals(m.Codigo, buscado, StringComparison.OrdinalIgnoreCase))
+            ? null
+            : "Seleccione un motivo de la lista.";
+    }
+
+    /// <summary>Compara el descuento con el tope del nivel de quien lo autoriza (RN-10); el nivel es el del supervisor si hubo clave.</summary>
+    private async Task<RespuestaVenta?> RechazoPorTopeAsync(SesionUsuario sesion, ResultadoPermiso permiso, string codigoPermiso, Guid? articuloId, Guid? familiaId,
+        VistaPreviaDescuento vista, Venta venta, CancellationToken cancelacion)
+    {
+        var nivel = permiso.SupervisorId is { } supervisorId
+            ? await (from usuario in contexto.Usuarios
+                     join rol in contexto.Roles on usuario.RolId equals rol.Id
+                     where usuario.Id == supervisorId
+                     select rol.Nivel).SingleAsync(cancelacion)
+            : sesion.Nivel;
+
+        var topes = await contexto.TopesDescuento.AsNoTracking().ToListAsync(cancelacion);
+        var evaluacion = ReglasTopeDescuento.Evaluar(topes, nivel, articuloId, familiaId, vista.Porcentaje, vista.Monto);
+        if (evaluacion.Permitido)
+            return null;
+
+        // La autorización quedó marcada en memoria pero no se guarda: el supervisor puede reintentar con un monto menor.
+        contexto.ChangeTracker.Clear();
+        var limite = evaluacion switch
+        {
+            { PorcentajeMaximo: { } porcentaje, MontoMaximo: { } monto } => $"{porcentaje:0.##}% y RD${monto:N2}",
+            { PorcentajeMaximo: { } porcentaje } => $"{porcentaje:0.##}%",
+            { MontoMaximo: { } monto } => $"RD${monto:N2}",
+            _ => "sin descuento",
+        };
+        var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
+        return new RespuestaVenta(CodigoResultadoVenta.TopeDescuentoExcedido,
+            $"El descuento ({vista.Porcentaje:0.##}%, RD${vista.Monto:N2}) supera el tope del nivel {nivel} ({limite}). Requiere autorización de un nivel superior.",
+            Datos(ventaActual), codigoPermiso);
     }
 
     private async Task<RespuestaVenta> ContinuarConNuevaAsync(SesionUsuario sesion, CancellationToken cancelacion)
@@ -601,16 +838,15 @@ internal sealed class ValidadorAutorizaciones(ContextoDatosPos contexto, TimePro
     public async Task<ResultadoPermiso> VerificarAsync(SesionUsuario sesion, string permiso, Guid? autorizacionId, string tipoEntidad, string? entidadId,
         CancellationToken cancelacion = default)
     {
-        if (sesion.TienePermiso(permiso))
-            return ResultadoPermiso.PermisoPropio;
-
+        // Sin autorización basta el permiso propio. Si se trae una autorización se usa aunque el usuario tenga el permiso:
+        // así alguien de mayor nivel autoriza lo que excede el tope de descuento del usuario (RN-10).
         if (autorizacionId is not { } id)
-            return new ResultadoPermiso(false, false, false, null, null, null);
+            return sesion.TienePermiso(permiso) ? ResultadoPermiso.PermisoPropio : new ResultadoPermiso(false, false, false, null, null, null);
 
         var ahora = reloj.GetUtcNow();
         var autorizacion = await contexto.AutorizacionesOtorgadas.SingleOrDefaultAsync(a => a.Id == id, cancelacion);
         if (autorizacion is null || !autorizacion.PuedeUsarse(permiso, sesion.UsuarioId, sesion.CajaId, ahora))
-            return new ResultadoPermiso(false, false, true, null, null, null);
+            return sesion.TienePermiso(permiso) ? ResultadoPermiso.PermisoPropio : new ResultadoPermiso(false, false, true, null, null, null);
 
         autorizacion.MarcarUsada(ahora, tipoEntidad, entidadId);
         return new ResultadoPermiso(true, true, false, autorizacion.SupervisorId, autorizacion.SupervisorNombre, autorizacion.Motivo);

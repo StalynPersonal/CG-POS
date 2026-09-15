@@ -1,0 +1,95 @@
+@* Información de la oferta aplicada a una línea (tocar la columna Promo) y opción de desactivarla con permiso (RF-124, RF-141). *@
+@inject ClienteAgente Cliente
+@inject ServicioAutorizacionPantalla Autorizaciones
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-cliente">
+            @if (Linea is { } linea)
+            {
+                <div class="cg-cliente__actual">
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Oferta aplicada · línea @linea.NumeroLinea</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 700">@linea.PromocionNombre</MudText>
+                        <MudText Typo="Typo.body2">
+                            @linea.PromocionCodigo · @linea.PromocionDescripcion · ahorro RD$@linea.DescuentoPromocion.ToString("N2")
+                        </MudText>
+                    </div>
+                    <div class="cg-venta__promo cg-oferta__insignia">@linea.PromocionDescripcion</div>
+                </div>
+
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Ofertas vigentes para @linea.Descripcion</MudText>
+                @if (_cargando)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                }
+                else
+                {
+                    @foreach (var oferta in _vigentes)
+                    {
+                        <div class="cg-oferta__vigente @(oferta.Codigo == linea.PromocionCodigo ? "cg-oferta__vigente--aplicada" : null)">
+                            <strong>@oferta.Descripcion</strong>
+                            <span>@oferta.Nombre</span>
+                            <small>hasta @oferta.VigenteHasta.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                        </div>
+                    }
+                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Si hay varias ofertas se aplica la más favorable para el cliente. Desactivarla permite aplicar un descuento manual.
+                </MudText>
+            }
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cerrar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Error" Disabled="_procesando" StartIcon="@Icons.Material.Filled.LocalOffer"
+                   Style="min-height: var(--cg-toque-minimo)" OnClick="DesactivarAsync">Desactivar oferta</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosVenta Venta { get; set; } = default!;
+    [Parameter, EditorRequired] public int NumeroLinea { get; set; }
+
+    private IReadOnlyList<DatosPromocionVigente> _vigentes = [];
+    private string? _mensaje;
+    private bool _cargando = true;
+    private bool _procesando;
+
+    private DatosLineaVenta? Linea => Venta.Lineas.FirstOrDefault(l => l.NumeroLinea == NumeroLinea);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Linea is { } linea)
+            _vigentes = await Cliente.ListarPromocionesVigentesAsync(linea.ArticuloId);
+        _cargando = false;
+    }
+
+    private async Task DesactivarAsync()
+    {
+        if (Linea is not { } linea)
+            return;
+
+        _procesando = true;
+        var respuesta = await Autorizaciones.EjecutarVentaAsync(
+            autorizacion => Cliente.DesactivarOfertaAsync(Venta.Id, linea.NumeroLinea, autorizacion),
+            $"Desactivar la oferta {linea.PromocionCodigo} de {linea.Descripcion}",
+            Venta.NumeroTransaccion);
+        _procesando = false;
+
+        if (respuesta is null)
+            return;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(respuesta));
+        else
+            _mensaje = respuesta.Mensaje;
+    }
+}

@@ -1,4 +1,6 @@
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Sincronizacion;
+using CgPos.Dominio.Promociones;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
@@ -375,6 +377,101 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(CodigoResultadoVenta.CantidadInvalida, noPesado.Resultado);
     }
 
+    [SkippableFact]
+    public async Task Oferta_cargada_del_maestro_se_aplica_al_escanear_y_gana_la_mejor()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        await caja.CargarOfertasAsync(
+            new PromocionCarga(Guid.CreateVersion7(), $"P15{caja.Catalogo.Sufijo}", "Cincel 15 %", TipoPromocion.Porcentaje, 15m,
+                EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.ArticuloCincel]),
+            new PromocionCarga(Guid.CreateVersion7(), $"E79{caja.Catalogo.Sufijo}", "Cincel a 799", TipoPromocion.PrecioEspecial, 799m,
+                EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.ArticuloCincel]));
+
+        var venta = await caja.VentaActualAsync();
+        var conOferta = await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+
+        var linea = conOferta.Lineas.Single();
+        Assert.Equal($"P15{caja.Catalogo.Sufijo}", linea.PromocionCodigo);
+        Assert.Equal("-15%", linea.PromocionDescripcion);
+        Assert.Equal(722.50m, linea.Importe);
+        Assert.Equal(127.50m, conOferta.Totales.Descuento);
+
+        var vigentes = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosPromocionVigente>>(s => s.ListarPromocionesVigentesAsync(caja.Cajero, caja.Catalogo.ArticuloCincel));
+        Assert.Equal(2, vigentes.Count);
+    }
+
+    [SkippableFact]
+    public async Task Descuento_de_linea_pide_autorizacion_y_respeta_el_tope_del_nivel_que_autoriza()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
+            TopesDescuento: [new TopeDescuentoCarga(Guid.CreateVersion7(), 2, 5m, null, ArticuloId: caja.Catalogo.ArticuloCemento)]), "Pruebas"));
+
+        var venta = await caja.VentaActualAsync();
+        var linea = (await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCemento)).Lineas.Single();
+
+        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AplicarDescuentoLineaAsync(caja.Cajero, venta.Id, linea.NumeroLinea, TipoDescuento.Porcentaje, 10m, "Cliente frecuente", null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
+        Assert.Equal(CatalogoPermisos.DescuentoLinea, sinPermiso.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.DescuentoLinea, "Cliente frecuente");
+        var excedido = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AplicarDescuentoLineaAsync(caja.Cajero, venta.Id, linea.NumeroLinea, TipoDescuento.Porcentaje, 10m, "Cliente frecuente", autorizacion));
+        Assert.Equal(CodigoResultadoVenta.TopeDescuentoExcedido, excedido.Resultado);
+
+        // La autorización no se gastó: el mismo supervisor aplica un descuento dentro de su tope.
+        var aplicado = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AplicarDescuentoLineaAsync(caja.Cajero, venta.Id, linea.NumeroLinea, TipoDescuento.Porcentaje, 5m, "Cliente frecuente", autorizacion));
+        Assert.True(aplicado.Exitosa, aplicado.Mensaje);
+
+        var conDescuento = aplicado.Venta!.Lineas.Single();
+        Assert.Equal(24.25m, conDescuento.DescuentoManual);
+        Assert.Equal("Supervisor Seguridad", conDescuento.DescuentoAutorizadoPorNombre);
+        Assert.Equal(460.75m, aplicado.Venta.Totales.Total);
+
+        var registro = await caja.EjecutarAsync<ContextoDatosPos, Dominio.Auditoria.RegistroAuditoria>(contexto =>
+            contexto.Auditoria.SingleAsync(r => r.Accion == "Ventas.DescuentoLinea" && r.EntidadId == venta.NumeroTransaccion));
+        Assert.Equal(caja.Escenario.Supervisor, registro.AutorizadoPorId);
+    }
+
+    [SkippableFact]
+    public async Task Descuento_a_la_factura_excluye_ofertas_y_al_desactivar_la_oferta_se_reprorratea()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        await caja.CargarOfertasAsync(new PromocionCarga(Guid.CreateVersion7(), $"F15{caja.Catalogo.Sufijo}", "Cincel 15 %", TipoPromocion.Porcentaje, 15m,
+            EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.ArticuloCincel]));
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCemento);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.DescuentoFactura, "Cliente frecuente");
+        var conDescuento = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AplicarDescuentoFacturaAsync(caja.Cajero, venta.Id, TipoDescuento.Monto, 50m, null, "Cliente frecuente", autorizacion));
+
+        Assert.True(conDescuento.Exitosa, conDescuento.Mensaje);
+        Assert.Equal([1], conDescuento.LineasExcluidas);
+        Assert.Contains("no tomaron el descuento", conDescuento.Mensaje);
+        Assert.Equal(50m, conDescuento.Venta!.Lineas.Single(l => l.NumeroLinea == 2).DescuentoFactura);
+
+        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.DesactivarPromocionAsync(caja.Cajero, venta.Id, 1, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
+
+        var desactivar = await caja.AutorizarAsync(CatalogoPermisos.DesactivarPromocion, "Cliente prefiere descuento");
+        var sinOferta = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.DesactivarPromocionAsync(caja.Cajero, venta.Id, 1, desactivar));
+
+        Assert.True(sinOferta.Exitosa, sinOferta.Mensaje);
+        var lineas = sinOferta.Venta!.Lineas;
+        Assert.Null(lineas.Single(l => l.NumeroLinea == 1).PromocionCodigo);
+        Assert.True(lineas.Single(l => l.NumeroLinea == 1).PromocionDesactivada);
+        Assert.Equal(50m, lineas.Sum(l => l.DescuentoFactura));
+        Assert.Equal(850m + 485m - 50m, sinOferta.Venta.Totales.Total);
+    }
+
     private static class BalanzaPrueba
     {
         public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;
@@ -494,6 +591,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             Assert.True(respuesta.Exitosa, $"{codigo}: {respuesta.Mensaje}");
             return respuesta.Venta!;
         }
+
+        public Task<ResultadoCargaMaestros> CargarOfertasAsync(params PromocionCarga[] promociones) =>
+            EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(Promociones: promociones), "Pruebas"));
 
         public async Task<Guid> AutorizarAsync(string permiso, string motivo)
         {

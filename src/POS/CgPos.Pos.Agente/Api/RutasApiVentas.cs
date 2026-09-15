@@ -84,6 +84,28 @@ public static class RutasApiVentas
         ventas.MapPost("/{ventaId:guid}/anular", (Guid ventaId, SolicitudAnularVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.AnularAsync(sesion, ventaId, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
 
+        // Descuentos y ofertas (C5)
+        ventas.MapPost("/{ventaId:guid}/lineas/{numeroLinea:int}/descuento", (Guid ventaId, int numeroLinea, SolicitudDescuentoLinea solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.AplicarDescuentoLineaAsync(sesion, ventaId, numeroLinea, solicitud.Tipo, solicitud.Valor, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
+
+        ventas.MapDelete("/{ventaId:guid}/lineas/{numeroLinea:int}/descuento", (Guid ventaId, int numeroLinea, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.QuitarDescuentoLineaAsync(sesion, ventaId, numeroLinea, cancelacion))));
+
+        ventas.MapPost("/{ventaId:guid}/descuento", (Guid ventaId, SolicitudDescuentoFactura solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.AplicarDescuentoFacturaAsync(sesion, ventaId, solicitud.Tipo, solicitud.Valor, solicitud.Lineas, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
+
+        ventas.MapDelete("/{ventaId:guid}/descuento", (Guid ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.QuitarDescuentoFacturaAsync(sesion, ventaId, cancelacion))));
+
+        ventas.MapPost("/{ventaId:guid}/lineas/{numeroLinea:int}/desactivar-oferta", (Guid ventaId, int numeroLinea, SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.DesactivarPromocionAsync(sesion, ventaId, numeroLinea, solicitud.AutorizacionId, cancelacion))));
+
+        api.MapGet("/descuentos/motivos", async (IServicioVentas servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarMotivosDescuentoAsync(cancelacion)));
+
+        api.MapGet("/articulos/{articuloId:guid}/promociones", (Guid articuloId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Results.Ok(await servicio.ListarPromocionesVigentesAsync(sesion, articuloId, cancelacion))));
+
         api.MapPost("/caja/suspender", (SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.SuspenderAsync(sesion, solicitud.AutorizacionId, cancelacion))));
 

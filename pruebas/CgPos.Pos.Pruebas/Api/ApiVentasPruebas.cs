@@ -48,9 +48,12 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
             venta = (await Leer<RespuestaVenta>(agregada)).Venta!;
         }
 
-        Assert.Equal(totalInicial + 1700m, venta.Totales.Total);
         var linea = venta.Lineas.Last(l => !l.EsReverso && !l.Anulada);
         Assert.Equal(2m, linea.Cantidad);
+
+        // Los maestros de desarrollo traen ofertas para el cincel: el importe es 2 × 850 menos la oferta vigente.
+        Assert.Equal(1700m, linea.Importe + linea.DescuentoPromocion);
+        Assert.Equal(totalInicial + linea.Importe, venta.Totales.Total);
 
         using (var inexistente = await cliente.PostAsJsonAsync($"/api/ventas/{venta.Id}/lineas", new SolicitudAgregarArticulo("NO-EXISTE"), OpcionesJson.Predeterminadas))
         {

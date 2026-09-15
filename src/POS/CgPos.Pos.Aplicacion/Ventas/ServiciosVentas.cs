@@ -1,5 +1,7 @@
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Seguridad;
 
 namespace CgPos.Pos.Aplicacion.Ventas;
@@ -61,6 +63,29 @@ public interface IServicioVentas
 
     /// <summary>Suspende las operaciones de la caja (bloqueo de pantalla) con permiso o clave de supervisor (RF-23).</summary>
     Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Descuento manual a una línea (RF-199) con permiso o clave de supervisor (RF-78), motivo (RF-203) y dentro del tope
+    /// del nivel de quien autoriza (RF-202). Si lo supera, responde <see cref="CodigoResultadoVenta.TopeDescuentoExcedido"/>.
+    /// </summary>
+    Task<RespuestaVenta> AplicarDescuentoLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, TipoDescuento tipo, decimal valor, string? motivo,
+        Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    Task<RespuestaVenta> QuitarDescuentoLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, CancellationToken cancelacion = default);
+
+    /// <summary>Descuento a la factura completa o a las líneas elegidas, prorrateado (RF-200, RF-201).</summary>
+    Task<RespuestaVenta> AplicarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas,
+        string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
+    /// <summary>Desactiva la oferta de un artículo en la venta, con permiso (RF-124).</summary>
+    Task<RespuestaVenta> DesactivarPromocionAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    Task<IReadOnlyList<DatosMotivoDescuento>> ListarMotivosDescuentoAsync(CancellationToken cancelacion = default);
+
+    /// <summary>Ofertas vigentes ahora en esta sucursal para el artículo (RF-24, RF-141).</summary>
+    Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(SesionUsuario sesion, Guid articuloId, CancellationToken cancelacion = default);
 }
 
 public sealed record ResultadoPermiso(bool Permitido, bool PorAutorizacion, bool AutorizacionRechazada, Guid? SupervisorId, string? SupervisorNombre, string? Motivo)

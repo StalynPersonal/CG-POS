@@ -350,6 +350,62 @@
 
 @keyframes cg-aparecer { from { opacity: 0; } to { opacity: 1; } }
 
+/* ---------- Descuentos y ofertas ---------- */
+.cg-venta__total-fila--descuento { font-size: 1rem; color: var(--cg-accion); }
+.cg-venta__total-fila--descuento .cg-numero { font-size: 1.3rem !important; }
+.cg-venta__nota--ahorro { color: var(--cg-accion); font-weight: 600; }
+
+.cg-venta__promo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    margin: 2px 4px 2px 0;
+    padding: 0 10px;
+    border: none;
+    border-radius: 16px;
+    background: var(--cg-accion);
+    color: #fff;
+    font: 700 .9rem var(--cg-fuente);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cg-venta__promo--manual { background: var(--cg-advertencia); cursor: default; }
+
+.cg-descuento { display: flex; flex-direction: column; gap: 12px; }
+.cg-descuento__cuerpo { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+.cg-descuento__datos { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cg-descuento__tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cg-descuento__estimado { color: var(--cg-accion); font-weight: 700; }
+.cg-descuento__motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+.cg-descuento__lineas { display: flex; flex-direction: column; max-height: 200px; overflow-y: auto; border: 1px solid var(--cg-linea); border-radius: var(--cg-radio); }
+
+.cg-descuento__linea {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--cg-linea);
+    cursor: pointer;
+}
+
+.cg-descuento__linea input { width: 22px; height: 22px; accent-color: var(--cg-accion); }
+.cg-descuento__linea-texto small { display: block; color: var(--cg-peligro); }
+.cg-descuento__linea--excluida { color: #8a948f; cursor: not-allowed; }
+
+.cg-oferta__insignia { font-size: 1.4rem; min-height: 48px; padding: 0 18px; border-radius: 24px; }
+.cg-oferta__vigente { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--cg-linea); border-radius: var(--cg-radio); }
+.cg-oferta__vigente--aplicada { border-color: var(--cg-accion); background: var(--cg-superficie); }
+
+.cg-pantalla-cliente__ahorro { margin-top: 2px; color: var(--cg-accion); font-size: 1.1rem; font-weight: 700; }
+.cg-pantalla-cliente__ahorro-total { color: var(--cg-accion); font-weight: 800 !important; }
+
+@media (max-width: 900px) {
+    .cg-descuento__cuerpo { grid-template-columns: 1fr; }
+}
+
 /* ---------- Diálogo de cliente y comprobante ---------- */
 .cg-cliente { display: flex; flex-direction: column; gap: 12px; }
 

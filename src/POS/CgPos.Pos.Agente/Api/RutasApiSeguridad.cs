@@ -80,7 +80,8 @@ public static class RutasApiSeguridad
             : new CredencialUsuario.Carne(solicitud.CodigoBarras);
 
         var resultado = await servicio.AutorizarAsync(
-            new SolicitudAutorizacionSupervisor(solicitante, solicitud.Permiso ?? string.Empty, solicitud.Motivo ?? string.Empty, credencial, solicitud.TipoEntidad, solicitud.EntidadId),
+            new SolicitudAutorizacionSupervisor(solicitante, solicitud.Permiso ?? string.Empty, solicitud.Motivo ?? string.Empty, credencial, solicitud.TipoEntidad, solicitud.EntidadId,
+                solicitud.ForzarSupervisor),
             cancelacion);
 
         return Results.Ok(new RespuestaAutorizacion(

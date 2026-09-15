@@ -56,7 +56,20 @@ public sealed record DatosLineaVenta(
     bool EsReverso,
     int? LineaAnuladaNumero,
     bool Anulada,
-    string? Serial = null);
+    string? Serial = null,
+    string? PromocionCodigo = null,
+    string? PromocionNombre = null,
+    string? PromocionDescripcion = null,
+    decimal DescuentoPromocion = 0m,
+    bool PromocionDesactivada = false,
+    decimal DescuentoManual = 0m,
+    TipoDescuento? DescuentoManualTipo = null,
+    decimal? DescuentoManualValor = null,
+    string? MotivoDescuento = null,
+    string? DescuentoAutorizadoPorNombre = null,
+    decimal DescuentoFactura = 0m,
+    decimal ImporteBruto = 0m,
+    bool PermiteDescuentoManual = true);
 
 public sealed record DatosDesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
@@ -66,7 +79,12 @@ public sealed record DatosTotalesVenta(
     decimal Total,
     int CantidadLineas,
     decimal CantidadArticulos,
-    IReadOnlyList<DatosDesgloseImpuesto> Desglose);
+    IReadOnlyList<DatosDesgloseImpuesto> Desglose,
+    decimal Descuento = 0m);
+
+/// <param name="Lineas">Líneas a las que se limitó; nulo = todas.</param>
+/// <param name="Monto">Suma prorrateada que se aplicó en las líneas.</param>
+public sealed record DatosDescuentoFactura(TipoDescuento Tipo, decimal Valor, IReadOnlyList<int>? Lineas, string? Motivo, string? AutorizadoPorNombre, decimal Monto);
 
 public sealed record DatosClienteVenta(Guid? ClienteId, TipoDocumentoIdentidad? TipoDocumento, string? Documento, string Nombre);
 
@@ -86,7 +104,8 @@ public sealed record DatosVenta(
     decimal? LimiteCompra,
     bool LimiteCompraExcedido,
     bool RequiereIdentificacion,
-    decimal MontoIdentificacion);
+    decimal MontoIdentificacion,
+    DatosDescuentoFactura? DescuentoFactura = null);
 
 /// <summary>Resumen de una factura en espera del cajero en su turno (RF-22, RF-197).</summary>
 public sealed record DatosVentaEnEspera(
@@ -122,6 +141,12 @@ public sealed record SolicitudLimiteCompra(decimal? Limite);
 /// <param name="Motivo">Si se omite y hubo autorización de supervisor, se usa el motivo de esa autorización.</param>
 public sealed record SolicitudAnularVenta(string? Motivo, Guid? AutorizacionId = null);
 
+/// <param name="Motivo">Motivo de la lista configurable (RF-203).</param>
+public sealed record SolicitudDescuentoLinea(TipoDescuento Tipo, decimal Valor, string? Motivo, Guid? AutorizacionId = null);
+
+/// <param name="Lineas">Números de línea a los que se limita; vacío o nulo = todas (RF-201).</param>
+public sealed record SolicitudDescuentoFactura(TipoDescuento Tipo, decimal Valor, IReadOnlyList<int>? Lineas, string? Motivo, Guid? AutorizacionId = null);
+
 public enum CodigoResultadoVenta
 {
     Correcto,
@@ -144,14 +169,21 @@ public enum CodigoResultadoVenta
     RequiereSerial,
     SerialDuplicado,
     BalanzaSinLectura,
+    ArticuloEnOferta,
+    DescuentoNoPermitido,
+    DescuentoInvalido,
+    TopeDescuentoExcedido,
 }
 
 /// <summary>Resultado de una operación sobre la venta: la venta actualizada o el motivo del rechazo.</summary>
+/// <param name="Mensaje">En operaciones correctas puede traer un aviso (ej. líneas excluidas de un descuento).</param>
+/// <param name="LineasExcluidas">Líneas que no tomaron el descuento a la factura (RF-204).</param>
 public sealed record RespuestaVenta(
     CodigoResultadoVenta Resultado,
     string? Mensaje,
     DatosVenta? Venta,
-    string? PermisoRequerido = null)
+    string? PermisoRequerido = null,
+    IReadOnlyList<int>? LineasExcluidas = null)
 {
     public bool Exitosa => Resultado == CodigoResultadoVenta.Correcto;
 }
