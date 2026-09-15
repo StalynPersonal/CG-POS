@@ -77,7 +77,8 @@ public static class RutasPantallaCliente
         }
 
         // Público, como el hub: la pantalla del cliente no inicia sesión.
-        aplicacion.MapGet("/api/pantallas/publicidad", async (IEstadoCaja estadoCaja, CancellationToken cancelacion) =>
+        aplicacion.MapGet("/api/pantallas/publicidad", async (IEstadoCaja estadoCaja, IParametros parametros, IContextoCaja contextoCaja,
+            CancellationToken cancelacion) =>
         {
             var imagenes = Directory.Exists(carpeta)
                 ? Directory.EnumerateFiles(carpeta)
@@ -88,10 +89,17 @@ public static class RutasPantallaCliente
                     .ToList()
                 : [];
 
+            // Los textos y el tiempo de la publicidad los configura el negocio; si no están, la pantalla no los muestra.
             var estado = await estadoCaja.ObtenerAsync(cancelacion);
-            var segundos = int.TryParse(aplicacion.Configuration["Pantallas:SegundosPorImagen"], out var valor) && valor > 0 ? valor : 8;
+            var cajaId = contextoCaja.CajaId;
+            var segundos = (int?)await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.SegundosPorImagenPantalla, cajaId, cancelacion);
 
-            return Results.Ok(new DatosPublicidad(imagenes, segundos, aplicacion.Configuration["Pantallas:MensajeBienvenida"] ?? "¡Bienvenido!", estado.EmpresaNombre));
+            return Results.Ok(new DatosPublicidad(
+                imagenes,
+                segundos is > 0 ? segundos : null,
+                await parametros.ObtenerAsync(ClavesParametros.MensajeBienvenidaPantalla, cajaId, cancelacion),
+                estado.EmpresaNombre,
+                await parametros.ObtenerAsync(ClavesParametros.MensajeDespedidaPantalla, cajaId, cancelacion)));
         });
 
         return aplicacion;

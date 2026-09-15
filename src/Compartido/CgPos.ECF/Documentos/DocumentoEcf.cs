@@ -18,6 +18,7 @@ public enum AmbienteEcf
 /// </summary>
 /// <param name="TipoEcf">31 crédito fiscal, 32 consumo, 33 nota de débito, 34 nota de crédito, 44 régimen especial, 45 gubernamental…</param>
 /// <param name="Encf">E + tipo (2 dígitos) + secuencia (10 dígitos), ej. E320000000001.</param>
+/// <param name="TipoIngresos">Tabla de tipos de ingresos de la DGII (1 a 6); lo define el negocio.</param>
 /// <param name="TipoPago">1 contado, 2 crédito, 3 gratuito.</param>
 public sealed record DocumentoEcf(
     int TipoEcf,
@@ -29,8 +30,8 @@ public sealed record DocumentoEcf(
     TotalesEcf Totales,
     DateTimeOffset FechaEmision,
     DateTimeOffset FechaHoraFirma,
-    int TipoIngresos = 1,
-    int TipoPago = 1,
+    int TipoIngresos,
+    int TipoPago,
     IReadOnlyList<FormaPagoEcf>? FormasPago = null,
     ReferenciaEcf? Referencia = null);
 

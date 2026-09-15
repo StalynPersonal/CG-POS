@@ -293,6 +293,7 @@ public sealed class LineaDevolucion : Entidad
 
     public decimal PorcentajeImpuesto { get; private set; }
     public int IndicadorFacturacion { get; private set; }
+    public bool EsServicio { get; private set; }
 
     /// <summary>Parte del importe de la factura (con ITBIS) que corresponde a lo devuelto.</summary>
     public decimal ImporteFactura { get; private set; }
@@ -326,6 +327,7 @@ public sealed class LineaDevolucion : Entidad
             PrecioUnitario = Devolucion.Redondear(linea.ImporteConImpuesto / linea.Cantidad),
             PorcentajeImpuesto = linea.PorcentajeImpuesto,
             IndicadorFacturacion = linea.IndicadorFacturacion,
+            EsServicio = linea.EsServicio,
             ImporteFactura = importeFactura,
             Base = baseImponible,
             Impuesto = retieneImpuesto ? 0m : impuesto,

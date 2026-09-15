@@ -60,6 +60,9 @@ public sealed class Articulo : Entidad
 
     public string? RutaImagen { get; private set; }
 
+    /// <summary>El artículo es un servicio (instalación, transporte…) y no un bien; se informa así en el e-CF.</summary>
+    public bool EsServicio { get; private set; }
+
     /// <summary>Se muestra en el catálogo visual de la caja (mosaicos).</summary>
     public bool MostrarEnCatalogo { get; private set; }
 
@@ -119,6 +122,8 @@ public sealed class Articulo : Entidad
 
         Tara = tara is 0m ? null : tara;
     }
+
+    public void ConfigurarNaturaleza(bool esServicio) => EsServicio = esServicio;
 
     public void ConfigurarPresentacion(string? rutaImagen, bool mostrarEnCatalogo, bool ventaEnPos)
     {

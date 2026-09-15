@@ -61,7 +61,8 @@ public sealed record ArticuloParaVenta(
     decimal? CantidadMinimaMayor,
     decimal? PrecioMinimo,
     decimal? PesoLeido,
-    decimal? PrecioLeido);
+    decimal? PrecioLeido,
+    bool EsServicio = false);
 
 public sealed record DesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
@@ -919,6 +920,9 @@ public sealed class LineaVenta : Entidad
     public Guid ImpuestoId { get; private set; }
     public decimal PorcentajeImpuesto { get; private set; }
     public int IndicadorFacturacion { get; private set; }
+
+    /// <summary>Servicio y no bien, para el e-CF.</summary>
+    public bool EsServicio { get; private set; }
     public decimal PrecioDetalle { get; private set; }
     public decimal? PrecioMayor { get; private set; }
     public decimal? CantidadMinimaMayor { get; private set; }
@@ -974,6 +978,7 @@ public sealed class LineaVenta : Entidad
             ImpuestoId = articulo.ImpuestoId,
             PorcentajeImpuesto = articulo.PorcentajeImpuesto,
             IndicadorFacturacion = articulo.IndicadorFacturacion,
+            EsServicio = articulo.EsServicio,
             PrecioDetalle = articulo.PrecioDetalle!.Value,
             PrecioMayor = articulo.PrecioMayor,
             CantidadMinimaMayor = articulo.CantidadMinimaMayor,

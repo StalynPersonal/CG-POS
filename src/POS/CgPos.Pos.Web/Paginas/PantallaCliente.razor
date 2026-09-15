@@ -25,7 +25,10 @@
         <main class="cg-pantalla-cliente__venta">
             <section class="cg-pantalla-cliente__gracias">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="font-size: 6rem; color: var(--cg-accion)" />
-                <div class="cg-pantalla-cliente__gracias-titulo">¡Gracias por su compra!</div>
+                @if (_publicidad?.MensajeDespedida is { Length: > 0 } despedida)
+                {
+                    <div class="cg-pantalla-cliente__gracias-titulo">@despedida</div>
+                }
                 <div class="cg-pantalla-cliente__totales cg-pantalla-cliente__totales--cobro">
                     <div><span>Total</span><span class="cg-numero">@((cobrada.TotalCobrado ?? cobrada.Totales.Total).ToString("N2"))</span></div>
                     @foreach (var pago in cobrada.Pagos ?? [])
@@ -101,7 +104,10 @@
     {
         <main class="cg-pantalla-cliente__bienvenida">
             <div class="cg-pantalla-cliente__publicidad cg-pantalla-cliente__publicidad--completa">@Carrusel</div>
-            <div class="cg-pantalla-cliente__mensaje">@(_publicidad?.MensajeBienvenida ?? "¡Bienvenido!")</div>
+            @if (_publicidad?.MensajeBienvenida is { Length: > 0 } bienvenida)
+            {
+                <div class="cg-pantalla-cliente__mensaje">@bienvenida</div>
+            }
         </main>
     }
 </div>
@@ -184,7 +190,9 @@
             while (await temporizador.WaitForNextTickAsync(cancelacion))
             {
                 _ahora = DateTime.Now;
-                if (++segundos % Math.Max(1, _publicidad?.SegundosPorImagen ?? 8) == 0)
+                // Sin segundos configurados la publicidad no rota.
+                segundos++;
+                if (_publicidad?.SegundosPorImagen is > 0 and var cadaCuanto && segundos % cadaCuanto == 0)
                     _indiceImagen++;
 
                 await InvokeAsync(StateHasChanged);

@@ -154,7 +154,8 @@ internal sealed class ConsultaArticulos(
             lectura is { Tipo: TipoValorBalanza.Peso } ? lectura.Valor : null,
             lectura is { Tipo: TipoValorBalanza.Precio } ? lectura.Valor : null,
             datos.articulo.RutaImagen,
-            datos.articulo.Tara);
+            datos.articulo.Tara,
+            datos.articulo.EsServicio);
     }
 
     private async Task<IReadOnlyList<DatosArticuloResumen>> ArmarResumenesAsync(List<Articulo> articulos, CancellationToken cancelacion)

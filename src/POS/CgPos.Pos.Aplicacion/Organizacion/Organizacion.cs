@@ -86,6 +86,18 @@ public static class ClavesParametros
     /// <summary>Meses de vigencia de una nota de crédito para consumirla (RF-39). Por defecto 6.</summary>
     public const string MesesVigenciaNotaCredito = "Devoluciones.MesesVigenciaNotaCredito";
 
+    /// <summary>Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6, ej. 1 = ingresos por operaciones).</summary>
+    public const string TipoIngresos = "Fiscal.TipoIngresos";
+
+    /// <summary>Mensaje de bienvenida de la pantalla del cliente. Opcional.</summary>
+    public const string MensajeBienvenidaPantalla = "Pantallas.MensajeBienvenida";
+
+    /// <summary>Mensaje de la pantalla del cliente al cobrar. Opcional.</summary>
+    public const string MensajeDespedidaPantalla = "Pantallas.MensajeDespedida";
+
+    /// <summary>Segundos que se muestra cada imagen de publicidad. Opcional: sin él no se rota la publicidad.</summary>
+    public const string SegundosPorImagenPantalla = "Pantallas.SegundosPorImagen";
+
     /// <summary>Mensaje al pie del ticket de venta (ej. agradecimiento). Opcional: si no existe no se imprime.</summary>
     public const string MensajePieTicket = "Tickets.MensajePie";
 

@@ -12,8 +12,12 @@ public static class ContratoPantallaCliente
 }
 
 /// <param name="Imagenes">Rutas relativas de las imágenes del carrusel, en orden.</param>
+/// <param name="SegundosPorImagen">Nulo si el negocio no lo configuró: la publicidad no rota.</param>
+/// <param name="MensajeBienvenida">Nulo si no está configurado: no se muestra.</param>
+/// <param name="MensajeDespedida">Mensaje al cobrar; nulo si no está configurado.</param>
 public sealed record DatosPublicidad(
     IReadOnlyList<string> Imagenes,
-    int SegundosPorImagen,
+    int? SegundosPorImagen,
     string? MensajeBienvenida,
-    string? EmpresaNombre);
+    string? EmpresaNombre,
+    string? MensajeDespedida = null);

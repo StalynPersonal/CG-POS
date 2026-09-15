@@ -36,14 +36,14 @@ else
     <div class="cg-venta">
         <div class="cg-venta__barra-superior">
             <span class="cg-venta__marca-texto">CG-POS</span>
-            <span class="cg-venta__marca-sub">Contreras Group</span>
+            <span class="cg-venta__marca-sub">@_empresaNombre</span>
             <span class="cg-espaciador"></span>
             <span>@Almacen.Sesion?.CajaNombre</span>
         </div>
 
         <header class="cg-venta__encabezado">
             <section class="cg-venta__bloque cg-venta__marca cg-venta__tocable" title="Cliente y comprobante (F12)" @onclick="AbrirClienteAsync">
-                <div class="cg-venta__logo">CG</div>
+                <div class="cg-venta__logo">@Iniciales(_empresaNombre)</div>
                 <div class="cg-venta__ncf">E@((int)_venta.TipoComprobante) · @ReglasComprobante.Nombre(_venta.TipoComprobante)</div>
             </section>
 
@@ -291,6 +291,7 @@ else
     private DatosEstadoTurno? _estadoTurno;
     private DatosVenta? _venta;
     private DatosEstadoSincronizacion? _sincronizacion;
+    private string? _empresaNombre;
     private DatosEstadoEcf? _ecf;
     private bool _certificadoSolicitado;
     private BarraTeclasFuncion? _barra;
@@ -313,6 +314,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         Atajos.TeclaPresionada += AlPresionarTecla;
+        _empresaNombre = (await Cliente.ObtenerEstadoCajaAsync())?.EmpresaNombre;
         await CargarAsync();
         _ = ActualizarRelojYSincronizacionAsync(_cierre.Token);
     }
@@ -1132,6 +1134,14 @@ else
         { CentralConfigurado: false } estado => $"Sin Central · {estado.DocumentosPendientes} pendientes",
         var estado => $"Fuera de línea · {estado.DocumentosPendientes} pendientes",
     };
+
+    /// <summary>Iniciales de la empresa configurada en la caja, para el recuadro del logo.</summary>
+    private static string Iniciales(string? nombre) =>
+        string.Concat((nombre ?? string.Empty)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(palabra => char.IsLetter(palabra[0]))
+            .Take(2)
+            .Select(palabra => char.ToUpperInvariant(palabra[0])));
 
     public void Dispose()
     {

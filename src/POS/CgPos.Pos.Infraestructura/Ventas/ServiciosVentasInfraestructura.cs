@@ -101,7 +101,7 @@ internal static class ConversionesVenta
             datos.ArticuloId, datos.Codigo, datos.CodigoLeido, datos.Descripcion, datos.Tipo, datos.FamiliaId, datos.PermiteDescuentoManual,
             datos.UnidadMedidaCodigo, datos.PermiteDecimales, datos.DecimalesCantidad, datos.ImpuestoId, datos.PorcentajeImpuesto,
             datos.IndicadorFacturacion, datos.PrecioDetalle, datos.PrecioMayor, datos.CantidadMinimaMayor, datos.PrecioMinimo,
-            datos.PesoLeido, datos.PrecioLeido);
+            datos.PesoLeido, datos.PrecioLeido, datos.EsServicio);
 
     public static CodigoResultadoVenta ACodigoResultado(this CodigoErrorVenta codigo) => codigo switch
     {

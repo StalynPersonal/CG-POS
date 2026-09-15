@@ -91,17 +91,17 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
     public Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion) =>
         EmitirDocumentoAsync(venta.Id, venta.CajaId, venta.SucursalId, venta.TipoComprobante, venta.CobradaEn,
-            (encf, vence, emisor, ahora) => ConversionEcf.DesdeVenta(venta, encf, vence, emisor, ahora), cancelacion);
+            (encf, vence, emisor, ahora, tipoIngresos) => ConversionEcf.DesdeVenta(venta, encf, vence, emisor, ahora, tipoIngresos), cancelacion);
 
     /// <summary>Nota de crédito E34 de una devolución, referenciando el e-CF de la factura (RF-227).</summary>
     /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
     public Task<EmisionEcf> EmitirNotaCreditoAsync(Devolucion devolucion, CancellationToken cancelacion) =>
         EmitirDocumentoAsync(devolucion.Id, devolucion.CajaId, devolucion.SucursalId, TipoComprobante.NotaCredito, devolucion.CreadaEn,
-            (encf, vence, emisor, ahora) => ConversionEcf.DesdeNotaCredito(devolucion, encf, vence, emisor, ahora), cancelacion);
+            (encf, vence, emisor, ahora, tipoIngresos) => ConversionEcf.DesdeNotaCredito(devolucion, encf, vence, emisor, ahora, tipoIngresos), cancelacion);
 
     /// <param name="documentoId">Venta o devolución que origina el comprobante.</param>
     private async Task<EmisionEcf> EmitirDocumentoAsync(Guid documentoId, Guid cajaId, Guid sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
-        Func<string, DateOnly, EmisorEcf, DateTimeOffset, DocumentoEcf> armar, CancellationToken cancelacion)
+        Func<string, DateOnly, EmisorEcf, DateTimeOffset, int, DocumentoEcf> armar, CancellationToken cancelacion)
     {
         var ambiente = Ambiente();
         var certificadoFirma = certificado.ObtenerParaFirmar()
@@ -120,7 +120,8 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
 
         var encf = SecuenciaEcf.FormatearEncf(tipo, asignada.Ultimo);
         var emisor = await EmisorAsync(sucursalId, cancelacion);
-        var documentoEcf = armar(encf, asignada.VenceEn, emisor, ahora);
+        var tipoIngresos = await parametros.ObtenerEnteroAsync(ClavesParametros.TipoIngresos, cajaId, cancelacion);
+        var documentoEcf = armar(encf, asignada.VenceEn, emisor, ahora, tipoIngresos);
 
         var montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, cajaId, cancelacion);
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
@@ -214,7 +215,10 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
 /// <summary>Convierte la venta cobrada al documento e-CF: montos sin ITBIS por tasa, descuentos por línea y formas de pago.</summary>
 internal static class ConversionEcf
 {
-    public static DocumentoEcf DesdeVenta(Venta venta, string encf, DateOnly venceSecuencia, EmisorEcf emisor, DateTimeOffset fechaFirma)
+    /// <summary>La caja solo vende al contado: las ventas a crédito no pasan por el POS.</summary>
+    private const int TipoPagoContado = 1;
+
+    public static DocumentoEcf DesdeVenta(Venta venta, string encf, DateOnly venceSecuencia, EmisorEcf emisor, DateTimeOffset fechaFirma, int tipoIngresos)
     {
         var lineas = venta.Lineas.Where(l => l.EstaActiva).OrderBy(l => l.NumeroLinea).ToList();
         var items = new List<ItemEcf>(lineas.Count);
@@ -232,7 +236,8 @@ internal static class ConversionEcf
             var indicador = linea.IndicadorFacturacion is >= 1 and <= 4 ? linea.IndicadorFacturacion : linea.PorcentajeImpuesto == 0 ? 4 : 1;
 
             // La unidad de medida de la DGII usa una tabla de códigos propia; se omite hasta homologarla.
-            items.Add(new ItemEcf(i + 1, indicador, linea.Descripcion, linea.Cantidad, null, precioUnitario, Math.Max(0m, baseBruta - baseNeta), baseNeta));
+            items.Add(new ItemEcf(i + 1, indicador, linea.Descripcion, linea.Cantidad, null, precioUnitario, Math.Max(0m, baseBruta - baseNeta), baseNeta,
+                linea.EsServicio ? 2 : 1));
 
             switch (indicador)
             {
@@ -270,6 +275,8 @@ internal static class ConversionEcf
                 Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
             venta.CobradaEn ?? fechaFirma,
             fechaFirma,
+            TipoIngresos: tipoIngresos,
+            TipoPago: TipoPagoContado,
             FormasPago: FormasPago(venta));
     }
 
@@ -277,7 +284,8 @@ internal static class ConversionEcf
     /// Nota de crédito E34: las líneas devueltas sin ITBIS por tasa y la referencia al e-CF modificado (código 1 si la devolución completa la
     /// factura, 3 si corrige montos). Con el ITBIS retenido (fuera de plazo) la nota solo acredita la base, como exenta.
     /// </summary>
-    public static DocumentoEcf DesdeNotaCredito(Devolucion devolucion, string encf, DateOnly venceSecuencia, EmisorEcf emisor, DateTimeOffset fechaFirma)
+    public static DocumentoEcf DesdeNotaCredito(Devolucion devolucion, string encf, DateOnly venceSecuencia, EmisorEcf emisor, DateTimeOffset fechaFirma,
+        int tipoIngresos)
     {
         var items = new List<ItemEcf>(devolucion.Lineas.Count);
         decimal gravado1 = 0, gravado2 = 0, gravado3 = 0, exento = 0, itbis1 = 0, itbis2 = 0, itbis3 = 0;
@@ -289,7 +297,7 @@ internal static class ConversionEcf
                 : linea.IndicadorFacturacion is >= 1 and <= 4 ? linea.IndicadorFacturacion
                 : linea.PorcentajeImpuesto == 0 ? 4 : 1;
             var precioUnitario = linea.Cantidad == 0 ? 0m : decimal.Round(linea.Base / linea.Cantidad, 4, MidpointRounding.AwayFromZero);
-            items.Add(new ItemEcf(items.Count + 1, indicador, linea.Descripcion, linea.Cantidad, null, precioUnitario, 0m, linea.Base));
+            items.Add(new ItemEcf(items.Count + 1, indicador, linea.Descripcion, linea.Cantidad, null, precioUnitario, 0m, linea.Base, linea.EsServicio ? 2 : 1));
 
             switch (indicador)
             {
@@ -325,6 +333,8 @@ internal static class ConversionEcf
                 Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
             devolucion.CreadaEn,
             fechaFirma,
+            TipoIngresos: tipoIngresos,
+            TipoPago: TipoPagoContado,
             Referencia: new ReferenciaEcf(devolucion.EncfOrigen ?? devolucion.VentaOrigenNumero, fechaFactura, devolucion.EsTotal ? 1 : 3));
     }
 

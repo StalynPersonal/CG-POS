@@ -30,6 +30,8 @@ public class DocumentoEcfPruebas
             Totales: new TotalesEcf(677.97m, 0m, 0m, 104.63m, 122.03m, 0m, 0m, 904.63m, TasaItbis1: 18m),
             FechaEmision: Emision,
             FechaHoraFirma: Emision.AddSeconds(2),
+            TipoIngresos: 1,
+            TipoPago: 1,
             FormasPago: [new FormaPagoEcf(1, 904.63m)]);
 
     [Fact]

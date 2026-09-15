@@ -99,7 +99,8 @@ public sealed record ArticuloCarga(
     bool VentaEnPos = true,
     bool Activo = true,
     DateTimeOffset? PreciosVigentesDesde = null,
-    decimal? Tara = null);
+    decimal? Tara = null,
+    bool EsServicio = false);
 
 public sealed record ClienteCarga(
     Guid Id,
@@ -182,7 +183,8 @@ public sealed record DatosArticuloVenta(
     decimal? PesoLeido,
     decimal? PrecioLeido,
     string? RutaImagen,
-    decimal? Tara = null);
+    decimal? Tara = null,
+    bool EsServicio = false);
 
 public sealed record DatosArticuloResumen(
     Guid ArticuloId,

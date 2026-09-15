@@ -26,6 +26,10 @@ public static partial class ValidadorEcf
 
         if (!TiposValidos.Contains(documento.TipoEcf))
             errores.Add($"Tipo de e-CF no válido: {documento.TipoEcf}.");
+        if (documento.TipoIngresos is < 1 or > 6)
+            errores.Add($"Tipo de ingresos no válido: {documento.TipoIngresos}.");
+        if (documento.TipoPago is < 1 or > 3)
+            errores.Add($"Tipo de pago no válido: {documento.TipoPago}.");
         if (!PatronEncf().IsMatch(documento.Encf))
             errores.Add($"El eNCF '{documento.Encf}' no tiene el formato E + tipo + 10 dígitos.");
         else if (documento.Encf.Substring(1, 2) != documento.TipoEcf.ToString("00"))

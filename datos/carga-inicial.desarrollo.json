@@ -144,6 +144,10 @@
     { "id": "01990000-0000-7000-8000-000000000519", "clave": "Balanza.DecimalesPeso", "valor": "3", "descripcion": "Decimales del peso en la etiqueta de balanza" },
     { "id": "01990000-0000-7000-8000-000000000520", "clave": "Balanza.DecimalesPrecio", "valor": "2", "descripcion": "Decimales del precio en la etiqueta de balanza" },
     { "id": "01990000-0000-7000-8000-000000000521", "clave": "Seguridad.MinutosVigenciaAutorizacion", "valor": "5", "descripcion": "Minutos para usar una autorización de supervisor concedida" },
-    { "id": "01990000-0000-7000-8000-000000000522", "clave": "Seguridad.HorasSesion", "valor": "12", "descripcion": "Horas que dura la sesión de un usuario en la caja" }
+    { "id": "01990000-0000-7000-8000-000000000522", "clave": "Seguridad.HorasSesion", "valor": "12", "descripcion": "Horas que dura la sesión de un usuario en la caja" },
+    { "id": "01990000-0000-7000-8000-000000000523", "clave": "Fiscal.TipoIngresos", "valor": "1", "descripcion": "Tipo de ingresos de los e-CF según la tabla de la DGII" },
+    { "id": "01990000-0000-7000-8000-000000000524", "clave": "Pantallas.MensajeBienvenida", "valor": "¡Bienvenido a Ferretería Contreras!", "descripcion": "Mensaje de bienvenida de la pantalla del cliente" },
+    { "id": "01990000-0000-7000-8000-000000000525", "clave": "Pantallas.MensajeDespedida", "valor": "¡Gracias por su compra!", "descripcion": "Mensaje de la pantalla del cliente al cobrar" },
+    { "id": "01990000-0000-7000-8000-000000000526", "clave": "Pantallas.SegundosPorImagen", "valor": "6", "descripcion": "Segundos que se muestra cada imagen de publicidad" }
   ]
 }
