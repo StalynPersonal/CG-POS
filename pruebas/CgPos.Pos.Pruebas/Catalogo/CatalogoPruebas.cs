@@ -25,7 +25,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var tercera = await AplicarAsync(escenario.Paquete(precioCemento: 499m));
 
         Assert.True(primera.Creados > 0);
-        Assert.Equal(9, primera.PreciosRegistrados); // 7 precios detalle + 2 por mayor
+        Assert.Equal(10, primera.PreciosRegistrados); // 8 precios detalle + 2 por mayor
         Assert.Equal(0, segunda.Creados);
         Assert.Equal(0, segunda.PreciosRegistrados);
         Assert.Equal(1, tercera.PreciosRegistrados);

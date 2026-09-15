@@ -1,6 +1,7 @@
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
@@ -204,6 +205,182 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Cliente_registrado_toma_su_comprobante_y_cambiarlo_a_mano_requiere_autorizacion()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+
+        var conCliente = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, caja.Catalogo.RncCliente, null));
+        Assert.True(conCliente.Exitosa, conCliente.Mensaje);
+        Assert.Equal(TipoComprobante.FacturaCreditoFiscal, conCliente.Venta!.TipoComprobante);
+        Assert.Equal(caja.Catalogo.Cliente, conCliente.Venta.Cliente!.ClienteId);
+
+        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.FacturaConsumo, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
+        Assert.Equal(CatalogoPermisos.CambiarComprobante, sinPermiso.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Cliente pide consumo");
+        var cambiado = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.FacturaConsumo, autorizacion));
+        Assert.True(cambiado.Exitosa, cambiado.Mensaje);
+        Assert.Equal(TipoComprobante.FacturaConsumo, cambiado.Venta!.TipoComprobante);
+
+        // Un cambio imposible se rechaza sin pedir clave de supervisor.
+        var sinCliente = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.QuitarClienteAsync(caja.Cajero, venta.Id));
+        Assert.Null(sinCliente.Venta!.Cliente);
+        var imposible = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.Gubernamental, null));
+        Assert.Equal(CodigoResultadoVenta.DocumentoRequerido, imposible.Resultado);
+    }
+
+    [SkippableFact]
+    public async Task Documento_no_registrado_pide_nombre_y_el_invalido_se_rechaza()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        var cedula = CedulaAleatoriaValida();
+
+        var invalido = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, "12345", null));
+        Assert.Equal(CodigoResultadoVenta.DocumentoInvalido, invalido.Resultado);
+
+        var sinNombre = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, cedula, null));
+        Assert.Equal(CodigoResultadoVenta.NombreRequerido, sinNombre.Resultado);
+
+        var conNombre = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, cedula, "María Gómez"));
+        Assert.True(conNombre.Exitosa, conNombre.Mensaje);
+        Assert.Equal(TipoComprobante.FacturaConsumo, conNombre.Venta!.TipoComprobante);
+        Assert.Equal(cedula, conNombre.Venta.Cliente!.Documento);
+        Assert.Null(conNombre.Venta.Cliente.ClienteId);
+    }
+
+    [SkippableFact]
+    public async Task Factura_de_consumo_grande_exige_identificacion_segun_el_parametro()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+
+        var grande = await caja.AgregarAsync(venta.Id, $"600*{caja.Catalogo.CodigoCemento}"); // 600 × 450 = 270,000
+        Assert.True(grande.RequiereIdentificacion);
+        Assert.Equal(ReglasComprobante.MontoIdentificacionConsumoPredeterminado, grande.MontoIdentificacion);
+
+        var identificada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, CedulaAleatoriaValida(), "Comprador grande"));
+        Assert.False(identificada.Venta!.RequiereIdentificacion);
+    }
+
+    [SkippableFact]
+    public async Task Facturas_en_espera_quedan_en_el_turno_y_se_retoman_intercambiando_la_actual()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var primera = await caja.VentaActualAsync();
+        await caja.AgregarAsync(primera.Id, caja.Catalogo.BarrasCincel);
+
+        var vacia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, primera.Id));
+        Assert.True(vacia.Exitosa, vacia.Mensaje);
+        var segunda = vacia.Venta!;
+        Assert.NotEqual(primera.Id, segunda.Id);
+        Assert.Empty(segunda.Lineas);
+
+        var sinArticulos = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, segunda.Id));
+        Assert.Equal(CodigoResultadoVenta.SinLineas, sinArticulos.Resultado);
+
+        await caja.AgregarAsync(segunda.Id, caja.Catalogo.BarrasCemento);
+        var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, primera.Id));
+        Assert.True(retomada.Exitosa, retomada.Mensaje);
+        Assert.Equal(primera.Id, retomada.Venta!.Id);
+        Assert.Equal(850m, retomada.Venta.Totales.Total);
+
+        var enEspera = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero));
+        var pendiente = Assert.Single(enEspera);
+        Assert.Equal(segunda.Id, pendiente.Id);
+        Assert.Equal(485m, pendiente.Total);
+
+        var actual = await caja.VentaActualAsync();
+        Assert.Equal(primera.Id, actual.Id);
+    }
+
+    [SkippableFact]
+    public async Task Anular_y_suspender_requieren_autorizacion_y_quedan_auditados()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+
+        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AnularAsync(caja.Cajero, venta.Id, "Cliente se retiró", null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AnularVenta, "Cliente se retiró");
+        var nueva = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AnularAsync(caja.Cajero, venta.Id, null, autorizacion));
+        Assert.True(nueva.Exitosa, nueva.Mensaje);
+        Assert.NotEqual(venta.Id, nueva.Venta!.Id);
+
+        var anulada = await caja.EjecutarAsync<ContextoDatosPos, Venta>(contexto => contexto.Ventas.SingleAsync(v => v.Id == venta.Id));
+        Assert.Equal(EstadoVenta.Anulada, anulada.Estado);
+        Assert.Equal("Cliente se retiró", anulada.MotivoAnulacion);
+
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion,
+            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null))).Resultado);
+        var suspension = await caja.AutorizarAsync(CatalogoPermisos.SuspenderVenta, "Almuerzo");
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, suspension))).Exitosa);
+
+        var cajaCodigo = caja.Cajero.CajaCodigo;
+        var registros = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
+            contexto.Auditoria.CountAsync(r => (r.Accion == "Ventas.Anulada" && r.EntidadId == venta.NumeroTransaccion)
+                                               || (r.Accion == "Caja.OperacionesSuspendidas" && r.UsuarioId == caja.Escenario.Cajero)));
+        Assert.Equal(2, registros);
+    }
+
+    [SkippableFact]
+    public async Task Serializado_pide_serial_y_no_acepta_repetidos()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        var codigo = caja.Catalogo.CodigoTaladro;
+
+        var sinSerial = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarArticuloAsync(caja.Cajero, venta.Id, codigo, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereSerial, sinSerial.Resultado);
+
+        var conSerial = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarArticuloAsync(caja.Cajero, venta.Id, codigo, null, "dw-778812"));
+        Assert.True(conSerial.Exitosa, conSerial.Mensaje);
+        Assert.Equal("DW-778812", conSerial.Venta!.Lineas.Single().Serial);
+
+        var repetido = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarArticuloAsync(caja.Cajero, venta.Id, codigo, null, "DW-778812"));
+        Assert.Equal(CodigoResultadoVenta.SerialDuplicado, repetido.Resultado);
+
+        // El serial se guarda con la línea y se recupera tras un reinicio.
+        await using var reabierta = caja.Reabrir();
+        Assert.Equal("DW-778812", (await reabierta.VentaActualAsync()).Lineas.Single().Serial);
+    }
+
+    [SkippableFact]
+    public async Task Balanza_agrega_el_peso_neto_descontando_la_tara_y_rechaza_articulos_no_pesados()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+
+        var pesada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarDesdeBalanzaAsync(caja.Cajero, venta.Id, caja.Catalogo.PluCebolla));
+        Assert.True(pesada.Exitosa, pesada.Mensaje);
+
+        var linea = pesada.Venta!.Lineas.Single();
+        var netoEsperado = BalanzaPrueba.PesoSimulado - EscenarioCatalogo.TaraCebolla; // 1.250 − 0.050
+        Assert.Equal(netoEsperado, linea.Cantidad);
+        Assert.True(linea.LeidaDeBalanza);
+        Assert.Equal(decimal.Round(netoEsperado * 55m, 2), pesada.Venta.Totales.Total);
+
+        var noPesado = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarDesdeBalanzaAsync(caja.Cajero, venta.Id, caja.Catalogo.BarrasCincel));
+        Assert.Equal(CodigoResultadoVenta.CantidadInvalida, noPesado.Resultado);
+    }
+
+    private static class BalanzaPrueba
+    {
+        public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;
+    }
+
+    [SkippableFact]
     public async Task Las_secuencias_no_se_repiten_con_pedidos_simultaneos()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -239,6 +416,16 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(antes + 1, estado.DocumentosPendientes);
         Assert.False(estado.CentralConfigurado);
         Assert.False(estado.EnLinea);
+    }
+
+    private static string CedulaAleatoriaValida()
+    {
+        while (true)
+        {
+            var candidata = Random.Shared.NextInt64(1_000_000_000L, 9_999_999_999L).ToString() + Random.Shared.Next(0, 10);
+            if (DocumentoIdentidad.CedulaValida(candidata))
+                return candidata;
+        }
     }
 
     /// <summary>Caja lista para vender: usuarios y maestros cargados, sesión del cajero y (opcional) turno abierto.</summary>

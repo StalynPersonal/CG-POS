@@ -72,6 +72,16 @@ internal sealed class ConsultaArticulos(
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
 
+    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? familiaId = null, CancellationToken cancelacion = default)
+    {
+        var consulta = Vendibles().Where(a => a.MostrarEnCatalogo);
+        if (familiaId is { } familia)
+            consulta = consulta.Where(a => a.FamiliaId == familia);
+
+        var articulos = await consulta.OrderBy(a => a.Descripcion).Take(500).ToListAsync(cancelacion);
+        return await ArmarResumenesAsync(articulos, cancelacion);
+    }
+
     public async Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? familiaId = null, CancellationToken cancelacion = default)
     {
         var familiasNoCodificadas = contexto.Familias.Where(f => f.Activa && f.EsNoCodificada).Select(f => f.Id);
@@ -143,7 +153,8 @@ internal sealed class ConsultaArticulos(
             datos.articulo.PrecioMinimo,
             lectura is { Tipo: TipoValorBalanza.Peso } ? lectura.Valor : null,
             lectura is { Tipo: TipoValorBalanza.Precio } ? lectura.Valor : null,
-            datos.articulo.RutaImagen);
+            datos.articulo.RutaImagen,
+            datos.articulo.Tara);
     }
 
     private async Task<IReadOnlyList<DatosArticuloResumen>> ArmarResumenesAsync(List<Articulo> articulos, CancellationToken cancelacion)

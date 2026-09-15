@@ -1,5 +1,6 @@
 using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 
@@ -54,7 +55,8 @@ public sealed record DatosLineaVenta(
     bool LeidaDeBalanza,
     bool EsReverso,
     int? LineaAnuladaNumero,
-    bool Anulada);
+    bool Anulada,
+    string? Serial = null);
 
 public sealed record DatosDesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
@@ -66,7 +68,10 @@ public sealed record DatosTotalesVenta(
     decimal CantidadArticulos,
     IReadOnlyList<DatosDesgloseImpuesto> Desglose);
 
+public sealed record DatosClienteVenta(Guid? ClienteId, TipoDocumentoIdentidad? TipoDocumento, string? Documento, string Nombre);
+
 /// <param name="Lineas">En orden de pantalla: cada reverso aparece justo debajo de la línea que anula.</param>
+/// <param name="RequiereIdentificacion">Factura de consumo desde <paramref name="MontoIdentificacion"/> sin cédula o RNC (RF-26).</param>
 public sealed record DatosVenta(
     Guid Id,
     string NumeroTransaccion,
@@ -75,10 +80,29 @@ public sealed record DatosVenta(
     string UsuarioNombre,
     DateTimeOffset IniciadaEn,
     IReadOnlyList<DatosLineaVenta> Lineas,
-    DatosTotalesVenta Totales);
+    DatosTotalesVenta Totales,
+    TipoComprobante TipoComprobante,
+    DatosClienteVenta? Cliente,
+    decimal? LimiteCompra,
+    bool LimiteCompraExcedido,
+    bool RequiereIdentificacion,
+    decimal MontoIdentificacion);
+
+/// <summary>Resumen de una factura en espera del cajero en su turno (RF-22, RF-197).</summary>
+public sealed record DatosVentaEnEspera(
+    Guid Id,
+    string NumeroTransaccion,
+    string? ClienteNombre,
+    decimal Total,
+    int CantidadLineas,
+    DateTimeOffset PuestaEnEsperaEn);
 
 /// <param name="Codigo">Código leído; admite "cantidad*código" (ej. "12*7891114119695", RF-14).</param>
-public sealed record SolicitudAgregarArticulo(string Codigo, decimal? Cantidad = null);
+/// <param name="Serial">Serial escaneado, obligatorio para artículos serializados (RF-17).</param>
+public sealed record SolicitudAgregarArticulo(string Codigo, decimal? Cantidad = null, string? Serial = null);
+
+/// <summary>Agrega un artículo pesado con el peso que reporta la balanza, descontando su tara (RF-19, RF-196).</summary>
+public sealed record SolicitudPesarArticulo(string Codigo);
 
 public sealed record SolicitudCambiarCantidad(decimal Cantidad);
 
@@ -86,6 +110,17 @@ public sealed record SolicitudCambiarCantidad(decimal Cantidad);
 public sealed record SolicitudConAutorizacion(Guid? AutorizacionId = null);
 
 public sealed record SolicitudEliminarPorCodigo(string Codigo, Guid? AutorizacionId = null);
+
+/// <param name="Nombre">Solo si el documento no está en el padrón DGII ni registrado como cliente.</param>
+public sealed record SolicitudAsignarCliente(string Documento, string? Nombre = null);
+
+public sealed record SolicitudCambiarComprobante(TipoComprobante TipoComprobante, Guid? AutorizacionId = null);
+
+/// <param name="Limite">Nulo para quitar el límite.</param>
+public sealed record SolicitudLimiteCompra(decimal? Limite);
+
+/// <param name="Motivo">Si se omite y hubo autorización de supervisor, se usa el motivo de esa autorización.</param>
+public sealed record SolicitudAnularVenta(string? Motivo, Guid? AutorizacionId = null);
 
 public enum CodigoResultadoVenta
 {
@@ -101,6 +136,14 @@ public enum CodigoResultadoVenta
     RequiereAutorizacion,
     AutorizacionInvalida,
     MotivoRequerido,
+    DocumentoInvalido,
+    NombreRequerido,
+    ComprobanteNoPermitido,
+    DocumentoRequerido,
+    SinLineas,
+    RequiereSerial,
+    SerialDuplicado,
+    BalanzaSinLectura,
 }
 
 /// <summary>Resultado de una operación sobre la venta: la venta actualizada o el motivo del rechazo.</summary>

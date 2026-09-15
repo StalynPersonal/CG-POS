@@ -1,0 +1,177 @@
+@page "/cliente"
+@implements IAsyncDisposable
+@using System.Text.Json
+@using CgPos.Contratos.Serializacion
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navegacion
+@inject ClienteAgente Cliente
+
+@* Pantalla del cliente (segundo monitor, RF-115): artículos y total en tiempo real, con publicidad. No requiere sesión. *@
+
+<PageTitle>CG-POS · Cliente</PageTitle>
+
+<div class="cg-pantalla-cliente">
+    <header class="cg-pantalla-cliente__encabezado">
+        <span class="cg-pantalla-cliente__marca">@(_publicidad?.EmpresaNombre ?? "CG-POS")</span>
+        <span class="cg-pantalla-cliente__hora">@_ahora.ToString("dddd d 'de' MMMM · h:mm tt")</span>
+        @if (!_conectado)
+        {
+            <span class="cg-pantalla-cliente__desconectado">Conectando…</span>
+        }
+    </header>
+
+    @if (_venta is { } venta && LineasActivas.Count > 0)
+    {
+        <main class="cg-pantalla-cliente__venta">
+            <section class="cg-pantalla-cliente__detalle">
+                @if (venta.Cliente is { } cliente)
+                {
+                    <div class="cg-pantalla-cliente__cliente">@cliente.Nombre</div>
+                }
+
+                @* column-reverse mantiene visible la última línea sin desplazar por código. *@
+                <div class="cg-pantalla-cliente__lineas">
+                    @foreach (var linea in Enumerable.Reverse(LineasActivas))
+                    {
+                        <div class="cg-pantalla-cliente__linea">
+                            <div>
+                                <div class="cg-pantalla-cliente__descripcion">@linea.Descripcion</div>
+                                <div class="cg-pantalla-cliente__calculo">
+                                    @linea.Cantidad.ToString("N" + linea.DecimalesCantidad) @linea.UnidadMedidaCodigo × @linea.PrecioUnitario.ToString("N2")
+                                    @if (linea.Lista == ListaPrecio.Mayor)
+                                    {
+                                        <span class="cg-pantalla-cliente__etiqueta">Precio por mayor</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="cg-numero cg-pantalla-cliente__importe">@linea.Importe.ToString("N2")</div>
+                        </div>
+                    }
+                </div>
+
+                <div class="cg-pantalla-cliente__totales">
+                    <div><span>Artículos</span><span class="cg-numero">@venta.Totales.CantidadArticulos.ToString("0.###")</span></div>
+                    <div><span>Subtotal</span><span class="cg-numero">@venta.Totales.Subtotal.ToString("N2")</span></div>
+                    <div><span>ITBIS</span><span class="cg-numero">@venta.Totales.Impuesto.ToString("N2")</span></div>
+                    <div class="cg-pantalla-cliente__total"><span>Total RD$</span><span class="cg-numero">@venta.Totales.Total.ToString("N2")</span></div>
+                </div>
+            </section>
+
+            <aside class="cg-pantalla-cliente__publicidad">@Carrusel</aside>
+        </main>
+    }
+    else
+    {
+        <main class="cg-pantalla-cliente__bienvenida">
+            <div class="cg-pantalla-cliente__publicidad cg-pantalla-cliente__publicidad--completa">@Carrusel</div>
+            <div class="cg-pantalla-cliente__mensaje">@(_publicidad?.MensajeBienvenida ?? "¡Bienvenido!")</div>
+        </main>
+    }
+</div>
+
+@code {
+    private readonly CancellationTokenSource _cierre = new();
+    private HubConnection? _conexion;
+    private DatosVenta? _venta;
+    private DatosPublicidad? _publicidad;
+    private bool _conectado;
+    private int _indiceImagen;
+    private DateTime _ahora = DateTime.Now;
+
+    private IReadOnlyList<DatosLineaVenta> LineasActivas =>
+        _venta?.Lineas.Where(linea => !linea.EsReverso && !linea.Anulada).ToList() ?? [];
+
+    private RenderFragment Carrusel => @<div class="cg-carrusel">
+        @if (_publicidad is { Imagenes.Count: > 0 } publicidad)
+        {
+            <img class="cg-carrusel__imagen" src="@publicidad.Imagenes[_indiceImagen % publicidad.Imagenes.Count]" alt="Publicidad" />
+        }
+        else
+        {
+            <div class="cg-carrusel__vacio">@(_publicidad?.EmpresaNombre ?? "CG-POS")</div>
+        }
+    </div>;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _publicidad = await Cliente.ObtenerPublicidadAsync();
+
+        _conexion = new HubConnectionBuilder()
+            .WithUrl(Navegacion.ToAbsoluteUri(ContratoPantallaCliente.RutaHub))
+            .WithAutomaticReconnect(new ReintentoPermanente())
+            .AddJsonProtocol(opciones => opciones.PayloadSerializerOptions = new JsonSerializerOptions(OpcionesJson.Predeterminadas))
+            .Build();
+
+        _conexion.On<DatosVenta?>(ContratoPantallaCliente.MetodoVentaActualizada, venta => InvokeAsync(() =>
+        {
+            _venta = venta;
+            StateHasChanged();
+        }));
+        _conexion.Reconnecting += _ => CambiarConexionAsync(false);
+        _conexion.Reconnected += _ => CambiarConexionAsync(true);
+
+        _ = ConectarAsync(_cierre.Token);
+        _ = RotarAsync(_cierre.Token);
+    }
+
+    /// <summary>La pantalla puede abrirse antes que el Agente: reintenta hasta conectar.</summary>
+    private async Task ConectarAsync(CancellationToken cancelacion)
+    {
+        while (!cancelacion.IsCancellationRequested)
+        {
+            try
+            {
+                await _conexion!.StartAsync(cancelacion);
+                await CambiarConexionAsync(true);
+                return;
+            }
+            catch (Exception) when (!cancelacion.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3), cancelacion).ContinueWith(_ => { });
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    private async Task RotarAsync(CancellationToken cancelacion)
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        var segundos = 0;
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancelacion))
+            {
+                _ahora = DateTime.Now;
+                if (++segundos % Math.Max(1, _publicidad?.SegundosPorImagen ?? 8) == 0)
+                    _indiceImagen++;
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private Task CambiarConexionAsync(bool conectado) => InvokeAsync(() =>
+    {
+        _conectado = conectado;
+        StateHasChanged();
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        _cierre.Cancel();
+        if (_conexion is not null)
+            await _conexion.DisposeAsync();
+        _cierre.Dispose();
+    }
+
+    private sealed class ReintentoPermanente : IRetryPolicy
+    {
+        public TimeSpan? NextRetryDelay(RetryContext contexto) => TimeSpan.FromSeconds(Math.Min(10, 1 + contexto.PreviousRetryCount));
+    }
+}

@@ -1,0 +1,83 @@
+@* Facturas en espera del cajero en su turno (F7): poner la actual en espera o retomar una (RF-22, RF-197). *@
+@inject ClienteAgente Cliente
+
+<MudDialog>
+    <DialogContent>
+        @if (_cargando)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+        }
+        else
+        {
+            <GrillaTactil TElemento="DatosVentaEnEspera" Elementos="_enEspera" Seleccionado="_seleccionada" SeleccionadoChanged="venta => _seleccionada = venta"
+                          Altura="clamp(160px, calc(100vh - 380px), 420px)" TextoSinRegistros="No hay facturas en espera en su turno">
+                <Encabezado>
+                    <MudTh>Transacción</MudTh>
+                    <MudTh>Cliente</MudTh>
+                    <MudTh Class="cg-numero">Líneas</MudTh>
+                    <MudTh Class="cg-numero">Total</MudTh>
+                    <MudTh>Desde</MudTh>
+                </Encabezado>
+                <Fila Context="venta">
+                    <MudTd>@venta.NumeroTransaccion</MudTd>
+                    <MudTd>@(venta.ClienteNombre ?? "Cliente contado")</MudTd>
+                    <MudTd Class="cg-numero">@venta.CantidadLineas</MudTd>
+                    <MudTd Class="cg-numero">@venta.Total.ToString("N2")</MudTd>
+                    <MudTd>@venta.PuestaEnEsperaEn.ToLocalTime().ToString("h:mm tt")</MudTd>
+                </Fila>
+            </GrillaTactil>
+        }
+
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@_mensaje</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || !TieneArticulos)"
+                   StartIcon="@Icons.Material.Filled.PanTool" Style="min-height: var(--cg-toque-minimo)" OnClick="PonerEnEsperaAsync">Poner la actual en espera</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || _seleccionada is null)"
+                   StartIcon="@Icons.Material.Filled.PlayArrow" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="RetomarAsync">Retomar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosVenta Venta { get; set; } = default!;
+
+    private IReadOnlyList<DatosVentaEnEspera> _enEspera = [];
+    private DatosVentaEnEspera? _seleccionada;
+    private string? _mensaje;
+    private bool _cargando = true;
+    private bool _procesando;
+
+    private bool TieneArticulos => Venta.Lineas.Any(linea => !linea.EsReverso && !linea.Anulada);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _enEspera = await Cliente.ListarEnEsperaAsync();
+        _seleccionada = _enEspera.Count > 0 ? _enEspera[0] : null;
+        _cargando = false;
+    }
+
+    private Task PonerEnEsperaAsync() => EjecutarAsync(() => Cliente.PonerEnEsperaAsync(Venta.Id));
+
+    private Task RetomarAsync() => _seleccionada is { } venta ? EjecutarAsync(() => Cliente.RetomarVentaAsync(venta.Id)) : Task.CompletedTask;
+
+    private async Task EjecutarAsync(Func<Task<RespuestaVenta>> operacion)
+    {
+        _procesando = true;
+        var respuesta = await operacion();
+        _procesando = false;
+
+        if (respuesta is { Exitosa: true, Venta: { } venta })
+        {
+            Dialogo.Close(DialogResult.Ok(venta));
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje;
+    }
+}

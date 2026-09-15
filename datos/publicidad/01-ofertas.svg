@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b4d3e"/>
+      <stop offset="1" stop-color="#2e7d32"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#fondo)"/>
+  <circle cx="1080" cy="150" r="220" fill="#e8f5e9" opacity=".12"/>
+  <text x="80" y="220" font-family="Segoe UI, Arial" font-size="64" font-weight="700" fill="#e8f5e9">OFERTAS DE LA SEMANA</text>
+  <text x="80" y="380" font-family="Segoe UI, Arial" font-size="150" font-weight="800" fill="#ffffff">-15%</text>
+  <text x="80" y="470" font-family="Segoe UI, Arial" font-size="54" fill="#ffffff">en herramientas eléctricas</text>
+  <rect x="80" y="540" width="520" height="90" rx="45" fill="#ffffff"/>
+  <text x="340" y="600" text-anchor="middle" font-family="Segoe UI, Arial" font-size="40" font-weight="700" fill="#1b4d3e">Pregunte en caja</text>
+</svg>

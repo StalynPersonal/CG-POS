@@ -1,0 +1,176 @@
+@* Cliente y comprobante de la venta (F12): RNC o cédula contra el padrón DGII y los clientes registrados (RF-13, RF-127). *@
+@inject ClienteAgente Cliente
+@inject ServicioAutorizacionPantalla Autorizaciones
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-cliente">
+            <div class="cg-cliente__actual">
+                <div>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Cliente de la transacción @_venta.NumeroTransaccion</MudText>
+                    @if (_venta.Cliente is { } cliente)
+                    {
+                        <MudText Typo="Typo.h6" Style="font-weight: 700">@cliente.Nombre</MudText>
+                        <MudText Typo="Typo.body2">
+                            @NombreDocumento(cliente.TipoDocumento) @cliente.Documento · @(cliente.ClienteId is null ? "no registrado" : "cliente registrado")
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h6" Style="font-weight: 700; color: #6d7a74">CLIENTE CONTADO</MudText>
+                    }
+                </div>
+                @if (_venta.Cliente is not null)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarAsync"
+                               StartIcon="@Icons.Material.Filled.PersonRemove" Style="min-height: var(--cg-toque-minimo)">Quitar cliente</MudButton>
+                }
+            </div>
+
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Comprobante fiscal</MudText>
+            <div class="cg-cliente__comprobantes">
+                @foreach (var tipo in ReglasComprobante.DeVenta)
+                {
+                    <button type="button" class="cg-cliente__comprobante @(tipo == _venta.TipoComprobante ? "cg-cliente__comprobante--activo" : null)"
+                            disabled="@_procesando" @onclick="() => CambiarComprobanteAsync(tipo)">
+                        <span class="cg-cliente__codigo-ecf">E@((int)tipo)</span>
+                        <span>@ReglasComprobante.Nombre(tipo)</span>
+                    </button>
+                }
+            </div>
+
+            <div class="cg-cliente__campos">
+                <div @onclick="() => _campo = Campo.Documento">
+                    <MudTextField T="string" @bind-Value="_documento" Label="RNC o cédula" Variant="Variant.Outlined" Immediate="true"
+                                  AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Documento)" />
+                </div>
+                @if (_pedirNombre)
+                {
+                    <div @onclick="() => _campo = Campo.Nombre">
+                        <MudTextField T="string" @bind-Value="_nombre" Label="Nombre del cliente" Variant="Variant.Outlined" Immediate="true"
+                                      OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Nombre)" />
+                    </div>
+                }
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarAsync"
+                           StartIcon="@Icons.Material.Filled.PersonSearch" Style="min-height: var(--cg-toque-minimo)">Asignar</MudButton>
+            </div>
+
+            @if (_procesando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+            }
+
+            <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => AsignarAsync()"
+                           Modo="@(_campo == Campo.Documento ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)" PermitirDecimal="false"
+                           PermitirCambioModo="@(_campo == Campo.Nombre)" LongitudMaxima="@(_campo == Campo.Documento ? 13 : 150)" TextoConfirmar="Asignar" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Primary" Style="min-height: var(--cg-toque-minimo); min-width: 160px"
+                   OnClick="() => Dialogo.Close(DialogResult.Ok(_venta))">Listo</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private enum Campo
+    {
+        Documento,
+        Nombre,
+    }
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosVenta Venta { get; set; } = default!;
+
+    private DatosVenta _venta = default!;
+    private string? _documento;
+    private string? _nombre;
+    private string? _mensaje;
+    private bool _pedirNombre;
+    private bool _procesando;
+    private Campo _campo = Campo.Documento;
+
+    protected override void OnInitialized() => _venta = Venta;
+
+    private string ValorCampoActivo => (_campo == Campo.Documento ? _documento : _nombre) ?? string.Empty;
+
+    private string? ClaseCampo(Campo campo) => _campo == campo ? "cg-campo-activo" : null;
+
+    private static string NombreDocumento(TipoDocumentoIdentidad? tipo) => tipo switch
+    {
+        TipoDocumentoIdentidad.Rnc => "RNC",
+        TipoDocumentoIdentidad.Cedula => "Cédula",
+        TipoDocumentoIdentidad.Pasaporte => "Pasaporte",
+        _ => "Documento",
+    };
+
+    private void AlCambiarTeclado(string valor)
+    {
+        if (_campo == Campo.Documento)
+            _documento = valor;
+        else
+            _nombre = valor;
+    }
+
+    private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? AsignarAsync() : Task.CompletedTask;
+
+    private async Task AsignarAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_documento))
+        {
+            _mensaje = "Digite el RNC o la cédula del cliente.";
+            _campo = Campo.Documento;
+            return;
+        }
+
+        await EjecutarAsync(async () => await Cliente.AsignarClienteAsync(_venta.Id, _documento.Trim(), _pedirNombre ? _nombre : null));
+    }
+
+    private Task QuitarAsync() => EjecutarAsync(async () => await Cliente.QuitarClienteAsync(_venta.Id));
+
+    private Task CambiarComprobanteAsync(TipoComprobante tipo)
+    {
+        if (tipo == _venta.TipoComprobante)
+            return Task.CompletedTask;
+
+        return EjecutarAsync(() => Autorizaciones.EjecutarVentaAsync(
+            autorizacion => Cliente.CambiarComprobanteAsync(_venta.Id, tipo, autorizacion),
+            $"Cambiar el comprobante a {ReglasComprobante.Nombre(tipo)}",
+            _venta.NumeroTransaccion));
+    }
+
+    private async Task EjecutarAsync(Func<Task<RespuestaVenta?>> operacion)
+    {
+        if (_procesando)
+            return;
+
+        _procesando = true;
+        var respuesta = await operacion();
+        _procesando = false;
+
+        if (respuesta is null)
+            return;
+
+        if (respuesta.Venta is { } venta)
+            _venta = venta;
+
+        if (respuesta.Resultado == CodigoResultadoVenta.NombreRequerido)
+        {
+            _pedirNombre = true;
+            _campo = Campo.Nombre;
+        }
+        else if (respuesta.Exitosa)
+        {
+            _documento = null;
+            _nombre = null;
+            _pedirNombre = false;
+            _campo = Campo.Documento;
+        }
+
+        _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+    }
+}

@@ -55,6 +55,9 @@ public sealed class Articulo : Entidad
     /// <summary>Cantidad a partir de la cual se aplica automáticamente el precio por mayor (RF-187).</summary>
     public decimal? CantidadMinimaMayor { get; private set; }
 
+    /// <summary>Peso del empaque que se descuenta del peso leído en la balanza, en la unidad del artículo (RF-196).</summary>
+    public decimal? Tara { get; private set; }
+
     public string? RutaImagen { get; private set; }
 
     /// <summary>Se muestra en el catálogo visual de la caja (mosaicos).</summary>
@@ -107,6 +110,14 @@ public sealed class Articulo : Entidad
         Costo = costo;
         PrecioMinimo = precioMinimo;
         CantidadMinimaMayor = cantidadMinimaMayor;
+    }
+
+    public void ConfigurarTara(decimal? tara)
+    {
+        if (tara < 0)
+            throw new ArgumentOutOfRangeException(nameof(tara), tara, "La tara no puede ser negativa.");
+
+        Tara = tara is 0m ? null : tara;
     }
 
     public void ConfigurarPresentacion(string? rutaImagen, bool mostrarEnCatalogo, bool ventaEnPos)

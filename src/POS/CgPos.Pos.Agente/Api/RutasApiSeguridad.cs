@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CgPos.Contratos.Seguridad;
+using CgPos.Pos.Agente.Pantallas;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Organizacion;
@@ -33,7 +34,8 @@ public static class RutasApiSeguridad
                 EmisorTokens.LeerSesion(usuario) is { } actual ? Results.Ok(ConvertirDto(actual)) : Results.Unauthorized())
             .RequireAuthorization();
 
-        sesion.MapPost("/cerrar", async (ClaimsPrincipal usuario, IAuditoria auditoria, ContextoDatosPos contexto, CancellationToken cancelacion) =>
+        sesion.MapPost("/cerrar", async (ClaimsPrincipal usuario, IAuditoria auditoria, ContextoDatosPos contexto, PublicadorPantallaCliente pantallaCliente,
+                CancellationToken cancelacion) =>
             {
                 if (EmisorTokens.LeerSesion(usuario) is { } actual)
                 {
@@ -41,6 +43,9 @@ public static class RutasApiSeguridad
                         Usuario: new UsuarioAuditoria(actual.UsuarioId, actual.Nombre)));
                     await contexto.SaveChangesAsync(cancelacion);
                 }
+
+                // Sin cajero, la pantalla del cliente vuelve a la bienvenida y la publicidad.
+                await pantallaCliente.PublicarAsync(null, cancelacion);
 
                 return Results.NoContent();
             })

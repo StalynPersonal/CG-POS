@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <rect width="1280" height="720" fill="#e8f5e9"/>
+  <rect x="0" y="0" width="1280" height="140" fill="#1b4d3e"/>
+  <text x="80" y="95" font-family="Segoe UI, Arial" font-size="56" font-weight="700" fill="#ffffff">PRECIO POR MAYOR</text>
+  <text x="80" y="300" font-family="Segoe UI, Arial" font-size="72" font-weight="700" fill="#1b4d3e">Cemento gris 42.5 kg</text>
+  <text x="80" y="400" font-family="Segoe UI, Arial" font-size="48" fill="#51605a">Desde 12 fundas</text>
+  <text x="80" y="580" font-family="Segoe UI, Arial" font-size="150" font-weight="800" fill="#2e7d32">RD$450</text>
+  <rect x="930" y="230" width="260" height="360" rx="24" fill="#cfd8d3"/>
+  <text x="1060" y="430" text-anchor="middle" font-family="Segoe UI, Arial" font-size="60" font-weight="800" fill="#1b4d3e">42.5</text>
+</svg>

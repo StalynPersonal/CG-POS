@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using CgPos.Pos.Agente.Api;
+using CgPos.Pos.Agente.Pantallas;
 using CgPos.Pos.Agente.Salud;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Organizacion;
@@ -39,6 +40,14 @@ try
     constructor.Services.AgregarInfraestructuraPos(constructor.Configuration);
     constructor.Services.AgregarSeguridadAgente();
 
+    // Pantalla del cliente en tiempo real (segundo monitor).
+    constructor.Services.AddSignalR().AddJsonProtocol(opciones =>
+    {
+        opciones.PayloadSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        opciones.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+    constructor.Services.AddSingleton<PublicadorPantallaCliente>();
+
     constructor.Services.AddHealthChecks()
         .AddDbContextCheck<ContextoDatosPos>("base-datos");
 
@@ -54,6 +63,7 @@ try
     aplicacion.MapearApiSeguridad();
     aplicacion.MapearApiCatalogo();
     aplicacion.MapearApiVentas();
+    aplicacion.MapearPantallaCliente();
 
     // Pantallas de la caja (Blazor Wasm de CgPos.Pos.Web), servidas localmente.
     if (aplicacion.Configuration.GetValue("Agente:ServirPantallas", true))

@@ -43,6 +43,10 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
         constructor.Property(v => v.UsuarioNombre).HasMaxLength(Venta.LargoMaximoUsuario).IsRequired();
         constructor.Property(v => v.MotivoAnulacion).HasMaxLength(Venta.LargoMaximoMotivo);
         constructor.Property(v => v.AnuladaPorNombre).HasMaxLength(Venta.LargoMaximoUsuario);
+        constructor.Property(v => v.ClienteDocumento).HasMaxLength(Venta.LargoMaximoDocumento).IsUnicode(false);
+        constructor.Property(v => v.ClienteNombre).HasMaxLength(Venta.LargoMaximoNombreCliente);
+        constructor.Property(v => v.LimiteCompra).HasPrecision(18, 2);
+        constructor.Ignore(v => v.TieneLineasActivas);
 
         constructor.HasIndex(v => v.NumeroTransaccion).IsUnique();
         constructor.HasIndex(v => new { v.CajaId, v.Secuencia }).IsUnique();
@@ -67,6 +71,7 @@ internal sealed class LineaVentaConfiguracion : IEntityTypeConfiguration<LineaVe
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
         constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.PorcentajeImpuesto).HasPrecision(5, 2);
+        constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);
         constructor.Ignore(l => l.EstaActiva);
         constructor.Ignore(l => l.ImporteConImpuesto);
 

@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Pantallas;
 using CgPos.Contratos.Seguridad;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Pos.Web.Seguridad;
 
@@ -75,8 +77,11 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> ObtenerVentaActualAsync(CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Get, "api/ventas/actual", null, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> AgregarArticuloAsync(Guid ventaId, string codigo, decimal? cantidad = null, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas", new SolicitudAgregarArticulo(codigo, cantidad), ErrorVenta, cancelacion);
+    public Task<RespuestaVenta> AgregarArticuloAsync(Guid ventaId, string codigo, decimal? cantidad = null, string? serial = null, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas", new SolicitudAgregarArticulo(codigo, cantidad, serial), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> AgregarDesdeBalanzaAsync(Guid ventaId, string codigo, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/balanza", new SolicitudPesarArticulo(codigo), ErrorVenta, cancelacion);
 
     public Task<RespuestaVenta> CambiarCantidadAsync(Guid ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/lineas/{numeroLinea}/cantidad", new SolicitudCambiarCantidad(cantidad), ErrorVenta, cancelacion);
@@ -89,6 +94,56 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     public Task<RespuestaVenta> LimpiarVentaAsync(Guid ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/limpiar", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
+    // ---------- Cliente, comprobante, límite, espera, anular y suspender (C4) ----------
+
+    public Task<RespuestaVenta> AsignarClienteAsync(Guid ventaId, string documento, string? nombre, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/cliente", new SolicitudAsignarCliente(documento, nombre), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> QuitarClienteAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/cliente", null, ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> CambiarComprobanteAsync(Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/comprobante", new SolicitudCambiarComprobante(tipo, autorizacionId), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> EstablecerLimiteCompraAsync(Guid ventaId, decimal? limite, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/limite", new SolicitudLimiteCompra(limite), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> PonerEnEsperaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Post, $"api/ventas/{ventaId}/espera", null, ErrorVenta, cancelacion);
+
+    public async Task<IReadOnlyList<DatosVentaEnEspera>> ListarEnEsperaAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosVentaEnEspera>>("api/ventas/espera", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+    }
+
+    public Task<RespuestaVenta> RetomarVentaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Post, $"api/ventas/{ventaId}/retomar", null, ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> AnularVentaAsync(Guid ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/anular", new SolicitudAnularVenta(motivo, autorizacionId), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> SuspenderCajaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/suspender", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
+    public async Task<DatosConsultaDocumento?> ConsultarDocumentoAsync(string documento, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosConsultaDocumento>($"api/documentos/{Uri.EscapeDataString(documento)}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
 
     public async Task<DatosEstadoSincronizacion?> ObtenerEstadoSincronizacionAsync(CancellationToken cancelacion = default)
     {
@@ -111,6 +166,31 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         catch (HttpRequestException)
         {
             return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosArticuloResumen>>("api/articulos/catalogo", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Imágenes y mensaje para la pantalla del cliente (no requiere sesión).</summary>
+    public async Task<DatosPublicidad?> ObtenerPublicidadAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosPublicidad>("api/pantallas/publicidad", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
         }
     }
 

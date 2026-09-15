@@ -1,4 +1,5 @@
 using CgPos.Contratos.Seguridad;
+using CgPos.Contratos.Ventas;
 using CgPos.Pos.Web.Componentes;
 using MudBlazor;
 
@@ -26,5 +27,23 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
         var resultado = await referencia.Result;
 
         return resultado is { Canceled: false, Data: RespuestaAutorizacion respuesta } ? respuesta : null;
+    }
+
+    /// <summary>
+    /// Ejecuta una operación de venta; si el Agente responde que requiere autorización, la pide al supervisor y reintenta con ella.
+    /// </summary>
+    /// <returns>La respuesta final, o nulo si el usuario canceló la autorización.</returns>
+    public async Task<RespuestaVenta?> EjecutarVentaAsync(Func<Guid?, Task<RespuestaVenta>> operacion, string descripcion, string? numeroTransaccion)
+    {
+        var respuesta = await operacion(null);
+        if (respuesta.Resultado is not (CodigoResultadoVenta.RequiereAutorizacion or CodigoResultadoVenta.AutorizacionInvalida)
+            || respuesta.PermisoRequerido is not { } permiso)
+            return respuesta;
+
+        var autorizacion = await SolicitarAsync(permiso, descripcion, "Venta", numeroTransaccion);
+        if (autorizacion is null)
+            return null;
+
+        return autorizacion.AutorizacionId is { } autorizacionId ? await operacion(autorizacionId) : respuesta;
     }
 }

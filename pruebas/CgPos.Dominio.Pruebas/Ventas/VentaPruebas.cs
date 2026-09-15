@@ -1,4 +1,5 @@
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 
@@ -182,6 +183,129 @@ public class VentaPruebas
         var sinPrecio = Cincel() with { PrecioDetalle = null };
 
         Assert.Equal(CodigoErrorVenta.SinPrecio, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(sinPrecio, null, Ahora)).Codigo);
+    }
+
+    [Fact]
+    public void Cliente_con_rnc_toma_su_comprobante_y_al_quitarlo_vuelve_a_consumidor_final()
+    {
+        var venta = NuevaVenta();
+
+        venta.AsignarCliente(new ClienteVenta(Guid.CreateVersion7(), TipoDocumentoIdentidad.Rnc, "131-24679-6", "Constructora Ejemplo SRL",
+            TipoComprobante.FacturaCreditoFiscal), Ahora);
+
+        Assert.Equal("131246796", venta.ClienteDocumento);
+        Assert.Equal(TipoComprobante.FacturaCreditoFiscal, venta.TipoComprobante);
+
+        venta.QuitarCliente(Ahora);
+        Assert.Null(venta.ClienteNombre);
+        Assert.Equal(TipoComprobante.FacturaConsumo, venta.TipoComprobante);
+    }
+
+    [Fact]
+    public void Comprobante_valida_el_documento_que_exige_cada_tipo()
+    {
+        var venta = NuevaVenta();
+
+        Assert.Equal(CodigoErrorVenta.DocumentoRequerido,
+            Assert.Throws<ReglaVentaExcepcion>(() => venta.CambiarComprobante(TipoComprobante.FacturaCreditoFiscal, Ahora)).Codigo);
+        Assert.Equal(CodigoErrorVenta.ComprobanteNoPermitido,
+            Assert.Throws<ReglaVentaExcepcion>(() => venta.CambiarComprobante(TipoComprobante.NotaCredito, Ahora)).Codigo);
+
+        // Con cédula: crédito fiscal sí, gubernamental no (exige RNC).
+        venta.AsignarCliente(new ClienteVenta(null, TipoDocumentoIdentidad.Cedula, "001-1391820-5", "Juan Pérez", TipoComprobante.Gubernamental), Ahora);
+        Assert.Equal(TipoComprobante.FacturaConsumo, venta.TipoComprobante); // su predeterminado no aplica sin RNC
+
+        venta.CambiarComprobante(TipoComprobante.FacturaCreditoFiscal, Ahora);
+        Assert.Equal(TipoComprobante.FacturaCreditoFiscal, venta.TipoComprobante);
+        Assert.Equal(CodigoErrorVenta.DocumentoRequerido,
+            Assert.Throws<ReglaVentaExcepcion>(() => venta.CambiarComprobante(TipoComprobante.Gubernamental, Ahora)).Codigo);
+    }
+
+    [Fact]
+    public void Factura_de_consumo_desde_el_monto_minimo_exige_identificacion()
+    {
+        var venta = NuevaVenta();
+        venta.AgregarArticulo(Cemento(), 600m, Ahora); // 600 × 450 = 270,000
+
+        Assert.True(venta.RequiereIdentificacion(ReglasComprobante.MontoIdentificacionConsumoPredeterminado));
+        Assert.False(venta.RequiereIdentificacion(300_000m));
+
+        venta.AsignarCliente(new ClienteVenta(null, TipoDocumentoIdentidad.Cedula, "00113918205", "Cliente con cédula", TipoComprobante.FacturaConsumo), Ahora);
+        Assert.False(venta.RequiereIdentificacion(ReglasComprobante.MontoIdentificacionConsumoPredeterminado));
+    }
+
+    [Fact]
+    public void Limite_de_compra_avisa_cuando_el_total_lo_supera()
+    {
+        var venta = NuevaVenta();
+        venta.EstablecerLimiteCompra(1000m, Ahora);
+        venta.AgregarArticulo(Cincel(), null, Ahora);
+
+        Assert.False(venta.LimiteCompraExcedido());
+
+        venta.AgregarArticulo(Cemento(), null, Ahora);
+        Assert.True(venta.LimiteCompraExcedido());
+
+        Assert.Equal(CodigoErrorVenta.CantidadInvalida, Assert.Throws<ReglaVentaExcepcion>(() => venta.EstablecerLimiteCompra(0m, Ahora)).Codigo);
+        venta.EstablecerLimiteCompra(null, Ahora);
+        Assert.False(venta.LimiteCompraExcedido());
+    }
+
+    [Fact]
+    public void Venta_en_espera_no_se_modifica_hasta_retomarla_y_no_se_guarda_vacia()
+    {
+        var vacia = NuevaVenta();
+        Assert.Equal(CodigoErrorVenta.SinLineas, Assert.Throws<ReglaVentaExcepcion>(() => vacia.PonerEnEspera(Ahora)).Codigo);
+
+        var venta = NuevaVenta();
+        venta.AgregarArticulo(Cincel(), null, Ahora);
+        venta.PonerEnEspera(Ahora);
+
+        Assert.Equal(EstadoVenta.EnEspera, venta.Estado);
+        Assert.Equal(Ahora, venta.PuestaEnEsperaEn);
+        Assert.Equal(CodigoErrorVenta.VentaNoEditable, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(Cincel(), null, Ahora)).Codigo);
+
+        venta.Retomar(Ahora.AddMinutes(5));
+        Assert.Equal(EstadoVenta.EnCurso, venta.Estado);
+        Assert.Null(venta.PuestaEnEsperaEn);
+        venta.AgregarArticulo(Cincel(), null, Ahora);
+        Assert.Equal(1700m, venta.CalcularTotales().Total);
+    }
+
+    [Fact]
+    public void Serializado_exige_serial_unico_y_se_vende_de_uno_en_uno()
+    {
+        var venta = NuevaVenta();
+        var taladro = Cincel() with { Tipo = TipoArticulo.Serializado, Descripcion = "Taladro inalámbrico" };
+
+        Assert.Equal(CodigoErrorVenta.RequiereSerial, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(taladro, null, Ahora)).Codigo);
+        Assert.Equal(CodigoErrorVenta.CantidadInvalida, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(taladro, 2m, Ahora, "SN-1")).Codigo);
+
+        var linea = venta.AgregarArticulo(taladro, null, Ahora, " sn-001 ");
+        Assert.Equal("SN-001", linea.Serial);
+        Assert.Equal(CodigoErrorVenta.SerialDuplicado, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(taladro, null, Ahora, "SN-001")).Codigo);
+        Assert.Equal(CodigoErrorVenta.CantidadInvalida, Assert.Throws<ReglaVentaExcepcion>(() => venta.CambiarCantidad(linea.NumeroLinea, 2m, Ahora)).Codigo);
+
+        // Al eliminar la línea, el serial queda libre para volver a escanearlo.
+        var reverso = venta.EliminarLinea(linea.NumeroLinea, Ahora);
+        Assert.Equal("SN-001", reverso.Serial);
+        venta.AgregarArticulo(taladro, null, Ahora, "SN-001");
+
+        // A un artículo normal no se le guarda serial.
+        Assert.Null(venta.AgregarArticulo(Cincel(), null, Ahora, "IGNORADO").Serial);
+    }
+
+    [Theory]
+    [InlineData(2.500, 0.150, 2.350)]
+    [InlineData(1.2345, null, 1.235)]
+    public void Peso_neto_descuenta_la_tara_del_empaque(decimal bruto, double? tara, decimal esperado) =>
+        Assert.Equal(esperado, ReglasBalanza.PesoNeto(bruto, (decimal?)tara));
+
+    [Fact]
+    public void Peso_neto_nulo_si_la_tara_iguala_o_supera_el_peso()
+    {
+        Assert.Null(ReglasBalanza.PesoNeto(0.150m, 0.150m));
+        Assert.Null(ReglasBalanza.PesoNeto(0m, null));
     }
 
     [Fact]

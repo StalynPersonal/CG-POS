@@ -1,8 +1,10 @@
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Catalogo;
+using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Catalogo;
+using CgPos.Pos.Infraestructura.Perifericos;
 using CgPos.Pos.Infraestructura.Ventas;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
@@ -64,6 +66,9 @@ public static class InyeccionDependencias
         servicios.AddScoped<IConsultaDocumentos, ConsultaDocumentos>();
         servicios.AddScoped<IConsultaCatalogoCobro, ConsultaCatalogoCobro>();
         servicios.AddScoped<IServicioPrecios, ServicioPrecios>();
+
+        // Periféricos (simulados hasta definir modelos)
+        servicios.AddSingleton<IBalanza>(new BalanzaSimulada(configuracion));
 
         // Turnos y ventas (M13, M05)
         servicios.AddScoped<GeneradorSecuencias>();

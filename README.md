@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII) y C3 (apertura de turno y pantalla de venta base) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base) y C4 (venta avanzada y pantalla del cliente) completadas.
 
 ## Stack
 
@@ -121,6 +121,23 @@ En la pantalla de venta:
 | `GET /api/sincronizacion/estado` | Indicador de conexión y documentos pendientes |
 
 Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resultado`, `mensaje` y la venta actual.
+
+### Venta avanzada
+
+- **Cliente y comprobante (F12 o tocar el encabezado):** RNC o cédula contra el padrón DGII y los clientes registrados. Si no está en ninguno se pide el nombre. El comprobante toma el habitual del cliente (E31/E32/E44/E45); cambiarlo a mano requiere permiso. E31 y E44 exigen RNC o cédula; E45, RNC.
+- **Identificación obligatoria:** una factura de consumo desde `Fiscal.MontoIdentificacionConsumo` (RD$250,000 por defecto) muestra el aviso hasta asignar cédula o RNC.
+- **Límite de compra (F3):** avisa cuando el total supera el monto que pidió el cliente.
+- **Facturas en espera (F7):** quedan ligadas al cajero y al turno; al retomar una, la actual pasa a espera.
+- **Anular** (con motivo) y **Suspender** (bloquea la pantalla hasta digitar el PIN) están en la segunda página de teclas y requieren permiso o autorización de supervisor.
+- **Serializados:** al escanearlos se pide el serial; no se repite en la misma venta.
+- **Balanza (F5):** un pesado sin etiqueta toma el peso estable de la balanza menos la tara del artículo. En desarrollo la balanza está simulada (`Perifericos:BalanzaSimulada:Peso`).
+- **Catálogo en mosaicos:** botón junto al campo de escaneo; muestra los artículos con `mostrarEnCatalogo`.
+
+### Pantalla del cliente y monitores
+
+- `http://localhost:5180/cliente` muestra artículos, totales y un carrusel de publicidad en tiempo real (SignalR), sin iniciar sesión. Sin venta en curso muestra la bienvenida.
+- Las imágenes (png, jpg, webp o svg) se toman de `Pantallas:CarpetaPublicidad` (`C:\CGPOS\Publicidad` en producción; `datos/publicidad` en desarrollo). El intervalo se configura con `Pantallas:SegundosPorImagen` y el texto con `Pantallas:MensajeBienvenida`.
+- `scripts/caja/abrir-pantallas.ps1 -MonitorCajero 1 -MonitorCliente 2 [-MonitorDevoluciones 3]` abre cada pantalla en modo kiosco en su monitor (numerados de izquierda a derecha).
 
 Las migraciones se aplican solas al arrancar. Para aplicarlas manualmente:
 

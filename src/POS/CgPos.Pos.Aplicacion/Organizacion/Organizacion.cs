@@ -38,6 +38,9 @@ public static class ClavesParametros
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
     public const string FondoPredeterminado = "Caja.FondoPredeterminado";
 
+    /// <summary>Total desde el cual la factura de consumo exige cédula o RNC (RF-26, RF-171). Por defecto 250000.</summary>
+    public const string MontoIdentificacionConsumo = "Fiscal.MontoIdentificacionConsumo";
+
     // Etiquetas de balanza (RF-180)
     public const string BalanzaPrefijoPeso = "Balanza.PrefijoPeso";
     public const string BalanzaPrefijoPrecio = "Balanza.PrefijoPrecio";

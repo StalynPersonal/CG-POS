@@ -1,4 +1,5 @@
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Fiscal;
 using CgPos.Pos.Aplicacion.Seguridad;
 
 namespace CgPos.Pos.Aplicacion.Ventas;
@@ -20,7 +21,10 @@ public interface IServicioVentas
     /// <summary>Devuelve la venta en curso del usuario en su turno; si no hay, inicia una nueva.</summary>
     Task<RespuestaVenta> ObtenerActualAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
-    Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, CancellationToken cancelacion = default);
+    Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, string? serial = null, CancellationToken cancelacion = default);
+
+    /// <summary>Agrega un artículo pesado con el peso estable de la balanza menos su tara (RF-19, RF-196).</summary>
+    Task<RespuestaVenta> AgregarDesdeBalanzaAsync(SesionUsuario sesion, Guid ventaId, string codigo, CancellationToken cancelacion = default);
 
     Task<RespuestaVenta> CambiarCantidadAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default);
 
@@ -30,6 +34,33 @@ public interface IServicioVentas
 
     /// <summary>Limpia la pantalla: anula la venta en curso y empieza una nueva (RF-146).</summary>
     Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, Guid ventaId, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Asigna el cliente por RNC/cédula: registrado, del padrón DGII o, si no está en ninguno, con el nombre indicado (RF-13, RF-181).
+    /// El comprobante pasa al habitual del cliente sin pedir autorización.
+    /// </summary>
+    Task<RespuestaVenta> AsignarClienteAsync(SesionUsuario sesion, Guid ventaId, string documento, string? nombre, CancellationToken cancelacion = default);
+
+    Task<RespuestaVenta> QuitarClienteAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
+    /// <summary>Cambiar el comprobante a mano requiere permiso (RF-108, RF-127).</summary>
+    Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    Task<RespuestaVenta> EstablecerLimiteCompraAsync(SesionUsuario sesion, Guid ventaId, decimal? limite, CancellationToken cancelacion = default);
+
+    /// <summary>Pone la venta en espera y empieza otra (RF-22).</summary>
+    Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
+    Task<IReadOnlyList<DatosVentaEnEspera>> ListarEnEsperaAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
+
+    /// <summary>Retoma una venta en espera del cajero en su turno; la venta en curso pasa a espera (o se descarta si está vacía).</summary>
+    Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
+    /// <summary>Anula la transacción con motivo y autorización; no consume NCF (RF-194).</summary>
+    Task<RespuestaVenta> AnularAsync(SesionUsuario sesion, Guid ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    /// <summary>Suspende las operaciones de la caja (bloqueo de pantalla) con permiso o clave de supervisor (RF-23).</summary>
+    Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
 }
 
 public sealed record ResultadoPermiso(bool Permitido, bool PorAutorizacion, bool AutorizacionRechazada, Guid? SupervisorId, string? SupervisorNombre, string? Motivo)

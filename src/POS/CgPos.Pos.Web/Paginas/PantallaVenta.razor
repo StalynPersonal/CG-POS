@@ -26,6 +26,11 @@ else if (_venta is null)
                         NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
                         AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" />
 }
+else if (_suspendida)
+{
+    <PanelSuspension CodigoUsuario="@(Almacen.Sesion?.Codigo ?? string.Empty)" NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
+                     AlReanudar="ReanudarAsync" AlSalir="SalirAsync" />
+}
 else
 {
     <div class="cg-venta">
@@ -37,22 +42,26 @@ else
         </div>
 
         <header class="cg-venta__encabezado">
-            <section class="cg-venta__bloque cg-venta__marca">
+            <section class="cg-venta__bloque cg-venta__marca cg-venta__tocable" title="Cliente y comprobante (F12)" @onclick="AbrirClienteAsync">
                 <div class="cg-venta__logo">CG</div>
-                <div class="cg-venta__ncf">NCF consumidor final</div>
+                <div class="cg-venta__ncf">E@((int)_venta.TipoComprobante) · @ReglasComprobante.Nombre(_venta.TipoComprobante)</div>
             </section>
 
             <section class="cg-venta__bloque cg-venta__cliente">
-                <div>
-                    <div class="cg-venta__etiqueta">Código de cliente · ID</div>
-                    <div class="cg-venta__valor">—</div>
+                <div class="cg-venta__tocable" title="Cliente y comprobante (F12)" @onclick="AbrirClienteAsync">
+                    <div class="cg-venta__etiqueta">@EtiquetaDocumento(_venta.Cliente?.TipoDocumento)</div>
+                    <div class="cg-venta__valor">@(_venta.Cliente?.Documento ?? "—")</div>
                     <div class="cg-venta__etiqueta">Nombre del cliente</div>
-                    <div class="cg-venta__cliente-nombre">Cliente contado</div>
+                    <div class="cg-venta__cliente-nombre @(_venta.Cliente is null ? null : "cg-venta__cliente-nombre--asignado")">@(_venta.Cliente?.Nombre ?? "Cliente contado")</div>
                 </div>
                 <div class="cg-venta__transaccion">
                     <div class="cg-venta__etiqueta">Transacción Nº</div>
                     <div class="cg-venta__numero">@_venta.NumeroTransaccion</div>
                     <div class="cg-venta__etiqueta">@_venta.Totales.CantidadArticulos.ToString("0.###") artículos</div>
+                    @if (_venta.LimiteCompra is { } limite)
+                    {
+                        <div class="cg-venta__etiqueta @(_venta.LimiteCompraExcedido ? "cg-venta__limite--excedido" : null)">Límite RD$@limite.ToString("N2")</div>
+                    }
                 </div>
             </section>
 
@@ -68,12 +77,25 @@ else
             <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false"
                    placeholder="@(_modoEliminar ? "Escanee el artículo a eliminar · Esc para salir" : "Escanee o digite el código · cantidad*código")"
                    value="@_entrada" @oninput="evento => _entrada = evento.Value?.ToString() ?? string.Empty" @onkeydown="AlTeclearAsync" />
+            <MudIconButton Icon="@Icons.Material.Filled.GridView" Size="Size.Large" Color="Color.Primary" OnClick="AbrirCatalogoAsync" aria-label="Catálogo en mosaicos" />
             <MudIconButton Icon="@Icons.Material.Filled.Keyboard" Size="Size.Large" Color="Color.Primary" OnClick="DigitarCodigoAsync" aria-label="Teclado en pantalla" />
         </div>
 
         @if (_mensaje is not null)
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
+        }
+        @if (_venta.RequiereIdentificacion)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="cg-venta__aviso">
+                Factura de consumo desde RD$@_venta.MontoIdentificacion.ToString("N2"): la DGII exige la cédula o el RNC del cliente (F12).
+            </MudAlert>
+        }
+        @if (_venta.LimiteCompraExcedido)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="cg-venta__aviso">
+                El total superó el límite de compra de RD$@_venta.LimiteCompra!.Value.ToString("N2") que indicó el cliente.
+            </MudAlert>
         }
 
         <div class="cg-venta__lineas">
@@ -114,6 +136,10 @@ else
                         {
                             <div class="cg-venta__nota">Anula la línea @linea.LineaAnuladaNumero</div>
                         }
+                        @if (linea.Serial is not null)
+                        {
+                            <div class="cg-venta__nota">Serial @linea.Serial</div>
+                        }
                     </MudTd>
                     <MudTd Class="@ClaseCelda(linea)">@linea.UnidadMedidaCodigo</MudTd>
                     <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">
@@ -145,24 +171,26 @@ else
         <BarraTeclasFuncion @ref="_barra">
             <PaginaPrincipal>
                 <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" AlPresionar="BuscarArticuloAsync" />
-                <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" AlPresionar="EstablecerLimiteAsync" />
                 <TeclaFuncion Atajo="F4" Texto="Cantidad" Icono="@Icons.Material.Filled.Numbers" AlPresionar="CambiarCantidadSeleccionadaAsync" />
-                <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" AlPresionar="PesarAsync" />
                 <TeclaFuncion Atajo="F6" Texto="Reintegro" Icono="@Icons.Material.Filled.Autorenew" Deshabilitada="true" />
-                <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="AbrirEsperaAsync" />
                 <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" Deshabilitada="true" />
                 <TeclaFuncion Atajo="F9" Texto="Suspender" Icono="@Icons.Material.Filled.DesktopAccessDisabled" Deshabilitada="true" />
                 <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" Deshabilitada="true" />
                 <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="ConsultarPrecioAsync" />
-                <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" AlPresionar="AbrirClienteAsync" />
             </PaginaPrincipal>
             <PaginaSecundaria>
+                <TeclaFuncion Texto="Catálogo" Icono="@Icons.Material.Filled.GridView" AlPresionar="AbrirCatalogoAsync" />
                 <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="EliminarSeleccionadaAsync" />
                 <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="AlternarModoEliminar" />
                 <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="LimpiarAsync" />
                 <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" Deshabilitada="true" />
                 <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" Deshabilitada="true" />
-                <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" Deshabilitada="true" />
+                <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="AnularAsync" />
+                <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
                 <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="SalirAsync" />
             </PaginaSecundaria>
         </BarraTeclasFuncion>
@@ -201,6 +229,7 @@ else
     private int? _numeroSeleccionado;
     private bool _cargando = true;
     private bool _procesando;
+    private bool _suspendida;
     private bool _modoEliminar;
     private bool _dialogoAbierto;
     private bool _enfocar = true;
@@ -287,8 +316,47 @@ else
             await AgregarAsync(codigo);
     }
 
-    private Task AgregarAsync(string codigo) =>
-        EnColaAsync(async () => AplicarRespuesta(await Cliente.AgregarArticuloAsync(_venta!.Id, codigo), seleccionarUltima: true));
+    private async Task AgregarAsync(string codigo)
+    {
+        var respuesta = await EnColaConResultadoAsync(() => Cliente.AgregarArticuloAsync(_venta!.Id, codigo));
+
+        // Serializado: se pide el serial y se reintenta (RF-17). Pesado sin etiqueta: se toma el peso de la balanza (RF-19).
+        if (respuesta.Resultado == CodigoResultadoVenta.RequiereSerial)
+        {
+            _mensaje = null;
+            var serial = await PedirTextoAsync("Serial del artículo", respuesta.Mensaje ?? "Serial", ayuda: "Escanee el número de serie de la etiqueta del artículo.",
+                decimales: false, modo: ModoTeclado.Alfanumerico);
+            if (serial is null)
+                return;
+
+            respuesta = await EnColaConResultadoAsync(() => Cliente.AgregarArticuloAsync(_venta!.Id, codigo, serial: serial));
+        }
+        else if (respuesta.Resultado == CodigoResultadoVenta.RequiereBalanza && !codigo.Contains('*'))
+        {
+            respuesta = await EnColaConResultadoAsync(() => Cliente.AgregarDesdeBalanzaAsync(_venta!.Id, codigo));
+        }
+
+        AplicarRespuesta(respuesta, seleccionarUltima: true);
+    }
+
+    /// <summary>F5: pesa en la balanza el artículo cuyo código está escrito en el campo, o lo pide.</summary>
+    private async Task PesarAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var codigo = _entrada.Trim();
+        _entrada = string.Empty;
+        if (codigo.Length == 0)
+        {
+            codigo = await PedirTextoAsync("Pesar en balanza", "Código del artículo (PLU)", ayuda: "Coloque el producto en la balanza y digite su código.",
+                decimales: false) ?? string.Empty;
+            if (codigo.Length == 0)
+                return;
+        }
+
+        await EnColaAsync(async () => AplicarRespuesta(await Cliente.AgregarDesdeBalanzaAsync(_venta!.Id, codigo), seleccionarUltima: true));
+    }
 
     private async Task DigitarCodigoAsync()
     {
@@ -311,6 +379,17 @@ else
         var codigo = await MostrarDialogoAsync<DialogoBusquedaArticulo, string>("Buscar artículo", [], MaxWidth.Large);
         if (codigo is not null)
             await AgregarAsync(codigo);
+    }
+
+    private async Task AbrirCatalogoAsync()
+    {
+        if (_venta is null)
+            return;
+
+        _barra?.MostrarPrincipal();
+        var codigo = await MostrarDialogoAsync<DialogoCatalogo, string>("Catálogo", [], MaxWidth.ExtraLarge);
+        if (codigo is not null)
+            await AgregarAsync(codigo); // un pesado toma el peso de la balanza automáticamente
     }
 
     private async Task ConsultarPrecioAsync() =>
@@ -415,42 +494,144 @@ else
     }
 
     /// <summary>Ejecuta la operación; si el Agente pide autorización, la solicita al supervisor y reintenta con ella.</summary>
-    private Task EjecutarConAutorizacionAsync(Func<Guid?, Task<RespuestaVenta>> operacion, string descripcion) =>
-        EnColaAsync(async () =>
+    private Task<RespuestaVenta?> EjecutarConAutorizacionAsync(Func<Guid?, Task<RespuestaVenta>> operacion, string descripcion) =>
+        EnColaConResultadoAsync(async () =>
         {
-            var respuesta = await operacion(null);
-
-            if (respuesta.Resultado is CodigoResultadoVenta.RequiereAutorizacion or CodigoResultadoVenta.AutorizacionInvalida
-                && respuesta.PermisoRequerido is { } permiso)
+            RespuestaVenta? respuesta;
+            _dialogoAbierto = true;
+            try
             {
-                _dialogoAbierto = true;
-                var autorizacion = await Autorizaciones.SolicitarAsync(permiso, descripcion, "Venta", _venta?.NumeroTransaccion);
+                respuesta = await Autorizaciones.EjecutarVentaAsync(operacion, descripcion, _venta?.NumeroTransaccion);
+            }
+            finally
+            {
                 _dialogoAbierto = false;
+            }
 
-                if (autorizacion is null)
-                {
-                    _mensaje = null;
-                    return;
-                }
-
-                if (autorizacion.AutorizacionId is { } autorizacionId)
-                    respuesta = await operacion(autorizacionId);
+            if (respuesta is null)
+            {
+                _mensaje = null;
+                return null;
             }
 
             AplicarRespuesta(respuesta);
             _modoEliminar = _modoEliminar && respuesta.Exitosa is false;
+            return respuesta;
         });
+
+    // ---------- Cliente, límite, espera, anular y suspender ----------
+
+    private async Task AbrirClienteAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var parametros = new DialogParameters<DialogoCliente> { { dialogo => dialogo.Venta, _venta } };
+        var venta = await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Medium);
+
+        // Los cambios ya quedaron en el Agente: si el diálogo se cerró con Esc, se relee la venta.
+        if (venta is not null)
+            _venta = venta;
+        else
+            await EnColaAsync(async () => AplicarRespuesta(await Cliente.ObtenerVentaActualAsync()));
+    }
+
+    private async Task EstablecerLimiteAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var texto = await PedirTextoAsync("Límite de compra", "Monto límite en RD$ (0 para quitarlo)",
+            valorInicial: _venta.LimiteCompra?.ToString("0.##", CultureInfo.InvariantCulture) ?? string.Empty);
+        if (texto is null)
+            return;
+
+        decimal? limite = decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var monto) && monto > 0 ? monto : null;
+        await EnColaAsync(async () => AplicarRespuesta(await Cliente.EstablecerLimiteCompraAsync(_venta!.Id, limite)));
+    }
+
+    private async Task AbrirEsperaAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var parametros = new DialogParameters<DialogoEspera> { { dialogo => dialogo.Venta, _venta } };
+        var venta = await MostrarDialogoAsync<DialogoEspera, DatosVenta>("Facturas en espera", parametros, MaxWidth.Medium);
+        if (venta is null)
+            return;
+
+        _venta = venta;
+        _mensaje = null;
+        _numeroSeleccionado = null;
+        _codigosInternos.Clear();
+    }
+
+    private async Task AnularAsync()
+    {
+        if (_venta is null || _venta.Lineas.Count == 0)
+        {
+            _mensaje = "No hay artículos que anular.";
+            return;
+        }
+
+        // Con permiso propio se pide el motivo aquí; si no, el supervisor lo indica al autorizar.
+        string? motivo = null;
+        if (Almacen.TienePermiso(CatalogoPermisos.AnularVenta))
+        {
+            motivo = await PedirTextoAsync($"Anular la transacción {_venta.NumeroTransaccion}", "Motivo de la anulación", modo: ModoTeclado.Alfanumerico);
+            if (motivo is null)
+                return;
+        }
+
+        _barra?.MostrarPrincipal();
+        await EjecutarConAutorizacionAsync(
+            autorizacion => Cliente.AnularVentaAsync(_venta!.Id, motivo, autorizacion),
+            $"Anular la transacción {_venta.NumeroTransaccion} por RD${_venta.Totales.Total:N2}");
+        _codigosInternos.Clear();
+    }
+
+    private async Task SuspenderAsync()
+    {
+        var respuesta = await EjecutarConAutorizacionAsync(autorizacion => Cliente.SuspenderCajaAsync(autorizacion), "Suspender las operaciones de la caja");
+        if (respuesta is { Exitosa: true })
+        {
+            _barra?.MostrarPrincipal();
+            _suspendida = true;
+        }
+    }
+
+    private Task ReanudarAsync()
+    {
+        _suspendida = false;
+        _enfocar = true;
+        return Task.CompletedTask;
+    }
+
+    private static string EtiquetaDocumento(TipoDocumentoIdentidad? tipo) => tipo switch
+    {
+        TipoDocumentoIdentidad.Rnc => "RNC",
+        TipoDocumentoIdentidad.Cedula => "Cédula",
+        TipoDocumentoIdentidad.Pasaporte => "Pasaporte",
+        _ => "Código de cliente · ID",
+    };
 
     // ---------- Soporte ----------
 
-    private async Task EnColaAsync(Func<Task> accion)
+    private Task EnColaAsync(Func<Task> accion) =>
+        EnColaConResultadoAsync<object?>(async () =>
+        {
+            await accion();
+            return null;
+        });
+
+    private async Task<TResultado> EnColaConResultadoAsync<TResultado>(Func<Task<TResultado>> accion)
     {
         // Lecturas seguidas del escáner se procesan en orden, sin pisarse.
         await _cola.WaitAsync();
         try
         {
             _procesando = true;
-            await accion();
+            return await accion();
         }
         finally
         {
@@ -479,7 +660,8 @@ else
             _numeroSeleccionado = _venta.Lineas.Where(linea => !linea.EsReverso).Select(linea => (int?)linea.NumeroLinea).Max();
     }
 
-    private async Task<string?> PedirTextoAsync(string titulo, string etiqueta, string valorInicial = "", string? ayuda = null, bool decimales = true)
+    private async Task<string?> PedirTextoAsync(string titulo, string etiqueta, string valorInicial = "", string? ayuda = null, bool decimales = true,
+        ModoTeclado modo = ModoTeclado.Numerico)
     {
         var parametros = new DialogParameters<DialogoTeclado>
         {
@@ -487,9 +669,11 @@ else
             { dialogo => dialogo.ValorInicial, valorInicial },
             { dialogo => dialogo.Ayuda, ayuda },
             { dialogo => dialogo.PermitirDecimal, decimales },
+            { dialogo => dialogo.Modo, modo },
+            { dialogo => dialogo.PermitirCambioModo, modo == ModoTeclado.Alfanumerico },
         };
 
-        return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, MaxWidth.Small);
+        return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, modo == ModoTeclado.Alfanumerico ? MaxWidth.Medium : MaxWidth.Small);
     }
 
     private async Task<TResultado?> MostrarDialogoAsync<TDialogo, TResultado>(string titulo, DialogParameters parametros, MaxWidth ancho)
@@ -522,8 +706,12 @@ else
         var accion = tecla switch
         {
             "F2" => BuscarArticuloAsync(),
+            "F3" => EstablecerLimiteAsync(),
             "F4" => CambiarCantidadSeleccionadaAsync(),
+            "F5" => PesarAsync(),
+            "F7" => AbrirEsperaAsync(),
             "F11" => ConsultarPrecioAsync(),
+            "F12" => AbrirClienteAsync(),
             "Escape" => SalirDeModosAsync(),
             _ => Task.CompletedTask,
         };

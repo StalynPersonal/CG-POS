@@ -48,7 +48,8 @@ public sealed record ArticuloCarga(
     bool MostrarEnCatalogo = false,
     bool VentaEnPos = true,
     bool Activo = true,
-    DateTimeOffset? PreciosVigentesDesde = null);
+    DateTimeOffset? PreciosVigentesDesde = null,
+    decimal? Tara = null);
 
 public sealed record ClienteCarga(
     Guid Id,
@@ -130,7 +131,8 @@ public sealed record DatosArticuloVenta(
     decimal? PrecioMinimo,
     decimal? PesoLeido,
     decimal? PrecioLeido,
-    string? RutaImagen);
+    string? RutaImagen,
+    decimal? Tara = null);
 
 public sealed record DatosArticuloResumen(
     Guid ArticuloId,

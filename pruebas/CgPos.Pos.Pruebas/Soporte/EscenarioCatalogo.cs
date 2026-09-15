@@ -43,6 +43,9 @@ public sealed class EscenarioCatalogo
     public string CodigoCemento => $"CEM-{Sufijo}";
     public string BarrasCemento { get; } = CodigoBarrasAleatorio();
     public string CodigoCombo => $"KIT-{Sufijo}";
+    public Guid ArticuloTaladro { get; } = Guid.CreateVersion7();
+    public string CodigoTaladro => $"TAL-{Sufijo}";
+    public const decimal TaraCebolla = 0.050m;
     public string PluTomate { get; } = PluAleatorio();
     public string PluCebolla { get; } = PluAleatorio();
     public string CodigoInactivo => $"INA-{Sufijo}";
@@ -77,7 +80,9 @@ public sealed class EscenarioCatalogo
                 new ArticuloCarga(ArticuloTomate, PluTomate, $"Tomate {Sufijo}", FamiliaVegetales, UnidadLibra, ImpuestoExento, 45m,
                     Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios),
                 new ArticuloCarga(ArticuloCebolla, PluCebolla, $"Cebolla {Sufijo}", FamiliaVegetales, UnidadLibra, ImpuestoExento, 55m,
-                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios),
+                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, Tara: TaraCebolla),
+                new ArticuloCarga(ArticuloTaladro, CodigoTaladro, $"Taladro inalámbrico {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 6950m,
+                    Tipo: TipoArticulo.Serializado, PreciosVigentesDesde: vigenciaPrecios),
                 new ArticuloCarga(ArticuloInactivo, CodigoInactivo, $"Artículo descontinuado {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
                     Activo: false, PreciosVigentesDesde: vigenciaPrecios),
                 new ArticuloCarga(ArticuloFueraDePos, CodigoFueraDePos, $"Artículo solo almacén {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,

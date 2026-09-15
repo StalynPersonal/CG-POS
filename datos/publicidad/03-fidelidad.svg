@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <rect width="1280" height="720" fill="#123629"/>
+  <circle cx="200" cy="600" r="260" fill="#2e7d32" opacity=".35"/>
+  <text x="640" y="260" text-anchor="middle" font-family="Segoe UI, Arial" font-size="70" font-weight="800" fill="#ffffff">Acumule puntos</text>
+  <text x="640" y="360" text-anchor="middle" font-family="Segoe UI, Arial" font-size="48" fill="#e8f5e9">con su cédula en cada compra</text>
+  <rect x="390" y="440" width="500" height="100" rx="50" fill="#e8f5e9"/>
+  <text x="640" y="506" text-anchor="middle" font-family="Segoe UI, Arial" font-size="44" font-weight="700" fill="#123629">Programa de fidelidad</text>
+</svg>

@@ -233,6 +233,7 @@ internal sealed class ServicioCargaMaestros(
 
         articulo.ActualizarDatos(dato.Descripcion, dato.Referencia, dato.FamiliaId, dato.UnidadMedidaId, dato.ImpuestoId, dato.Tipo);
         articulo.ConfigurarPrecios(dato.Costo, dato.PrecioMinimo, dato.CantidadMinimaMayor);
+        articulo.ConfigurarTara(dato.Tara);
         articulo.ConfigurarPresentacion(dato.RutaImagen, dato.MostrarEnCatalogo, dato.VentaEnPos);
         articulo.ReemplazarCodigos(
             (dato.CodigosBarras ?? []).Select(c => (c, TipoCodigoArticulo.Barras))

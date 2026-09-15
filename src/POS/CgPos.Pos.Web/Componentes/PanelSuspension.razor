@@ -1,0 +1,72 @@
+@* Caja suspendida (RF-23): la pantalla queda bloqueada hasta que el mismo cajero digite su PIN. La venta en curso se conserva. *@
+@inject ClienteAgente Cliente
+
+<div class="cg-turno">
+    <MudPaper Elevation="2" Class="cg-turno__tarjeta">
+        <div class="cg-turno__titulo">
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Warning" />
+            <div>
+                <MudText Typo="Typo.h4" Style="font-weight: 700">Caja suspendida</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@NombreUsuario · Caja @CajaCodigo · desde las @_desde.ToString("h:mm tt")</MudText>
+            </div>
+        </div>
+
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@_mensaje</MudAlert>
+        }
+
+        <div class="cg-turno__formulario">
+            <div class="cg-turno__fondo">
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">PIN de @NombreUsuario para reanudar</MudText>
+                <MudTextField T="string" Value="_pin" ValueChanged="valor => _pin = valor" InputType="InputType.Password" Variant="Variant.Outlined"
+                              Immediate="true" AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="cg-campo-activo" />
+                <div class="cg-turno__acciones">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="_procesando" Class="cg-turno__boton"
+                               StartIcon="@Icons.Material.Filled.SwitchAccount">Cambiar de usuario</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="ReanudarAsync" Disabled="_procesando" Class="cg-turno__boton"
+                               StartIcon="@Icons.Material.Filled.LockOpen">Reanudar</MudButton>
+                </div>
+                @if (_procesando)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                }
+            </div>
+            <TecladoTactil @bind-Valor="_pin" AlConfirmar="_ => ReanudarAsync()" PermitirDecimal="false" PermitirCambioModo="false" LongitudMaxima="8" TextoConfirmar="Reanudar" />
+        </div>
+    </MudPaper>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string CodigoUsuario { get; set; } = string.Empty;
+    [Parameter] public string? NombreUsuario { get; set; }
+    [Parameter] public string? CajaCodigo { get; set; }
+    [Parameter] public EventCallback AlReanudar { get; set; }
+    [Parameter] public EventCallback AlSalir { get; set; }
+
+    private readonly DateTime _desde = DateTime.Now;
+    private string _pin = string.Empty;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? ReanudarAsync() : Task.CompletedTask;
+
+    private async Task ReanudarAsync()
+    {
+        if (_procesando || string.IsNullOrEmpty(_pin))
+            return;
+
+        _procesando = true;
+        var respuesta = await Cliente.IngresarConPinAsync(CodigoUsuario, _pin);
+        _procesando = false;
+        _pin = string.Empty;
+
+        if (respuesta.Exitoso)
+        {
+            await AlReanudar.InvokeAsync();
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje ?? "PIN incorrecto.";
+    }
+}

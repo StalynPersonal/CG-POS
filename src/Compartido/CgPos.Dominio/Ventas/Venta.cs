@@ -1,5 +1,6 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Dominio.Ventas;
 
@@ -19,6 +20,11 @@ public enum CodigoErrorVenta
     CantidadInvalida,
     LineaNoEncontrada,
     MotivoRequerido,
+    ComprobanteNoPermitido,
+    DocumentoRequerido,
+    SinLineas,
+    RequiereSerial,
+    SerialDuplicado,
 }
 
 /// <summary>Una regla de la venta impidió la operación; el código permite a la pantalla reaccionar.</summary>
@@ -59,6 +65,54 @@ public sealed record TotalesVenta(
     decimal CantidadArticulos,
     IReadOnlyList<DesgloseImpuesto> Desglose);
 
+/// <summary>Cliente asignado a la venta: registrado, del padrón DGII o solo con documento.</summary>
+public sealed record ClienteVenta(
+    Guid? ClienteId,
+    TipoDocumentoIdentidad? TipoDocumento,
+    string? Documento,
+    string Nombre,
+    TipoComprobante ComprobantePredeterminado);
+
+/// <summary>Qué comprobantes se emiten en una venta de caja y qué documento del comprador exige cada uno (RF-27).</summary>
+public static class ReglasComprobante
+{
+    /// <summary>Por encima de este total, la factura de consumo exige cédula o RNC (RF-26). Configurable por parámetro.</summary>
+    public const decimal MontoIdentificacionConsumoPredeterminado = 250_000m;
+
+    public static IReadOnlyList<TipoComprobante> DeVenta { get; } =
+    [
+        TipoComprobante.FacturaConsumo,
+        TipoComprobante.FacturaCreditoFiscal,
+        TipoComprobante.RegimenesEspeciales,
+        TipoComprobante.Gubernamental,
+    ];
+
+    public static bool EsDeVenta(TipoComprobante tipo) => DeVenta.Contains(tipo);
+
+    /// <summary>Documento que exige el tipo: nulo si no exige ninguno.</summary>
+    public static IReadOnlyList<TipoDocumentoIdentidad>? DocumentosAceptados(TipoComprobante tipo) => tipo switch
+    {
+        TipoComprobante.FacturaCreditoFiscal or TipoComprobante.RegimenesEspeciales => [TipoDocumentoIdentidad.Rnc, TipoDocumentoIdentidad.Cedula],
+        TipoComprobante.Gubernamental => [TipoDocumentoIdentidad.Rnc],
+        _ => null,
+    };
+
+    public static bool ClienteCumple(TipoComprobante tipo, TipoDocumentoIdentidad? tipoDocumento, string? documento) =>
+        DocumentosAceptados(tipo) is not { } aceptados
+        || (!string.IsNullOrEmpty(documento) && tipoDocumento is { } tipoDoc && aceptados.Contains(tipoDoc));
+
+    public static string Nombre(TipoComprobante tipo) => tipo switch
+    {
+        TipoComprobante.FacturaConsumo => "Consumidor final",
+        TipoComprobante.FacturaCreditoFiscal => "Crédito fiscal",
+        TipoComprobante.RegimenesEspeciales => "Régimen especial",
+        TipoComprobante.Gubernamental => "Gubernamental",
+        TipoComprobante.NotaCredito => "Nota de crédito",
+        TipoComprobante.NotaDebito => "Nota de débito",
+        _ => tipo.ToString(),
+    };
+}
+
 /// <summary>
 /// Transacción de venta en la caja. Se guarda en cada cambio para poder recuperarla tras un corte (RF-195).
 /// Su número (sucursal-caja-secuencia) es único e independiente del NCF (RF-193).
@@ -68,6 +122,8 @@ public sealed class Venta : Entidad
     public const int LargoMaximoNumero = 40;
     public const int LargoMaximoMotivo = 500;
     public const int LargoMaximoUsuario = 150;
+    public const int LargoMaximoNombreCliente = 150;
+    public const int LargoMaximoDocumento = 20;
     public const decimal CantidadMaxima = 99_999m;
 
     private readonly List<LineaVenta> _lineas = [];
@@ -90,6 +146,19 @@ public sealed class Venta : Entidad
     public string? MotivoAnulacion { get; private set; }
     public Guid? AnuladaPorId { get; private set; }
     public string? AnuladaPorNombre { get; private set; }
+
+    // Cliente y comprobante (RF-13, RF-27)
+    public Guid? ClienteId { get; private set; }
+    public TipoDocumentoIdentidad? ClienteTipoDocumento { get; private set; }
+    public string? ClienteDocumento { get; private set; }
+    public string? ClienteNombre { get; private set; }
+    public TipoComprobante TipoComprobante { get; private set; } = TipoComprobante.FacturaConsumo;
+
+    /// <summary>Monto tope que pidió el cliente; se avisa al superarlo (RF-18).</summary>
+    public decimal? LimiteCompra { get; private set; }
+
+    /// <summary>Cuándo se puso en espera (RF-22, RF-197).</summary>
+    public DateTimeOffset? PuestaEnEsperaEn { get; private set; }
 
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
@@ -119,15 +188,33 @@ public sealed class Venta : Entidad
 
     /// <summary>
     /// Agrega un artículo. Los pesados toman la cantidad de la etiqueta o balanza (RF-19, RF-20);
+    /// los serializados exigen su serial y van de uno en uno (RF-17);
     /// los demás usan la cantidad indicada o 1, redondeada a los decimales de su unidad (RF-198).
     /// </summary>
-    public LineaVenta AgregarArticulo(ArticuloParaVenta articulo, decimal? cantidadIndicada, DateTimeOffset ahora)
+    public LineaVenta AgregarArticulo(ArticuloParaVenta articulo, decimal? cantidadIndicada, DateTimeOffset ahora, string? serial = null)
     {
         ArgumentNullException.ThrowIfNull(articulo);
         AsegurarEditable();
 
         if (articulo.PrecioDetalle is not { } precioDetalle)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.SinPrecio, $"El artículo {articulo.CodigoInterno} no tiene precio vigente.");
+
+        var serialLimpio = string.IsNullOrWhiteSpace(serial) ? null : serial.Trim().ToUpperInvariant();
+        if (articulo.Tipo == TipoArticulo.Serializado)
+        {
+            if (serialLimpio is null)
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereSerial, $"Escanee el serial de {articulo.Descripcion}.");
+            if (cantidadIndicada is not null and not 1m)
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.CantidadInvalida, "Los artículos con serial se registran de uno en uno.");
+            if (serialLimpio.Length > LineaVenta.LargoMaximoSerial)
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereSerial, $"El serial no puede superar {LineaVenta.LargoMaximoSerial} caracteres.");
+            if (_lineas.Any(l => l.EstaActiva && l.ArticuloId == articulo.ArticuloId && l.Serial == serialLimpio))
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.SerialDuplicado, $"El serial {serialLimpio} ya está en esta venta.");
+        }
+        else
+        {
+            serialLimpio = null;
+        }
 
         decimal cantidad;
         decimal? importeEtiqueta = null;
@@ -161,7 +248,7 @@ public sealed class Venta : Entidad
         var precio = ReglasPrecio.Determinar(articulo.CodigoInterno, articulo.Tipo, articulo.CantidadMinimaMayor,
             new PreciosVigentes(precioDetalle, articulo.PrecioMayor), cantidad, SeleccionListaPrecio.Automatica);
 
-        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza);
+        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio);
         _lineas.Add(linea);
         ActualizadaEn = ahora;
         return linea;
@@ -175,6 +262,8 @@ public sealed class Venta : Entidad
 
         if (linea.LeidaDeBalanza)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereBalanza, "La cantidad de un artículo pesado viene de la balanza; no se cambia a mano.");
+        if (linea.Serial is not null)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.CantidadInvalida, "Un artículo con serial se vende de uno en uno; escanee otro serial para agregar más.");
 
         var normalizada = NormalizarCantidad(cantidad, linea.PermiteDecimales, linea.DecimalesCantidad);
         var precio = ReglasPrecio.Determinar(linea.CodigoInterno, linea.TipoArticulo, linea.CantidadMinimaMayor,
@@ -227,6 +316,103 @@ public sealed class Venta : Entidad
         AnuladaEn = ahora;
         ActualizadaEn = ahora;
     }
+
+    /// <summary>
+    /// Asigna el cliente y toma su comprobante habitual; si ese comprobante no aplica en caja o el cliente no tiene
+    /// el documento que exige, queda como consumidor final (RF-13). Se puede cambiar hasta totalizar.
+    /// </summary>
+    public void AsignarCliente(ClienteVenta cliente, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(cliente);
+        AsegurarEditable();
+
+        var documento = string.IsNullOrWhiteSpace(cliente.Documento) ? null : DocumentoIdentidad.Normalizar(cliente.Documento);
+        if (documento is not null && cliente.TipoDocumento is null)
+            throw new ArgumentException("Un documento debe indicar su tipo.", nameof(cliente));
+
+        ClienteId = cliente.ClienteId;
+        ClienteTipoDocumento = documento is null ? null : cliente.TipoDocumento;
+        ClienteDocumento = Validar.TextoOpcional(documento, "Documento del cliente", LargoMaximoDocumento);
+        ClienteNombre = Validar.Texto(cliente.Nombre, "Nombre del cliente", LargoMaximoNombreCliente);
+
+        var comprobante = cliente.ComprobantePredeterminado;
+        TipoComprobante = ReglasComprobante.EsDeVenta(comprobante) && ReglasComprobante.ClienteCumple(comprobante, ClienteTipoDocumento, ClienteDocumento)
+            ? comprobante
+            : TipoComprobante.FacturaConsumo;
+        ActualizadaEn = ahora;
+    }
+
+    public void QuitarCliente(DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        ClienteId = null;
+        ClienteTipoDocumento = null;
+        ClienteDocumento = null;
+        ClienteNombre = null;
+        TipoComprobante = TipoComprobante.FacturaConsumo;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Cambia el comprobante (RF-127); valida que el cliente tenga el documento que el tipo exige.</summary>
+    public void CambiarComprobante(TipoComprobante tipo, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+
+        if (!ReglasComprobante.EsDeVenta(tipo))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.ComprobanteNoPermitido, $"El comprobante {ReglasComprobante.Nombre(tipo)} no se emite en una venta de caja.");
+
+        if (!ReglasComprobante.ClienteCumple(tipo, ClienteTipoDocumento, ClienteDocumento))
+        {
+            var aceptados = string.Join(" o ", ReglasComprobante.DocumentosAceptados(tipo)!.Select(d => d == TipoDocumentoIdentidad.Rnc ? "RNC" : "cédula"));
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DocumentoRequerido, $"El comprobante {ReglasComprobante.Nombre(tipo)} requiere un cliente con {aceptados}.");
+        }
+
+        TipoComprobante = tipo;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Fija o quita (nulo) el monto tope de la compra (RF-18).</summary>
+    public void EstablecerLimiteCompra(decimal? limite, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        if (limite <= 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.CantidadInvalida, "El límite de compra debe ser mayor que cero.");
+
+        LimiteCompra = limite is { } monto ? decimal.Round(monto, 2, MidpointRounding.AwayFromZero) : null;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Guarda la venta en espera para atender a otro cliente (RF-22). Queda ligada al cajero y al turno (RF-197).</summary>
+    public void PonerEnEspera(DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        if (!_lineas.Any(l => l.EstaActiva))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.SinLineas, "Una venta sin artículos no se pone en espera.");
+
+        Estado = EstadoVenta.EnEspera;
+        PuestaEnEsperaEn = ahora;
+        ActualizadaEn = ahora;
+    }
+
+    public void Retomar(DateTimeOffset ahora)
+    {
+        if (Estado != EstadoVenta.EnEspera)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, $"La venta {NumeroTransaccion} no está en espera.");
+
+        Estado = EstadoVenta.EnCurso;
+        PuestaEnEsperaEn = null;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Una factura de consumo desde el monto indicado exige cédula o RNC del cliente (RF-26).</summary>
+    public bool RequiereIdentificacion(decimal montoMinimo) =>
+        TipoComprobante == TipoComprobante.FacturaConsumo
+        && string.IsNullOrEmpty(ClienteDocumento)
+        && CalcularTotales().Total >= montoMinimo;
+
+    public bool LimiteCompraExcedido() => LimiteCompra is { } limite && CalcularTotales().Total > limite;
+
+    public bool TieneLineasActivas => _lineas.Any(l => l.EstaActiva);
 
     /// <summary>
     /// Totales con ITBIS incluido en los precios: por línea se redondea el importe a 2 decimales y se separa la base,
@@ -289,9 +475,14 @@ public sealed class Venta : Entidad
 
 public sealed class LineaVenta : Entidad
 {
+    public const int LargoMaximoSerial = 50;
+
     private LineaVenta()
     {
     }
+
+    /// <summary>Serial del artículo vendido, para la garantía (RF-17).</summary>
+    public string? Serial { get; private set; }
 
     public Guid VentaId { get; private set; }
     public int NumeroLinea { get; private set; }
@@ -342,10 +533,11 @@ public sealed class LineaVenta : Entidad
         : ImporteEtiqueta ?? decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero);
 
     internal static LineaVenta Crear(Guid ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad, PrecioDeterminado precio,
-        decimal? importeEtiqueta, bool leidaDeBalanza) =>
+        decimal? importeEtiqueta, bool leidaDeBalanza, string? serial) =>
         new()
         {
             Id = Guid.CreateVersion7(),
+            Serial = serial,
             VentaId = ventaId,
             NumeroLinea = numeroLinea,
             ArticuloId = articulo.ArticuloId,
@@ -377,6 +569,7 @@ public sealed class LineaVenta : Entidad
         new()
         {
             Id = Guid.CreateVersion7(),
+            Serial = original.Serial,
             VentaId = ventaId,
             NumeroLinea = numeroLinea,
             ArticuloId = original.ArticuloId,

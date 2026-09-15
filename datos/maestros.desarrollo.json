@@ -65,7 +65,7 @@
     {
       "id": "01990000-0000-7000-8001-000000000409", "codigo": "12345", "descripcion": "Tomate de ensalada",
       "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
-      "tipo": "Pesado", "precioDetalle": 45.00, "mostrarEnCatalogo": true
+      "tipo": "Pesado", "precioDetalle": 45.00, "mostrarEnCatalogo": true, "tara": 0.020
     },
     {
       "id": "01990000-0000-7000-8001-000000000410", "codigo": "54321", "descripcion": "Cebolla roja",

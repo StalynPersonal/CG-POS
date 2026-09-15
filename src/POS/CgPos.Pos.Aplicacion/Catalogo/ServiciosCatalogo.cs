@@ -59,6 +59,9 @@ public interface IConsultaArticulos
     /// <summary>Búsqueda por descripción, referencia o código; todas las palabras deben coincidir (RF-132).</summary>
     Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? familiaId = null, int maximo = 50, CancellationToken cancelacion = default);
 
+    /// <summary>Artículos marcados para el catálogo visual de la caja (mosaicos), en orden alfabético.</summary>
+    Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? familiaId = null, CancellationToken cancelacion = default);
+
     /// <summary>Artículos de familias no codificadas en orden alfabético (RF-134).</summary>
     Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? familiaId = null, CancellationToken cancelacion = default);
 

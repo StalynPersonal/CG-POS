@@ -18,6 +18,9 @@ public static class RutasApiCatalogo
         api.MapGet("/articulos", async (string? texto, Guid? familiaId, int? maximo, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.BuscarAsync(texto, familiaId, maximo ?? 50, cancelacion)));
 
+        api.MapGet("/articulos/catalogo", async (Guid? familiaId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
+            Results.Ok(await consulta.ListarCatalogoAsync(familiaId, cancelacion)));
+
         api.MapGet("/articulos/no-codificados", async (Guid? familiaId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.ListarNoCodificadosAsync(familiaId, cancelacion)));
 
