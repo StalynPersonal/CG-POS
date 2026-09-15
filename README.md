@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones) y C1 (configuración y seguridad local) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local) y C2 (maestros, precios y padrón DGII) completadas.
 
 ## Stack
 
@@ -74,6 +74,30 @@ En desarrollo, el Agente aplica al arrancar `datos/carga-inicial.desarrollo.json
 | G001 | 3333 | — | Gerente (nivel 3, todos los permisos) |
 
 La huella está simulada: identifica siempre al usuario de `Perifericos:HuellaSimulada:CodigoUsuario` (C001 en desarrollo).
+
+### Maestros y padrón DGII
+
+En desarrollo también se aplican al arrancar:
+
+- `datos/maestros.desarrollo.json`: familias, unidades, impuestos (ITBIS 18 %, 16 %, 0 % y exento), artículos de ferretería y construcción ficticios, clientes, formas de pago, bancos, tipos de tarjeta y denominaciones.
+- `datos/padron-dgii.desarrollo.txt`: padrón de ejemplo con el formato de la DGII (`RNC|razón social|nombre comercial|…|ESTADO|RÉGIMEN`).
+
+Ejemplos para probar la API (todas requieren sesión):
+
+| Ruta | Qué devuelve |
+|---|---|
+| `GET /api/articulos/codigo/7891114119695` | Artículo por código de barras, proveedor, interno o etiqueta de balanza |
+| `GET /api/articulos?texto=cemento gris` | Búsqueda por palabras |
+| `GET /api/articulos/no-codificados` | Vegetales y especias en orden alfabético |
+| `GET /api/documentos/131-24679-6` | RNC/cédula: validez, padrón DGII y cliente registrado |
+| `GET /api/catalogos/cobro` | Formas de pago, bancos, tipos de tarjeta y denominaciones |
+
+Importaciones manuales (permiso `Seguridad.AdministrarConfiguracion`, usuario G001 en desarrollo):
+
+- `POST /api/maestros/articulos/csv`: CSV con `;` o `,`. Columnas obligatorias `codigo`, `descripcion`, `familia`, `unidad`, `impuesto`, `precio_detalle`. Opcionales: `precio_mayor`, `cantidad_minima_mayor`, `precio_minimo`, `costo`, `tipo`, `referencia`, `codigos_barras` y `codigos_proveedor` (separados por `|`), `ruta_imagen`, `mostrar_en_catalogo` y `activo`. Los números usan punto decimal; las líneas con errores se informan y se omiten.
+- `POST /api/maestros/padron-dgii`: el archivo del padrón completo; inserta los nuevos y actualiza los que cambiaron.
+
+Etiquetas de balanza: por defecto EAN-13 con prefijo `21` (peso, 3 decimales) o `22` (precio, 2 decimales), 5 dígitos de artículo y 5 de valor. Se ajusta con los parámetros `Balanza.*`.
 
 Las migraciones se aplican solas al arrancar. Para aplicarlas manualmente:
 

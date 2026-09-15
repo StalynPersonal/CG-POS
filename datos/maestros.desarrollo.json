@@ -1,0 +1,162 @@
+{
+  "familias": [
+    { "id": "01990000-0000-7000-8001-000000000101", "codigo": "FER", "nombre": "Ferretería" },
+    { "id": "01990000-0000-7000-8001-000000000102", "codigo": "CON", "nombre": "Materiales de construcción" },
+    { "id": "01990000-0000-7000-8001-000000000103", "codigo": "ELE", "nombre": "Eléctricos" },
+    { "id": "01990000-0000-7000-8001-000000000104", "codigo": "PLO", "nombre": "Plomería" },
+    { "id": "01990000-0000-7000-8001-000000000105", "codigo": "VEG", "nombre": "Vegetales y especias", "permiteDescuentoManual": false, "esNoCodificada": true },
+    { "id": "01990000-0000-7000-8001-000000000106", "codigo": "PAN", "nombre": "Panadería", "permiteDescuentoManual": false },
+    { "id": "01990000-0000-7000-8001-000000000107", "codigo": "SER", "nombre": "Servicios" }
+  ],
+  "unidadesMedida": [
+    { "id": "01990000-0000-7000-8001-000000000201", "codigo": "UND", "nombre": "Unidad" },
+    { "id": "01990000-0000-7000-8001-000000000202", "codigo": "LB", "nombre": "Libra", "permiteDecimales": true, "decimales": 3 },
+    { "id": "01990000-0000-7000-8001-000000000203", "codigo": "PIE", "nombre": "Pie", "permiteDecimales": true, "decimales": 2 },
+    { "id": "01990000-0000-7000-8001-000000000204", "codigo": "YD", "nombre": "Yarda", "permiteDecimales": true, "decimales": 2 },
+    { "id": "01990000-0000-7000-8001-000000000205", "codigo": "GAL", "nombre": "Galón", "permiteDecimales": true, "decimales": 2 }
+  ],
+  "impuestos": [
+    { "id": "01990000-0000-7000-8001-000000000301", "codigo": "ITBIS18", "nombre": "ITBIS 18%", "porcentaje": 18, "indicadorFacturacion": 1 },
+    { "id": "01990000-0000-7000-8001-000000000302", "codigo": "ITBIS16", "nombre": "ITBIS 16%", "porcentaje": 16, "indicadorFacturacion": 2 },
+    { "id": "01990000-0000-7000-8001-000000000303", "codigo": "ITBIS0", "nombre": "ITBIS 0%", "porcentaje": 0, "indicadorFacturacion": 3 },
+    { "id": "01990000-0000-7000-8001-000000000304", "codigo": "EXENTO", "nombre": "Exento", "porcentaje": 0, "indicadorFacturacion": 4 }
+  ],
+  "articulos": [
+    {
+      "id": "01990000-0000-7000-8001-000000000401", "codigo": "43138", "descripcion": "Cincel de Punta SDS MAX 5/8\"x11\" Tramon",
+      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 850.00, "costo": 540.00, "referencia": "43138/111", "codigosBarras": [ "7891114119695" ], "codigosProveedor": [ "TRA-43138-111" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000402", "codigo": "CEM-425", "descripcion": "Cemento gris 42.5 kg",
+      "familiaId": "01990000-0000-7000-8001-000000000102", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 485.00, "precioMayor": 450.00, "cantidadMinimaMayor": 12, "costo": 350.00, "precioMinimo": 440.00, "codigosBarras": [ "7460001000017" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000403", "codigo": "VAR-38", "descripcion": "Varilla corrugada 3/8\" x 20 pies",
+      "familiaId": "01990000-0000-7000-8001-000000000102", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 395.00, "precioMayor": 370.00, "cantidadMinimaMayor": 20, "costo": 300.00, "codigosBarras": [ "7460001000024" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000404", "codigo": "PVC-12", "descripcion": "Tubo PVC 1/2\" x 19 pies",
+      "familiaId": "01990000-0000-7000-8001-000000000104", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 260.00, "codigosBarras": [ "7460001000031" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000405", "codigo": "CAB-12", "descripcion": "Cable eléctrico THHN #12 (por pie)",
+      "familiaId": "01990000-0000-7000-8001-000000000103", "unidadMedidaId": "01990000-0000-7000-8001-000000000203", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 18.50, "precioMayor": 16.00, "cantidadMinimaMayor": 500, "codigosBarras": [ "7460001000048" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000406", "codigo": "PIN-BLA-GAL", "descripcion": "Pintura acrílica blanca galón",
+      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000205", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 1150.00, "precioMayor": 1050.00, "cantidadMinimaMayor": 10, "codigosBarras": [ "7460001000055" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000407", "codigo": "COMBO-HER", "descripcion": "Combo de herramientas básicas (kit)",
+      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "tipo": "ComboKit", "precioDetalle": 2500.00, "precioMayor": 2300.00, "codigosBarras": [ "7460001000062" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000408", "codigo": "TAL-DW-20", "descripcion": "Taladro percutor inalámbrico 20V",
+      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "tipo": "Serializado", "precioDetalle": 6950.00, "costo": 5200.00, "precioMinimo": 6300.00, "codigosBarras": [ "7460001000079" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000409", "codigo": "12345", "descripcion": "Tomate de ensalada",
+      "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "tipo": "Pesado", "precioDetalle": 45.00, "mostrarEnCatalogo": true
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000410", "codigo": "54321", "descripcion": "Cebolla roja",
+      "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "tipo": "Pesado", "precioDetalle": 55.00, "mostrarEnCatalogo": true
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000411", "codigo": "11111", "descripcion": "Ají cubanela",
+      "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "tipo": "Pesado", "precioDetalle": 60.00, "mostrarEnCatalogo": true
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000412", "codigo": "PAN-AGUA", "descripcion": "Pan de agua",
+      "familiaId": "01990000-0000-7000-8001-000000000106", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "precioDetalle": 10.00, "mostrarEnCatalogo": true
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000413", "codigo": "SER-CORTE", "descripcion": "Servicio de corte de madera",
+      "familiaId": "01990000-0000-7000-8001-000000000107", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 150.00
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000414", "codigo": "CLA-2", "descripcion": "Clavos de acero 2\" (por libra)",
+      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 75.00, "precioMayor": 68.00, "cantidadMinimaMayor": 25, "codigosBarras": [ "7460001000086" ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000415", "codigo": "GUA-TRAB", "descripcion": "Guantes de trabajo de cuero",
+      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "precioDetalle": 180.00, "codigosBarras": [ "7460001000093" ]
+    }
+  ],
+  "clientes": [
+    {
+      "id": "01990000-0000-7000-8001-000000000501", "tipoDocumento": "Rnc", "documento": "131246796", "nombre": "Constructora Ejemplo SRL",
+      "tipoComprobante": "FacturaCreditoFiscal", "listaPrecio": "Mayor", "telefono": "809-555-0101", "correo": "compras@constructora-ejemplo.test",
+      "direcciones": [
+        { "id": "01990000-0000-7000-8001-000000000511", "alias": "Oficina", "direccion": "Av. Ficticia 100", "sector": "Centro", "ciudad": "Santo Domingo", "esPrincipal": true },
+        { "id": "01990000-0000-7000-8001-000000000512", "alias": "Obra Norte", "direccion": "Calle de Prueba 25", "ciudad": "Santiago", "referencia": "Frente al parque" }
+      ]
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000502", "tipoDocumento": "Rnc", "documento": "101000007", "nombre": "Institución Gubernamental de Prueba",
+      "tipoComprobante": "Gubernamental", "aplicaRetencion": true
+    },
+    {
+      "id": "01990000-0000-7000-8001-000000000503", "tipoDocumento": "Cedula", "documento": "00113918205", "nombre": "Cliente Ejemplo Pérez",
+      "telefono": "809-555-0103"
+    }
+  ],
+  "formasPago": [
+    { "id": "01990000-0000-7000-8001-000000000601", "codigo": "EFE", "nombre": "Efectivo", "tipo": "Efectivo", "orden": 1 },
+    { "id": "01990000-0000-7000-8001-000000000602", "codigo": "TAR", "nombre": "Tarjeta", "tipo": "Tarjeta", "orden": 2 },
+    { "id": "01990000-0000-7000-8001-000000000603", "codigo": "TRA", "nombre": "Transferencia", "tipo": "Transferencia", "orden": 3 },
+    { "id": "01990000-0000-7000-8001-000000000604", "codigo": "CHE", "nombre": "Cheque", "tipo": "Cheque", "orden": 4 },
+    { "id": "01990000-0000-7000-8001-000000000605", "codigo": "USD", "nombre": "Dólares", "tipo": "MonedaExtranjera", "orden": 5, "moneda": "USD" },
+    { "id": "01990000-0000-7000-8001-000000000606", "codigo": "NC", "nombre": "Nota de crédito", "tipo": "NotaCredito", "orden": 6 },
+    { "id": "01990000-0000-7000-8001-000000000607", "codigo": "BONO", "nombre": "Bono de regalo", "tipo": "BonoRegalo", "orden": 7 },
+    { "id": "01990000-0000-7000-8001-000000000608", "codigo": "GIFT", "nombre": "Tarjeta de regalo", "tipo": "TarjetaRegalo", "orden": 8 },
+    { "id": "01990000-0000-7000-8001-000000000609", "codigo": "PRE", "nombre": "Préstamo bancario", "tipo": "PrestamoBancario", "orden": 9 },
+    { "id": "01990000-0000-7000-8001-000000000610", "codigo": "PUN", "nombre": "Puntos", "tipo": "Puntos", "orden": 10 }
+  ],
+  "bancos": [
+    { "id": "01990000-0000-7000-8001-000000000701", "codigo": "BPD", "nombre": "Banco Popular Dominicano" },
+    { "id": "01990000-0000-7000-8001-000000000702", "codigo": "BRD", "nombre": "Banreservas" },
+    { "id": "01990000-0000-7000-8001-000000000703", "codigo": "BHD", "nombre": "Banco BHD" },
+    { "id": "01990000-0000-7000-8001-000000000704", "codigo": "SCO", "nombre": "Scotiabank" },
+    { "id": "01990000-0000-7000-8001-000000000705", "codigo": "APAP", "nombre": "Asociación Popular de Ahorros y Préstamos" }
+  ],
+  "tiposTarjeta": [
+    { "id": "01990000-0000-7000-8001-000000000801", "codigo": "VISA", "nombre": "Visa" },
+    { "id": "01990000-0000-7000-8001-000000000802", "codigo": "MC", "nombre": "Mastercard" },
+    { "id": "01990000-0000-7000-8001-000000000803", "codigo": "AMEX", "nombre": "American Express" },
+    { "id": "01990000-0000-7000-8001-000000000804", "codigo": "DISC", "nombre": "Discover" }
+  ],
+  "denominaciones": [
+    { "id": "01990000-0000-7000-8001-000000000901", "moneda": "DOP", "valor": 2000, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000902", "moneda": "DOP", "valor": 1000, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000903", "moneda": "DOP", "valor": 500, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000904", "moneda": "DOP", "valor": 200, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000905", "moneda": "DOP", "valor": 100, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000906", "moneda": "DOP", "valor": 50, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000907", "moneda": "DOP", "valor": 25, "tipo": "Moneda" },
+    { "id": "01990000-0000-7000-8001-000000000908", "moneda": "DOP", "valor": 10, "tipo": "Moneda" },
+    { "id": "01990000-0000-7000-8001-000000000909", "moneda": "DOP", "valor": 5, "tipo": "Moneda" },
+    { "id": "01990000-0000-7000-8001-000000000910", "moneda": "DOP", "valor": 1, "tipo": "Moneda" },
+    { "id": "01990000-0000-7000-8001-000000000911", "moneda": "USD", "valor": 100, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000912", "moneda": "USD", "valor": 50, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000913", "moneda": "USD", "valor": 20, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000914", "moneda": "USD", "valor": 10, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000915", "moneda": "USD", "valor": 5, "tipo": "Billete" },
+    { "id": "01990000-0000-7000-8001-000000000916", "moneda": "USD", "valor": 1, "tipo": "Billete" }
+  ]
+}

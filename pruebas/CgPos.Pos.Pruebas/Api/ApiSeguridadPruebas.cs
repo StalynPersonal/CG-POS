@@ -18,8 +18,8 @@ using Microsoft.IdentityModel.JsonWebTokens;
 namespace CgPos.Pos.Pruebas.Api;
 
 /// <summary>
-/// CG-POS Agente completo en memoria, con base temporal y el archivo de carga inicial de desarrollo
-/// (usuarios C001/1111 cajero, S001/2222 supervisor, G001/3333 gerente).
+/// CG-POS Agente completo en memoria, con base temporal y los archivos de desarrollo: carga inicial
+/// (usuarios C001/1111 cajero, S001/2222 supervisor, G001/3333 gerente), maestros y padrón DGII.
 /// </summary>
 public sealed class AgenteEnPruebas : IAsyncLifetime
 {
@@ -38,7 +38,7 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
         if (MotivoOmision is not null)
             return;
 
-        var archivoCarga = Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "carga-inicial.desarrollo.json");
+        var datos = Path.Combine(RutasPrueba.RaizRepositorio(), "datos");
         var archivoLogs = Path.Combine(Path.GetTempPath(), "cgpos-pruebas", "agente-.log");
 
         Fabrica = new WebApplicationFactory<EmisorTokens>().WithWebHostBuilder(anfitrion =>
@@ -46,13 +46,15 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseEnvironment("Pruebas");
             anfitrion.UseSetting($"ConnectionStrings:{InyeccionDependencias.NombreConexion}", _baseDatos.CadenaConexion);
             anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", _baseDatos.NivelCompatibilidad);
-            anfitrion.UseSetting("CargaInicial:Archivo", archivoCarga);
+            anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(datos, "carga-inicial.desarrollo.json"));
+            anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datos, "maestros.desarrollo.json"));
+            anfitrion.UseSetting("Maestros:PadronDgii", Path.Combine(datos, "padron-dgii.desarrollo.txt"));
             anfitrion.UseSetting("Caja:Id", CajaDesarrollo);
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
         });
 
-        // Arranca el Agente: aplica migraciones y la carga inicial.
+        // Arranca el Agente: aplica migraciones, carga inicial, maestros y padrón.
         _ = Fabrica.Server;
     }
 
@@ -65,7 +67,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
     }
 }
 
-public class ApiSeguridadPruebas(AgenteEnPruebas agente) : IClassFixture<AgenteEnPruebas>
+[Collection(ColeccionAgente.Nombre)]
+public class ApiSeguridadPruebas(AgenteEnPruebas agente)
 {
     [SkippableFact]
     public async Task Estado_de_la_caja_es_publico_y_muestra_la_caja_configurada()

@@ -52,6 +52,7 @@ try
 
     aplicacion.MapHealthChecks("/salud", new HealthCheckOptions { ResponseWriter = EscritorSalud.EscribirAsync });
     aplicacion.MapearApiSeguridad();
+    aplicacion.MapearApiCatalogo();
 
     // Pantallas de la caja (Blazor Wasm de CgPos.Pos.Web), servidas localmente.
     if (aplicacion.Configuration.GetValue("Agente:ServirPantallas", true))
@@ -62,10 +63,21 @@ try
 
     await aplicacion.Services.InicializarBaseDatosPosAsync();
 
-    // Datos de organización y seguridad desde archivo (desarrollo o instalación sin Central todavía).
-    var archivoCargaInicial = aplicacion.Configuration["CargaInicial:Archivo"];
-    if (!string.IsNullOrWhiteSpace(archivoCargaInicial))
-        await aplicacion.Services.AplicarCargaInicialAsync(Path.GetFullPath(archivoCargaInicial, aplicacion.Environment.ContentRootPath));
+    // Datos desde archivo (desarrollo o instalación sin Central todavía). Todo es idempotente.
+    string? RutaConfigurada(string clave) =>
+        aplicacion.Configuration[clave] is { Length: > 0 } ruta ? Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath) : null;
+
+    if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCargaInicial)
+        await aplicacion.Services.AplicarCargaInicialAsync(archivoCargaInicial);
+
+    if (RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
+        await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.AplicarMaestrosAsync(aplicacion.Services, archivoMaestros);
+
+    if (RutaConfigurada("Maestros:PadronDgii") is { } archivoPadron)
+    {
+        var padron = await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.ImportarPadronDgiiAsync(aplicacion.Services, archivoPadron);
+        Log.Information("Padrón DGII importado: {Validos} registros válidos de {Leidas} líneas", padron.RegistrosValidos, padron.LineasLeidas);
+    }
 
     await using (var ambito = aplicacion.Services.CreateAsyncScope())
     {

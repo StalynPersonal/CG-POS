@@ -1,5 +1,7 @@
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
+using CgPos.Pos.Aplicacion.Catalogo;
+using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Auditoria;
@@ -51,6 +53,15 @@ public static class InyeccionDependencias
         servicios.AddScoped<VerificadorCredenciales>();
         servicios.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
         servicios.AddScoped<IServicioAutorizacion, ServicioAutorizacion>();
+
+        // Maestros, catálogos y precios (M03, M04)
+        servicios.AddScoped<ICargaMaestros, ServicioCargaMaestros>();
+        servicios.AddScoped<IImportadorArticulos, ImportadorArticulosCsv>();
+        servicios.AddScoped<IImportadorPadronDgii, ImportadorPadronDgii>();
+        servicios.AddScoped<IConsultaArticulos, ConsultaArticulos>();
+        servicios.AddScoped<IConsultaDocumentos, ConsultaDocumentos>();
+        servicios.AddScoped<IConsultaCatalogoCobro, ConsultaCatalogoCobro>();
+        servicios.AddScoped<IServicioPrecios, ServicioPrecios>();
 
         return servicios;
     }

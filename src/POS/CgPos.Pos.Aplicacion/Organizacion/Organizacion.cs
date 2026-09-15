@@ -37,6 +37,14 @@ public static class ClavesParametros
     public const string IntentosMaximosPin = "Seguridad.IntentosMaximosPin";
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
     public const string FondoPredeterminado = "Caja.FondoPredeterminado";
+
+    // Etiquetas de balanza (RF-180)
+    public const string BalanzaPrefijoPeso = "Balanza.PrefijoPeso";
+    public const string BalanzaPrefijoPrecio = "Balanza.PrefijoPrecio";
+    public const string BalanzaDigitosCodigoArticulo = "Balanza.DigitosCodigoArticulo";
+    public const string BalanzaDigitosValor = "Balanza.DigitosValor";
+    public const string BalanzaDecimalesPeso = "Balanza.DecimalesPeso";
+    public const string BalanzaDecimalesPrecio = "Balanza.DecimalesPrecio";
 }
 
 public interface IEstadoCaja

@@ -1,5 +1,9 @@
 using CgPos.Dominio.Auditoria;
+using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Clientes;
+using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Organizacion;
+using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +27,21 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Permiso> Permisos => Set<Permiso>();
     public DbSet<Rol> Roles => Set<Rol>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+
+    // Maestros y catálogos (M03)
+    public DbSet<Familia> Familias => Set<Familia>();
+    public DbSet<UnidadMedida> UnidadesMedida => Set<UnidadMedida>();
+    public DbSet<Impuesto> Impuestos => Set<Impuesto>();
+    public DbSet<Articulo> Articulos => Set<Articulo>();
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<ContribuyenteDgii> ContribuyentesDgii => Set<ContribuyenteDgii>();
+    public DbSet<FormaPago> FormasPago => Set<FormaPago>();
+    public DbSet<Banco> Bancos => Set<Banco>();
+    public DbSet<TipoTarjeta> TiposTarjeta => Set<TipoTarjeta>();
+    public DbSet<Denominacion> Denominaciones => Set<Denominacion>();
+
+    // Precios (M04)
+    public DbSet<PrecioArticulo> PreciosArticulo => Set<PrecioArticulo>();
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
