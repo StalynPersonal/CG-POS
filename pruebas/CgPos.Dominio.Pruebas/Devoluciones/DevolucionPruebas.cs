@@ -10,6 +10,7 @@ public class DevolucionPruebas
 {
     private static readonly DateTimeOffset Cobro = new(2026, 9, 1, 10, 0, 0, TimeSpan.FromHours(-4));
     private static readonly DateOnly DiaCobro = new(2026, 9, 1);
+    private static readonly TimeZoneInfo HoraCaja = TimeZoneInfo.CreateCustomTimeZone("Caja de prueba", TimeSpan.FromHours(-4), "Caja de prueba", "Caja de prueba");
     private static readonly ClienteDevolucion Cliente = new(TipoDocumentoIdentidad.Rnc, "401007551", "Cliente de prueba");
     private static readonly FormaPagoParaCobro Efectivo = new(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
 
@@ -29,7 +30,7 @@ public class DevolucionPruebas
         string? serial = null) =>
         Devolucion.Registrar(venta, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
             Cliente, "DEFECTO", "Artículo defectuoso", null, "NC-01-00000001", null, Guid.CreateVersion7(), "Cajera", Guid.CreateVersion7(), "Encargado",
-            diasRetencionImpuesto: 30, mesesVigencia: 6, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3));
+            diasRetencionImpuesto: 30, mesesVigencia: 6, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
 
     [Fact]
     public void Devolucion_parcial_acredita_la_parte_proporcional_y_la_ultima_toma_el_resto_exacto()
@@ -73,11 +74,11 @@ public class DevolucionPruebas
 
         var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
             new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), "DEFECTO", "Defecto", null, "NC-1", null, Guid.CreateVersion7(), "Cajera",
-            null, null, 30, 6, DiaCobro, Cobro));
+            null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.ClienteRequerido, sinCliente.Codigo);
 
         var sinMotivo = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Guid.CreateVersion7(), "Cajera", null, null, 30, 6, DiaCobro, Cobro));
+            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Guid.CreateVersion7(), "Cajera", null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.MotivoRequerido, sinMotivo.Codigo);
     }
 

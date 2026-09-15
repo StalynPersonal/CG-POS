@@ -13,7 +13,6 @@ public static class GeneradorXmlEcf
     public const string Version = "1.0";
     public const int LargoMaximoNombreItem = 80;
 
-    private static readonly TimeSpan HoraDominicana = TimeSpan.FromHours(-4);
 
     /// <summary>Tipos en los que la DGII no exige fecha de vencimiento de la secuencia.</summary>
     private static readonly int[] SinVencimiento = [32, 34];
@@ -145,9 +144,11 @@ public static class GeneradorXmlEcf
 
     public static string FormatoMonto(decimal valor) => decimal.Round(valor, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture);
 
-    public static string Fecha(DateTimeOffset fecha) => fecha.ToOffset(HoraDominicana).ToString("dd-MM-yyyy", CultureInfo.InvariantCulture);
+    /// <summary>Se escribe con la zona horaria con que la entrega la caja (su hora local configurada).</summary>
+    public static string Fecha(DateTimeOffset fecha) => fecha.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture);
 
-    public static string FechaHora(DateTimeOffset fecha) => fecha.ToOffset(HoraDominicana).ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+    /// <summary>Se escribe con la zona horaria con que la entrega la caja (su hora local configurada).</summary>
+    public static string FechaHora(DateTimeOffset fecha) => fecha.ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture);
 
     /// <summary>StringWriter que declara UTF-8 en el encabezado del XML.</summary>
     private sealed class EscritorUtf8 : StringWriter

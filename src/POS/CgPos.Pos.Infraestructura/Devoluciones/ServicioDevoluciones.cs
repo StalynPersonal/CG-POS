@@ -101,7 +101,7 @@ internal sealed class ServicioDevoluciones(
         Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, Guid? turnoId, ResultadoPermiso? permiso) =>
             Devolucion.Registrar(venta, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero, turnoId,
                 sesion.UsuarioId, sesion.Nombre, permiso?.SupervisorId ?? sesion.UsuarioId, permiso?.SupervisorNombre ?? sesion.Nombre,
-                diasRetencion, mesesVigencia, Hoy, ahora);
+                diasRetencion, mesesVigencia, Hoy, ahora, reloj.LocalTimeZone);
 
         // Se validan las reglas antes de pedir la clave del encargado.
         try
@@ -264,7 +264,7 @@ internal sealed class ServicioDevoluciones(
         var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
 
         var cobradaEn = venta.CobradaEn!.Value;
-        var dias = Hoy.DayNumber - DateOnly.FromDateTime(cobradaEn.ToOffset(Devolucion.ZonaHoraria).DateTime).DayNumber;
+        var dias = Hoy.DayNumber - DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(cobradaEn, reloj.LocalTimeZone).DateTime).DayNumber;
 
         var lineas = venta.Lineas.Where(l => l.EstaActiva).OrderBy(l => l.NumeroLinea).Select(l =>
         {
@@ -304,7 +304,7 @@ internal sealed class ServicioDevoluciones(
     /// <summary>Copia del cliente (con código de barras para consumo) y copia de contabilidad, con textos distintos (RF-163).</summary>
     private async Task<string?> ImprimirAsync(SesionUsuario sesion, DatosNotaCredito datos, bool esCopia, CancellationToken cancelacion)
     {
-        var encabezado = await contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion);
+        var encabezado = await contexto.EncabezadoTicketAsync(parametros, reloj.LocalTimeZone, sesion.CajaId, cancelacion);
         // Las políticas son textos del negocio: si no se configuraron, no se imprimen.
         var politica = await parametros.ObtenerAsync(ClavesParametros.PoliticaNotaCredito, sesion.CajaId, cancelacion);
         var politicaContabilidad = await parametros.ObtenerAsync(ClavesParametros.PoliticaNotaCreditoContabilidad, sesion.CajaId, cancelacion);

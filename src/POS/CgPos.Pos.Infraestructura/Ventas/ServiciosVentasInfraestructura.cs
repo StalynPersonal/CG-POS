@@ -530,7 +530,7 @@ internal sealed class ServicioVentas(
     }
 
     private Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
-        contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion);
+        contexto.EncabezadoTicketAsync(parametros, reloj.LocalTimeZone, sesion.CajaId, cancelacion);
 
     private static DatosOperacionTerminal DatosOperacion(OperacionTerminal operacion, bool sinConexion) =>
         new(operacion.Id, operacion.Estado == EstadoOperacionTerminal.Aprobada, sinConexion, operacion.Monto, operacion.Aprobacion, operacion.UltimosDigitos,

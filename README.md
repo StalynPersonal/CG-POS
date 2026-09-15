@@ -76,7 +76,7 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Pantallas.SegundosPorImagen` | Rotación de la publicidad (sin él no rota) | No |
 | `Balanza.PrefijoPeso`, `Balanza.PrefijoPrecio`, `Balanza.DigitosCodigoArticulo`, `Balanza.DigitosValor`, `Balanza.DecimalesPeso`, `Balanza.DecimalesPrecio` | Etiquetas de balanza; sin prefijos la caja no las interpreta | Si hay prefijos |
 
-Otras reglas que dependen de la configuración: sin **topes de descuento** en los maestros no se permite el descuento manual; el **ambiente e-CF** (`Ecf:Ambiente` en la configuración del Agente) es obligatorio para emitir; la **dirección** de la empresa o sucursal es obligatoria en el e-CF, las **tasas de ITBIS** del XML salen del maestro de impuestos y el indicador de **bien o servicio** sale del artículo (`esServicio` en los maestros). El nombre y las iniciales de la empresa en la pantalla de venta salen de la configuración de la caja.
+Otras reglas que dependen de la configuración: sin **topes de descuento** en los maestros no se permite el descuento manual; el **ambiente e-CF** (`Ecf:Ambiente` en la configuración del Agente) es obligatorio para emitir; la **dirección** de la empresa o sucursal es obligatoria en el e-CF, las **tasas de ITBIS** del XML salen del maestro de impuestos y el indicador de **bien o servicio** sale del artículo (`esServicio` en los maestros). El nombre y las iniciales de la empresa en la pantalla de venta salen de la configuración de la caja. Las fechas del ticket, del e-CF y los plazos de devolución usan la **zona horaria configurada en el equipo** de la caja (en República Dominicana, UTC-4).
 
 ## Ejecutar la caja
 

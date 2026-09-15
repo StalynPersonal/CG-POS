@@ -84,9 +84,6 @@ public sealed class Devolucion : Entidad
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoObservacion = 250;
 
-    /// <summary>República Dominicana no tiene horario de verano.</summary>
-    public static readonly TimeSpan ZonaHoraria = TimeSpan.FromHours(-4);
-
     private readonly List<LineaDevolucion> _lineas = [];
     private readonly List<ConsumoNotaCredito> _consumos = [];
 
@@ -147,8 +144,9 @@ public sealed class Devolucion : Entidad
     public static Devolucion Registrar(Venta venta, string? encfOrigen, IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
         IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, string? motivoCodigo, string? motivoNombre, string? observacion,
         string numero, Guid? turnoId, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre,
-        int diasRetencionImpuesto, int mesesVigencia, DateOnly hoy, DateTimeOffset ahora)
+        int diasRetencionImpuesto, int mesesVigencia, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria)
     {
+        ArgumentNullException.ThrowIfNull(zonaHoraria);
         ArgumentNullException.ThrowIfNull(venta);
 
         if (venta.Estado != EstadoVenta.Cobrada || venta.CobradaEn is not { } cobradaEn)
@@ -165,7 +163,8 @@ public sealed class Devolucion : Entidad
         if (string.IsNullOrWhiteSpace(motivoCodigo) || string.IsNullOrWhiteSpace(motivoNombre))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MotivoRequerido, "Seleccione el motivo de la devolución.");
 
-        var fechaVenta = DateOnly.FromDateTime(cobradaEn.ToOffset(ZonaHoraria).DateTime);
+        // El plazo se cuenta en días de la zona horaria de la caja.
+        var fechaVenta = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(cobradaEn, zonaHoraria).DateTime);
         var devolucion = new Devolucion
         {
             Id = Guid.CreateVersion7(),

@@ -121,7 +121,8 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         var encf = SecuenciaEcf.FormatearEncf(tipo, asignada.Ultimo);
         var emisor = await EmisorAsync(sucursalId, cancelacion);
         var tipoIngresos = await parametros.ObtenerEnteroAsync(ClavesParametros.TipoIngresos, cajaId, cancelacion);
-        var documentoEcf = armar(encf, asignada.VenceEn, emisor, ahora, tipoIngresos);
+        // Las fechas del e-CF van en la hora local configurada en el equipo de la caja.
+        var documentoEcf = armar(encf, asignada.VenceEn, emisor, reloj.GetLocalNow(), tipoIngresos);
 
         var montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, cajaId, cancelacion);
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
@@ -273,7 +274,7 @@ internal static class ConversionEcf
                 Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 1),
                 Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 2),
                 Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
-            venta.CobradaEn ?? fechaFirma,
+            (venta.CobradaEn ?? fechaFirma).ToOffset(fechaFirma.Offset),
             fechaFirma,
             TipoIngresos: tipoIngresos,
             TipoPago: TipoPagoContado,
@@ -319,7 +320,7 @@ internal static class ConversionEcf
             }
         }
 
-        var fechaFactura = DateOnly.FromDateTime(devolucion.VentaOrigenCobradaEn.ToOffset(Devolucion.ZonaHoraria).DateTime);
+        var fechaFactura = DateOnly.FromDateTime(devolucion.VentaOrigenCobradaEn.ToOffset(fechaFirma.Offset).DateTime);
         return new DocumentoEcf(
             (int)TipoComprobante.NotaCredito,
             encf,
@@ -331,7 +332,7 @@ internal static class ConversionEcf
                 Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 1),
                 Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 2),
                 Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
-            devolucion.CreadaEn,
+            devolucion.CreadaEn.ToOffset(fechaFirma.Offset),
             fechaFirma,
             TipoIngresos: tipoIngresos,
             TipoPago: TipoPagoContado,

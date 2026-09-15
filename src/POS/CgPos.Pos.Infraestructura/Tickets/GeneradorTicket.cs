@@ -17,7 +17,8 @@ internal sealed record EncabezadoTicket(
     string SucursalNombre,
     string? SucursalDireccion,
     string CajaCodigo,
-    string? MensajePie = null);
+    string? MensajePie,
+    TimeZoneInfo ZonaHoraria);
 
 /// <summary>
 /// Ticket de venta para impresora térmica de 80 mm (42 columnas): texto plano y ESC/POS con la página de códigos PC858 para
@@ -76,7 +77,7 @@ internal static class GeneradorTicket
             Agregar("e-NCF: pendiente de emisión");
         }
         Agregar($"Transacción: {venta.NumeroTransaccion}");
-        Agregar($"Fecha: {(venta.CobradaEn ?? venta.IniciadaEn).ToOffset(TimeSpan.FromHours(-4)).ToString("dd/MM/yyyy h:mm tt", cultura)}");
+        Agregar($"Fecha: {TimeZoneInfo.ConvertTime(venta.CobradaEn ?? venta.IniciadaEn, encabezado.ZonaHoraria).ToString("dd/MM/yyyy h:mm tt", cultura)}");
         Agregar($"Cajero: {venta.UsuarioNombre}");
         if (venta.Cliente is { } cliente)
         {
@@ -149,7 +150,7 @@ internal static class GeneradorTicket
         {
             Separador();
             Agregar($"Código de seguridad: {ecf.CodigoSeguridad}");
-            Agregar($"Fecha de firma: {ecf.FechaFirma.ToOffset(TimeSpan.FromHours(-4)).ToString("dd-MM-yyyy HH:mm:ss", cultura)}");
+            Agregar($"Fecha de firma: {TimeZoneInfo.ConvertTime(ecf.FechaFirma, encabezado.ZonaHoraria).ToString("dd-MM-yyyy HH:mm:ss", cultura)}");
             Agregar(ecf.UrlTimbre, Estilo.Qr);
         }
 
@@ -180,9 +181,9 @@ internal static class GeneradorTicket
         if (nota.Comprobante is { } comprobante)
             Agregar($"e-NCF: {comprobante.Encf}", Estilo.Negrita);
         Agregar($"Número: {nota.Numero}");
-        Agregar($"Fecha: {HoraLocal(nota.CreadaEn, cultura)}");
+        Agregar($"Fecha: {HoraLocal(encabezado, nota.CreadaEn, cultura)}");
         Agregar($"Modifica: {nota.EncfOrigen ?? "factura sin e-CF"}");
-        Agregar($"Factura: {nota.VentaOrigenNumero} del {nota.VentaOrigenCobradaEn.ToOffset(TimeSpan.FromHours(-4)).ToString("dd/MM/yyyy", cultura)}");
+        Agregar($"Factura: {nota.VentaOrigenNumero} del {TimeZoneInfo.ConvertTime(nota.VentaOrigenCobradaEn, encabezado.ZonaHoraria).ToString("dd/MM/yyyy", cultura)}");
         foreach (var parte in Envolver($"Cliente: {nota.ClienteNombre}"))
             Agregar(parte);
         Agregar($"{(nota.ClienteTipoDocumento?.ToString() ?? "Documento").ToUpper(cultura)}: {nota.ClienteDocumento}");
@@ -223,7 +224,7 @@ internal static class GeneradorTicket
         {
             Separador();
             Agregar($"Código de seguridad: {ecf.CodigoSeguridad}");
-            Agregar($"Fecha de firma: {ecf.FechaFirma.ToOffset(TimeSpan.FromHours(-4)).ToString("dd-MM-yyyy HH:mm:ss", cultura)}");
+            Agregar($"Fecha de firma: {TimeZoneInfo.ConvertTime(ecf.FechaFirma, encabezado.ZonaHoraria).ToString("dd-MM-yyyy HH:mm:ss", cultura)}");
             Agregar(ecf.UrlTimbre, Estilo.Qr);
         }
 
@@ -270,7 +271,7 @@ internal static class GeneradorTicket
         AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia: false);
         Agregar($"RETIRO DE EFECTIVO Nº {retiro.Numero}", Estilo.Titulo);
         Agregar($"Turno: {turnoNumero}");
-        Agregar($"Fecha: {HoraLocal(retiro.Fecha, cultura)}");
+        Agregar($"Fecha: {HoraLocal(encabezado, retiro.Fecha, cultura)}");
         Agregar($"Cajero: {retiro.UsuarioNombre}");
         if (retiro.AutorizadoPorNombre is { } autorizo)
             Agregar($"Autorizó: {autorizo}");
@@ -297,8 +298,8 @@ internal static class GeneradorTicket
         Agregar("PRE-CIERRE", Estilo.Titulo);
         Agregar("(no cierra el turno)", Estilo.Centrado);
         Agregar($"Turno {resumen.Turno.Numero} · {resumen.Turno.UsuarioActualNombre}");
-        Agregar($"Apertura: {HoraLocal(resumen.Turno.AbiertoEn, cultura)}");
-        Agregar($"Emitido:  {HoraLocal(emitido, cultura)}");
+        Agregar($"Apertura: {HoraLocal(encabezado, resumen.Turno.AbiertoEn, cultura)}");
+        Agregar($"Emitido:  {HoraLocal(encabezado, emitido, cultura)}");
         Separador();
         Agregar(Columnas("Ventas cobradas", (resumen.CantidadVentas ?? 0).ToString("N0", cultura)));
         Importe("Total ventas", resumen.TotalVentas ?? 0m);
@@ -338,8 +339,8 @@ internal static class GeneradorTicket
         if (cierre.Estado == EstadoCierre.Reabierto)
             Agregar("*** CIERRE REABIERTO ***", Estilo.Negrita);
         Agregar($"Cierre {cierre.Numero}{(cierre.Ciego ? " · ciego" : string.Empty)} · Día {cierre.FechaOperacion.ToString("dd/MM/yyyy", cultura)}");
-        Agregar($"Apertura: {HoraLocal(cierre.AbiertoEn, cultura)}");
-        Agregar($"Cierre:   {HoraLocal(cierre.CerradoEn, cultura)}");
+        Agregar($"Apertura: {HoraLocal(encabezado, cierre.AbiertoEn, cultura)}");
+        Agregar($"Cierre:   {HoraLocal(encabezado, cierre.CerradoEn, cultura)}");
         Agregar($"Cajero: {cierre.UsuarioNombre}");
         Separador();
         Agregar(Columnas("Ventas cobradas", cierre.CantidadVentas.ToString("N0", cultura)));
@@ -375,7 +376,7 @@ internal static class GeneradorTicket
             Separador();
             Agregar("RETIROS", Estilo.Negrita);
             foreach (var retiro in retiros)
-                Importe($"  Nº {retiro.Numero} {HoraCorta(retiro.Fecha, cultura)} {retiro.AutorizadoPorNombre}", retiro.Monto);
+                Importe($"  Nº {retiro.Numero} {HoraCorta(encabezado, retiro.Fecha, cultura)} {retiro.AutorizadoPorNombre}", retiro.Monto);
         }
 
         var relevos = cierre.Movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Relevo).ToList();
@@ -384,14 +385,14 @@ internal static class GeneradorTicket
             Separador();
             Agregar("RELEVOS", Estilo.Negrita);
             foreach (var relevo in relevos)
-                foreach (var parte in Envolver($"  {HoraCorta(relevo.Fecha, cultura)} {relevo.UsuarioAnteriorNombre} -> {relevo.UsuarioNombre}"))
+                foreach (var parte in Envolver($"  {HoraCorta(encabezado, relevo.Fecha, cultura)} {relevo.UsuarioAnteriorNombre} -> {relevo.UsuarioNombre}"))
                     Agregar(parte);
         }
 
         if (cierre is { Estado: EstadoCierre.Reabierto, ReabiertoEn: { } reabiertoEn })
         {
             Separador();
-            foreach (var parte in Envolver($"Reabierto por {cierre.ReabiertoPorNombre} el {HoraLocal(reabiertoEn, cultura)}. Motivo: {cierre.MotivoReapertura}"))
+            foreach (var parte in Envolver($"Reabierto por {cierre.ReabiertoPorNombre} el {HoraLocal(encabezado, reabiertoEn, cultura)}. Motivo: {cierre.MotivoReapertura}"))
                 Agregar(parte);
         }
 
@@ -429,9 +430,12 @@ internal static class GeneradorTicket
         return new DocumentoImpresion(nombre, texto, EscPos(lineas));
     }
 
-    private static string HoraLocal(DateTimeOffset fecha, CultureInfo cultura) => fecha.ToOffset(TimeSpan.FromHours(-4)).ToString("dd/MM/yyyy h:mm tt", cultura);
+    /// <summary>Fecha y hora en la zona horaria configurada en el equipo de la caja.</summary>
+    private static string HoraLocal(EncabezadoTicket encabezado, DateTimeOffset fecha, CultureInfo cultura) =>
+        TimeZoneInfo.ConvertTime(fecha, encabezado.ZonaHoraria).ToString("dd/MM/yyyy h:mm tt", cultura);
 
-    private static string HoraCorta(DateTimeOffset fecha, CultureInfo cultura) => fecha.ToOffset(TimeSpan.FromHours(-4)).ToString("h:mm tt", cultura);
+    private static string HoraCorta(EncabezadoTicket encabezado, DateTimeOffset fecha, CultureInfo cultura) =>
+        TimeZoneInfo.ConvertTime(fecha, encabezado.ZonaHoraria).ToString("h:mm tt", cultura);
 
     private static string Moneda(string moneda) => moneda == Venta.MonedaLocal ? string.Empty : $" ({moneda})";
 
