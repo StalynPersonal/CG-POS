@@ -79,8 +79,29 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> ObtenerVentaActualAsync(CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Get, "api/ventas/actual", null, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> AgregarArticuloAsync(Guid ventaId, string codigo, decimal? cantidad = null, string? serial = null, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas", new SolicitudAgregarArticulo(codigo, cantidad, serial), ErrorVenta, cancelacion);
+    public Task<RespuestaVenta> AgregarArticuloAsync(Guid ventaId, string codigo, decimal? cantidad = null, string? serial = null, bool serialEnDespacho = false,
+        CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas", new SolicitudAgregarArticulo(codigo, cantidad, serial, serialEnDespacho), ErrorVenta, cancelacion);
+
+    // ---------- Pendientes de entrega y envíos (C10) ----------
+
+    public Task<RespuestaVenta> MarcarEntregaAsync(Guid ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/entregas", solicitud, ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> QuitarEntregaAsync(Guid ventaId, int numeroDestino, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/entregas/{numeroDestino}", null, ErrorVenta, cancelacion);
+
+    public async Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosAlmacen>>("api/entregas/almacenes", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return [];
+        }
+    }
 
     public Task<RespuestaVenta> AgregarDesdeBalanzaAsync(Guid ventaId, string codigo, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/balanza", new SolicitudPesarArticulo(codigo), ErrorVenta, cancelacion);

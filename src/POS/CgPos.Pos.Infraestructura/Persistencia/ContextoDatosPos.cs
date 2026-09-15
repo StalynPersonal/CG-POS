@@ -69,6 +69,10 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<CgPos.Dominio.Fidelidad.MiembroFidelidad> MiembrosFidelidad => Set<CgPos.Dominio.Fidelidad.MiembroFidelidad>();
     public DbSet<CgPos.Dominio.Fidelidad.MovimientoPuntos> MovimientosPuntos => Set<CgPos.Dominio.Fidelidad.MovimientoPuntos>();
 
+    // Pendientes de entrega y envíos (M12)
+    public DbSet<CgPos.Dominio.Entregas.Almacen> Almacenes => Set<CgPos.Dominio.Entregas.Almacen>();
+    public DbSet<CgPos.Dominio.Entregas.PendienteEntrega> PendientesEntrega => Set<CgPos.Dominio.Entregas.PendienteEntrega>();
+
     // Cobro (M08)
     public DbSet<TasaCambio> TasasCambio => Set<TasaCambio>();
     public DbSet<OperacionTerminal> OperacionesTerminal => Set<OperacionTerminal>();

@@ -154,6 +154,7 @@
     { "id": "01990000-0000-7000-8000-000000000528", "clave": "Fidelidad.ValorPunto", "valor": "1", "descripcion": "Valor en moneda local de cada punto al canjearlo" },
     { "id": "01990000-0000-7000-8000-000000000529", "clave": "Fidelidad.MesesVigenciaPuntos", "valor": "12", "descripcion": "Meses de vigencia de los puntos acumulados" },
     { "id": "01990000-0000-7000-8000-000000000530", "clave": "Fidelidad.MinimoPuntosCanje", "valor": "50", "descripcion": "Puntos mínimos por canje" },
-    { "id": "01990000-0000-7000-8000-000000000531", "clave": "Fidelidad.MaximoPuntosCanjeSinConexion", "valor": "2000", "descripcion": "Puntos máximos por transacción sin confirmar el saldo con el Central" }
+    { "id": "01990000-0000-7000-8000-000000000531", "clave": "Fidelidad.MaximoPuntosCanjeSinConexion", "valor": "2000", "descripcion": "Puntos máximos por transacción sin confirmar el saldo con el Central" },
+    { "id": "01990000-0000-7000-8000-000000000532", "clave": "Entregas.PoliticaPendiente", "valor": "Presente este voucher y su cédula para retirar. La mercancía se reserva por 30 días.", "descripcion": "Política impresa en el voucher de pendiente de entrega o envío" }
   ]
 }

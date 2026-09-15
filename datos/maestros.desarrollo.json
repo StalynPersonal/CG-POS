@@ -3,6 +3,10 @@
     { "id": "01990000-0000-7000-8001-000000001001", "codigo": "DOP", "nombre": "Peso dominicano", "simbolo": "RD$" },
     { "id": "01990000-0000-7000-8001-000000001002", "codigo": "USD", "nombre": "Dólar estadounidense", "simbolo": "US$" }
   ],
+  "almacenes": [
+    { "id": "01990000-0000-7000-8001-000000001401", "codigo": "PRINCIPAL", "nombre": "Almacén principal", "sucursalId": "01990000-0000-7000-8000-000000000101" },
+    { "id": "01990000-0000-7000-8001-000000001402", "codigo": "KENNEDY", "nombre": "Almacén Kennedy", "sucursalId": "01990000-0000-7000-8000-000000000101", "direccion": "Av. John F. Kennedy, Santo Domingo" }
+  ],
   "nivelesFidelidad": [
     { "id": "01990000-0000-7000-8001-000000001101", "codigo": "CLASICO", "nombre": "Clásico", "orden": 1, "factorAcumulacion": 1 },
     { "id": "01990000-0000-7000-8001-000000001102", "codigo": "ORO", "nombre": "Oro", "orden": 2, "factorAcumulacion": 1.5 }

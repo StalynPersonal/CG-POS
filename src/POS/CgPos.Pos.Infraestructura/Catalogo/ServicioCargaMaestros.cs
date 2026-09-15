@@ -70,6 +70,7 @@ internal sealed class ServicioCargaMaestros(
         var nivelesFidelidad = paquete.NivelesFidelidad ?? [];
         var reglasAcumulacion = paquete.ReglasAcumulacion ?? [];
         var miembrosFidelidad = paquete.MiembrosFidelidad ?? [];
+        var almacenes = paquete.Almacenes ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -118,6 +119,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarReglaAcumulacionAsync(dato, cancelacion);
             foreach (var dato in miembrosFidelidad)
                 await AplicarMiembroFidelidadAsync(dato, cancelacion);
+            foreach (var dato in almacenes)
+                await AplicarAlmacenAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -526,6 +529,26 @@ internal sealed class ServicioCargaMaestros(
         if (dato.SaldoAl is { } saldoAl)
             miembro.SincronizarSaldo(dato.SaldoPuntos, saldoAl, dato.PuntosPorVencer, dato.ProximoVencimiento);
         if (dato.Activo) miembro.Activar(); else miembro.Desactivar();
+    }
+
+    private async Task AplicarAlmacenAsync(AlmacenCarga dato, CancellationToken cancelacion)
+    {
+        var almacen = await contexto.Almacenes.SingleOrDefaultAsync(a => a.Id == dato.Id, cancelacion);
+        if (almacen is null)
+        {
+            almacen = Dominio.Entregas.Almacen.Crear(dato.Codigo, dato.Nombre, dato.SucursalId, dato.Direccion, dato.Id);
+            contexto.Almacenes.Add(almacen);
+            _creados++;
+        }
+        else
+        {
+            if (almacen.Codigo != dato.Codigo.Trim().ToUpperInvariant())
+                throw new InvalidOperationException($"No se puede cambiar el código del almacén '{almacen.Codigo}'.");
+            almacen.Actualizar(dato.Nombre, dato.SucursalId, dato.Direccion);
+            _actualizados++;
+        }
+
+        if (dato.Activo) almacen.Activar(); else almacen.Desactivar();
     }
 
     private async Task AplicarMotivoDescuentoAsync(MotivoDescuentoCarga dato, CancellationToken cancelacion)

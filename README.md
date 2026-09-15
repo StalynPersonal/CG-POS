@@ -75,6 +75,7 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Fidelidad.ValorPunto` | Valor en moneda local de cada punto al canjearlo (sin él no se canjean puntos) | Para canjear |
 | `Fidelidad.MesesVigenciaPuntos` | Vigencia de los puntos que acumula la caja (sin él no les pone vencimiento) | No |
 | `Fidelidad.MinimoPuntosCanje`, `Fidelidad.MaximoPuntosCanjeSinConexion` | Mínimo por canje y tope por transacción mientras la caja no confirma el saldo con el Central | No |
+| `Entregas.PoliticaPendiente` | Texto impreso en el voucher de pendiente de entrega o envío | No |
 | `Tickets.MensajePie` | Mensaje al pie del ticket | No |
 | `Pantallas.MensajeBienvenida`, `Pantallas.MensajeDespedida` | Mensajes de la pantalla del cliente | No |
 | `Pantallas.SegundosPorImagen` | Rotación de la publicidad (sin él no rota) | No |

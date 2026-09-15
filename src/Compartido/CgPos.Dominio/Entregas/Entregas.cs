@@ -1,0 +1,464 @@
+using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Comun;
+using CgPos.Dominio.Ventas;
+
+namespace CgPos.Dominio.Entregas;
+
+/// <summary>Almacén o sucursal donde el cliente retira mercancía pendiente (RF-140). Lo define el Central.</summary>
+public sealed class Almacen : Entidad
+{
+    public const int LargoMaximoCodigo = 20;
+    public const int LargoMaximoNombre = 100;
+    public const int LargoMaximoDireccion = 250;
+
+    private Almacen()
+    {
+    }
+
+    public string Codigo { get; private set; } = string.Empty;
+    public string Nombre { get; private set; } = string.Empty;
+    public Guid SucursalId { get; private set; }
+    public string? Direccion { get; private set; }
+    public bool Activo { get; private set; } = true;
+
+    public static Almacen Crear(string codigo, string nombre, Guid sucursalId, string? direccion, Guid? id = null)
+    {
+        var almacen = new Almacen
+        {
+            Id = id ?? Guid.CreateVersion7(),
+            Codigo = Validar.Texto(codigo, "Código del almacén", LargoMaximoCodigo).ToUpperInvariant(),
+        };
+        almacen.Actualizar(nombre, sucursalId, direccion);
+        return almacen;
+    }
+
+    public void Actualizar(string nombre, Guid sucursalId, string? direccion)
+    {
+        Nombre = Validar.Texto(nombre, "Nombre del almacén", LargoMaximoNombre);
+        SucursalId = Validar.Id(sucursalId, "Sucursal");
+        Direccion = Validar.TextoOpcional(direccion, "Dirección", LargoMaximoDireccion);
+    }
+
+    public void Activar() => Activo = true;
+
+    public void Desactivar() => Activo = false;
+}
+
+/// <summary>Cómo recibe el cliente lo que no se lleva en caja (RF-246). El despacho en caja no genera pendiente.</summary>
+public enum MetodoEntrega
+{
+    RetiroAlmacen,
+    Envio,
+}
+
+/// <summary>Datos del envío a dirección (RF-250).</summary>
+public sealed record DatosEnvio(string Direccion, string? Sector, string? Ciudad, string? Referencia, string Telefono, string? Transportista, decimal? CostoEnvio);
+
+/// <summary>Cantidad de una línea de la venta que va a un destino de entrega (RF-247).</summary>
+public sealed record CantidadEntrega(int NumeroLinea, decimal Cantidad);
+
+/// <summary>
+/// Destino de entrega marcado en la venta en curso: retiro en un almacén o envío a dirección, con las líneas y cantidades que
+/// incluye (RF-246 a RF-248). Al cobrar se convierte en un <see cref="PendienteEntrega"/>.
+/// </summary>
+public sealed class DestinoEntrega : Entidad
+{
+    public const int LargoMaximoTexto = 100;
+    public const int LargoMaximoDireccion = 250;
+    public const int LargoMaximoTelefono = 20;
+    public const int LargoMaximoComentario = 250;
+    public const int LargoMaximoNombre = 150;
+
+    private readonly List<LineaDestinoEntrega> _lineas = [];
+
+    private DestinoEntrega()
+    {
+    }
+
+    public Guid VentaId { get; private set; }
+    public int Numero { get; private set; }
+    public MetodoEntrega Metodo { get; private set; }
+    public Guid? AlmacenId { get; private set; }
+    public string? AlmacenNombre { get; private set; }
+    public string? Direccion { get; private set; }
+    public string? Sector { get; private set; }
+    public string? Ciudad { get; private set; }
+    public string? Referencia { get; private set; }
+    public string? Telefono { get; private set; }
+    public string? Transportista { get; private set; }
+    public decimal? CostoEnvio { get; private set; }
+    public DateOnly? FechaComprometida { get; private set; }
+    public string? Comentario { get; private set; }
+
+    /// <summary>Supervisor que autorizó marcar la mercancía como pendiente (RF-53, RN-15).</summary>
+    public Guid? AutorizadoPorId { get; private set; }
+
+    public string? AutorizadoPorNombre { get; private set; }
+
+    public IReadOnlyList<LineaDestinoEntrega> Lineas => _lineas;
+
+    internal static DestinoEntrega Crear(Guid ventaId, int numero, MetodoEntrega metodo, Guid? almacenId, string? almacenNombre, DatosEnvio? envio,
+        DateOnly? fechaComprometida, string? comentario, Guid? autorizadoPorId, string? autorizadoPorNombre, IEnumerable<CantidadEntrega> cantidades)
+    {
+        var destino = new DestinoEntrega
+        {
+            Id = Guid.CreateVersion7(),
+            VentaId = ventaId,
+            Numero = numero,
+            Metodo = metodo,
+            FechaComprometida = fechaComprometida,
+            Comentario = Validar.TextoOpcional(comentario, "Comentario", LargoMaximoComentario),
+            AutorizadoPorId = autorizadoPorId,
+            AutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoNombre),
+        };
+
+        if (metodo == MetodoEntrega.RetiroAlmacen)
+        {
+            destino.AlmacenId = almacenId;
+            destino.AlmacenNombre = Validar.Texto(almacenNombre, "Almacén", Almacen.LargoMaximoNombre);
+        }
+        else if (envio is not null)
+        {
+            destino.Direccion = Validar.Texto(envio.Direccion, "Dirección del envío", LargoMaximoDireccion);
+            destino.Sector = Validar.TextoOpcional(envio.Sector, "Sector", LargoMaximoTexto);
+            destino.Ciudad = Validar.TextoOpcional(envio.Ciudad, "Ciudad o provincia", LargoMaximoTexto);
+            destino.Referencia = Validar.TextoOpcional(envio.Referencia, "Referencia", LargoMaximoDireccion);
+            destino.Telefono = Validar.Texto(envio.Telefono, "Teléfono de contacto", LargoMaximoTelefono);
+            destino.Transportista = Validar.TextoOpcional(envio.Transportista, "Transportista", LargoMaximoTexto);
+            destino.CostoEnvio = envio.CostoEnvio is { } costo ? decimal.Round(costo, 2, MidpointRounding.AwayFromZero) : null;
+        }
+
+        foreach (var cantidad in cantidades)
+            destino._lineas.Add(new LineaDestinoEntrega { Id = Guid.CreateVersion7(), DestinoEntregaId = destino.Id, NumeroLinea = cantidad.NumeroLinea, Cantidad = cantidad.Cantidad });
+
+        return destino;
+    }
+}
+
+public sealed class LineaDestinoEntrega : Entidad
+{
+    internal LineaDestinoEntrega()
+    {
+    }
+
+    public Guid DestinoEntregaId { get; internal set; }
+    public int NumeroLinea { get; internal set; }
+    public decimal Cantidad { get; internal set; }
+}
+
+/// <summary>Estados del pendiente de entrega (RF-252).</summary>
+public enum EstadoPendiente
+{
+    Pendiente,
+    EnPreparacion,
+    Preparado,
+
+    /// <summary>El envío salió con el transportista.</summary>
+    Despachado,
+
+    /// <summary>Se entregó una parte; el resto sigue pendiente (RF-253).</summary>
+    Parcial,
+
+    Entregado,
+    Anulado,
+}
+
+public enum CodigoErrorPendiente
+{
+    EstadoInvalido,
+    CantidadInvalida,
+    SerialRequerido,
+    RecibeRequerido,
+    MotivoRequerido,
+    YaEntregado,
+}
+
+public sealed class ReglaPendienteExcepcion(CodigoErrorPendiente codigo, string mensaje) : Exception(mensaje)
+{
+    public CodigoErrorPendiente Codigo { get; } = codigo;
+}
+
+/// <summary>Cantidad que se entrega de una línea del pendiente; el serial se captura en el despacho para los serializados (RF-54, RN-16).</summary>
+public sealed record CantidadEntregada(int NumeroLineaVenta, decimal Cantidad, string? Serial = null);
+
+/// <summary>
+/// Documento de pendiente de entrega o envío de una factura cobrada (RF-249): artículos, destino, fecha comprometida y cliente. Pasa por
+/// preparación y despacho, admite entregas parciales con quien retira (RF-253, RF-254) y se anula con motivo si nada se entregó (RF-255).
+/// </summary>
+public sealed class PendienteEntrega : Entidad
+{
+    public const int LargoMaximoNumero = 30;
+    public const int LargoMaximoMotivo = 250;
+
+    private readonly List<LineaPendienteEntrega> _lineas = [];
+    private readonly List<EntregaPendiente> _entregas = [];
+
+    private PendienteEntrega()
+    {
+    }
+
+    public string Numero { get; private set; } = string.Empty;
+    public Guid VentaId { get; private set; }
+    public string VentaNumero { get; private set; } = string.Empty;
+    public Guid SucursalId { get; private set; }
+    public Guid CajaId { get; private set; }
+    public MetodoEntrega Metodo { get; private set; }
+    public Guid? AlmacenId { get; private set; }
+    public string? AlmacenNombre { get; private set; }
+    public string? Direccion { get; private set; }
+    public string? Sector { get; private set; }
+    public string? Ciudad { get; private set; }
+    public string? Referencia { get; private set; }
+    public string? Telefono { get; private set; }
+    public string? Transportista { get; private set; }
+    public decimal? CostoEnvio { get; private set; }
+    public DateOnly? FechaComprometida { get; private set; }
+    public string? Comentario { get; private set; }
+    public string? ClienteDocumento { get; private set; }
+    public string? ClienteNombre { get; private set; }
+    public string VendidoPorNombre { get; private set; } = string.Empty;
+    public string? AutorizadoPorNombre { get; private set; }
+    public EstadoPendiente Estado { get; private set; }
+    public DateTimeOffset CreadoEn { get; private set; }
+    public DateTimeOffset ActualizadoEn { get; private set; }
+    public string ActualizadoPorNombre { get; private set; } = string.Empty;
+    public string? MotivoAnulacion { get; private set; }
+
+    public IReadOnlyList<LineaPendienteEntrega> Lineas => _lineas;
+    public IReadOnlyList<EntregaPendiente> Entregas => _entregas;
+
+    public bool EstaAbierto => Estado is not (EstadoPendiente.Entregado or EstadoPendiente.Anulado);
+
+    public static PendienteEntrega Crear(Venta venta, DestinoEntrega destino, string numero, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(venta);
+        ArgumentNullException.ThrowIfNull(destino);
+        if (venta.Estado != EstadoVenta.Cobrada)
+            throw new InvalidOperationException("El pendiente de entrega se genera al cobrar la factura.");
+
+        var pendiente = new PendienteEntrega
+        {
+            Id = Guid.CreateVersion7(),
+            Numero = Validar.Texto(numero, "Número del pendiente", LargoMaximoNumero),
+            VentaId = venta.Id,
+            VentaNumero = venta.NumeroTransaccion,
+            SucursalId = venta.SucursalId,
+            CajaId = venta.CajaId,
+            Metodo = destino.Metodo,
+            AlmacenId = destino.AlmacenId,
+            AlmacenNombre = destino.AlmacenNombre,
+            Direccion = destino.Direccion,
+            Sector = destino.Sector,
+            Ciudad = destino.Ciudad,
+            Referencia = destino.Referencia,
+            Telefono = destino.Telefono,
+            Transportista = destino.Transportista,
+            CostoEnvio = destino.CostoEnvio,
+            FechaComprometida = destino.FechaComprometida,
+            Comentario = destino.Comentario,
+            ClienteDocumento = venta.ClienteDocumento,
+            ClienteNombre = venta.ClienteNombre,
+            VendidoPorNombre = venta.CobradaPorNombre ?? venta.UsuarioNombre,
+            AutorizadoPorNombre = destino.AutorizadoPorNombre,
+            Estado = EstadoPendiente.Pendiente,
+            CreadoEn = ahora,
+            ActualizadoEn = ahora,
+            ActualizadoPorNombre = venta.CobradaPorNombre ?? venta.UsuarioNombre,
+        };
+
+        foreach (var cantidad in destino.Lineas.OrderBy(l => l.NumeroLinea))
+        {
+            var linea = venta.Lineas.Single(l => l.NumeroLinea == cantidad.NumeroLinea && l.EstaActiva);
+            pendiente._lineas.Add(LineaPendienteEntrega.Crear(pendiente.Id, linea, cantidad.Cantidad));
+        }
+
+        return pendiente;
+    }
+
+    /// <summary>Cantidad de la línea de la factura que aún no se entrega (0 si el pendiente se anuló).</summary>
+    public decimal CantidadPorEntregar(int numeroLineaVenta) =>
+        Estado == EstadoPendiente.Anulado ? 0m : _lineas.Where(l => l.NumeroLineaVenta == numeroLineaVenta).Sum(l => l.CantidadPendiente);
+
+    /// <summary>Avanza la preparación: en preparación, preparado y, para envíos, despachado con el transportista (RF-252).</summary>
+    public void CambiarEstado(EstadoPendiente nuevo, string usuarioNombre, DateTimeOffset ahora)
+    {
+        var permitido = (Estado, nuevo) switch
+        {
+            (EstadoPendiente.Pendiente or EstadoPendiente.Parcial, EstadoPendiente.EnPreparacion) => true,
+            (EstadoPendiente.Pendiente or EstadoPendiente.EnPreparacion or EstadoPendiente.Parcial, EstadoPendiente.Preparado) => true,
+            (EstadoPendiente.Preparado or EstadoPendiente.Parcial, EstadoPendiente.Despachado) => Metodo == MetodoEntrega.Envio,
+            _ => false,
+        };
+        if (!permitido)
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.EstadoInvalido, $"El pendiente {Numero} no puede pasar de {Estado} a {nuevo}.");
+
+        Estado = nuevo;
+        Actualizar(usuarioNombre, ahora);
+    }
+
+    /// <summary>
+    /// Registra la entrega de todo o parte de lo pendiente (RF-253) con quien retira o recibe (RF-254). Los serializados exigen su serial.
+    /// Queda <see cref="EstadoPendiente.Entregado"/> al completarse o <see cref="EstadoPendiente.Parcial"/> con saldo.
+    /// </summary>
+    public EntregaPendiente Entregar(IReadOnlyCollection<CantidadEntregada> cantidades, string? recibeNombre, string? recibeCedula, string usuarioNombre,
+        DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(cantidades);
+        if (!EstaAbierto)
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.YaEntregado, $"El pendiente {Numero} está {Estado}.");
+        if (string.IsNullOrWhiteSpace(recibeNombre) || string.IsNullOrWhiteSpace(recibeCedula))
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.RecibeRequerido, "Indique el nombre y la cédula de quien recibe la mercancía.");
+
+        var pedidas = cantidades.Where(c => c.Cantidad != 0m).ToList();
+        if (pedidas.Count == 0)
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.CantidadInvalida, "Indique qué artículos se entregan.");
+        if (pedidas.GroupBy(p => p.NumeroLineaVenta).Any(g => g.Count() > 1))
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.CantidadInvalida, "Cada artículo se indica una sola vez.");
+
+        foreach (var pedida in pedidas)
+        {
+            var linea = _lineas.FirstOrDefault(l => l.NumeroLineaVenta == pedida.NumeroLineaVenta)
+                ?? throw new ReglaPendienteExcepcion(CodigoErrorPendiente.CantidadInvalida, $"La línea {pedida.NumeroLineaVenta} no está en el pendiente.");
+            if (pedida.Cantidad < 0 || pedida.Cantidad > linea.CantidadPendiente)
+                throw new ReglaPendienteExcepcion(CodigoErrorPendiente.CantidadInvalida,
+                    $"{linea.Descripcion}: quedan {linea.CantidadPendiente:0.###} por entregar.");
+            if (linea.Serializado && string.IsNullOrWhiteSpace(pedida.Serial))
+                throw new ReglaPendienteExcepcion(CodigoErrorPendiente.SerialRequerido, $"{linea.Descripcion}: escanee el serial del artículo que se entrega.");
+        }
+
+        var entrega = EntregaPendiente.Crear(Id, _entregas.Count + 1, recibeNombre, recibeCedula, usuarioNombre, ahora);
+        foreach (var pedida in pedidas)
+        {
+            var linea = _lineas.First(l => l.NumeroLineaVenta == pedida.NumeroLineaVenta);
+            var serial = linea.Serializado ? pedida.Serial!.Trim().ToUpperInvariant() : null;
+            linea.RegistrarEntrega(pedida.Cantidad, serial);
+            entrega.AgregarLinea(linea, pedida.Cantidad, serial);
+        }
+
+        _entregas.Add(entrega);
+        Estado = _lineas.All(l => l.CantidadPendiente <= 0m) ? EstadoPendiente.Entregado : EstadoPendiente.Parcial;
+        Actualizar(usuarioNombre, ahora);
+        return entrega;
+    }
+
+    /// <summary>Anula el pendiente con motivo si aún no se entregó nada, liberando la mercancía (RF-255).</summary>
+    public void Anular(string? motivo, string usuarioNombre, DateTimeOffset ahora)
+    {
+        if (!EstaAbierto)
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.EstadoInvalido, $"El pendiente {Numero} ya está {Estado}.");
+        if (_lineas.Any(l => l.CantidadEntregada > 0))
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.YaEntregado, "El pendiente ya tiene entregas registradas y no se puede anular.");
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new ReglaPendienteExcepcion(CodigoErrorPendiente.MotivoRequerido, "Indique el motivo de la anulación del pendiente.");
+
+        MotivoAnulacion = Validar.Texto(motivo, "Motivo", LargoMaximoMotivo);
+        Estado = EstadoPendiente.Anulado;
+        Actualizar(usuarioNombre, ahora);
+    }
+
+    private void Actualizar(string usuarioNombre, DateTimeOffset ahora)
+    {
+        ActualizadoPorNombre = Validar.Texto(usuarioNombre, "Usuario", DestinoEntrega.LargoMaximoNombre);
+        ActualizadoEn = ahora;
+    }
+}
+
+public sealed class LineaPendienteEntrega : Entidad
+{
+    private LineaPendienteEntrega()
+    {
+    }
+
+    public Guid PendienteEntregaId { get; private set; }
+    public int NumeroLineaVenta { get; private set; }
+    public Guid ArticuloId { get; private set; }
+    public string CodigoInterno { get; private set; } = string.Empty;
+    public string Descripcion { get; private set; } = string.Empty;
+    public string UnidadMedidaCodigo { get; private set; } = string.Empty;
+    public int DecimalesCantidad { get; private set; }
+    public bool Serializado { get; private set; }
+    public decimal Cantidad { get; private set; }
+    public decimal CantidadEntregada { get; private set; }
+
+    /// <summary>Serial vendido en caja o capturado al entregar.</summary>
+    public string? Serial { get; private set; }
+
+    public decimal CantidadPendiente => Cantidad - CantidadEntregada;
+
+    internal static LineaPendienteEntrega Crear(Guid pendienteId, LineaVenta linea, decimal cantidad) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            PendienteEntregaId = pendienteId,
+            NumeroLineaVenta = linea.NumeroLinea,
+            ArticuloId = linea.ArticuloId,
+            CodigoInterno = linea.CodigoInterno,
+            Descripcion = linea.Descripcion,
+            UnidadMedidaCodigo = linea.UnidadMedidaCodigo,
+            DecimalesCantidad = linea.DecimalesCantidad,
+            Serializado = linea.TipoArticulo == TipoArticulo.Serializado,
+            Cantidad = cantidad,
+            Serial = linea.Serial,
+        };
+
+    internal void RegistrarEntrega(decimal cantidad, string? serial)
+    {
+        CantidadEntregada += cantidad;
+        Serial = serial ?? Serial;
+    }
+}
+
+/// <summary>Entrega registrada de un pendiente: quién recibió, cuándo y qué (constancia, RF-254).</summary>
+public sealed class EntregaPendiente : Entidad
+{
+    private readonly List<LineaEntregaPendiente> _lineas = [];
+
+    private EntregaPendiente()
+    {
+    }
+
+    public Guid PendienteEntregaId { get; private set; }
+    public int Numero { get; private set; }
+    public string RecibeNombre { get; private set; } = string.Empty;
+    public string RecibeCedula { get; private set; } = string.Empty;
+    public string UsuarioNombre { get; private set; } = string.Empty;
+    public DateTimeOffset Fecha { get; private set; }
+
+    public IReadOnlyList<LineaEntregaPendiente> Lineas => _lineas;
+
+    internal static EntregaPendiente Crear(Guid pendienteId, int numero, string? recibeNombre, string? recibeCedula, string usuarioNombre, DateTimeOffset ahora) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            PendienteEntregaId = pendienteId,
+            Numero = numero,
+            RecibeNombre = Validar.Texto(recibeNombre, "Nombre de quien recibe", DestinoEntrega.LargoMaximoNombre),
+            RecibeCedula = Validar.Texto(recibeCedula, "Cédula de quien recibe", 20),
+            UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", DestinoEntrega.LargoMaximoNombre),
+            Fecha = ahora,
+        };
+
+    internal void AgregarLinea(LineaPendienteEntrega linea, decimal cantidad, string? serial) =>
+        _lineas.Add(new LineaEntregaPendiente
+        {
+            Id = Guid.CreateVersion7(),
+            EntregaPendienteId = Id,
+            NumeroLineaVenta = linea.NumeroLineaVenta,
+            Descripcion = linea.Descripcion,
+            Cantidad = cantidad,
+            Serial = serial,
+        });
+}
+
+public sealed class LineaEntregaPendiente : Entidad
+{
+    internal LineaEntregaPendiente()
+    {
+    }
+
+    public Guid EntregaPendienteId { get; internal set; }
+    public int NumeroLineaVenta { get; internal set; }
+    public string Descripcion { get; internal set; } = string.Empty;
+    public decimal Cantidad { get; internal set; }
+    public string? Serial { get; internal set; }
+}

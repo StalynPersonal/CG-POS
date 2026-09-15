@@ -43,7 +43,8 @@ public sealed record DatosCobro(
     decimal Redondeo,
     IReadOnlyList<DatosPagoVenta> Pagos,
     bool Impreso,
-    bool GavetaAbierta);
+    bool GavetaAbierta,
+    IReadOnlyList<string>? PendientesEntrega = null);
 
 /// <param name="Mensaje">En un cobro correcto puede traer un aviso (ej. la impresora no respondió).</param>
 /// <param name="NuevaVenta">La siguiente venta en curso, lista para escanear.</param>

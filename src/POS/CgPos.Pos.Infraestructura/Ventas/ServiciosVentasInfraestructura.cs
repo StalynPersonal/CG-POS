@@ -3,6 +3,7 @@ using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fidelidad;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -18,6 +19,7 @@ using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Ecf;
+using CgPos.Pos.Infraestructura.Entregas;
 using CgPos.Pos.Infraestructura.Fidelidad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
@@ -45,7 +47,7 @@ internal static class ConversionesVenta
                 l.LeidaDeBalanza, l.EsReverso, l.LineaAnuladaNumero, l.Anulada, l.Serial,
                 l.PromocionCodigo, l.PromocionNombre, l.PromocionDescripcion, l.DescuentoPromocion, l.PromocionDesactivada,
                 l.DescuentoManual, l.DescuentoManualTipo, l.DescuentoManualValor, l.MotivoDescuento, l.DescuentoAutorizadoPorNombre,
-                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual))
+                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual, l.SerialPendiente, l.EsReverso ? 0m : venta.CantidadEnEntregas(l.NumeroLinea)))
             .ToList();
 
         var cliente = venta.ClienteNombre is { } nombre
@@ -103,7 +105,8 @@ internal static class ConversionesVenta
                 ? null
                 : new DatosComprobanteElectronico(documento.Encf, documento.TipoComprobante, documento.CodigoSeguridad, documento.FechaFirma, documento.UrlTimbre,
                     documento.Estado, venceSecuencia),
-            fidelidad);
+            fidelidad,
+            venta.DestinosEntrega.Count == 0 ? null : venta.DestinosEntrega.OrderBy(d => d.Numero).Select(d => d.ADatos()).ToList());
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -131,6 +134,7 @@ internal static class ConversionesVenta
         CodigoErrorVenta.PagoInvalido => CodigoResultadoVenta.PagoInvalido,
         CodigoErrorVenta.PagoInsuficiente => CodigoResultadoVenta.PagoInsuficiente,
         CodigoErrorVenta.DevueltaNoPermitida => CodigoResultadoVenta.DevueltaNoPermitida,
+        CodigoErrorVenta.EntregaInvalida => CodigoResultadoVenta.EntregaInvalida,
         _ => CodigoResultadoVenta.VentaNoEditable,
     };
 }
@@ -356,6 +360,17 @@ internal sealed class ServicioVentas(
                 new DocumentoConsumoNotaCredito(nota.Id, nota.Encf, venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, saldo, ahora));
         }
 
+        // Pendientes de entrega y envío: un documento numerado por destino, en la bandeja de salida (RF-249, RN-14).
+        var pendientes = new List<PendienteEntrega>();
+        foreach (var destino in venta.DestinosEntrega.OrderBy(d => d.Numero))
+        {
+            var secuenciaPendiente = await secuencias.SiguienteAsync(venta.CajaId, TiposSecuencia.PendienteEntrega, cancelacion);
+            var pendiente = PendienteEntrega.Crear(venta, destino, $"PE-{sesion.CajaCodigo}-{secuenciaPendiente:00000000}", ahora);
+            contexto.PendientesEntrega.Add(pendiente);
+            pendientes.Add(pendiente);
+            bandejaSalida.Encolar("Entregas.PendienteCreado", pendiente.Id, pendiente.ADatos());
+        }
+
         // Puntos acumulados y canjeados: van al Central, que lleva el saldo oficial.
         foreach (var movimiento in movimientosPuntos)
         {
@@ -405,6 +420,14 @@ internal sealed class ServicioVentas(
             await impresora.ImprimirAsync(GeneradorTicket.GenerarSaldoNotaCredito(encabezado, nota.Encf ?? nota.Numero, nota.ClienteNombre, saldo, nota.Moneda, nota.VenceEn,
                 venta.NumeroTransaccion), cancelacion);
 
+        // Voucher de cada pendiente con copia para el cliente y para el despacho (RF-55, RF-88).
+        var politicaPendiente = pendientes.Count > 0 ? await parametros.ObtenerAsync(ClavesParametros.PoliticaPendiente, sesion.CajaId, cancelacion) : null;
+        foreach (var pendiente in pendientes.Select(p => p.ADatos()))
+        {
+            await impresora.ImprimirAsync(GeneradorTicket.GenerarPendiente(encabezado, pendiente, copiaCliente: true, politicaPendiente), cancelacion);
+            await impresora.ImprimirAsync(GeneradorTicket.GenerarPendiente(encabezado, pendiente, copiaCliente: false, politicaPendiente), cancelacion);
+        }
+
         var gaveta = resultado.AbreGaveta ? await impresora.AbrirGavetaAsync(cancelacion) : null;
         var avisos = new[] { impresion.Correcto ? null : impresion.Mensaje, gaveta is { Correcto: false } ? gaveta.Mensaje : null }
             .Where(aviso => aviso is not null)
@@ -417,7 +440,7 @@ internal sealed class ServicioVentas(
             CodigoResultadoVenta.Correcto,
             avisos.Count > 0 ? string.Join(" ", avisos) : null,
             new DatosCobro(venta.NumeroTransaccion, resultado.Total, resultado.TotalCobrado, resultado.Pagado, resultado.Devuelta, resultado.Redondeo,
-                datosVenta.Pagos ?? [], impresion.Correcto, gaveta?.Correcto ?? false),
+                datosVenta.Pagos ?? [], impresion.Correcto, gaveta?.Correcto ?? false, pendientes.Select(p => p.Numero).ToList()),
             Datos(nueva),
             datosVenta);
     }
@@ -681,7 +704,8 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(pesado, null, reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, string? serial = null, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, string? serial = null,
+        bool serialEnDespacho = false, CancellationToken cancelacion = default)
     {
         if (!sesion.TienePermiso(CatalogoPermisos.RegistrarVenta))
             return new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "No tiene permiso para registrar ventas.", null, CatalogoPermisos.RegistrarVenta);
@@ -697,7 +721,7 @@ internal sealed class ServicioVentas(
         if (articulo is null)
             return new RespuestaVenta(CodigoResultadoVenta.ArticuloNoEncontrado, $"No se encontró el artículo {codigoLimpio}.", Datos(venta!));
 
-        return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(articulo.AArticuloParaVenta(), cantidadFinal, reloj.GetUtcNow(), serial), cancelacion);
+        return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(articulo.AArticuloParaVenta(), cantidadFinal, reloj.GetUtcNow(), serial, serialEnDespacho), cancelacion);
     }
 
     public async Task<RespuestaVenta> CambiarCantidadAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default)
@@ -770,6 +794,80 @@ internal sealed class ServicioVentas(
 
         return await EjecutarAsync(venta!, () => venta!.QuitarCliente(reloj.GetUtcNow()), cancelacion);
     }
+
+    public async Task<RespuestaVenta> MarcarEntregaAsync(SesionUsuario sesion, Guid ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        string? almacenNombre = null;
+        if (solicitud.Metodo == MetodoEntrega.RetiroAlmacen && solicitud.AlmacenId is { } almacenId)
+        {
+            almacenNombre = await contexto.Almacenes.AsNoTracking().Where(a => a.Id == almacenId && a.Activo).Select(a => a.Nombre).FirstOrDefaultAsync(cancelacion);
+            if (almacenNombre is null)
+                return new RespuestaVenta(CodigoResultadoVenta.EntregaInvalida, "El almacén seleccionado no existe o está inactivo.", Datos(venta!));
+        }
+
+        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        var ahora = reloj.GetUtcNow();
+        var lineas = solicitud.Lineas ?? [];
+
+        // Se valida sobre una copia sin seguimiento antes de pedir la clave del supervisor.
+        try
+        {
+            var copia = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta!.Id, cancelacion);
+            copia.MarcarEntrega(solicitud.Metodo, solicitud.AlmacenId, almacenNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario, lineas,
+                null, null, hoy, ahora);
+        }
+        catch (ReglaVentaExcepcion excepcion)
+        {
+            return new RespuestaVenta(excepcion.Codigo.ACodigoResultado(), excepcion.Message, Datos(venta!));
+        }
+        catch (ArgumentException excepcion)
+        {
+            return new RespuestaVenta(CodigoResultadoVenta.EntregaInvalida, excepcion.Message, Datos(venta!));
+        }
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.MarcarPendiente, solicitud.AutorizacionId, TipoEntidadVenta, venta!.NumeroTransaccion,
+            cancelacion);
+        if (!permiso.Permitido)
+            return SinPermiso(permiso, CatalogoPermisos.MarcarPendiente, venta);
+
+        return await EjecutarAsync(venta, () =>
+        {
+            var destino = venta.MarcarEntrega(solicitud.Metodo, solicitud.AlmacenId, almacenNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario,
+                lineas, permiso.SupervisorId ?? sesion.UsuarioId, permiso.SupervisorNombre ?? sesion.Nombre, hoy, ahora);
+            auditoria.Registrar(new EntradaAuditoria("Entregas.PendienteMarcado", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: new
+                {
+                    destino.Numero,
+                    destino.Metodo,
+                    destino.AlmacenNombre,
+                    destino.Direccion,
+                    destino.FechaComprometida,
+                    Lineas = destino.Lineas.Select(l => new { l.NumeroLinea, l.Cantidad }),
+                },
+                Motivo: permiso.Motivo,
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+                AutorizadoPor: Autorizador(permiso)));
+        }, cancelacion);
+    }
+
+    public async Task<RespuestaVenta> QuitarEntregaAsync(SesionUsuario sesion, Guid ventaId, int numeroDestino, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        return await EjecutarAsync(venta!, () => venta!.QuitarEntrega(numeroDestino, reloj.GetUtcNow()), cancelacion);
+    }
+
+    public async Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(SesionUsuario sesion, CancellationToken cancelacion = default) =>
+        (await contexto.Almacenes.AsNoTracking().Where(a => a.Activo).OrderBy(a => a.Nombre).ToListAsync(cancelacion))
+            .Select(a => new DatosAlmacen(a.Id, a.Codigo, a.Nombre, a.SucursalId, a.Direccion, a.SucursalId == sesion.SucursalId))
+            .OrderByDescending(a => a.EsDeLaSucursal)
+            .ToList();
 
     public async Task<RespuestaVenta> AsignarFidelidadAsync(SesionUsuario sesion, Guid ventaId, string cedula, CancellationToken cancelacion = default)
     {

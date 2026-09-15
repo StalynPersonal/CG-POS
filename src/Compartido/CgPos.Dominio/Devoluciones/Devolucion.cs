@@ -223,9 +223,10 @@ public sealed class Devolucion : Entidad
             {
                 if (string.IsNullOrWhiteSpace(pedida.Serial))
                     throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.SerialRequerido, $"{linea.Descripcion}: escanee el serial del artículo que devuelve.");
-                if (!string.Equals(pedida.Serial.Trim(), linea.Serial, StringComparison.OrdinalIgnoreCase))
+                // El serial vendido en caja se valida; el de un artículo entregado después se captura en el despacho (RF-46, RF-56).
+                if (linea.Serial is not null && !string.Equals(pedida.Serial.Trim(), linea.Serial, StringComparison.OrdinalIgnoreCase))
                     throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.SerialNoCoincide, $"{linea.Descripcion}: el serial no coincide con el vendido en la factura.");
-                serial = linea.Serial;
+                serial = linea.Serial ?? pedida.Serial.Trim().ToUpperInvariant();
             }
 
             // La última devolución de la línea toma el resto exacto, para no dejar centavos por redondeo.

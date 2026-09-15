@@ -99,6 +99,10 @@ else
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
                 <div>
                     <span>Transacción @cobro.NumeroTransaccion cobrada</span>
+                    @if (cobro.PendientesEntrega is { Count: > 0 } pendientes)
+                    {
+                        <span>Pendientes: @string.Join(", ", pendientes)</span>
+                    }
                     <strong>Total @cobro.TotalCobrado.ToString("C")</strong>
                 </div>
                 <div class="cg-venta__devuelta">
@@ -167,6 +171,14 @@ else
                         @if (linea.Serial is not null)
                         {
                             <div class="cg-venta__nota">Serial @linea.Serial</div>
+                        }
+                        @if (!linea.EsReverso && linea.SerialPendiente)
+                        {
+                            <div class="cg-venta__nota">Serial al entregar</div>
+                        }
+                        @if (!linea.EsReverso && linea.CantidadEnEntrega > 0)
+                        {
+                            <div class="cg-venta__nota">Entrega posterior: @linea.CantidadEnEntrega.ToString("0.###")</div>
                         }
                         @if (!linea.EsReverso && linea.DescuentoPromocion > 0)
                         {
@@ -251,6 +263,7 @@ else
                 <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="LimpiarAsync" />
                 <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" AlPresionar="DescuentoLineaSeleccionadaAsync" />
                 <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="AbrirDescuentoFacturaAsync" />
+                <TeclaFuncion Texto="Entrega / envío" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="AbrirEntregaAsync" />
                 <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="AnularAsync" />
                 <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
                 <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="AbrirGavetaAsync" />
@@ -494,9 +507,22 @@ else
             var serial = await PedirTextoAsync("Serial del artículo", respuesta.Mensaje ?? "Serial", ayuda: "Escanee el número de serie de la etiqueta del artículo.",
                 decimales: false, modo: ModoTeclado.Alfanumerico);
             if (serial is null)
-                return;
+            {
+                // Sin serial en caja solo si se entrega después: el serial se captura en el despacho (RN-16).
+                _dialogoAbierto = true;
+                var sinSerial = await Dialogos.ConfirmarAsync("Artículo con serial",
+                    "¿Registrarlo sin serial para entregarlo o enviarlo después? Antes de cobrar debe marcarlo con «Entrega / envío».", "Sin serial");
+                _dialogoAbierto = false;
+                _enfocar = true;
+                if (!sinSerial)
+                    return;
 
-            respuesta = await EnColaConResultadoAsync(() => Cliente.AgregarArticuloAsync(_venta!.Id, codigo, serial: serial));
+                respuesta = await EnColaConResultadoAsync(() => Cliente.AgregarArticuloAsync(_venta!.Id, codigo, serialEnDespacho: true));
+            }
+            else
+            {
+                respuesta = await EnColaConResultadoAsync(() => Cliente.AgregarArticuloAsync(_venta!.Id, codigo, serial: serial));
+            }
         }
         else if (respuesta.Resultado == CodigoResultadoVenta.RequiereBalanza && !codigo.Contains('*'))
         {
@@ -816,6 +842,24 @@ else
         var venta = await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Medium);
 
         // Los cambios ya quedaron en el Agente: si el diálogo se cerró con Esc, se relee la venta.
+        if (venta is not null)
+            _venta = venta;
+        else
+            await EnColaAsync(async () => AplicarRespuesta(await Cliente.ObtenerVentaActualAsync()));
+    }
+
+    /// <summary>Marca artículos para retiro en almacén o envío a dirección (RF-246); requiere clave de supervisor (RF-53).</summary>
+    private async Task AbrirEntregaAsync()
+    {
+        if (_venta is null || !_venta.Lineas.Any(EsEditable))
+        {
+            _mensaje = "No hay artículos para marcar como pendientes de entrega.";
+            return;
+        }
+
+        _barra?.MostrarPrincipal();
+        var parametros = new DialogParameters<DialogoEntrega> { { dialogo => dialogo.Venta, _venta }, { dialogo => dialogo.NumeroLinea, _numeroSeleccionado } };
+        var venta = await MostrarDialogoAsync<DialogoEntrega, DatosVenta>("Entrega y envío", parametros, MaxWidth.Large);
         if (venta is not null)
             _venta = venta;
         else

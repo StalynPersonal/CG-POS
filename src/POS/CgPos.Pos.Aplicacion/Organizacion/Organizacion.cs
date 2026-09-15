@@ -61,6 +61,9 @@ public static class ClavesParametros
     /// <summary>Código ISO de la moneda local de la caja; debe existir activa en el maestro de monedas.</summary>
     public const string MonedaLocal = "General.MonedaLocal";
 
+    /// <summary>Política impresa en el voucher de pendiente de entrega o envío (RF-249). Opcional.</summary>
+    public const string PoliticaPendiente = "Entregas.PoliticaPendiente";
+
     /// <summary>Valor en moneda local de cada punto de fidelidad al canjearlo (RF-239). Sin él no se canjean puntos.</summary>
     public const string ValorPuntoFidelidad = "Fidelidad.ValorPunto";
 

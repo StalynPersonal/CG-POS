@@ -1,5 +1,6 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
@@ -33,6 +34,7 @@ public enum CodigoErrorVenta
     PagoInvalido,
     PagoInsuficiente,
     DevueltaNoPermitida,
+    EntregaInvalida,
 }
 
 /// <summary>Una regla de la venta impidió la operación; el código permite a la pantalla reaccionar.</summary>
@@ -150,6 +152,7 @@ public sealed class Venta : Entidad
 
     private readonly List<LineaVenta> _lineas = [];
     private readonly List<PagoVenta> _pagos = [];
+    private readonly List<DestinoEntrega> _destinosEntrega = [];
 
     private Venta()
     {
@@ -225,6 +228,9 @@ public sealed class Venta : Entidad
 
     public IReadOnlyCollection<PagoVenta> Pagos => _pagos;
 
+    /// <summary>Destinos de entrega o envío de parte de la mercancía (M12); lo demás se despacha en caja.</summary>
+    public IReadOnlyCollection<DestinoEntrega> DestinosEntrega => _destinosEntrega;
+
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
     public static string FormatearNumero(string codigoSucursal, string codigoCaja, long secuencia) =>
@@ -255,10 +261,11 @@ public sealed class Venta : Entidad
 
     /// <summary>
     /// Agrega un artículo. Los pesados toman la cantidad de la etiqueta o balanza (RF-19, RF-20);
-    /// los serializados exigen su serial y van de uno en uno (RF-17);
+    /// los serializados exigen su serial y van de uno en uno (RF-17), salvo que se entreguen después: el serial se captura en el despacho (RN-16);
     /// los demás usan la cantidad indicada o 1, redondeada a los decimales de su unidad (RF-198).
     /// </summary>
-    public LineaVenta AgregarArticulo(ArticuloParaVenta articulo, decimal? cantidadIndicada, DateTimeOffset ahora, string? serial = null)
+    /// <param name="serialEnDespacho">Serializado sin serial en caja porque se marcará para entrega o envío.</param>
+    public LineaVenta AgregarArticulo(ArticuloParaVenta articulo, decimal? cantidadIndicada, DateTimeOffset ahora, string? serial = null, bool serialEnDespacho = false)
     {
         ArgumentNullException.ThrowIfNull(articulo);
         AsegurarEditable();
@@ -267,7 +274,14 @@ public sealed class Venta : Entidad
             throw new ReglaVentaExcepcion(CodigoErrorVenta.SinPrecio, $"El artículo {articulo.CodigoInterno} no tiene precio vigente.");
 
         var serialLimpio = string.IsNullOrWhiteSpace(serial) ? null : serial.Trim().ToUpperInvariant();
-        if (articulo.Tipo == TipoArticulo.Serializado)
+        var serialPendiente = false;
+        if (articulo.Tipo == TipoArticulo.Serializado && serialLimpio is null && serialEnDespacho)
+        {
+            if (cantidadIndicada is not null and not 1m)
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.CantidadInvalida, "Los artículos con serial se registran de uno en uno.");
+            serialPendiente = true;
+        }
+        else if (articulo.Tipo == TipoArticulo.Serializado)
         {
             if (serialLimpio is null)
                 throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereSerial, $"Escanee el serial de {articulo.Descripcion}.");
@@ -315,7 +329,7 @@ public sealed class Venta : Entidad
         var precio = ReglasPrecio.Determinar(articulo.CodigoInterno, articulo.Tipo, articulo.CantidadMinimaMayor,
             new PreciosVigentes(precioDetalle, articulo.PrecioMayor), cantidad, SeleccionListaPrecio.Automatica);
 
-        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio);
+        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio, serialPendiente);
         _lineas.Add(linea);
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
@@ -327,6 +341,7 @@ public sealed class Venta : Entidad
     {
         AsegurarEditable();
         var linea = LineaActiva(numeroLinea);
+        AsegurarSinEntrega(linea);
 
         if (linea.LeidaDeBalanza)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereBalanza, "La cantidad de un artículo pesado viene de la balanza; no se cambia a mano.");
@@ -349,6 +364,7 @@ public sealed class Venta : Entidad
     {
         AsegurarEditable();
         var linea = LineaActiva(numeroLinea);
+        AsegurarSinEntrega(linea);
 
         linea.MarcarAnulada();
         var reverso = LineaVenta.CrearReverso(Id, SiguienteNumeroLinea(), linea);
@@ -421,6 +437,76 @@ public sealed class Venta : Entidad
         ClienteNombre = null;
         TipoComprobante = TipoComprobante.FacturaConsumo;
         ActualizadaEn = ahora;
+    }
+
+    /// <summary>
+    /// Marca líneas, completas o en parte, para retiro en un almacén o envío a dirección (RF-246 a RF-248, RN-12 a RN-14). Quien llama
+    /// valida la autorización del supervisor (RF-53, RN-15). Una factura admite varios destinos.
+    /// </summary>
+    public DestinoEntrega MarcarEntrega(MetodoEntrega metodo, Guid? almacenId, string? almacenNombre, DatosEnvio? envio, DateOnly? fechaComprometida,
+        string? comentario, IReadOnlyCollection<CantidadEntrega> cantidades, Guid? autorizadoPorId, string? autorizadoPorNombre, DateOnly hoy, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(cantidades);
+        AsegurarEditable();
+
+        if (!Enum.IsDefined(metodo))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "Método de entrega no válido.");
+        if (metodo == MetodoEntrega.RetiroAlmacen && (almacenId is null || string.IsNullOrWhiteSpace(almacenNombre)))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "Seleccione el almacén o la sucursal donde el cliente retira.");
+        if (metodo == MetodoEntrega.Envio && (envio is null || string.IsNullOrWhiteSpace(envio.Direccion) || string.IsNullOrWhiteSpace(envio.Telefono)))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "El envío requiere la dirección y un teléfono de contacto.");
+        if (envio?.CostoEnvio < 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "El costo del envío no puede ser negativo.");
+        if (fechaComprometida < hoy)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "La fecha comprometida no puede ser anterior a hoy.");
+
+        var pedidas = cantidades.Where(c => c.Cantidad != 0m).ToList();
+        if (pedidas.Count == 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "Indique los artículos y las cantidades que se entregan después.");
+        if (pedidas.GroupBy(p => p.NumeroLinea).Any(grupo => grupo.Count() > 1))
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "Cada línea se indica una sola vez por destino.");
+
+        foreach (var pedida in pedidas)
+        {
+            var linea = LineaActiva(pedida.NumeroLinea);
+            if (linea.EsServicio)
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, $"{linea.Descripcion} es un servicio: no tiene entrega.");
+            if (pedida.Cantidad < 0 || (!linea.PermiteDecimales && pedida.Cantidad != decimal.Truncate(pedida.Cantidad)))
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, $"{linea.Descripcion}: la cantidad a entregar no es válida.");
+
+            var disponible = linea.Cantidad - CantidadEnEntregas(linea.NumeroLinea);
+            if (pedida.Cantidad > disponible)
+                throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, disponible <= 0
+                    ? $"{linea.Descripcion} ya está marcado completo para entrega."
+                    : $"{linea.Descripcion}: solo quedan {disponible:0.###} por marcar.");
+        }
+
+        var numero = _destinosEntrega.Count == 0 ? 1 : _destinosEntrega.Max(d => d.Numero) + 1;
+        var destino = DestinoEntrega.Crear(Id, numero, metodo, almacenId, almacenNombre, envio, fechaComprometida, comentario, autorizadoPorId, autorizadoPorNombre, pedidas);
+        _destinosEntrega.Add(destino);
+        ActualizadaEn = ahora;
+        return destino;
+    }
+
+    /// <summary>Quita un destino: sus artículos vuelven a despacharse en caja.</summary>
+    public void QuitarEntrega(int numeroDestino, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        var destino = _destinosEntrega.FirstOrDefault(d => d.Numero == numeroDestino)
+            ?? throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, $"El destino de entrega {numeroDestino} no existe.");
+
+        _destinosEntrega.Remove(destino);
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Cantidad de la línea marcada para entrega o envío en todos los destinos.</summary>
+    public decimal CantidadEnEntregas(int numeroLinea) => _destinosEntrega.SelectMany(d => d.Lineas).Where(l => l.NumeroLinea == numeroLinea).Sum(l => l.Cantidad);
+
+    private void AsegurarSinEntrega(LineaVenta linea)
+    {
+        if (CantidadEnEntregas(linea.NumeroLinea) > 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida,
+                $"La línea {linea.NumeroLinea} está marcada para entrega: quite el destino de entrega antes de modificarla.");
     }
 
     /// <summary>Identifica al miembro del programa de fidelidad (RF-126, RF-236): habilita sus ofertas exclusivas y acumula al cobrar.</summary>
@@ -780,6 +866,12 @@ public sealed class Venta : Entidad
 
         if (!TieneLineasActivas)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.SinLineas, "No hay artículos que cobrar.");
+
+        // Un serializado sin serial solo sale de caja si se entrega después: el serial se captura en el despacho (RN-16).
+        if (_lineas.FirstOrDefault(l => l.EstaActiva && l.SerialPendiente && CantidadEnEntregas(l.NumeroLinea) < l.Cantidad) is { } sinSerial)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereSerial,
+                $"{sinSerial.Descripcion} no tiene serial: márquelo para entrega o envío, o elimínelo y escanéelo con su serial.");
+
         if (RequiereIdentificacion(montoIdentificacion))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.DocumentoRequerido,
                 $"Una factura de consumo desde {SimboloMoneda}{montoIdentificacion:N2} exige la cédula o el RNC del cliente.");
@@ -934,6 +1026,9 @@ public sealed class LineaVenta : Entidad
     /// <summary>Serial del artículo vendido, para la garantía (RF-17).</summary>
     public string? Serial { get; private set; }
 
+    /// <summary>Serializado que se entrega después: el serial se captura en el despacho (RF-54, RN-16).</summary>
+    public bool SerialPendiente { get; private set; }
+
     // Oferta aplicada: queda registrada por línea para el reporte de efecto promocional (RF-210).
     public Guid? PromocionId { get; private set; }
     public string? PromocionCodigo { get; private set; }
@@ -1018,11 +1113,12 @@ public sealed class LineaVenta : Entidad
     public decimal ImporteConImpuesto => EsReverso ? 0m : Math.Max(0m, ImporteBruto - DescuentoTotal);
 
     internal static LineaVenta Crear(Guid ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad, PrecioDeterminado precio,
-        decimal? importeEtiqueta, bool leidaDeBalanza, string? serial) =>
+        decimal? importeEtiqueta, bool leidaDeBalanza, string? serial, bool serialPendiente) =>
         new()
         {
             Id = Guid.CreateVersion7(),
             Serial = serial,
+            SerialPendiente = serialPendiente,
             VentaId = ventaId,
             NumeroLinea = numeroLinea,
             ArticuloId = articulo.ArticuloId,

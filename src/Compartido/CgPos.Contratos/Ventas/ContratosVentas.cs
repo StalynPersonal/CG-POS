@@ -70,7 +70,9 @@ public sealed record DatosLineaVenta(
     string? DescuentoAutorizadoPorNombre = null,
     decimal DescuentoFactura = 0m,
     decimal ImporteBruto = 0m,
-    bool PermiteDescuentoManual = true);
+    bool PermiteDescuentoManual = true,
+    bool SerialPendiente = false,
+    decimal CantidadEnEntrega = 0m);
 
 public sealed record DatosDesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
@@ -115,7 +117,8 @@ public sealed record DatosVenta(
     decimal RedondeoEfectivo = 0m,
     DateTimeOffset? CobradaEn = null,
     DatosComprobanteElectronico? Comprobante = null,
-    DatosFidelidadVenta? Fidelidad = null);
+    DatosFidelidadVenta? Fidelidad = null,
+    IReadOnlyList<DatosDestinoEntrega>? DestinosEntrega = null);
 
 /// <summary>Miembro del programa de fidelidad de la venta y los puntos que acumuló y canjeó al cobrar.</summary>
 public sealed record DatosFidelidadVenta(Guid MiembroId, string Cedula, string Nombre, string? Nivel, int PuntosAcumulados, int PuntosCanjeados);
@@ -134,7 +137,8 @@ public sealed record DatosVentaEnEspera(
 
 /// <param name="Codigo">Código leído; admite "cantidad*código" (ej. "12*7891114119695", RF-14).</param>
 /// <param name="Serial">Serial escaneado, obligatorio para artículos serializados (RF-17).</param>
-public sealed record SolicitudAgregarArticulo(string Codigo, decimal? Cantidad = null, string? Serial = null);
+/// <param name="SerialEnDespacho">Serializado sin serial que se marcará para entrega o envío: el serial se captura en el despacho (RN-16).</param>
+public sealed record SolicitudAgregarArticulo(string Codigo, decimal? Cantidad = null, string? Serial = null, bool SerialEnDespacho = false);
 
 /// <summary>Agrega un artículo pesado con el peso que reporta la balanza, descontando su tara (RF-19, RF-196).</summary>
 public sealed record SolicitudPesarArticulo(string Codigo);
@@ -199,6 +203,7 @@ public enum CodigoResultadoVenta
     ComprobanteNoDisponible,
     EcfInvalido,
     NoInscritoFidelidad,
+    EntregaInvalida,
 }
 
 /// <summary>Resultado de una operación sobre la venta: la venta actualizada o el motivo del rechazo.</summary>

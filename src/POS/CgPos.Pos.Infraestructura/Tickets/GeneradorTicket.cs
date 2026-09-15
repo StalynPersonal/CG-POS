@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Globalizacion;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
@@ -254,6 +255,82 @@ internal static class GeneradorTicket
         AgregarFirmas(lineas, "Cliente", "Autorizado");
 
         return Documento($"nc-{nota.Numero}{(copiaContabilidad ? "-contabilidad" : null)}{(esCopia ? "-copia" : null)}", lineas);
+    }
+
+    /// <summary>
+    /// Voucher de pendiente de entrega o envío (RF-55, RF-249): código de barras para el despacho, artículos y cantidades, destino, fecha comprometida,
+    /// cliente y políticas. Se imprime la copia del cliente y la del despacho (RF-88).
+    /// </summary>
+    public static DocumentoImpresion GenerarPendiente(EncabezadoTicket encabezado, DatosPendienteEntrega pendiente, bool copiaCliente, string? politica)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+        void Separador() => Agregar(new string('-', Ancho));
+        void Envuelto(string texto)
+        {
+            foreach (var parte in Envolver(texto))
+                Agregar(parte);
+        }
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia: false);
+        Agregar(pendiente.Metodo == MetodoEntrega.Envio ? "PENDIENTE DE ENVÍO" : "PENDIENTE DE RETIRO", Estilo.Titulo);
+        Agregar(copiaCliente ? "COPIA CLIENTE" : "COPIA DESPACHO", Estilo.Centrado);
+        Agregar($"Número: {pendiente.Numero}", Estilo.Negrita);
+        Agregar($"Factura: {pendiente.VentaNumero}");
+        Agregar($"Fecha: {HoraLocal(encabezado, pendiente.CreadoEn, cultura)}");
+        if (pendiente.ClienteNombre is { } cliente)
+            Envuelto($"Cliente: {cliente}{(pendiente.ClienteDocumento is { } documento ? $" ({documento})" : null)}");
+        Agregar($"Vendió: {pendiente.VendidoPorNombre}");
+        if (pendiente.AutorizadoPorNombre is { } autorizo)
+            Agregar($"Autorizó: {autorizo}");
+        Separador();
+
+        if (pendiente.Metodo == MetodoEntrega.RetiroAlmacen)
+        {
+            Envuelto($"Retira en: {pendiente.AlmacenNombre}");
+        }
+        else
+        {
+            Envuelto($"Dirección: {pendiente.Direccion}");
+            if (string.Join(", ", new[] { pendiente.Sector, pendiente.Ciudad }.Where(t => !string.IsNullOrWhiteSpace(t))) is { Length: > 0 } lugar)
+                Envuelto(lugar);
+            if (pendiente.Referencia is { } referencia)
+                Envuelto($"Referencia: {referencia}");
+            Agregar($"Teléfono: {pendiente.Telefono}");
+            if (pendiente.Transportista is { } transportista)
+                Envuelto($"Transportista: {transportista}");
+            if (pendiente.CostoEnvio is { } costo)
+                Agregar(Columnas("Costo de envío", costo.ToString("N2", cultura)));
+        }
+
+        if (pendiente.FechaComprometida is { } fecha)
+            Agregar($"Fecha comprometida: {fecha.ToString("dd/MM/yyyy", cultura)}", Estilo.Negrita);
+        if (pendiente.Comentario is { } comentario)
+            Envuelto($"Comentario: {comentario}");
+        Separador();
+
+        foreach (var linea in pendiente.Lineas)
+        {
+            Envuelto(linea.Descripcion);
+            Agregar(Columnas($"  {linea.Codigo}", $"{linea.Cantidad.ToString("N" + linea.DecimalesCantidad, cultura)} {linea.UnidadMedidaCodigo}"));
+            if (linea.Serial is { } serial)
+                Agregar($"  Serial: {serial}");
+            else if (linea.Serializado)
+                Agregar("  Serial: se registra al entregar");
+        }
+
+        // Código para llamar el pendiente en el despacho (RF-251).
+        Agregar(pendiente.Numero, Estilo.Barras);
+
+        if (politica is not null)
+        {
+            Separador();
+            Envuelto(politica);
+        }
+
+        AgregarFirmas(lineas, "Cliente", "Despacho");
+        return Documento($"pendiente-{pendiente.Numero}-{(copiaCliente ? "cliente" : "despacho")}", lineas);
     }
 
     /// <summary>Voucher con el saldo que queda de una nota de crédito usada parcialmente (RF-43).</summary>

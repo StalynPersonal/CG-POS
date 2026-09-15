@@ -4,6 +4,7 @@ using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Promociones;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
@@ -909,6 +910,81 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var despues = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s => s.ConsultarAsync(caja.Cajero, caja.Catalogo.CedulaMiembro));
         Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100, despues.Miembro!.SaldoDisponible);
+    }
+
+    [SkippableFact]
+    public async Task Retiro_y_envio_con_autorizacion_generan_pendientes_con_voucher_y_bloquean_la_devolucion_de_lo_no_entregado()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var almacen = Guid.CreateVersion7();
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
+            Almacenes: [new AlmacenCarga(almacen, $"ALM{caja.Catalogo.Sufijo}", $"Almacén Kennedy {caja.Catalogo.Sufijo}", caja.Escenario.Sucursal)]), "Pruebas"));
+
+        var almacenes = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosAlmacen>>(s => s.ListarAlmacenesAsync(caja.Cajero));
+        Assert.True(almacenes.Single(a => a.Id == almacen).EsDeLaSucursal);
+
+        // Tres cementos y un taladro sin serial: el serial se captura al entregar (RN-16).
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, $"3*{caja.Catalogo.BarrasCemento}");
+        var sinSerial = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AgregarArticuloAsync(caja.Cajero, venta.Id, caja.Catalogo.CodigoTaladro, null, serialEnDespacho: true));
+        Assert.True(sinSerial.Exitosa, sinSerial.Mensaje);
+        var cemento = sinSerial.Venta!.Lineas.Single(l => l.CodigoInterno == caja.Catalogo.CodigoCemento).NumeroLinea;
+        var taladro = sinSerial.Venta.Lineas.Single(l => l.CodigoInterno == caja.Catalogo.CodigoTaladro).NumeroLinea;
+        Assert.True(sinSerial.Venta.Lineas.Single(l => l.NumeroLinea == taladro).SerialPendiente);
+
+        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaEfectivo, 10_000m)];
+        var sinMarcar = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereSerial, sinMarcar.Resultado);
+
+        // Marcar pendientes: primero se validan las cantidades y después se pide la clave del supervisor (RF-53, RN-15).
+        var hoy = DateOnly.FromDateTime(caja.Reloj.Ahora.ToLocalTime().DateTime);
+        var retiro = new SolicitudMarcarEntrega(MetodoEntrega.RetiroAlmacen, almacen, null, hoy.AddDays(2), "Retira el jueves", [new CantidadEntrega(cemento, 2m)]);
+        var excedido = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.MarcarEntregaAsync(caja.Cajero, venta.Id, retiro with { Lineas = [new CantidadEntrega(cemento, 4m)] }));
+        Assert.Equal(CodigoResultadoVenta.EntregaInvalida, excedido.Resultado);
+        var sinAutorizacion = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.MarcarEntregaAsync(caja.Cajero, venta.Id, retiro));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinAutorizacion.Resultado);
+        Assert.Equal(CatalogoPermisos.MarcarPendiente, sinAutorizacion.PermisoRequerido);
+
+        var autorizacionRetiro = await caja.AutorizarAsync(CatalogoPermisos.MarcarPendiente, "Cliente retira en almacén");
+        var marcada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.MarcarEntregaAsync(caja.Cajero, venta.Id, retiro with { AutorizacionId = autorizacionRetiro }));
+        Assert.True(marcada.Exitosa, marcada.Mensaje);
+        Assert.Equal(2m, marcada.Venta!.Lineas.Single(l => l.NumeroLinea == cemento).CantidadEnEntrega);
+        var cambio = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.CambiarCantidadAsync(caja.Cajero, venta.Id, cemento, 5m));
+        Assert.Equal(CodigoResultadoVenta.EntregaInvalida, cambio.Resultado);
+
+        var autorizacionEnvio = await caja.AutorizarAsync(CatalogoPermisos.MarcarPendiente, "Envío a domicilio");
+        var envio = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.MarcarEntregaAsync(caja.Cajero, venta.Id, new SolicitudMarcarEntrega(
+            MetodoEntrega.Envio, null, new DatosEnvio("Calle 1 #2", "Naco", "Santo Domingo", "Frente al parque", "809-555-1111", "Mensajería", 350m), null, null,
+            [new CantidadEntrega(taladro, 1m)], autorizacionEnvio)));
+        Assert.True(envio.Exitosa, envio.Mensaje);
+        Assert.Equal(2, envio.Venta!.DestinosEntrega!.Count);
+
+        // Al cobrar cada destino genera su pendiente numerado, con voucher para el cliente y el despacho (RF-249, RF-88).
+        var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, null));
+        Assert.True(cobrada.Exitosa, cobrada.Mensaje);
+        var numeros = cobrada.Cobro!.PendientesEntrega!;
+        Assert.Equal(2, numeros.Count);
+        foreach (var numero in numeros)
+        {
+            Assert.NotEmpty(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*pendiente-{numero}-cliente.txt"));
+            Assert.NotEmpty(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*pendiente-{numero}-despacho.txt"));
+        }
+
+        var pendientes = await caja.EjecutarAsync<ContextoDatosPos, List<CgPos.Dominio.Entregas.PendienteEntrega>>(contexto =>
+            contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas).Where(p => p.VentaId == venta.Id).ToListAsync());
+        Assert.Equal(2m, pendientes.Single(p => p.Metodo == MetodoEntrega.RetiroAlmacen).CantidadPorEntregar(cemento));
+        Assert.Equal("809-555-1111", pendientes.Single(p => p.Metodo == MetodoEntrega.Envio).Telefono);
+
+        // Lo pendiente de entrega no se devuelve (RF-233): solo el cemento que salió en caja.
+        var factura = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, cobrada.Venta!.NumeroTransaccion));
+        Assert.Equal(1m, factura.Factura!.Lineas.Single(l => l.NumeroLinea == cemento).CantidadDisponible);
+        var devolucion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero,
+            new SolicitudDevolucion(venta.Id, [new SolicitudLineaDevolucion(cemento, 3m)], "401007551", "Cliente Devolución", caja.Catalogo.CodigoMotivoDevolucion, null, null)));
+        Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, devolucion.Resultado);
+        Assert.Contains("pendientes de entrega", devolucion.Mensaje);
     }
 
     private static class BalanzaPrueba

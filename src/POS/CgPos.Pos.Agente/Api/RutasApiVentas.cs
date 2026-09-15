@@ -41,7 +41,8 @@ public static class RutasApiVentas
             ConSesion(usuario, async sesion => Resultado(await servicio.ObtenerActualAsync(sesion, cancelacion))));
 
         ventas.MapPost("/{ventaId:guid}/lineas", (Guid ventaId, SolicitudAgregarArticulo solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.AgregarArticuloAsync(sesion, ventaId, solicitud.Codigo ?? string.Empty, solicitud.Cantidad, solicitud.Serial, cancelacion))));
+            ConSesion(usuario, async sesion => Resultado(await servicio.AgregarArticuloAsync(sesion, ventaId, solicitud.Codigo ?? string.Empty, solicitud.Cantidad, solicitud.Serial,
+                solicitud.SerialEnDespacho, cancelacion))));
 
         ventas.MapPost("/{ventaId:guid}/lineas/balanza", (Guid ventaId, SolicitudPesarArticulo solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.AgregarDesdeBalanzaAsync(sesion, ventaId, solicitud.Codigo ?? string.Empty, cancelacion))));
@@ -64,6 +65,16 @@ public static class RutasApiVentas
 
         ventas.MapDelete("/{ventaId:guid}/cliente", (Guid ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.QuitarClienteAsync(sesion, ventaId, cancelacion))));
+
+        // Pendientes de entrega y envíos (C10): destinos por línea con autorización; al cobrar generan su pendiente.
+        ventas.MapPost("/{ventaId:guid}/entregas", (Guid ventaId, SolicitudMarcarEntrega solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.MarcarEntregaAsync(sesion, ventaId, solicitud, cancelacion))));
+
+        ventas.MapDelete("/{ventaId:guid}/entregas/{numero:int}", (Guid ventaId, int numero, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.QuitarEntregaAsync(sesion, ventaId, numero, cancelacion))));
+
+        api.MapGet("/entregas/almacenes", (ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Results.Ok(await servicio.ListarAlmacenesAsync(sesion, cancelacion))));
 
         // Programa de fidelidad (C10): la cédula del miembro habilita sus ofertas y acumula al cobrar.
         ventas.MapPost("/{ventaId:guid}/fidelidad", (Guid ventaId, SolicitudAsignarFidelidad solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>

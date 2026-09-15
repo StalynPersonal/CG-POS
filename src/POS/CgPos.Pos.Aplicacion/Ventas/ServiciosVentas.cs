@@ -23,7 +23,20 @@ public interface IServicioVentas
     /// <summary>Devuelve la venta en curso del usuario en su turno; si no hay, inicia una nueva.</summary>
     Task<RespuestaVenta> ObtenerActualAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
-    Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, string? serial = null, CancellationToken cancelacion = default);
+    /// <param name="serialEnDespacho">Serializado sin serial que se marcará para entrega o envío (RN-16).</param>
+    Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, string? serial = null, bool serialEnDespacho = false,
+        CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Marca líneas, completas o en parte, para retiro en almacén o envío a dirección (RF-246 a RF-250), con permiso o clave de supervisor (RF-53).
+    /// Al cobrar cada destino genera su pendiente de entrega.
+    /// </summary>
+    Task<RespuestaVenta> MarcarEntregaAsync(SesionUsuario sesion, Guid ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default);
+
+    Task<RespuestaVenta> QuitarEntregaAsync(SesionUsuario sesion, Guid ventaId, int numeroDestino, CancellationToken cancelacion = default);
+
+    /// <summary>Almacenes y sucursales para retiro; primero los de la sucursal de la caja (RF-138, RF-140).</summary>
+    Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
     /// <summary>Agrega un artículo pesado con el peso estable de la balanza menos su tara (RF-19, RF-196).</summary>
     Task<RespuestaVenta> AgregarDesdeBalanzaAsync(SesionUsuario sesion, Guid ventaId, string codigo, CancellationToken cancelacion = default);
