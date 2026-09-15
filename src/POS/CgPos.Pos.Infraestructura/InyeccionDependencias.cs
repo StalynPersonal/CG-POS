@@ -79,7 +79,7 @@ public static class InyeccionDependencias
         servicios.AddSingleton<ICertificadoCaja>(proveedor => new CertificadoCaja(configuracion,
             proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CertificadoCaja>>()));
         servicios.AddScoped(proveedor => new EmisionComprobantes(proveedor.GetRequiredService<ContextoDatosPos>(), proveedor.GetRequiredService<ICertificadoCaja>(),
-            configuracion, proveedor.GetRequiredService<TimeProvider>()));
+            proveedor.GetRequiredService<IParametros>(), configuracion, proveedor.GetRequiredService<TimeProvider>()));
         servicios.AddScoped<IServicioEcf, ServicioEcf>();
 
         // Turnos y ventas (M13, M05)

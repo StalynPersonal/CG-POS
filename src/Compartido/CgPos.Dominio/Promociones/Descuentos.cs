@@ -78,14 +78,15 @@ public sealed class TopeDescuento : Entidad
 }
 
 /// <param name="NivelTope">Nivel del tope que se aplicó; nulo si no hay topes para ese alcance.</param>
-public sealed record EvaluacionTope(bool Permitido, int? NivelTope, decimal? PorcentajeMaximo, decimal? MontoMaximo);
+/// <param name="SinConfiguracion">No hay ningún tope que aplique (ni del artículo, ni de su familia, ni general).</param>
+public sealed record EvaluacionTope(bool Permitido, int? NivelTope, decimal? PorcentajeMaximo, decimal? MontoMaximo, bool SinConfiguracion = false);
 
 public static class ReglasTopeDescuento
 {
     /// <summary>
     /// Toma el alcance más específico que tenga topes (artículo, luego familia, luego general) y, dentro de él, el tope del
     /// nivel más alto que no supere el del autorizador. Si ese alcance solo tiene topes de niveles superiores, el descuento
-    /// exige a alguien de mayor nivel. Si no hay ningún tope configurado, no hay límite (suposición documentada).
+    /// exige a alguien de mayor nivel. Sin ningún tope configurado el descuento manual no se permite: el límite lo define el negocio.
     /// </summary>
     /// <param name="articuloId">Nulo para el descuento a la factura, que solo usa topes generales.</param>
     public static EvaluacionTope Evaluar(IReadOnlyCollection<TopeDescuento> topes, int nivelAutorizador, Guid? articuloId, Guid? familiaId,
@@ -102,7 +103,7 @@ public static class ReglasTopeDescuento
             .FirstOrDefault(grupo => grupo.Count > 0);
 
         if (alcance is null)
-            return new EvaluacionTope(true, null, null, null);
+            return new EvaluacionTope(false, null, null, null, SinConfiguracion: true);
 
         var tope = alcance.Where(t => t.Nivel <= nivelAutorizador).MaxBy(t => t.Nivel);
         if (tope is null)

@@ -60,6 +60,12 @@ public static class ClavesParametros
 {
     public const string IntentosMaximosPin = "Seguridad.IntentosMaximosPin";
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
+
+    /// <summary>Minutos que tiene el usuario para usar una autorización de supervisor concedida.</summary>
+    public const string MinutosVigenciaAutorizacion = "Seguridad.MinutosVigenciaAutorizacion";
+
+    /// <summary>Horas que dura la sesión de un usuario en la caja antes de volver a ingresar.</summary>
+    public const string HorasSesion = "Seguridad.HorasSesion";
     public const string FondoPredeterminado = "Caja.FondoPredeterminado";
 
     /// <summary>Cierre ciego: el cajero declara sin ver lo esperado (RF-9, RN-23). Por defecto true.</summary>

@@ -21,14 +21,14 @@ public static class RutasApiSeguridad
 
         var sesion = api.MapGroup("/sesion");
 
-        sesion.MapPost("/pin", (SolicitudIngresoPin solicitud, IServicioAutenticacion autenticacion, EmisorTokens emisor, CancellationToken cancelacion) =>
-            IngresarAsync(new CredencialUsuario.Pin(solicitud.CodigoUsuario ?? string.Empty, solicitud.Pin ?? string.Empty), autenticacion, emisor, cancelacion));
+        sesion.MapPost("/pin", (SolicitudIngresoPin solicitud, IServicioAutenticacion autenticacion, EmisorTokens emisor, IParametros parametros, CancellationToken cancelacion) =>
+            IngresarAsync(new CredencialUsuario.Pin(solicitud.CodigoUsuario ?? string.Empty, solicitud.Pin ?? string.Empty), autenticacion, emisor, parametros, cancelacion));
 
-        sesion.MapPost("/carne", (SolicitudIngresoCarne solicitud, IServicioAutenticacion autenticacion, EmisorTokens emisor, CancellationToken cancelacion) =>
-            IngresarAsync(new CredencialUsuario.Carne(solicitud.CodigoBarras ?? string.Empty), autenticacion, emisor, cancelacion));
+        sesion.MapPost("/carne", (SolicitudIngresoCarne solicitud, IServicioAutenticacion autenticacion, EmisorTokens emisor, IParametros parametros, CancellationToken cancelacion) =>
+            IngresarAsync(new CredencialUsuario.Carne(solicitud.CodigoBarras ?? string.Empty), autenticacion, emisor, parametros, cancelacion));
 
-        sesion.MapPost("/huella", (IServicioAutenticacion autenticacion, EmisorTokens emisor, CancellationToken cancelacion) =>
-            IngresarAsync(new CredencialUsuario.Huella(), autenticacion, emisor, cancelacion));
+        sesion.MapPost("/huella", (IServicioAutenticacion autenticacion, EmisorTokens emisor, IParametros parametros, CancellationToken cancelacion) =>
+            IngresarAsync(new CredencialUsuario.Huella(), autenticacion, emisor, parametros, cancelacion));
 
         sesion.MapGet("/actual", (ClaimsPrincipal usuario) =>
                 EmisorTokens.LeerSesion(usuario) is { } actual ? Results.Ok(ConvertirDto(actual)) : Results.Unauthorized())
@@ -56,13 +56,18 @@ public static class RutasApiSeguridad
         return aplicacion;
     }
 
-    private static async Task<IResult> IngresarAsync(CredencialUsuario credencial, IServicioAutenticacion autenticacion, EmisorTokens emisor, CancellationToken cancelacion)
+    private static async Task<IResult> IngresarAsync(CredencialUsuario credencial, IServicioAutenticacion autenticacion, EmisorTokens emisor, IParametros parametros,
+        CancellationToken cancelacion)
     {
         var resultado = await autenticacion.IngresarAsync(credencial, cancelacion);
 
         if (resultado.Sesion is { } sesion)
         {
-            var (token, expiraEn) = emisor.Emitir(sesion);
+            var horas = await parametros.ObtenerDecimalAsync(ClavesParametros.HorasSesion, sesion.CajaId, cancelacion);
+            if (horas <= 0)
+                throw new ParametroNoConfiguradoExcepcion(ClavesParametros.HorasSesion, "debe ser mayor que cero");
+
+            var (token, expiraEn) = emisor.Emitir(sesion, TimeSpan.FromHours((double)horas));
             return Results.Ok(new RespuestaIngreso(true, Token: token, ExpiraEn: expiraEn, Sesion: ConvertirDto(sesion)));
         }
 

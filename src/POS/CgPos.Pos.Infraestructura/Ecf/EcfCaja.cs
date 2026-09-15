@@ -83,7 +83,8 @@ internal sealed class EmisionEcfExcepcion(CodigoResultadoVenta codigo, string me
 /// arma y valida el documento, lo firma con el certificado en memoria, obtiene el código de seguridad y el timbre, y deja el
 /// XML firmado en la carpeta de pendientes (RF-219). Si la transacción no se confirma, la secuencia vuelve atrás.
 /// </summary>
-internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificadoCaja certificado, IConfiguration configuracion, TimeProvider reloj)
+internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificadoCaja certificado, IParametros parametros, IConfiguration configuracion,
+    TimeProvider reloj)
 {
     private readonly FirmadorEcf _firmador = new();
 
@@ -102,6 +103,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     private async Task<EmisionEcf> EmitirDocumentoAsync(Guid documentoId, Guid cajaId, Guid sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
         Func<string, DateOnly, EmisorEcf, DateTimeOffset, DocumentoEcf> armar, CancellationToken cancelacion)
     {
+        var ambiente = Ambiente();
         var certificadoFirma = certificado.ObtenerParaFirmar()
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado,
                 "El certificado digital de la caja no está cargado. Digite su PIN para poder emitir comprobantes.");
@@ -120,14 +122,15 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         var emisor = await EmisorAsync(sucursalId, cancelacion);
         var documentoEcf = armar(encf, asignada.VenceEn, emisor, ahora);
 
+        var montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, cajaId, cancelacion);
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
-        var errores = ValidadorEcf.Validar(documentoEcf).Concat(ValidadorEcf.ValidarContraXsd(xml, configuracion[ClavesEcf.CarpetaXsd])).ToList();
+        var errores = ValidadorEcf.Validar(documentoEcf, montoIdentificacion).Concat(ValidadorEcf.ValidarContraXsd(xml, configuracion[ClavesEcf.CarpetaXsd])).ToList();
         if (errores.Count > 0)
             throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El e-CF no pasó la validación: {string.Join(" ", errores.Take(3))}");
 
         var firmado = _firmador.Firmar(xml, certificadoFirma);
         var codigoSeguridad = CodigoSeguridadEcf.Obtener(firmado);
-        var urlTimbre = TimbreEcf.Url(Ambiente(), documentoEcf, codigoSeguridad);
+        var urlTimbre = TimbreEcf.Url(ambiente, documentoEcf, codigoSeguridad, montoIdentificacion);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(firmado)));
 
         var ruta = RutaXml("Pendientes", reloj.GetLocalNow(), emisor.Rnc, encf);
@@ -153,8 +156,12 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         }
     }
 
+    /// <summary>El ambiente no se asume: un comprobante de producción nunca debe salir con el timbre de pruebas, ni al revés.</summary>
     private AmbienteEcf Ambiente() =>
-        Enum.TryParse<AmbienteEcf>(configuracion[ClavesEcf.Ambiente], ignoreCase: true, out var ambiente) ? ambiente : AmbienteEcf.Pruebas;
+        Enum.TryParse<AmbienteEcf>(configuracion[ClavesEcf.Ambiente], ignoreCase: true, out var ambiente) && Enum.IsDefined(ambiente)
+            ? ambiente
+            : throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido,
+                $"Configure el ambiente de facturación electrónica ({ClavesEcf.Ambiente}: {string.Join(", ", Enum.GetNames<AmbienteEcf>())}) antes de emitir comprobantes.");
 
     private string RutaXml(string estado, DateTimeOffset fecha, string rnc, string encf)
     {
@@ -195,8 +202,12 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
             .AsNoTracking()
             .SingleAsync(cancelacion);
 
-        return new EmisorEcf(datos.Rnc, datos.RazonSocial, datos.NombreComercial, datos.Sucursal,
-            datos.EmpresaDireccion ?? datos.SucursalDireccion ?? "Dirección no registrada");
+        var direccion = !string.IsNullOrWhiteSpace(datos.EmpresaDireccion) ? datos.EmpresaDireccion
+            : !string.IsNullOrWhiteSpace(datos.SucursalDireccion) ? datos.SucursalDireccion
+            : throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido,
+                "La empresa y la sucursal no tienen dirección registrada: configúrela en el Central para emitir comprobantes electrónicos.");
+
+        return new EmisorEcf(datos.Rnc, datos.RazonSocial, datos.NombreComercial, datos.Sucursal, direccion);
     }
 }
 
@@ -253,7 +264,10 @@ internal static class ConversionEcf
             emisor,
             comprador,
             items,
-            new TotalesEcf(gravado1, gravado2, gravado3, exento, itbis1, itbis2, itbis3, total),
+            new TotalesEcf(gravado1, gravado2, gravado3, exento, itbis1, itbis2, itbis3, total,
+                Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 1),
+                Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 2),
+                Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
             venta.CobradaEn ?? fechaFirma,
             fechaFirma,
             FormasPago: FormasPago(venta));
@@ -268,7 +282,8 @@ internal static class ConversionEcf
         var items = new List<ItemEcf>(devolucion.Lineas.Count);
         decimal gravado1 = 0, gravado2 = 0, gravado3 = 0, exento = 0, itbis1 = 0, itbis2 = 0, itbis3 = 0;
 
-        foreach (var linea in devolucion.Lineas.OrderBy(l => l.NumeroLineaOrigen))
+        var lineasNota = devolucion.Lineas.OrderBy(l => l.NumeroLineaOrigen).ToList();
+        foreach (var linea in lineasNota)
         {
             var indicador = devolucion.RetieneImpuesto ? 4
                 : linea.IndicadorFacturacion is >= 1 and <= 4 ? linea.IndicadorFacturacion
@@ -304,11 +319,22 @@ internal static class ConversionEcf
             emisor,
             new CompradorEcf(devolucion.ClienteDocumento, devolucion.ClienteNombre),
             items,
-            new TotalesEcf(gravado1, gravado2, gravado3, exento, itbis1, itbis2, itbis3, devolucion.Total),
+            new TotalesEcf(gravado1, gravado2, gravado3, exento, itbis1, itbis2, itbis3, devolucion.Total,
+                Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 1),
+                Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 2),
+                Tasa(items, lineasNota.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
             devolucion.CreadaEn,
             fechaFirma,
             Referencia: new ReferenciaEcf(devolucion.EncfOrigen ?? devolucion.VentaOrigenNumero, fechaFactura, devolucion.EsTotal ? 1 : 3));
     }
+
+    /// <summary>Tasa de ITBIS del maestro de impuestos para las líneas de un indicador; nula si no hay líneas con ese indicador.</summary>
+    /// <param name="porcentajes">Porcentaje de cada línea, en el mismo orden que los ítems.</param>
+    private static decimal? Tasa(IReadOnlyList<ItemEcf> items, IReadOnlyList<decimal> porcentajes, int indicador) =>
+        items.Select((item, indice) => (item.IndicadorFacturacion, Porcentaje: porcentajes[indice]))
+            .Where(par => par.IndicadorFacturacion == indicador)
+            .Select(par => (decimal?)par.Porcentaje)
+            .FirstOrDefault();
 
     /// <summary>Pagos agrupados por la tabla de formas de pago de la DGII; la devuelta se descuenta del efectivo.</summary>
     private static List<FormaPagoEcf> FormasPago(Venta venta)

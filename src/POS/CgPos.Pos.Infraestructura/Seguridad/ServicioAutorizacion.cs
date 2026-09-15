@@ -1,6 +1,7 @@
 using CgPos.Dominio.Auditoria;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;
+using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 
@@ -9,12 +10,10 @@ namespace CgPos.Pos.Infraestructura.Seguridad;
 internal sealed class ServicioAutorizacion(
     ContextoDatosPos contexto,
     VerificadorCredenciales verificador,
+    IParametros parametros,
     IAuditoria auditoria,
     TimeProvider reloj) : IServicioAutorizacion
 {
-    /// <summary>Tiempo que tiene el usuario para usar la autorización concedida.</summary>
-    internal static readonly TimeSpan VigenciaAutorizacion = TimeSpan.FromMinutes(5);
-
     public async Task<ResultadoAutorizacion> AutorizarAsync(SolicitudAutorizacionSupervisor solicitud, CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
@@ -48,6 +47,8 @@ internal sealed class ServicioAutorizacion(
 
         if (resultado.Concedida)
         {
+            // El tiempo para usar la autorización lo define el negocio.
+            var minutosVigencia = await parametros.ObtenerEnteroAsync(ClavesParametros.MinutosVigenciaAutorizacion, solicitud.Solicitante.CajaId, cancelacion);
             verificacion.Usuario!.Desbloquear();
 
             // Queda registrada para que la operación la consuma una sola vez y antes de que venza.
@@ -61,7 +62,7 @@ internal sealed class ServicioAutorizacion(
                 verificacion.Usuario.Nombre,
                 motivo,
                 reloj.GetUtcNow(),
-                VigenciaAutorizacion));
+                TimeSpan.FromMinutes(minutosVigencia)));
         }
 
         auditoria.Registrar(new EntradaAuditoria(

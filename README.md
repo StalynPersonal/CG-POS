@@ -61,6 +61,8 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | Parámetro | Uso | Obligatorio |
 | --- | --- | --- |
 | `Seguridad.IntentosMaximosPin`, `Seguridad.MinutosBloqueo` | Bloqueo por PIN incorrecto | Sí |
+| `Seguridad.MinutosVigenciaAutorizacion` | Tiempo para usar una autorización de supervisor | Sí |
+| `Seguridad.HorasSesion` | Duración de la sesión del usuario | Sí |
 | `Fiscal.MontoIdentificacionConsumo` | Total desde el cual la factura de consumo exige cédula o RNC | Sí |
 | `Fiscal.PorcentajeAlertaSecuenciaEcf`, `Fiscal.DiasAlertaCertificado` | Alertas de secuencias y certificado (si faltan, la barra de estado lo indica) | Sí |
 | `Caja.PasoRedondeoEfectivo` | Redondeo del cobro en efectivo (`0` = sin redondeo) | Sí |
@@ -70,6 +72,8 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Devoluciones.PoliticaNotaCredito`, `Devoluciones.PoliticaNotaCreditoContabilidad` | Textos impresos en la nota de crédito | No |
 | `Tickets.MensajePie` | Mensaje al pie del ticket | No |
 | `Balanza.PrefijoPeso`, `Balanza.PrefijoPrecio`, `Balanza.DigitosCodigoArticulo`, `Balanza.DigitosValor`, `Balanza.DecimalesPeso`, `Balanza.DecimalesPrecio` | Etiquetas de balanza; sin prefijos la caja no las interpreta | Si hay prefijos |
+
+Otras reglas que dependen de la configuración: sin **topes de descuento** en los maestros no se permite el descuento manual; el **ambiente e-CF** (`Ecf:Ambiente` en la configuración del Agente) es obligatorio para emitir; la **dirección** de la empresa o sucursal es obligatoria en el e-CF, y las **tasas de ITBIS** del XML salen del maestro de impuestos.
 
 ## Ejecutar la caja
 

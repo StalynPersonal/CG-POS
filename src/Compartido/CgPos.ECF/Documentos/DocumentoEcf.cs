@@ -56,6 +56,7 @@ public sealed record ItemEcf(
     int IndicadorBienServicio = 1);
 
 /// <summary>Totales sin ITBIS por tasa, ITBIS por tasa y monto total.</summary>
+/// <param name="TasaItbis1">Porcentaje de ITBIS de las líneas con indicador 1, tomado del maestro de impuestos; obligatorio si hay monto gravado I1.</param>
 public sealed record TotalesEcf(
     decimal MontoGravadoI1,
     decimal MontoGravadoI2,
@@ -64,12 +65,11 @@ public sealed record TotalesEcf(
     decimal TotalItbis1,
     decimal TotalItbis2,
     decimal TotalItbis3,
-    decimal MontoTotal)
+    decimal MontoTotal,
+    decimal? TasaItbis1 = null,
+    decimal? TasaItbis2 = null,
+    decimal? TasaItbis3 = null)
 {
-    public const decimal TasaItbis1 = 18m;
-    public const decimal TasaItbis2 = 16m;
-    public const decimal TasaItbis3 = 0m;
-
     public decimal MontoGravadoTotal => MontoGravadoI1 + MontoGravadoI2 + MontoGravadoI3;
 
     public decimal TotalItbis => TotalItbis1 + TotalItbis2 + TotalItbis3;

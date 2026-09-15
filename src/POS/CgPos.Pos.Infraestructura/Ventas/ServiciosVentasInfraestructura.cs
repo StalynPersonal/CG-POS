@@ -1079,6 +1079,14 @@ internal sealed class ServicioVentas(
 
         // La autorización quedó marcada en memoria pero no se guarda: el supervisor puede reintentar con un monto menor.
         contexto.ChangeTracker.Clear();
+        if (evaluacion.SinConfiguracion)
+        {
+            var sinTopes = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
+            return new RespuestaVenta(CodigoResultadoVenta.DescuentoNoPermitido,
+                "No hay topes de descuento configurados (del artículo, su familia ni generales): el descuento manual no se permite hasta configurarlos en el Central.",
+                Datos(sinTopes));
+        }
+
         var limite = evaluacion switch
         {
             { PorcentajeMaximo: { } porcentaje, MontoMaximo: { } monto } => $"{porcentaje:0.##}% y RD${monto:N2}",

@@ -142,6 +142,8 @@
     { "id": "01990000-0000-7000-8000-000000000517", "clave": "Balanza.DigitosCodigoArticulo", "valor": "5", "descripcion": "Dígitos del código de artículo en la etiqueta de balanza" },
     { "id": "01990000-0000-7000-8000-000000000518", "clave": "Balanza.DigitosValor", "valor": "5", "descripcion": "Dígitos del peso o precio en la etiqueta de balanza" },
     { "id": "01990000-0000-7000-8000-000000000519", "clave": "Balanza.DecimalesPeso", "valor": "3", "descripcion": "Decimales del peso en la etiqueta de balanza" },
-    { "id": "01990000-0000-7000-8000-000000000520", "clave": "Balanza.DecimalesPrecio", "valor": "2", "descripcion": "Decimales del precio en la etiqueta de balanza" }
+    { "id": "01990000-0000-7000-8000-000000000520", "clave": "Balanza.DecimalesPrecio", "valor": "2", "descripcion": "Decimales del precio en la etiqueta de balanza" },
+    { "id": "01990000-0000-7000-8000-000000000521", "clave": "Seguridad.MinutosVigenciaAutorizacion", "valor": "5", "descripcion": "Minutos para usar una autorización de supervisor concedida" },
+    { "id": "01990000-0000-7000-8000-000000000522", "clave": "Seguridad.HorasSesion", "valor": "12", "descripcion": "Horas que dura la sesión de un usuario en la caja" }
   ]
 }

@@ -17,27 +17,20 @@ public sealed class EmisorTokens
 {
     public const string Emisor = "CgPos.Pos.Agente";
     public const string Audiencia = "CgPos.Pos.Web";
-    private const double HorasSesionPredeterminadas = 12;
 
     private readonly JsonWebTokenHandler _manejador = new();
-    private readonly TimeSpan _duracion;
     private readonly TimeProvider _reloj;
 
-    public EmisorTokens(IConfiguration configuracion, TimeProvider reloj)
-    {
-        _reloj = reloj;
-        var horas = double.TryParse(configuracion["Seguridad:HorasSesion"], NumberStyles.Float, CultureInfo.InvariantCulture, out var valor) && valor > 0
-            ? valor
-            : HorasSesionPredeterminadas;
-        _duracion = TimeSpan.FromHours(horas);
-    }
+    public EmisorTokens(TimeProvider reloj) => _reloj = reloj;
 
     public SymmetricSecurityKey Clave { get; } = new(RandomNumberGenerator.GetBytes(32));
 
-    public (string Token, DateTimeOffset ExpiraEn) Emitir(SesionUsuario sesion)
+    /// <param name="duracion">Duración de la sesión configurada por el negocio (<c>Seguridad.HorasSesion</c>).</param>
+    public (string Token, DateTimeOffset ExpiraEn) Emitir(SesionUsuario sesion, TimeSpan duracion)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duracion, TimeSpan.Zero);
         var ahora = _reloj.GetUtcNow();
-        var expira = ahora + _duracion;
+        var expira = ahora + duracion;
 
         var token = _manejador.CreateToken(new SecurityTokenDescriptor
         {

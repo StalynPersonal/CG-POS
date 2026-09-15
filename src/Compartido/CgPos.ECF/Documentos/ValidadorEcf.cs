@@ -12,16 +12,14 @@ public static partial class ValidadorEcf
 {
     public static readonly IReadOnlySet<int> TiposValidos = new HashSet<int> { 31, 32, 33, 34, 41, 43, 44, 45, 46, 47 };
 
-    /// <summary>Monto desde el cual la factura de consumo debe identificar al comprador.</summary>
-    public const decimal MontoIdentificacionConsumo = 250_000m;
-
     /// <summary>
     /// Tolerancia por redondeo entre la suma de líneas y los totales: el ITBIS se calcula por línea y en ventas largas su suma
     /// difiere unos centavos del total por tasa; también absorbe el redondeo del efectivo en las formas de pago.
     /// </summary>
     public const decimal Tolerancia = 1.00m;
 
-    public static IReadOnlyList<string> Validar(DocumentoEcf documento)
+    /// <param name="montoIdentificacionConsumo">Total desde el cual la factura de consumo identifica al comprador (parámetro del negocio).</param>
+    public static IReadOnlyList<string> Validar(DocumentoEcf documento, decimal montoIdentificacionConsumo)
     {
         ArgumentNullException.ThrowIfNull(documento);
         var errores = new List<string>();
@@ -49,8 +47,8 @@ public static partial class ValidadorEcf
             case 45 when rncComprador is not { Length: 9 } || !rncComprador.All(char.IsAsciiDigit):
                 errores.Add("El e-CF gubernamental (45) requiere el RNC del comprador.");
                 break;
-            case 32 when documento.Totales.MontoTotal >= MontoIdentificacionConsumo && !EsDocumento(rncComprador):
-                errores.Add($"La factura de consumo desde RD${MontoIdentificacionConsumo:N2} requiere la cédula o el RNC del comprador.");
+            case 32 when documento.Totales.MontoTotal >= montoIdentificacionConsumo && !EsDocumento(rncComprador):
+                errores.Add($"La factura de consumo desde {montoIdentificacionConsumo:N2} requiere la cédula o el RNC del comprador.");
                 break;
         }
 
@@ -86,8 +84,19 @@ public static partial class ValidadorEcf
         Cuadre("MontoGravadoI2", documento.Items.Where(i => i.IndicadorFacturacion == 2).Sum(i => i.Monto), totales.MontoGravadoI2);
         Cuadre("MontoGravadoI3", documento.Items.Where(i => i.IndicadorFacturacion == 3).Sum(i => i.Monto), totales.MontoGravadoI3);
         Cuadre("MontoExento", documento.Items.Where(i => i.IndicadorFacturacion == 4).Sum(i => i.Monto), totales.MontoExento);
-        Cuadre("TotalITBIS1", decimal.Round(totales.MontoGravadoI1 * TotalesEcf.TasaItbis1 / 100m, 2), totales.TotalItbis1);
-        Cuadre("TotalITBIS2", decimal.Round(totales.MontoGravadoI2 * TotalesEcf.TasaItbis2 / 100m, 2), totales.TotalItbis2);
+        void CuadreItbis(int indicador, decimal gravado, decimal? tasa, decimal itbis)
+        {
+            if (gravado <= 0)
+                return;
+            if (tasa is not { } porcentaje)
+                errores.Add($"Falta la tasa de ITBIS de las líneas con indicador {indicador}.");
+            else
+                Cuadre($"TotalITBIS{indicador}", decimal.Round(gravado * porcentaje / 100m, 2), itbis);
+        }
+
+        CuadreItbis(1, totales.MontoGravadoI1, totales.TasaItbis1, totales.TotalItbis1);
+        CuadreItbis(2, totales.MontoGravadoI2, totales.TasaItbis2, totales.TotalItbis2);
+        CuadreItbis(3, totales.MontoGravadoI3, totales.TasaItbis3, totales.TotalItbis3);
         Cuadre("MontoTotal", totales.MontoGravadoTotal + totales.TotalItbis + totales.MontoExento, totales.MontoTotal);
 
         if (documento.FormasPago is { Count: > 0 } formas)

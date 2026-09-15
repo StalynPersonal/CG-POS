@@ -1,12 +1,18 @@
 using System.Xml.Linq;
 using CgPos.ECF.Documentos;
 using CgPos.ECF.Firma;
+using Validador = CgPos.ECF.Documentos.ValidadorEcf;
 
 namespace CgPos.ECF.Pruebas.Documentos;
 
 public class DocumentoEcfPruebas
 {
     private static readonly DateTimeOffset Emision = new(2026, 9, 15, 14, 30, 5, TimeSpan.FromHours(-4));
+
+    /// <summary>Monto de identificación de la factura de consumo que configura el negocio (dato de la prueba).</summary>
+    private const decimal MontoIdentificacion = 250_000m;
+
+    private static IReadOnlyList<string> Validar(DocumentoEcf documento) => Validador.Validar(documento, MontoIdentificacion);
 
     /// <summary>Consumo: cincel con ITBIS 18 % (850 con ITBIS, 50 de descuento) y tomate exento.</summary>
     private static DocumentoEcf Consumo(decimal? montoCincel = null) =>
@@ -21,7 +27,7 @@ public class DocumentoEcfPruebas
                 new ItemEcf(1, 1, "Cincel de Punta SDS MAX", 1m, "UND", 720.34m, 42.37m, montoCincel ?? 677.97m),
                 new ItemEcf(2, 4, "Tomate de ensalada", 2.325m, "LB", 45m, 0m, 104.63m),
             ],
-            Totales: new TotalesEcf(677.97m, 0m, 0m, 104.63m, 122.03m, 0m, 0m, 904.63m),
+            Totales: new TotalesEcf(677.97m, 0m, 0m, 104.63m, 122.03m, 0m, 0m, 904.63m, TasaItbis1: 18m),
             FechaEmision: Emision,
             FechaHoraFirma: Emision.AddSeconds(2),
             FormasPago: [new FormaPagoEcf(1, 904.63m)]);
@@ -60,22 +66,22 @@ public class DocumentoEcfPruebas
     [Fact]
     public void Validador_acepta_un_documento_coherente_y_explica_cada_error()
     {
-        Assert.Empty(ValidadorEcf.Validar(Consumo()));
+        Assert.Empty(Validar(Consumo()));
 
-        var descuadrado = ValidadorEcf.Validar(Consumo(montoCincel: 700m));
+        var descuadrado = Validar(Consumo(montoCincel: 700m));
         Assert.Contains(descuadrado, e => e.Contains("MontoGravadoI1"));
 
         var creditoSinComprador = Consumo() with { TipoEcf = 31, Encf = "E310000000001" };
-        Assert.Contains(ValidadorEcf.Validar(creditoSinComprador), e => e.Contains("requiere el RNC o la cédula"));
+        Assert.Contains(Validar(creditoSinComprador), e => e.Contains("requiere el RNC o la cédula"));
 
         var encfDeOtroTipo = Consumo() with { Encf = "E310000000001" };
-        Assert.Contains(ValidadorEcf.Validar(encfDeOtroTipo), e => e.Contains("no corresponde al tipo"));
+        Assert.Contains(Validar(encfDeOtroTipo), e => e.Contains("no corresponde al tipo"));
 
         var notaSinReferencia = Consumo() with { TipoEcf = 34, Encf = "E340000000001", Comprador = new CompradorEcf("131246796", "Constructora") };
-        Assert.Contains(ValidadorEcf.Validar(notaSinReferencia), e => e.Contains("referencia"));
+        Assert.Contains(Validar(notaSinReferencia), e => e.Contains("referencia"));
 
         var gubernamentalConCedula = Consumo() with { TipoEcf = 45, Encf = "E450000000001", Comprador = new CompradorEcf("00113918205", "Persona") };
-        Assert.Contains(ValidadorEcf.Validar(gubernamentalConCedula), e => e.Contains("gubernamental"));
+        Assert.Contains(Validar(gubernamentalConCedula), e => e.Contains("gubernamental"));
     }
 
     [Fact]
@@ -95,14 +101,14 @@ public class DocumentoEcfPruebas
     [Fact]
     public void Url_del_timbre_usa_la_consulta_simplificada_en_consumo_menor_y_la_completa_en_los_demas()
     {
-        var consumo = TimbreEcf.Url(AmbienteEcf.Pruebas, Consumo(), "Ab+9/z");
+        var consumo = TimbreEcf.Url(AmbienteEcf.Pruebas, Consumo(), "Ab+9/z", MontoIdentificacion);
         Assert.StartsWith("https://ecf.dgii.gov.do/testecf/ConsultaTimbreFC?", consumo);
         Assert.Contains("ENCF=E320000000123", consumo);
         Assert.Contains("MontoTotal=904.63", consumo);
         Assert.Contains("CodigoSeguridad=Ab%2B9%2Fz", consumo);
 
         var credito = Consumo() with { TipoEcf = 31, Encf = "E310000000001", Comprador = new CompradorEcf("131246796", "Constructora") };
-        var completa = TimbreEcf.Url(AmbienteEcf.Produccion, credito, "Ab+9/z");
+        var completa = TimbreEcf.Url(AmbienteEcf.Produccion, credito, "Ab+9/z", MontoIdentificacion);
         Assert.StartsWith("https://ecf.dgii.gov.do/ecf/ConsultaTimbre?", completa);
         Assert.Contains("RncComprador=131246796", completa);
         Assert.Contains("FechaFirma=15-09-2026%2014%3A30%3A07", completa);

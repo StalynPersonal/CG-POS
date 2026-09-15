@@ -8,8 +8,6 @@ namespace CgPos.Pos.Web.Seguridad;
 /// <summary>Pide autorización de supervisor solo cuando el usuario no tiene el permiso de la operación.</summary>
 public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogService dialogos)
 {
-    private const int IntentosMaximos = 3;
-
     /// <param name="forzarSupervisor">Pide clave aunque el usuario tenga el permiso (lo que excede su tope necesita un nivel superior).</param>
     /// <returns>La autorización concedida (con o sin supervisor), o nulo si el usuario canceló.</returns>
     public async Task<RespuestaAutorizacion?> SolicitarAsync(string permiso, string descripcionOperacion, string? tipoEntidad = null, string? entidadId = null,
@@ -43,7 +41,8 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
     {
         var respuesta = await operacion(null);
 
-        for (var intento = 0; intento < IntentosMaximos; intento++)
+        // Sin límite de intentos: el usuario cancela la autorización cuando quiera.
+        while (true)
         {
             if (respuesta.Resultado is not (CodigoResultadoVenta.RequiereAutorizacion or CodigoResultadoVenta.AutorizacionInvalida or CodigoResultadoVenta.TopeDescuentoExcedido)
                 || respuesta.PermisoRequerido is not { } permiso)
@@ -60,8 +59,6 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
 
             respuesta = await operacion(autorizacionId);
         }
-
-        return respuesta;
     }
 
     /// <summary>Igual que <see cref="EjecutarVentaAsync"/> para la devolución, que autoriza el encargado (RF-162).</summary>
@@ -70,7 +67,8 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
     {
         var respuesta = await operacion(null);
 
-        for (var intento = 0; intento < IntentosMaximos; intento++)
+        // Sin límite de intentos: el usuario cancela la autorización cuando quiera.
+        while (true)
         {
             if (respuesta.Resultado is not (CodigoResultadoDevolucion.RequiereAutorizacion or CodigoResultadoDevolucion.AutorizacionInvalida)
                 || respuesta.PermisoRequerido is not { } permiso)
@@ -84,8 +82,6 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
 
             respuesta = await operacion(autorizacionId);
         }
-
-        return respuesta;
     }
 
     /// <summary>Igual que <see cref="EjecutarVentaAsync"/> para las operaciones del turno (retiro, relevo, cierre, reapertura).</summary>
@@ -95,7 +91,8 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
     {
         var respuesta = await operacion(null);
 
-        for (var intento = 0; intento < IntentosMaximos; intento++)
+        // Sin límite de intentos: el usuario cancela la autorización cuando quiera.
+        while (true)
         {
             if (respuesta.Resultado is not (CodigoResultadoCaja.RequiereAutorizacion or CodigoResultadoCaja.AutorizacionInvalida)
                 || respuesta.PermisoRequerido is not { } permiso)
@@ -109,7 +106,5 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
 
             respuesta = await operacion(autorizacionId);
         }
-
-        return respuesta;
     }
 }

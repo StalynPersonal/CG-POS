@@ -88,12 +88,12 @@ public static class GeneradorXmlEcf
                 Monto("MontoGravadoI3", totales.MontoGravadoI3);
             if (totales.MontoExento > 0)
                 Monto("MontoExento", totales.MontoExento);
-            if (totales.MontoGravadoI1 > 0)
-                Elemento("ITBIS1", TotalesEcf.TasaItbis1.ToString("0", CultureInfo.InvariantCulture));
-            if (totales.MontoGravadoI2 > 0)
-                Elemento("ITBIS2", TotalesEcf.TasaItbis2.ToString("0", CultureInfo.InvariantCulture));
-            if (totales.MontoGravadoI3 > 0)
-                Elemento("ITBIS3", TotalesEcf.TasaItbis3.ToString("0", CultureInfo.InvariantCulture));
+            if (totales is { MontoGravadoI1: > 0, TasaItbis1: { } tasa1 })
+                Elemento("ITBIS1", tasa1.ToString("0.##", CultureInfo.InvariantCulture));
+            if (totales is { MontoGravadoI2: > 0, TasaItbis2: { } tasa2 })
+                Elemento("ITBIS2", tasa2.ToString("0.##", CultureInfo.InvariantCulture));
+            if (totales is { MontoGravadoI3: > 0, TasaItbis3: { } tasa3 })
+                Elemento("ITBIS3", tasa3.ToString("0.##", CultureInfo.InvariantCulture));
             if (totales.MontoGravadoTotal > 0)
                 Monto("TotalITBIS", totales.TotalItbis);
             if (totales.MontoGravadoI1 > 0)

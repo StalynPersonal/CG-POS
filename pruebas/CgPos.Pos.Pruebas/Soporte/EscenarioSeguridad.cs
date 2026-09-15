@@ -95,7 +95,7 @@ public sealed class EscenarioSeguridad
 
     private PaqueteCargaInicial CrearPaquete(Guid empresaId) =>
         new(
-            new EmpresaCarga(empresaId, "999000003", "Empresa Seguridad SRL"),
+            new EmpresaCarga(empresaId, "999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
             Sucursales: [new SucursalCarga(Sucursal, $"S{Sufijo}", "Sucursal de seguridad")],
             Cajas:
             [
@@ -125,6 +125,8 @@ public sealed class EscenarioSeguridad
             [
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosPin, "3", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosBloqueo, "5", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosVigenciaAutorizacion, "5", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasSesion, "12", CajaId: CajaUno),
 
                 // Reglas de negocio de la caja de prueba: en producción las configura un usuario en el Central.
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MontoIdentificacionConsumo, "250000", CajaId: CajaUno),

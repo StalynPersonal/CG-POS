@@ -34,6 +34,7 @@ public sealed class EscenarioCatalogo
     public Guid TipoTarjeta { get; } = Guid.CreateVersion7();
     public Guid BilleteMil { get; } = Guid.CreateVersion7();
     public Guid FormaNotaCredito { get; } = Guid.CreateVersion7();
+    public Guid TopeGeneral { get; } = Guid.CreateVersion7();
     public Guid MotivoDevolucion { get; } = Guid.CreateVersion7();
     public string CodigoMotivoDevolucion => $"DEF{Sufijo}";
 
@@ -110,7 +111,9 @@ public sealed class EscenarioCatalogo
             MotivosDevolucion: [new MotivoDevolucionCarga(MotivoDevolucion, CodigoMotivoDevolucion, "Artículo defectuoso")],
             Bancos: [new BancoCarga(Banco, $"BAN{Sufijo}", $"Banco {Sufijo}")],
             TiposTarjeta: [new TipoTarjetaCarga(TipoTarjeta, $"TT{Sufijo}", "Visa prueba")],
-            Denominaciones: [new DenominacionCarga(BilleteMil, "DOP", ValorBillete, TipoDenominacion.Billete)]);
+            Denominaciones: [new DenominacionCarga(BilleteMil, "DOP", ValorBillete, TipoDenominacion.Billete)],
+            // Sin topes configurados no hay descuento manual: las pruebas trabajan con un tope general amplio.
+            TopesDescuento: [new TopeDescuentoCarga(TopeGeneral, 1, 100m, null)]);
 
     /// <summary>
     /// Valor único por escenario (moneda + valor + tipo es único en la base), fijo entre cargas:

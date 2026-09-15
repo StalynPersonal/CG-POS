@@ -41,8 +41,11 @@ public class TopesDescuentoPruebas
     }
 
     [Fact]
-    public void Sin_topes_configurados_no_hay_limite()
+    public void Sin_topes_configurados_no_se_permite_el_descuento_manual()
     {
-        Assert.True(ReglasTopeDescuento.Evaluar([], 1, Taladro, Ferreteria, 100m, 99999m).Permitido);
+        var evaluacion = ReglasTopeDescuento.Evaluar([], 9, Taladro, Ferreteria, 1m, 1m);
+
+        Assert.False(evaluacion.Permitido);
+        Assert.True(evaluacion.SinConfiguracion);
     }
 }
