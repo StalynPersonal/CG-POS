@@ -1,4 +1,4 @@
-﻿using CgPos.Pos.Aplicacion.Abstracciones;
+using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Ecf;
@@ -28,8 +28,8 @@ public static class InyeccionDependencias
     public const string NombreConexion = "BaseDatosPos";
 
     /// <summary>
-    /// Nivel de compatibilidad por defecto: SQL Server 2019 (150), mÃ­nimo exigido para la caja.
-    /// Se puede bajar por configuraciÃ³n (ej. 120 para un SQL Server 2014 de desarrollo).
+    /// Nivel de compatibilidad por defecto: SQL Server 2019 (150), mínimo exigido para la caja.
+    /// Se puede bajar por configuración (ej. 120 para un SQL Server 2014 de desarrollo).
     /// </summary>
     public const int NivelCompatibilidadPorDefecto = 150;
 
@@ -37,7 +37,7 @@ public static class InyeccionDependencias
     {
         var cadenaConexion = configuracion.GetConnectionString(NombreConexion);
         if (string.IsNullOrWhiteSpace(cadenaConexion))
-            throw new InvalidOperationException($"Falta la cadena de conexiÃ³n 'ConnectionStrings:{NombreConexion}'.");
+            throw new InvalidOperationException($"Falta la cadena de conexión 'ConnectionStrings:{NombreConexion}'.");
 
         var nivelCompatibilidad = int.TryParse(configuracion["BaseDatos:NivelCompatibilidad"], out var nivel)
             ? nivel
@@ -51,7 +51,7 @@ public static class InyeccionDependencias
         servicios.AddSingleton<IHashCredenciales, HashCredenciales>();
         servicios.AddScoped<ICargaInicial, ServicioCargaInicial>();
 
-        // OrganizaciÃ³n y seguridad (M01, M02)
+        // Organización y seguridad (M01, M02)
         servicios.AddSingleton<IContextoCaja>(new ContextoCajaConfigurado(configuracion));
         servicios.AddScoped<IParametros, ServicioParametros>();
         servicios.AddScoped<IEstadoCaja, ServicioEstadoCaja>();
@@ -60,7 +60,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
         servicios.AddScoped<IServicioAutorizacion, ServicioAutorizacion>();
 
-        // Maestros, catÃ¡logos y precios (M03, M04)
+        // Maestros, catálogos y precios (M03, M04)
         servicios.AddScoped<ICargaMaestros, ServicioCargaMaestros>();
         servicios.AddScoped<IImportadorArticulos, ImportadorArticulosCsv>();
         servicios.AddScoped<IImportadorPadronDgii, ImportadorPadronDgii>();
@@ -69,13 +69,13 @@ public static class InyeccionDependencias
         servicios.AddScoped<IConsultaCatalogoCobro, ConsultaCatalogoCobro>();
         servicios.AddScoped<IServicioPrecios, ServicioPrecios>();
 
-        // PerifÃ©ricos (simulados hasta definir modelos; la impresora se elige por configuraciÃ³n)
+        // Periféricos (simulados hasta definir modelos; la impresora se elige por configuración)
         servicios.AddSingleton<IBalanza>(new BalanzaSimulada(configuracion));
         servicios.AddSingleton<ITerminalPago>(new TerminalPagoSimulado(configuracion));
         servicios.AddSingleton<IImpresoraTicket>(proveedor => new ImpresoraTicket(configuracion,
             proveedor.GetRequiredService<TimeProvider>(), proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ImpresoraTicket>>()));
 
-        // FacturaciÃ³n electrÃ³nica (M09): el certificado vive en memoria mientras corre el Agente.
+        // Facturación electrónica (M09): el certificado vive en memoria mientras corre el Agente.
         servicios.AddSingleton<ICertificadoCaja>(proveedor => new CertificadoCaja(configuracion,
             proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CertificadoCaja>>()));
         servicios.AddScoped(proveedor => new EmisionComprobantes(proveedor.GetRequiredService<ContextoDatosPos>(), proveedor.GetRequiredService<ICertificadoCaja>(),
@@ -94,7 +94,7 @@ public static class InyeccionDependencias
         return servicios;
     }
 
-    /// <summary>ConfiguraciÃ³n de SQL Server compartida por la aplicacion y las pruebas de integraciÃ³n.</summary>
+    /// <summary>Configuración de SQL Server compartida por la aplicacion y las pruebas de integración.</summary>
     public static DbContextOptionsBuilder ConfigurarSqlServer(DbContextOptionsBuilder opciones, string cadenaConexion, int nivelCompatibilidad) =>
         opciones.UseSqlServer(cadenaConexion, sql =>
         {

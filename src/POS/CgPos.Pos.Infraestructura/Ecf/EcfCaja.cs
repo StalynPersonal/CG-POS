@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CgPos.Contratos.Ventas;
@@ -57,7 +57,7 @@ internal sealed class CertificadoCaja(IConfiguration configuracion, ILogger<Cert
         }
         catch (CryptographicException)
         {
-            return "PIN incorrecto o certificado daÃ±ado.";
+            return "PIN incorrecto o certificado dañado.";
         }
         catch (InvalidOperationException excepcion)
         {
@@ -78,30 +78,30 @@ internal sealed class EmisionEcfExcepcion(CodigoResultadoVenta codigo, string me
 }
 
 /// <summary>
-/// Emite el e-CF de una venta cobrada dentro de la transacciÃ³n del cobro (RF-218): toma la siguiente secuencia de la caja,
-/// arma y valida el documento, lo firma con el certificado en memoria, obtiene el cÃ³digo de seguridad y el timbre, y deja el
-/// XML firmado en la carpeta de pendientes (RF-219). Si la transacciÃ³n no se confirma, la secuencia vuelve atrÃ¡s.
+/// Emite el e-CF de una venta cobrada dentro de la transacción del cobro (RF-218): toma la siguiente secuencia de la caja,
+/// arma y valida el documento, lo firma con el certificado en memoria, obtiene el código de seguridad y el timbre, y deja el
+/// XML firmado en la carpeta de pendientes (RF-219). Si la transacción no se confirma, la secuencia vuelve atrás.
 /// </summary>
 internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificadoCaja certificado, IConfiguration configuracion, TimeProvider reloj)
 {
     private readonly FirmadorEcf _firmador = new();
 
-    /// <remarks>Debe llamarse con una transacciÃ³n abierta en el contexto.</remarks>
+    /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
     public async Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion)
     {
         var certificadoFirma = certificado.ObtenerParaFirmar()
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado,
-                "El certificado digital de la caja no estÃ¡ cargado. Digite su PIN para poder facturar.");
+                "El certificado digital de la caja no está cargado. Digite su PIN para poder facturar.");
 
         var ahora = reloj.GetUtcNow();
         if (certificado.VenceEn is { } vence && vence < ahora)
-            throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado, "El certificado digital de la caja estÃ¡ vencido. Solicite uno nuevo.");
+            throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado, "El certificado digital de la caja está vencido. Solicite uno nuevo.");
 
         var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
         var asignada = await SiguienteSecuenciaAsync(venta.CajaId, venta.TipoComprobante, hoy, cancelacion)
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.ComprobanteNoDisponible,
                 $"No hay secuencia de e-CF disponible para {ReglasComprobante.Nombre(venta.TipoComprobante)} (E{(int)venta.TipoComprobante}) en esta caja: " +
-                "estÃ¡ agotada, vencida o no asignada. Solicite un rango al Central o aplique el procedimiento de contingencia.");
+                "está agotada, vencida o no asignada. Solicite un rango al Central o aplique el procedimiento de contingencia.");
 
         var encf = SecuenciaEcf.FormatearEncf(venta.TipoComprobante, asignada.Ultimo);
         var emisor = await EmisorAsync(venta.SucursalId, cancelacion);
@@ -110,7 +110,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
         var errores = ValidadorEcf.Validar(documentoEcf).Concat(ValidadorEcf.ValidarContraXsd(xml, configuracion[ClavesEcf.CarpetaXsd])).ToList();
         if (errores.Count > 0)
-            throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El e-CF no pasÃ³ la validaciÃ³n: {string.Join(" ", errores.Take(3))}");
+            throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El e-CF no pasó la validación: {string.Join(" ", errores.Take(3))}");
 
         var firmado = _firmador.Firmar(xml, certificadoFirma);
         var codigoSeguridad = CodigoSeguridadEcf.Obtener(firmado);
@@ -128,7 +128,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         return new EmisionEcf(documento, new DocumentoElectronicoParaCentral(encf, venta.TipoComprobante, firmado, hash, documentoEcf.FechaHoraFirma), asignada.VenceEn);
     }
 
-    /// <summary>Si el cobro no llegÃ³ a guardarse, su XML no debe quedar como pendiente.</summary>
+    /// <summary>Si el cobro no llegó a guardarse, su XML no debe quedar como pendiente.</summary>
     public static void DescartarArchivo(EmisionEcf emision)
     {
         try
@@ -156,7 +156,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         public DateOnly VenceEn { get; set; }
     }
 
-    /// <summary>Toma la siguiente secuencia disponible de forma atÃ³mica (bloqueo de fila) dentro de la transacciÃ³n abierta.</summary>
+    /// <summary>Toma la siguiente secuencia disponible de forma atómica (bloqueo de fila) dentro de la transacción abierta.</summary>
     private async Task<SecuenciaAsignada?> SiguienteSecuenciaAsync(Guid cajaId, TipoComprobante tipo, DateOnly hoy, CancellationToken cancelacion)
     {
         var fecha = hoy.ToDateTime(TimeOnly.MinValue);
@@ -183,11 +183,11 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
             .SingleAsync(cancelacion);
 
         return new EmisorEcf(datos.Rnc, datos.RazonSocial, datos.NombreComercial, datos.Sucursal,
-            datos.EmpresaDireccion ?? datos.SucursalDireccion ?? "DirecciÃ³n no registrada");
+            datos.EmpresaDireccion ?? datos.SucursalDireccion ?? "Dirección no registrada");
     }
 }
 
-/// <summary>Convierte la venta cobrada al documento e-CF: montos sin ITBIS por tasa, descuentos por lÃ­nea y formas de pago.</summary>
+/// <summary>Convierte la venta cobrada al documento e-CF: montos sin ITBIS por tasa, descuentos por línea y formas de pago.</summary>
 internal static class ConversionEcf
 {
     public static DocumentoEcf DesdeVenta(Venta venta, string encf, DateOnly venceSecuencia, EmisorEcf emisor, DateTimeOffset fechaFirma)
@@ -207,7 +207,7 @@ internal static class ConversionEcf
             var precioUnitario = linea.Cantidad == 0 ? 0m : decimal.Round(linea.ImporteBruto / linea.Cantidad / factor, 4, MidpointRounding.AwayFromZero);
             var indicador = linea.IndicadorFacturacion is >= 1 and <= 4 ? linea.IndicadorFacturacion : linea.PorcentajeImpuesto == 0 ? 4 : 1;
 
-            // La unidad de medida de la DGII usa una tabla de cÃ³digos propia; se omite hasta homologarla.
+            // La unidad de medida de la DGII usa una tabla de códigos propia; se omite hasta homologarla.
             items.Add(new ItemEcf(i + 1, indicador, linea.Descripcion, linea.Cantidad, null, precioUnitario, Math.Max(0m, baseBruta - baseNeta), baseNeta));
 
             switch (indicador)
@@ -321,7 +321,7 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
 
         int? diasParaVencer = certificado.VenceEn is { } vence ? (int)Math.Floor((vence - reloj.GetUtcNow()).TotalDays) : null;
         if (diasParaVencer is { } dias && dias <= diasAlerta)
-            alertas.Add(dias < 0 ? "El certificado digital de la caja estÃ¡ vencido." : $"El certificado digital de la caja vence en {dias} dÃ­as.");
+            alertas.Add(dias < 0 ? "El certificado digital de la caja está vencido." : $"El certificado digital de la caja vence en {dias} días.");
 
         return new DatosEstadoEcf(certificado.Configurado, certificado.Cargado, certificado.Sujeto, certificado.VenceEn, diasParaVencer, datos, alertas);
     }
@@ -330,7 +330,7 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
     {
         var error = certificado.Cargar(pin);
 
-        // Nunca se audita el PIN; solo quiÃ©n intentÃ³ cargar el certificado y el resultado.
+        // Nunca se audita el PIN; solo quién intentó cargar el certificado y el resultado.
         auditoria.Registrar(new EntradaAuditoria(error is null ? "Ecf.CertificadoCargado" : "Ecf.CertificadoRechazado", "Caja", sesion.CajaCodigo,
             Detalle: new { certificado.Sujeto, certificado.VenceEn, Error = error },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
@@ -354,7 +354,7 @@ public static class ExtensionesEcf
 {
     /// <summary>
     /// Solo desarrollo: si no existe el certificado configurado crea uno autofirmado y lo carga con el PIN indicado.
-    /// En producciÃ³n el PIN lo digita un usuario al iniciar la jornada.
+    /// En producción el PIN lo digita un usuario al iniciar la jornada.
     /// </summary>
     public static void PrepararCertificadoDesarrollo(this IServiceProvider servicios, IConfiguration configuracion, string pin)
     {
