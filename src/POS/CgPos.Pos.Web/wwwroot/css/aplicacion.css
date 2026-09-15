@@ -1,0 +1,138 @@
+/* Estilos propios de la app de caja. Los tokens y componentes están en _content/CgPos.Interfaz/cgpos.css */
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: #fff4d6;
+    color: var(--cg-texto);
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.8rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 2000;
+    font-size: 1.1rem;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+.blazor-error-boundary {
+    background: var(--cg-peligro);
+    padding: 1rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "Ocurrió un error."
+    }
+
+.cg-progreso-carga {
+    position: absolute;
+    display: block;
+    width: 8rem;
+    height: 8rem;
+    inset: 20vh 0 auto 0;
+    margin: 0 auto 0 auto;
+}
+
+    .cg-progreso-carga circle {
+        fill: none;
+        stroke: var(--cg-superficie);
+        stroke-width: 0.6rem;
+        transform-origin: 50% 50%;
+        transform: rotate(-90deg);
+    }
+
+        .cg-progreso-carga circle:last-child {
+            stroke: var(--cg-primario);
+            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+            transition: stroke-dasharray 0.05s ease-in-out;
+        }
+
+.cg-progreso-carga-texto {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+    color: var(--cg-primario);
+    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+}
+
+    .cg-progreso-carga-texto:after {
+        content: var(--blazor-load-percentage-text, "Cargando");
+    }
+
+/* ---------- Pestañas de ingreso y autorización ---------- */
+.cg-pestanas .mud-tabs-panels {
+    padding-top: 16px;
+}
+
+/* ---------- Campo que recibe el teclado táctil ---------- */
+.cg-campo-activo .mud-input-outlined-border {
+    border-color: var(--cg-accion) !important;
+    border-width: 2px !important;
+}
+
+/* ---------- Pantalla de ingreso ---------- */
+.cg-ingreso {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) 2.4fr;
+    min-height: 100vh;
+}
+
+.cg-ingreso__marca {
+    background: linear-gradient(160deg, var(--cg-primario) 0%, var(--cg-primario-oscuro) 100%);
+    color: #fff;
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 32px;
+}
+
+.cg-ingreso__logo { font-size: 3.5rem; font-weight: 800; letter-spacing: .02em; }
+.cg-ingreso__empresa { font-size: 1.25rem; opacity: .85; }
+.cg-ingreso__caja-titulo { font-size: 2.25rem; font-weight: 700; }
+.cg-ingreso__hora { font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cg-ingreso__fecha { font-size: 1.1rem; opacity: .85; }
+.cg-ingreso__fecha::first-letter { text-transform: uppercase; }
+
+.cg-ingreso__formulario {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: var(--cg-fondo);
+}
+
+.cg-ingreso__tarjeta { width: 100%; max-width: 1080px; padding: 32px; }
+
+/* Campos en una fila arriba y el teclado debajo, a todo el ancho: el teclado de 10 columnas siempre cabe. */
+.cg-ingreso__pin,
+.cg-autorizacion__pin {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cg-ingreso__campos,
+.cg-autorizacion__campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    align-items: center;
+}
+
+.cg-ingreso__huella { display: flex; justify-content: center; padding: 24px; }
+.cg-ingreso__boton-huella { width: 260px; height: 220px; }
+
+@media (max-width: 1100px) {
+    .cg-ingreso { grid-template-columns: 1fr; }
+    .cg-ingreso__pin, .cg-autorizacion__pin { grid-template-columns: 1fr; }
+}

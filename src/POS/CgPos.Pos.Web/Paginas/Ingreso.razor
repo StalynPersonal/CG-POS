@@ -1,0 +1,219 @@
+@page "/ingreso"
+@implements IDisposable
+@inject ClienteAgente Cliente
+@inject AlmacenSesion Almacen
+@inject NavigationManager Navegacion
+
+<PageTitle>CG-POS · Iniciar sesión</PageTitle>
+
+<div class="cg-ingreso">
+    <section class="cg-ingreso__marca">
+        <div>
+            <div class="cg-ingreso__logo">CG-POS</div>
+            <div class="cg-ingreso__empresa">@(_estado?.EmpresaNombre ?? "Punto de venta")</div>
+        </div>
+
+        <div>
+            @if (_cargando)
+            {
+                <MudProgressCircular Indeterminate="true" Color="Color.Inherit" />
+            }
+            else if (_estado is null)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">No hay comunicación con el servicio de la caja (CG-POS Agente).</MudAlert>
+            }
+            else
+            {
+                @if (_estado.CajaCodigo is not null)
+                {
+                    <div class="cg-ingreso__caja-titulo">Caja @_estado.CajaCodigo</div>
+                    <div>@_estado.CajaNombre · @_estado.SucursalNombre</div>
+                }
+
+                @if (_estado.Problema is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">@_estado.Problema</MudAlert>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Class="mt-4 ml-0">Caja habilitada</MudChip>
+                }
+            }
+        </div>
+
+        <div>
+            <div class="cg-ingreso__hora">@_ahora.ToString("h:mm tt")</div>
+            <div class="cg-ingreso__fecha">@_ahora.ToString("dddd, d 'de' MMMM 'de' yyyy")</div>
+        </div>
+    </section>
+
+    <section class="cg-ingreso__formulario">
+        <MudPaper Elevation="3" Class="cg-ingreso__tarjeta">
+            <MudText Typo="Typo.h5" Class="mb-2" Style="font-weight: 700; color: var(--cg-primario)">Iniciar sesión</MudText>
+
+            <MudTabs @bind-ActivePanelIndex="_pestana" Elevation="0" Class="cg-pestanas">
+                <MudTabPanel Text="Código y PIN" Icon="@Icons.Material.Filled.Pin">
+                    <div class="cg-ingreso__pin">
+                        <div class="cg-ingreso__campos">
+                            <div @onclick="() => _campo = CampoActivo.Codigo">
+                                <MudTextField T="string" @bind-Value="_codigo" Label="Código de usuario" Variant="Variant.Outlined"
+                                              Immediate="true" Class="@ClaseCampo(CampoActivo.Codigo)" OnKeyDown="AlTeclearCodigo" />
+                            </div>
+                            <div @onclick="() => _campo = CampoActivo.Pin">
+                                <MudTextField T="string" @bind-Value="_pin" Label="PIN" InputType="InputType.Password" Variant="Variant.Outlined"
+                                              Immediate="true" Class="@ClaseCampo(CampoActivo.Pin)" OnKeyDown="AlTeclearPinAsync" />
+                            </div>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true"
+                                       Disabled="@(!PuedeIngresarConPin)" Style="min-height: var(--cg-toque-minimo)" OnClick="IngresarConPinAsync">
+                                Ingresar
+                            </MudButton>
+                        </div>
+
+                        <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
+                                       Modo="@(_campo == CampoActivo.Pin ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)"
+                                       PermitirDecimal="false" PermitirCambioModo="@(_campo == CampoActivo.Codigo)"
+                                       LongitudMaxima="@(_campo == CampoActivo.Pin ? 8 : 20)"
+                                       TextoConfirmar="@(_campo == CampoActivo.Codigo ? "Siguiente" : "Ingresar")" />
+                    </div>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Carné" Icon="@Icons.Material.Filled.QrCodeScanner">
+                    <MudText Typo="Typo.body1" Class="mb-3">Escanee su carné con el lector de código de barras.</MudText>
+                    <MudTextField T="string" @bind-Value="_carne" Label="Código del carné" InputType="InputType.Password" Variant="Variant.Outlined"
+                                  Immediate="true" OnKeyDown="AlTeclearCarneAsync" />
+                </MudTabPanel>
+
+                <MudTabPanel Text="Huella" Icon="@Icons.Material.Filled.Fingerprint">
+                    <div class="cg-ingreso__huella">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="cg-ingreso__boton-huella"
+                                   Disabled="@(!CajaDisponible || _procesando)" OnClick="IngresarConHuellaAsync">
+                            <div>
+                                <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Style="font-size: 5rem" />
+                                <div>Colocar huella</div>
+                            </div>
+                        </MudButton>
+                    </div>
+                </MudTabPanel>
+            </MudTabs>
+
+            @if (_procesando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mt-3" />
+            }
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3" Style="font-size: 1.05rem">@_mensaje</MudAlert>
+            }
+        </MudPaper>
+    </section>
+</div>
+
+@code {
+    private enum CampoActivo
+    {
+        Codigo,
+        Pin,
+    }
+
+    private DatosEstadoCaja? _estado;
+    private bool _cargando = true;
+    private bool _procesando;
+    private string? _mensaje;
+    private int _pestana;
+    private CampoActivo _campo = CampoActivo.Codigo;
+    private string? _codigo;
+    private string? _pin;
+    private string? _carne;
+    private DateTime _ahora = DateTime.Now;
+    private Timer? _temporizadorReloj;
+
+    private bool CajaDisponible => _estado is { Habilitada: true };
+
+    private bool PuedeIngresarConPin =>
+        CajaDisponible && !_procesando && !string.IsNullOrWhiteSpace(_codigo) && !string.IsNullOrEmpty(_pin);
+
+    private string ValorCampoActivo => (_campo == CampoActivo.Codigo ? _codigo : _pin) ?? string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Almacen.Activa)
+        {
+            Navegacion.NavigateTo("", replace: true);
+            return;
+        }
+
+        _temporizadorReloj = new Timer(_ =>
+        {
+            _ahora = DateTime.Now;
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+
+        _estado = await Cliente.ObtenerEstadoCajaAsync();
+        _cargando = false;
+    }
+
+    private string? ClaseCampo(CampoActivo campo) => _campo == campo ? "cg-campo-activo" : null;
+
+    private void AlCambiarTeclado(string valor)
+    {
+        if (_campo == CampoActivo.Codigo)
+            _codigo = valor;
+        else
+            _pin = valor;
+    }
+
+    private Task AlConfirmarTecladoAsync(string _)
+    {
+        if (_campo == CampoActivo.Codigo)
+        {
+            _campo = CampoActivo.Pin;
+            return Task.CompletedTask;
+        }
+
+        return IngresarConPinAsync();
+    }
+
+    private void AlTeclearCodigo(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+            _campo = CampoActivo.Pin;
+    }
+
+    private Task AlTeclearPinAsync(KeyboardEventArgs evento) =>
+        evento.Key == "Enter" ? IngresarConPinAsync() : Task.CompletedTask;
+
+    private Task AlTeclearCarneAsync(KeyboardEventArgs evento) =>
+        evento.Key == "Enter" && !string.IsNullOrWhiteSpace(_carne)
+            ? EjecutarIngresoAsync(() => Cliente.IngresarConCarneAsync(_carne))
+            : Task.CompletedTask;
+
+    private Task IngresarConPinAsync() =>
+        PuedeIngresarConPin
+            ? EjecutarIngresoAsync(() => Cliente.IngresarConPinAsync(_codigo!.Trim(), _pin!))
+            : Task.CompletedTask;
+
+    private Task IngresarConHuellaAsync() => EjecutarIngresoAsync(() => Cliente.IngresarConHuellaAsync());
+
+    private async Task EjecutarIngresoAsync(Func<Task<RespuestaIngreso>> ingresar)
+    {
+        if (_procesando)
+            return;
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await ingresar();
+        _procesando = false;
+
+        if (respuesta.Exitoso)
+        {
+            Navegacion.NavigateTo("", replace: true);
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje ?? "No se pudo iniciar sesión.";
+        _pin = string.Empty;
+        _carne = string.Empty;
+    }
+
+    public void Dispose() => _temporizadorReloj?.Dispose();
+}

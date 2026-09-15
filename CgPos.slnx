@@ -1,20 +1,20 @@
 <Solution>
   <Folder Name="/src/" />
   <Folder Name="/src/POS/">
-    <Project Path="src/POS/CgPos.Pos.Agent/CgPos.Pos.Agent.csproj" />
-    <Project Path="src/POS/CgPos.Pos.Application/CgPos.Pos.Application.csproj" />
-    <Project Path="src/POS/CgPos.Pos.Infrastructure/CgPos.Pos.Infrastructure.csproj" />
+    <Project Path="src/POS/CgPos.Pos.Agente/CgPos.Pos.Agente.csproj" />
+    <Project Path="src/POS/CgPos.Pos.Aplicacion/CgPos.Pos.Aplicacion.csproj" />
+    <Project Path="src/POS/CgPos.Pos.Infraestructura/CgPos.Pos.Infraestructura.csproj" />
     <Project Path="src/POS/CgPos.Pos.Web/CgPos.Pos.Web.csproj" />
   </Folder>
-  <Folder Name="/src/Shared/">
-    <Project Path="src/Shared/CgPos.Contracts/CgPos.Contracts.csproj" />
-    <Project Path="src/Shared/CgPos.Domain/CgPos.Domain.csproj" />
-    <Project Path="src/Shared/CgPos.ECF/CgPos.ECF.csproj" />
-    <Project Path="src/Shared/CgPos.UI.Kit/CgPos.UI.Kit.csproj" />
+  <Folder Name="/src/Compartido/">
+    <Project Path="src/Compartido/CgPos.Contratos/CgPos.Contratos.csproj" />
+    <Project Path="src/Compartido/CgPos.Dominio/CgPos.Dominio.csproj" />
+    <Project Path="src/Compartido/CgPos.ECF/CgPos.ECF.csproj" />
+    <Project Path="src/Compartido/CgPos.Interfaz/CgPos.Interfaz.csproj" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/CgPos.Domain.Tests/CgPos.Domain.Tests.csproj" />
-    <Project Path="tests/CgPos.ECF.Tests/CgPos.ECF.Tests.csproj" />
-    <Project Path="tests/CgPos.Pos.Tests/CgPos.Pos.Tests.csproj" />
+  <Folder Name="/pruebas/">
+    <Project Path="pruebas/CgPos.Dominio.Pruebas/CgPos.Dominio.Pruebas.csproj" />
+    <Project Path="pruebas/CgPos.ECF.Pruebas/CgPos.ECF.Pruebas.csproj" />
+    <Project Path="pruebas/CgPos.Pos.Pruebas/CgPos.Pos.Pruebas.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,50 @@
+@* Grilla con filas altas, encabezado verde y selección por toque. Base para líneas de venta, devoluciones, búsquedas. *@
+@typeparam TElemento
+
+<MudTable T="TElemento"
+          Items="Elementos"
+          Class="@($"cg-grilla {Clase}")"
+          Hover="true"
+          FixedHeader="true"
+          Height="@Altura"
+          Elevation="0"
+          RowClassFunc="ClaseFila"
+          OnRowClick="AlTocarFila">
+    <HeaderContent>@Encabezado</HeaderContent>
+    <RowTemplate Context="elemento">@Fila(elemento)</RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body1" Class="pa-6" Color="Color.Secondary">@TextoSinRegistros</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<TElemento>? Elementos { get; set; }
+    [Parameter, EditorRequired] public RenderFragment? Encabezado { get; set; }
+    [Parameter, EditorRequired] public RenderFragment<TElemento> Fila { get; set; } = default!;
+
+    [Parameter] public TElemento? Seleccionado { get; set; }
+    [Parameter] public EventCallback<TElemento> SeleccionadoChanged { get; set; }
+
+    /// <summary>Marca filas en rojo (ej. líneas eliminadas con monto negativo).</summary>
+    [Parameter] public Func<TElemento, bool>? EsAnulada { get; set; }
+
+    [Parameter] public string? Altura { get; set; }
+    [Parameter] public string TextoSinRegistros { get; set; } = "Sin registros";
+    [Parameter] public string? Clase { get; set; }
+
+    private string ClaseFila(TElemento elemento, int _)
+    {
+        var clases = new List<string>(2);
+        if (Seleccionado is not null && EqualityComparer<TElemento>.Default.Equals(elemento, Seleccionado))
+            clases.Add("cg-fila--seleccionada");
+        if (EsAnulada?.Invoke(elemento) == true)
+            clases.Add("cg-fila--anulada");
+        return string.Join(' ', clases);
+    }
+
+    private Task AlTocarFila(TableRowClickEventArgs<TElemento> evento)
+    {
+        Seleccionado = evento.Item;
+        return SeleccionadoChanged.InvokeAsync(evento.Item);
+    }
+}

@@ -1,0 +1,114 @@
+@* Teclado en pantalla: numérico (cantidades, montos, PIN) o alfanumérico (búsquedas, nombres). *@
+<div class="cg-teclado @Clase" role="group" aria-label="Teclado en pantalla">
+    @if (_modo == ModoTeclado.Numerico)
+    {
+        @foreach (var fila in FilasNumericas)
+        {
+            <div class="cg-teclado__fila">
+                @foreach (var tecla in fila)
+                {
+                    <button type="button" class="cg-teclado__tecla" @onclick="() => Escribir(tecla)">@tecla</button>
+                }
+            </div>
+        }
+        <div class="cg-teclado__fila">
+            @if (PermitirDecimal)
+            {
+                <button type="button" class="cg-teclado__tecla" @onclick='() => Escribir(".")'>.</button>
+            }
+            <button type="button" class="cg-teclado__tecla" @onclick='() => Escribir("0")'>0</button>
+            <button type="button" class="cg-teclado__tecla cg-teclado__tecla--control" aria-label="Borrar" @onclick="Borrar">⌫</button>
+        </div>
+    }
+    else
+    {
+        @foreach (var fila in FilasAlfabeticas)
+        {
+            <div class="cg-teclado__fila">
+                @foreach (var tecla in fila)
+                {
+                    <button type="button" class="cg-teclado__tecla" @onclick="() => Escribir(tecla)">@tecla</button>
+                }
+            </div>
+        }
+        <div class="cg-teclado__fila">
+            <button type="button" class="cg-teclado__tecla cg-teclado__tecla--espacio" aria-label="Espacio" @onclick='() => Escribir(" ")'>Espacio</button>
+            <button type="button" class="cg-teclado__tecla cg-teclado__tecla--control" aria-label="Borrar" @onclick="Borrar">⌫</button>
+        </div>
+    }
+
+    <div class="cg-teclado__fila">
+        @if (PermitirCambioModo)
+        {
+            <button type="button" class="cg-teclado__tecla cg-teclado__tecla--control" @onclick="CambiarModo">
+                @(_modo == ModoTeclado.Numerico ? "ABC" : "123")
+            </button>
+        }
+        <button type="button" class="cg-teclado__tecla cg-teclado__tecla--control" @onclick="Limpiar">Limpiar</button>
+        <button type="button" class="cg-teclado__tecla cg-teclado__tecla--confirmar cg-teclado__tecla--ancha" @onclick="Confirmar">@TextoConfirmar</button>
+    </div>
+</div>
+
+@code {
+    private static readonly string[][] FilasNumericas = [["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"]];
+
+    private static readonly string[][] FilasAlfabeticas =
+    [
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+        ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+        ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
+        ["Z", "X", "C", "V", "B", "N", "M", "-", "."],
+    ];
+
+    [Parameter] public string Valor { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+
+    /// <summary>Se dispara al presionar la tecla de confirmación, con el valor actual.</summary>
+    [Parameter] public EventCallback<string> AlConfirmar { get; set; }
+
+    [Parameter] public ModoTeclado Modo { get; set; } = ModoTeclado.Numerico;
+    [Parameter] public bool PermitirCambioModo { get; set; } = true;
+    [Parameter] public bool PermitirDecimal { get; set; } = true;
+    [Parameter] public int? LongitudMaxima { get; set; }
+    [Parameter] public string TextoConfirmar { get; set; } = "Enter";
+    [Parameter] public string? Clase { get; set; }
+
+    private ModoTeclado _modo;
+    private ModoTeclado? _modoParametroAnterior;
+
+    protected override void OnParametersSet()
+    {
+        // Respeta el modo inicial, pero no pisa el cambio manual del usuario en cada render.
+        if (_modoParametroAnterior != Modo)
+        {
+            _modo = Modo;
+            _modoParametroAnterior = Modo;
+        }
+    }
+
+    private Task Escribir(string tecla)
+    {
+        if (LongitudMaxima is int maximo && Valor.Length >= maximo)
+            return Task.CompletedTask;
+
+        if (tecla == "." && _modo == ModoTeclado.Numerico && Valor.Contains('.'))
+            return Task.CompletedTask;
+
+        return Actualizar(Valor + tecla);
+    }
+
+    private Task Borrar() => Valor.Length == 0 ? Task.CompletedTask : Actualizar(Valor[..^1]);
+
+    private Task Limpiar() => Actualizar(string.Empty);
+
+    private Task Confirmar() => AlConfirmar.InvokeAsync(Valor);
+
+    private void CambiarModo() =>
+        _modo = _modo == ModoTeclado.Numerico ? ModoTeclado.Alfanumerico : ModoTeclado.Numerico;
+
+    private Task Actualizar(string nuevoValor)
+    {
+        Valor = nuevoValor;
+        return ValorChanged.InvokeAsync(nuevoValor);
+    }
+}

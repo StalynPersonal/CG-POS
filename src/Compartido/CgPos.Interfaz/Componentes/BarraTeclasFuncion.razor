@@ -1,0 +1,32 @@
+@* Barra inferior de teclas de función con dos páginas (principal y "Más" opciones). *@
+<nav class="cg-barra-teclas @Clase" aria-label="Teclas de función">
+    @if (_mostrandoSecundaria && PaginaSecundaria is not null)
+    {
+        @PaginaSecundaria
+        <TeclaFuncion Texto="Volver" Icono="@Icons.Material.Filled.ArrowBack" AlPresionar="AlternarPagina" />
+    }
+    else
+    {
+        @PaginaPrincipal
+        @if (PaginaSecundaria is not null)
+        {
+            <TeclaFuncion Texto="Más" Icono="@Icons.Material.Filled.ArrowForward" AlPresionar="AlternarPagina" />
+        }
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public RenderFragment? PaginaPrincipal { get; set; }
+    [Parameter] public RenderFragment? PaginaSecundaria { get; set; }
+    [Parameter] public string? Clase { get; set; }
+
+    private bool _mostrandoSecundaria;
+
+    public void MostrarPrincipal()
+    {
+        _mostrandoSecundaria = false;
+        StateHasChanged();
+    }
+
+    private void AlternarPagina() => _mostrandoSecundaria = !_mostrandoSecundaria;
+}

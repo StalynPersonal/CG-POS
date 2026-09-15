@@ -1,0 +1,25 @@
+@* Se muestra cuando una ruta requiere sesión: sin sesión lleva al ingreso; con sesión pero sin permiso avisa. *@
+@inject NavigationManager Navegacion
+
+@if (_sinPermiso)
+{
+    <MudAlert Severity="Severity.Warning" Class="ma-6">No tiene permiso para acceder a esta pantalla.</MudAlert>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    private bool _sinPermiso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = EstadoAutenticacion is null ? null : await EstadoAutenticacion;
+        if (estado?.User.Identity?.IsAuthenticated == true)
+        {
+            _sinPermiso = true;
+            return;
+        }
+
+        Navegacion.NavigateTo("ingreso", replace: true);
+    }
+}

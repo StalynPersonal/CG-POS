@@ -1,0 +1,13 @@
+<Router AppAssembly="@typeof(Aplicacion).Assembly" NotFoundPage="typeof(Paginas.NoEncontrada)">
+    <Found Context="datosRuta">
+        <AuthorizeRouteView RouteData="@datosRuta" DefaultLayout="@typeof(DisenoPrincipal)">
+            <NotAuthorized>
+                <RedirigirAIngreso />
+            </NotAuthorized>
+            <Authorizing>
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            </Authorizing>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="@datosRuta" Selector="h1" />
+    </Found>
+</Router>

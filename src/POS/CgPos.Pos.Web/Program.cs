@@ -1,19 +1,40 @@
-using CgPos.Domain.Globalizacion;
+using CgPos.Contratos.Seguridad;
+using CgPos.Dominio.Globalizacion;
+using CgPos.Dominio.Seguridad;
+using CgPos.Interfaz.Servicios;
 using CgPos.Pos.Web;
-using CgPos.UI.Kit.Services;
+using CgPos.Pos.Web.Seguridad;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
-var builder = WebAssemblyHostBuilder.CreateDefault(args);
-builder.RootComponents.Add<App>("#app");
-builder.RootComponents.Add<HeadOutlet>("head::after");
+var constructor = WebAssemblyHostBuilder.CreateDefault(args);
+constructor.RootComponents.Add<Aplicacion>("#aplicacion");
+constructor.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-builder.Services.AddCgPosUi();
+constructor.Services.AgregarInterfazCgPos();
 
-var host = builder.Build();
+// Sesión y comunicación con CG-POS Agente (mismo origen que la pantalla).
+constructor.Services.AddSingleton<AlmacenSesion>();
+constructor.Services.AddTransient<ManejadorTokenAgente>();
+constructor.Services
+    .AddHttpClient(ClienteAgente.NombreHttp, cliente => cliente.BaseAddress = new Uri(constructor.HostEnvironment.BaseAddress))
+    .AddHttpMessageHandler<ManejadorTokenAgente>();
+constructor.Services.AddScoped<ClienteAgente>();
+constructor.Services.AddScoped<ServicioAutorizacionPantalla>();
+
+// Una política por permiso del catálogo, igual que en el Agente.
+constructor.Services.AddAuthorizationCore(opciones =>
+{
+    foreach (var permiso in CatalogoPermisos.Todos)
+        opciones.AddPolicy(permiso.Codigo, politica => politica.RequireClaim(AtributosToken.Permiso, permiso.Codigo));
+});
+constructor.Services.AddCascadingAuthenticationState();
+constructor.Services.AddScoped<AuthenticationStateProvider, EstadoAutenticacionCaja>();
+
+var anfitrion = constructor.Build();
 
 // Formato RD fijo (RD$ 2,175.34 · dd/MM/yyyy), independiente del idioma del navegador (RNF-27).
 CulturaRd.Aplicar();
 
-await host.RunAsync();
+await anfitrion.RunAsync();
