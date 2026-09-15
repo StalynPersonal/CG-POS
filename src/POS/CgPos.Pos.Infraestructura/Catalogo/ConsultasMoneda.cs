@@ -1,4 +1,5 @@
 using CgPos.Contratos.Catalogo;
+using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using CgPos.Contratos.Seguridad;
+using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Pos.Aplicacion.Organizacion;
 
@@ -13,18 +14,6 @@ public interface IContextoCaja
 public interface IParametros
 {
     Task<string?> ObtenerAsync(string clave, Guid? cajaId = null, CancellationToken cancelacion = default);
-}
-
-/// <summary>
-/// Una regla de negocio sin configurar no se sustituye por un valor fijo en el código: la operación se rechaza con este motivo
-/// para que un usuario la configure en el Central.
-/// </summary>
-public sealed class ParametroNoConfiguradoExcepcion(string clave, string? detalle = null)
-    : Exception(detalle is null
-        ? $"Falta configurar el parámetro «{clave}». Configúrelo en el Central."
-        : $"El parámetro «{clave}» {detalle}. Corríjalo en el Central.")
-{
-    public string Clave { get; } = clave;
 }
 
 public static class ParametrosExtensiones

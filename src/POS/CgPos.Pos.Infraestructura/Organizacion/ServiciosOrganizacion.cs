@@ -1,5 +1,6 @@
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Seguridad;
+using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Catalogo;

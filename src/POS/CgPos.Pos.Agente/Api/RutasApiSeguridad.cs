@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CgPos.Contratos.Seguridad;
+using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Agente.Pantallas;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;

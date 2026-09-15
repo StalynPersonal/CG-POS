@@ -1,0 +1,165 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using CgPos.Central.Api.Seguridad;
+using CgPos.Central.Aplicacion.Abstracciones;
+using CgPos.Central.Infraestructura;
+using CgPos.Central.Infraestructura.Persistencia;
+using CgPos.Contratos.Central;
+using CgPos.Contratos.Serializacion;
+using CgPos.Dominio.Organizacion;
+using CgPos.Dominio.Seguridad;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace CgPos.Central.Pruebas.Soporte;
+
+/// <summary>
+/// CG-POS Central completo en memoria con una base SQL Server temporal y <c>datos/central.desarrollo.json</c>
+/// (ADMIN / Admin.Central2026). Exige HTTPS como en producción: los clientes usan https://localhost.
+/// Configuración: user-secrets compartidos con CgPos.Pos.Pruebas o variables de entorno CGPOS_; sin servidor, las pruebas se omiten.
+/// </summary>
+public sealed class CentralEnPruebas : IAsyncLifetime
+{
+    public const string ContrasenaAdministrador = "Admin.Central2026";
+    public static readonly Guid CajaUno = Guid.Parse("01990000-0000-7000-8000-000000000201");
+    public static readonly Guid CajaDos = Guid.Parse("01990000-0000-7000-8000-000000000202");
+
+    // Se usa un tipo público del ensamblado de la API como punto de entrada.
+    public WebApplicationFactory<EmisorTokensCentral>? Fabrica { get; private set; }
+
+    public string? MotivoOmision { get; private set; }
+
+    public async Task InitializeAsync()
+    {
+        var configuracion = new ConfigurationBuilder()
+            .AddUserSecrets<CentralEnPruebas>(optional: true)
+            .AddEnvironmentVariables("CGPOS_")
+            .Build();
+
+        var servidor = configuracion.GetConnectionString("ServidorPruebas");
+        if (string.IsNullOrWhiteSpace(servidor))
+        {
+            MotivoOmision = "No hay servidor SQL de pruebas configurado (ConnectionStrings:ServidorPruebas).";
+            return;
+        }
+
+        var cadenaConexion = new SqlConnectionStringBuilder(servidor) { InitialCatalog = $"CgPosCentralPruebas_{Guid.NewGuid():N}" }.ConnectionString;
+        var archivoLogs = Path.Combine(Path.GetTempPath(), "cgpos-pruebas", "central-.log");
+
+        Fabrica = new WebApplicationFactory<EmisorTokensCentral>().WithWebHostBuilder(anfitrion =>
+        {
+            anfitrion.UseEnvironment("Pruebas");
+            anfitrion.UseSetting($"ConnectionStrings:{InyeccionDependencias.NombreConexion}", cadenaConexion);
+            anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", configuracion["BaseDatos:NivelCompatibilidad"]);
+            anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "central.desarrollo.json"));
+            anfitrion.UseSetting(EmisorTokensCentral.ClaveConfiguracion, Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+            anfitrion.UseSetting(ExtensionesSeguridadCentral.ClaveExigirHttps, "true");
+            anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
+        });
+
+        // Arranca el Central: aplica migraciones y la carga inicial.
+        _ = Fabrica.Server;
+        await Task.CompletedTask;
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (Fabrica is null)
+            return;
+
+        await using (var ambito = Fabrica.Services.CreateAsyncScope())
+        {
+            await ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>().Database.EnsureDeletedAsync();
+        }
+
+        await Fabrica.DisposeAsync();
+    }
+
+    public HttpClient CrearCliente(bool https = true) =>
+        Fabrica!.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri(https ? "https://localhost" : "http://localhost") });
+
+    public async Task<T> UsarContextoAsync<T>(Func<ContextoDatosCentral, Task<T>> accion)
+    {
+        await using var ambito = Fabrica!.Services.CreateAsyncScope();
+        return await accion(ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>());
+    }
+
+    /// <summary>Crea un usuario del Central con un rol propio que tiene exactamente <paramref name="permisos"/>.</summary>
+    public async Task CrearUsuarioAsync(string codigo, string contrasena, bool debeCambiarContrasena, params string[] permisos)
+    {
+        await using var ambito = Fabrica!.Services.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>();
+        var hash = ambito.ServiceProvider.GetRequiredService<IHashContrasenas>();
+
+        var rol = RolCentral.Crear($"R-{codigo}", $"Rol de {codigo}");
+        foreach (var permiso in permisos)
+            rol.AsignarPermiso(permiso);
+
+        contexto.RolesCentral.Add(rol);
+        contexto.UsuariosCentral.Add(UsuarioCentral.Crear(codigo, $"Usuario {codigo}", null, rol.Id, hash.Hash(contrasena), debeCambiarContrasena));
+        await contexto.SaveChangesAsync();
+    }
+
+    /// <summary>Cambia (o quita, con <c>null</c>) un parámetro general y devuelve el valor anterior.</summary>
+    public Task<string?> CambiarParametroAsync(string clave, string? valor) =>
+        UsarContextoAsync(async contexto =>
+        {
+            var parametro = await contexto.Parametros.SingleOrDefaultAsync(p => p.Clave == clave && p.SucursalId == null && p.CajaId == null);
+            var anterior = parametro?.Valor;
+
+            if (valor is null && parametro is not null)
+                contexto.Parametros.Remove(parametro);
+            else if (valor is not null && parametro is null)
+                contexto.Parametros.Add(Parametro.Crear(clave, valor));
+            else
+                parametro?.CambiarValor(valor!);
+
+            await contexto.SaveChangesAsync();
+            return anterior;
+        });
+
+    public static async Task<(HttpResponseMessage Respuesta, RespuestaSesionCentral? Cuerpo)> IngresarAsync(HttpClient cliente, string usuario, string contrasena)
+    {
+        var respuesta = await cliente.PostAsJsonAsync("/api/sesion/ingreso", new SolicitudIngresoCentral(usuario, contrasena), OpcionesJson.Predeterminadas);
+        var cuerpo = respuesta.Content.Headers.ContentType?.MediaType == "application/json"
+            ? await respuesta.Content.ReadFromJsonAsync<RespuestaSesionCentral>(OpcionesJson.Predeterminadas)
+            : null;
+        return (respuesta, cuerpo);
+    }
+
+    public static HttpRequestMessage Solicitud(HttpMethod metodo, string ruta, string? token, object? cuerpo = null)
+    {
+        var solicitud = new HttpRequestMessage(metodo, ruta);
+        if (token is not null)
+            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        if (cuerpo is not null)
+            solicitud.Content = JsonContent.Create(cuerpo, cuerpo.GetType(), options: OpcionesJson.Predeterminadas);
+        return solicitud;
+    }
+}
+
+/// <summary>Todas las pruebas de API comparten un solo Central en memoria (Serilog no admite varios anfitriones en el mismo proceso).</summary>
+[CollectionDefinition(Nombre)]
+public sealed class ColeccionCentral : ICollectionFixture<CentralEnPruebas>
+{
+    public const string Nombre = "Central en pruebas";
+}
+
+public static class RutasPrueba
+{
+    public static string RaizRepositorio()
+    {
+        for (var carpeta = new DirectoryInfo(AppContext.BaseDirectory); carpeta is not null; carpeta = carpeta.Parent)
+        {
+            if (File.Exists(Path.Combine(carpeta.FullName, "CgPos.slnx")))
+                return carpeta.FullName;
+        }
+
+        throw new InvalidOperationException("No se encontró la raíz del repositorio (CgPos.slnx).");
+    }
+}

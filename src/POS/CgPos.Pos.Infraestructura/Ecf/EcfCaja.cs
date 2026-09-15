@@ -4,6 +4,7 @@ using System.Text;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Ventas;
 using CgPos.ECF.Documentos;

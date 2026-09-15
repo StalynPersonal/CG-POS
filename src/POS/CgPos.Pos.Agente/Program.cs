@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Agente.Api;
 using CgPos.Pos.Agente.Pantallas;
 using CgPos.Pos.Agente.Salud;

@@ -1,0 +1,114 @@
+{
+  "empresa": {
+    "id": "01990000-0000-7000-8000-000000000001",
+    "rnc": "999000001",
+    "razonSocial": "CONTRERAS GROUP SRL (DESARROLLO)",
+    "nombreComercial": "CG-POS Desarrollo",
+    "direccion": "Dirección ficticia de desarrollo",
+    "telefono": "809-000-0000"
+  },
+  "sucursales": [
+    {
+      "id": "01990000-0000-7000-8000-000000000101",
+      "codigo": "01",
+      "nombre": "Sucursal Principal (desarrollo)"
+    }
+  ],
+  "cajas": [
+    {
+      "id": "01990000-0000-7000-8000-000000000201",
+      "sucursalId": "01990000-0000-7000-8000-000000000101",
+      "codigo": "01",
+      "nombre": "Caja 01"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000202",
+      "sucursalId": "01990000-0000-7000-8000-000000000101",
+      "codigo": "02",
+      "nombre": "Caja 02"
+    }
+  ],
+  "parametros": [
+    {
+      "id": "01990000-0000-7000-8000-000000000901",
+      "clave": "Central.Seguridad.IntentosMaximos",
+      "valor": "5",
+      "descripcion": "Intentos de contraseña fallidos que bloquean al usuario del Central"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000902",
+      "clave": "Central.Seguridad.MinutosBloqueo",
+      "valor": "15",
+      "descripcion": "Minutos de bloqueo por intentos fallidos"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000903",
+      "clave": "Central.Seguridad.MinutosToken",
+      "valor": "15",
+      "descripcion": "Vigencia del token de acceso del Central Manager"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000904",
+      "clave": "Central.Seguridad.MinutosInactividad",
+      "valor": "60",
+      "descripcion": "Minutos sin actividad tras los que vence la sesión"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000905",
+      "clave": "Central.Seguridad.HorasSesion",
+      "valor": "12",
+      "descripcion": "Duración máxima de una sesión del Central Manager"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000906",
+      "clave": "Central.Seguridad.LargoMinimoContrasena",
+      "valor": "10",
+      "descripcion": "Largo mínimo de las contraseñas del Central"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000907",
+      "clave": "Central.Seguridad.ContrasenaCompleja",
+      "valor": "true",
+      "descripcion": "Exige mayúsculas, minúsculas, números y símbolos"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000908",
+      "clave": "Central.Dispositivos.MinutosToken",
+      "valor": "30",
+      "descripcion": "Vigencia del token con el que las cajas se comunican con el Central"
+    }
+  ],
+  "rolesCentral": [
+    {
+      "id": "01990000-0000-7000-8000-000000000a01",
+      "codigo": "ADMINISTRADOR",
+      "nombre": "Administrador del Central",
+      "permisos": [ "*" ]
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000a02",
+      "codigo": "AUDITOR",
+      "nombre": "Auditor",
+      "permisos": [ "Central.Auditoria.Consultar", "Central.Reportes.Consultar", "Central.Sincronizacion.Monitorear" ]
+    }
+  ],
+  "usuariosCentral": [
+    {
+      "id": "01990000-0000-7000-8000-000000000b01",
+      "codigo": "ADMIN",
+      "nombre": "Administrador Desarrollo",
+      "correo": "admin@desarrollo.local",
+      "rolId": "01990000-0000-7000-8000-000000000a01",
+      "contrasena": "Admin.Central2026",
+      "debeCambiarContrasena": false
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000b02",
+      "codigo": "AUDITOR",
+      "nombre": "Auditor Desarrollo",
+      "rolId": "01990000-0000-7000-8000-000000000a02",
+      "contrasena": "Auditor.Central2026",
+      "debeCambiarContrasena": true
+    }
+  ]
+}

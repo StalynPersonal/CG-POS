@@ -6,6 +6,11 @@
     <Project Path="src/POS/CgPos.Pos.Infraestructura/CgPos.Pos.Infraestructura.csproj" />
     <Project Path="src/POS/CgPos.Pos.Web/CgPos.Pos.Web.csproj" />
   </Folder>
+  <Folder Name="/src/Central/">
+    <Project Path="src/Central/CgPos.Central.Api/CgPos.Central.Api.csproj" />
+    <Project Path="src/Central/CgPos.Central.Aplicacion/CgPos.Central.Aplicacion.csproj" />
+    <Project Path="src/Central/CgPos.Central.Infraestructura/CgPos.Central.Infraestructura.csproj" />
+  </Folder>
   <Folder Name="/src/Compartido/">
     <Project Path="src/Compartido/CgPos.Contratos/CgPos.Contratos.csproj" />
     <Project Path="src/Compartido/CgPos.Dominio/CgPos.Dominio.csproj" />
@@ -13,6 +18,7 @@
     <Project Path="src/Compartido/CgPos.Interfaz/CgPos.Interfaz.csproj" />
   </Folder>
   <Folder Name="/pruebas/">
+    <Project Path="pruebas/CgPos.Central.Pruebas/CgPos.Central.Pruebas.csproj" />
     <Project Path="pruebas/CgPos.Dominio.Pruebas/CgPos.Dominio.Pruebas.csproj" />
     <Project Path="pruebas/CgPos.ECF.Pruebas/CgPos.ECF.Pruebas.csproj" />
     <Project Path="pruebas/CgPos.Pos.Pruebas/CgPos.Pos.Pruebas.csproj" />

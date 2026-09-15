@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente), C5 (descuentos y promociones), C6 (cobro y periféricos), C7 (facturación electrónica offline), C8 (turnos y cierre) y C9 (devoluciones y notas de crédito) completadas.
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central está hecha la fase H1 (fundaciones y seguridad).
 
 ## Stack
 
@@ -14,6 +14,8 @@ Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Centra
 | Caja: servicio local | ASP.NET Core `CgPos.Pos.Agente` (servicio de Windows) |
 | Caja: pantallas | Blazor WebAssembly + MudBlazor (servido localmente, sin CDN) |
 | Caja: base de datos | SQL Server Express 2019+ con EF Core |
+| Central: servicio | ASP.NET Core `CgPos.Central.Api` (HTTPS con TLS 1.2+, JWT con renovación rotativa) |
+| Central: base de datos | SQL Server Standard 2019+ con EF Core |
 | Facturación electrónica | XMLDSig (RSA-SHA256) con `System.Security.Cryptography.Xml` |
 | Logs | Serilog |
 | Pruebas | xUnit |
@@ -29,7 +31,10 @@ src/POS/      CgPos.Pos.Agente     Único servicio de la caja: API local, pantal
               CgPos.Pos.Aplicacion  Casos de uso y abstracciones (BandejaSalida, auditoría)
               CgPos.Pos.Infraestructura  EF Core / SQL Server, migraciones, implementaciones
               CgPos.Pos.Web       Pantallas Blazor WebAssembly (cajero, cliente, devoluciones)
-pruebas/        CgPos.Dominio.Pruebas · CgPos.ECF.Pruebas · CgPos.Pos.Pruebas
+src/Central/  CgPos.Central.Api    Servicio del Central: API para el Central Manager y para las cajas
+              CgPos.Central.Aplicacion  Casos de uso y abstracciones del Central
+              CgPos.Central.Infraestructura  EF Core / SQL Server, migraciones, implementaciones
+pruebas/        CgPos.Dominio.Pruebas · CgPos.ECF.Pruebas · CgPos.Pos.Pruebas · CgPos.Central.Pruebas
 scripts/caja/ Instalación del Agente como servicio de Windows
 datos/        Carga inicial de desarrollo (empresa, cajas, roles y usuarios ficticios)
 ```
@@ -50,7 +55,13 @@ dotnet user-secrets set "ConnectionStrings:BaseDatosPos" "Server=localhost;Datab
 
 # Solo si el SQL Server es anterior a 2019 (ej. 2014 = 120)
 dotnet user-secrets set "BaseDatos:NivelCompatibilidad" "120" --project src/POS/CgPos.Pos.Agente
+
+# Central: base de datos y clave de firma de tokens (Base64 de 32 bytes o más)
+dotnet user-secrets set "ConnectionStrings:BaseDatosCentral" "Server=localhost;Database=CgPosCentral;User Id=<usuario>;Password=<clave>;TrustServerCertificate=True" --project src/Central/CgPos.Central.Api
+dotnet user-secrets set "Seguridad:ClaveFirmaJwt" "<clave-base64>" --project src/Central/CgPos.Central.Api
 ```
+
+En desarrollo, sin `Seguridad:ClaveFirmaJwt` el Central usa una clave temporal (las sesiones no sobreviven a un reinicio); en producción no arranca sin ella.
 
 En producción, `appsettings.json` usa `.\SQLEXPRESS` con autenticación de Windows.
 
@@ -249,13 +260,50 @@ Las migraciones se aplican solas al arrancar. Para aplicarlas manualmente:
 dotnet ef database update --project src/POS/CgPos.Pos.Infraestructura --startup-project src/POS/CgPos.Pos.Agente
 ```
 
+## Ejecutar el Central
+
+```powershell
+dotnet run --project src/Central/CgPos.Central.Api
+```
+
+- API: <http://localhost:5280> en desarrollo (`Central:ExigirHttps = false`). En producción escucha en `https://*:7280` y rechaza las API por HTTP; el certificado del servidor se configura en `Kestrel:Certificates:Default`.
+- Salud del servicio y la base: `/salud`.
+- Al arrancar aplica las migraciones y `CargaInicial:Archivo` (en desarrollo `datos/central.desarrollo.json`: empresa, sucursal, cajas, parámetros, roles y usuarios del Central). Usuarios de prueba:
+
+| Usuario | Contraseña | Rol |
+|---|---|---|
+| ADMIN | Admin.Central2026 | Administrador del Central (todos los permisos) |
+| AUDITOR | Auditor.Central2026 | Auditor (debe cambiar la contraseña al primer ingreso) |
+
+### Seguridad del Central
+
+- **Usuarios del Central Manager:** usuario y contraseña (PBKDF2-SHA256, 600,000 iteraciones), roles con permisos de `CatalogoPermisosCentral` (distintos de los de la caja) y bloqueo por intentos. Con una contraseña temporal solo se puede cambiar la contraseña.
+- **Sesión:** token de acceso corto y token de renovación de un solo uso. Cada renovación entrega un token nuevo; presentar uno ya usado cierra la sesión completa. Cerrar sesión, cambiar la contraseña o desactivar al usuario invalida también el token de acceso vigente. Todo ingreso, rechazo, bloqueo y reutilización queda en auditoría.
+- **Cajas:** cada caja tiene una credencial de dispositivo (el secreto se muestra una sola vez al emitirla y el Central guarda su hash) que cambia por un token de dispositivo de pocos minutos. Emitir otra, revocarla o deshabilitar la caja o su sucursal invalida sus tokens de inmediato.
+- **Parámetros del Central** (generales, en la tabla de parámetros):
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Seguridad.IntentosMaximos`, `Central.Seguridad.MinutosBloqueo` | Bloqueo por contraseña incorrecta | Sí |
+| `Central.Seguridad.MinutosToken` | Vigencia del token de acceso | Sí |
+| `Central.Seguridad.MinutosInactividad`, `Central.Seguridad.HorasSesion` | Vencimiento por inactividad y duración máxima de la sesión | Sí |
+| `Central.Seguridad.LargoMinimoContrasena` | Largo mínimo de la contraseña | Sí |
+| `Central.Seguridad.ContrasenaCompleja` | Exige mayúsculas, minúsculas, números y símbolos, sin contener el usuario | No |
+| `Central.Dispositivos.MinutosToken` | Vigencia del token de las cajas | Sí |
+
+- **API:** `POST /api/sesion/ingreso`, `POST /api/sesion/renovar`, `GET /api/sesion/actual`, `POST /api/sesion/cerrar`, `POST /api/sesion/contrasena`; `POST /api/cajas/{id}/credencial` y `POST /api/cajas/{id}/credencial/revocar` (permiso `Central.Dispositivos.Administrar`); `POST /api/dispositivos/token` y `GET /api/dispositivos/actual` para las cajas.
+
+```powershell
+dotnet ef database update --project src/Central/CgPos.Central.Infraestructura --startup-project src/Central/CgPos.Central.Api
+```
+
 ## Pruebas
 
 ```powershell
 dotnet test CgPos.slnx
 ```
 
-Las pruebas de integración crean una base temporal `CgPosPruebas_<guid>` y la eliminan al terminar. Necesitan un servidor configurado; si no lo hay, se omiten.
+Las pruebas de integración crean una base temporal (`CgPosPruebas_<guid>` para la caja, `CgPosCentralPruebas_<guid>` para el Central) y la eliminan al terminar. Necesitan un servidor configurado; si no lo hay, se omiten. `CgPos.Central.Pruebas` usa los mismos user-secrets que `CgPos.Pos.Pruebas`.
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:ServidorPruebas" "Server=localhost;User Id=<usuario>;Password=<clave>;TrustServerCertificate=True" --project pruebas/CgPos.Pos.Pruebas
@@ -273,11 +321,13 @@ dotnet publish src/POS/CgPos.Pos.Agente -c Release -o C:\CGPOS\Agente
 
 El servicio `CgPosAgente` depende de SQL Server Express y se reinicia automáticamente ante fallos. Logs: `C:\CGPOS\Logs`.
 
+El Central se publica con `dotnet publish src/Central/CgPos.Central.Api -c Release` y corre como servicio de Windows `CgPosCentral` (logs en `C:\CGPOS\Central\Logs`). Necesita la cadena `BaseDatosCentral`, la clave `Seguridad:ClaveFirmaJwt` (compartida por todas las instancias) y el certificado HTTPS. El instalador llega en la fase H7.
+
 ## Convenciones
 
 - Todo en español: proyectos, namespaces, clases, métodos, variables, parámetros y mensajes. Solo se mantienen siglas técnicas (Id, Api, Json, Pin, Hash, Token, Jwt, Xml, e-CF) y los nombres que exige .NET.
 - El servidor corporativo se llama **Central**.
 - Las transacciones usan Id GUID v7.
 - Todo lo que va al Central se escribe en la bandeja de salida dentro de la misma transacción del documento.
-- Seguridad: permisos granulares definidos en `CatalogoPermisos`; cada permiso es una política de autorización con el mismo nombre.
+- Seguridad: permisos granulares definidos en `CatalogoPermisos` (caja) y `CatalogoPermisosCentral` (Central); cada permiso es una política de autorización con el mismo nombre.
 - Formato RD fijo: `RD$2,175.34` y `dd/MM/yyyy`.
