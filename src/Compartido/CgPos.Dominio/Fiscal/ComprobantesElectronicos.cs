@@ -141,6 +141,9 @@ public sealed class DocumentoElectronico : Entidad
         return documento;
     }
 
+    /// <summary>Nueva ubicación del XML, por ejemplo de Pendientes a Enviados cuando el Central confirma su recepción (RF-219, RN-19).</summary>
+    public void MoverXml(string rutaXml) => RutaXml = Validar.Texto(rutaXml, "Ruta del XML", LargoMaximoRuta);
+
     public void CambiarEstado(EstadoDocumentoElectronico estado, string? mensaje, DateTimeOffset ahora)
     {
         var texto = mensaje is { Length: > LargoMaximoMensaje } ? mensaje[..LargoMaximoMensaje] : mensaje;

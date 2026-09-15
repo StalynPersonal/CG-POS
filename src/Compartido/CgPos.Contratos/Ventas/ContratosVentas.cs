@@ -220,8 +220,10 @@ public sealed record RespuestaVenta(
 }
 
 /// <summary>Indicador permanente de conexión con el Central y documentos pendientes (RF-192).</summary>
+/// <param name="UltimoError">Último motivo por el que no se pudo sincronizar, mientras la caja está sin conexión.</param>
 public sealed record DatosEstadoSincronizacion(
     bool CentralConfigurado,
     bool EnLinea,
     int DocumentosPendientes,
-    DateTimeOffset? UltimaSincronizacion);
+    DateTimeOffset? UltimaSincronizacion,
+    string? UltimoError = null);

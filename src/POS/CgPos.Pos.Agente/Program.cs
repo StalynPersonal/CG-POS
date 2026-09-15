@@ -40,6 +40,9 @@ try
     constructor.Services.AgregarInfraestructuraPos(constructor.Configuration);
     constructor.Services.AgregarSeguridadAgente();
 
+    // Envío de la bandeja de salida al Central en segundo plano (M14).
+    constructor.Services.AddHostedService<CgPos.Pos.Agente.Sincronizacion.TrabajadorSincronizacion>();
+
     // Pantalla del cliente en tiempo real (segundo monitor).
     constructor.Services.AddSignalR().AddJsonProtocol(opciones =>
     {

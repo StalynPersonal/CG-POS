@@ -1,0 +1,121 @@
+using System.Net;
+using System.Text;
+using CgPos.Contratos.Sincronizacion;
+using CgPos.Pos.Aplicacion.Sincronizacion;
+using CgPos.Pos.Infraestructura.Sincronizacion;
+using Microsoft.Extensions.Configuration;
+
+namespace CgPos.Pos.Pruebas.Sincronizacion;
+
+/// <summary>Central simulado, cliente HTTP y espera progresiva de la sincronización, sin base de datos.</summary>
+public class CentralPruebas : IDisposable
+{
+    private readonly string _carpeta = Path.Combine(Path.GetTempPath(), "CgPosPruebas", "central-" + Guid.NewGuid().ToString("N"));
+
+    private static MensajeSincronizacion Mensaje(string contenido, Guid? id = null) =>
+        new(id ?? Guid.CreateVersion7(), "Venta.Cobrada", Guid.CreateVersion7(), contenido, MensajeSalida.CalcularHash(contenido), Guid.CreateVersion7(),
+            DateTimeOffset.UtcNow);
+
+    [Fact]
+    public async Task Central_simulado_recibe_confirma_duplicados_y_rechaza_hash_o_contenido_distinto()
+    {
+        var central = new CentralSimulado(_carpeta);
+        var mensaje = Mensaje("""{"total":850}""");
+
+        Assert.Equal(EstadoRecepcion.Recibido, (await central.RecibirAsync(mensaje)).Estado);
+        Assert.Equal(EstadoRecepcion.Duplicado, (await central.RecibirAsync(mensaje)).Estado);
+        Assert.True((await central.EnviarAsync(mensaje)).Confirmado);
+        Assert.Single(Directory.GetFiles(_carpeta));
+
+        var otroContenido = Mensaje("""{"total":900}""", mensaje.Id);
+        Assert.Equal(EstadoRecepcion.Rechazado, (await central.RecibirAsync(otroContenido)).Estado);
+
+        var alterado = mensaje with { Id = Guid.CreateVersion7(), Contenido = """{"total":1}""" };
+        var rechazo = await central.EnviarAsync(alterado);
+        Assert.False(rechazo.Confirmado);
+        Assert.True(rechazo.CentralRespondio);
+        Assert.Contains("hash", rechazo.Error);
+    }
+
+    [Fact]
+    public async Task Cliente_http_envia_la_clave_de_idempotencia_y_distingue_rechazo_de_falta_de_conexion()
+    {
+        var mensaje = Mensaje("""{"total":850}""");
+        HttpRequestMessage? recibida = null;
+
+        ClienteCentralHttp Cliente(Func<HttpResponseMessage> respuesta) =>
+            new(new HttpClient(new ManejadorPrueba(solicitud => { recibida = solicitud; return respuesta(); })) { BaseAddress = new Uri("https://central.prueba/") });
+
+        var duplicado = await Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Duplicado"}""")).EnviarAsync(mensaje);
+        Assert.True(duplicado.Confirmado);
+        Assert.Equal(mensaje.Id.ToString(), recibida!.Headers.GetValues("Idempotency-Key").Single());
+        Assert.Equal(mensaje.HashContenido, recibida.Headers.GetValues("X-Contenido-Sha256").Single());
+        Assert.EndsWith(ClienteCentralHttp.RutaRecepcion, recibida.RequestUri!.AbsolutePath);
+
+        var rechazado = await Cliente(() => Json(HttpStatusCode.UnprocessableEntity, """{"estado":"Rechazado","error":"Caja no registrada"}""")).EnviarAsync(mensaje);
+        Assert.Equal((false, true, "Caja no registrada"), (rechazado.Confirmado, rechazado.CentralRespondio, rechazado.Error));
+
+        var caido = await Cliente(() => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)).EnviarAsync(mensaje);
+        Assert.Equal((false, false), (caido.Confirmado, caido.CentralRespondio));
+
+        var sinRed = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ => throw new HttpRequestException("sin red")))
+            { BaseAddress = new Uri("https://central.prueba/") }).EnviarAsync(mensaje);
+        Assert.False(sinRed.CentralRespondio);
+    }
+
+    [Fact]
+    public void Espera_se_duplica_sin_conexion_hasta_el_maximo_y_un_rechazo_espera_el_maximo()
+    {
+        var opciones = OpcionesSincronizacion.Leer(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [ClavesSincronizacion.EsperaInicialSegundos] = "30",
+            [ClavesSincronizacion.EsperaMaximaSegundos] = "300",
+        }).Build());
+
+        Assert.Equal(TimeSpan.FromSeconds(30), opciones.Espera(1, rechazado: false));
+        Assert.Equal(TimeSpan.FromSeconds(120), opciones.Espera(3, rechazado: false));
+        Assert.Equal(TimeSpan.FromSeconds(300), opciones.Espera(10, rechazado: false));
+        Assert.Equal(TimeSpan.FromSeconds(300), opciones.Espera(1, rechazado: true));
+    }
+
+    [Fact]
+    public void La_fabrica_elige_simulado_http_o_sin_central_segun_la_configuracion()
+    {
+        IClienteCentral Crear(params (string Clave, string Valor)[] valores) =>
+            FabricaClienteCentral.Crear(new ConfigurationBuilder().AddInMemoryCollection(valores.ToDictionary(v => v.Clave, v => (string?)v.Valor)).Build());
+
+        Assert.IsType<CentralSimulado>(Crear((ClavesSincronizacion.ModoCentral, "Simulado"), (ClavesSincronizacion.CarpetaSimulada, _carpeta)));
+        Assert.IsType<ClienteCentralHttp>(Crear((ClavesSincronizacion.UrlCentral, "https://central.contreras.do/")));
+        Assert.False(Crear().Configurado);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_carpeta))
+            Directory.Delete(_carpeta, recursive: true);
+        GC.SuppressFinalize(this);
+    }
+
+    private static HttpResponseMessage Json(HttpStatusCode codigo, string cuerpo) =>
+        new(codigo) { Content = new StringContent(cuerpo, Encoding.UTF8, "application/json") };
+
+    private sealed class ManejadorPrueba(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(responder(request));
+    }
+}
+
+/// <summary>Central de prueba con una respuesta fija, para el procesador de la bandeja de salida.</summary>
+public sealed class CentralDePrueba(ResultadoEnvioCentral resultado) : IClienteCentral
+{
+    public int Recibidos { get; private set; }
+
+    public bool Configurado => true;
+
+    public Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
+    {
+        Recibidos++;
+        return Task.FromResult(resultado);
+    }
+}

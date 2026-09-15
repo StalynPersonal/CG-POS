@@ -17,8 +17,10 @@ using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Fidelidad;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Ventas;
+using CgPos.Pos.Pruebas.Sincronizacion;
 using CgPos.Pos.Pruebas.Infraestructura;
 using CgPos.Pos.Pruebas.Soporte;
 using Microsoft.EntityFrameworkCore;
@@ -1075,6 +1077,51 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var despues = await caja.EjecutarAsync<IServicioDespacho, IReadOnlyList<DatosPendienteEntrega>>(s => s.ListarAbiertosAsync(caja.Cajero));
         Assert.DoesNotContain(despues, p => p.VentaId == venta.Id);
+    }
+
+    [SkippableFact]
+    public async Task Sincronizacion_reintenta_sin_conexion_y_al_confirmar_mueve_el_xml_del_e_cf_a_enviados()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var ventaId = cobro.Venta!.Id;
+
+        async Task<(CgPos.Dominio.Fiscal.DocumentoElectronico Documento, MensajeSalida Mensaje)> LeerAsync() =>
+            await caja.EjecutarAsync<ContextoDatosPos, (CgPos.Dominio.Fiscal.DocumentoElectronico, MensajeSalida)>(async contexto =>
+                (await contexto.DocumentosElectronicos.AsNoTracking().SingleAsync(d => d.VentaId == ventaId),
+                 await contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.AgregadoId == ventaId && m.TipoMensaje == "Venta.Cobrada")));
+
+        Task<ResultadoProcesoBandeja> ProcesarAsync(IClienteCentral central) =>
+            caja.EjecutarAsync<IServiceProvider, ResultadoProcesoBandeja>(proveedor =>
+                ActivatorUtilities.CreateInstance<CgPos.Pos.Infraestructura.Sincronizacion.ProcesadorBandejaSalida>(proveedor, central).ProcesarAsync());
+
+        var (antes, _) = await LeerAsync();
+        Assert.Contains($"{Path.DirectorySeparatorChar}Pendientes{Path.DirectorySeparatorChar}", antes.RutaXml);
+        Assert.True(File.Exists(antes.RutaXml));
+
+        // Sin conexión: el lote se detiene, nada se confirma y el XML no sale de Pendientes (RF-268, RN-19).
+        var caido = await ProcesarAsync(new CentralDePrueba(ResultadoEnvioCentral.SinConexion("Red caída")));
+        Assert.Equal(0, caido.Confirmados);
+        Assert.Equal(1, caido.Fallidos);
+        Assert.True(File.Exists(antes.RutaXml));
+
+        // Con conexión se envía todo lo que venció su espera; el e-CF queda sincronizado y su XML en Enviados.
+        caja.Reloj.Avanzar(TimeSpan.FromMinutes(5));
+        var central = new CentralDePrueba(ResultadoEnvioCentral.Recibido());
+        for (var ciclo = 0; ciclo < 50 && (await LeerAsync()).Mensaje.Estado != EstadoMensajeSalida.Confirmado; ciclo++)
+            await ProcesarAsync(central);
+
+        var (despues, mensaje) = await LeerAsync();
+        Assert.Equal(EstadoMensajeSalida.Confirmado, mensaje.Estado);
+        Assert.Equal(CgPos.Dominio.Fiscal.EstadoDocumentoElectronico.Sincronizado, despues.Estado);
+        Assert.Contains($"{Path.DirectorySeparatorChar}Enviados{Path.DirectorySeparatorChar}", despues.RutaXml);
+        Assert.True(File.Exists(despues.RutaXml));
+        Assert.False(File.Exists(antes.RutaXml));
+
+        var estado = await caja.EjecutarAsync<IEstadoSincronizacion, DatosEstadoSincronizacion>(s => s.ObtenerAsync());
+        Assert.NotNull(estado.UltimaSincronizacion);
     }
 
     private static class BalanzaPrueba

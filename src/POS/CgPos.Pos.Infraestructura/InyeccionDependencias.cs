@@ -93,7 +93,13 @@ public static class InyeccionDependencias
         servicios.AddScoped<ServicioVentas>();
         servicios.AddScoped<IServicioVentas>(proveedor => proveedor.GetRequiredService<ServicioVentas>());
         servicios.AddScoped<IServicioCobro>(proveedor => proveedor.GetRequiredService<ServicioVentas>());
-        servicios.AddScoped<IEstadoSincronizacion>(proveedor => new ServicioEstadoSincronizacion(proveedor.GetRequiredService<ContextoDatosPos>(), configuracion));
+
+        // Sincronización con el Central (M14): HTTP, simulado o sin Central según la configuración de la instalación.
+        servicios.AddSingleton(OpcionesSincronizacion.Leer(configuracion));
+        servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoConexionCentral, EstadoConexionCentral>();
+        servicios.AddSingleton(_ => FabricaClienteCentral.Crear(configuracion));
+        servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
+        servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();
 
         return servicios;
     }

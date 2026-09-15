@@ -155,7 +155,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         var urlTimbre = TimbreEcf.Url(ambiente, documentoEcf, codigoSeguridad, montoIdentificacion);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(firmado)));
 
-        var ruta = RutaXml("Pendientes", reloj.GetLocalNow(), emisor.Rnc, encf);
+        var ruta = RutaXml(RutasXmlEcf.Pendientes, reloj.GetLocalNow(), emisor.Rnc, encf);
         Directory.CreateDirectory(Path.GetDirectoryName(ruta)!);
         await File.WriteAllTextAsync(ruta, firmado, new UTF8Encoding(false), cancelacion);
 

@@ -1452,10 +1452,15 @@ internal sealed class ValidadorAutorizaciones(ContextoDatosPos contexto, TimePro
 }
 
 /// <summary>
-/// Indicador de conexión (RF-192). Mientras no exista el Central (Fase C11/H2), la caja se informa sin conexión
-/// y cuenta los documentos de la bandeja de salida que aún no se confirman.
+/// Indicador de conexión (RF-192): en línea si el Central respondió en los últimos ciclos de sincronización y no falló después; cuenta los
+/// documentos de la bandeja de salida que aún no se confirman.
 /// </summary>
-internal sealed class ServicioEstadoSincronizacion(ContextoDatosPos contexto, IConfiguration configuracion) : IEstadoSincronizacion
+internal sealed class ServicioEstadoSincronizacion(
+    ContextoDatosPos contexto,
+    CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral central,
+    CgPos.Pos.Aplicacion.Sincronizacion.IEstadoConexionCentral conexion,
+    Sincronizacion.OpcionesSincronizacion opciones,
+    TimeProvider reloj) : IEstadoSincronizacion
 {
     public async Task<DatosEstadoSincronizacion> ObtenerAsync(CancellationToken cancelacion = default)
     {
@@ -1464,10 +1469,17 @@ internal sealed class ServicioEstadoSincronizacion(ContextoDatosPos contexto, IC
             .Where(m => m.Estado == EstadoMensajeSalida.Confirmado)
             .MaxAsync(m => m.ConfirmadoEn, cancelacion);
 
+        var intervalo = opciones.Intervalo;
+        var enLinea = central.Configurado
+            && conexion.UltimoContacto is { } contacto
+            && contacto >= reloj.GetUtcNow() - intervalo * 3
+            && (conexion.UltimoFallo is null || conexion.UltimoFallo < contacto);
+
         return new DatosEstadoSincronizacion(
-            CentralConfigurado: !string.IsNullOrWhiteSpace(configuracion["Central:Url"]),
-            EnLinea: false,
+            CentralConfigurado: central.Configurado,
+            EnLinea: enLinea,
             DocumentosPendientes: pendientes,
-            UltimaSincronizacion: ultima);
+            UltimaSincronizacion: ultima,
+            UltimoError: enLinea ? null : conexion.UltimoError);
     }
 }
