@@ -94,7 +94,9 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var marcaUno = (await BajarAsync(cliente, tokenUno, 0)).Hasta;
         var marcaDos = (await BajarAsync(cliente, tokenDos, 0)).Hasta;
 
-        var secuencia = new SecuenciaEcfCarga(Guid.CreateVersion7(), CentralEnPruebas.CajaDos, TipoComprobante.FacturaConsumo, 1, 1000, new DateOnly(2027, 12, 31));
+        // Los rangos del mismo tipo no se solapan en la empresa: uno alto y aleatorio no choca con los de desarrollo ni con otras pruebas.
+        var desde = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        var secuencia = new SecuenciaEcfCarga(Guid.CreateVersion7(), CentralEnPruebas.CajaDos, TipoComprobante.FacturaConsumo, desde, desde + 999, new DateOnly(2027, 12, 31));
         await PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]));
         var clave = $"Pruebas.SoloCajaDos{Guid.NewGuid():N}";
         await central.UsarContextoAsync(async contexto =>

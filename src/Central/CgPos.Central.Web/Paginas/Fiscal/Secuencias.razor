@@ -1,0 +1,111 @@
+@page "/fiscal/secuencias"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarFiscal)]
+@using CgPos.Dominio.Ventas
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Rangos de e-CF · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Rangos de e-CF</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Secuencias de la DGII por caja. No se solapan, solo se amplían o prorrogan y bajan en la próxima sincronización.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PlaylistAdd" OnClick="() => AbrirDialogoAsync(null)">
+        Asignar rango
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los rangos. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosSecuenciaEcfCentral" Items="_secuencias" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <HeaderContent>
+            <MudTh>Caja</MudTh>
+            <MudTh>Comprobante</MudTh>
+            <MudTh>Rango</MudTh>
+            <MudTh>Usado</MudTh>
+            <MudTh>Vence</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Caja"><strong>@context.CajaCodigo</strong><div class="cg-central__detalle">Sucursal @context.SucursalCodigo</div></MudTd>
+            <MudTd DataLabel="Comprobante">E@((int)context.TipoComprobante) · @ReglasComprobante.Nombre(context.TipoComprobante)</MudTd>
+            <MudTd DataLabel="Rango" Class="cg-numero">@context.Desde.ToString("N0") – @context.Hasta.ToString("N0")</MudTd>
+            <MudTd DataLabel="Usado">
+                @if (context.UltimoRecibido is { } ultimo)
+                {
+                    <div>Hasta @ultimo.ToString("N0")</div>
+                    <div class="cg-central__detalle">Quedan @((context.Hasta - ultimo).ToString("N0"))</div>
+                }
+                else
+                {
+                    <span class="cg-central__detalle">Sin e-CF recibidos</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Vence">
+                @context.VenceEn.ToString("dd/MM/yyyy")
+                @if (context.VenceEn < Hoy)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Error">Vencido</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Activa)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay rangos asignados.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosSecuenciaEcfCentral> _secuencias = [];
+    private IReadOnlyList<DatosCaja> _cajas = [];
+    private bool _cargando = true;
+    private bool _error;
+
+    private static DateOnly Hoy => DateOnly.FromDateTime(DateTime.Now);
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var secuencias = await Cliente.ListarSecuenciasAsync();
+        _cajas = await Cliente.ListarCajasAsync() ?? [];
+        _error = secuencias is null;
+        _secuencias = secuencias ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosSecuenciaEcfCentral? secuencia)
+    {
+        var parametros = new DialogParameters<DialogoSecuencia> { { d => d.Secuencia, secuencia }, { d => d.Cajas, _cajas } };
+        var titulo = secuencia is null ? "Asignar rango de e-CF" : $"Rango E{(int)secuencia.TipoComprobante} de la caja {secuencia.CajaCodigo}";
+        var referencia = await Dialogos.ShowAsync<DialogoSecuencia>(titulo, parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Rango guardado. Baja a la caja en su próxima sincronización.", Severity.Success);
+        await CargarAsync();
+    }
+}

@@ -43,8 +43,19 @@
                     <MudNavLink Href="organizacion/parametros" Icon="@Icons.Material.Filled.Tune">Parámetros</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">
+                <MudNavGroup Title="Fiscal" Icon="@Icons.Material.Filled.ReceiptLong" Expanded="true">
+                    <MudNavLink Href="fiscal/secuencias" Icon="@Icons.Material.Filled.FormatListNumbered">Rangos de e-CF</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarUsuariosCaja">
+                <MudNavGroup Title="Usuarios de caja" Icon="@Icons.Material.Filled.Badge" Expanded="true">
+                    <MudNavLink Href="cajas/usuarios" Icon="@Icons.Material.Filled.PersonPin">Usuarios</MudNavLink>
+                    <MudNavLink Href="cajas/roles" Icon="@Icons.Material.Filled.Rule">Roles y permisos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
-                <MudNavGroup Title="Seguridad" Icon="@Icons.Material.Filled.Security" Expanded="true">
+                <MudNavGroup Title="Seguridad del Central" Icon="@Icons.Material.Filled.Security" Expanded="true">
                     <MudNavLink Href="seguridad/usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
                     <MudNavLink Href="seguridad/roles" Icon="@Icons.Material.Filled.AdminPanelSettings">Roles y permisos</MudNavLink>
                 </MudNavGroup>

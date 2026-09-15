@@ -1,0 +1,93 @@
+@page "/cajas/roles"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarUsuariosCaja)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Roles de caja · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Roles de caja</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Qué puede hacer cada rol en la caja. El nivel ordena la jerarquía: un supervisor autoriza a usuarios de nivel igual o menor.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddModerator" OnClick="() => AbrirDialogoAsync(null)">
+        Nuevo rol de caja
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los roles de caja. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosRolCaja" Items="_roles" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Nivel</MudTh>
+            <MudTh>Permisos</MudTh>
+            <MudTh>Usuarios</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><strong>@context.Codigo</strong></MudTd>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Nivel">@context.Nivel</MudTd>
+            <MudTd DataLabel="Permisos">@(context.Permisos.Contains("*") ? "Todos" : $"{context.Permisos.Count} de {_permisos.Count}")</MudTd>
+            <MudTd DataLabel="Usuarios">@context.Usuarios</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Activo)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay roles de caja.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosRolCaja> _roles = [];
+    private IReadOnlyList<DefinicionPermiso> _permisos = [];
+    private bool _cargando = true;
+    private bool _error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var roles = await Cliente.ListarRolesCajaAsync();
+        var permisos = await Cliente.ListarPermisosCajaAsync();
+        _error = roles is null || permisos is null;
+        _roles = roles ?? [];
+        _permisos = permisos ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosRolCaja? rol)
+    {
+        var parametros = new DialogParameters<DialogoRolCaja> { { d => d.Rol, rol }, { d => d.Permisos, _permisos } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoRolCaja>(rol is null ? "Nuevo rol de caja" : $"Editar rol {rol.Codigo}", parametros, opciones);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(rol is null ? "Rol de caja creado." : "Rol de caja actualizado.", Severity.Success);
+        await CargarAsync();
+    }
+}

@@ -66,6 +66,10 @@ internal sealed class PublicadorMaestros(
                 var entidad = Rol.Crear(rol.Codigo, rol.Nombre, rol.Nivel, rol.Id);
                 foreach (var permiso in (rol.Permisos ?? []).Where(p => p != TodosLosPermisos))
                     entidad.AsignarPermiso(permiso);
+
+                if (existentes.TryGetValue((TipoMaestro.RolCaja, rol.Id), out var filaRol) && FormatoMaestros.Leer<RolCarga>(filaRol).Codigo != rol.Codigo.Trim())
+                    errores.Add($"Rol de caja '{rol.Codigo}': el código del rol no se puede cambiar.");
+
                 filas.Add(new FilaMaestro(TipoMaestro.RolCaja, rol.Id, rol.Codigo, null, rol));
             }
             catch (ArgumentException excepcion)
@@ -93,6 +97,8 @@ internal sealed class PublicadorMaestros(
                 errores.Add($"{etiqueta} referencia una caja inexistente ({cajaId}).");
 
             var anterior = existentes.TryGetValue((TipoMaestro.UsuarioCaja, dato.Id), out var fila) ? FormatoMaestros.Leer<UsuarioCarga>(fila) : null;
+            if (anterior is not null && anterior.Codigo != dato.Codigo.Trim())
+                errores.Add($"{etiqueta}: el código del usuario no se puede cambiar.");
             var pinHash = dato.PinHash;
             if (dato.Pin is not null)
             {
@@ -112,6 +118,18 @@ internal sealed class PublicadorMaestros(
             filas.Add(new FilaMaestro(TipoMaestro.UsuarioCaja, dato.Id, dato.Codigo, null,
                 dato with { Pin = null, PinHash = pinHash, CredencialBarras = null, CredencialBarrasHash = barras }));
         }
+
+        // Un carné identifica a un solo usuario: la caja tiene un índice único sobre su hash.
+        var usuariosPublicados = filas.Where(f => f.Tipo == TipoMaestro.UsuarioCaja).Select(f => (UsuarioCarga)f.Dato).ToList();
+        var idsPublicados = usuariosPublicados.Select(u => u.Id).ToHashSet();
+        foreach (var repetido in existentes.Values
+                     .Where(m => m.Tipo == TipoMaestro.UsuarioCaja && !idsPublicados.Contains(m.Id))
+                     .Select(FormatoMaestros.Leer<UsuarioCarga>)
+                     .Concat(usuariosPublicados)
+                     .Where(u => u.CredencialBarrasHash is not null)
+                     .GroupBy(u => u.CredencialBarrasHash, StringComparer.OrdinalIgnoreCase)
+                     .Where(g => g.Count() > 1))
+            errores.Add($"El carné está asignado a más de un usuario de caja ({string.Join(", ", repetido.Select(u => u.Codigo))}).");
 
         foreach (var parametro in parametros)
         {
@@ -209,6 +227,8 @@ internal sealed class PublicadorMaestros(
         return cambiados;
     }
 
+    private static string EtiquetaRango(SecuenciaEcfCarga rango) => $"E{(int)rango.TipoComprobante} {rango.Desde}–{rango.Hasta}";
+
     private static void ValidarUnicos(IReadOnlyList<FilaMaestro> filas, IEnumerable<MaestroCentral> existentes, List<string> errores)
     {
         foreach (var repetido in filas.GroupBy(f => (f.Tipo, f.Id)).Where(g => g.Count() > 1))
@@ -286,6 +306,33 @@ internal sealed class PublicadorMaestros(
             var cajas = (await contexto.Cajas.Select(c => c.Id).ToListAsync(cancelacion)).ToHashSet();
             foreach (var secuencia in secuencias.Where(s => !cajas.Contains(s.CajaId)))
                 errores.Add($"El rango de e-CF {secuencia.Id} referencia una caja inexistente ({secuencia.CajaId}).");
+
+            // La caja rechaza cambiar un rango de caja, tipo o inicio, o dejarlo por debajo de lo emitido: se valida aquí para no detener su sincronización.
+            var actuales = publicados.Where(m => m.Tipo == TipoMaestro.SecuenciaEcf).Select(FormatoMaestros.Leer<SecuenciaEcfCarga>).ToDictionary(s => s.Id);
+            foreach (var secuencia in secuencias)
+            {
+                if (!actuales.TryGetValue(secuencia.Id, out var anterior))
+                    continue;
+
+                if (anterior.CajaId != secuencia.CajaId || anterior.TipoComprobante != secuencia.TipoComprobante || anterior.Desde != secuencia.Desde)
+                    errores.Add($"El rango de e-CF {EtiquetaRango(anterior)} no puede cambiar de caja, tipo ni inicio; asigne un rango nuevo.");
+                if (secuencia.Hasta < anterior.Hasta)
+                    errores.Add($"El rango de e-CF {EtiquetaRango(anterior)} no puede reducirse; la caja pudo haber emitido hasta su final.");
+            }
+
+            // Un e-NCF es único en toda la empresa: los rangos del mismo tipo no se solapan entre cajas.
+            var idsDelPaquete = secuencias.Select(s => s.Id).ToHashSet();
+            foreach (var grupo in actuales.Values.Where(a => !idsDelPaquete.Contains(a.Id)).Concat(secuencias).GroupBy(s => s.TipoComprobante))
+            {
+                SecuenciaEcfCarga? mayor = null;
+                foreach (var rango in grupo.OrderBy(s => s.Desde))
+                {
+                    if (mayor is not null && rango.Desde <= mayor.Hasta)
+                        errores.Add($"Los rangos de e-CF {EtiquetaRango(mayor)} y {EtiquetaRango(rango)} se solapan.");
+                    if (mayor is null || rango.Hasta > mayor.Hasta)
+                        mayor = rango;
+                }
+            }
         }
 
         if (paquete.Almacenes is { Count: > 0 } almacenes)

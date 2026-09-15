@@ -34,6 +34,7 @@ src/POS/      CgPos.Pos.Agente     Único servicio de la caja: API local, pantal
 src/Central/  CgPos.Central.Api    Servicio del Central: API para el Central Manager y para las cajas
               CgPos.Central.Aplicacion  Casos de uso y abstracciones del Central
               CgPos.Central.Infraestructura  EF Core / SQL Server, migraciones, implementaciones
+              CgPos.Central.Web    Central Manager en Blazor WebAssembly + MudBlazor
 pruebas/        CgPos.Dominio.Pruebas · CgPos.ECF.Pruebas · CgPos.Pos.Pruebas · CgPos.Central.Pruebas
 scripts/caja/ Instalación del Agente como servicio de Windows
 datos/        Carga inicial de desarrollo (empresa, cajas, roles y usuarios ficticios)
@@ -303,6 +304,10 @@ dotnet run --project src/Central/CgPos.Central.Api
 - *Organización* (permiso `Central.Organizacion.Administrar`): empresa (sin cambiar el RNC), sucursales y cajas (alta, edición, activación y habilitación) y **parámetros**, elegidos del catálogo con su descripción y tipo, validados antes de guardarse y generales, de una sucursal o de una caja (los del Central solo generales). La moneda local debe estar publicada en el maestro de monedas. Los parámetros no se eliminan, porque las cajas no se enterarían del borrado; la pantalla avisa de los obligatorios sin configurar.
 - *Credenciales de las cajas* (permiso `Central.Dispositivos.Administrar`): desde Cajas se emite una credencial nueva (reemplaza la anterior y su secreto se muestra una sola vez, con `Caja:Id` y `Central:Secreto` para configurar la caja) o se revoca con motivo.
 - **API de organización:** `GET|PUT /api/organizacion/empresa`; `GET|POST /api/organizacion/sucursales`, `PUT /api/organizacion/sucursales/{id}`, `POST /api/organizacion/sucursales/{id}/activar|desactivar`; `GET|POST /api/organizacion/cajas`, `PUT /api/organizacion/cajas/{id}`, `POST /api/organizacion/cajas/{id}/habilitar|deshabilitar`; `GET /api/organizacion/parametros/catalogo`, `GET|POST /api/organizacion/parametros`, `PUT /api/organizacion/parametros/{id}`.
+- *Rangos de e-CF* (permiso `Central.Fiscal.Administrar`): se asignan por caja y tipo (E31, E32, E34, E44 y E45) con inicio, fin y vencimiento. Los rangos del mismo tipo no se solapan entre cajas de la empresa; un rango ya asignado no cambia de caja, tipo ni inicio y solo se amplía, se prorroga o se desactiva, porque la caja pudo haber emitido hasta su final. La lista muestra el último e-NCF recibido de cada rango y cuánto queda.
+- *Usuarios y roles de caja* (permiso `Central.UsuariosCaja.Administrar`): roles con nivel (1 a 9) y permisos del catálogo de la caja; usuarios con rol, cajas que operan, PIN (4 a 8 dígitos, obligatorio al crear) y carné opcional. El PIN y el carné se publican solo como hash en el formato de la caja; editar sin PIN o carné nuevo conserva los actuales. Los códigos no cambian y un carné no puede repetirse entre usuarios.
+- Los rangos, roles y usuarios pasan por las mismas validaciones que la publicación de maestros y bajan a las cajas en su próxima sincronización.
+- **API de cajas:** `GET|POST /api/fiscal/secuencias`, `PUT /api/fiscal/secuencias/{id}`; `GET /api/usuarios-caja/permisos`; `GET|POST /api/usuarios-caja/roles`, `PUT /api/usuarios-caja/roles/{id}`; `GET|POST /api/usuarios-caja/usuarios`, `PUT /api/usuarios-caja/usuarios/{id}`.
 
 ### Recepción de documentos de las cajas
 

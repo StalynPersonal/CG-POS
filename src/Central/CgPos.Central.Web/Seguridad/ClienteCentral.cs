@@ -113,6 +113,32 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> RevocarCredencialAsync(Guid cajaId, string motivo) =>
         EnviarAsync(HttpMethod.Post, $"api/cajas/{cajaId}/credencial/revocar", new SolicitudRevocacionCredencial(motivo));
 
+    // ---------- Rangos de e-CF ----------
+
+    public Task<IReadOnlyList<DatosSecuenciaEcfCentral>?> ListarSecuenciasAsync() => ListarAsync<DatosSecuenciaEcfCentral>("api/fiscal/secuencias");
+
+    public Task<RespuestaAdministracion> AsignarSecuenciaAsync(SolicitudSecuenciaEcf solicitud) => EnviarAsync(HttpMethod.Post, "api/fiscal/secuencias", solicitud);
+
+    public Task<RespuestaAdministracion> ActualizarSecuenciaAsync(Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud) =>
+        EnviarAsync(HttpMethod.Put, $"api/fiscal/secuencias/{secuenciaId}", solicitud);
+
+    // ---------- Usuarios y roles de caja ----------
+
+    public Task<IReadOnlyList<CgPos.Dominio.Seguridad.DefinicionPermiso>?> ListarPermisosCajaAsync() =>
+        ListarAsync<CgPos.Dominio.Seguridad.DefinicionPermiso>("api/usuarios-caja/permisos");
+
+    public Task<IReadOnlyList<DatosRolCaja>?> ListarRolesCajaAsync() => ListarAsync<DatosRolCaja>("api/usuarios-caja/roles");
+
+    public Task<RespuestaAdministracion> GuardarRolCajaAsync(Guid? rolId, SolicitudRolCaja solicitud) =>
+        rolId is { } id ? EnviarAsync(HttpMethod.Put, $"api/usuarios-caja/roles/{id}", solicitud) : EnviarAsync(HttpMethod.Post, "api/usuarios-caja/roles", solicitud);
+
+    public Task<IReadOnlyList<DatosUsuarioCaja>?> ListarUsuariosCajaAsync() => ListarAsync<DatosUsuarioCaja>("api/usuarios-caja/usuarios");
+
+    public Task<RespuestaAdministracion> GuardarUsuarioCajaAsync(Guid? usuarioId, SolicitudUsuarioCaja solicitud) =>
+        usuarioId is { } id
+            ? EnviarAsync(HttpMethod.Put, $"api/usuarios-caja/usuarios/{id}", solicitud)
+            : EnviarAsync(HttpMethod.Post, "api/usuarios-caja/usuarios", solicitud);
+
     // ---------- Comunes ----------
 
     /// <returns>Nulo si no se pudo consultar (sin comunicación, sesión vencida o sin permiso).</returns>

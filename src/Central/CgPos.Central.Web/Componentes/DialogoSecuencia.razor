@@ -1,0 +1,108 @@
+@* Asignación de un rango de e-CF a una caja, o su ampliación, prórroga o desactivación. *@
+@using CgPos.Dominio.Fiscal
+@using CgPos.Dominio.Ventas
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            @if (Secuencia is null)
+            {
+                <MudSelect T="Guid?" @bind-Value="_cajaId" Label="Caja" Placeholder="Seleccione la caja" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
+                    @foreach (var caja in Cajas)
+                    {
+                        <MudSelectItem T="Guid?" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="TipoComprobante" @bind-Value="_tipo" Label="Comprobante" Variant="Variant.Outlined" ToStringFunc="NombreTipo">
+                    @foreach (var tipo in TiposEcfCaja.Asignables)
+                    {
+                        <MudSelectItem T="TipoComprobante" Value="@tipo">@NombreTipo(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudNumericField T="long" @bind-Value="_desde" Label="Desde" Variant="Variant.Outlined" Min="1" HideSpinButtons="true" />
+            }
+            else
+            {
+                <MudTextField T="string" Value="@($"Caja {Secuencia.CajaCodigo} · {NombreTipo(Secuencia.TipoComprobante)}")" Label="Rango" Variant="Variant.Outlined" ReadOnly="true" />
+                <MudTextField T="string" Value="@Secuencia.Desde.ToString("N0")" Label="Desde" Variant="Variant.Outlined" ReadOnly="true" />
+            }
+
+            <MudNumericField T="long" @bind-Value="_hasta" Label="Hasta" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
+                             HelperText="@(Secuencia is null ? null : "Solo se puede ampliar.")" />
+            <MudDatePicker @bind-Date="_vence" Label="Vence" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+            @if (Secuencia is not null)
+            {
+                <MudSwitch T="bool" @bind-Value="_activa" Label="@(_activa ? "Activo" : "Inactivo")" Color="Color.Secondary" />
+            }
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosSecuenciaEcfCentral? Secuencia { get; set; }
+    [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
+
+    private Guid? _cajaId;
+    private TipoComprobante _tipo = TipoComprobante.FacturaConsumo;
+    private long _desde = 1;
+    private long _hasta;
+    private DateTime? _vence;
+    private bool _activa = true;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private static string NombreTipo(TipoComprobante tipo) => $"E{(int)tipo} · {ReglasComprobante.Nombre(tipo)}";
+
+    private string NombreCaja(Guid? cajaId) =>
+        Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"Caja {caja.Codigo} · Sucursal {caja.SucursalCodigo}" : string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (Secuencia is not { } secuencia)
+            return;
+
+        _hasta = secuencia.Hasta;
+        _vence = secuencia.VenceEn.ToDateTime(TimeOnly.MinValue);
+        _activa = secuencia.Activa;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_vence is not { } vence)
+        {
+            _mensaje = "Indique la fecha de vencimiento del rango.";
+            return;
+        }
+
+        if (Secuencia is null && _cajaId is null)
+        {
+            _mensaje = "Seleccione la caja.";
+            return;
+        }
+
+        _procesando = true;
+        _mensaje = null;
+        var venceEn = DateOnly.FromDateTime(vence);
+        var respuesta = Secuencia is null
+            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, _hasta, venceEn))
+            : await Cliente.ActualizarSecuenciaAsync(Secuencia.Id, new SolicitudActualizarSecuenciaEcf(_hasta, venceEn, _activa));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el rango.";
+    }
+}

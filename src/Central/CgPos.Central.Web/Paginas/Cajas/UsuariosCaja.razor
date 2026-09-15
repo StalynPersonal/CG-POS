@@ -1,0 +1,120 @@
+@page "/cajas/usuarios"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarUsuariosCaja)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Usuarios de caja · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Usuarios de caja</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Cajeros, supervisores y gerentes: su rol, las cajas que operan, su PIN y su carné. Bajan a las cajas en su próxima sincronización.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="() => AbrirDialogoAsync(null)">
+        Nuevo usuario de caja
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los usuarios de caja. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosUsuarioCaja" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por código, nombre o rol" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Rol</MudTh>
+            <MudTh>Cajas</MudTh>
+            <MudTh>Credenciales</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><strong>@context.Codigo</strong></MudTd>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Rol">@context.RolNombre</MudTd>
+            <MudTd DataLabel="Cajas">@NombresCajas(context.Cajas)</MudTd>
+            <MudTd DataLabel="Credenciales">
+                <div class="cg-central__chips">
+                    @if (context.TienePin)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Pin">PIN</MudChip>
+                    }
+                    @if (context.TieneCarne)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.QrCode">Carné</MudChip>
+                    }
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Activo)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay usuarios de caja que coincidan.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosUsuarioCaja> _usuarios = [];
+    private IReadOnlyList<DatosRolCaja> _roles = [];
+    private IReadOnlyList<DatosCaja> _cajas = [];
+    private string? _filtro;
+    private bool _cargando = true;
+    private bool _error;
+
+    private IEnumerable<DatosUsuarioCaja> Filtrados => string.IsNullOrWhiteSpace(_filtro)
+        ? _usuarios
+        : _usuarios.Where(u => Contiene(u.Codigo) || Contiene(u.Nombre) || Contiene(u.RolNombre));
+
+    private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
+
+    private string NombresCajas(IReadOnlyList<Guid> cajas) =>
+        cajas.Count == 0 ? "Ninguna" : string.Join(", ", cajas.Select(id => _cajas.FirstOrDefault(c => c.Id == id) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : "?"));
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var usuarios = await Cliente.ListarUsuariosCajaAsync();
+        var roles = await Cliente.ListarRolesCajaAsync();
+        var cajas = await Cliente.ListarCajasAsync();
+        _error = usuarios is null || roles is null;
+        _usuarios = usuarios ?? [];
+        _roles = roles ?? [];
+        _cajas = cajas ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosUsuarioCaja? usuario)
+    {
+        var parametros = new DialogParameters<DialogoUsuarioCaja> { { d => d.Usuario, usuario }, { d => d.Roles, _roles }, { d => d.Cajas, _cajas } };
+        var referencia = await Dialogos.ShowAsync<DialogoUsuarioCaja>(usuario is null ? "Nuevo usuario de caja" : $"Editar usuario {usuario.Codigo}", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(usuario is null ? "Usuario de caja creado." : "Usuario de caja actualizado.", Severity.Success);
+        await CargarAsync();
+    }
+}

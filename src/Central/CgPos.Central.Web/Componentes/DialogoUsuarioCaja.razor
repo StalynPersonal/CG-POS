@@ -1,0 +1,97 @@
+@* Alta o edición de un usuario de caja. El PIN y el carné solo viajan como hash; dejarlos vacíos conserva los actuales. *@
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código de usuario" Variant="Variant.Outlined" Disabled="@(Usuario is not null)"
+                          HelperText="Con este código ingresa a la caja." />
+            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+            <MudSelect T="Guid?" @bind-Value="_rolId" Label="Rol" Placeholder="Seleccione el rol" Variant="Variant.Outlined" ToStringFunc="NombreRol">
+                @foreach (var rol in Roles.Where(r => r.Activo || r.Id == Usuario?.RolId))
+                {
+                    <MudSelectItem T="Guid?" Value="@rol.Id">@rol.Nombre (nivel @rol.Nivel)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="Guid" @bind-SelectedValues="_cajas" MultiSelection="true" Label="Cajas que opera" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
+                @foreach (var caja in Cajas)
+                {
+                    <MudSelectItem T="Guid" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField T="string" @bind-Value="_pin" Label="@(Usuario is null ? "PIN" : "PIN nuevo (vacío conserva el actual)")" Variant="Variant.Outlined"
+                          InputType="InputType.Password" HelperText="De 4 a 8 dígitos." />
+            <MudTextField T="string" @bind-Value="_carne" Label="@(Usuario?.TieneCarne == true ? "Carné nuevo (vacío conserva el actual)" : "Carné (opcional)")"
+                          Variant="Variant.Outlined" InputType="InputType.Password" Disabled="_quitarCarne" />
+            @if (Usuario?.TieneCarne == true)
+            {
+                <MudCheckBox T="bool" @bind-Value="_quitarCarne" Label="Retirar el carné actual" Color="Color.Secondary" Dense="true" />
+            }
+            <MudSwitch T="bool" @bind-Value="_activo" Label="@(_activo ? "Activo" : "Inactivo")" Color="Color.Secondary" />
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosUsuarioCaja? Usuario { get; set; }
+    [Parameter] public IReadOnlyList<DatosRolCaja> Roles { get; set; } = [];
+    [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
+
+    private string? _codigo;
+    private string? _nombre;
+    private Guid? _rolId;
+    private IReadOnlyCollection<Guid> _cajas = [];
+    private string? _pin;
+    private string? _carne;
+    private bool _quitarCarne;
+    private bool _activo = true;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private string NombreRol(Guid? rolId) => Roles.FirstOrDefault(r => r.Id == rolId)?.Nombre ?? string.Empty;
+
+    private string NombreCaja(Guid cajaId) =>
+        Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (Usuario is not { } usuario)
+            return;
+
+        _codigo = usuario.Codigo;
+        _nombre = usuario.Nombre;
+        _rolId = usuario.RolId;
+        _cajas = usuario.Cajas.ToHashSet();
+        _activo = usuario.Activo;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_rolId is not { } rolId)
+        {
+            _mensaje = "Seleccione el rol del usuario.";
+            return;
+        }
+
+        _procesando = true;
+        _mensaje = null;
+        var solicitud = new SolicitudUsuarioCaja(_codigo ?? string.Empty, _nombre ?? string.Empty, rolId, _cajas.ToList(), _pin, _quitarCarne ? null : _carne, _quitarCarne, _activo);
+        var respuesta = await Cliente.GuardarUsuarioCajaAsync(Usuario?.Id, solicitud);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el usuario de caja.";
+    }
+}
