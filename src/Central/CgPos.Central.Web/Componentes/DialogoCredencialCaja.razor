@@ -1,0 +1,42 @@
+@* Muestra la credencial recién emitida. El secreto no se vuelve a mostrar: el Central solo guarda su hash. *@
+@inject IJSRuntime Js
+@inject ISnackbar Avisos
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudAlert Severity="Severity.Warning">Copie el secreto ahora: el Central no lo vuelve a mostrar.</MudAlert>
+            <MudTextField T="string" Value="@Credencial.CajaId.ToString()" Label="Caja:Id" Variant="Variant.Outlined" ReadOnly="true" />
+            <MudTextField T="string" Value="@Credencial.Secreto" Label="Central:Secreto" Variant="Variant.Outlined" ReadOnly="true"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ContentCopy" OnAdornmentClick="CopiarAsync" />
+            <MudText Typo="Typo.body2">
+                Configure estos valores en la caja @Caja.Codigo de @Caja.SucursalNombre, junto con <code>Central:Url</code>, y reinicie el servicio CG-POS Agente.
+                La caja se aprovisiona sola en su primera sincronización.
+            </MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="() => Dialogo.Close(DialogResult.Ok(true))">Listo</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosCredencialDispositivo Credencial { get; set; } = default!;
+    [Parameter, EditorRequired] public DatosCaja Caja { get; set; } = default!;
+
+    private async Task CopiarAsync()
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("navigator.clipboard.writeText", Credencial.Secreto);
+            Avisos.Add("Secreto copiado.", Severity.Info);
+        }
+        catch (JSException)
+        {
+            // El portapapeles solo está disponible por HTTPS o en localhost.
+            Avisos.Add("El navegador no permitió copiar; seleccione el secreto y cópielo manualmente.", Severity.Warning);
+        }
+    }
+}

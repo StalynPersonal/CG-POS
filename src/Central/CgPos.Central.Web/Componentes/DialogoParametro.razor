@@ -1,0 +1,160 @@
+@* Alta de un parámetro del catálogo en un ámbito, o cambio de su valor. El valor se pide según su tipo y el Central lo valida al guardar. *@
+@using CgPos.Dominio.Organizacion
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            @if (Parametro is null)
+            {
+                <MudSelect T="string" Value="_clave" ValueChanged="CambiarClave" Label="Parámetro" Placeholder="Seleccione el parámetro" Variant="Variant.Outlined">
+                    @foreach (var definicion in Catalogo.OrderBy(d => d.Modulo).ThenBy(d => d.Clave))
+                    {
+                        <MudSelectItem T="string" Value="@definicion.Clave">@definicion.Modulo · @definicion.Clave</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" @bind-Value="_ambito" Label="Ámbito" Variant="Variant.Outlined" ToStringFunc="NombreAmbito" Disabled="@(Definicion?.Alcance == AlcanceParametro.Central)">
+                    <MudSelectItem T="string" Value="@AmbitoGeneral">General</MudSelectItem>
+                    @if (Definicion?.Alcance != AlcanceParametro.Central)
+                    {
+                        @foreach (var sucursal in Sucursales)
+                        {
+                            <MudSelectItem T="string" Value="@($"s:{sucursal.Id}")">Sucursal @sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                        }
+                        @foreach (var caja in Cajas)
+                        {
+                            <MudSelectItem T="string" Value="@($"c:{caja.Id}")">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudTextField T="string" Value="@Parametro.Clave" Label="Parámetro" Variant="Variant.Outlined" ReadOnly="true" />
+                <MudTextField T="string" Value="@Parametro.Ambito" Label="Ámbito" Variant="Variant.Outlined" ReadOnly="true" />
+            }
+
+            @if (Definicion is { } seleccionado)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    @seleccionado.Descripcion. @TextoTipo(seleccionado)@(seleccionado.Obligatorio ? " Obligatorio." : " Opcional: vacío equivale a no configurado.")
+                </MudAlert>
+
+                @if (seleccionado.Tipo == TipoValorParametro.Booleano)
+                {
+                    <MudSwitch T="bool" @bind-Value="_valorBooleano" Label="@(_valorBooleano ? "Sí (true)" : "No (false)")" Color="Color.Secondary" />
+                }
+                else
+                {
+                    <MudTextField T="string" @bind-Value="_valor" Label="Valor" Variant="Variant.Outlined" Immediate="true"
+                                  Lines="@(seleccionado.Tipo == TipoValorParametro.Texto ? 3 : 1)" />
+                }
+            }
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || Definicion is null)" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const string AmbitoGeneral = "general";
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosParametro? Parametro { get; set; }
+    [Parameter] public IReadOnlyList<DefinicionParametro> Catalogo { get; set; } = [];
+    [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
+    [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
+
+    private string? _clave;
+    private string _ambito = AmbitoGeneral;
+    private string? _valor;
+    private bool _valorBooleano;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private DefinicionParametro? Definicion => Catalogo.FirstOrDefault(d => d.Clave == (Parametro?.Clave ?? _clave));
+
+    protected override void OnInitialized()
+    {
+        if (Parametro is not { } parametro)
+            return;
+
+        _valor = parametro.Valor;
+        _valorBooleano = bool.TryParse(parametro.Valor, out var booleano) && booleano;
+    }
+
+    private void CambiarClave(string clave)
+    {
+        _clave = clave;
+        _mensaje = null;
+        if (Definicion?.Alcance == AlcanceParametro.Central)
+            _ambito = AmbitoGeneral;
+    }
+
+    private string NombreAmbito(string? ambito) => ambito switch
+    {
+        null or AmbitoGeneral => "General",
+        _ when ambito.StartsWith("s:", StringComparison.Ordinal) && Sucursales.FirstOrDefault(s => $"s:{s.Id}" == ambito) is { } sucursal =>
+            $"Sucursal {sucursal.Codigo} · {sucursal.Nombre}",
+        _ when ambito.StartsWith("c:", StringComparison.Ordinal) && Cajas.FirstOrDefault(c => $"c:{c.Id}" == ambito) is { } caja =>
+            $"Caja {caja.Codigo} · Sucursal {caja.SucursalCodigo}",
+        _ => ambito,
+    };
+
+    private static string TextoTipo(DefinicionParametro definicion)
+    {
+        var tipo = definicion.Tipo switch
+        {
+            TipoValorParametro.Entero => "Número entero",
+            TipoValorParametro.Decimal => "Número con punto decimal",
+            TipoValorParametro.Booleano => "Sí o no",
+            _ => "Texto",
+        };
+
+        var rango = (definicion.Minimo, definicion.Maximo) switch
+        {
+            ({ } minimo, { } maximo) => $" entre {minimo:0.##} y {maximo:0.##}",
+            ({ } minimo, null) => $" desde {minimo:0.##}",
+            _ => string.Empty,
+        };
+
+        return $"{tipo}{rango}.";
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (Definicion is not { } definicion)
+            return;
+
+        var valor = definicion.Tipo == TipoValorParametro.Booleano ? (_valorBooleano ? "true" : "false") : _valor?.Trim() ?? string.Empty;
+
+        _procesando = true;
+        _mensaje = null;
+        RespuestaAdministracion respuesta;
+        if (Parametro is not null)
+        {
+            respuesta = await Cliente.CambiarValorParametroAsync(Parametro.Id, valor);
+        }
+        else
+        {
+            Guid? sucursalId = _ambito.StartsWith("s:", StringComparison.Ordinal) ? Guid.Parse(_ambito[2..]) : null;
+            Guid? cajaId = _ambito.StartsWith("c:", StringComparison.Ordinal) ? Guid.Parse(_ambito[2..]) : null;
+            respuesta = await Cliente.CrearParametroAsync(new SolicitudParametro(definicion.Clave, valor, sucursalId, cajaId));
+        }
+
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el parámetro.";
+    }
+}

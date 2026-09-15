@@ -1,0 +1,77 @@
+@page "/organizacion/empresa"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
+@inject ClienteCentral Cliente
+@inject ISnackbar Avisos
+
+<PageTitle>Empresa · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Empresa</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Datos fiscales que usan las cajas en los e-CF y en los tickets. El RNC no se cambia desde aquí.</MudText>
+    </div>
+</div>
+
+@if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+}
+else if (_empresa is null)
+{
+    <MudAlert Severity="Severity.Error">No se pudo cargar la empresa. Verifique la comunicación con el Central o aplique su carga inicial.</MudAlert>
+}
+else
+{
+    <MudPaper Elevation="1" Class="pa-6 cg-central__formulario-angosto">
+        <MudTextField T="string" Value="@_empresa.Rnc" Label="RNC" Variant="Variant.Outlined" ReadOnly="true" />
+        <MudTextField T="string" @bind-Value="_razonSocial" Label="Razón social" Variant="Variant.Outlined" />
+        <MudTextField T="string" @bind-Value="_nombreComercial" Label="Nombre comercial" Variant="Variant.Outlined" />
+        <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Lines="2" />
+        <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar cambios</MudButton>
+
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+        }
+    </MudPaper>
+}
+
+@code {
+    private DatosEmpresa? _empresa;
+    private string? _razonSocial;
+    private string? _nombreComercial;
+    private string? _direccion;
+    private string? _telefono;
+    private string? _mensaje;
+    private bool _cargando = true;
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresa = await Cliente.ObtenerEmpresaAsync();
+        if (_empresa is not null)
+        {
+            _razonSocial = _empresa.RazonSocial;
+            _nombreComercial = _empresa.NombreComercial;
+            _direccion = _empresa.Direccion;
+            _telefono = _empresa.Telefono;
+        }
+
+        _cargando = false;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.ActualizarEmpresaAsync(new SolicitudEmpresa(_razonSocial ?? string.Empty, _nombreComercial, _direccion, _telefono));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Avisos.Add("Datos de la empresa guardados. Bajan a las cajas en su próxima sincronización.", Severity.Success);
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudieron guardar los datos.";
+    }
+}

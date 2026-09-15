@@ -36,6 +36,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IAuditoriaCentral, EscritorAuditoriaCentral>();
         servicios.AddSingleton<IHashContrasenas, HashContrasenas>();
         servicios.AddScoped<IParametrosCentral, ServicioParametrosCentral>();
+        servicios.AddScoped<IServicioOrganizacion, ServicioOrganizacionCentral>();
         servicios.AddScoped<ICargaInicialCentral, ServicioCargaInicialCentral>();
 
         // Seguridad (M02): sesiones del Central Manager y credenciales de las cajas.

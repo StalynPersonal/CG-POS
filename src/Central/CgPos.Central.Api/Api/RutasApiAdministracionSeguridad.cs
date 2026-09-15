@@ -4,6 +4,7 @@ using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Seguridad;
+using static CgPos.Central.Api.Api.RespuestasAdministracion;
 
 namespace CgPos.Central.Api.Api;
 
@@ -61,17 +62,4 @@ public static class RutasApiAdministracionSeguridad
 
         return aplicacion;
     }
-
-    private static UsuarioAuditoria Actor(ClaimsPrincipal usuario) =>
-        EmisorTokensCentral.LeerSesion(usuario) is { } sesion
-            ? new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)
-            : throw new InvalidOperationException("La operación requiere un usuario del Central.");
-
-    private static IResult Responder(ResultadoAdministracion resultado) =>
-        resultado switch
-        {
-            { Exitosa: true } => Results.Ok(new RespuestaAdministracion(true, resultado.Mensaje, resultado.Id)),
-            { NoEncontrado: true } => Results.Json(new RespuestaAdministracion(false, resultado.Mensaje), statusCode: StatusCodes.Status404NotFound),
-            _ => Results.Json(new RespuestaAdministracion(false, resultado.Mensaje), statusCode: StatusCodes.Status400BadRequest),
-        };
 }

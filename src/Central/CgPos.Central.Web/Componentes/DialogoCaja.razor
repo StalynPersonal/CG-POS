@@ -1,0 +1,74 @@
+@* Alta o edición de una caja. La sucursal y el código no cambian después de crearla. *@
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudSelect T="Guid?" @bind-Value="_sucursalId" Label="Sucursal" Placeholder="Seleccione la sucursal" Variant="Variant.Outlined"
+                       Disabled="@(Caja is not null)" ToStringFunc="NombreSucursal">
+                @foreach (var sucursal in Sucursales.Where(s => s.Activa || s.Id == Caja?.SucursalId))
+                {
+                    <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Caja is not null)"
+                          HelperText="Único en la sucursal; forma parte del número de las transacciones (ej. 01)." />
+            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosCaja? Caja { get; set; }
+    [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
+
+    private Guid? _sucursalId;
+    private string? _codigo;
+    private string? _nombre;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private string NombreSucursal(Guid? sucursalId) =>
+        Sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (Caja is not { } caja)
+            return;
+
+        _sucursalId = caja.SucursalId;
+        _codigo = caja.Codigo;
+        _nombre = caja.Nombre;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_sucursalId is not { } sucursalId)
+        {
+            _mensaje = "Seleccione la sucursal de la caja.";
+            return;
+        }
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = Caja is null
+            ? await Cliente.CrearCajaAsync(new SolicitudCaja(sucursalId, _codigo ?? string.Empty, _nombre ?? string.Empty))
+            : await Cliente.ActualizarCajaAsync(Caja.Id, new SolicitudActualizarCaja(_nombre ?? string.Empty));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar la caja.";
+    }
+}

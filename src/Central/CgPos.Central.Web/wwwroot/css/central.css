@@ -76,6 +76,16 @@ html, body {
 
 .cg-central__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
+.cg-central__valor {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: .9rem;
+    background: var(--cg-superficie);
+    border-radius: 4px;
+    padding: 2px 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .cg-central__tarjetas {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

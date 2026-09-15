@@ -35,6 +35,14 @@
     <MudDrawer @bind-Open="_menuAbierto" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="@DrawerVariant.Responsive">
         <MudNavMenu>
             <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Inicio</MudNavLink>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarOrganizacion">
+                <MudNavGroup Title="Organización" Icon="@Icons.Material.Filled.Business" Expanded="true">
+                    <MudNavLink Href="organizacion/empresa" Icon="@Icons.Material.Filled.Apartment">Empresa</MudNavLink>
+                    <MudNavLink Href="organizacion/sucursales" Icon="@Icons.Material.Filled.Store">Sucursales</MudNavLink>
+                    <MudNavLink Href="organizacion/cajas" Icon="@Icons.Material.Filled.PointOfSale">Cajas</MudNavLink>
+                    <MudNavLink Href="organizacion/parametros" Icon="@Icons.Material.Filled.Tune">Parámetros</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
                 <MudNavGroup Title="Seguridad" Icon="@Icons.Material.Filled.Security" Expanded="true">
                     <MudNavLink Href="seguridad/usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>

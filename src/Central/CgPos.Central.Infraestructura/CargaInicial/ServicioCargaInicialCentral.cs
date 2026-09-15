@@ -123,6 +123,13 @@ internal sealed class ServicioCargaInicialCentral(
 
         foreach (var parametro in parametros)
         {
+            if (CatalogoParametros.Buscar(parametro.Clave) is not { } definicion)
+                errores.Add($"El parámetro '{parametro.Clave}' no está en el catálogo de parámetros.");
+            else if (definicion.ValidarValor(parametro.Valor) is { } problema)
+                errores.Add($"El parámetro '{parametro.Clave}': {problema}");
+            else if (definicion.Alcance == AlcanceParametro.Central && (parametro.SucursalId is not null || parametro.CajaId is not null))
+                errores.Add($"El parámetro '{parametro.Clave}' es del Central y solo puede ser general.");
+
             if (parametro.SucursalId is { } sucursalId && !idsSucursales.Contains(sucursalId))
                 errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursalId}).");
             if (parametro.CajaId is { } cajaId && !idsCajas.Contains(cajaId))

@@ -67,7 +67,7 @@ En producción, `appsettings.json` usa `.\SQLEXPRESS` con autenticación de Wind
 
 ## Parámetros de negocio
 
-Las reglas de negocio no tienen valores fijos en el código: las configura un usuario en el Central y llegan a la caja como parámetros (con precedencia caja → sucursal → general). Si falta uno obligatorio, la operación se rechaza con el mensaje «Falta configurar el parámetro…». En desarrollo están en `datos/carga-inicial.desarrollo.json`.
+Las reglas de negocio no tienen valores fijos en el código: las configura un usuario en el Central y llegan a la caja como parámetros (con precedencia caja → sucursal → general). El catálogo `CatalogoParametros` (en `CgPos.Dominio`) define cada clave con su tipo, rango y si es obligatoria; el Central Manager solo admite claves del catálogo y valores válidos, y las pruebas verifican que toda clave que leen la caja y el Central esté en él. Si falta uno obligatorio, la operación se rechaza con el mensaje «Falta configurar el parámetro…». En desarrollo están en `datos/carga-inicial.desarrollo.json`.
 
 | Parámetro | Uso | Obligatorio |
 | --- | --- | --- |
@@ -300,6 +300,9 @@ dotnet run --project src/Central/CgPos.Central.Api
 - **Sesión:** ingreso con usuario y contraseña. El token de acceso vive en memoria y el de renovación en el almacenamiento de la pestaña: recargar no pide la contraseña, la sesión se renueva sola antes de vencer y cerrar la pestaña la termina en ese equipo. Con contraseña temporal solo se puede cambiarla.
 - **Menú según los permisos del rol.** *Seguridad:* usuarios (alta con contraseña temporal, edición, restablecer contraseña, desbloquear, activar o desactivar) y roles con sus permisos agrupados por módulo. Ningún cambio puede dejar al Central sin un usuario activo que administre la seguridad y nadie puede desactivarse a sí mismo; restablecer, desactivar o cambiar el rol cierra las sesiones de ese usuario.
 - **API** (permiso `Central.Seguridad.Administrar`): `GET /api/seguridad/permisos`; `GET|POST /api/seguridad/roles`, `PUT /api/seguridad/roles/{id}`, `POST /api/seguridad/roles/{id}/activar|desactivar`; `GET|POST /api/seguridad/usuarios`, `PUT /api/seguridad/usuarios/{id}`, `POST /api/seguridad/usuarios/{id}/contrasena|desbloquear|activar|desactivar`.
+- *Organización* (permiso `Central.Organizacion.Administrar`): empresa (sin cambiar el RNC), sucursales y cajas (alta, edición, activación y habilitación) y **parámetros**, elegidos del catálogo con su descripción y tipo, validados antes de guardarse y generales, de una sucursal o de una caja (los del Central solo generales). La moneda local debe estar publicada en el maestro de monedas. Los parámetros no se eliminan, porque las cajas no se enterarían del borrado; la pantalla avisa de los obligatorios sin configurar.
+- *Credenciales de las cajas* (permiso `Central.Dispositivos.Administrar`): desde Cajas se emite una credencial nueva (reemplaza la anterior y su secreto se muestra una sola vez, con `Caja:Id` y `Central:Secreto` para configurar la caja) o se revoca con motivo.
+- **API de organización:** `GET|PUT /api/organizacion/empresa`; `GET|POST /api/organizacion/sucursales`, `PUT /api/organizacion/sucursales/{id}`, `POST /api/organizacion/sucursales/{id}/activar|desactivar`; `GET|POST /api/organizacion/cajas`, `PUT /api/organizacion/cajas/{id}`, `POST /api/organizacion/cajas/{id}/habilitar|deshabilitar`; `GET /api/organizacion/parametros/catalogo`, `GET|POST /api/organizacion/parametros`, `PUT /api/organizacion/parametros/{id}`.
 
 ### Recepción de documentos de las cajas
 

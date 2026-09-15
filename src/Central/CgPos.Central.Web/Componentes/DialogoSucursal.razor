@@ -1,0 +1,60 @@
+@* Alta o edición de una sucursal. El código no cambia después de crearla. *@
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Sucursal is not null)"
+                          HelperText="Corto y único; forma parte del número de las transacciones (ej. 01)." />
+            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+            <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Lines="2" />
+            <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosSucursal? Sucursal { get; set; }
+
+    private string? _codigo;
+    private string? _nombre;
+    private string? _direccion;
+    private string? _telefono;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override void OnInitialized()
+    {
+        if (Sucursal is not { } sucursal)
+            return;
+
+        _codigo = sucursal.Codigo;
+        _nombre = sucursal.Nombre;
+        _direccion = sucursal.Direccion;
+        _telefono = sucursal.Telefono;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var solicitud = new SolicitudSucursal(_codigo ?? string.Empty, _nombre ?? string.Empty, _direccion, _telefono);
+        var respuesta = Sucursal is null ? await Cliente.CrearSucursalAsync(solicitud) : await Cliente.ActualizarSucursalAsync(Sucursal.Id, solicitud);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar la sucursal.";
+    }
+}

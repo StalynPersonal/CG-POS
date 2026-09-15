@@ -1,0 +1,133 @@
+@page "/organizacion/sucursales"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Sucursales · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Sucursales</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Las cajas de una sucursal inactiva no pueden conectarse al Central.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddBusiness" OnClick="() => AbrirDialogoAsync(null)">
+        Nueva sucursal
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las sucursales. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosSucursal" Items="_sucursales" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Dirección</MudTh>
+            <MudTh>Cajas</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><strong>@context.Codigo</strong></MudTd>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Dirección">
+                @context.Direccion
+                @if (context.Telefono is not null)
+                {
+                    <div class="cg-central__detalle">@context.Telefono</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Cajas">@context.Cajas</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Activa)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activa</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactiva</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="() => DesdeMenu(() => AbrirDialogoAsync(context))">Editar</MudMenuItem>
+                    @if (context.Activa)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.Block" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, false))">Desactivar</MudMenuItem>
+                    }
+                    else
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, true))">Activar</MudMenuItem>
+                    }
+                </MudMenu>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay sucursales.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private bool _cargando = true;
+    private bool _error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var sucursales = await Cliente.ListarSucursalesAsync();
+        _error = sucursales is null;
+        _sucursales = sucursales ?? [];
+        _cargando = false;
+    }
+
+    private void DesdeMenu(Func<Task> accion) => _ = EjecutarAparteAsync(accion);
+
+    private async Task EjecutarAparteAsync(Func<Task> accion)
+    {
+        try
+        {
+            await accion();
+        }
+        catch (Exception excepcion)
+        {
+            Avisos.Add($"No se pudo completar la operación: {excepcion.Message}", Severity.Error);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AbrirDialogoAsync(DatosSucursal? sucursal)
+    {
+        var parametros = new DialogParameters<DialogoSucursal> { { d => d.Sucursal, sucursal } };
+        var referencia = await Dialogos.ShowAsync<DialogoSucursal>(sucursal is null ? "Nueva sucursal" : $"Editar sucursal {sucursal.Codigo}", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(sucursal is null ? "Sucursal creada." : "Sucursal actualizada.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task CambiarEstadoAsync(DatosSucursal sucursal, bool activa)
+    {
+        if (!activa && !await Dialogos.ConfirmarAsync("Desactivar sucursal", $"Las cajas de {sucursal.Nombre} dejarán de conectarse al Central.", "Desactivar", esPeligrosa: true))
+            return;
+
+        var respuesta = await Cliente.CambiarEstadoSucursalAsync(sucursal.Id, activa);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo cambiar el estado de la sucursal.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(activa ? "Sucursal activada." : "Sucursal desactivada.", Severity.Success);
+        await CargarAsync();
+    }
+}

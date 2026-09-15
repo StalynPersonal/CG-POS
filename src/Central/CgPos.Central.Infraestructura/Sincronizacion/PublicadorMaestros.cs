@@ -118,6 +118,10 @@ internal sealed class PublicadorMaestros(
             var clave = parametro.Clave?.Trim() ?? string.Empty;
             if (clave.StartsWith(PrefijoParametrosCentral, StringComparison.OrdinalIgnoreCase))
                 errores.Add($"El parámetro '{clave}' es del Central y no se publica para las cajas.");
+            else if (CatalogoParametros.Buscar(clave) is not { Alcance: AlcanceParametro.Caja } definicion)
+                errores.Add($"El parámetro '{clave}' no está en el catálogo de parámetros de caja.");
+            else if (definicion.ValidarValor(parametro.Valor) is { } problema)
+                errores.Add($"El parámetro '{clave}': {problema}");
             if (parametro.SucursalId is { } sucursalId && !idsSucursales.Contains(sucursalId))
                 errores.Add($"El parámetro '{clave}' referencia una sucursal inexistente ({sucursalId}).");
             if (parametro.CajaId is { } cajaId && !idsCajas.Contains(cajaId))

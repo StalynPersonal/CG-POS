@@ -1,0 +1,207 @@
+@page "/organizacion/cajas"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Cajas · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Cajas</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Cada caja se conecta al Central con su credencial. Una caja deshabilitada no abre turno ni sincroniza.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddCard" OnClick="() => AbrirDialogoAsync(null)">
+        Nueva caja
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las cajas. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosCaja" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudSelect T="Guid?" @bind-Value="_sucursalFiltro" Label="Sucursal" Clearable="true" Dense="true" Style="max-width: 320px" ToStringFunc="NombreSucursal">
+                @foreach (var sucursal in _sucursales)
+                {
+                    <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Sucursal</MudTh>
+            <MudTh>Caja</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Credencial</MudTh>
+            <MudTh>Sincronización</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Sucursal">@context.SucursalCodigo<div class="cg-central__detalle">@context.SucursalNombre</div></MudTd>
+            <MudTd DataLabel="Caja"><strong>@context.Codigo</strong><div class="cg-central__detalle">@context.Nombre</div></MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Habilitada)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Habilitada</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Deshabilitada</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Credencial">
+                @if (context.CredencialEmitidaEn is { } emitida)
+                {
+                    <div>Emitida @Fecha(emitida)</div>
+                    <div class="cg-central__detalle">Último uso: @(context.CredencialUltimoUsoEn is { } uso ? Fecha(uso) : "nunca")</div>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">Sin credencial</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Sincronización">
+                <div>Recepción: @(context.UltimaRecepcionEn is { } recepcion ? Fecha(recepcion) : "nunca")</div>
+                <div class="cg-central__detalle">Maestros: @(context.UltimaDescargaEn is { } descarga ? Fecha(descarga) : "nunca")</div>
+            </MudTd>
+            <MudTd>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="() => DesdeMenu(() => AbrirDialogoAsync(context))">Editar</MudMenuItem>
+                    @if (context.Habilitada)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.Block" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, false))">Deshabilitar</MudMenuItem>
+                    }
+                    else
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, true))">Habilitar</MudMenuItem>
+                    }
+                    <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarDispositivos" Context="autorizacion">
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.Key" OnClick="() => DesdeMenu(() => EmitirCredencialAsync(context))">Emitir credencial</MudMenuItem>
+                        @if (context.CredencialEmitidaEn is not null)
+                        {
+                            <MudMenuItem Icon="@Icons.Material.Filled.KeyOff" OnClick="() => DesdeMenu(() => RevocarCredencialAsync(context))">Revocar credencial</MudMenuItem>
+                        }
+                    </AuthorizeView>
+                </MudMenu>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay cajas.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosCaja> _cajas = [];
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private Guid? _sucursalFiltro;
+    private bool _cargando = true;
+    private bool _error;
+
+    private IEnumerable<DatosCaja> Filtradas => _sucursalFiltro is { } sucursalId ? _cajas.Where(c => c.SucursalId == sucursalId) : _cajas;
+
+    private string NombreSucursal(Guid? sucursalId) =>
+        _sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : string.Empty;
+
+    private static string Fecha(DateTimeOffset momento) => momento.ToLocalTime().ToString("dd/MM/yyyy h:mm tt");
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var cajas = await Cliente.ListarCajasAsync();
+        var sucursales = await Cliente.ListarSucursalesAsync();
+        _error = cajas is null || sucursales is null;
+        _cajas = cajas ?? [];
+        _sucursales = sucursales ?? [];
+        _cargando = false;
+    }
+
+    private void DesdeMenu(Func<Task> accion) => _ = EjecutarAparteAsync(accion);
+
+    private async Task EjecutarAparteAsync(Func<Task> accion)
+    {
+        try
+        {
+            await accion();
+        }
+        catch (Exception excepcion)
+        {
+            Avisos.Add($"No se pudo completar la operación: {excepcion.Message}", Severity.Error);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AbrirDialogoAsync(DatosCaja? caja)
+    {
+        var parametros = new DialogParameters<DialogoCaja> { { d => d.Caja, caja }, { d => d.Sucursales, _sucursales } };
+        var referencia = await Dialogos.ShowAsync<DialogoCaja>(caja is null ? "Nueva caja" : $"Editar caja {caja.Codigo} de {caja.SucursalNombre}", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(caja is null ? "Caja creada. Emítale una credencial para conectarla al Central." : "Caja actualizada.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task CambiarEstadoAsync(DatosCaja caja, bool habilitada)
+    {
+        if (!habilitada && !await Dialogos.ConfirmarAsync("Deshabilitar caja",
+                $"La caja {caja.Codigo} de {caja.SucursalNombre} no podrá abrir turno ni sincronizar con el Central.", "Deshabilitar", esPeligrosa: true))
+            return;
+
+        await EjecutarAsync(() => Cliente.CambiarEstadoCajaAsync(caja.Id, habilitada), habilitada ? "Caja habilitada." : "Caja deshabilitada.");
+    }
+
+    private async Task EmitirCredencialAsync(DatosCaja caja)
+    {
+        if (caja.CredencialEmitidaEn is not null && !await Dialogos.ConfirmarAsync("Emitir credencial nueva",
+                $"La credencial actual de la caja {caja.Codigo} dejará de funcionar: la caja no sincronizará hasta configurar el secreto nuevo.", "Emitir", esPeligrosa: true))
+            return;
+
+        var (credencial, error) = await Cliente.EmitirCredencialAsync(caja.Id);
+        if (credencial is null)
+        {
+            Avisos.Add(error ?? "No se pudo emitir la credencial.", Severity.Error);
+            return;
+        }
+
+        var parametros = new DialogParameters<DialogoCredencialCaja> { { d => d.Credencial, credencial }, { d => d.Caja, caja } };
+        var opciones = new DialogOptions { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        await (await Dialogos.ShowAsync<DialogoCredencialCaja>($"Credencial de la caja {caja.Codigo}", parametros, opciones)).Result;
+        await CargarAsync();
+    }
+
+    private async Task RevocarCredencialAsync(DatosCaja caja)
+    {
+        var parametros = new DialogParameters<DialogoMotivo>
+        {
+            { d => d.Mensaje, $"La caja {caja.Codigo} de {caja.SucursalNombre} dejará de comunicarse con el Central hasta que se le emita una credencial nueva." },
+            { d => d.Etiqueta, "Motivo de la revocación" },
+            { d => d.TextoConfirmar, "Revocar" },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoMotivo>("Revocar credencial", parametros);
+        if (await referencia.Result is not { Canceled: false, Data: string motivo })
+            return;
+
+        await EjecutarAsync(() => Cliente.RevocarCredencialAsync(caja.Id, motivo), "Credencial revocada.");
+    }
+
+    private async Task EjecutarAsync(Func<Task<RespuestaAdministracion>> operacion, string textoExito)
+    {
+        var respuesta = await operacion();
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo completar la operación.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(textoExito, Severity.Success);
+        await CargarAsync();
+    }
+}

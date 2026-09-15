@@ -93,6 +93,7 @@ try
     aplicacion.MapearApiDispositivos();
     aplicacion.MapearApiSincronizacion();
     aplicacion.MapearApiAdministracionSeguridad();
+    aplicacion.MapearApiOrganizacion();
 
     // Central Manager (Blazor WebAssembly de CgPos.Central.Web). Las rutas /api desconocidas responden 404, no la aplicación.
     if (aplicacion.Configuration.GetValue("Central:ServirManager", true))

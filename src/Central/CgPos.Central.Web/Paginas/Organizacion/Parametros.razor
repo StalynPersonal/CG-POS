@@ -1,0 +1,125 @@
+@page "/organizacion/parametros"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
+@using CgPos.Dominio.Organizacion
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Parámetros · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Parámetros</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Reglas de negocio sin valores fijos en el sistema. El valor de una caja prevalece sobre el de su sucursal, y este sobre el general.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddCircle" OnClick="() => AbrirDialogoAsync(null)">
+        Nuevo parámetro
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los parámetros. Verifique la comunicación con el Central.</MudAlert>
+}
+else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } faltantes)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        Faltan parámetros obligatorios generales: @string.Join(", ", faltantes.Select(d => d.Clave)). Las operaciones que los usan se rechazan hasta configurarlos.
+    </MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosParametro" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por clave, descripción, ámbito o valor" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Parámetro</MudTh>
+            <MudTh>Ámbito</MudTh>
+            <MudTh>Valor</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Parámetro">
+                <strong>@context.Clave</strong>
+                <div class="cg-central__detalle">@(Definicion(context.Clave)?.Descripcion ?? context.Descripcion)</div>
+            </MudTd>
+            <MudTd DataLabel="Ámbito">@context.Ambito</MudTd>
+            <MudTd DataLabel="Valor">
+                @if (string.IsNullOrEmpty(context.Valor))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Sin configurar</MudChip>
+                }
+                else
+                {
+                    <span class="cg-central__valor">@context.Valor</span>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay parámetros que coincidan.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosParametro> _parametros = [];
+    private IReadOnlyList<DefinicionParametro> _catalogo = [];
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private IReadOnlyList<DatosCaja> _cajas = [];
+    private string? _filtro;
+    private bool _cargando = true;
+    private bool _error;
+
+    private DefinicionParametro? Definicion(string clave) => _catalogo.FirstOrDefault(d => d.Clave == clave);
+
+    private IEnumerable<DefinicionParametro> ObligatoriosSinConfigurar =>
+        _catalogo.Where(d => d.Obligatorio && !_parametros.Any(p => p.Clave == d.Clave && p.SucursalId is null && p.CajaId is null && p.Valor.Length > 0));
+
+    private IEnumerable<DatosParametro> Filtrados => string.IsNullOrWhiteSpace(_filtro)
+        ? _parametros
+        : _parametros.Where(p => Contiene(p.Clave) || Contiene(p.Ambito) || Contiene(p.Valor) || Contiene(Definicion(p.Clave)?.Descripcion));
+
+    private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var parametros = await Cliente.ListarParametrosAsync();
+        var catalogo = await Cliente.ListarCatalogoParametrosAsync();
+        var sucursales = await Cliente.ListarSucursalesAsync();
+        var cajas = await Cliente.ListarCajasAsync();
+        _error = parametros is null || catalogo is null || sucursales is null || cajas is null;
+        _parametros = parametros ?? [];
+        _catalogo = catalogo ?? [];
+        _sucursales = sucursales ?? [];
+        _cajas = cajas ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosParametro? parametro)
+    {
+        var parametros = new DialogParameters<DialogoParametro>
+        {
+            { d => d.Parametro, parametro },
+            { d => d.Catalogo, _catalogo },
+            { d => d.Sucursales, _sucursales },
+            { d => d.Cajas, _cajas },
+        };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoParametro>(parametro is null ? "Nuevo parámetro" : $"Editar {parametro.Clave}", parametros, opciones);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Parámetro guardado. Baja a las cajas en su próxima sincronización.", Severity.Success);
+        await CargarAsync();
+    }
+}
