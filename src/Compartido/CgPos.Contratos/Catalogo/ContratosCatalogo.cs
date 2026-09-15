@@ -23,7 +23,11 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<MotivoDescuentoCarga>? MotivosDescuento = null,
     IReadOnlyList<TopeDescuentoCarga>? TopesDescuento = null,
     IReadOnlyList<TasaCambioCarga>? TasasCambio = null,
-    IReadOnlyList<SecuenciaEcfCarga>? SecuenciasEcf = null);
+    IReadOnlyList<SecuenciaEcfCarga>? SecuenciasEcf = null,
+    IReadOnlyList<MotivoDevolucionCarga>? MotivosDevolucion = null);
+
+/// <summary>Motivo seleccionable de devolución (RF-232).</summary>
+public sealed record MotivoDevolucionCarga(Guid Id, string Codigo, string Nombre, bool Activo = true);
 
 /// <summary>Rango de e-CF que el Central asigna a una caja (RF-28). Ampliar el mismo Id extiende el rango.</summary>
 public sealed record SecuenciaEcfCarga(Guid Id, Guid CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, bool Activa = true);

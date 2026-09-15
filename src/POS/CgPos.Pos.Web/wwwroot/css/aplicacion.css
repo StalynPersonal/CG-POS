@@ -621,3 +621,31 @@
 .cg-cierre__diferencia--sobrante { color: var(--cg-advertencia); font-weight: 700; }
 .cg-cierre__diferencia--cuadrado { color: var(--cg-accion); font-weight: 700; }
 .cg-tabla-desplazable { overflow-x: auto; }
+
+/* Devoluciones (C9) */
+.cg-devolucion { display: flex; flex-direction: column; min-height: 100vh; background: #f3f6f4; }
+.cg-devolucion__contenido { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.cg-devolucion__buscar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.cg-devolucion__buscar > .mud-input-control { flex: 1 1 320px; }
+.cg-devolucion__boton { min-height: var(--cg-toque-minimo); }
+.cg-devolucion__tarjeta { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.cg-devolucion__cabecera { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; }
+.cg-devolucion__cliente { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.cg-devolucion__cliente > .mud-input-control { flex: 1 1 240px; }
+.cg-devolucion__dato { display: flex; flex-direction: column; }
+.cg-devolucion__dato small, .cg-devolucion__etiqueta { color: #607d6b; font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+.cg-devolucion__dato strong { font-size: 1.1rem; }
+.cg-devolucion__tabla { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cg-devolucion__tabla th { background: #1b4d3e; color: #fff; padding: 10px; text-align: right; white-space: nowrap; }
+.cg-devolucion__tabla td { padding: 6px 10px; border-bottom: 1px solid #dfe7e2; text-align: right; vertical-align: middle; }
+.cg-devolucion__tabla th:nth-child(-n+2), .cg-devolucion__tabla td:nth-child(-n+2) { text-align: left; }
+.cg-devolucion__cantidad { width: 150px; }
+.cg-devolucion__agotada td { color: #9aa9a1; }
+.cg-devolucion__pie { display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(260px, .8fr); gap: 16px; align-items: end; }
+@media (max-width: 900px) { .cg-devolucion__pie { grid-template-columns: minmax(0, 1fr); } }
+.cg-devolucion__motivo { display: flex; flex-direction: column; gap: 8px; }
+.cg-devolucion__motivos { display: flex; flex-wrap: wrap; gap: 8px; }
+.cg-devolucion__motivo-boton { min-height: var(--cg-toque-minimo); }
+.cg-devolucion__acciones { display: flex; flex-wrap: wrap; gap: 12px; }
+.cg-devolucion__total { font-size: 2.2rem; font-weight: 800; color: var(--cg-accion); text-align: right; font-variant-numeric: tabular-nums; }
+.cg-devolucion__emitida { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px; }

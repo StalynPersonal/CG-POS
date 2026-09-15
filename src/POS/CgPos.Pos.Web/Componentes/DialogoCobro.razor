@@ -222,13 +222,18 @@
 
     private decimal? Tasa(string moneda) => _catalogo?.Tasas?.FirstOrDefault(t => t.Moneda == moneda)?.Tasa;
 
-    /// <summary>Nota de crédito y puntos llegan en fases posteriores; bonos no aplican con crédito fiscal (RF-117); sin tasa no hay dólares.</summary>
+    /// <summary>Los puntos llegan con la fidelidad; bonos no aplican con crédito fiscal (RF-117); sin tasa no hay dólares.</summary>
     private bool Disponible(DatosFormaPago forma) =>
-        forma.Tipo is not (TipoFormaPago.NotaCredito or TipoFormaPago.Puntos)
+        forma.Tipo is not TipoFormaPago.Puntos
         && (forma.Moneda == MonedaLocal || Tasa(forma.Moneda) is not null)
         && (forma.PermiteComprobanteFiscal || Venta.TipoComprobante == TipoComprobante.FacturaConsumo);
 
-    private bool PideReferencia(DatosFormaPago forma) => forma.Tipo == TipoFormaPago.Tarjeta ? _contingencia : forma.RequiereReferencia;
+    private bool PideReferencia(DatosFormaPago forma) => forma.Tipo switch
+    {
+        TipoFormaPago.Tarjeta => _contingencia,
+        TipoFormaPago.NotaCredito => true,
+        _ => forma.RequiereReferencia,
+    };
 
     private static string EtiquetaReferencia(DatosFormaPago forma) => forma.Tipo switch
     {
@@ -236,6 +241,7 @@
         TipoFormaPago.Transferencia => "Número de transferencia",
         TipoFormaPago.Cheque => "Número de cheque",
         TipoFormaPago.BonoRegalo or TipoFormaPago.TarjetaRegalo => "Serial",
+        TipoFormaPago.NotaCredito => "e-NCF de la nota de crédito",
         _ => "Referencia",
     };
 

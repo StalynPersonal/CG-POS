@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Ventas;
@@ -87,25 +88,37 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     private readonly FirmadorEcf _firmador = new();
 
     /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
-    public async Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion)
+    public Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion) =>
+        EmitirDocumentoAsync(venta.Id, venta.CajaId, venta.SucursalId, venta.TipoComprobante, venta.CobradaEn,
+            (encf, vence, emisor, ahora) => ConversionEcf.DesdeVenta(venta, encf, vence, emisor, ahora), cancelacion);
+
+    /// <summary>Nota de crédito E34 de una devolución, referenciando el e-CF de la factura (RF-227).</summary>
+    /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
+    public Task<EmisionEcf> EmitirNotaCreditoAsync(Devolucion devolucion, CancellationToken cancelacion) =>
+        EmitirDocumentoAsync(devolucion.Id, devolucion.CajaId, devolucion.SucursalId, TipoComprobante.NotaCredito, devolucion.CreadaEn,
+            (encf, vence, emisor, ahora) => ConversionEcf.DesdeNotaCredito(devolucion, encf, vence, emisor, ahora), cancelacion);
+
+    /// <param name="documentoId">Venta o devolución que origina el comprobante.</param>
+    private async Task<EmisionEcf> EmitirDocumentoAsync(Guid documentoId, Guid cajaId, Guid sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
+        Func<string, DateOnly, EmisorEcf, DateTimeOffset, DocumentoEcf> armar, CancellationToken cancelacion)
     {
         var certificadoFirma = certificado.ObtenerParaFirmar()
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado,
-                "El certificado digital de la caja no está cargado. Digite su PIN para poder facturar.");
+                "El certificado digital de la caja no está cargado. Digite su PIN para poder emitir comprobantes.");
 
         var ahora = reloj.GetUtcNow();
         if (certificado.VenceEn is { } vence && vence < ahora)
             throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado, "El certificado digital de la caja está vencido. Solicite uno nuevo.");
 
         var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
-        var asignada = await SiguienteSecuenciaAsync(venta.CajaId, venta.TipoComprobante, hoy, cancelacion)
+        var asignada = await SiguienteSecuenciaAsync(cajaId, tipo, hoy, cancelacion)
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.ComprobanteNoDisponible,
-                $"No hay secuencia de e-CF disponible para {ReglasComprobante.Nombre(venta.TipoComprobante)} (E{(int)venta.TipoComprobante}) en esta caja: " +
+                $"No hay secuencia de e-CF disponible para {ReglasComprobante.Nombre(tipo)} (E{(int)tipo}) en esta caja: " +
                 "está agotada, vencida o no asignada. Solicite un rango al Central o aplique el procedimiento de contingencia.");
 
-        var encf = SecuenciaEcf.FormatearEncf(venta.TipoComprobante, asignada.Ultimo);
-        var emisor = await EmisorAsync(venta.SucursalId, cancelacion);
-        var documentoEcf = ConversionEcf.DesdeVenta(venta, encf, asignada.VenceEn, emisor, ahora);
+        var encf = SecuenciaEcf.FormatearEncf(tipo, asignada.Ultimo);
+        var emisor = await EmisorAsync(sucursalId, cancelacion);
+        var documentoEcf = armar(encf, asignada.VenceEn, emisor, ahora);
 
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
         var errores = ValidadorEcf.Validar(documentoEcf).Concat(ValidadorEcf.ValidarContraXsd(xml, configuracion[ClavesEcf.CarpetaXsd])).ToList();
@@ -121,11 +134,11 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         Directory.CreateDirectory(Path.GetDirectoryName(ruta)!);
         await File.WriteAllTextAsync(ruta, firmado, new UTF8Encoding(false), cancelacion);
 
-        var documento = DocumentoElectronico.Emitir(venta.Id, venta.CajaId, venta.TipoComprobante, encf, venta.CobradaEn ?? ahora, documentoEcf.FechaHoraFirma,
+        var documento = DocumentoElectronico.Emitir(documentoId, cajaId, tipo, encf, fechaEmision ?? ahora, documentoEcf.FechaHoraFirma,
             codigoSeguridad, documentoEcf.Totales.MontoTotal, hash, ruta, urlTimbre);
         contexto.DocumentosElectronicos.Add(documento);
 
-        return new EmisionEcf(documento, new DocumentoElectronicoParaCentral(encf, venta.TipoComprobante, firmado, hash, documentoEcf.FechaHoraFirma), asignada.VenceEn);
+        return new EmisionEcf(documento, new DocumentoElectronicoParaCentral(encf, tipo, firmado, hash, documentoEcf.FechaHoraFirma), asignada.VenceEn);
     }
 
     /// <summary>Si el cobro no llegó a guardarse, su XML no debe quedar como pendiente.</summary>
@@ -244,6 +257,57 @@ internal static class ConversionEcf
             venta.CobradaEn ?? fechaFirma,
             fechaFirma,
             FormasPago: FormasPago(venta));
+    }
+
+    /// <summary>
+    /// Nota de crédito E34: las líneas devueltas sin ITBIS por tasa y la referencia al e-CF modificado (código 1 si la devolución completa la
+    /// factura, 3 si corrige montos). Con el ITBIS retenido (fuera de plazo) la nota solo acredita la base, como exenta.
+    /// </summary>
+    public static DocumentoEcf DesdeNotaCredito(Devolucion devolucion, string encf, DateOnly venceSecuencia, EmisorEcf emisor, DateTimeOffset fechaFirma)
+    {
+        var items = new List<ItemEcf>(devolucion.Lineas.Count);
+        decimal gravado1 = 0, gravado2 = 0, gravado3 = 0, exento = 0, itbis1 = 0, itbis2 = 0, itbis3 = 0;
+
+        foreach (var linea in devolucion.Lineas.OrderBy(l => l.NumeroLineaOrigen))
+        {
+            var indicador = devolucion.RetieneImpuesto ? 4
+                : linea.IndicadorFacturacion is >= 1 and <= 4 ? linea.IndicadorFacturacion
+                : linea.PorcentajeImpuesto == 0 ? 4 : 1;
+            var precioUnitario = linea.Cantidad == 0 ? 0m : decimal.Round(linea.Base / linea.Cantidad, 4, MidpointRounding.AwayFromZero);
+            items.Add(new ItemEcf(items.Count + 1, indicador, linea.Descripcion, linea.Cantidad, null, precioUnitario, 0m, linea.Base));
+
+            switch (indicador)
+            {
+                case 1:
+                    gravado1 += linea.Base;
+                    itbis1 += linea.Impuesto;
+                    break;
+                case 2:
+                    gravado2 += linea.Base;
+                    itbis2 += linea.Impuesto;
+                    break;
+                case 3:
+                    gravado3 += linea.Base;
+                    itbis3 += linea.Impuesto;
+                    break;
+                default:
+                    exento += linea.Base;
+                    break;
+            }
+        }
+
+        var fechaFactura = DateOnly.FromDateTime(devolucion.VentaOrigenCobradaEn.ToOffset(Devolucion.ZonaHoraria).DateTime);
+        return new DocumentoEcf(
+            (int)TipoComprobante.NotaCredito,
+            encf,
+            venceSecuencia,
+            emisor,
+            new CompradorEcf(devolucion.ClienteDocumento, devolucion.ClienteNombre),
+            items,
+            new TotalesEcf(gravado1, gravado2, gravado3, exento, itbis1, itbis2, itbis3, devolucion.Total),
+            devolucion.CreadaEn,
+            fechaFirma,
+            Referencia: new ReferenciaEcf(devolucion.EncfOrigen ?? devolucion.VentaOrigenNumero, fechaFactura, devolucion.EsTotal ? 1 : 3));
     }
 
     /// <summary>Pagos agrupados por la tabla de formas de pago de la DGII; la devuelta se descuenta del efectivo.</summary>

@@ -33,6 +33,9 @@ public sealed class EscenarioCatalogo
     public Guid Banco { get; } = Guid.CreateVersion7();
     public Guid TipoTarjeta { get; } = Guid.CreateVersion7();
     public Guid BilleteMil { get; } = Guid.CreateVersion7();
+    public Guid FormaNotaCredito { get; } = Guid.CreateVersion7();
+    public Guid MotivoDevolucion { get; } = Guid.CreateVersion7();
+    public string CodigoMotivoDevolucion => $"DEF{Sufijo}";
 
     public string CodigoFerreteria => $"FER{Sufijo}";
     public string CodigoLibra => $"LB{Sufijo}";
@@ -102,7 +105,9 @@ public sealed class EscenarioCatalogo
             [
                 new FormaPagoCarga(FormaTarjeta, $"TAR{Sufijo}", "Tarjeta", TipoFormaPago.Tarjeta, 2),
                 new FormaPagoCarga(FormaEfectivo, $"EFE{Sufijo}", "Efectivo", TipoFormaPago.Efectivo, 1),
+                new FormaPagoCarga(FormaNotaCredito, $"NC{Sufijo}", "Nota de crédito", TipoFormaPago.NotaCredito, 3, RequiereReferencia: true, PermiteDevuelta: false),
             ],
+            MotivosDevolucion: [new MotivoDevolucionCarga(MotivoDevolucion, CodigoMotivoDevolucion, "Artículo defectuoso")],
             Bancos: [new BancoCarga(Banco, $"BAN{Sufijo}", $"Banco {Sufijo}")],
             TiposTarjeta: [new TipoTarjetaCarga(TipoTarjeta, $"TT{Sufijo}", "Visa prueba")],
             Denominaciones: [new DenominacionCarga(BilleteMil, "DOP", ValorBillete, TipoDenominacion.Billete)]);

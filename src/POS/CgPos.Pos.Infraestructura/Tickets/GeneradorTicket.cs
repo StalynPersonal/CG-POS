@@ -36,6 +36,9 @@ internal static class GeneradorTicket
 
         /// <summary>El texto es el contenido de un código QR (URL del timbre del e-CF).</summary>
         Qr,
+
+        /// <summary>El texto se imprime como código de barras CODE128 con el texto legible debajo.</summary>
+        Barras,
     }
 
     static GeneradorTicket() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -149,9 +152,105 @@ internal static class GeneradorTicket
             Agregar(ecf.UrlTimbre, Estilo.Qr);
         }
 
+        // Código de barras para llamar la factura en devoluciones (RF-56).
+        Agregar(venta.NumeroTransaccion, Estilo.Barras);
         Agregar("¡Gracias por su compra!", Estilo.Centrado);
 
         return Documento($"ticket-{venta.NumeroTransaccion}{(esCopia ? "-copia" : null)}", lineas);
+    }
+
+    /// <summary>
+    /// Nota de crédito (RF-163): la copia del cliente lleva el código de barras para consumirla (RF-57) y la política de consumo (RF-83);
+    /// la de contabilidad lleva su propio texto. Ambas muestran quién autorizó (RF-162).
+    /// </summary>
+    public static DocumentoImpresion GenerarNotaCredito(EncabezadoTicket encabezado, DatosNotaCredito nota, bool copiaContabilidad, string politica, bool esCopia)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+        void Separador() => Agregar(new string('-', Ancho));
+        void Importe(string etiqueta, decimal monto, Estilo estilo = Estilo.Normal) => Agregar(Columnas(etiqueta, monto.ToString("N2", cultura)), estilo);
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia);
+        Agregar("NOTA DE CRÉDITO (E34)", Estilo.Titulo);
+        Agregar(copiaContabilidad ? "COPIA CONTABILIDAD" : "ORIGINAL CLIENTE", Estilo.Centrado);
+        if (nota.Comprobante is { } comprobante)
+            Agregar($"e-NCF: {comprobante.Encf}", Estilo.Negrita);
+        Agregar($"Número: {nota.Numero}");
+        Agregar($"Fecha: {HoraLocal(nota.CreadaEn, cultura)}");
+        Agregar($"Modifica: {nota.EncfOrigen ?? "factura sin e-CF"}");
+        Agregar($"Factura: {nota.VentaOrigenNumero} del {nota.VentaOrigenCobradaEn.ToOffset(TimeSpan.FromHours(-4)).ToString("dd/MM/yyyy", cultura)}");
+        foreach (var parte in Envolver($"Cliente: {nota.ClienteNombre}"))
+            Agregar(parte);
+        Agregar($"{(nota.ClienteTipoDocumento?.ToString() ?? "Documento").ToUpper(cultura)}: {nota.ClienteDocumento}");
+        Agregar($"Cajero: {nota.UsuarioNombre}");
+        if (nota.AutorizadoPorNombre is { } autorizo)
+            Agregar($"Autorizó: {autorizo}");
+        foreach (var parte in Envolver($"Motivo: {nota.MotivoNombre}{(nota.Observacion is null ? null : $" - {nota.Observacion}")}"))
+            Agregar(parte);
+        Separador();
+
+        foreach (var linea in nota.Lineas)
+        {
+            foreach (var parte in Envolver(linea.Descripcion))
+                Agregar(parte);
+            var cantidad = linea.Cantidad.ToString("N" + linea.DecimalesCantidad, cultura);
+            Agregar(Columnas($"  {cantidad} {linea.UnidadMedidaCodigo} x {linea.PrecioUnitario.ToString("N2", cultura)}", linea.Importe.ToString("N2", cultura)));
+            if (linea.ImpuestoRetenido > 0)
+                Agregar(Columnas("  ITBIS retenido", $"-{linea.ImpuestoRetenido.ToString("N2", cultura)}"));
+            if (linea.Serial is { } serial)
+                Agregar($"  Serial: {serial}");
+        }
+        Separador();
+
+        Importe("SUBTOTAL (sin ITBIS)", nota.Subtotal);
+        if (nota.Impuesto > 0)
+            Importe("ITBIS", nota.Impuesto);
+        if (nota.ImpuestoRetenido > 0)
+            Importe("ITBIS retenido (fuera de plazo)", nota.ImpuestoRetenido);
+        Importe("TOTAL RD$", nota.Total, Estilo.Titulo);
+
+        if (!copiaContabilidad)
+        {
+            Agregar($"Válida para consumo hasta el {nota.VenceEn.ToString("dd/MM/yyyy", cultura)}", Estilo.Negrita);
+            Agregar(nota.Comprobante?.Encf ?? nota.Numero, Estilo.Barras);
+        }
+
+        if (nota.Comprobante is { } ecf)
+        {
+            Separador();
+            Agregar($"Código de seguridad: {ecf.CodigoSeguridad}");
+            Agregar($"Fecha de firma: {ecf.FechaFirma.ToOffset(TimeSpan.FromHours(-4)).ToString("dd-MM-yyyy HH:mm:ss", cultura)}");
+            Agregar(ecf.UrlTimbre, Estilo.Qr);
+        }
+
+        Separador();
+        foreach (var parte in Envolver(politica))
+            Agregar(parte);
+        AgregarFirmas(lineas, "Cliente", "Autorizado");
+
+        return Documento($"nc-{nota.Numero}{(copiaContabilidad ? "-contabilidad" : null)}{(esCopia ? "-copia" : null)}", lineas);
+    }
+
+    /// <summary>Voucher con el saldo que queda de una nota de crédito usada parcialmente (RF-43).</summary>
+    public static DocumentoImpresion GenerarSaldoNotaCredito(EncabezadoTicket encabezado, string codigo, string cliente, decimal saldo, DateOnly venceEn, string ventaNumero)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia: false);
+        Agregar("SALDO DE NOTA DE CRÉDITO", Estilo.Titulo);
+        Agregar($"Nota: {codigo}");
+        foreach (var parte in Envolver($"Cliente: {cliente}"))
+            Agregar(parte);
+        Agregar($"Usada en la factura {ventaNumero}");
+        Agregar(new string('-', Ancho));
+        Agregar(Columnas("SALDO DISPONIBLE RD$", saldo.ToString("N2", cultura)), Estilo.Titulo);
+        Agregar($"Válida hasta el {venceEn.ToString("dd/MM/yyyy", cultura)}", Estilo.Negrita);
+        Agregar(codigo, Estilo.Barras);
+
+        return Documento($"saldo-nc-{codigo}-{ventaNumero}", lineas);
     }
 
     /// <summary>Comprobante de retiro parcial de efectivo (RF-261), con firmas de quien entrega y quien recibe.</summary>
@@ -317,6 +416,7 @@ internal static class GeneradorTicket
         {
             Estilo.Centrado or Estilo.Titulo => [Centrar(l.Texto)],
             Estilo.Qr => ["[QR del timbre e-CF]", .. Trozos(l.Texto)],
+            Estilo.Barras => [Centrar($"||| {l.Texto} |||")],
             _ => new[] { l.Texto },
         }));
         return new DocumentoImpresion(nombre, texto, EscPos(lineas));
@@ -351,6 +451,20 @@ internal static class GeneradorTicket
                 Escribir(0x1D, 0x28, 0x6B, (byte)(largo & 0xFF), (byte)(largo >> 8), 0x31, 0x50, 0x30);
                 bytes.Write(datos);
                 Escribir(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30);
+                Escribir(0x0A);
+                continue;
+            }
+
+            if (estilo == Estilo.Barras)
+            {
+                // CODE128 subconjunto B (GS k 73): alto 60 puntos, módulo 2 y texto legible debajo.
+                var datos = Encoding.ASCII.GetBytes("{B" + texto);
+                Escribir(0x1B, 0x61, 1);
+                Escribir(0x1D, 0x68, 60);
+                Escribir(0x1D, 0x77, 2);
+                Escribir(0x1D, 0x48, 2);
+                Escribir(0x1D, 0x6B, 73, (byte)datos.Length);
+                bytes.Write(datos);
                 Escribir(0x0A);
                 continue;
             }

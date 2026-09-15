@@ -271,6 +271,23 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     private static RespuestaCaja ErrorCaja(string mensaje) => new(CodigoResultadoCaja.TurnoNoAbierto, mensaje);
 
+    // ---------- Devoluciones y notas de crédito (C9) ----------
+
+    public Task<RespuestaFacturaDevolucion> BuscarFacturaDevolucionAsync(string numero, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaFacturaDevolucion>(HttpMethod.Get, $"api/devoluciones/factura/{Uri.EscapeDataString(numero)}", null,
+            mensaje => new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.FacturaNoEncontrada, mensaje, null), cancelacion);
+
+    public Task<RespuestaDevolucion> RegistrarDevolucionAsync(SolicitudDevolucion solicitud, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/devoluciones", solicitud, mensaje => new RespuestaDevolucion(CodigoResultadoDevolucion.DevolucionInvalida, mensaje), cancelacion);
+
+    public Task<RespuestaSaldoNotaCredito> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaSaldoNotaCredito>(HttpMethod.Get, $"api/devoluciones/notas-credito/{Uri.EscapeDataString(codigo)}", null,
+            mensaje => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoNoEncontrada, mensaje, null), cancelacion);
+
+    public Task<RespuestaDevolucion> ReimprimirNotaCreditoAsync(Guid devolucionId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaDevolucion>(HttpMethod.Post, $"api/devoluciones/{devolucionId}/reimprimir", null,
+            mensaje => new RespuestaDevolucion(CodigoResultadoDevolucion.NotaCreditoNoEncontrada, mensaje), cancelacion);
+
     // ---------- Facturación electrónica (C7) ----------
 
     public async Task<DatosEstadoEcf?> ObtenerEstadoEcfAsync(CancellationToken cancelacion = default)

@@ -50,6 +50,18 @@ public static class ClavesParametros
     /// <summary>Múltiplo al que se redondea el total cobrado con efectivo, ej. 1 = al peso (RF-216). Por defecto 0 = sin redondeo.</summary>
     public const string PasoRedondeoEfectivo = "Caja.PasoRedondeoEfectivo";
 
+    /// <summary>Días desde la factura tras los cuales la devolución retiene el ITBIS (RF-44). Por defecto 30.</summary>
+    public const string DiasRetencionImpuestoDevolucion = "Devoluciones.DiasRetencionImpuesto";
+
+    /// <summary>Meses de vigencia de una nota de crédito para consumirla (RF-39). Por defecto 6.</summary>
+    public const string MesesVigenciaNotaCredito = "Devoluciones.MesesVigenciaNotaCredito";
+
+    /// <summary>Política impresa en la copia del cliente de la nota de crédito (RF-83, RF-163).</summary>
+    public const string PoliticaNotaCredito = "Devoluciones.PoliticaNotaCredito";
+
+    /// <summary>Texto impreso en la copia de contabilidad de la nota de crédito (RF-163).</summary>
+    public const string PoliticaNotaCreditoContabilidad = "Devoluciones.PoliticaNotaCreditoContabilidad";
+
     /// <summary>Porcentaje restante de una secuencia de e-CF desde el cual se alerta (RF-225). Por defecto 10.</summary>
     public const string PorcentajeAlertaSecuenciaEcf = "Fiscal.PorcentajeAlertaSecuenciaEcf";
 

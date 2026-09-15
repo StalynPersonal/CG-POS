@@ -64,6 +64,30 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
         return respuesta;
     }
 
+    /// <summary>Igual que <see cref="EjecutarVentaAsync"/> para la devolución, que autoriza el encargado (RF-162).</summary>
+    /// <returns>La respuesta final, o nulo si el usuario canceló la autorización.</returns>
+    public async Task<RespuestaDevolucion?> EjecutarDevolucionAsync(Func<Guid?, Task<RespuestaDevolucion>> operacion, string descripcion, string? numeroFactura)
+    {
+        var respuesta = await operacion(null);
+
+        for (var intento = 0; intento < IntentosMaximos; intento++)
+        {
+            if (respuesta.Resultado is not (CodigoResultadoDevolucion.RequiereAutorizacion or CodigoResultadoDevolucion.AutorizacionInvalida)
+                || respuesta.PermisoRequerido is not { } permiso)
+                return respuesta;
+
+            var autorizacion = await SolicitarAsync(permiso, descripcion, "Venta", numeroFactura);
+            if (autorizacion is null)
+                return null;
+            if (autorizacion.AutorizacionId is not { } autorizacionId)
+                return respuesta;
+
+            respuesta = await operacion(autorizacionId);
+        }
+
+        return respuesta;
+    }
+
     /// <summary>Igual que <see cref="EjecutarVentaAsync"/> para las operaciones del turno (retiro, relevo, cierre, reapertura).</summary>
     /// <returns>La respuesta final, o nulo si el usuario canceló la autorización.</returns>
     public async Task<RespuestaCaja?> EjecutarCajaAsync(Func<Guid?, Task<RespuestaCaja>> operacion, string descripcion, string tipoEntidad = "Turno",

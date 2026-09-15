@@ -122,7 +122,7 @@
     { "id": "01990000-0000-7000-8001-000000000603", "codigo": "TRA", "nombre": "Transferencia", "tipo": "Transferencia", "orden": 3 },
     { "id": "01990000-0000-7000-8001-000000000604", "codigo": "CHE", "nombre": "Cheque", "tipo": "Cheque", "orden": 4 },
     { "id": "01990000-0000-7000-8001-000000000605", "codigo": "USD", "nombre": "Dólares", "tipo": "MonedaExtranjera", "orden": 5, "moneda": "USD" },
-    { "id": "01990000-0000-7000-8001-000000000606", "codigo": "NC", "nombre": "Nota de crédito", "tipo": "NotaCredito", "orden": 6 },
+    { "id": "01990000-0000-7000-8001-000000000606", "codigo": "NC", "nombre": "Nota de crédito", "tipo": "NotaCredito", "orden": 6, "requiereReferencia": true, "permiteDevuelta": false },
     { "id": "01990000-0000-7000-8001-000000000607", "codigo": "BONO", "nombre": "Bono de regalo", "tipo": "BonoRegalo", "orden": 7 },
     { "id": "01990000-0000-7000-8001-000000000608", "codigo": "GIFT", "nombre": "Tarjeta de regalo", "tipo": "TarjetaRegalo", "orden": 8 },
     { "id": "01990000-0000-7000-8001-000000000609", "codigo": "PRE", "nombre": "Préstamo bancario", "tipo": "PrestamoBancario", "orden": 9 },
@@ -192,6 +192,13 @@
   ],
   "tasasCambio": [
     { "id": "01990000-0000-7000-8001-000000001301", "moneda": "USD", "tasa": 60.25, "vigenteDesde": "2026-09-01T00:00:00-04:00" }
+  ],
+  "motivosDevolucion": [
+    { "id": "01990000-0000-7000-8001-000000001501", "codigo": "DEFECTO", "nombre": "Artículo defectuoso" },
+    { "id": "01990000-0000-7000-8001-000000001502", "codigo": "EQUIVOCADO", "nombre": "Artículo equivocado" },
+    { "id": "01990000-0000-7000-8001-000000001503", "codigo": "NOSATISFECHO", "nombre": "Cliente no satisfecho" },
+    { "id": "01990000-0000-7000-8001-000000001504", "codigo": "GARANTIA", "nombre": "Garantía" },
+    { "id": "01990000-0000-7000-8001-000000001505", "codigo": "ERRORFACT", "nombre": "Error de facturación" }
   ],
   "secuenciasEcf": [
     { "id": "01990000-0000-7000-8001-000000001401", "cajaId": "01990000-0000-7000-8000-000000000201", "tipoComprobante": "FacturaConsumo", "desde": 1, "hasta": 50000, "venceEn": "2027-12-31" },

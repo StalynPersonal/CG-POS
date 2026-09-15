@@ -1,0 +1,330 @@
+@page "/devoluciones"
+@attribute [Authorize]
+@using System.Globalization
+@using CgPos.Dominio.Devoluciones
+@inject ClienteAgente Cliente
+@inject AlmacenSesion Almacen
+@inject ServicioAutorizacionPantalla Autorizaciones
+@inject NavigationManager Navegacion
+
+@* Pantalla de devoluciones (M10): desde la venta con F10 o como estación dedicada en un tercer monitor. *@
+
+<PageTitle>CG-POS · Devoluciones</PageTitle>
+
+<div class="cg-devolucion">
+    <div class="cg-venta__barra-superior">
+        <span class="cg-venta__marca-texto">CG-POS</span>
+        <span class="cg-venta__marca-sub">Devoluciones y notas de crédito</span>
+        <span class="cg-espaciador"></span>
+        <span>@Almacen.Sesion?.Nombre · @Almacen.Sesion?.CajaNombre</span>
+    </div>
+
+    <div class="cg-devolucion__contenido">
+        <section class="cg-devolucion__buscar">
+            <MudTextField T="string" @bind-Value="_numero" Label="Escanee o digite el número de la factura o su e-NCF" Variant="Variant.Outlined"
+                          Immediate="true" AutoFocus="true" OnKeyDown="AlTeclearFactura" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.QrCodeScanner" Class="cg-campo-activo" />
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Search" Disabled="_procesando"
+                       Class="cg-devolucion__boton" OnClick="BuscarAsync">Buscar factura</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale" Class="cg-devolucion__boton"
+                       OnClick="@(() => Navegacion.NavigateTo(string.Empty))">Volver a la venta</MudButton>
+        </section>
+
+        @if (_procesando)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+        }
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Warning">@_mensaje</MudAlert>
+        }
+        @if (_aviso is not null)
+        {
+            <MudAlert Severity="Severity.Success">@_aviso</MudAlert>
+        }
+
+        @if (_nota is { } nota)
+        {
+            <section class="cg-devolucion__tarjeta cg-devolucion__emitida">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Style="font-size: 3.5rem" />
+                <div class="cg-devolucion__cabecera">
+                    <div class="cg-devolucion__dato"><small>Nota de crédito</small><strong>@(nota.Comprobante?.Encf ?? nota.Numero)</strong></div>
+                    <div class="cg-devolucion__dato"><small>Factura</small><strong>@nota.VentaOrigenNumero</strong></div>
+                    <div class="cg-devolucion__dato"><small>Cliente</small><strong>@nota.ClienteNombre</strong></div>
+                    <div class="cg-devolucion__dato"><small>Válida hasta</small><strong>@nota.VenceEn.ToString("dd/MM/yyyy")</strong></div>
+                    @if (nota.RetieneImpuesto)
+                    {
+                        <div class="cg-devolucion__dato"><small>ITBIS retenido</small><strong>RD$@nota.ImpuestoRetenido.ToString("N2")</strong></div>
+                    }
+                </div>
+                <div class="cg-devolucion__total">RD$@nota.Total.ToString("N2")</div>
+                <div class="cg-devolucion__acciones">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Print" Disabled="_procesando" OnClick="ReimprimirAsync">Reimprimir</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.AssignmentReturn"
+                               OnClick="NuevaDevolucion">Nueva devolución</MudButton>
+                </div>
+            </section>
+        }
+        else if (_factura is { } factura)
+        {
+            <section class="cg-devolucion__tarjeta">
+                <div class="cg-devolucion__cabecera">
+                    <div class="cg-devolucion__dato"><small>Factura</small><strong>@factura.NumeroTransaccion</strong></div>
+                    <div class="cg-devolucion__dato"><small>e-NCF</small><strong>@(factura.Encf ?? "—")</strong></div>
+                    <div class="cg-devolucion__dato"><small>Fecha</small><strong>@factura.CobradaEn.ToLocalTime().ToString("dd/MM/yyyy h:mm tt")</strong></div>
+                    <div class="cg-devolucion__dato"><small>Días</small><strong>@factura.DiasTranscurridos</strong></div>
+                    @if (factura.RetieneImpuesto)
+                    {
+                        <MudChip T="string" Color="Color.Warning">Más de @factura.DiasRetencionImpuesto días: se retiene el ITBIS</MudChip>
+                    }
+                    @foreach (var previa in factura.NotasPrevias)
+                    {
+                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">Devuelto antes: @(previa.Encf ?? previa.Numero) · RD$@previa.Total.ToString("N2")</MudChip>
+                    }
+                </div>
+
+                <div class="cg-devolucion__cliente">
+                    @if (factura.Cliente is { Documento: not null } cliente)
+                    {
+                        <div class="cg-devolucion__dato"><small>Cliente</small><strong>@cliente.Nombre · @cliente.Documento</strong></div>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">La factura no tiene cliente: digite la cédula o el RNC de quien devuelve.</MudText>
+                        <MudTextField T="string" @bind-Value="_clienteDocumento" Label="Cédula o RNC" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" @bind-Value="_clienteNombre" Label="Nombre (si no está en el padrón DGII)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    }
+                </div>
+
+                <div class="cg-tabla-desplazable">
+                    <table class="cg-devolucion__tabla">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th>Vendido</th>
+                                <th>Devuelto</th>
+                                <th>Precio</th>
+                                <th>A devolver</th>
+                                <th>Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var linea in _lineas)
+                            {
+                                <tr class="@(linea.Datos.CantidadDisponible <= 0 ? "cg-devolucion__agotada" : null)">
+                                    <td>@linea.Datos.CodigoLeido</td>
+                                    <td>
+                                        @linea.Datos.Descripcion
+                                        @if (linea.Datos.RequiereSerial && linea.Cantidad > 0)
+                                        {
+                                            <MudTextField T="string" @bind-Value="linea.Serial" Placeholder="Escanee el serial" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        }
+                                    </td>
+                                    <td>@linea.Datos.CantidadVendida.ToString("N" + linea.Datos.DecimalesCantidad)</td>
+                                    <td>@linea.Datos.CantidadDevuelta.ToString("N" + linea.Datos.DecimalesCantidad)</td>
+                                    <td>@linea.Datos.PrecioUnitario.ToString("N2")</td>
+                                    <td class="cg-devolucion__cantidad">
+                                        <MudNumericField T="decimal" @bind-Value="linea.Cantidad" Min="0m" Max="linea.Datos.CantidadDisponible" Variant="Variant.Outlined"
+                                                         Margin="Margin.Dense" Disabled="@(linea.Datos.CantidadDisponible <= 0)" />
+                                    </td>
+                                    <td>@Importe(linea).ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="cg-devolucion__pie">
+                    <div class="cg-devolucion__motivo">
+                        <div class="cg-devolucion__etiqueta">Motivo de la devolución</div>
+                        <div class="cg-devolucion__motivos">
+                            @foreach (var motivo in factura.Motivos)
+                            {
+                                <MudButton Variant="@(_motivo == motivo.Codigo ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
+                                           Class="cg-devolucion__motivo-boton" OnClick="() => _motivo = motivo.Codigo">@motivo.Nombre</MudButton>
+                            }
+                        </div>
+                        <MudTextField T="string" @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </div>
+                    <div class="cg-devolucion__acciones">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="DevolverTodo">Devolver todo</MudButton>
+                        <MudButton Variant="Variant.Text" Size="Size.Large" OnClick="Limpiar">Limpiar</MudButton>
+                    </div>
+                    <div>
+                        <div class="cg-devolucion__etiqueta">Nota de crédito estimada@(factura.RetieneImpuesto ? " (sin ITBIS)" : null)</div>
+                        <div class="cg-devolucion__total">RD$@TotalEstimado.ToString("N2")</div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" StartIcon="@Icons.Material.Filled.AssignmentReturn"
+                                   Disabled="@(_procesando || TotalEstimado <= 0)" Style="min-height: var(--cg-toque-minimo); font-size: 1.1rem" OnClick="EmitirAsync">
+                            Emitir nota de crédito
+                        </MudButton>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <section class="cg-devolucion__tarjeta cg-devolucion__saldo">
+            <div class="cg-devolucion__etiqueta">Consultar saldo de una nota de crédito</div>
+            <div class="cg-devolucion__buscar">
+                <MudTextField T="string" @bind-Value="_codigoNota" Label="e-NCF o número de la nota" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Immediate="true" OnKeyDown="AlTeclearNota" />
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AccountBalanceWallet" OnClick="ConsultarSaldoAsync">Consultar</MudButton>
+            </div>
+            @if (_saldo is { } saldo)
+            {
+                <MudAlert Severity="@(saldo.Exitosa ? Severity.Success : Severity.Warning)" Dense="true">
+                    @saldo.Mensaje
+                    @if (saldo.NotaCredito is { } datos)
+                    {
+                        <span> · @datos.ClienteNombre · Total RD$@datos.Total.ToString("N2") · Vence @datos.VenceEn.ToString("dd/MM/yyyy")</span>
+                    }
+                </MudAlert>
+            }
+        </section>
+    </div>
+</div>
+
+@code {
+    private sealed class LineaEdicion(DatosLineaFacturaDevolucion datos)
+    {
+        public DatosLineaFacturaDevolucion Datos { get; } = datos;
+        public decimal Cantidad { get; set; }
+        public string? Serial { get; set; }
+    }
+
+    private string _numero = string.Empty;
+    private string _codigoNota = string.Empty;
+    private string? _mensaje;
+    private string? _aviso;
+    private bool _procesando;
+    private DatosFacturaDevolucion? _factura;
+    private List<LineaEdicion> _lineas = [];
+    private string? _motivo;
+    private string? _observacion;
+    private string? _clienteDocumento;
+    private string? _clienteNombre;
+    private DatosNotaCredito? _nota;
+    private RespuestaSaldoNotaCredito? _saldo;
+
+    /// <summary>Lo que devolverá la línea; si se devuelve todo lo disponible, el resto exacto de la factura.</summary>
+    private static decimal Importe(LineaEdicion linea) =>
+        linea.Cantidad <= 0 ? 0m
+        : linea.Cantidad == linea.Datos.CantidadDisponible ? linea.Datos.ImporteDisponible
+        : decimal.Round(linea.Datos.PrecioUnitario * linea.Cantidad, 2, MidpointRounding.AwayFromZero);
+
+    private decimal TotalEstimado
+    {
+        get
+        {
+            var total = _lineas.Sum(Importe);
+            return _factura is { RetieneImpuesto: true } ? decimal.Round(total / 1.18m, 2) : total;
+        }
+    }
+
+    private async Task AlTeclearFactura(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+            await BuscarAsync();
+    }
+
+    private async Task AlTeclearNota(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+            await ConsultarSaldoAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_numero))
+            return;
+
+        _procesando = true;
+        _mensaje = null;
+        _aviso = null;
+        _nota = null;
+        var respuesta = await Cliente.BuscarFacturaDevolucionAsync(_numero.Trim());
+        _procesando = false;
+
+        _factura = respuesta.Factura;
+        _lineas = respuesta.Factura?.Lineas.Select(l => new LineaEdicion(l)).ToList() ?? [];
+        _motivo = null;
+        _observacion = null;
+        _clienteDocumento = null;
+        _clienteNombre = null;
+        if (!respuesta.Exitosa)
+            _mensaje = respuesta.Mensaje;
+    }
+
+    private void DevolverTodo()
+    {
+        foreach (var linea in _lineas)
+            linea.Cantidad = linea.Datos.CantidadDisponible;
+    }
+
+    private void Limpiar()
+    {
+        foreach (var linea in _lineas)
+        {
+            linea.Cantidad = 0m;
+            linea.Serial = null;
+        }
+    }
+
+    private async Task EmitirAsync()
+    {
+        if (_factura is not { } factura)
+            return;
+
+        var solicitud = new SolicitudDevolucion(
+            factura.VentaId,
+            _lineas.Where(l => l.Cantidad > 0).Select(l => new SolicitudLineaDevolucion(l.Datos.NumeroLinea, l.Cantidad, l.Serial)).ToList(),
+            _clienteDocumento,
+            _clienteNombre,
+            _motivo,
+            _observacion,
+            null);
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Autorizaciones.EjecutarDevolucionAsync(autorizacion => Cliente.RegistrarDevolucionAsync(solicitud with { AutorizacionId = autorizacion }),
+            $"Devolución de la factura {factura.NumeroTransaccion} por RD${TotalEstimado:N2}", factura.NumeroTransaccion);
+        _procesando = false;
+        if (respuesta is null)
+            return;
+        if (!respuesta.Exitosa)
+        {
+            _mensaje = respuesta.Mensaje;
+            return;
+        }
+
+        _nota = respuesta.NotaCredito;
+        _aviso = respuesta.Mensaje;
+        _factura = null;
+        _lineas = [];
+        _numero = string.Empty;
+    }
+
+    private async Task ReimprimirAsync()
+    {
+        _procesando = true;
+        var respuesta = await Cliente.ReimprimirNotaCreditoAsync(_nota!.Id);
+        _procesando = false;
+        _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
+        _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+    }
+
+    private void NuevaDevolucion()
+    {
+        _nota = null;
+        _aviso = null;
+        _mensaje = null;
+    }
+
+    private async Task ConsultarSaldoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_codigoNota))
+            return;
+
+        _saldo = await Cliente.ConsultarNotaCreditoAsync(_codigoNota.Trim());
+    }
+}

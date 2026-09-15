@@ -65,6 +65,7 @@ try
     aplicacion.MapearApiVentas();
     aplicacion.MapearApiEcf();
     aplicacion.MapearApiCaja();
+    aplicacion.MapearApiDevoluciones();
     aplicacion.MapearPantallaCliente();
 
     // Pantallas de la caja (Blazor Wasm de CgPos.Pos.Web), servidas localmente.

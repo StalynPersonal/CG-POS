@@ -2,6 +2,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
@@ -321,6 +322,16 @@ internal sealed class ServicioVentas(
             return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
         }
 
+        // Consumo de notas de crédito en la misma transacción del cobro (RF-38).
+        var saldosNotas = new List<(Devolucion Nota, decimal Saldo)>();
+        foreach (var (nota, monto) in solicitados.NotasCredito)
+        {
+            var saldo = nota.Consumir(venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, DateOnly.FromDateTime(reloj.GetLocalNow().DateTime), ahora);
+            saldosNotas.Add((nota, saldo));
+            bandejaSalida.Encolar("NotaCredito.Consumida", nota.Id,
+                new DocumentoConsumoNotaCredito(nota.Id, nota.Encf, venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, saldo, ahora));
+        }
+
         // Documento, e-CF, mensaje para el Central y auditoría en la misma transacción (RF-270).
         var datosVenta = venta.ADatos(_montoIdentificacion, emision.Documento, emision.VenceSecuencia);
         bandejaSalida.Encolar("Venta.Cobrada", venta.Id,
@@ -352,7 +363,14 @@ internal sealed class ServicioVentas(
         }
 
         // Periféricos después de guardar: un fallo de impresora o gaveta nunca deshace el cobro.
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(await EncabezadoTicketAsync(sesion, cancelacion), datosVenta, esCopia: false), cancelacion);
+        var encabezado = await EncabezadoTicketAsync(sesion, cancelacion);
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(encabezado, datosVenta, esCopia: false), cancelacion);
+
+        // Voucher con el saldo que queda de cada nota de crédito usada (RF-43).
+        foreach (var (nota, saldo) in saldosNotas.Where(n => n.Saldo > 0))
+            await impresora.ImprimirAsync(GeneradorTicket.GenerarSaldoNotaCredito(encabezado, nota.Encf ?? nota.Numero, nota.ClienteNombre, saldo, nota.VenceEn,
+                venta.NumeroTransaccion), cancelacion);
+
         var gaveta = resultado.AbreGaveta ? await impresora.AbrirGavetaAsync(cancelacion) : null;
         var avisos = new[] { impresion.Correcto ? null : impresion.Mensaje, gaveta is { Correcto: false } ? gaveta.Mensaje : null }
             .Where(aviso => aviso is not null)
@@ -407,7 +425,14 @@ internal sealed class ServicioVentas(
             : new RespuestaVenta(CodigoResultadoVenta.Correcto, gaveta.Mensaje, null);
     }
 
-    private sealed record PagosArmados(IReadOnlyList<PagoSolicitado> Pagos, IReadOnlyList<OperacionTerminal> Operaciones, (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo);
+    private sealed record PagosArmados(
+        IReadOnlyList<PagoSolicitado> Pagos,
+        IReadOnlyList<OperacionTerminal> Operaciones,
+        IReadOnlyList<(Devolucion Nota, decimal Monto)> NotasCredito,
+        (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo)
+    {
+        public static PagosArmados Rechazado(CodigoResultadoVenta codigo, string mensaje) => new([], [], [], (codigo, mensaje));
+    }
 
     /// <summary>Completa cada pago con los datos del maestro, la tasa del día y la aprobación registrada del terminal.</summary>
     private async Task<PagosArmados> ArmarPagosAsync(Venta venta, IReadOnlyList<SolicitudPago> pagos, DateTimeOffset ahora, CancellationToken cancelacion)
@@ -424,12 +449,14 @@ internal sealed class ServicioVentas(
 
         var solicitados = new List<PagoSolicitado>();
         var usadas = new List<OperacionTerminal>();
+        var notas = new List<(Devolucion Nota, decimal Monto)>();
+        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
         foreach (var pago in pagos)
         {
             if (!formas.TryGetValue(pago.FormaPagoId, out var forma))
-                return new PagosArmados([], [], (CodigoResultadoVenta.PagoInvalido, "La forma de pago no existe o está inactiva."));
-            if (forma.Tipo is TipoFormaPago.NotaCredito or TipoFormaPago.Puntos)
-                return new PagosArmados([], [], (CodigoResultadoVenta.PagoInvalido, $"{forma.Nombre} todavía no está disponible en esta caja."));
+                return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, "La forma de pago no existe o está inactiva.");
+            if (forma.Tipo == TipoFormaPago.Puntos)
+                return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, $"{forma.Nombre} todavía no está disponible en esta caja.");
 
             var referencia = pago.Referencia;
             var ultimosDigitos = pago.UltimosDigitos;
@@ -441,14 +468,43 @@ internal sealed class ServicioVentas(
                 if (pago.OperacionTerminalId is not { } id || !operaciones.TryGetValue(id, out var operacion) || !operacion.DisponibleParaCobro
                     || operacion.VentaId != venta.Id || operacion.Monto != decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero)
                     || usadas.Contains(operacion))
-                    return new PagosArmados([], [], (CodigoResultadoVenta.OperacionTerminalInvalida,
-                        "Pase la tarjeta por el terminal por el monto exacto, o registre la aprobación manual si la pasarela no responde."));
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.OperacionTerminalInvalida,
+                        "Pase la tarjeta por el terminal por el monto exacto, o registre la aprobación manual si la pasarela no responde.");
 
                 referencia = operacion.Aprobacion;
                 ultimosDigitos = operacion.UltimosDigitos;
                 marca = operacion.Marca;
                 operacionId = operacion.Id;
                 usadas.Add(operacion);
+            }
+
+            // Nota de crédito por su e-NCF (RF-36): debe existir en esta caja, estar vigente y tener saldo para lo que se aplica (RF-43).
+            if (forma.Tipo == TipoFormaPago.NotaCredito)
+            {
+                var codigo = pago.Referencia?.Trim().ToUpperInvariant();
+                var nota = string.IsNullOrEmpty(codigo)
+                    ? null
+                    : notas.Select(n => n.Nota).FirstOrDefault(n => n.Encf == codigo)
+                        ?? await contexto.Devoluciones.Include(d => d.Consumos).SingleOrDefaultAsync(d => d.Encf == codigo, cancelacion);
+                if (nota is null)
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, string.IsNullOrEmpty(codigo)
+                        ? "Escanee el código de la nota de crédito."
+                        : $"La nota de crédito {codigo} no existe en esta caja. Verifique el número; las de otra sucursal se validan con el Central.");
+
+                var monto = decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero);
+                var disponible = nota.Saldo - notas.Where(n => n.Nota == nota).Sum(n => n.Monto);
+                var problema = nota.EstadoSaldo(hoy) switch
+                {
+                    EstadoNotaCredito.Consumida => $"La nota de crédito {codigo} ya fue consumida.",
+                    EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn:dd/MM/yyyy}.",
+                    _ when monto > disponible => $"La nota de crédito {codigo} solo tiene RD${disponible:N2} disponibles.",
+                    _ => null,
+                };
+                if (problema is not null)
+                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, problema);
+
+                notas.Add((nota, monto));
+                referencia = nota.Encf;
             }
 
             var formaCobro = new FormaPagoParaCobro(forma.Id, forma.Codigo, forma.Nombre, forma.Tipo, forma.Moneda, forma.PermiteDevuelta,
@@ -468,7 +524,7 @@ internal sealed class ServicioVentas(
                 operacionId));
         }
 
-        return new PagosArmados(solicitados, usadas, null);
+        return new PagosArmados(solicitados, usadas, notas, null);
     }
 
     private Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion) =>

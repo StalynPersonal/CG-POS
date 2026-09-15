@@ -10,6 +10,7 @@ using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Catalogo;
+using CgPos.Pos.Aplicacion.Devoluciones;
 using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
@@ -773,6 +774,72 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             contexto.Auditoria.CountAsync(registro => registro.Accion == "Caja.CierreReabierto" && registro.EntidadId == turnoId)));
     }
 
+    [SkippableFact]
+    public async Task Devolucion_emite_nota_de_credito_E34_que_se_consume_por_partes_en_otra_venta()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var factura = cobro.Venta!;
+        var total = factura.TotalCobrado!.Value;
+
+        var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        Assert.True(buscada.Exitosa, buscada.Mensaje);
+        var linea = Assert.Single(buscada.Factura!.Lineas);
+        Assert.Equal(1m, linea.CantidadDisponible);
+        Assert.False(buscada.Factura.RetieneImpuesto);
+
+        // La factura no tiene cliente: se pide el RNC; la devolución la autoriza el encargado.
+        var solicitud = new SolicitudDevolucion(factura.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
+            caja.Catalogo.CodigoMotivoDevolucion, null, null);
+        var sinAutorizacion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
+        Assert.Equal(CodigoResultadoDevolucion.RequiereAutorizacion, sinAutorizacion.Resultado);
+        Assert.Equal(CatalogoPermisos.AutorizarDevolucion, sinAutorizacion.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Artículo defectuoso");
+        var devolucion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud with { AutorizacionId = autorizacion }));
+        Assert.True(devolucion.Exitosa, devolucion.Mensaje);
+        var nota = devolucion.NotaCredito!;
+        Assert.Equal(total, nota.Total);
+        Assert.True(nota.EsTotal);
+        Assert.Equal("Supervisor Seguridad", nota.AutorizadoPorNombre);
+        var encfNota = nota.Comprobante!.Encf;
+        Assert.StartsWith("E34", encfNota);
+
+        var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.DocumentosElectronicos.Where(d => d.VentaId == nota.Id).Select(d => d.RutaXml).SingleAsync());
+        var xml = await File.ReadAllTextAsync(rutaXml);
+        Assert.Contains($"<NCFModificado>{factura.Comprobante!.Encf}</NCFModificado>", xml);
+        Assert.Contains("<CodigoModificacion>1</CodigoModificacion>", xml);
+
+        // No se devuelve dos veces lo mismo (RF-42).
+        var otraVez = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.Comprobante.Encf));
+        Assert.Equal(CodigoResultadoDevolucion.TodoDevuelto, otraVez.Resultado);
+
+        // Se consume la mitad en otra venta y queda saldo (RF-43).
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var mitad = decimal.Round(total / 2, 2);
+        var segundoCobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, mitad, encfNota), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.True(segundoCobro.Exitosa, segundoCobro.Mensaje);
+
+        var saldo = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaSaldoNotaCredito>(s => s.ConsultarNotaCreditoAsync(caja.Cajero, encfNota));
+        Assert.True(saldo.Exitosa, saldo.Mensaje);
+        Assert.Equal(total - mitad, saldo.NotaCredito!.Saldo);
+        Assert.NotEmpty(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*saldo-nc-{encfNota}-*.txt"));
+
+        // Más de lo disponible se rechaza.
+        var tercera = await caja.VentaActualAsync();
+        await caja.AgregarAsync(tercera.Id, caja.Catalogo.BarrasCincel);
+        var excedido = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, tercera.Id,
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, total, encfNota)], null));
+        Assert.Equal(CodigoResultadoVenta.PagoInvalido, excedido.Resultado);
+        Assert.Contains("disponibles", excedido.Mensaje);
+    }
+
     private static class BalanzaPrueba
     {
         public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;
@@ -863,6 +930,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.FacturaCreditoFiscal, desde, desde + 999, vence),
                 new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.RegimenesEspeciales, desde, desde + 999, vence),
                 new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.Gubernamental, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.NotaCredito, desde, desde + 999, vence),
             ]), "Pruebas"));
 
             caja.Cajero = await caja.IngresarAsync(caja.Escenario.CodigoCajero, EscenarioSeguridad.PinCajero);

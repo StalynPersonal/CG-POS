@@ -17,6 +17,7 @@ internal static class TiposSecuencia
 {
     public const string Turno = "Turno";
     public const string Transaccion = "Transaccion";
+    public const string NotaCredito = "NotaCredito";
 }
 
 /// <summary>

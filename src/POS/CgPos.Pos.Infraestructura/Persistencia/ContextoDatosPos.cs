@@ -53,6 +53,10 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Venta> Ventas => Set<Venta>();
     public DbSet<AutorizacionOtorgada> AutorizacionesOtorgadas => Set<AutorizacionOtorgada>();
 
+    // Devoluciones y notas de crédito (M10)
+    public DbSet<CgPos.Dominio.Devoluciones.MotivoDevolucion> MotivosDevolucion => Set<CgPos.Dominio.Devoluciones.MotivoDevolucion>();
+    public DbSet<CgPos.Dominio.Devoluciones.Devolucion> Devoluciones => Set<CgPos.Dominio.Devoluciones.Devolucion>();
+
     // Descuentos y promociones (M06, M07)
     public DbSet<Promocion> Promociones => Set<Promocion>();
     public DbSet<MotivoDescuento> MotivosDescuento => Set<MotivoDescuento>();

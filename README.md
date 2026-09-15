@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente), C5 (descuentos y promociones), C6 (cobro y periféricos), C7 (facturación electrónica offline) y C8 (turnos y cierre) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente), C5 (descuentos y promociones), C6 (cobro y periféricos), C7 (facturación electrónica offline), C8 (turnos y cierre) y C9 (devoluciones y notas de crédito) completadas.
 
 ## Stack
 
@@ -170,6 +170,17 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Al cerrar:** se imprime el reporte (esperado, declarado, diferencia por forma de pago, denominaciones, retiros y relevos) y el cierre queda en la bandeja de salida (`Caja.TurnoCerrado`), igual que retiros, relevos y reaperturas.
 - **Reapertura:** desde la apertura, *Reabrir el último cierre* con motivo y autorización de nivel superior (en los datos de desarrollo, el gerente G001). El cierre queda como *Reabierto* y el turno vuelve a su cajero.
 - **API:** `GET /api/caja/turno/resumen`, `POST /api/caja/turno/{precierre|retiros|relevo|cierre}`, `GET /api/caja/cierres`, `POST /api/caja/cierres/{id}/{reabrir|reimprimir}`.
+
+### Devoluciones y notas de crédito
+
+- **Pantalla `/devoluciones`:** F10 desde la venta (la venta en curso queda guardada) o una estación dedicada en un tercer monitor. Se escanea el código de barras del ticket (número de transacción) o se digita el e-NCF.
+- **Devolución parcial o total:** por línea se ve lo vendido, lo ya devuelto y lo disponible; no se puede devolver más de lo vendido. Los serializados piden el serial vendido. Si la factura no tiene cliente se pide cédula o RNC (el nombre sale del padrón DGII o se digita).
+- **Motivo y autorización:** motivo seleccionable (`motivosDevolucion` en los maestros) y clave del encargado (permiso `Devoluciones.Autorizar`), que sale impreso en la nota.
+- **Plazo:** pasados `Devoluciones.DiasRetencionImpuesto` días (30 por defecto) se retiene el ITBIS y la nota acredita solo la base.
+- **Nota de crédito E34:** se firma en la caja en la misma transacción, con referencia al e-CF de la factura (código 1 si completa la factura, 3 si es parcial), y viaja al Central en `Devolucion.NotaCreditoEmitida`. Se imprimen la copia del cliente (código de barras y política `Devoluciones.PoliticaNotaCredito`) y la de contabilidad.
+- **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente (`Devoluciones.MesesVigenciaNotaCredito`, 6 por defecto) y tenga saldo. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
+- **Otra sucursal:** las facturas y notas de crédito que no existen en la caja se informan como tales; se validarán con el Central en la Etapa 2.
+- **API:** `GET /api/devoluciones/factura/{numero}`, `POST /api/devoluciones`, `GET /api/devoluciones/notas-credito/{codigo}`, `POST /api/devoluciones/{id}/reimprimir`, `GET /api/devoluciones/motivos`.
 
 ### Pantalla del cliente y monitores
 

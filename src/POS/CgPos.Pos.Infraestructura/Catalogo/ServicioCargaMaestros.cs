@@ -65,6 +65,7 @@ internal sealed class ServicioCargaMaestros(
         var topesDescuento = paquete.TopesDescuento ?? [];
         var tasasCambio = paquete.TasasCambio ?? [];
         var secuenciasEcf = paquete.SecuenciasEcf ?? [];
+        var motivosDevolucion = paquete.MotivosDevolucion ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -102,6 +103,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarTasaCambioAsync(dato, cancelacion);
             foreach (var dato in secuenciasEcf)
                 await AplicarSecuenciaEcfAsync(dato, cancelacion);
+            foreach (var dato in motivosDevolucion)
+                await AplicarMotivoDevolucionAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -419,6 +422,24 @@ internal sealed class ServicioCargaMaestros(
         {
             motivo = MotivoDescuento.Crear(dato.Codigo, dato.Nombre, dato.Id);
             contexto.MotivosDescuento.Add(motivo);
+            _creados++;
+        }
+        else
+        {
+            motivo.CambiarNombre(dato.Nombre);
+            _actualizados++;
+        }
+
+        if (dato.Activo) motivo.Activar(); else motivo.Desactivar();
+    }
+
+    private async Task AplicarMotivoDevolucionAsync(MotivoDevolucionCarga dato, CancellationToken cancelacion)
+    {
+        var motivo = await contexto.MotivosDevolucion.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion);
+        if (motivo is null)
+        {
+            motivo = Dominio.Devoluciones.MotivoDevolucion.Crear(dato.Codigo, dato.Nombre, dato.Id);
+            contexto.MotivosDevolucion.Add(motivo);
             _creados++;
         }
         else

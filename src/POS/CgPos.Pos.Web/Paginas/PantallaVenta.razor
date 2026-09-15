@@ -236,7 +236,7 @@ else
                 <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="AbrirEsperaAsync" />
                 <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="TotalizarAsync" />
                 <TeclaFuncion Atajo="F9" Texto="Suspender" Icono="@Icons.Material.Filled.DesktopAccessDisabled" Deshabilitada="true" />
-                <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" AlPresionar="IrADevolucionesAsync" />
                 <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="ConsultarPrecioAsync" />
                 <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" AlPresionar="AbrirClienteAsync" />
             </PaginaPrincipal>
@@ -369,6 +369,13 @@ else
         }
 
         await CargarAsync();
+    }
+
+    /// <summary>La venta en curso queda guardada; al volver se recupera (RF-195).</summary>
+    private Task IrADevolucionesAsync()
+    {
+        Navegacion.NavigateTo("devoluciones");
+        return Task.CompletedTask;
     }
 
     // ---------- Relevo, retiros, cierre y reapertura (C8) ----------
@@ -985,6 +992,7 @@ else
             "F5" => PesarAsync(),
             "F7" => AbrirEsperaAsync(),
             "F8" => TotalizarAsync(),
+            "F10" => IrADevolucionesAsync(),
             "F11" => ConsultarPrecioAsync(),
             "F12" => AbrirClienteAsync(),
             "Escape" => SalirDeModosAsync(),
