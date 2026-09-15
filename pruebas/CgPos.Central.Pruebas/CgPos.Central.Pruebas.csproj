@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Central\CgPos.Central.Aplicacion\CgPos.Central.Aplicacion.csproj" />
     <ProjectReference Include="..\..\src\Central\CgPos.Central.Infraestructura\CgPos.Central.Infraestructura.csproj" />
     <ProjectReference Include="..\..\src\Central\CgPos.Central.Api\CgPos.Central.Api.csproj" />
+    <ProjectReference Include="..\..\src\POS\CgPos.Pos.Infraestructura\CgPos.Pos.Infraestructura.csproj" />
   </ItemGroup>
 
 </Project>

@@ -42,6 +42,9 @@ public static class InyeccionDependencias
         servicios.AddScoped<IServicioSesionesCentral, ServicioSesionesCentral>();
         servicios.AddScoped<IServicioDispositivos, ServicioDispositivos>();
 
+        // Sincronización con las cajas (M14).
+        servicios.AddScoped<Aplicacion.Sincronizacion.IServicioRecepcion, Sincronizacion.ServicioRecepcion>();
+
         return servicios;
     }
 

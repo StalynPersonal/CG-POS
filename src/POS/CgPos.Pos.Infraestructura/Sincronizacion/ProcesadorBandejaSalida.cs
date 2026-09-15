@@ -26,7 +26,7 @@ internal sealed class ProcesadorBandejaSalida(
     ILogger<ProcesadorBandejaSalida> registro) : IProcesadorBandejaSalida
 {
     /// <summary>Mensajes cuyo documento tiene un e-CF firmado en la caja (su agregado es la venta o la devolución).</summary>
-    private static readonly HashSet<string> TiposConEcf = ["Venta.Cobrada", "Devolucion.NotaCreditoEmitida"];
+    private static IReadOnlySet<string> TiposConEcf => TiposMensaje.ConEcf;
 
     public async Task<ResultadoProcesoBandeja> ProcesarAsync(CancellationToken cancelacion = default)
     {

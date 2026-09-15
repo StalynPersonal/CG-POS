@@ -70,6 +70,7 @@ try
     aplicacion.MapHealthChecks("/salud");
     aplicacion.MapearApiSesion();
     aplicacion.MapearApiDispositivos();
+    aplicacion.MapearApiSincronizacion();
 
     await aplicacion.Services.InicializarBaseDatosCentralAsync();
 

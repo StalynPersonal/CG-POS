@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="CgPos.Pos.Pruebas" />
+    <!-- Prueba de extremo a extremo del cliente de sincronización de la caja contra el Central real. -->
+    <InternalsVisibleTo Include="CgPos.Central.Pruebas" />
   </ItemGroup>
 
   <PropertyGroup>

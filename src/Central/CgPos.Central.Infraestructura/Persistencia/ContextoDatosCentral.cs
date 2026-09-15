@@ -22,6 +22,12 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<UsuarioCentral> UsuariosCentral => Set<UsuarioCentral>();
     public DbSet<SesionCentral> SesionesCentral => Set<SesionCentral>();
 
+    // Sincronización con las cajas (M14)
+    public DbSet<CgPos.Dominio.Sincronizacion.DocumentoRecibido> DocumentosRecibidos => Set<CgPos.Dominio.Sincronizacion.DocumentoRecibido>();
+    public DbSet<CgPos.Dominio.Sincronizacion.ComprobanteRecibido> ComprobantesRecibidos => Set<CgPos.Dominio.Sincronizacion.ComprobanteRecibido>();
+    public DbSet<CgPos.Dominio.Sincronizacion.ConflictoSincronizacion> ConflictosSincronizacion => Set<CgPos.Dominio.Sincronizacion.ConflictoSincronizacion>();
+    public DbSet<CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja> EstadosSincronizacionCaja => Set<CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja>();
+
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosCentral).Assembly);

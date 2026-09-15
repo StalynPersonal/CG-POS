@@ -10,6 +10,12 @@ public static class ClavesSincronizacion
 
     public const string UrlCentral = "Central:Url";
 
+    /// <summary>Secreto de la credencial de dispositivo que el Central emitió para esta caja (se configura al instalarla).</summary>
+    public const string SecretoCaja = "Central:Secreto";
+
+    /// <summary>Id de la caja en esta instalación; con el secreto forma la credencial ante el Central.</summary>
+    public const string CajaId = "Caja:Id";
+
     /// <summary>Carpeta donde el Central simulado guarda los mensajes recibidos.</summary>
     public const string CarpetaSimulada = "Central:CarpetaSimulada";
 

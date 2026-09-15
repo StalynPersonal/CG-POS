@@ -38,28 +38,61 @@ public class CentralPruebas : IDisposable
     }
 
     [Fact]
-    public async Task Cliente_http_envia_la_clave_de_idempotencia_y_distingue_rechazo_de_falta_de_conexion()
+    public async Task Cliente_http_se_autentica_envia_la_clave_de_idempotencia_y_distingue_rechazo_de_falta_de_conexion()
     {
         var mensaje = Mensaje("""{"total":850}""");
+        var cajaId = Guid.CreateVersion7();
         HttpRequestMessage? recibida = null;
+        var tokensPedidos = 0;
 
-        ClienteCentralHttp Cliente(Func<HttpResponseMessage> respuesta) =>
-            new(new HttpClient(new ManejadorPrueba(solicitud => { recibida = solicitud; return respuesta(); })) { BaseAddress = new Uri("https://central.prueba/") });
+        ClienteCentralHttp Cliente(Func<HttpResponseMessage> respuesta, string? secreto = "secreto-caja") =>
+            new(new HttpClient(new ManejadorPrueba(solicitud =>
+            {
+                if (solicitud.RequestUri!.AbsolutePath.EndsWith(ClienteCentralHttp.RutaToken, StringComparison.Ordinal))
+                {
+                    tokensPedidos++;
+                    return Json(HttpStatusCode.OK, $$"""{"exitoso":true,"token":"token-{{tokensPedidos}}","expiraEn":"{{DateTimeOffset.UtcNow.AddMinutes(30):O}}"}""");
+                }
 
-        var duplicado = await Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Duplicado"}""")).EnviarAsync(mensaje);
-        Assert.True(duplicado.Confirmado);
+                recibida = solicitud;
+                return respuesta();
+            })) { BaseAddress = new Uri("https://central.prueba/") }, cajaId, secreto, TimeProvider.System);
+
+        var cliente = Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Duplicado"}"""));
+        Assert.True((await cliente.EnviarAsync(mensaje)).Confirmado);
         Assert.Equal(mensaje.Id.ToString(), recibida!.Headers.GetValues("Idempotency-Key").Single());
         Assert.Equal(mensaje.HashContenido, recibida.Headers.GetValues("X-Contenido-Sha256").Single());
+        Assert.Equal("Bearer token-1", recibida.Headers.Authorization!.ToString());
         Assert.EndsWith(ClienteCentralHttp.RutaRecepcion, recibida.RequestUri!.AbsolutePath);
+
+        // El token vigente se reutiliza en el siguiente envío.
+        Assert.True((await cliente.EnviarAsync(mensaje)).Confirmado);
+        Assert.Equal(1, tokensPedidos);
 
         var rechazado = await Cliente(() => Json(HttpStatusCode.UnprocessableEntity, """{"estado":"Rechazado","error":"Caja no registrada"}""")).EnviarAsync(mensaje);
         Assert.Equal((false, true, "Caja no registrada"), (rechazado.Confirmado, rechazado.CentralRespondio, rechazado.Error));
 
+        // Un 401 con el token guardado pide otro una vez; si sigue sin aceptarse es un rechazo.
+        var antes = tokensPedidos;
+        var noAutorizado = await Cliente(() => new HttpResponseMessage(HttpStatusCode.Unauthorized)).EnviarAsync(mensaje);
+        Assert.Equal((false, true), (noAutorizado.Confirmado, noAutorizado.CentralRespondio));
+        Assert.Equal(antes + 2, tokensPedidos);
+
         var caido = await Cliente(() => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)).EnviarAsync(mensaje);
         Assert.Equal((false, false), (caido.Confirmado, caido.CentralRespondio));
 
+        var sinCredencial = await Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Recibido"}"""), secreto: null).EnviarAsync(mensaje);
+        Assert.Equal((false, false), (sinCredencial.Confirmado, sinCredencial.CentralRespondio));
+        Assert.Contains(ClavesSincronizacion.SecretoCaja, sinCredencial.Error);
+
+        var credencialRechazada = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ =>
+                Json(HttpStatusCode.Unauthorized, """{"exitoso":false,"mensaje":"Credencial de caja no válida."}""")))
+            { BaseAddress = new Uri("https://central.prueba/") }, cajaId, "otro", TimeProvider.System).EnviarAsync(mensaje);
+        Assert.Equal((false, true), (credencialRechazada.Confirmado, credencialRechazada.CentralRespondio));
+        Assert.Contains("Credencial de caja no válida.", credencialRechazada.Error);
+
         var sinRed = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ => throw new HttpRequestException("sin red")))
-            { BaseAddress = new Uri("https://central.prueba/") }).EnviarAsync(mensaje);
+            { BaseAddress = new Uri("https://central.prueba/") }, cajaId, "secreto", TimeProvider.System).EnviarAsync(mensaje);
         Assert.False(sinRed.CentralRespondio);
     }
 

@@ -243,7 +243,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 ### Sincronización con el Central y mantenimiento
 
 - **Bandeja de salida:** todo documento (venta, nota de crédito, cierre, pendiente, movimiento de puntos…) se guarda con su mensaje en la misma transacción. Un servicio en segundo plano del Agente lo envía cada `Sincronizacion:IntervaloSegundos` en orden de creación, con el Id del mensaje como clave de idempotencia y el SHA-256 del contenido. Sin comunicación detiene el lote y reintenta con espera progresiva (`EsperaInicialSegundos` duplicada hasta `EsperaMaximaSegundos`); la caja sigue operando.
-- **Central:** `Central:Url` para el Central real (`POST api/sincronizacion/mensajes`) o `Central:Modo = Simulado`, que guarda los mensajes en `Central:CarpetaSimulada` con la misma idempotencia y validación de hash. Sin ninguno, la barra muestra «Sin Central».
+- **Central:** `Central:Url` para el Central real (`POST api/sincronizacion/mensajes`), con `Caja:Id` y `Central:Secreto` (la credencial que el Central emite para la caja; la caja la cambia por un token de dispositivo), o `Central:Modo = Simulado`, que guarda los mensajes en `Central:CarpetaSimulada` con la misma idempotencia y validación de hash. Sin ninguno, la barra muestra «Sin Central».
 - **XML de e-CF:** al confirmarse la venta o la nota de crédito, el e-CF queda *Sincronizado* y su XML pasa de `Pendientes` a `Enviados`; nada sale de `Pendientes` sin confirmación del Central.
 - **Mantenimiento** (cada `Mantenimiento:IntervaloMinutos`): verificación de la hora contra `Reloj:ServidorNtp`; respaldo diario de la base desde `Respaldo:Hora` en `Respaldo:Carpeta` (vacía = carpeta de respaldos de la instancia; la cuenta del servicio de SQL Server debe poder escribir en ella); purga de XML enviados, mensajes confirmados y respaldos según los parámetros de retención.
 - **Alertas en la barra de estado:** tamaño de la base, documentos atrasados sin sincronizar, hora desfasada y respaldo fallido.
@@ -292,6 +292,12 @@ dotnet run --project src/Central/CgPos.Central.Api
 | `Central.Dispositivos.MinutosToken` | Vigencia del token de las cajas | Sí |
 
 - **API:** `POST /api/sesion/ingreso`, `POST /api/sesion/renovar`, `GET /api/sesion/actual`, `POST /api/sesion/cerrar`, `POST /api/sesion/contrasena`; `POST /api/cajas/{id}/credencial` y `POST /api/cajas/{id}/credencial/revocar` (permiso `Central.Dispositivos.Administrar`); `POST /api/dispositivos/token` y `GET /api/dispositivos/actual` para las cajas.
+
+### Recepción de documentos de las cajas
+
+- `POST /api/sincronizacion/mensajes` (token de dispositivo): el Central valida que el mensaje sea de la caja autenticada, el SHA-256 del contenido y el del XML del e-CF, y guarda el documento una sola vez. Un reenvío con el mismo contenido responde *Duplicado* y la caja lo da por confirmado; lo rechazado responde 422 y la caja reintenta más tarde.
+- Los e-CF recibidos quedan pendientes de envío a la DGII (fase H4), con el XML firmado y su hash; un e-NCF se registra una sola vez.
+- **Conflictos** (el Central es autoridad sobre maestros y configuración; la caja sobre sus transacciones): otro contenido con el mismo Id, hash o XML alterado, mensaje de otra caja o e-NCF repetido quedan registrados una vez por mensaje (con sus repeticiones), en auditoría y en el log. Un e-NCF repetido no rechaza la transacción.
 
 ```powershell
 dotnet ef database update --project src/Central/CgPos.Central.Infraestructura --startup-project src/Central/CgPos.Central.Api

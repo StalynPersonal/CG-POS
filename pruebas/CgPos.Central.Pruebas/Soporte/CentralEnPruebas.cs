@@ -28,6 +28,7 @@ public sealed class CentralEnPruebas : IAsyncLifetime
     public const string ContrasenaAdministrador = "Admin.Central2026";
     public static readonly Guid CajaUno = Guid.Parse("01990000-0000-7000-8000-000000000201");
     public static readonly Guid CajaDos = Guid.Parse("01990000-0000-7000-8000-000000000202");
+    public static readonly Guid Sucursal = Guid.Parse("01990000-0000-7000-8000-000000000101");
 
     // Se usa un tipo público del ensamblado de la API como punto de entrada.
     public WebApplicationFactory<EmisorTokensCentral>? Fabrica { get; private set; }
@@ -130,6 +131,24 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             ? await respuesta.Content.ReadFromJsonAsync<RespuestaSesionCentral>(OpcionesJson.Predeterminadas)
             : null;
         return (respuesta, cuerpo);
+    }
+
+    public static async Task<string> TokenAdministradorAsync(HttpClient cliente) =>
+        (await IngresarAsync(cliente, "ADMIN", ContrasenaAdministrador)).Cuerpo!.TokenAcceso!;
+
+    /// <summary>Emite una credencial nueva para la caja (reemplaza la anterior) y devuelve su secreto.</summary>
+    public static async Task<string> EmitirCredencialAsync(HttpClient cliente, Guid cajaId)
+    {
+        using var respuesta = await cliente.SendAsync(Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", await TokenAdministradorAsync(cliente)));
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!.Secreto;
+    }
+
+    public static async Task<string> TokenCajaAsync(HttpClient cliente, Guid cajaId)
+    {
+        var secreto = await EmitirCredencialAsync(cliente, cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(cajaId, secreto), OpcionesJson.Predeterminadas);
+        return (await respuesta.Content.ReadFromJsonAsync<RespuestaTokenDispositivo>(OpcionesJson.Predeterminadas))!.Token!;
     }
 
     public static HttpRequestMessage Solicitud(HttpMethod metodo, string ruta, string? token, object? cuerpo = null)
