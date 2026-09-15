@@ -84,6 +84,29 @@ public sealed class ServicioAutorizacionPantalla(AlmacenSesion almacen, IDialogS
         }
     }
 
+    /// <summary>Igual que <see cref="EjecutarVentaAsync"/> para el despacho de pendientes de entrega (anulación, RF-255).</summary>
+    /// <returns>La respuesta final, o nulo si el usuario canceló la autorización.</returns>
+    public async Task<RespuestaPendiente?> EjecutarPendienteAsync(Func<Guid?, Task<RespuestaPendiente>> operacion, string descripcion, string numeroPendiente)
+    {
+        var respuesta = await operacion(null);
+
+        // Sin límite de intentos: el usuario cancela la autorización cuando quiera.
+        while (true)
+        {
+            if (respuesta.Resultado is not (CodigoResultadoPendiente.RequiereAutorizacion or CodigoResultadoPendiente.AutorizacionInvalida)
+                || respuesta.PermisoRequerido is not { } permiso)
+                return respuesta;
+
+            var autorizacion = await SolicitarAsync(permiso, descripcion, "PendienteEntrega", numeroPendiente);
+            if (autorizacion is null)
+                return null;
+            if (autorizacion.AutorizacionId is not { } autorizacionId)
+                return respuesta;
+
+            respuesta = await operacion(autorizacionId);
+        }
+    }
+
     /// <summary>Igual que <see cref="EjecutarVentaAsync"/> para las operaciones del turno (retiro, relevo, cierre, reapertura).</summary>
     /// <returns>La respuesta final, o nulo si el usuario canceló la autorización.</returns>
     public async Task<RespuestaCaja?> EjecutarCajaAsync(Func<Guid?, Task<RespuestaCaja>> operacion, string descripcion, string tipoEntidad = "Turno",

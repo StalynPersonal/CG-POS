@@ -207,9 +207,25 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Motivo y autorización:** motivo seleccionable (`motivosDevolucion` en los maestros) y clave del encargado (permiso `Devoluciones.Autorizar`), que sale impreso en la nota.
 - **Plazo:** pasados `Devoluciones.DiasRetencionImpuesto` días (30 por defecto) se retiene el ITBIS y la nota acredita solo la base.
 - **Nota de crédito E34:** se firma en la caja en la misma transacción, con referencia al e-CF de la factura (código 1 si completa la factura, 3 si es parcial), y viaja al Central en `Devolucion.NotaCreditoEmitida`. Se imprimen la copia del cliente (código de barras y política `Devoluciones.PoliticaNotaCredito`) y la de contabilidad.
-- **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente (`Devoluciones.MesesVigenciaNotaCredito`, 6 por defecto) y tenga saldo. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
+- **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente (`Devoluciones.MesesVigenciaNotaCredito`) y tenga saldo. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
 - **Otra sucursal:** las facturas y notas de crédito que no existen en la caja se informan como tales; se validarán con el Central en la Etapa 2.
 - **API:** `GET /api/devoluciones/factura/{numero}`, `POST /api/devoluciones`, `GET /api/devoluciones/notas-credito/{codigo}`, `POST /api/devoluciones/{id}/reimprimir`, `GET /api/devoluciones/motivos`.
+
+### Programa de fidelidad
+
+- **Configuración (Central):** `nivelesFidelidad` (factor de acumulación), `reglasAcumulacion` (puntos por cada monto en todo, una familia, un artículo, un día o una promoción; cada línea toma la más favorable) y `miembrosFidelidad` (cédula, nivel y saldo sincronizado con puntos por vencer). Parámetros `Fidelidad.*`.
+- **En caja (F12):** la cédula es el ID/PIN del miembro; si no está inscrita se inscribe en el mismo paso. El miembro habilita las ofertas exclusivas de fidelidad.
+- **Al cobrar:** acumula sobre lo no pagado con puntos; el canje es la forma de pago *Puntos* (valor del punto, saldo, mínimo y tope sin conexión) con permiso `Fidelidad.CanjearPuntos`. La nota de crédito reversa en proporción lo acumulado.
+- **Saldo:** último saldo del Central (sin lo vencido) más los movimientos de la caja posteriores; cada inscripción y movimiento va al Central.
+- **API:** `GET /api/fidelidad/miembros/{cedula}`, `POST /api/fidelidad/miembros`, `POST|DELETE /api/ventas/{id}/fidelidad`.
+
+### Pendientes de entrega, envíos y despacho
+
+- **Marcar (tecla «Entrega / envío»):** líneas completas o en parte para retiro en un almacén (`almacenes` en los maestros) o envío a dirección, con fecha comprometida; varios destinos por factura. Requiere `Pendientes.Marcar` o clave de supervisor. Los serializados pueden registrarse sin serial si se entregan después.
+- **Al cobrar:** un pendiente por destino (`PE-sucursal-caja-secuencia`) con voucher de código de barras, copia del cliente y del despacho y la política `Entregas.PoliticaPendiente`. Lo pendiente no se devuelve hasta anular el pendiente.
+- **Pantalla `/despacho`:** se escanea el voucher o la factura; preparación, entrega total o parcial con quien recibe y serial, constancia impresa, y anulación con motivo y `Pendientes.Anular`. Opera con `Pendientes.Despachar`.
+- **Pendiente para el Central (Etapa 2):** pendientes de otras cajas o sucursales, notificación por correo al cliente, documento de entrega o traslado en SAP B1 y reportes.
+- **API:** `POST /api/ventas/{id}/entregas`, `DELETE /api/ventas/{id}/entregas/{numero}`, `GET /api/entregas/almacenes`, `GET /api/despacho/pendientes/abiertos`, `GET /api/despacho/pendientes/buscar/{codigo}`, `POST /api/despacho/pendientes/{id}/estado|entregas|anular`.
 
 ### Pantalla del cliente y monitores
 

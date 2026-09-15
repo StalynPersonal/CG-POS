@@ -987,6 +987,96 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Contains("pendientes de entrega", devolucion.Mensaje);
     }
 
+    [SkippableFact]
+    public async Task Despacho_prepara_entrega_por_partes_con_constancia_y_anula_con_autorizacion()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var almacen = Guid.CreateVersion7();
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
+            Almacenes: [new AlmacenCarga(almacen, $"DSP{caja.Catalogo.Sufijo}", $"Almacén despacho {caja.Catalogo.Sufijo}", caja.Escenario.Sucursal)]), "Pruebas"));
+
+        // Factura con cemento y taladro para retiro y un cincel para envío.
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, $"3*{caja.Catalogo.BarrasCemento}");
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var conTaladro = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AgregarArticuloAsync(caja.Cajero, venta.Id, caja.Catalogo.CodigoTaladro, null, serialEnDespacho: true));
+        int Linea(string codigo) => conTaladro.Venta!.Lineas.Single(l => l.CodigoInterno == codigo).NumeroLinea;
+        var cemento = Linea(caja.Catalogo.CodigoCemento);
+        var cincel = Linea(caja.Catalogo.CodigoCincel);
+        var taladro = Linea(caja.Catalogo.CodigoTaladro);
+
+        var autorizacionRetiro = await caja.AutorizarAsync(CatalogoPermisos.MarcarPendiente, "Retira en almacén");
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.MarcarEntregaAsync(caja.Cajero, venta.Id, new SolicitudMarcarEntrega(
+            MetodoEntrega.RetiroAlmacen, almacen, null, null, null, [new CantidadEntrega(cemento, 3m), new CantidadEntrega(taladro, 1m)], autorizacionRetiro)))).Exitosa);
+        var autorizacionEnvio = await caja.AutorizarAsync(CatalogoPermisos.MarcarPendiente, "Envío");
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.MarcarEntregaAsync(caja.Cajero, venta.Id, new SolicitudMarcarEntrega(
+            MetodoEntrega.Envio, null, new DatosEnvio("Calle 3", null, null, null, "809-555-2222", null, null), null, null, [new CantidadEntrega(cincel, 1m)],
+            autorizacionEnvio)))).Exitosa);
+        var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 10_000m)], null));
+        Assert.True(cobrada.Exitosa, cobrada.Mensaje);
+
+        // Se llama por la factura (varios pendientes) o por el voucher (RF-251).
+        var porFactura = await caja.EjecutarAsync<IServicioDespacho, RespuestaBusquedaPendientes>(s => s.BuscarAsync(caja.Cajero, cobrada.Venta!.NumeroTransaccion));
+        Assert.Equal(2, porFactura.Pendientes.Count);
+        var retiro = porFactura.Pendientes.Single(p => p.Metodo == MetodoEntrega.RetiroAlmacen);
+        var envio = porFactura.Pendientes.Single(p => p.Metodo == MetodoEntrega.Envio);
+        var porVoucher = await caja.EjecutarAsync<IServicioDespacho, RespuestaBusquedaPendientes>(s => s.BuscarAsync(caja.Cajero, retiro.Numero.ToLowerInvariant()));
+        Assert.Equal(retiro.Id, Assert.Single(porVoucher.Pendientes).Id);
+        var abiertos = await caja.EjecutarAsync<IServicioDespacho, IReadOnlyList<DatosPendienteEntrega>>(s => s.ListarAbiertosAsync(caja.Cajero));
+        Assert.Contains(abiertos, p => p.Id == retiro.Id);
+
+        // Preparación: un retiro no pasa a despachado (eso es de envíos).
+        var preparacion = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s =>
+            s.CambiarEstadoAsync(caja.Cajero, retiro.Id, new SolicitudEstadoPendiente(EstadoPendiente.EnPreparacion)));
+        Assert.True(preparacion.Exitosa, preparacion.Mensaje);
+        var despachado = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s =>
+            s.CambiarEstadoAsync(caja.Cajero, retiro.Id, new SolicitudEstadoPendiente(EstadoPendiente.Despachado)));
+        Assert.Equal(CodigoResultadoPendiente.OperacionInvalida, despachado.Resultado);
+
+        // Entrega parcial con quien retira e impresión de la constancia (RF-253, RF-254); el taladro exige su serial.
+        var sinSerial = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s => s.EntregarAsync(caja.Cajero, retiro.Id,
+            new SolicitudEntregaPendiente([new CantidadEntregada(taladro, 1m)], "Juan Pérez", "00113918205")));
+        Assert.Equal(CodigoResultadoPendiente.OperacionInvalida, sinSerial.Resultado);
+        Assert.Contains("serial", sinSerial.Mensaje);
+
+        var parcial = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s => s.EntregarAsync(caja.Cajero, retiro.Id,
+            new SolicitudEntregaPendiente([new CantidadEntregada(cemento, 2m)], "Juan Pérez", "00113918205")));
+        Assert.True(parcial.Exitosa, parcial.Mensaje);
+        Assert.Equal(EstadoPendiente.Parcial, parcial.Pendiente!.Estado);
+        Assert.NotEmpty(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*constancia-{retiro.Numero}-1.txt"));
+
+        // Con entregas ya no se anula (RF-255).
+        var anularRetiro = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s => s.AnularAsync(caja.Cajero, retiro.Id, new SolicitudAnularPendiente("Cambio de idea")));
+        Assert.Equal(CodigoResultadoPendiente.OperacionInvalida, anularRetiro.Resultado);
+
+        var completa = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s => s.EntregarAsync(caja.Cajero, retiro.Id,
+            new SolicitudEntregaPendiente([new CantidadEntregada(cemento, 1m), new CantidadEntregada(taladro, 1m, "sn-500")], "Juan Pérez", "00113918205")));
+        Assert.True(completa.Exitosa, completa.Mensaje);
+        Assert.Equal(EstadoPendiente.Entregado, completa.Pendiente!.Estado);
+        Assert.Equal("SN-500", completa.Pendiente.Lineas.Single(l => l.NumeroLineaVenta == taladro).Serial);
+
+        // Entregado, el cemento vuelve a estar disponible para devolución.
+        var factura = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, cobrada.Venta!.NumeroTransaccion));
+        Assert.Equal(3m, factura.Factura!.Lineas.Single(l => l.NumeroLinea == cemento).CantidadDisponible);
+
+        // El envío sin entregas se anula con clave de supervisor y libera la mercancía.
+        var sinAutorizacion = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s =>
+            s.AnularAsync(caja.Cajero, envio.Id, new SolicitudAnularPendiente("Cliente canceló el envío")));
+        Assert.Equal(CodigoResultadoPendiente.RequiereAutorizacion, sinAutorizacion.Resultado);
+        Assert.Equal(CatalogoPermisos.AnularPendiente, sinAutorizacion.PermisoRequerido);
+
+        var autorizacionAnular = await caja.AutorizarAsync(CatalogoPermisos.AnularPendiente, "Cliente canceló el envío");
+        var anulado = await caja.EjecutarAsync<IServicioDespacho, RespuestaPendiente>(s =>
+            s.AnularAsync(caja.Cajero, envio.Id, new SolicitudAnularPendiente("Cliente canceló el envío", autorizacionAnular)));
+        Assert.True(anulado.Exitosa, anulado.Mensaje);
+        Assert.Equal(EstadoPendiente.Anulado, anulado.Pendiente!.Estado);
+
+        var despues = await caja.EjecutarAsync<IServicioDespacho, IReadOnlyList<DatosPendienteEntrega>>(s => s.ListarAbiertosAsync(caja.Cajero));
+        Assert.DoesNotContain(despues, p => p.VentaId == venta.Id);
+    }
+
     private static class BalanzaPrueba
     {
         public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;

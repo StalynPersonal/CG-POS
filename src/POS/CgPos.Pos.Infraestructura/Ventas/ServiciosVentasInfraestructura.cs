@@ -362,13 +362,18 @@ internal sealed class ServicioVentas(
 
         // Pendientes de entrega y envío: un documento numerado por destino, en la bandeja de salida (RF-249, RN-14).
         var pendientes = new List<PendienteEntrega>();
-        foreach (var destino in venta.DestinosEntrega.OrderBy(d => d.Numero))
+        if (venta.DestinosEntrega.Count > 0)
         {
-            var secuenciaPendiente = await secuencias.SiguienteAsync(venta.CajaId, TiposSecuencia.PendienteEntrega, cancelacion);
-            var pendiente = PendienteEntrega.Crear(venta, destino, $"PE-{sesion.CajaCodigo}-{secuenciaPendiente:00000000}", ahora);
-            contexto.PendientesEntrega.Add(pendiente);
-            pendientes.Add(pendiente);
-            bandejaSalida.Encolar("Entregas.PendienteCreado", pendiente.Id, pendiente.ADatos());
+            // Único en toda la empresa, como el número de transacción: sucursal, caja y secuencia de la caja.
+            var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == venta.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
+            foreach (var destino in venta.DestinosEntrega.OrderBy(d => d.Numero))
+            {
+                var secuenciaPendiente = await secuencias.SiguienteAsync(venta.CajaId, TiposSecuencia.PendienteEntrega, cancelacion);
+                var pendiente = PendienteEntrega.Crear(venta, destino, $"PE-{Venta.FormatearNumero(codigoSucursal, sesion.CajaCodigo, secuenciaPendiente)}", ahora);
+                contexto.PendientesEntrega.Add(pendiente);
+                pendientes.Add(pendiente);
+                bandejaSalida.Encolar("Entregas.PendienteCreado", pendiente.Id, pendiente.ADatos());
+            }
         }
 
         // Puntos acumulados y canjeados: van al Central, que lleva el saldo oficial.

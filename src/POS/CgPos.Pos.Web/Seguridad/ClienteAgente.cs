@@ -7,6 +7,7 @@ using CgPos.Contratos.Pantallas;
 using CgPos.Contratos.Seguridad;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
 
@@ -90,6 +91,35 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     public Task<RespuestaVenta> QuitarEntregaAsync(Guid ventaId, int numeroDestino, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/entregas/{numeroDestino}", null, ErrorVenta, cancelacion);
+
+    // ---------- Despacho de pendientes (C10) ----------
+
+    public async Task<IReadOnlyList<DatosPendienteEntrega>> ListarPendientesAbiertosAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosPendienteEntrega>>("api/despacho/pendientes/abiertos", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return [];
+        }
+    }
+
+    public Task<RespuestaBusquedaPendientes> BuscarPendientesAsync(string codigo, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaBusquedaPendientes>(HttpMethod.Get, $"api/despacho/pendientes/buscar/{Uri.EscapeDataString(codigo)}", null,
+            mensaje => new RespuestaBusquedaPendientes(CodigoResultadoPendiente.NoEncontrado, mensaje, []), cancelacion);
+
+    public Task<RespuestaPendiente> CambiarEstadoPendienteAsync(Guid pendienteId, EstadoPendiente estado, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/despacho/pendientes/{pendienteId}/estado", new SolicitudEstadoPendiente(estado), ErrorPendiente, cancelacion);
+
+    public Task<RespuestaPendiente> EntregarPendienteAsync(Guid pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/despacho/pendientes/{pendienteId}/entregas", solicitud, ErrorPendiente, cancelacion);
+
+    public Task<RespuestaPendiente> AnularPendienteAsync(Guid pendienteId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/despacho/pendientes/{pendienteId}/anular", new SolicitudAnularPendiente(motivo, autorizacionId), ErrorPendiente, cancelacion);
+
+    private static RespuestaPendiente ErrorPendiente(string mensaje) => new(CodigoResultadoPendiente.OperacionInvalida, mensaje, null);
 
     public async Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(CancellationToken cancelacion = default)
     {

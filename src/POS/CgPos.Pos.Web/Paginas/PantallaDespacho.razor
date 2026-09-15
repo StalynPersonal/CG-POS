@@ -1,0 +1,325 @@
+@page "/despacho"
+@attribute [Authorize]
+@inject ClienteAgente Cliente
+@inject AlmacenSesion Almacen
+@inject ServicioAutorizacionPantalla Autorizaciones
+@inject NavigationManager Navegacion
+
+@* Módulo de despacho (M12): se escanea el voucher o la factura, se verifican los artículos y se confirma la entrega (RF-251 a RF-255). *@
+
+<PageTitle>CG-POS · Despacho</PageTitle>
+
+<div class="cg-devolucion">
+    <div class="cg-venta__barra-superior">
+        <span class="cg-venta__marca-texto">CG-POS</span>
+        <span class="cg-venta__marca-sub">Despacho de pendientes de entrega</span>
+        <span class="cg-espaciador"></span>
+        <span>@Almacen.Sesion?.Nombre · @Almacen.Sesion?.CajaNombre</span>
+    </div>
+
+    <div class="cg-devolucion__contenido">
+        <section class="cg-devolucion__buscar">
+            <MudTextField T="string" @bind-Value="_codigo" Label="Escanee el voucher del pendiente o la factura" Variant="Variant.Outlined"
+                          Immediate="true" AutoFocus="true" OnKeyDown="AlTeclear" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.QrCodeScanner" Class="cg-campo-activo" />
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Search" Disabled="_procesando"
+                       Class="cg-devolucion__boton" OnClick="BuscarAsync">Buscar</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.List" Class="cg-devolucion__boton"
+                       OnClick="VolverALaListaAsync">Pendientes abiertos</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale" Class="cg-devolucion__boton"
+                       OnClick="@(() => Navegacion.NavigateTo(string.Empty))">Volver a la venta</MudButton>
+        </section>
+
+        @if (_procesando)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+        }
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Warning">@_mensaje</MudAlert>
+        }
+        @if (_aviso is not null)
+        {
+            <MudAlert Severity="Severity.Success">@_aviso</MudAlert>
+        }
+
+        @if (_pendiente is { } pendiente)
+        {
+            <section class="cg-devolucion__tarjeta">
+                <div class="cg-devolucion__cabecera">
+                    <div class="cg-devolucion__dato"><small>Pendiente</small><strong>@pendiente.Numero</strong></div>
+                    <div class="cg-devolucion__dato"><small>Factura</small><strong>@pendiente.VentaNumero</strong></div>
+                    <div class="cg-devolucion__dato"><small>Estado</small><strong>@NombreEstado(pendiente.Estado)</strong></div>
+                    <div class="cg-devolucion__dato"><small>Cliente</small><strong>@(pendiente.ClienteNombre ?? "Cliente contado")</strong></div>
+                    @if (pendiente.FechaComprometida is { } fecha)
+                    {
+                        <div class="cg-devolucion__dato"><small>Fecha comprometida</small><strong>@fecha.ToString("dd/MM/yyyy")</strong></div>
+                    }
+                </div>
+                <MudText Typo="Typo.body1">
+                    @if (pendiente.Metodo == MetodoEntrega.Envio)
+                    {
+                        <span>Envío a @pendiente.Direccion@(pendiente.Sector is null ? null : $", {pendiente.Sector}")@(pendiente.Ciudad is null ? null : $", {pendiente.Ciudad}") · Tel. @pendiente.Telefono@(pendiente.Transportista is null ? null : $" · {pendiente.Transportista}")</span>
+                    }
+                    else
+                    {
+                        <span>Retiro en @pendiente.AlmacenNombre</span>
+                    }
+                    @if (pendiente.Comentario is { } comentario)
+                    {
+                        <span> · @comentario</span>
+                    }
+                </MudText>
+
+                <div class="cg-tabla-desplazable">
+                    <table class="cg-devolucion__tabla">
+                        <thead>
+                            <tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Entregado</th><th>Pendiente</th><th>A entregar</th><th>Serial</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var linea in _lineas)
+                            {
+                                var porEntregar = linea.Datos.Cantidad - linea.Datos.CantidadEntregada;
+                                <tr class="@(porEntregar <= 0 ? "cg-devolucion__agotada" : null)">
+                                    <td>@linea.Datos.Codigo</td>
+                                    <td>@linea.Datos.Descripcion</td>
+                                    <td>@linea.Datos.Cantidad.ToString("N" + linea.Datos.DecimalesCantidad)</td>
+                                    <td>@linea.Datos.CantidadEntregada.ToString("N" + linea.Datos.DecimalesCantidad)</td>
+                                    <td>@porEntregar.ToString("N" + linea.Datos.DecimalesCantidad)</td>
+                                    <td class="cg-devolucion__cantidad">
+                                        <MudNumericField T="decimal" @bind-Value="linea.Cantidad" Min="0m" Max="porEntregar" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                         Disabled="@(porEntregar <= 0 || !Abierto)" />
+                                    </td>
+                                    <td>
+                                        @if (linea.Datos.Serializado && porEntregar > 0)
+                                        {
+                                            <MudTextField T="string" @bind-Value="linea.Serial" Placeholder="Escanee el serial" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        }
+                                        else
+                                        {
+                                            @linea.Datos.Serial
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Abierto)
+                {
+                    <div class="cg-devolucion__pie">
+                        <div class="cg-devolucion__motivo">
+                            <div class="cg-devolucion__etiqueta">Quien recibe (RF-254)</div>
+                            <MudTextField T="string" @bind-Value="_recibeNombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudTextField T="string" @bind-Value="_recibeCedula" Label="Cédula" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </div>
+                        <div class="cg-devolucion__acciones">
+                            @if (pendiente.Estado is EstadoPendiente.Pendiente or EstadoPendiente.Parcial)
+                            {
+                                <MudButton Variant="Variant.Outlined" Size="Size.Large" Disabled="_procesando" OnClick="() => CambiarEstadoAsync(EstadoPendiente.EnPreparacion)">En preparación</MudButton>
+                            }
+                            @if (pendiente.Estado is EstadoPendiente.Pendiente or EstadoPendiente.EnPreparacion or EstadoPendiente.Parcial)
+                            {
+                                <MudButton Variant="Variant.Outlined" Size="Size.Large" Disabled="_procesando" OnClick="() => CambiarEstadoAsync(EstadoPendiente.Preparado)">Preparado</MudButton>
+                            }
+                            @if (pendiente.Metodo == MetodoEntrega.Envio && pendiente.Estado is EstadoPendiente.Preparado or EstadoPendiente.Parcial)
+                            {
+                                <MudButton Variant="Variant.Outlined" Size="Size.Large" Disabled="_procesando" OnClick="() => CambiarEstadoAsync(EstadoPendiente.Despachado)">Despachado</MudButton>
+                            }
+                            <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="EntregarTodo">Entregar todo</MudButton>
+                        </div>
+                        <div>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" StartIcon="@Icons.Material.Filled.AssignmentTurnedIn"
+                                       Disabled="_procesando" Style="min-height: var(--cg-toque-minimo); font-size: 1.1rem" OnClick="EntregarAsync">Registrar entrega</MudButton>
+                            @if (pendiente.Entregas.Count == 0)
+                            {
+                                <MudTextField T="string" @bind-Value="_motivo" Label="Motivo para anular" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
+                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Large" FullWidth="true" StartIcon="@Icons.Material.Filled.Block"
+                                           Disabled="_procesando" OnClick="AnularAsync">Anular pendiente</MudButton>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (pendiente.Entregas.Count > 0)
+                {
+                    <div class="cg-devolucion__etiqueta">Entregas registradas</div>
+                    @foreach (var entrega in pendiente.Entregas)
+                    {
+                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">
+                            @entrega.Numero · @entrega.Fecha.ToLocalTime().ToString("dd/MM/yyyy h:mm tt") · @entrega.RecibeNombre (@entrega.RecibeCedula) ·
+                            @string.Join(", ", entrega.Lineas.Select(l => $"{l.Descripcion} × {l.Cantidad:0.###}"))
+                        </MudChip>
+                    }
+                }
+            </section>
+        }
+        else
+        {
+            <section class="cg-devolucion__tarjeta">
+                <div class="cg-devolucion__etiqueta">Pendientes abiertos (@_pendientes.Count)</div>
+                @if (_pendientes.Count == 0)
+                {
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">No hay pendientes de entrega abiertos en esta caja.</MudText>
+                }
+                @foreach (var abierto in _pendientes)
+                {
+                    <div class="cg-cliente__actual cg-venta__tocable" @onclick="() => Seleccionar(abierto)">
+                        <div>
+                            <MudText Typo="Typo.h6" Style="font-weight: 700">@abierto.Numero · @NombreEstado(abierto.Estado)</MudText>
+                            <MudText Typo="Typo.body2">
+                                @(abierto.Metodo == MetodoEntrega.Envio ? $"Envío a {abierto.Direccion}" : $"Retiro en {abierto.AlmacenNombre}")
+                                · Factura @abierto.VentaNumero · @(abierto.ClienteNombre ?? "Cliente contado")
+                                @if (abierto.FechaComprometida is { } fecha)
+                                {
+                                    <span> · para el @fecha.ToString("dd/MM/yyyy")</span>
+                                }
+                            </MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
+                    </div>
+                }
+            </section>
+        }
+    </div>
+</div>
+
+@code {
+    private sealed class LineaEntrega(DatosLineaPendiente datos)
+    {
+        public DatosLineaPendiente Datos { get; } = datos;
+        public decimal Cantidad { get; set; }
+        public string? Serial { get; set; }
+    }
+
+    private string _codigo = string.Empty;
+    private string? _mensaje;
+    private string? _aviso;
+    private bool _procesando;
+    private IReadOnlyList<DatosPendienteEntrega> _pendientes = [];
+    private DatosPendienteEntrega? _pendiente;
+    private List<LineaEntrega> _lineas = [];
+    private string? _recibeNombre;
+    private string? _recibeCedula;
+    private string? _motivo;
+
+    private bool Abierto => _pendiente is { Estado: not (EstadoPendiente.Entregado or EstadoPendiente.Anulado) };
+
+    protected override Task OnInitializedAsync() => CargarAbiertosAsync();
+
+    private async Task CargarAbiertosAsync() => _pendientes = await Cliente.ListarPendientesAbiertosAsync();
+
+    private async Task AlTeclear(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+            await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_codigo))
+            return;
+
+        _procesando = true;
+        _mensaje = null;
+        _aviso = null;
+        var respuesta = await Cliente.BuscarPendientesAsync(_codigo.Trim());
+        _procesando = false;
+        _codigo = string.Empty;
+
+        if (!respuesta.Exitosa)
+        {
+            _mensaje = respuesta.Mensaje;
+            return;
+        }
+
+        // Una factura puede tener varios pendientes (RN-14): se muestran para elegir.
+        if (respuesta.Pendientes is [var unico])
+        {
+            Seleccionar(unico);
+        }
+        else
+        {
+            _pendiente = null;
+            _pendientes = respuesta.Pendientes;
+        }
+    }
+
+    private void Seleccionar(DatosPendienteEntrega pendiente)
+    {
+        _pendiente = pendiente;
+        _lineas = pendiente.Lineas.Select(l => new LineaEntrega(l)).ToList();
+        _recibeNombre = pendiente.ClienteNombre;
+        _recibeCedula = null;
+        _motivo = null;
+    }
+
+    private async Task VolverALaListaAsync()
+    {
+        _pendiente = null;
+        _mensaje = null;
+        _aviso = null;
+        await CargarAbiertosAsync();
+    }
+
+    private void EntregarTodo()
+    {
+        foreach (var linea in _lineas)
+            linea.Cantidad = linea.Datos.Cantidad - linea.Datos.CantidadEntregada;
+    }
+
+    private async Task CambiarEstadoAsync(EstadoPendiente estado)
+    {
+        _procesando = true;
+        Aplicar(await Cliente.CambiarEstadoPendienteAsync(_pendiente!.Id, estado));
+    }
+
+    private async Task EntregarAsync()
+    {
+        var lineas = _lineas.Where(l => l.Cantidad > 0).Select(l => new CantidadEntregada(l.Datos.NumeroLineaVenta, l.Cantidad, l.Serial)).ToList();
+        if (lineas.Count == 0)
+        {
+            _mensaje = "Indique la cantidad que se entrega de al menos un artículo.";
+            return;
+        }
+
+        _procesando = true;
+        Aplicar(await Cliente.EntregarPendienteAsync(_pendiente!.Id, new SolicitudEntregaPendiente(lineas, _recibeNombre, _recibeCedula)));
+    }
+
+    private async Task AnularAsync()
+    {
+        var pendiente = _pendiente!;
+        _procesando = true;
+        var respuesta = await Autorizaciones.EjecutarPendienteAsync(autorizacion => Cliente.AnularPendienteAsync(pendiente.Id, _motivo, autorizacion),
+            $"Anular el pendiente {pendiente.Numero}", pendiente.Numero);
+        if (respuesta is null)
+        {
+            _procesando = false;
+            return;
+        }
+
+        Aplicar(respuesta);
+    }
+
+    private void Aplicar(RespuestaPendiente respuesta)
+    {
+        _procesando = false;
+        _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+        _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
+        if (respuesta.Pendiente is { } pendiente)
+            Seleccionar(pendiente);
+    }
+
+    private static string NombreEstado(EstadoPendiente estado) => estado switch
+    {
+        EstadoPendiente.EnPreparacion => "En preparación",
+        EstadoPendiente.Preparado => "Preparado",
+        EstadoPendiente.Despachado => "Despachado",
+        EstadoPendiente.Parcial => "Entrega parcial",
+        EstadoPendiente.Entregado => "Entregado",
+        EstadoPendiente.Anulado => "Anulado",
+        _ => "Pendiente",
+    };
+}

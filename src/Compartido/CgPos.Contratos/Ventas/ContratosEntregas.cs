@@ -54,6 +54,36 @@ public sealed record DatosLineaEntregaPendiente(int NumeroLineaVenta, string Des
 public sealed record DatosEntregaPendiente(int Numero, string RecibeNombre, string RecibeCedula, string UsuarioNombre, DateTimeOffset Fecha,
     IReadOnlyList<DatosLineaEntregaPendiente> Lineas);
 
+/// <summary>Avanza la preparación del pendiente: en preparación, preparado o despachado (RF-252).</summary>
+public sealed record SolicitudEstadoPendiente(EstadoPendiente Estado);
+
+/// <summary>Entrega total o parcial con quien recibe (RF-253, RF-254); los serializados llevan su serial (RN-16).</summary>
+public sealed record SolicitudEntregaPendiente(IReadOnlyList<CantidadEntregada>? Lineas, string? RecibeNombre, string? RecibeCedula);
+
+/// <param name="AutorizacionId">Anular requiere permiso o clave de supervisor (RF-255).</param>
+public sealed record SolicitudAnularPendiente(string? Motivo, Guid? AutorizacionId = null);
+
+public enum CodigoResultadoPendiente
+{
+    Correcto,
+    NoEncontrado,
+    SinPermiso,
+    RequiereAutorizacion,
+    AutorizacionInvalida,
+    OperacionInvalida,
+}
+
+public sealed record RespuestaPendiente(CodigoResultadoPendiente Resultado, string? Mensaje, DatosPendienteEntrega? Pendiente, string? PermisoRequerido = null)
+{
+    public bool Exitosa => Resultado == CodigoResultadoPendiente.Correcto;
+}
+
+/// <summary>Pendientes que corresponden a un voucher o a una factura escaneada (RF-251).</summary>
+public sealed record RespuestaBusquedaPendientes(CodigoResultadoPendiente Resultado, string? Mensaje, IReadOnlyList<DatosPendienteEntrega> Pendientes)
+{
+    public bool Exitosa => Resultado == CodigoResultadoPendiente.Correcto;
+}
+
 /// <summary>Documento de pendiente de entrega o envío (RF-249, RF-252); también es el mensaje para el Central.</summary>
 public sealed record DatosPendienteEntrega(
     Guid Id,

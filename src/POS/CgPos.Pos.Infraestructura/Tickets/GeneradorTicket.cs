@@ -333,6 +333,51 @@ internal static class GeneradorTicket
         return Documento($"pendiente-{pendiente.Numero}-{(copiaCliente ? "cliente" : "despacho")}", lineas);
     }
 
+    /// <summary>Constancia de entrega de un pendiente (RF-254): qué se entregó, con serial, quién recibió con su cédula y lo que queda pendiente.</summary>
+    public static DocumentoImpresion GenerarConstanciaEntrega(EncabezadoTicket encabezado, DatosPendienteEntrega pendiente, DatosEntregaPendiente entrega)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+        void Separador() => Agregar(new string('-', Ancho));
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia: false);
+        Agregar("CONSTANCIA DE ENTREGA", Estilo.Titulo);
+        Agregar($"Pendiente: {pendiente.Numero} · entrega {entrega.Numero}", Estilo.Negrita);
+        Agregar($"Factura: {pendiente.VentaNumero}");
+        Agregar($"Fecha: {HoraLocal(encabezado, entrega.Fecha, cultura)}");
+        foreach (var parte in Envolver($"Recibe: {entrega.RecibeNombre} · Cédula {entrega.RecibeCedula}"))
+            Agregar(parte);
+        Agregar($"Entregó: {entrega.UsuarioNombre}");
+        Separador();
+
+        foreach (var linea in entrega.Lineas)
+        {
+            foreach (var parte in Envolver(linea.Descripcion))
+                Agregar(parte);
+            Agregar(Columnas("  Entregado", linea.Cantidad.ToString("0.###", cultura)));
+            if (linea.Serial is { } serial)
+                Agregar($"  Serial: {serial}");
+        }
+
+        var restantes = pendiente.Lineas.Where(l => l.Cantidad - l.CantidadEntregada > 0).ToList();
+        Separador();
+        if (restantes.Count == 0)
+        {
+            Agregar("ENTREGA COMPLETA", Estilo.Negrita);
+        }
+        else
+        {
+            Agregar("QUEDA PENDIENTE", Estilo.Negrita);
+            foreach (var linea in restantes)
+                Agregar(Columnas($"  {linea.Codigo}", (linea.Cantidad - linea.CantidadEntregada).ToString("0.###", cultura)));
+        }
+
+        Agregar("Recibí conforme la mercancía descrita.");
+        AgregarFirmas(lineas, "Recibe", "Entrega");
+        return Documento($"constancia-{pendiente.Numero}-{entrega.Numero}", lineas);
+    }
+
     /// <summary>Voucher con el saldo que queda de una nota de crédito usada parcialmente (RF-43).</summary>
     public static DocumentoImpresion GenerarSaldoNotaCredito(EncabezadoTicket encabezado, string codigo, string cliente, decimal saldo, string moneda, DateOnly venceEn,
         string ventaNumero)

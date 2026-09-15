@@ -68,6 +68,8 @@
         "Devoluciones.Registrar",
         "Devoluciones.Autorizar",
         "Pendientes.Marcar",
+        "Pendientes.Despachar",
+        "Pendientes.Anular",
         "Cobro.AprobacionManualTarjeta",
         "Fidelidad.CanjearPuntos"
       ]

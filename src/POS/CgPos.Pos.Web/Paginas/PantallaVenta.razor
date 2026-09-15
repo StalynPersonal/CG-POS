@@ -264,6 +264,7 @@ else
                 <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" AlPresionar="DescuentoLineaSeleccionadaAsync" />
                 <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="AbrirDescuentoFacturaAsync" />
                 <TeclaFuncion Texto="Entrega / envío" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="AbrirEntregaAsync" />
+                <TeclaFuncion Texto="Despacho" Icono="@Icons.Material.Filled.Inventory2" AlPresionar="IrADespachoAsync" />
                 <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="AnularAsync" />
                 <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
                 <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="AbrirGavetaAsync" />
@@ -394,6 +395,13 @@ else
     private Task IrADevolucionesAsync()
     {
         Navegacion.NavigateTo("devoluciones");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Módulo de despacho de pendientes de entrega (RF-251); la venta en curso queda guardada.</summary>
+    private Task IrADespachoAsync()
+    {
+        Navegacion.NavigateTo("despacho");
         return Task.CompletedTask;
     }
 
