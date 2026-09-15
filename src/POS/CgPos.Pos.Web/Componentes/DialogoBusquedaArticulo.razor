@@ -1,0 +1,88 @@
+@* Búsqueda de artículos por descripción, código o referencia (F2). Devuelve el código del artículo elegido. *@
+@inject ClienteAgente Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-busqueda">
+            <MudTextField T="string" Value="_texto" ValueChanged="AlCambiarTextoAsync" Label="Descripción, código o referencia"
+                          Variant="Variant.Outlined" Immediate="true" DebounceInterval="250" AutoFocus="true"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="cg-campo-activo" />
+
+            <GrillaTactil TElemento="DatosArticuloResumen" Elementos="_resultados" Seleccionado="_seleccionado" SeleccionadoChanged="AlSeleccionar"
+                          Altura="clamp(120px, calc(100vh - 640px), 360px)" TextoSinRegistros="@(_texto.Length < 2 ? "Escriba al menos 2 caracteres" : "Sin resultados")">
+                <Encabezado>
+                    <MudTh>Código</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh>UM</MudTh>
+                    <MudTh Class="cg-numero">Precio</MudTh>
+                    <MudTh Class="cg-numero">Mayor</MudTh>
+                </Encabezado>
+                <Fila Context="articulo">
+                    <MudTd>@articulo.Codigo</MudTd>
+                    <MudTd>
+                        @articulo.Descripcion
+                        <div class="cg-venta__nota">@articulo.FamiliaNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</div>
+                    </MudTd>
+                    <MudTd>@articulo.UnidadMedidaCodigo</MudTd>
+                    <MudTd Class="cg-numero">@(articulo.PrecioDetalle?.ToString("N2") ?? "—")</MudTd>
+                    <MudTd Class="cg-numero">@(articulo.PrecioMayor?.ToString("N2") ?? "—")</MudTd>
+                </Fila>
+            </GrillaTactil>
+
+            <TecladoTactil Valor="@_texto" ValorChanged="AlCambiarTextoAsync" Modo="ModoTeclado.Alfanumerico" TextoConfirmar="Agregar"
+                           AlConfirmar="_ => Agregar()" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="_seleccionado is null"
+                   Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="Agregar">Agregar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    private string _texto = string.Empty;
+    private IReadOnlyList<DatosArticuloResumen> _resultados = [];
+    private DatosArticuloResumen? _seleccionado;
+    private CancellationTokenSource? _busqueda;
+
+    private async Task AlCambiarTextoAsync(string texto)
+    {
+        _texto = texto ?? string.Empty;
+
+        // Solo cuenta la última búsqueda: una respuesta tardía no pisa la más reciente.
+        _busqueda?.Cancel();
+        _busqueda = new CancellationTokenSource();
+        var cancelacion = _busqueda.Token;
+
+        if (_texto.Trim().Length < 2)
+        {
+            _resultados = [];
+            _seleccionado = null;
+            return;
+        }
+
+        try
+        {
+            var resultados = await Cliente.BuscarArticulosAsync(_texto.Trim(), cancelacion);
+            if (cancelacion.IsCancellationRequested)
+                return;
+
+            _resultados = resultados;
+            _seleccionado = resultados.Count > 0 ? resultados[0] : null;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void AlSeleccionar(DatosArticuloResumen articulo) => _seleccionado = articulo;
+
+    private void Agregar()
+    {
+        if (_seleccionado is not null)
+            Dialogo.Close(DialogResult.Ok(_seleccionado.Codigo));
+    }
+}

@@ -74,6 +74,9 @@ input, textarea, [contenteditable] {
 .cg-tecla-f--accion .cg-tecla-f__icono,
 .cg-tecla-f--accion .cg-tecla-f__atajo { color: #fff; }
 .cg-tecla-f--accion:hover:not(:disabled) { background: #276b2b; }
+.cg-tecla-f--accion:disabled { color: #9aa6a0; background: #eef1ef; border-color: var(--cg-linea); }
+.cg-tecla-f--accion:disabled .cg-tecla-f__icono,
+.cg-tecla-f--accion:disabled .cg-tecla-f__atajo { color: #b5bfba; }
 
 /* ---------- Grilla táctil ---------- */
 .cg-grilla .mud-table-head .mud-table-cell {

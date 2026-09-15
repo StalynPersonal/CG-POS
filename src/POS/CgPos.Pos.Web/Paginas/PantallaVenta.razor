@@ -1,0 +1,626 @@
+@page "/"
+@attribute [Authorize]
+@implements IDisposable
+@using System.Globalization
+@using System.Reflection
+@inject ClienteAgente Cliente
+@inject AlmacenSesion Almacen
+@inject ServicioAtajosTeclado Atajos
+@inject ServicioAutorizacionPantalla Autorizaciones
+@inject IDialogService Dialogos
+@inject NavigationManager Navegacion
+
+@* Pantalla del cajero (M05): layout de la referencia en verde institucional. *@
+
+<PageTitle>CG-POS · Venta</PageTitle>
+
+@if (_cargando)
+{
+    <div class="cg-venta__cargando">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+    </div>
+}
+else if (_venta is null)
+{
+    <PanelAperturaTurno Estado="_estadoTurno" Mensaje="_mensaje" Procesando="_procesando"
+                        NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
+                        AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" />
+}
+else
+{
+    <div class="cg-venta">
+        <div class="cg-venta__barra-superior">
+            <span class="cg-venta__marca-texto">CG-POS</span>
+            <span class="cg-venta__marca-sub">Contreras Group</span>
+            <span class="cg-espaciador"></span>
+            <span>@Almacen.Sesion?.CajaNombre</span>
+        </div>
+
+        <header class="cg-venta__encabezado">
+            <section class="cg-venta__bloque cg-venta__marca">
+                <div class="cg-venta__logo">CG</div>
+                <div class="cg-venta__ncf">NCF consumidor final</div>
+            </section>
+
+            <section class="cg-venta__bloque cg-venta__cliente">
+                <div>
+                    <div class="cg-venta__etiqueta">Código de cliente · ID</div>
+                    <div class="cg-venta__valor">—</div>
+                    <div class="cg-venta__etiqueta">Nombre del cliente</div>
+                    <div class="cg-venta__cliente-nombre">Cliente contado</div>
+                </div>
+                <div class="cg-venta__transaccion">
+                    <div class="cg-venta__etiqueta">Transacción Nº</div>
+                    <div class="cg-venta__numero">@_venta.NumeroTransaccion</div>
+                    <div class="cg-venta__etiqueta">@_venta.Totales.CantidadArticulos.ToString("0.###") artículos</div>
+                </div>
+            </section>
+
+            <section class="cg-venta__bloque cg-venta__totales">
+                <div class="cg-venta__total-fila"><span>Subtotal</span><span class="cg-numero">@_venta.Totales.Subtotal.ToString("N2")</span></div>
+                <div class="cg-venta__total-fila"><span>ITBIS</span><span class="cg-numero">@_venta.Totales.Impuesto.ToString("N2")</span></div>
+                <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (RD$)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
+            </section>
+        </header>
+
+        <div class="cg-venta__escaneo @(_modoEliminar ? "cg-venta__escaneo--eliminar" : null)">
+            <MudIcon Icon="@(_modoEliminar ? Icons.Material.Filled.RemoveShoppingCart : Icons.Material.Filled.QrCodeScanner)" Size="Size.Large" />
+            <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false"
+                   placeholder="@(_modoEliminar ? "Escanee el artículo a eliminar · Esc para salir" : "Escanee o digite el código · cantidad*código")"
+                   value="@_entrada" @oninput="evento => _entrada = evento.Value?.ToString() ?? string.Empty" @onkeydown="AlTeclearAsync" />
+            <MudIconButton Icon="@Icons.Material.Filled.Keyboard" Size="Size.Large" Color="Color.Primary" OnClick="DigitarCodigoAsync" aria-label="Teclado en pantalla" />
+        </div>
+
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
+        }
+
+        <div class="cg-venta__lineas">
+            <GrillaTactil TElemento="DatosLineaVenta" Elementos="_venta.Lineas" Seleccionado="LineaSeleccionada" SeleccionadoChanged="AlSeleccionarLinea"
+                          EsAnulada="linea => linea.EsReverso" Altura="100%" TextoSinRegistros="Escanee un artículo para comenzar la venta">
+                <Encabezado>
+                    <MudTh Style="width: 96px">Ln</MudTh>
+                    <MudTh Style="width: 170px">Código</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh Style="width: 70px">UM</MudTh>
+                    <MudTh Class="cg-numero" Style="width: 110px">Cant.</MudTh>
+                    <MudTh Class="cg-numero" Style="width: 130px">Precio</MudTh>
+                    <MudTh Class="cg-numero" Style="width: 150px">Subtotal</MudTh>
+                    <MudTh Style="width: 110px">Promo</MudTh>
+                </Encabezado>
+                <Fila Context="linea">
+                    <MudTd Class="@ClaseCelda(linea)">
+                        <div class="cg-venta__ln">
+                            @if (EsEditable(linea))
+                            {
+                                <button type="button" class="cg-venta__eliminar" title="Eliminar línea"
+                                        @onclick="() => EliminarLineaAsync(linea)" @onclick:stopPropagation="true">
+                                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                                </button>
+                            }
+                            <span>@linea.NumeroLinea</span>
+                        </div>
+                    </MudTd>
+                    <MudTd Class="@ClaseCelda(linea)">
+                        <span class="cg-venta__codigo" title="Tocar para ver el código interno / leído"
+                              @onclick="() => AlternarCodigo(linea.NumeroLinea)" @onclick:stopPropagation="true">
+                            @(_codigosInternos.Contains(linea.NumeroLinea) ? linea.CodigoInterno : linea.CodigoLeido)
+                        </span>
+                    </MudTd>
+                    <MudTd Class="@ClaseCelda(linea)">
+                        @linea.Descripcion
+                        @if (linea.EsReverso)
+                        {
+                            <div class="cg-venta__nota">Anula la línea @linea.LineaAnuladaNumero</div>
+                        }
+                    </MudTd>
+                    <MudTd Class="@ClaseCelda(linea)">@linea.UnidadMedidaCodigo</MudTd>
+                    <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">
+                        @if (EsEditable(linea) && !linea.LeidaDeBalanza)
+                        {
+                            <span class="cg-venta__cantidad" @onclick="() => CambiarCantidadAsync(linea)" @onclick:stopPropagation="true">@FormatoCantidad(linea)</span>
+                        }
+                        else
+                        {
+                            @FormatoCantidad(linea)
+                        }
+                    </MudTd>
+                    <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">@(linea.EsReverso ? null : linea.PrecioUnitario.ToString("N2"))</MudTd>
+                    <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">@ImporteMostrado(linea).ToString("N2")</MudTd>
+                    <MudTd Class="@ClaseCelda(linea)">
+                        @if (!linea.EsReverso && linea.Lista == ListaPrecio.Mayor)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">Mayor</MudChip>
+                        }
+                        @if (!linea.EsReverso && linea.LeidaDeBalanza)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Primary" Title="Leído de balanza" />
+                        }
+                    </MudTd>
+                </Fila>
+            </GrillaTactil>
+        </div>
+
+        <BarraTeclasFuncion @ref="_barra">
+            <PaginaPrincipal>
+                <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" AlPresionar="BuscarArticuloAsync" />
+                <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F4" Texto="Cantidad" Icono="@Icons.Material.Filled.Numbers" AlPresionar="CambiarCantidadSeleccionadaAsync" />
+                <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F6" Texto="Reintegro" Icono="@Icons.Material.Filled.Autorenew" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F9" Texto="Suspender" Icono="@Icons.Material.Filled.DesktopAccessDisabled" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="ConsultarPrecioAsync" />
+                <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" Deshabilitada="true" />
+            </PaginaPrincipal>
+            <PaginaSecundaria>
+                <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="EliminarSeleccionadaAsync" />
+                <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="AlternarModoEliminar" />
+                <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="LimpiarAsync" />
+                <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" Deshabilitada="true" />
+                <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" Deshabilitada="true" />
+                <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" Deshabilitada="true" />
+                <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="SalirAsync" />
+            </PaginaSecundaria>
+        </BarraTeclasFuncion>
+
+        <footer class="cg-venta__estado">
+            <span>Usuario: @Almacen.Sesion?.Nombre</span>
+            <span>Caja @Almacen.Sesion?.CajaCodigo · Turno @_estadoTurno?.TurnoAbierto?.Numero</span>
+            <span># TRX → @_venta.NumeroTransaccion</span>
+            <span>Versión @Version</span>
+            <span class="cg-espaciador"></span>
+            <span class="cg-venta__sincronizacion cg-venta__sincronizacion--@ClaseSincronizacion">
+                <MudIcon Icon="@IconoSincronizacion" Size="Size.Small" />
+                @TextoSincronizacion
+            </span>
+            <span>@_ahora.ToString("dd/MM/yyyy")</span>
+            <span>@_ahora.ToString("h:mm tt")</span>
+        </footer>
+    </div>
+}
+
+@code {
+    private static readonly string Version =
+        typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "—";
+
+    private readonly SemaphoreSlim _cola = new(1, 1);
+    private readonly HashSet<int> _codigosInternos = [];
+    private readonly CancellationTokenSource _cierre = new();
+
+    private DatosEstadoTurno? _estadoTurno;
+    private DatosVenta? _venta;
+    private DatosEstadoSincronizacion? _sincronizacion;
+    private BarraTeclasFuncion? _barra;
+    private ElementReference _campoEscaneo;
+    private string _entrada = string.Empty;
+    private string? _mensaje;
+    private int? _numeroSeleccionado;
+    private bool _cargando = true;
+    private bool _procesando;
+    private bool _modoEliminar;
+    private bool _dialogoAbierto;
+    private bool _enfocar = true;
+    private DateTime _ahora = DateTime.Now;
+
+    private DatosLineaVenta? LineaSeleccionada => _venta?.Lineas.FirstOrDefault(linea => linea.NumeroLinea == _numeroSeleccionado);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Atajos.TeclaPresionada += AlPresionarTecla;
+        await CargarAsync();
+        _ = ActualizarRelojYSincronizacionAsync(_cierre.Token);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        // El lector de barras escribe donde esté el foco: se devuelve al campo de escaneo tras cada operación.
+        if (_enfocar && _venta is not null && !_dialogoAbierto)
+        {
+            _enfocar = false;
+            try
+            {
+                await _campoEscaneo.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // El campo aún no está en pantalla.
+            }
+        }
+    }
+
+    // ---------- Turno ----------
+
+    private async Task CargarAsync()
+    {
+        _cargando = _venta is null && _estadoTurno is null;
+        _mensaje = null;
+
+        _estadoTurno = await Cliente.ObtenerEstadoTurnoAsync();
+        if (_estadoTurno is { TurnoAbierto: not null, EsDeOtroUsuario: false })
+        {
+            var respuesta = await Cliente.ObtenerVentaActualAsync();
+            AplicarRespuesta(respuesta);
+        }
+        else
+        {
+            _venta = null;
+        }
+
+        _cargando = false;
+        _enfocar = true;
+    }
+
+    private async Task AbrirTurnoAsync(decimal fondo)
+    {
+        _procesando = true;
+        var respuesta = await Cliente.AbrirTurnoAsync(fondo);
+        _procesando = false;
+
+        if (!respuesta.Exitosa && respuesta.Resultado != CodigoResultadoTurno.YaExisteTurnoAbierto)
+        {
+            _mensaje = respuesta.Mensaje;
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    // ---------- Escaneo y líneas ----------
+
+    private async Task AlTeclearAsync(KeyboardEventArgs evento)
+    {
+        if (evento.Key != "Enter")
+            return;
+
+        var codigo = _entrada.Trim();
+        _entrada = string.Empty;
+        if (codigo.Length == 0)
+            return;
+
+        if (_modoEliminar)
+            await EliminarPorCodigoAsync(codigo);
+        else
+            await AgregarAsync(codigo);
+    }
+
+    private Task AgregarAsync(string codigo) =>
+        EnColaAsync(async () => AplicarRespuesta(await Cliente.AgregarArticuloAsync(_venta!.Id, codigo), seleccionarUltima: true));
+
+    private async Task DigitarCodigoAsync()
+    {
+        var codigo = await PedirTextoAsync(_modoEliminar ? "Eliminar por código" : "Agregar artículo", "Código del artículo",
+            ayuda: "También acepta cantidad*código, ej. 12*7891114119695", decimales: false);
+        if (codigo is null)
+            return;
+
+        if (_modoEliminar)
+            await EliminarPorCodigoAsync(codigo);
+        else
+            await AgregarAsync(codigo);
+    }
+
+    private async Task BuscarArticuloAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var codigo = await MostrarDialogoAsync<DialogoBusquedaArticulo, string>("Buscar artículo", [], MaxWidth.Large);
+        if (codigo is not null)
+            await AgregarAsync(codigo);
+    }
+
+    private async Task ConsultarPrecioAsync() =>
+        await MostrarDialogoAsync<DialogoConsultaPrecio, object>("Consulta de precio", [], MaxWidth.Medium);
+
+    private Task CambiarCantidadSeleccionadaAsync()
+    {
+        var linea = LineaSeleccionada is { } seleccionada && EsEditable(seleccionada)
+            ? seleccionada
+            : _venta?.Lineas.LastOrDefault(EsEditable);
+
+        if (linea is null)
+        {
+            _mensaje = "No hay una línea para cambiar la cantidad.";
+            return Task.CompletedTask;
+        }
+
+        return CambiarCantidadAsync(linea);
+    }
+
+    private async Task CambiarCantidadAsync(DatosLineaVenta linea)
+    {
+        _numeroSeleccionado = linea.NumeroLinea;
+        if (linea.LeidaDeBalanza)
+        {
+            _mensaje = "La cantidad de un artículo pesado se toma de la balanza.";
+            return;
+        }
+
+        var texto = await PedirTextoAsync($"Cantidad · {linea.Descripcion}", $"Cantidad ({linea.UnidadMedidaCodigo})",
+            valorInicial: linea.Cantidad.ToString("0.###", CultureInfo.InvariantCulture), decimales: linea.DecimalesCantidad > 0);
+        if (texto is null)
+            return;
+
+        if (!decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var cantidad))
+        {
+            _mensaje = "La cantidad no es válida.";
+            return;
+        }
+
+        await EnColaAsync(async () => AplicarRespuesta(await Cliente.CambiarCantidadAsync(_venta!.Id, linea.NumeroLinea, cantidad)));
+    }
+
+    // ---------- Eliminar y limpiar ----------
+
+    private Task EliminarSeleccionadaAsync()
+    {
+        if (LineaSeleccionada is { } linea && EsEditable(linea))
+            return EliminarLineaAsync(linea);
+
+        _mensaje = "Seleccione la línea que desea eliminar.";
+        return Task.CompletedTask;
+    }
+
+    private async Task EliminarLineaAsync(DatosLineaVenta linea)
+    {
+        _numeroSeleccionado = linea.NumeroLinea;
+        _dialogoAbierto = true;
+        var confirmado = await Dialogos.ConfirmarAsync("Eliminar línea",
+            $"¿Eliminar la línea {linea.NumeroLinea}: {linea.Descripcion} ({FormatoCantidad(linea)} × {linea.PrecioUnitario:N2})?", "Eliminar", esPeligrosa: true);
+        _dialogoAbierto = false;
+        _enfocar = true;
+        if (!confirmado)
+            return;
+
+        await EjecutarConAutorizacionAsync(
+            autorizacion => Cliente.EliminarLineaAsync(_venta!.Id, linea.NumeroLinea, autorizacion),
+            $"Eliminar la línea {linea.NumeroLinea} ({linea.Descripcion})");
+    }
+
+    private Task EliminarPorCodigoAsync(string codigo) =>
+        EjecutarConAutorizacionAsync(
+            autorizacion => Cliente.EliminarPorCodigoAsync(_venta!.Id, codigo, autorizacion),
+            $"Eliminar el artículo {codigo}");
+
+    private void AlternarModoEliminar()
+    {
+        _modoEliminar = !_modoEliminar;
+        _mensaje = null;
+        _enfocar = true;
+        _barra?.MostrarPrincipal();
+    }
+
+    private async Task LimpiarAsync()
+    {
+        if (_venta is null)
+            return;
+
+        _dialogoAbierto = true;
+        var confirmado = _venta.Lineas.Count == 0 || await Dialogos.ConfirmarAsync("Limpiar pantalla",
+            $"¿Anular la transacción {_venta.NumeroTransaccion} con {_venta.Totales.CantidadLineas} líneas por RD${_venta.Totales.Total:N2}?", "Limpiar", esPeligrosa: true);
+        _dialogoAbierto = false;
+        _enfocar = true;
+        if (!confirmado)
+            return;
+
+        _barra?.MostrarPrincipal();
+        await EjecutarConAutorizacionAsync(
+            autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, autorizacion),
+            $"Limpiar la transacción {_venta.NumeroTransaccion}");
+        _codigosInternos.Clear();
+    }
+
+    /// <summary>Ejecuta la operación; si el Agente pide autorización, la solicita al supervisor y reintenta con ella.</summary>
+    private Task EjecutarConAutorizacionAsync(Func<Guid?, Task<RespuestaVenta>> operacion, string descripcion) =>
+        EnColaAsync(async () =>
+        {
+            var respuesta = await operacion(null);
+
+            if (respuesta.Resultado is CodigoResultadoVenta.RequiereAutorizacion or CodigoResultadoVenta.AutorizacionInvalida
+                && respuesta.PermisoRequerido is { } permiso)
+            {
+                _dialogoAbierto = true;
+                var autorizacion = await Autorizaciones.SolicitarAsync(permiso, descripcion, "Venta", _venta?.NumeroTransaccion);
+                _dialogoAbierto = false;
+
+                if (autorizacion is null)
+                {
+                    _mensaje = null;
+                    return;
+                }
+
+                if (autorizacion.AutorizacionId is { } autorizacionId)
+                    respuesta = await operacion(autorizacionId);
+            }
+
+            AplicarRespuesta(respuesta);
+            _modoEliminar = _modoEliminar && respuesta.Exitosa is false;
+        });
+
+    // ---------- Soporte ----------
+
+    private async Task EnColaAsync(Func<Task> accion)
+    {
+        // Lecturas seguidas del escáner se procesan en orden, sin pisarse.
+        await _cola.WaitAsync();
+        try
+        {
+            _procesando = true;
+            await accion();
+        }
+        finally
+        {
+            _procesando = false;
+            _enfocar = true;
+            _cola.Release();
+        }
+    }
+
+    private void AplicarRespuesta(RespuestaVenta respuesta, bool seleccionarUltima = false)
+    {
+        if (respuesta.Venta is { } venta)
+            _venta = venta;
+
+        if (respuesta.Resultado is CodigoResultadoVenta.TurnoNoAbierto or CodigoResultadoVenta.TurnoDeOtroUsuario)
+        {
+            _venta = null;
+            _mensaje = respuesta.Mensaje;
+            _ = InvokeAsync(CargarAsync);
+            return;
+        }
+
+        _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+
+        if (respuesta.Exitosa && seleccionarUltima && _venta is not null)
+            _numeroSeleccionado = _venta.Lineas.Where(linea => !linea.EsReverso).Select(linea => (int?)linea.NumeroLinea).Max();
+    }
+
+    private async Task<string?> PedirTextoAsync(string titulo, string etiqueta, string valorInicial = "", string? ayuda = null, bool decimales = true)
+    {
+        var parametros = new DialogParameters<DialogoTeclado>
+        {
+            { dialogo => dialogo.Etiqueta, etiqueta },
+            { dialogo => dialogo.ValorInicial, valorInicial },
+            { dialogo => dialogo.Ayuda, ayuda },
+            { dialogo => dialogo.PermitirDecimal, decimales },
+        };
+
+        return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, MaxWidth.Small);
+    }
+
+    private async Task<TResultado?> MostrarDialogoAsync<TDialogo, TResultado>(string titulo, DialogParameters parametros, MaxWidth ancho)
+        where TDialogo : IComponent
+        where TResultado : class
+    {
+        if (_dialogoAbierto)
+            return null;
+
+        _dialogoAbierto = true;
+        try
+        {
+            var opciones = new DialogOptions { MaxWidth = ancho, FullWidth = true, BackdropClick = false, CloseOnEscapeKey = true };
+            var referencia = await Dialogos.ShowAsync<TDialogo>(titulo, parametros, opciones);
+            var resultado = await referencia.Result;
+            return resultado is { Canceled: false, Data: TResultado dato } ? dato : null;
+        }
+        finally
+        {
+            _dialogoAbierto = false;
+            _enfocar = true;
+        }
+    }
+
+    private async Task AlPresionarTecla(string tecla)
+    {
+        if (_venta is null || _dialogoAbierto)
+            return;
+
+        var accion = tecla switch
+        {
+            "F2" => BuscarArticuloAsync(),
+            "F4" => CambiarCantidadSeleccionadaAsync(),
+            "F11" => ConsultarPrecioAsync(),
+            "Escape" => SalirDeModosAsync(),
+            _ => Task.CompletedTask,
+        };
+
+        await InvokeAsync(async () =>
+        {
+            await accion;
+            StateHasChanged();
+        });
+    }
+
+    private Task SalirDeModosAsync()
+    {
+        _modoEliminar = false;
+        _mensaje = null;
+        _enfocar = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task ActualizarRelojYSincronizacionAsync(CancellationToken cancelacion)
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        var segundos = 0;
+        try
+        {
+            _sincronizacion = await Cliente.ObtenerEstadoSincronizacionAsync(cancelacion);
+            while (await temporizador.WaitForNextTickAsync(cancelacion))
+            {
+                _ahora = DateTime.Now;
+                if (++segundos % 15 == 0)
+                    _sincronizacion = await Cliente.ObtenerEstadoSincronizacionAsync(cancelacion);
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task SalirAsync()
+    {
+        // La venta en curso queda guardada y se recupera al volver a ingresar.
+        await Cliente.CerrarSesionAsync();
+        Navegacion.NavigateTo("ingreso", replace: true);
+    }
+
+    private void AlSeleccionarLinea(DatosLineaVenta linea)
+    {
+        _numeroSeleccionado = linea.NumeroLinea;
+        _enfocar = true;
+    }
+
+    private void AlternarCodigo(int numeroLinea)
+    {
+        if (!_codigosInternos.Remove(numeroLinea))
+            _codigosInternos.Add(numeroLinea);
+        _enfocar = true;
+    }
+
+    private static bool EsEditable(DatosLineaVenta linea) => !linea.EsReverso && !linea.Anulada;
+
+    private static string? ClaseCelda(DatosLineaVenta linea) => linea.Anulada ? "cg-venta__tachada" : null;
+
+    private static string FormatoCantidad(DatosLineaVenta linea) => linea.Cantidad.ToString("N" + linea.DecimalesCantidad);
+
+    /// <summary>El reverso muestra en negativo el importe de la línea que anula (el total ya lo excluye).</summary>
+    private decimal ImporteMostrado(DatosLineaVenta linea)
+    {
+        if (!linea.EsReverso)
+            return Math.Round(linea.Cantidad * linea.PrecioUnitario, 2, MidpointRounding.AwayFromZero);
+
+        var original = _venta?.Lineas.FirstOrDefault(l => l.NumeroLinea == linea.LineaAnuladaNumero);
+        return original is null ? 0m : -Math.Round(original.Cantidad * original.PrecioUnitario, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private string ClaseSincronizacion => _sincronizacion switch
+    {
+        null => "error",
+        { EnLinea: true } => "enlinea",
+        _ => "sinconexion",
+    };
+
+    private string IconoSincronizacion => _sincronizacion is { EnLinea: true } ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudOff;
+
+    private string TextoSincronizacion => _sincronizacion switch
+    {
+        null => "Agente sin respuesta",
+        { EnLinea: true } estado => $"En línea · {estado.DocumentosPendientes} pendientes",
+        { CentralConfigurado: false } estado => $"Sin Central · {estado.DocumentosPendientes} pendientes",
+        var estado => $"Fuera de línea · {estado.DocumentosPendientes} pendientes",
+    };
+
+    public void Dispose()
+    {
+        Atajos.TeclaPresionada -= AlPresionarTecla;
+        _cierre.Cancel();
+        _cierre.Dispose();
+    }
+}

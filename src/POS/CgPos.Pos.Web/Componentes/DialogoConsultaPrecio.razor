@@ -1,0 +1,80 @@
+@* Consulta de precio sin agregar a la venta (F11): escanear o digitar el código. *@
+@inject ClienteAgente Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-dialogo-teclado">
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código del artículo" Variant="Variant.Outlined" Immediate="true"
+                          AutoFocus="true" OnKeyDown="AlTeclearAsync" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.QrCodeScanner"
+                          Class="cg-campo-activo" />
+
+            @if (_consultando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+            else if (_articulo is { } articulo)
+            {
+                <MudPaper Elevation="0" Class="pa-4" Style="background: var(--cg-superficie)">
+                    <MudText Typo="Typo.h5" Style="font-weight: 700">@articulo.Descripcion</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @articulo.Codigo · @articulo.FamiliaNombre · @articulo.UnidadMedidaCodigo · ITBIS @articulo.PorcentajeImpuesto.ToString("0.##")%
+                    </MudText>
+                    <div style="display: flex; gap: 32px; margin-top: 12px; flex-wrap: wrap">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Precio detalle</MudText>
+                            <div class="cg-total-grande">@(articulo.PrecioDetalle?.ToString("C") ?? "Sin precio")</div>
+                        </div>
+                        @if (articulo.PrecioMayor is { } mayor)
+                        {
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Precio mayor</MudText>
+                                <div class="cg-total-grande" style="font-size: 2.5rem">@mayor.ToString("C")</div>
+                                @if (articulo.CantidadMinimaMayor is { } minima)
+                                {
+                                    <MudText Typo="Typo.body2">Desde @minima.ToString("0.###") @articulo.UnidadMedidaCodigo</MudText>
+                                }
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+            }
+            else if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Warning">@_mensaje</MudAlert>
+            }
+
+            <TecladoTactil @bind-Valor="_codigo" Modo="ModoTeclado.Numerico" PermitirDecimal="false" TextoConfirmar="Consultar"
+                           AlConfirmar="_ => ConsultarAsync()" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Close()">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    private string _codigo = string.Empty;
+    private DatosArticuloVenta? _articulo;
+    private string? _mensaje;
+    private bool _consultando;
+
+    private Task AlTeclearAsync(KeyboardEventArgs evento) =>
+        evento.Key == "Enter" ? ConsultarAsync() : Task.CompletedTask;
+
+    private async Task ConsultarAsync()
+    {
+        var codigo = _codigo.Trim();
+        if (codigo.Length == 0 || _consultando)
+            return;
+
+        _consultando = true;
+        _articulo = await Cliente.ConsultarArticuloAsync(codigo);
+        _mensaje = _articulo is null ? $"No se encontró el artículo {codigo}." : null;
+        _consultando = false;
+
+        // Listo para el siguiente escaneo.
+        _codigo = string.Empty;
+    }
+}

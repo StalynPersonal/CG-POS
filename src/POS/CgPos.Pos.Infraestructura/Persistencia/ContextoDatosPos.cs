@@ -4,6 +4,8 @@ using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Turnos;
+using CgPos.Dominio.Ventas;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +44,11 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
 
     // Precios (M04)
     public DbSet<PrecioArticulo> PreciosArticulo => Set<PrecioArticulo>();
+
+    // Turnos y ventas (M13, M05)
+    public DbSet<Turno> Turnos => Set<Turno>();
+    public DbSet<Venta> Ventas => Set<Venta>();
+    public DbSet<AutorizacionOtorgada> AutorizacionesOtorgadas => Set<AutorizacionOtorgada>();
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {

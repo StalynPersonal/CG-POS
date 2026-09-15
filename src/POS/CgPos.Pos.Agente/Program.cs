@@ -53,6 +53,7 @@ try
     aplicacion.MapHealthChecks("/salud", new HealthCheckOptions { ResponseWriter = EscritorSalud.EscribirAsync });
     aplicacion.MapearApiSeguridad();
     aplicacion.MapearApiCatalogo();
+    aplicacion.MapearApiVentas();
 
     // Pantallas de la caja (Blazor Wasm de CgPos.Pos.Web), servidas localmente.
     if (aplicacion.Configuration.GetValue("Agente:ServirPantallas", true))

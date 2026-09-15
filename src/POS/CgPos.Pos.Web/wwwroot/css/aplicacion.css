@@ -136,3 +136,185 @@
     .cg-ingreso { grid-template-columns: 1fr; }
     .cg-ingreso__pin, .cg-autorizacion__pin { grid-template-columns: 1fr; }
 }
+
+/* ---------- Búsqueda de artículos: teclas algo más bajas para que grilla y teclado quepan en 768 px ---------- */
+.cg-busqueda { display: flex; flex-direction: column; gap: 8px; }
+.cg-busqueda .cg-teclado__tecla { min-height: 50px; font-size: 1.3rem; }
+
+/* ---------- Diálogo de teclado ---------- */
+.cg-dialogo-teclado { display: flex; flex-direction: column; gap: 12px; }
+.cg-dialogo-teclado__campo input { font-size: 1.75rem; font-variant-numeric: tabular-nums; }
+
+/* ---------- Apertura de turno ---------- */
+.cg-turno {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: linear-gradient(160deg, var(--cg-primario) 0%, var(--cg-primario-oscuro) 100%);
+}
+
+.cg-turno__tarjeta { width: 100%; max-width: 960px; padding: 32px; }
+.cg-turno__titulo { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.cg-turno__formulario { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: stretch; }
+.cg-turno__fondo { display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.cg-turno__acciones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.cg-turno__boton { min-height: var(--cg-toque-minimo); min-width: 160px; }
+
+@media (max-width: 900px) {
+    .cg-turno__formulario { grid-template-columns: 1fr; }
+}
+
+/* ---------- Pantalla de venta ---------- */
+.cg-venta {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.cg-venta__cargando { height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+.cg-venta__barra-superior {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 20px;
+    background: var(--cg-primario-oscuro);
+    color: #fff;
+}
+
+.cg-venta__marca-texto { font-size: 1.4rem; font-weight: 800; letter-spacing: .03em; }
+.cg-venta__marca-sub { opacity: .75; border-left: 1px solid rgba(255,255,255,.35); padding-left: 12px; }
+.cg-venta__barra-superior .cg-espaciador { flex: 1; }
+
+.cg-venta__encabezado {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 2fr) minmax(300px, 1.3fr);
+    border-bottom: 6px solid var(--cg-primario-oscuro);
+}
+
+.cg-venta__bloque { padding: 12px 18px; min-width: 0; }
+
+.cg-venta__marca {
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-right: 1px solid var(--cg-linea);
+}
+
+.cg-venta__logo {
+    width: 96px;
+    height: 96px;
+    border-radius: 12px;
+    background: var(--cg-accion);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.6rem;
+    font-weight: 800;
+}
+
+.cg-venta__ncf { font-size: .78rem; font-weight: 600; text-align: center; text-transform: uppercase; }
+
+.cg-venta__cliente {
+    background: #fbfcfb;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    border-right: 6px solid var(--cg-primario-oscuro);
+}
+
+.cg-venta__etiqueta { font-size: .95rem; color: var(--cg-textoo-secundario); }
+.cg-venta__valor { font-size: 1.15rem; font-weight: 700; }
+.cg-venta__cliente-nombre { font-size: 1.5rem; font-weight: 700; color: #6d7a74; text-transform: uppercase; }
+.cg-venta__transaccion { text-align: right; }
+.cg-venta__numero { font-size: 1.9rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.cg-venta__totales { background: var(--cg-superficie); display: flex; flex-direction: column; justify-content: center; }
+.cg-venta__total-fila { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.15rem; font-weight: 700; }
+.cg-venta__total-fila .cg-numero { font-size: 1.9rem; }
+.cg-venta__total-final .cg-total-grande { font-size: clamp(2.6rem, 4.5vw, 4rem); }
+
+.cg-venta__escaneo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--cg-linea);
+    color: var(--cg-primario);
+}
+
+.cg-venta__escaneo--eliminar { background: #fdecea; color: var(--cg-peligro); }
+
+.cg-venta__campo {
+    flex: 1;
+    min-height: 52px;
+    padding: 0 14px;
+    border: 2px solid var(--cg-accion);
+    border-radius: var(--cg-radio);
+    font: 600 1.4rem var(--cg-fuente);
+    color: var(--cg-texto);
+    outline: none;
+}
+
+.cg-venta__escaneo--eliminar .cg-venta__campo { border-color: var(--cg-peligro); }
+.cg-venta__campo:focus { box-shadow: 0 0 0 3px rgba(46, 125, 50, .25); }
+
+.cg-venta__aviso { margin: 6px 16px 0; }
+
+/* La grilla ocupa el alto sobrante y desplaza por dentro; el encabezado verde queda fijo. */
+.cg-venta__lineas { flex: 1; min-height: 0; background: #fff; display: flex; flex-direction: column; overflow: hidden; }
+.cg-venta__lineas > .mud-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cg-venta__lineas .mud-table-container { flex: 1; min-height: 0; height: auto !important; overflow-y: auto; }
+
+.cg-venta__ln { display: flex; align-items: center; gap: 8px; }
+
+.cg-venta__eliminar {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--cg-linea);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--cg-peligro);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.cg-venta__eliminar:active { background: #fdecea; }
+
+.cg-venta__codigo,
+.cg-venta__cantidad {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--cg-accion);
+}
+
+.cg-venta__cantidad { display: inline-block; min-width: 48px; padding: 6px 0; }
+.cg-venta__nota { font-size: .8rem; opacity: .85; }
+.cg-venta__tachada { text-decoration: line-through; color: #8a948f !important; }
+
+.cg-venta__estado {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: #eef1ef;
+    border-top: 1px solid var(--cg-linea);
+    font-size: .9rem;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.cg-venta__estado > span { padding: 5px 14px; border-right: 1px solid var(--cg-linea); }
+.cg-venta__estado > .cg-espaciador { flex: 1; border-right: none; }
+.cg-venta__sincronizacion { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.cg-venta__sincronizacion--enlinea { color: var(--cg-accion); }
+.cg-venta__sincronizacion--sinconexion { color: var(--cg-advertencia); }
+.cg-venta__sincronizacion--error { color: var(--cg-peligro); }

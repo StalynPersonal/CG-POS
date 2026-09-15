@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Seguridad;
 using CgPos.Contratos.Serializacion;
+using CgPos.Contratos.Ventas;
 
 namespace CgPos.Pos.Web.Seguridad;
 
@@ -49,6 +51,106 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         catch (HttpRequestException)
         {
             return new RespuestaAutorizacion(false, SinComunicacion);
+        }
+    }
+
+    // ---------- Turno y venta (C3) ----------
+
+    public async Task<DatosEstadoTurno?> ObtenerEstadoTurnoAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosEstadoTurno>("api/turnos/actual", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaTurno> AbrirTurnoAsync(decimal? fondoInicial, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/turnos", new SolicitudAbrirTurno(fondoInicial),
+            mensaje => new RespuestaTurno(CodigoResultadoTurno.CajaNoOperativa, mensaje, null), cancelacion);
+
+    public Task<RespuestaVenta> ObtenerVentaActualAsync(CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Get, "api/ventas/actual", null, ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> AgregarArticuloAsync(Guid ventaId, string codigo, decimal? cantidad = null, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas", new SolicitudAgregarArticulo(codigo, cantidad), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> CambiarCantidadAsync(Guid ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/lineas/{numeroLinea}/cantidad", new SolicitudCambiarCantidad(cantidad), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> EliminarLineaAsync(Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/{numeroLinea}/eliminar", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> EliminarPorCodigoAsync(Guid ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/eliminar-por-codigo", new SolicitudEliminarPorCodigo(codigo, autorizacionId), ErrorVenta, cancelacion);
+
+    public Task<RespuestaVenta> LimpiarVentaAsync(Guid ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/limpiar", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+
+    public async Task<DatosEstadoSincronizacion?> ObtenerEstadoSincronizacionAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosEstadoSincronizacion>("api/sincronizacion/estado", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarArticulosAsync(string texto, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosArticuloResumen>>($"api/articulos?texto={Uri.EscapeDataString(texto)}&maximo=50", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+    }
+
+    public async Task<DatosArticuloVenta?> ConsultarArticuloAsync(string codigo, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.GetAsync($"api/articulos/codigo/{Uri.EscapeDataString(codigo)}", cancelacion);
+            return respuesta.IsSuccessStatusCode ? await LeerAsync<DatosArticuloVenta>(respuesta, cancelacion) : null;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    private static RespuestaVenta ErrorVenta(string mensaje) => new(CodigoResultadoVenta.VentaNoEditable, mensaje, null);
+
+    /// <summary>Envía la solicitud y lee la respuesta de negocio aunque el código HTTP sea de rechazo (409/422).</summary>
+    private async Task<TResultado> EnviarAsync<TCuerpo, TResultado>(HttpMethod metodo, string ruta, TCuerpo cuerpo, Func<string, TResultado> error, CancellationToken cancelacion)
+        where TResultado : class
+    {
+        try
+        {
+            using var solicitud = new HttpRequestMessage(metodo, ruta);
+            if (cuerpo is not null)
+                solicitud.Content = JsonContent.Create(cuerpo, options: OpcionesJson.Predeterminadas);
+
+            using var respuesta = await Http.SendAsync(solicitud, cancelacion);
+            if (respuesta.StatusCode == HttpStatusCode.Unauthorized)
+                return error("La sesión expiró. Vuelva a iniciar sesión.");
+            if (respuesta.StatusCode == HttpStatusCode.Forbidden)
+                return error("No tiene permiso para esta operación.");
+
+            return await LeerAsync<TResultado>(respuesta, cancelacion)
+                ?? error($"Respuesta inesperada del servicio ({(int)respuesta.StatusCode}).");
+        }
+        catch (HttpRequestException)
+        {
+            return error(SinComunicacion);
         }
     }
 

@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local) y C2 (maestros, precios y padrón DGII) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII) y C3 (apertura de turno y pantalla de venta base) completadas.
 
 ## Stack
 
@@ -98,6 +98,29 @@ Importaciones manuales (permiso `Seguridad.AdministrarConfiguracion`, usuario G0
 - `POST /api/maestros/padron-dgii`: el archivo del padrón completo; inserta los nuevos y actualiza los que cambiaron.
 
 Etiquetas de balanza: por defecto EAN-13 con prefijo `21` (peso, 3 decimales) o `22` (precio, 2 decimales), 5 dígitos de artículo y 5 de valor. Se ajusta con los parámetros `Balanza.*`.
+
+### Turno y venta
+
+Al ingresar, si la caja no tiene turno abierto se pide el fondo (sugerido por el parámetro `Caja.FondoPredeterminado`). Solo puede haber un turno abierto por caja.
+
+En la pantalla de venta:
+
+- **Escanear o digitar** el código y Enter. Acepta `cantidad*código` (ej. `12*CEM-425`, que activa el precio mayor).
+- **Tocar la cantidad** de una línea (o F4) para cambiarla; **tocar el código** alterna entre el código leído y el interno.
+- **F2** busca por descripción, **F11** consulta el precio sin vender.
+- **Eliminar línea** (botón ✕ de la línea), **eliminar por escaneo** y **limpiar pantalla** requieren permiso; al cajero se le pide autorización de supervisor (S001/2222). La autorización es de un solo uso y vence en 5 minutos. La línea eliminada queda tachada y su reverso en rojo debajo.
+- La venta se guarda en cada operación: si la caja se apaga, al volver a ingresar se recupera tal como estaba.
+
+| Ruta | Uso |
+|---|---|
+| `GET /api/turnos/actual` · `POST /api/turnos` | Estado y apertura del turno |
+| `GET /api/ventas/actual` | Venta en curso del usuario (la crea si no hay) |
+| `POST /api/ventas/{id}/lineas` | Agregar artículo (`codigo`, `cantidad` opcional) |
+| `PUT /api/ventas/{id}/lineas/{n}/cantidad` | Cambiar cantidad |
+| `POST /api/ventas/{id}/lineas/{n}/eliminar` · `/eliminar-por-codigo` · `/limpiar` | Con `autorizacionId` si hace falta |
+| `GET /api/sincronizacion/estado` | Indicador de conexión y documentos pendientes |
+
+Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resultado`, `mensaje` y la venta actual.
 
 Las migraciones se aplican solas al arrancar. Para aplicarlas manualmente:
 

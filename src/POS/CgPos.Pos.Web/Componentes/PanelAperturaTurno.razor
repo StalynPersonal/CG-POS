@@ -1,0 +1,110 @@
+@* Se muestra en lugar de la venta mientras la caja no tenga un turno abierto por el usuario (RF-4, RF-259). *@
+@using System.Globalization
+
+<div class="cg-turno">
+    <MudPaper Elevation="2" Class="cg-turno__tarjeta">
+        <div class="cg-turno__titulo">
+            <MudIcon Icon="@Icons.Material.Filled.PointOfSale" Size="Size.Large" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.h4" Style="font-weight: 700">Apertura de turno</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@NombreUsuario · Caja @CajaCodigo</MudText>
+            </div>
+        </div>
+
+        @if (Mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@Mensaje</MudAlert>
+        }
+
+        @if (Estado is null)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">No se pudo consultar el turno de la caja.</MudAlert>
+            <div class="cg-turno__acciones">
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Class="cg-turno__boton">Salir</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AlReintentar" Class="cg-turno__boton">Reintentar</MudButton>
+            </div>
+        }
+        else if (Estado.TurnoAbierto is { } turno)
+        {
+            @if (Estado.EsDeOtroUsuario)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    La caja tiene abierto el turno <strong>@turno.Numero</strong> de <strong>@turno.UsuarioActualNombre</strong>
+                    desde las @turno.AbiertoEn.ToLocalTime().ToString("h:mm tt"). Solicite a su supervisor el relevo o el cierre de ese turno.
+                </MudAlert>
+            }
+            <div class="cg-turno__acciones">
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Class="cg-turno__boton">Salir</MudButton>
+                @if (!Estado.EsDeOtroUsuario)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AlReintentar" Class="cg-turno__boton">Reintentar</MudButton>
+                }
+            </div>
+        }
+        else if (!Estado.PuedeAbrir)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">No tiene permiso para abrir turno en esta caja. Solicite a un supervisor que lo abra.</MudAlert>
+            <div class="cg-turno__acciones">
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Class="cg-turno__boton">Salir</MudButton>
+            </div>
+        }
+        else
+        {
+            <div class="cg-turno__formulario">
+                <div class="cg-turno__fondo">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Fondo de caja (RD$)</MudText>
+                    <div class="cg-total-grande">@FondoMostrado</div>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Sugerido: RD$@Estado.FondoSugerido.ToString("N2")</MudText>
+                    <div class="cg-turno__acciones">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="Procesando" Class="cg-turno__boton">Salir</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AbrirAsync" Disabled="Procesando" Class="cg-turno__boton"
+                                   StartIcon="@Icons.Material.Filled.LockOpen">Abrir turno</MudButton>
+                    </div>
+                    @if (Procesando)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                    }
+                </div>
+                <TecladoTactil @bind-Valor="_fondo" AlConfirmar="_ => AbrirAsync()" PermitirCambioModo="false" LongitudMaxima="10" TextoConfirmar="Abrir" />
+            </div>
+        }
+    </MudPaper>
+</div>
+
+@code {
+    [Parameter] public DatosEstadoTurno? Estado { get; set; }
+    [Parameter] public string? Mensaje { get; set; }
+    [Parameter] public bool Procesando { get; set; }
+    [Parameter] public string? NombreUsuario { get; set; }
+    [Parameter] public string? CajaCodigo { get; set; }
+    [Parameter] public EventCallback<decimal> AlAbrir { get; set; }
+    [Parameter] public EventCallback AlReintentar { get; set; }
+    [Parameter] public EventCallback AlSalir { get; set; }
+
+    private string _fondo = string.Empty;
+    private decimal? _sugeridoAplicado;
+
+    private string FondoMostrado =>
+        decimal.TryParse(_fondo, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var monto) ? monto.ToString("N2") : "0.00";
+
+    protected override void OnParametersSet()
+    {
+        // El sugerido se copia una sola vez; después manda lo que digite el cajero.
+        if (Estado is not null && _sugeridoAplicado != Estado.FondoSugerido)
+        {
+            _sugeridoAplicado = Estado.FondoSugerido;
+            _fondo = Estado.FondoSugerido.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+    }
+
+    private Task AbrirAsync()
+    {
+        if (Procesando)
+            return Task.CompletedTask;
+
+        var monto = string.IsNullOrEmpty(_fondo)
+            ? 0m
+            : decimal.Parse(_fondo, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
+        return AlAbrir.InvokeAsync(monto);
+    }
+}

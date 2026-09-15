@@ -1,0 +1,48 @@
+@* Captura un valor con el teclado en pantalla (cantidad, código, monto). Devuelve el texto confirmado. *@
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-dialogo-teclado">
+            <MudTextField T="string" @bind-Value="_valor" Label="@Etiqueta" Variant="Variant.Outlined" Immediate="true"
+                          AutoFocus="true" OnKeyDown="AlTeclear" Class="cg-campo-activo cg-dialogo-teclado__campo" />
+            @if (Ayuda is not null)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@Ayuda</MudText>
+            }
+            <TecladoTactil @bind-Valor="_valor" AlConfirmar="_ => Confirmar()" Modo="Modo" PermitirDecimal="PermitirDecimal"
+                           PermitirCambioModo="PermitirCambioModo" LongitudMaxima="LongitudMaxima" TextoConfirmar="@TextoConfirmar" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public string Etiqueta { get; set; } = "Valor";
+    [Parameter] public string? Ayuda { get; set; }
+    [Parameter] public string ValorInicial { get; set; } = string.Empty;
+    [Parameter] public ModoTeclado Modo { get; set; } = ModoTeclado.Numerico;
+    [Parameter] public bool PermitirDecimal { get; set; } = true;
+    [Parameter] public bool PermitirCambioModo { get; set; }
+    [Parameter] public int? LongitudMaxima { get; set; }
+    [Parameter] public string TextoConfirmar { get; set; } = "Aceptar";
+
+    private string _valor = string.Empty;
+
+    protected override void OnInitialized() => _valor = ValorInicial;
+
+    private void AlTeclear(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+            Confirmar();
+    }
+
+    private void Confirmar()
+    {
+        if (!string.IsNullOrWhiteSpace(_valor))
+            Dialogo.Close(DialogResult.Ok(_valor.Trim()));
+    }
+}
