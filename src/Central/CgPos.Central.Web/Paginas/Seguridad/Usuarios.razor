@@ -1,0 +1,189 @@
+@page "/seguridad/usuarios"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarSeguridad)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+@inject AlmacenSesionCentral Almacen
+
+<PageTitle>Usuarios · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Usuarios del Central</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Quienes administran el Central Manager, con su rol, contraseña temporal y bloqueos.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="() => AbrirDialogoAsync(null)">
+        Nuevo usuario
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los usuarios. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosUsuarioCentral" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por usuario, nombre, correo o rol" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Usuario</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Rol</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Último ingreso</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Usuario"><strong>@context.Codigo</strong></MudTd>
+            <MudTd DataLabel="Nombre">
+                @context.Nombre
+                @if (context.Correo is not null)
+                {
+                    <div class="cg-central__detalle">@context.Correo</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Rol">@context.RolNombre</MudTd>
+            <MudTd DataLabel="Estado">
+                <div class="cg-central__chips">
+                    @if (context.Activo)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                    }
+                    @if (EstaBloqueado(context))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Bloqueado</MudChip>
+                    }
+                    @if (context.DebeCambiarContrasena)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Contraseña temporal</MudChip>
+                    }
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Último ingreso">@(context.UltimoIngresoEn?.ToLocalTime().ToString("dd/MM/yyyy h:mm tt") ?? "Nunca")</MudTd>
+            <MudTd>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="() => DesdeMenu(() => AbrirDialogoAsync(context))">Editar</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Password" OnClick="() => DesdeMenu(() => RestablecerAsync(context))">Restablecer contraseña</MudMenuItem>
+                    @if (EstaBloqueado(context))
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.LockOpen" OnClick="() => DesdeMenu(() => DesbloquearAsync(context))">Desbloquear</MudMenuItem>
+                    }
+                    @if (context.Activo)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.Block" Disabled="@(context.Id == Almacen.Sesion?.UsuarioId)"
+                                     OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, false))">
+                            Desactivar
+                        </MudMenuItem>
+                    }
+                    else
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, true))">Activar</MudMenuItem>
+                    }
+                </MudMenu>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay usuarios que coincidan.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosUsuarioCentral> _usuarios = [];
+    private IReadOnlyList<DatosRolCentral> _roles = [];
+    private string? _filtro;
+    private bool _cargando = true;
+    private bool _error;
+
+    private IEnumerable<DatosUsuarioCentral> Filtrados => string.IsNullOrWhiteSpace(_filtro)
+        ? _usuarios
+        : _usuarios.Where(u => Contiene(u.Codigo) || Contiene(u.Nombre) || Contiene(u.Correo) || Contiene(u.RolNombre));
+
+    private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
+
+    private static bool EstaBloqueado(DatosUsuarioCentral usuario) => usuario.BloqueadoHasta > DateTimeOffset.UtcNow;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    /// <summary>
+    /// El menú de la fila se cierra cuando termina su clic; la acción (que puede esperar un diálogo) sigue aparte para no dejarlo abierto.
+    /// </summary>
+    private void DesdeMenu(Func<Task> accion) => _ = EjecutarAparteAsync(accion);
+
+    private async Task EjecutarAparteAsync(Func<Task> accion)
+    {
+        try
+        {
+            await accion();
+        }
+        catch (Exception excepcion)
+        {
+            Avisos.Add($"No se pudo completar la operación: {excepcion.Message}", Severity.Error);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var usuarios = await Cliente.ListarUsuariosAsync();
+        var roles = await Cliente.ListarRolesAsync();
+        _error = usuarios is null || roles is null;
+        _usuarios = usuarios ?? [];
+        _roles = roles ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosUsuarioCentral? usuario)
+    {
+        var parametros = new DialogParameters<DialogoUsuario> { { d => d.Usuario, usuario }, { d => d.Roles, _roles } };
+        var referencia = await Dialogos.ShowAsync<DialogoUsuario>(usuario is null ? "Nuevo usuario" : $"Editar usuario {usuario.Codigo}", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(usuario is null ? "Usuario creado. Deberá cambiar la contraseña al ingresar." : "Usuario actualizado.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task RestablecerAsync(DatosUsuarioCentral usuario)
+    {
+        var parametros = new DialogParameters<DialogoContrasenaTemporal> { { d => d.Usuario, usuario } };
+        var referencia = await Dialogos.ShowAsync<DialogoContrasenaTemporal>($"Restablecer contraseña de {usuario.Codigo}", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Contraseña restablecida. Sus sesiones abiertas se cerraron.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private Task DesbloquearAsync(DatosUsuarioCentral usuario) => EjecutarAsync(() => Cliente.DesbloquearUsuarioAsync(usuario.Id), "Usuario desbloqueado.");
+
+    private async Task CambiarEstadoAsync(DatosUsuarioCentral usuario, bool activo)
+    {
+        if (!activo && !await Dialogos.ConfirmarAsync("Desactivar usuario", $"{usuario.Nombre} ya no podrá ingresar y sus sesiones abiertas se cerrarán.", "Desactivar", esPeligrosa: true))
+            return;
+
+        await EjecutarAsync(() => Cliente.CambiarEstadoUsuarioAsync(usuario.Id, activo), activo ? "Usuario activado." : "Usuario desactivado.");
+    }
+
+    private async Task EjecutarAsync(Func<Task<RespuestaAdministracion>> operacion, string textoExito)
+    {
+        var respuesta = await operacion();
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo completar la operación.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(textoExito, Severity.Success);
+        await CargarAsync();
+    }
+}

@@ -1,0 +1,90 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AlmacenSesionCentral Almacen
+@inject ServicioSesionCentral Sesiones
+@inject NavigationManager Navegacion
+
+<ProveedoresCgPos />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="() => _menuAbierto = !_menuAbierto" />
+        <MudText Typo="Typo.h6" Class="cg-central__marca">CG-POS<span>Central</span></MudText>
+        <MudSpacer />
+        @if (Almacen.Sesion is { } sesion)
+        {
+            <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" EndIcon="@Icons.Material.Filled.ArrowDropDown">
+                        @sesion.Nombre
+                    </MudButton>
+                </ActivatorContent>
+                <ChildContent>
+                    <div class="cg-central__menu-usuario">
+                        <strong>@sesion.Codigo</strong>
+                        <span>@sesion.RolNombre</span>
+                    </div>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.Password" Href="cambiar-contrasena">Cambiar contraseña</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="CerrarSesionAsync">Cerrar sesión</MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        }
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_menuAbierto" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="@DrawerVariant.Responsive">
+        <MudNavMenu>
+            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Inicio</MudNavLink>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
+                <MudNavGroup Title="Seguridad" Icon="@Icons.Material.Filled.Security" Expanded="true">
+                    <MudNavLink Href="seguridad/usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
+                    <MudNavLink Href="seguridad/roles" Icon="@Icons.Material.Filled.AdminPanelSettings">Roles y permisos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _menuAbierto = true;
+
+    protected override void OnInitialized()
+    {
+        Almacen.Cambio += AlCambiarSesion;
+        Navegacion.LocationChanged += AlNavegar;
+        ExigirCambioContrasena();
+    }
+
+    /// <summary>Con una contraseña temporal solo se puede cambiar la contraseña.</summary>
+    private void ExigirCambioContrasena()
+    {
+        if (Almacen.Sesion is { DebeCambiarContrasena: true } && !Navegacion.Uri.EndsWith("/cambiar-contrasena", StringComparison.OrdinalIgnoreCase))
+            Navegacion.NavigateTo("cambiar-contrasena", replace: true);
+    }
+
+    private void AlNavegar(object? remitente, LocationChangedEventArgs evento) => ExigirCambioContrasena();
+
+    private void AlCambiarSesion() => InvokeAsync(() =>
+    {
+        if (!Almacen.Activa)
+            Navegacion.NavigateTo("ingreso", replace: true);
+        else
+            ExigirCambioContrasena();
+
+        StateHasChanged();
+    });
+
+    private Task CerrarSesionAsync() => Sesiones.CerrarAsync();
+
+    public void Dispose()
+    {
+        Almacen.Cambio -= AlCambiarSesion;
+        Navegacion.LocationChanged -= AlNavegar;
+    }
+}

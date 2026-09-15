@@ -10,6 +10,7 @@
     <Project Path="src/Central/CgPos.Central.Api/CgPos.Central.Api.csproj" />
     <Project Path="src/Central/CgPos.Central.Aplicacion/CgPos.Central.Aplicacion.csproj" />
     <Project Path="src/Central/CgPos.Central.Infraestructura/CgPos.Central.Infraestructura.csproj" />
+    <Project Path="src/Central/CgPos.Central.Web/CgPos.Central.Web.csproj" />
   </Folder>
   <Folder Name="/src/Compartido/">
     <Project Path="src/Compartido/CgPos.Contratos/CgPos.Contratos.csproj" />

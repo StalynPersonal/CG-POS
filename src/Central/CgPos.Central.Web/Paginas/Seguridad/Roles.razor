@@ -1,0 +1,134 @@
+@page "/seguridad/roles"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarSeguridad)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Roles y permisos · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Roles y permisos</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Qué puede hacer cada rol en el Central Manager. Los cambios aplican a sus usuarios al renovar la sesión.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddModerator" OnClick="() => AbrirDialogoAsync(null)">
+        Nuevo rol
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los roles. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosRolCentral" Items="_roles" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Permisos</MudTh>
+            <MudTh>Usuarios</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><strong>@context.Codigo</strong></MudTd>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Permisos">@context.Permisos.Count de @_permisos.Count</MudTd>
+            <MudTd DataLabel="Usuarios">@context.Usuarios</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Activo)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactivo</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="() => DesdeMenu(() => AbrirDialogoAsync(context))">Editar</MudMenuItem>
+                    @if (context.Activo)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.Block" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, false))">Desactivar</MudMenuItem>
+                    }
+                    else
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, true))">Activar</MudMenuItem>
+                    }
+                </MudMenu>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay roles.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosRolCentral> _roles = [];
+    private IReadOnlyList<DatosPermisoCentral> _permisos = [];
+    private bool _cargando = true;
+    private bool _error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    /// <summary>
+    /// El menú de la fila se cierra cuando termina su clic; la acción (que puede esperar un diálogo) sigue aparte para no dejarlo abierto.
+    /// </summary>
+    private void DesdeMenu(Func<Task> accion) => _ = EjecutarAparteAsync(accion);
+
+    private async Task EjecutarAparteAsync(Func<Task> accion)
+    {
+        try
+        {
+            await accion();
+        }
+        catch (Exception excepcion)
+        {
+            Avisos.Add($"No se pudo completar la operación: {excepcion.Message}", Severity.Error);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var roles = await Cliente.ListarRolesAsync();
+        var permisos = await Cliente.ListarPermisosAsync();
+        _error = roles is null || permisos is null;
+        _roles = roles ?? [];
+        _permisos = permisos ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosRolCentral? rol)
+    {
+        var parametros = new DialogParameters<DialogoRol> { { d => d.Rol, rol }, { d => d.Permisos, _permisos } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoRol>(rol is null ? "Nuevo rol" : $"Editar rol {rol.Codigo}", parametros, opciones);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add(rol is null ? "Rol creado." : "Rol actualizado.", Severity.Success);
+        await CargarAsync();
+    }
+
+    private async Task CambiarEstadoAsync(DatosRolCentral rol, bool activo)
+    {
+        if (!activo && !await Dialogos.ConfirmarAsync("Desactivar rol", $"Los usuarios con el rol {rol.Nombre} perderán sus permisos al renovar la sesión.", "Desactivar", esPeligrosa: true))
+            return;
+
+        var respuesta = await Cliente.CambiarEstadoRolAsync(rol.Id, activo);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo cambiar el estado del rol.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(activo ? "Rol activado." : "Rol desactivado.", Severity.Success);
+        await CargarAsync();
+    }
+}

@@ -1,0 +1,73 @@
+@page "/cambiar-contrasena"
+@attribute [Authorize]
+@inject ServicioSesionCentral Sesiones
+@inject AlmacenSesionCentral Almacen
+@inject NavigationManager Navegacion
+@inject ISnackbar Avisos
+
+<PageTitle>Cambiar contraseña · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Cambiar contraseña</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            @(Almacen.Sesion?.DebeCambiarContrasena == true
+                ? "Su contraseña es temporal: cámbiela para continuar."
+                : "Al cambiarla se cierran sus demás sesiones abiertas.")
+        </MudText>
+    </div>
+</div>
+
+<MudPaper Elevation="1" Class="pa-6 cg-central__formulario-angosto">
+    <MudTextField T="string" @bind-Value="_actual" Label="Contraseña actual" InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true" AutoFocus="true" />
+    <MudTextField T="string" @bind-Value="_nueva" Label="Contraseña nueva" InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true" />
+    <MudTextField T="string" @bind-Value="_confirmacion" Label="Confirmar contraseña nueva" InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true"
+                  OnKeyDown="AlTeclearAsync" />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="@(!PuedeCambiar)" OnClick="CambiarAsync">
+        Cambiar contraseña
+    </MudButton>
+
+    @if (_mensaje is not null)
+    {
+        <MudAlert Severity="Severity.Error">@_mensaje</MudAlert>
+    }
+</MudPaper>
+
+@code {
+    private string? _actual;
+    private string? _nueva;
+    private string? _confirmacion;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private bool PuedeCambiar => !_procesando && !string.IsNullOrEmpty(_actual) && !string.IsNullOrEmpty(_nueva) && !string.IsNullOrEmpty(_confirmacion);
+
+    private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? CambiarAsync() : Task.CompletedTask;
+
+    private async Task CambiarAsync()
+    {
+        if (!PuedeCambiar)
+            return;
+
+        if (_nueva != _confirmacion)
+        {
+            _mensaje = "La confirmación no coincide con la contraseña nueva.";
+            return;
+        }
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Sesiones.CambiarContrasenaAsync(_actual!, _nueva!);
+        _procesando = false;
+
+        if (respuesta.Exitoso)
+        {
+            Avisos.Add("Contraseña cambiada.", Severity.Success);
+            Navegacion.NavigateTo("", replace: true);
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje ?? "No se pudo cambiar la contraseña.";
+    }
+}

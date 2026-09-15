@@ -1,0 +1,134 @@
+/* CG-POS Central · complementa cgpos.css (tokens del verde institucional) para una aplicación de escritorio con mouse y teclado. */
+
+html, body {
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: auto;
+}
+
+/* ---------- Carga inicial y errores ---------- */
+.cg-carga {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: linear-gradient(160deg, var(--cg-primario), var(--cg-primario-oscuro));
+    color: #fff;
+}
+
+.cg-carga__logo { font-size: 2.5rem; font-weight: 800; letter-spacing: .03em; }
+.cg-carga__logo span { font-weight: 400; opacity: .85; }
+.cg-carga__texto { opacity: .8; }
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 2000;
+    padding: 12px 20px;
+    background: #fdecea;
+    color: var(--cg-peligro);
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, .15);
+}
+
+#blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 16px; top: 10px; }
+
+/* ---------- Estructura ---------- */
+.cg-central__marca { font-weight: 800 !important; letter-spacing: .02em; }
+.cg-central__marca span { font-weight: 400; opacity: .85; margin-left: 8px; }
+
+/* Menú lateral sobre el verde institucional: el enlace activo resalta en blanco (el color primario del tema se perdería en el fondo). */
+.mud-drawer .mud-nav-link.active:not(.mud-nav-link-disabled) {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, .14) !important;
+    font-weight: 600;
+    box-shadow: inset 4px 0 0 #8bc34a;
+}
+
+.mud-drawer .mud-nav-link.active:not(.mud-nav-link-disabled) .mud-nav-link-icon { color: #ffffff !important; }
+.mud-drawer .mud-nav-link:hover:not(.mud-nav-link-disabled) { background-color: rgba(255, 255, 255, .08) !important; }
+
+.cg-central__menu-usuario { display: flex; flex-direction: column; padding: 8px 16px; min-width: 220px; }
+.cg-central__menu-usuario span { font-size: .85rem; color: #51605a; }
+
+.cg-central__encabezado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.cg-central__titulo { font-weight: 700 !important; color: var(--cg-primario); }
+.cg-central__subtitulo { color: #51605a; }
+.cg-central__detalle { font-size: .8rem; color: #51605a; }
+
+.cg-central__tabla .mud-table-head .mud-table-cell {
+    background: var(--cg-superficie);
+    color: var(--cg-primario);
+    font-weight: 700;
+}
+
+.cg-central__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.cg-central__tarjetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.cg-central__tarjeta {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    border-top: 4px solid var(--cg-accion);
+}
+
+.cg-central__dialogo { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.cg-central__formulario-angosto { max-width: 520px; display: flex; flex-direction: column; gap: 16px; }
+
+.cg-central__grupo-permisos {
+    border: 1px solid var(--cg-linea);
+    border-radius: var(--cg-radio);
+    padding: 4px 12px 8px;
+}
+
+.cg-central__grupo-permisos .cg-central__grupo-titulo .mud-checkbox-label,
+.cg-central__grupo-permisos .cg-central__grupo-titulo p { font-weight: 700; color: var(--cg-primario); }
+
+/* ---------- Ingreso ---------- */
+.cg-acceso {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(280px, 2fr) 3fr;
+}
+
+.cg-acceso__marca {
+    background: linear-gradient(160deg, var(--cg-primario), var(--cg-primario-oscuro));
+    color: #fff;
+    padding: 56px 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.cg-acceso__logo { font-size: 3rem; font-weight: 800; letter-spacing: .03em; }
+.cg-acceso__producto { font-size: 1.6rem; opacity: .9; }
+.cg-acceso__lema { max-width: 380px; opacity: .8; line-height: 1.5; margin-top: 12px; }
+
+.cg-acceso__formulario { display: flex; align-items: center; justify-content: center; padding: 32px; }
+.cg-acceso__tarjeta { width: 100%; max-width: 420px; padding: 36px; }
+.cg-acceso__titulo { font-weight: 700 !important; color: var(--cg-primario); margin-bottom: 24px !important; }
+
+@media (max-width: 760px) {
+    .cg-acceso { grid-template-columns: 1fr; }
+    .cg-acceso__marca { padding: 32px 24px; }
+}

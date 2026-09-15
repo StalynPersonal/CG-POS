@@ -1,0 +1,82 @@
+@* Alta o edición de un rol del Central con sus permisos agrupados por módulo. El código del rol no cambia. *@
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Rol is not null)" HelperText="Ej. AUDITOR, FISCAL." />
+            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+
+            <MudText Typo="Typo.subtitle1" Class="mt-2">Permisos (@_seleccionados.Count de @Permisos.Count)</MudText>
+            @foreach (var grupo in Permisos.GroupBy(p => p.Modulo))
+            {
+                <div class="cg-central__grupo-permisos">
+                    <MudCheckBox T="bool" Value="@grupo.All(p => _seleccionados.Contains(p.Codigo))" ValueChanged="@((bool marcado) => MarcarGrupo(grupo, marcado))"
+                                 Label="@grupo.Key" Color="Color.Primary" Class="cg-central__grupo-titulo" />
+                    @foreach (var permiso in grupo)
+                    {
+                        <MudCheckBox T="bool" Value="@_seleccionados.Contains(permiso.Codigo)" ValueChanged="@((bool marcado) => Marcar(permiso.Codigo, marcado))"
+                                     Label="@permiso.Descripcion" Color="Color.Secondary" Dense="true" Class="ml-6" />
+                    }
+                </div>
+            }
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosRolCentral? Rol { get; set; }
+    [Parameter] public IReadOnlyList<DatosPermisoCentral> Permisos { get; set; } = [];
+
+    private readonly HashSet<string> _seleccionados = new(StringComparer.Ordinal);
+    private string? _codigo;
+    private string? _nombre;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override void OnInitialized()
+    {
+        if (Rol is not { } rol)
+            return;
+
+        _codigo = rol.Codigo;
+        _nombre = rol.Nombre;
+        _seleccionados.UnionWith(rol.Permisos);
+    }
+
+    private void Marcar(string codigo, bool marcado)
+    {
+        if (marcado) _seleccionados.Add(codigo); else _seleccionados.Remove(codigo);
+    }
+
+    private void MarcarGrupo(IEnumerable<DatosPermisoCentral> grupo, bool marcado)
+    {
+        foreach (var permiso in grupo)
+            Marcar(permiso.Codigo, marcado);
+    }
+
+    private async Task GuardarAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var solicitud = new SolicitudRolCentral(_codigo ?? string.Empty, _nombre ?? string.Empty, _seleccionados.Order(StringComparer.Ordinal).ToList());
+        var respuesta = Rol is null ? await Cliente.CrearRolAsync(solicitud) : await Cliente.ActualizarRolAsync(Rol.Id, solicitud);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el rol.";
+    }
+}

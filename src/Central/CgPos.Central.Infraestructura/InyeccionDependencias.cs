@@ -40,6 +40,7 @@ public static class InyeccionDependencias
 
         // Seguridad (M02): sesiones del Central Manager y credenciales de las cajas.
         servicios.AddScoped<IServicioSesionesCentral, ServicioSesionesCentral>();
+        servicios.AddScoped<IServicioAdministracionSeguridad, ServicioAdministracionSeguridad>();
         servicios.AddScoped<IServicioDispositivos, ServicioDispositivos>();
 
         // Sincronización con las cajas (M14).

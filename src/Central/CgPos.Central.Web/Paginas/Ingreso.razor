@@ -1,0 +1,76 @@
+@page "/ingreso"
+@layout DisenoIngreso
+@inject ServicioSesionCentral Sesiones
+@inject AlmacenSesionCentral Almacen
+@inject NavigationManager Navegacion
+
+<PageTitle>Iniciar sesión · CG-POS Central</PageTitle>
+
+<div class="cg-acceso">
+    <section class="cg-acceso__marca">
+        <div class="cg-acceso__logo">CG-POS</div>
+        <div class="cg-acceso__producto">Central</div>
+        <p class="cg-acceso__lema">Administración de sucursales, cajas, maestros, promociones y facturación electrónica de Contreras Group.</p>
+    </section>
+
+    <section class="cg-acceso__formulario">
+        <MudPaper Elevation="3" Class="cg-acceso__tarjeta">
+            <MudText Typo="Typo.h5" Class="cg-acceso__titulo">Iniciar sesión</MudText>
+
+            <MudTextField T="string" @bind-Value="_usuario" Label="Usuario" Variant="Variant.Outlined" Immediate="true" AutoFocus="true" Class="mb-4"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" OnKeyDown="AlTeclearAsync" />
+            <MudTextField T="string" @bind-Value="_contrasena" Label="Contraseña" InputType="InputType.Password" Variant="Variant.Outlined" Immediate="true" Class="mb-4"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock" OnKeyDown="AlTeclearAsync" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" Disabled="@(!PuedeIngresar)" OnClick="IngresarAsync">
+                Ingresar
+            </MudButton>
+
+            @if (_procesando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mt-3" />
+            }
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">@_mensaje</MudAlert>
+            }
+        </MudPaper>
+    </section>
+</div>
+
+@code {
+    private string? _usuario;
+    private string? _contrasena;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private bool PuedeIngresar => !_procesando && !string.IsNullOrWhiteSpace(_usuario) && !string.IsNullOrEmpty(_contrasena);
+
+    protected override void OnInitialized()
+    {
+        if (Almacen.Activa)
+            Navegacion.NavigateTo("", replace: true);
+    }
+
+    private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? IngresarAsync() : Task.CompletedTask;
+
+    private async Task IngresarAsync()
+    {
+        if (!PuedeIngresar)
+            return;
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Sesiones.IngresarAsync(_usuario!.Trim(), _contrasena!);
+        _procesando = false;
+
+        if (respuesta is { Exitoso: true, Sesion: { } sesion })
+        {
+            Navegacion.NavigateTo(sesion.DebeCambiarContrasena ? "cambiar-contrasena" : "", replace: true);
+            return;
+        }
+
+        _mensaje = respuesta.Mensaje ?? "No se pudo iniciar sesión.";
+        _contrasena = string.Empty;
+    }
+}

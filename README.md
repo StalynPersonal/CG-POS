@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central está hecha la fase H1 (fundaciones y seguridad).
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad) y H2 (sincronización con las cajas); la H3 (Central Manager) avanza por módulos.
 
 ## Stack
 
@@ -293,6 +293,13 @@ dotnet run --project src/Central/CgPos.Central.Api
 | `Central.Dispositivos.MinutosToken` | Vigencia del token de las cajas | Sí |
 
 - **API:** `POST /api/sesion/ingreso`, `POST /api/sesion/renovar`, `GET /api/sesion/actual`, `POST /api/sesion/cerrar`, `POST /api/sesion/contrasena`; `POST /api/cajas/{id}/credencial` y `POST /api/cajas/{id}/credencial/revocar` (permiso `Central.Dispositivos.Administrar`); `POST /api/dispositivos/token` y `GET /api/dispositivos/actual` para las cajas.
+
+### Central Manager (web)
+
+- <http://localhost:5280> en desarrollo: Blazor WebAssembly con MudBlazor local y el tema verde, servido por el mismo `CgPos.Central.Api` (se desactiva con `Central:ServirManager = false`). Las rutas `/api` desconocidas responden 404.
+- **Sesión:** ingreso con usuario y contraseña. El token de acceso vive en memoria y el de renovación en el almacenamiento de la pestaña: recargar no pide la contraseña, la sesión se renueva sola antes de vencer y cerrar la pestaña la termina en ese equipo. Con contraseña temporal solo se puede cambiarla.
+- **Menú según los permisos del rol.** *Seguridad:* usuarios (alta con contraseña temporal, edición, restablecer contraseña, desbloquear, activar o desactivar) y roles con sus permisos agrupados por módulo. Ningún cambio puede dejar al Central sin un usuario activo que administre la seguridad y nadie puede desactivarse a sí mismo; restablecer, desactivar o cambiar el rol cierra las sesiones de ese usuario.
+- **API** (permiso `Central.Seguridad.Administrar`): `GET /api/seguridad/permisos`; `GET|POST /api/seguridad/roles`, `PUT /api/seguridad/roles/{id}`, `POST /api/seguridad/roles/{id}/activar|desactivar`; `GET|POST /api/seguridad/usuarios`, `PUT /api/seguridad/usuarios/{id}`, `POST /api/seguridad/usuarios/{id}/contrasena|desbloquear|activar|desactivar`.
 
 ### Recepción de documentos de las cajas
 

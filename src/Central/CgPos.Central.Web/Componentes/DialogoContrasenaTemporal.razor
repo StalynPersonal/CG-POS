@@ -1,0 +1,46 @@
+@* Asigna una contraseña temporal: el usuario queda desbloqueado, sus sesiones se cierran y debe cambiarla al ingresar. *@
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudText Typo="Typo.body2">
+                @Usuario.Nombre deberá cambiarla en su próximo ingreso. Sus sesiones abiertas se cerrarán.
+            </MudText>
+            <MudTextField T="string" @bind-Value="_contrasena" Label="Contraseña temporal" Variant="Variant.Outlined" InputType="InputType.Password" AutoFocus="true" />
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || string.IsNullOrEmpty(_contrasena))" OnClick="GuardarAsync">
+            Restablecer
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosUsuarioCentral Usuario { get; set; } = default!;
+
+    private string? _contrasena;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private async Task GuardarAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.RestablecerContrasenaAsync(Usuario.Id, _contrasena ?? string.Empty);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo restablecer la contraseña.";
+    }
+}

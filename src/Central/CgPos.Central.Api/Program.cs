@@ -53,6 +53,18 @@ try
     // La clave de firma se valida al arrancar y no con la primera solicitud.
     _ = aplicacion.Services.GetRequiredService<EmisorTokensCentral>();
 
+    if (aplicacion.Environment.IsDevelopment())
+        aplicacion.UseWebAssemblyDebugging();
+
+    // Encabezados básicos del Central Manager: sin incrustarlo en otros sitios ni adivinar tipos de contenido.
+    aplicacion.Use(async (contexto, siguiente) =>
+    {
+        contexto.Response.Headers.XContentTypeOptions = "nosniff";
+        contexto.Response.Headers.XFrameOptions = "DENY";
+        contexto.Response.Headers["Referrer-Policy"] = "no-referrer";
+        await siguiente(contexto);
+    });
+
     aplicacion.UsarHttpsObligatorio();
 
     // Una regla de negocio sin configurar no se reemplaza por un valor fijo: la operación se rechaza con el motivo (422, texto).
@@ -80,6 +92,14 @@ try
     aplicacion.MapearApiSesion();
     aplicacion.MapearApiDispositivos();
     aplicacion.MapearApiSincronizacion();
+    aplicacion.MapearApiAdministracionSeguridad();
+
+    // Central Manager (Blazor WebAssembly de CgPos.Central.Web). Las rutas /api desconocidas responden 404, no la aplicación.
+    if (aplicacion.Configuration.GetValue("Central:ServirManager", true))
+    {
+        aplicacion.MapStaticAssets();
+        aplicacion.MapFallbackToFile("{*ruta:nonfile:regex(^(?!api/).*$)}", "index.html");
+    }
 
     await aplicacion.Services.InicializarBaseDatosCentralAsync();
 

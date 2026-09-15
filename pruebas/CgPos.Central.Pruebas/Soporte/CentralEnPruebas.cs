@@ -62,6 +62,7 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("Maestros:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "maestros.desarrollo.json"));
             anfitrion.UseSetting(EmisorTokensCentral.ClaveConfiguracion, Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             anfitrion.UseSetting(ExtensionesSeguridadCentral.ClaveExigirHttps, "true");
+            anfitrion.UseSetting("Central:ServirManager", "false");
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
         });
 
