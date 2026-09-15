@@ -54,6 +54,23 @@ dotnet user-secrets set "BaseDatos:NivelCompatibilidad" "120" --project src/POS/
 
 En producción, `appsettings.json` usa `.\SQLEXPRESS` con autenticación de Windows.
 
+## Parámetros de negocio
+
+Las reglas de negocio no tienen valores fijos en el código: las configura un usuario en el Central y llegan a la caja como parámetros (con precedencia caja → sucursal → general). Si falta uno obligatorio, la operación se rechaza con el mensaje «Falta configurar el parámetro…». En desarrollo están en `datos/carga-inicial.desarrollo.json`.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Seguridad.IntentosMaximosPin`, `Seguridad.MinutosBloqueo` | Bloqueo por PIN incorrecto | Sí |
+| `Fiscal.MontoIdentificacionConsumo` | Total desde el cual la factura de consumo exige cédula o RNC | Sí |
+| `Fiscal.PorcentajeAlertaSecuenciaEcf`, `Fiscal.DiasAlertaCertificado` | Alertas de secuencias y certificado (si faltan, la barra de estado lo indica) | Sí |
+| `Caja.PasoRedondeoEfectivo` | Redondeo del cobro en efectivo (`0` = sin redondeo) | Sí |
+| `Caja.CierreCiego`, `Caja.FondoEnCuadre` | Modalidad del cierre de turno | Sí |
+| `Caja.FondoPredeterminado` | Fondo sugerido al abrir turno | No |
+| `Devoluciones.DiasRetencionImpuesto`, `Devoluciones.MesesVigenciaNotaCredito` | Retención del ITBIS y vigencia de la nota de crédito | Sí |
+| `Devoluciones.PoliticaNotaCredito`, `Devoluciones.PoliticaNotaCreditoContabilidad` | Textos impresos en la nota de crédito | No |
+| `Tickets.MensajePie` | Mensaje al pie del ticket | No |
+| `Balanza.PrefijoPeso`, `Balanza.PrefijoPrecio`, `Balanza.DigitosCodigoArticulo`, `Balanza.DigitosValor`, `Balanza.DecimalesPeso`, `Balanza.DecimalesPrecio` | Etiquetas de balanza; sin prefijos la caja no las interpreta | Si hay prefijos |
+
 ## Ejecutar la caja
 
 ```powershell

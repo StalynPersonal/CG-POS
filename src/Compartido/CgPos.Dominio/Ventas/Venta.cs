@@ -97,9 +97,6 @@ public sealed record ClienteVenta(
 /// <summary>Qué comprobantes se emiten en una venta de caja y qué documento del comprador exige cada uno (RF-27).</summary>
 public static class ReglasComprobante
 {
-    /// <summary>Por encima de este total, la factura de consumo exige cédula o RNC (RF-26). Configurable por parámetro.</summary>
-    public const decimal MontoIdentificacionConsumoPredeterminado = 250_000m;
-
     public static IReadOnlyList<TipoComprobante> DeVenta { get; } =
     [
         TipoComprobante.FacturaConsumo,

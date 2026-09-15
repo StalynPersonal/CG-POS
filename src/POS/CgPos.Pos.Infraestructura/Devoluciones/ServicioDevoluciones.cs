@@ -57,13 +57,6 @@ internal sealed class ServicioDevoluciones(
     TimeProvider reloj) : IServicioDevoluciones
 {
     private const string TipoEntidadDevolucion = "Devolucion";
-    private const int DiasRetencionPredeterminados = 30;
-    private const int MesesVigenciaPredeterminados = 6;
-
-    private const string PoliticaPredeterminada =
-        "Esta nota de crédito puede consumirse en cualquier tienda de la empresa hasta su vencimiento. No es canjeable por efectivo.";
-
-    private const string PoliticaContabilidadPredeterminada = "Copia para contabilidad del cliente. No válida para consumo.";
 
     private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
 
@@ -99,8 +92,8 @@ internal sealed class ServicioDevoluciones(
             .FirstOrDefaultAsync(m => m.Codigo == (solicitud.MotivoCodigo ?? string.Empty).ToUpper() && m.Activo, cancelacion);
         var cliente = await ClienteAsync(venta, solicitud, cancelacion);
 
-        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, DiasRetencionPredeterminados, cancelacion);
-        var mesesVigencia = await parametros.ObtenerEnteroAsync(ClavesParametros.MesesVigenciaNotaCredito, sesion.CajaId, MesesVigenciaPredeterminados, cancelacion);
+        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
+        var mesesVigencia = await parametros.ObtenerEnteroAsync(ClavesParametros.MesesVigenciaNotaCredito, sesion.CajaId, cancelacion);
         var encfOrigen = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.Encf).FirstOrDefaultAsync(cancelacion);
         var lineas = solicitud.Lineas.Select(l => new LineaSolicitadaDevolucion(l.NumeroLinea, l.Cantidad, l.Serial)).ToList();
         var ahora = reloj.GetUtcNow();
@@ -268,7 +261,7 @@ internal sealed class ServicioDevoluciones(
             .OrderBy(d => d.CreadaEn).ToListAsync(cancelacion);
         var devuelto = previas.Devuelto();
         var encf = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.Encf).FirstOrDefaultAsync(cancelacion);
-        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, DiasRetencionPredeterminados, cancelacion);
+        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
 
         var cobradaEn = venta.CobradaEn!.Value;
         var dias = Hoy.DayNumber - DateOnly.FromDateTime(cobradaEn.ToOffset(Devolucion.ZonaHoraria).DateTime).DayNumber;
@@ -279,7 +272,7 @@ internal sealed class ServicioDevoluciones(
             return new DatosLineaFacturaDevolucion(l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
                 l.UnidadMedidaCodigo, l.DecimalesCantidad, l.PermiteDecimales, l.Cantidad, previo.Cantidad, Math.Max(0m, l.Cantidad - previo.Cantidad),
                 decimal.Round(l.ImporteConImpuesto / l.Cantidad, 2, MidpointRounding.AwayFromZero), l.ImporteConImpuesto - previo.ImporteFactura,
-                l.TipoArticulo == TipoArticulo.Serializado);
+                l.PorcentajeImpuesto, l.TipoArticulo == TipoArticulo.Serializado);
         }).ToList();
 
         var cliente = venta.ClienteNombre is { } nombre
@@ -311,10 +304,10 @@ internal sealed class ServicioDevoluciones(
     /// <summary>Copia del cliente (con código de barras para consumo) y copia de contabilidad, con textos distintos (RF-163).</summary>
     private async Task<string?> ImprimirAsync(SesionUsuario sesion, DatosNotaCredito datos, bool esCopia, CancellationToken cancelacion)
     {
-        var encabezado = await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion);
-        var politica = await parametros.ObtenerAsync(ClavesParametros.PoliticaNotaCredito, sesion.CajaId, cancelacion) ?? PoliticaPredeterminada;
-        var politicaContabilidad = await parametros.ObtenerAsync(ClavesParametros.PoliticaNotaCreditoContabilidad, sesion.CajaId, cancelacion)
-            ?? PoliticaContabilidadPredeterminada;
+        var encabezado = await contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion);
+        // Las políticas son textos del negocio: si no se configuraron, no se imprimen.
+        var politica = await parametros.ObtenerAsync(ClavesParametros.PoliticaNotaCredito, sesion.CajaId, cancelacion);
+        var politicaContabilidad = await parametros.ObtenerAsync(ClavesParametros.PoliticaNotaCreditoContabilidad, sesion.CajaId, cancelacion);
 
         var cliente = await impresora.ImprimirAsync(GeneradorTicket.GenerarNotaCredito(encabezado, datos, copiaContabilidad: false, politica, esCopia), cancelacion);
         var contabilidad = await impresora.ImprimirAsync(GeneradorTicket.GenerarNotaCredito(encabezado, datos, copiaContabilidad: true, politicaContabilidad, esCopia),

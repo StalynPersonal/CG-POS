@@ -352,19 +352,39 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
     public async Task<DatosEstadoEcf> ObtenerEstadoAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
     {
         var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
-        var umbral = await parametros.ObtenerDecimalAsync(ClavesParametros.PorcentajeAlertaSecuenciaEcf, sesion.CajaId, 10m, cancelacion);
-        var diasAlerta = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasAlertaCertificado, sesion.CajaId, 30, cancelacion);
+
+        // Sin umbrales configurados no se inventan: el estado informa qué falta configurar y sigue mostrando lo demás.
+        var faltantes = new List<string>();
+        decimal? umbral = null;
+        int? diasAlerta = null;
+        try
+        {
+            umbral = await parametros.ObtenerDecimalAsync(ClavesParametros.PorcentajeAlertaSecuenciaEcf, sesion.CajaId, cancelacion);
+        }
+        catch (ParametroNoConfiguradoExcepcion excepcion)
+        {
+            faltantes.Add(excepcion.Message);
+        }
+
+        try
+        {
+            diasAlerta = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasAlertaCertificado, sesion.CajaId, cancelacion);
+        }
+        catch (ParametroNoConfiguradoExcepcion excepcion)
+        {
+            faltantes.Add(excepcion.Message);
+        }
 
         var secuencias = await contexto.SecuenciasEcf.AsNoTracking()
             .Where(s => s.CajaId == sesion.CajaId && s.Activa)
             .OrderBy(s => s.TipoComprobante).ThenBy(s => s.Desde)
             .ToListAsync(cancelacion);
 
-        var alertas = new List<string>();
+        var alertas = new List<string>(faltantes);
         var datos = secuencias.Select(s =>
         {
             var disponible = s.Disponible(hoy);
-            var enAlerta = !disponible || s.PorcentajeRestante <= umbral;
+            var enAlerta = !disponible || (umbral is { } limite && s.PorcentajeRestante <= limite);
             return new DatosSecuenciaEcf(s.TipoComprobante, s.Desde, s.Hasta, s.Ultimo, s.Restantes, s.PorcentajeRestante, s.VenceEn, disponible, enAlerta);
         }).ToList();
 
@@ -384,7 +404,7 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
             alertas.Add("Digite el PIN del certificado digital para poder facturar.");
 
         int? diasParaVencer = certificado.VenceEn is { } vence ? (int)Math.Floor((vence - reloj.GetUtcNow()).TotalDays) : null;
-        if (diasParaVencer is { } dias && dias <= diasAlerta)
+        if (diasParaVencer is { } dias && diasAlerta is { } diasLimite && dias <= diasLimite)
             alertas.Add(dias < 0 ? "El certificado digital de la caja está vencido." : $"El certificado digital de la caja vence en {dias} días.");
 
         return new DatosEstadoEcf(certificado.Configurado, certificado.Cargado, certificado.Sujeto, certificado.VenceEn, diasParaVencer, datos, alertas);

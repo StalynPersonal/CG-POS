@@ -125,6 +125,23 @@
       "clave": "Caja.FondoPredeterminado",
       "valor": "5000.00",
       "descripcion": "Fondo sugerido al abrir turno (RD$)"
-    }
+    },
+    { "id": "01990000-0000-7000-8000-000000000504", "clave": "Fiscal.MontoIdentificacionConsumo", "valor": "250000", "descripcion": "Total desde el cual la factura de consumo exige cédula o RNC (RD$)" },
+    { "id": "01990000-0000-7000-8000-000000000505", "clave": "Caja.PasoRedondeoEfectivo", "valor": "0", "descripcion": "Múltiplo de redondeo del total cobrado en efectivo (0 = sin redondeo)" },
+    { "id": "01990000-0000-7000-8000-000000000506", "clave": "Caja.CierreCiego", "valor": "true", "descripcion": "El cajero declara el cierre sin ver lo esperado" },
+    { "id": "01990000-0000-7000-8000-000000000507", "clave": "Caja.FondoEnCuadre", "valor": "false", "descripcion": "El fondo de caja forma parte del efectivo esperado en el cierre" },
+    { "id": "01990000-0000-7000-8000-000000000508", "clave": "Devoluciones.DiasRetencionImpuesto", "valor": "30", "descripcion": "Días desde la factura tras los cuales la devolución retiene el ITBIS" },
+    { "id": "01990000-0000-7000-8000-000000000509", "clave": "Devoluciones.MesesVigenciaNotaCredito", "valor": "6", "descripcion": "Meses de vigencia de la nota de crédito para consumirla" },
+    { "id": "01990000-0000-7000-8000-000000000510", "clave": "Devoluciones.PoliticaNotaCredito", "valor": "Esta nota de crédito puede consumirse en cualquier tienda de la empresa hasta su vencimiento. No es canjeable por efectivo.", "descripcion": "Política impresa en la copia del cliente de la nota de crédito" },
+    { "id": "01990000-0000-7000-8000-000000000511", "clave": "Devoluciones.PoliticaNotaCreditoContabilidad", "valor": "Copia para contabilidad del cliente. No válida para consumo.", "descripcion": "Texto de la copia de contabilidad de la nota de crédito" },
+    { "id": "01990000-0000-7000-8000-000000000512", "clave": "Fiscal.PorcentajeAlertaSecuenciaEcf", "valor": "10", "descripcion": "Porcentaje restante de una secuencia de e-CF desde el cual se alerta" },
+    { "id": "01990000-0000-7000-8000-000000000513", "clave": "Fiscal.DiasAlertaCertificado", "valor": "30", "descripcion": "Días antes del vencimiento del certificado digital para alertar" },
+    { "id": "01990000-0000-7000-8000-000000000514", "clave": "Tickets.MensajePie", "valor": "¡Gracias por su compra!", "descripcion": "Mensaje al pie del ticket de venta" },
+    { "id": "01990000-0000-7000-8000-000000000515", "clave": "Balanza.PrefijoPeso", "valor": "21", "descripcion": "Prefijo de las etiquetas de balanza con peso" },
+    { "id": "01990000-0000-7000-8000-000000000516", "clave": "Balanza.PrefijoPrecio", "valor": "22", "descripcion": "Prefijo de las etiquetas de balanza con precio" },
+    { "id": "01990000-0000-7000-8000-000000000517", "clave": "Balanza.DigitosCodigoArticulo", "valor": "5", "descripcion": "Dígitos del código de artículo en la etiqueta de balanza" },
+    { "id": "01990000-0000-7000-8000-000000000518", "clave": "Balanza.DigitosValor", "valor": "5", "descripcion": "Dígitos del peso o precio en la etiqueta de balanza" },
+    { "id": "01990000-0000-7000-8000-000000000519", "clave": "Balanza.DecimalesPeso", "valor": "3", "descripcion": "Decimales del peso en la etiqueta de balanza" },
+    { "id": "01990000-0000-7000-8000-000000000520", "clave": "Balanza.DecimalesPrecio", "valor": "2", "descripcion": "Decimales del precio en la etiqueta de balanza" }
   ]
 }

@@ -125,5 +125,21 @@ public sealed class EscenarioSeguridad
             [
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosPin, "3", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosBloqueo, "5", CajaId: CajaUno),
+
+                // Reglas de negocio de la caja de prueba: en producción las configura un usuario en el Central.
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MontoIdentificacionConsumo, "250000", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.PasoRedondeoEfectivo, "0", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.CierreCiego, "true", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.FondoEnCuadre, "false", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasRetencionImpuestoDevolucion, "30", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MesesVigenciaNotaCredito, "6", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.PorcentajeAlertaSecuenciaEcf, "10", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasAlertaCertificado, "30", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaPrefijoPeso, "21", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaPrefijoPrecio, "22", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDigitosCodigoArticulo, "5", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDigitosValor, "5", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDecimalesPeso, "3", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDecimalesPrecio, "2", CajaId: CajaUno),
             ]);
 }

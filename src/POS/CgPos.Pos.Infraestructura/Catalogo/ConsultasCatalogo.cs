@@ -37,7 +37,7 @@ internal sealed class ConsultaArticulos(
             return await ArmarDatosVentaAsync(idInterno, leido, OrigenCodigoLeido.CodigoInterno, null, cancelacion);
 
         var formato = await ObtenerFormatoBalanzaAsync(cancelacion);
-        if (!InterpreteCodigoBalanza.TryInterpretar(leido, formato, out var lectura))
+        if (formato is null || !InterpreteCodigoBalanza.TryInterpretar(leido, formato, out var lectura))
             return null;
 
         var idBalanza = await contexto.Articulos
@@ -192,18 +192,22 @@ internal sealed class ConsultaArticulos(
             .ToDictionary(g => g.Key, g => PreciosVigentes.Resolver(g, ahora));
     }
 
-    private async Task<FormatoCodigoBalanza> ObtenerFormatoBalanzaAsync(CancellationToken cancelacion)
+    /// <summary>Formato de etiquetas de balanza configurado; nulo si la caja no tiene etiquetas de balanza configuradas.</summary>
+    private async Task<FormatoCodigoBalanza?> ObtenerFormatoBalanzaAsync(CancellationToken cancelacion)
     {
-        var predeterminado = new FormatoCodigoBalanza();
         var cajaId = contextoCaja.CajaId;
+        var prefijoPeso = await parametros.ObtenerAsync(ClavesParametros.BalanzaPrefijoPeso, cajaId, cancelacion);
+        var prefijoPrecio = await parametros.ObtenerAsync(ClavesParametros.BalanzaPrefijoPrecio, cajaId, cancelacion);
+        if (string.IsNullOrEmpty(prefijoPeso) && string.IsNullOrEmpty(prefijoPrecio))
+            return null;
 
         return new FormatoCodigoBalanza(
-            await parametros.ObtenerAsync(ClavesParametros.BalanzaPrefijoPeso, cajaId, cancelacion) ?? predeterminado.PrefijoPeso,
-            await parametros.ObtenerAsync(ClavesParametros.BalanzaPrefijoPrecio, cajaId, cancelacion) ?? predeterminado.PrefijoPrecio,
-            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDigitosCodigoArticulo, cajaId, predeterminado.DigitosCodigoArticulo, cancelacion),
-            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDigitosValor, cajaId, predeterminado.DigitosValor, cancelacion),
-            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDecimalesPeso, cajaId, predeterminado.DecimalesPeso, cancelacion),
-            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDecimalesPrecio, cajaId, predeterminado.DecimalesPrecio, cancelacion));
+            prefijoPeso,
+            prefijoPrecio,
+            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDigitosCodigoArticulo, cajaId, cancelacion),
+            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDigitosValor, cajaId, cancelacion),
+            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDecimalesPeso, cajaId, cancelacion),
+            await parametros.ObtenerEnteroAsync(ClavesParametros.BalanzaDecimalesPrecio, cajaId, cancelacion));
     }
 }
 

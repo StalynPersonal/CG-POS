@@ -30,9 +30,6 @@ internal sealed class VerificadorCredenciales(
     ILectorHuella lectorHuella,
     TimeProvider reloj)
 {
-    private const int IntentosMaximosPredeterminados = 3;
-    private const int MinutosBloqueoPredeterminados = 5;
-
     // Hash de relleno para que un código inexistente tarde lo mismo que un PIN incorrecto (evita enumerar usuarios).
     private static readonly Lazy<string> HashRelleno = new(() => new HashCredenciales().HashPin("0000"));
 
@@ -57,8 +54,8 @@ internal sealed class VerificadorCredenciales(
 
         if (!credencialValida)
         {
-            var intentosMaximos = await parametros.ObtenerEnteroAsync(ClavesParametros.IntentosMaximosPin, cajaId, IntentosMaximosPredeterminados, cancelacion);
-            var minutosBloqueo = await parametros.ObtenerEnteroAsync(ClavesParametros.MinutosBloqueo, cajaId, MinutosBloqueoPredeterminados, cancelacion);
+            var intentosMaximos = await parametros.ObtenerEnteroAsync(ClavesParametros.IntentosMaximosPin, cajaId, cancelacion);
+            var minutosBloqueo = await parametros.ObtenerEnteroAsync(ClavesParametros.MinutosBloqueo, cajaId, cancelacion);
             var quedoBloqueado = usuario.RegistrarIngresoFallido(ahora, Math.Max(1, intentosMaximos), TimeSpan.FromMinutes(Math.Max(1, minutosBloqueo)));
 
             return quedoBloqueado

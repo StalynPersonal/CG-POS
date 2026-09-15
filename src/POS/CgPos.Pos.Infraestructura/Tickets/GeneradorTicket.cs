@@ -16,7 +16,8 @@ internal sealed record EncabezadoTicket(
     string? EmpresaTelefono,
     string SucursalNombre,
     string? SucursalDireccion,
-    string CajaCodigo);
+    string CajaCodigo,
+    string? MensajePie = null);
 
 /// <summary>
 /// Ticket de venta para impresora térmica de 80 mm (42 columnas): texto plano y ESC/POS con la página de códigos PC858 para
@@ -154,7 +155,9 @@ internal static class GeneradorTicket
 
         // Código de barras para llamar la factura en devoluciones (RF-56).
         Agregar(venta.NumeroTransaccion, Estilo.Barras);
-        Agregar("¡Gracias por su compra!", Estilo.Centrado);
+        if (encabezado.MensajePie is { } pie)
+            foreach (var parte in Envolver(pie))
+                Agregar(parte, Estilo.Centrado);
 
         return Documento($"ticket-{venta.NumeroTransaccion}{(esCopia ? "-copia" : null)}", lineas);
     }
@@ -163,7 +166,7 @@ internal static class GeneradorTicket
     /// Nota de crédito (RF-163): la copia del cliente lleva el código de barras para consumirla (RF-57) y la política de consumo (RF-83);
     /// la de contabilidad lleva su propio texto. Ambas muestran quién autorizó (RF-162).
     /// </summary>
-    public static DocumentoImpresion GenerarNotaCredito(EncabezadoTicket encabezado, DatosNotaCredito nota, bool copiaContabilidad, string politica, bool esCopia)
+    public static DocumentoImpresion GenerarNotaCredito(EncabezadoTicket encabezado, DatosNotaCredito nota, bool copiaContabilidad, string? politica, bool esCopia)
     {
         var cultura = CulturaRd.Crear();
         var lineas = new List<(string Texto, Estilo Estilo)>();
@@ -224,9 +227,13 @@ internal static class GeneradorTicket
             Agregar(ecf.UrlTimbre, Estilo.Qr);
         }
 
-        Separador();
-        foreach (var parte in Envolver(politica))
-            Agregar(parte);
+        if (politica is not null)
+        {
+            Separador();
+            foreach (var parte in Envolver(politica))
+                Agregar(parte);
+        }
+
         AgregarFirmas(lineas, "Cliente", "Autorizado");
 
         return Documento($"nc-{nota.Numero}{(copiaContabilidad ? "-contabilidad" : null)}{(esCopia ? "-copia" : null)}", lineas);

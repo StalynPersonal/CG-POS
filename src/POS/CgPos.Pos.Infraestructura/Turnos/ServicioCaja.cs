@@ -91,7 +91,7 @@ internal sealed class ServicioCaja(
             AutorizadoPor: Autorizador(permiso)));
         await contexto.SaveChangesAsync(cancelacion);
 
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarPreCierre(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), resumen, ahora),
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarPreCierre(await contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion), resumen, ahora),
             cancelacion);
         return new RespuestaCaja(CodigoResultadoCaja.Correcto, impresion.Correcto ? "Pre-cierre impreso." : impresion.Mensaje, Resumen: resumen, Turno: turno.ADatos());
     }
@@ -132,7 +132,7 @@ internal sealed class ServicioCaja(
         await contexto.SaveChangesAsync(cancelacion);
 
         // Después de guardar: la impresora o la gaveta nunca deshacen el retiro.
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarRetiro(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), datos, turno.Numero),
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarRetiro(await contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion), datos, turno.Numero),
             cancelacion);
         var gaveta = await impresora.AbrirGavetaAsync(cancelacion);
         var avisos = string.Join(" ", new[] { impresion.Correcto ? null : impresion.Mensaje, gaveta.Correcto ? null : gaveta.Mensaje }.Where(a => a is not null));
@@ -231,7 +231,7 @@ internal sealed class ServicioCaja(
             AutorizadoPor: Autorizador(permiso)));
         await contexto.SaveChangesAsync(cancelacion);
 
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), datos, esCopia: false),
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion), datos, esCopia: false),
             cancelacion);
         var mensaje = $"Turno {turno.Numero} cerrado.{(impresion.Correcto ? string.Empty : $" {impresion.Mensaje}")}";
         return new RespuestaCaja(CodigoResultadoCaja.Correcto, mensaje, Cierre: datos, Turno: turno.ADatos());
@@ -312,7 +312,7 @@ internal sealed class ServicioCaja(
 
         var movimientos = await contexto.MovimientosCaja.AsNoTracking().Where(m => m.TurnoId == cierre.TurnoId).ToListAsync(cancelacion);
         var datos = cierre.ADatos(movimientos);
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), datos, esCopia: true),
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion), datos, esCopia: true),
             cancelacion);
 
         auditoria.Registrar(new EntradaAuditoria("Caja.CierreReimpreso", TipoEntidadCierre, cierre.Id.ToString(),
@@ -326,8 +326,8 @@ internal sealed class ServicioCaja(
 
     private async Task<CalculoTurno> CalcularAsync(Turno turno, CancellationToken cancelacion)
     {
-        var ciego = await parametros.ObtenerBooleanoAsync(ClavesParametros.CierreCiego, turno.CajaId, true, cancelacion);
-        var fondoEnCuadre = await parametros.ObtenerBooleanoAsync(ClavesParametros.FondoEnCuadre, turno.CajaId, false, cancelacion);
+        var ciego = await parametros.ObtenerBooleanoAsync(ClavesParametros.CierreCiego, turno.CajaId, cancelacion);
+        var fondoEnCuadre = await parametros.ObtenerBooleanoAsync(ClavesParametros.FondoEnCuadre, turno.CajaId, cancelacion);
 
         var ventas = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).Include(v => v.Pagos)
             .Where(v => v.TurnoId == turno.Id && v.Estado != EstadoVenta.Anulada)

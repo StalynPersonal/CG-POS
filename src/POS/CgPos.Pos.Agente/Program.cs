@@ -56,6 +56,22 @@ try
     if (aplicacion.Environment.IsDevelopment())
         aplicacion.UseWebAssemblyDebugging();
 
+    // Una regla de negocio sin configurar no se reemplaza por un valor fijo: la operación se rechaza con el motivo (422, texto).
+    aplicacion.Use(async (contexto, siguiente) =>
+    {
+        try
+        {
+            await siguiente(contexto);
+        }
+        catch (ParametroNoConfiguradoExcepcion excepcion) when (!contexto.Response.HasStarted)
+        {
+            Log.Warning("Operación rechazada por configuración: {Mensaje}", excepcion.Message);
+            contexto.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+            contexto.Response.ContentType = "text/plain; charset=utf-8";
+            await contexto.Response.WriteAsync(excepcion.Message);
+        }
+    });
+
     aplicacion.UseAuthentication();
     aplicacion.UseAuthorization();
 

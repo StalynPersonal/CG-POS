@@ -7,18 +7,18 @@ public enum TipoValorBalanza
 }
 
 /// <summary>
-/// Formato de las etiquetas de balanza (RF-180). Por defecto EAN-13: prefijo (2) + código del artículo (5)
-/// + valor (5) + dígito de control (1). Prefijo "21" = peso con 3 decimales; "22" = precio con 2 decimales.
+/// Formato de las etiquetas de balanza (RF-180), configurado por parámetros: prefijo + código del artículo + valor + dígito de control GS1.
+/// Un prefijo vacío desactiva ese tipo de etiqueta (peso o precio).
 /// </summary>
 public sealed record FormatoCodigoBalanza(
-    string PrefijoPeso = "21",
-    string PrefijoPrecio = "22",
-    int DigitosCodigoArticulo = 5,
-    int DigitosValor = 5,
-    int DecimalesPeso = 3,
-    int DecimalesPrecio = 2)
+    string? PrefijoPeso,
+    string? PrefijoPrecio,
+    int DigitosCodigoArticulo,
+    int DigitosValor,
+    int DecimalesPeso,
+    int DecimalesPrecio)
 {
-    public int LargoTotal => PrefijoPeso.Length + DigitosCodigoArticulo + DigitosValor + 1;
+    public int LargoTotal(string prefijo) => prefijo.Length + DigitosCodigoArticulo + DigitosValor + 1;
 }
 
 public sealed record LecturaBalanza(string CodigoArticulo, TipoValorBalanza Tipo, decimal Valor);
@@ -45,17 +45,17 @@ public static class InterpreteCodigoBalanza
         lectura = null;
 
         var limpio = codigo?.Trim() ?? string.Empty;
-        if (limpio.Length != formato.LargoTotal || !limpio.All(char.IsAsciiDigit))
+        if (!limpio.All(char.IsAsciiDigit))
             return false;
 
         TipoValorBalanza tipo;
         string prefijo;
-        if (limpio.StartsWith(formato.PrefijoPeso, StringComparison.Ordinal))
+        if (!string.IsNullOrEmpty(formato.PrefijoPeso) && limpio.StartsWith(formato.PrefijoPeso, StringComparison.Ordinal))
         {
             tipo = TipoValorBalanza.Peso;
             prefijo = formato.PrefijoPeso;
         }
-        else if (limpio.StartsWith(formato.PrefijoPrecio, StringComparison.Ordinal))
+        else if (!string.IsNullOrEmpty(formato.PrefijoPrecio) && limpio.StartsWith(formato.PrefijoPrecio, StringComparison.Ordinal))
         {
             tipo = TipoValorBalanza.Precio;
             prefijo = formato.PrefijoPrecio;
@@ -64,6 +64,9 @@ public static class InterpreteCodigoBalanza
         {
             return false;
         }
+
+        if (limpio.Length != formato.LargoTotal(prefijo))
+            return false;
 
         if (!DigitoControlGs1Valido(limpio))
             return false;

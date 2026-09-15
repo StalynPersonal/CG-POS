@@ -227,11 +227,11 @@ public class VentaPruebas
         var venta = NuevaVenta();
         venta.AgregarArticulo(Cemento(), 600m, Ahora); // 600 × 450 = 270,000
 
-        Assert.True(venta.RequiereIdentificacion(ReglasComprobante.MontoIdentificacionConsumoPredeterminado));
+        Assert.True(venta.RequiereIdentificacion(250_000m));
         Assert.False(venta.RequiereIdentificacion(300_000m));
 
         venta.AsignarCliente(new ClienteVenta(null, TipoDocumentoIdentidad.Cedula, "00113918205", "Cliente con cédula", TipoComprobante.FacturaConsumo), Ahora);
-        Assert.False(venta.RequiereIdentificacion(ReglasComprobante.MontoIdentificacionConsumoPredeterminado));
+        Assert.False(venta.RequiereIdentificacion(250_000m));
     }
 
     [Fact]

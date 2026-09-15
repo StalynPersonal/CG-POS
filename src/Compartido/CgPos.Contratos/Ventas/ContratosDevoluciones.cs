@@ -22,6 +22,7 @@ public sealed record DatosLineaFacturaDevolucion(
     decimal CantidadDisponible,
     decimal PrecioUnitario,
     decimal ImporteDisponible,
+    decimal PorcentajeImpuesto,
     bool RequiereSerial);
 
 public sealed record DatosNotaCreditoResumen(Guid Id, string Numero, string? Encf, decimal Total, DateTimeOffset CreadaEn);

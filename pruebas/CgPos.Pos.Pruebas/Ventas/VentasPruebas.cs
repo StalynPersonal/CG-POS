@@ -268,7 +268,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var grande = await caja.AgregarAsync(venta.Id, $"600*{caja.Catalogo.CodigoCemento}"); // 600 × 450 = 270,000
         Assert.True(grande.RequiereIdentificacion);
-        Assert.Equal(ReglasComprobante.MontoIdentificacionConsumoPredeterminado, grande.MontoIdentificacion);
+        Assert.Equal(250_000m, grande.MontoIdentificacion); // el parámetro de la caja de prueba
 
         var identificada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, CedulaAleatoriaValida(), "Comprador grande"));
         Assert.False(identificada.Venta!.RequiereIdentificacion);

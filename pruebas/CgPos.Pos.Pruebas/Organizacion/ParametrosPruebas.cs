@@ -37,7 +37,7 @@ public class ParametrosPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseD
     }
 
     [SkippableFact]
-    public async Task Parametro_inexistente_o_invalido_usa_el_valor_predeterminado()
+    public async Task Parametro_inexistente_o_invalido_se_rechaza_sin_inventar_un_valor()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
@@ -54,8 +54,12 @@ public class ParametrosPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseD
         var parametros = ambitoLectura.ServiceProvider.GetRequiredService<IParametros>();
 
         Assert.Null(await parametros.ObtenerAsync($"Prueba.NoExiste{escenario.Sufijo}", escenario.CajaUno));
-        Assert.Equal(7, await parametros.ObtenerEnteroAsync($"Prueba.NoExiste{escenario.Sufijo}", escenario.CajaUno, 7));
-        Assert.Equal(7, await parametros.ObtenerEnteroAsync(claveTexto, escenario.CajaUno, 7));
-        Assert.Equal(3, await parametros.ObtenerEnteroAsync(ClavesParametros.IntentosMaximosPin, escenario.CajaUno, 99));
+        var noExiste = await Assert.ThrowsAsync<ParametroNoConfiguradoExcepcion>(() =>
+            parametros.ObtenerEnteroAsync($"Prueba.NoExiste{escenario.Sufijo}", escenario.CajaUno));
+        Assert.Contains("Falta configurar", noExiste.Message);
+        var invalido = await Assert.ThrowsAsync<ParametroNoConfiguradoExcepcion>(() => parametros.ObtenerEnteroAsync(claveTexto, escenario.CajaUno));
+        Assert.Contains("no es un número entero", invalido.Message);
+        Assert.Null(await parametros.ObtenerDecimalOpcionalAsync($"Prueba.NoExiste{escenario.Sufijo}", escenario.CajaUno));
+        Assert.Equal(3, await parametros.ObtenerEnteroAsync(ClavesParametros.IntentosMaximosPin, escenario.CajaUno));
     }
 }

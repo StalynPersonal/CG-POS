@@ -59,7 +59,10 @@
                 <div class="cg-turno__fondo">
                     <MudText Typo="Typo.subtitle2" Color="Color.Primary">Fondo de caja (RD$)</MudText>
                     <div class="cg-total-grande">@FondoMostrado</div>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Sugerido: RD$@Estado.FondoSugerido.ToString("N2")</MudText>
+                    @if (Estado.FondoSugerido is { } sugerido)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Sugerido: RD$@sugerido.ToString("N2")</MudText>
+                    }
                     <div class="cg-turno__acciones">
                         <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="Procesando" Class="cg-turno__boton">Salir</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AbrirAsync" Disabled="Procesando" Class="cg-turno__boton"
@@ -100,10 +103,10 @@
     protected override void OnParametersSet()
     {
         // El sugerido se copia una sola vez; después manda lo que digite el cajero.
-        if (Estado is not null && _sugeridoAplicado != Estado.FondoSugerido)
+        if (Estado is { FondoSugerido: { } sugerido } && _sugeridoAplicado != sugerido)
         {
-            _sugeridoAplicado = Estado.FondoSugerido;
-            _fondo = Estado.FondoSugerido.ToString("0.##", CultureInfo.InvariantCulture);
+            _sugeridoAplicado = sugerido;
+            _fondo = sugerido.ToString("0.##", CultureInfo.InvariantCulture);
         }
     }
 

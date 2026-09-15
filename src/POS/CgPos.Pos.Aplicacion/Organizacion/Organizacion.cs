@@ -15,20 +15,44 @@ public interface IParametros
     Task<string?> ObtenerAsync(string clave, Guid? cajaId = null, CancellationToken cancelacion = default);
 }
 
+/// <summary>
+/// Una regla de negocio sin configurar no se sustituye por un valor fijo en el código: la operación se rechaza con este motivo
+/// para que un usuario la configure en el Central.
+/// </summary>
+public sealed class ParametroNoConfiguradoExcepcion(string clave, string? detalle = null)
+    : Exception(detalle is null
+        ? $"Falta configurar el parámetro «{clave}». Configúrelo en el Central."
+        : $"El parámetro «{clave}» {detalle}. Corríjalo en el Central.")
+{
+    public string Clave { get; } = clave;
+}
+
 public static class ParametrosExtensiones
 {
-    public static async Task<int> ObtenerEnteroAsync(this IParametros parametros, string clave, Guid? cajaId, int predeterminado, CancellationToken cancelacion = default) =>
-        int.TryParse(await parametros.ObtenerAsync(clave, cajaId, cancelacion), NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor)
-            ? valor
-            : predeterminado;
+    /// <exception cref="ParametroNoConfiguradoExcepcion">El parámetro no existe o está vacío.</exception>
+    public static async Task<string> ObtenerRequeridoAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+        await parametros.ObtenerAsync(clave, cajaId, cancelacion) is { Length: > 0 } valor ? valor : throw new ParametroNoConfiguradoExcepcion(clave);
 
-    public static async Task<decimal> ObtenerDecimalAsync(this IParametros parametros, string clave, Guid? cajaId, decimal predeterminado, CancellationToken cancelacion = default) =>
-        decimal.TryParse(await parametros.ObtenerAsync(clave, cajaId, cancelacion), NumberStyles.Number, CultureInfo.InvariantCulture, out var valor)
+    public static async Task<int> ObtenerEnteroAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+        int.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor)
             ? valor
-            : predeterminado;
+            : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número entero");
 
-    public static async Task<bool> ObtenerBooleanoAsync(this IParametros parametros, string clave, Guid? cajaId, bool predeterminado, CancellationToken cancelacion = default) =>
-        bool.TryParse(await parametros.ObtenerAsync(clave, cajaId, cancelacion), out var valor) ? valor : predeterminado;
+    public static async Task<decimal> ObtenerDecimalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+        decimal.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), NumberStyles.Number, CultureInfo.InvariantCulture, out var valor)
+            ? valor
+            : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número válido (use punto decimal)");
+
+    public static async Task<bool> ObtenerBooleanoAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+        bool.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), out var valor)
+            ? valor
+            : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser true o false");
+
+    /// <summary>Para valores que el negocio puede no usar (ej. fondo sugerido): nulo si no está configurado, error si está mal escrito.</summary>
+    public static async Task<decimal?> ObtenerDecimalOpcionalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+        await parametros.ObtenerAsync(clave, cajaId, cancelacion) is not { Length: > 0 } texto ? null
+        : decimal.TryParse(texto, NumberStyles.Number, CultureInfo.InvariantCulture, out var valor) ? valor
+        : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número válido (use punto decimal)");
 }
 
 /// <summary>Claves de parámetros conocidas. Los valores numéricos usan formato invariante (punto decimal).</summary>
@@ -56,7 +80,10 @@ public static class ClavesParametros
     /// <summary>Meses de vigencia de una nota de crédito para consumirla (RF-39). Por defecto 6.</summary>
     public const string MesesVigenciaNotaCredito = "Devoluciones.MesesVigenciaNotaCredito";
 
-    /// <summary>Política impresa en la copia del cliente de la nota de crédito (RF-83, RF-163).</summary>
+    /// <summary>Mensaje al pie del ticket de venta (ej. agradecimiento). Opcional: si no existe no se imprime.</summary>
+    public const string MensajePieTicket = "Tickets.MensajePie";
+
+    /// <summary>Política impresa en la copia del cliente de la nota de crédito (RF-83, RF-163). Opcional.</summary>
     public const string PoliticaNotaCredito = "Devoluciones.PoliticaNotaCredito";
 
     /// <summary>Texto impreso en la copia de contabilidad de la nota de crédito (RF-163).</summary>

@@ -136,7 +136,7 @@ internal sealed class ServicioTurnos(
     {
         var turno = await contexto.Turnos.AsNoTracking()
             .FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
-        var fondoSugerido = await parametros.ObtenerDecimalAsync(ClavesParametros.FondoPredeterminado, sesion.CajaId, 0m, cancelacion);
+        var fondoSugerido = await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.FondoPredeterminado, sesion.CajaId, cancelacion);
 
         return new DatosEstadoTurno(
             turno?.ADatos(),
@@ -164,7 +164,8 @@ internal sealed class ServicioTurnos(
         if (!cajaOperativa)
             return new RespuestaTurno(CodigoResultadoTurno.CajaNoOperativa, "La caja está deshabilitada o su sucursal inactiva.", null);
 
-        var fondo = fondoInicial ?? await parametros.ObtenerDecimalAsync(ClavesParametros.FondoPredeterminado, sesion.CajaId, 0m, cancelacion);
+        // El fondo es opcional (RF-4): sin fondo digitado ni sugerido configurado, el turno abre sin fondo.
+        var fondo = fondoInicial ?? await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.FondoPredeterminado, sesion.CajaId, cancelacion) ?? 0m;
         if (fondo < 0)
             return new RespuestaTurno(CodigoResultadoTurno.FondoInvalido, "El fondo de caja no puede ser negativo.", null);
 
@@ -291,7 +292,7 @@ internal sealed class ServicioVentas(
         if (solicitados.Rechazo is { } pagoRechazado)
             return new RespuestaCobro(pagoRechazado.Codigo, pagoRechazado.Mensaje, null, null, Datos(venta));
 
-        var paso = await parametros.ObtenerDecimalAsync(ClavesParametros.PasoRedondeoEfectivo, sesion.CajaId, 0m, cancelacion);
+        var paso = await parametros.ObtenerDecimalAsync(ClavesParametros.PasoRedondeoEfectivo, sesion.CajaId, cancelacion);
         ResultadoCobro resultado;
         try
         {
@@ -398,6 +399,7 @@ internal sealed class ServicioVentas(
             return new RespuestaImpresion(false, "No hay ventas cobradas para reimprimir.");
 
         var documento = await contexto.DocumentosElectronicos.AsNoTracking().SingleOrDefaultAsync(d => d.VentaId == ultima.Id, cancelacion);
+        _montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, sesion.CajaId, cancelacion);
         var impresion = await impresora.ImprimirAsync(
             GeneradorTicket.Generar(await EncabezadoTicketAsync(sesion, cancelacion), ultima.ADatos(_montoIdentificacion, documento), esCopia: true), cancelacion);
         auditoria.Registrar(new EntradaAuditoria("Ventas.Reimpresion", TipoEntidadVenta, ultima.NumeroTransaccion,
@@ -528,7 +530,7 @@ internal sealed class ServicioVentas(
     }
 
     private Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
-        contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion);
+        contexto.EncabezadoTicketAsync(parametros, sesion.CajaId, cancelacion);
 
     private static DatosOperacionTerminal DatosOperacion(OperacionTerminal operacion, bool sinConexion) =>
         new(operacion.Id, operacion.Estado == EstadoOperacionTerminal.Aprobada, sinConexion, operacion.Monto, operacion.Aprobacion, operacion.UltimosDigitos,
@@ -539,7 +541,7 @@ internal sealed class ServicioVentas(
     private const string TipoEntidadVenta = "Venta";
 
     /// <summary>Se lee de parámetros al validar el turno, que es el primer paso de toda operación.</summary>
-    private decimal _montoIdentificacion = ReglasComprobante.MontoIdentificacionConsumoPredeterminado;
+    private decimal _montoIdentificacion;
 
     private IReadOnlyList<Promocion>? _promociones;
 
@@ -1124,8 +1126,7 @@ internal sealed class ServicioVentas(
         if (turno.UsuarioActualId != sesion.UsuarioId)
             return (null, new RespuestaVenta(CodigoResultadoVenta.TurnoDeOtroUsuario, $"La caja tiene abierto el turno {turno.Numero} de {turno.UsuarioActualNombre}.", null));
 
-        _montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, sesion.CajaId,
-            ReglasComprobante.MontoIdentificacionConsumoPredeterminado, cancelacion);
+        _montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, sesion.CajaId, cancelacion);
         return (turno, null);
     }
 

@@ -7,7 +7,7 @@ namespace CgPos.Dominio.Pruebas.Catalogo;
 
 public class CatalogoPruebas
 {
-    private static readonly FormatoCodigoBalanza FormatoPredeterminado = new();
+    private static readonly FormatoCodigoBalanza FormatoPredeterminado = new("21", "22", 5, 5, 3, 2);
 
     [Fact]
     public void Etiqueta_de_balanza_con_peso_embebido()

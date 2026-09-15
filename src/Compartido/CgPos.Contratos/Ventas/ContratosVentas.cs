@@ -18,8 +18,9 @@ public sealed record DatosTurno(
     DateTimeOffset AbiertoEn);
 
 /// <summary>Estado del turno de la caja para la sesión actual, con el fondo sugerido para abrir.</summary>
+/// <param name="FondoSugerido">Nulo si el negocio no configuró un fondo sugerido.</param>
 /// <param name="EsDeOtroUsuario">La caja tiene un turno abierto por otro usuario (requiere relevo, RF-260).</param>
-public sealed record DatosEstadoTurno(DatosTurno? TurnoAbierto, decimal FondoSugerido, bool PuedeAbrir, bool EsDeOtroUsuario);
+public sealed record DatosEstadoTurno(DatosTurno? TurnoAbierto, decimal? FondoSugerido, bool PuedeAbrir, bool EsDeOtroUsuario);
 
 public sealed record SolicitudAbrirTurno(decimal? FondoInicial);
 

@@ -212,14 +212,11 @@
         : linea.Cantidad == linea.Datos.CantidadDisponible ? linea.Datos.ImporteDisponible
         : decimal.Round(linea.Datos.PrecioUnitario * linea.Cantidad, 2, MidpointRounding.AwayFromZero);
 
-    private decimal TotalEstimado
-    {
-        get
-        {
-            var total = _lineas.Sum(Importe);
-            return _factura is { RetieneImpuesto: true } ? decimal.Round(total / 1.18m, 2) : total;
-        }
-    }
+    /// <summary>Fuera de plazo se acredita la base de cada línea con la tasa de ITBIS con que se vendió.</summary>
+    private decimal TotalEstimado =>
+        _factura is { RetieneImpuesto: true }
+            ? _lineas.Sum(l => decimal.Round(Importe(l) / (1m + l.Datos.PorcentajeImpuesto / 100m), 2, MidpointRounding.AwayFromZero))
+            : _lineas.Sum(Importe);
 
     private async Task AlTeclearFactura(KeyboardEventArgs evento)
     {

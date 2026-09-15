@@ -2,7 +2,9 @@ using System.Text;
 using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Aplicacion.Catalogo;
+using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Pruebas.Infraestructura;
 using CgPos.Pos.Pruebas.Soporte;
@@ -75,6 +77,9 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var escenario = new EscenarioCatalogo();
         await AplicarAsync(escenario.Paquete());
 
+        // El formato de las etiquetas lo configura un usuario; sin él la caja no interpreta etiquetas de balanza.
+        await ConfigurarFormatoBalanzaAsync();
+
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var articulo = await ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>()
             .BuscarPorCodigoAsync(escenario.EtiquetaPesoTomate(2.345m));
@@ -86,6 +91,28 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Assert.Equal(TipoArticulo.Pesado, articulo.Tipo);
         Assert.True(articulo.PermiteDecimales);
         Assert.Equal(0m, articulo.PorcentajeImpuesto);
+    }
+
+    /// <summary>Formato EAN-13 de balanza como parámetros generales (idempotente: la base es de toda la clase).</summary>
+    private async Task ConfigurarFormatoBalanzaAsync()
+    {
+        await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
+        var valores = new Dictionary<string, string>
+        {
+            [ClavesParametros.BalanzaPrefijoPeso] = "21",
+            [ClavesParametros.BalanzaPrefijoPrecio] = "22",
+            [ClavesParametros.BalanzaDigitosCodigoArticulo] = "5",
+            [ClavesParametros.BalanzaDigitosValor] = "5",
+            [ClavesParametros.BalanzaDecimalesPeso] = "3",
+            [ClavesParametros.BalanzaDecimalesPrecio] = "2",
+        };
+
+        foreach (var (clave, valor) in valores)
+            if (!await contexto.Parametros.AnyAsync(p => p.Clave == clave && p.CajaId == null && p.SucursalId == null))
+                contexto.Parametros.Add(Parametro.Crear(clave, valor));
+
+        await contexto.SaveChangesAsync();
     }
 
     [SkippableFact]

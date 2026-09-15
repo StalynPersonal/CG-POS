@@ -374,7 +374,7 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
                 return error("No tiene permiso para esta operación.");
 
             return await LeerAsync<TResultado>(respuesta, cancelacion)
-                ?? error($"Respuesta inesperada del servicio ({(int)respuesta.StatusCode}).");
+                ?? error(await TextoAsync(respuesta, cancelacion) ?? $"Respuesta inesperada del servicio ({(int)respuesta.StatusCode}).");
         }
         catch (HttpRequestException)
         {
@@ -404,7 +404,7 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         {
             using var respuesta = await Http.PostAsJsonAsync(ruta, cuerpo, OpcionesJson.Predeterminadas, cancelacion);
             var resultado = await LeerAsync<RespuestaIngreso>(respuesta, cancelacion)
-                ?? new RespuestaIngreso(false, $"Respuesta inesperada del servicio ({(int)respuesta.StatusCode}).");
+                ?? new RespuestaIngreso(false, await TextoAsync(respuesta, cancelacion) ?? $"Respuesta inesperada del servicio ({(int)respuesta.StatusCode}).");
 
             if (resultado is { Exitoso: true, Token: { } token, ExpiraEn: { } expiraEn, Sesion: { } sesion })
                 almacen.Establecer(token, expiraEn, sesion);
@@ -416,6 +416,12 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
             return new RespuestaIngreso(false, SinComunicacion);
         }
     }
+
+    /// <summary>Motivo en texto plano que envía el Agente, por ejemplo un parámetro de negocio sin configurar.</summary>
+    private static async Task<string?> TextoAsync(HttpResponseMessage respuesta, CancellationToken cancelacion) =>
+        respuesta.Content.Headers.ContentType?.MediaType == "text/plain" && await respuesta.Content.ReadAsStringAsync(cancelacion) is { Length: > 0 } texto
+            ? texto
+            : null;
 
     private static async Task<TResultado?> LeerAsync<TResultado>(HttpResponseMessage respuesta, CancellationToken cancelacion)
         where TResultado : class

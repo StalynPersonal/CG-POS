@@ -246,7 +246,7 @@
     };
 
     private IEnumerable<DatosDenominacion> Billetes(string moneda) =>
-        _catalogo!.Denominaciones.Where(d => d.Moneda == moneda && d.Tipo == TipoDenominacion.Billete && d.Valor >= (moneda == MonedaLocal ? 100 : 5)).OrderBy(d => d.Valor);
+        _catalogo!.Denominaciones.Where(d => d.Moneda == moneda && d.Tipo == TipoDenominacion.Billete).OrderBy(d => d.Valor);
 
     private void SeleccionarForma(DatosFormaPago forma)
     {
