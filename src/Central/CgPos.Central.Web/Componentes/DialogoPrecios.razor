@@ -1,0 +1,108 @@
+@* Cambio de precios de un artículo con su vigencia: de inmediato o desde una fecha y hora. *@
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudText Typo="Typo.body2">@Articulo.Descripcion</MudText>
+            <MudNumericField T="decimal?" @bind-Value="_detalle" Label="Precio detalle" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2"
+                             HelperText="Con impuesto incluido." />
+            <div class="d-flex gap-3">
+                <MudNumericField T="decimal?" @bind-Value="_mayor" Label="Precio por mayor" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
+                <MudNumericField T="decimal?" @bind-Value="_cantidadMayor" Label="Desde la cantidad" Variant="Variant.Outlined" HideSpinButtons="true" />
+            </div>
+            <div class="d-flex gap-3">
+                <MudNumericField T="decimal?" @bind-Value="_minimo" Label="Precio mínimo" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" HelperText="Con impuesto." />
+                <MudNumericField T="decimal?" @bind-Value="_costo" Label="Costo" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" HelperText="Sin impuesto." />
+            </div>
+
+            <MudSwitch T="bool" @bind-Value="_programado" Label="@(_programado ? "Rige desde la fecha indicada" : "Rige de inmediato (active para programar)")" Color="Color.Secondary" />
+            @if (_programado)
+            {
+                <div class="d-flex gap-3">
+                    <MudDatePicker @bind-Date="_fecha" Label="Vigente desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                    <MudTimePicker @bind-Time="_hora" Label="Hora" Variant="Variant.Outlined" />
+                </div>
+            }
+
+            @foreach (var advertencia in Advertencias)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@advertencia</MudAlert>
+            }
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public ArticuloCarga Articulo { get; set; } = default!;
+
+    private decimal? _detalle;
+    private decimal? _mayor;
+    private decimal? _cantidadMayor;
+    private decimal? _minimo;
+    private decimal? _costo;
+    private bool _programado;
+    private DateTime? _fecha = DateTime.Today.AddDays(1);
+    private TimeSpan? _hora = TimeSpan.Zero;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private IEnumerable<string> Advertencias
+    {
+        get
+        {
+            if (_detalle < _minimo)
+                yield return "El precio detalle queda por debajo del precio mínimo.";
+            if (_mayor >= _detalle)
+                yield return "El precio por mayor no es menor que el detalle.";
+            if (_mayor is not null && _cantidadMayor is null)
+                yield return "Sin cantidad mínima, el precio por mayor solo se aplica manualmente.";
+        }
+    }
+
+    protected override void OnInitialized() =>
+        (_detalle, _mayor, _cantidadMayor, _minimo, _costo) = (Articulo.PrecioDetalle, Articulo.PrecioMayor, Articulo.CantidadMinimaMayor, Articulo.PrecioMinimo, Articulo.Costo);
+
+    private async Task GuardarAsync()
+    {
+        if (_detalle is not { } detalle)
+        {
+            _mensaje = "Indique el precio detalle.";
+            return;
+        }
+
+        DateTimeOffset? vigenteDesde = null;
+        if (_programado)
+        {
+            if (_fecha is not { } fecha)
+            {
+                _mensaje = "Indique desde qué fecha rigen los precios.";
+                return;
+            }
+
+            var local = fecha.Date + (_hora ?? TimeSpan.Zero);
+            vigenteDesde = new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local));
+        }
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.CambiarPreciosAsync(Articulo.Id, new SolicitudPreciosArticulo(detalle, _mayor, _cantidadMayor, _minimo, _costo, vigenteDesde));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudieron guardar los precios.";
+    }
+}

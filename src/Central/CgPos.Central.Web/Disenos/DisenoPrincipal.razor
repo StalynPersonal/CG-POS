@@ -45,7 +45,14 @@
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarMaestros">
                 <MudNavGroup Title="Maestros" Icon="@Icons.Material.Filled.Inventory2" Expanded="true">
+                    <MudNavLink Href="articulos" Icon="@Icons.Material.Filled.Inventory">Artículos</MudNavLink>
                     <MudNavLink Href="maestros" Icon="@Icons.Material.Filled.ListAlt">Catálogos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarPrecios">
+                <MudNavGroup Title="Precios" Icon="@Icons.Material.Filled.Sell" Expanded="true">
+                    <MudNavLink Href="precios/articulos" Icon="@Icons.Material.Filled.PriceChange">Precios de artículos</MudNavLink>
+                    <MudNavLink Href="precios/topes" Icon="@Icons.Material.Filled.Discount">Topes de descuento</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">

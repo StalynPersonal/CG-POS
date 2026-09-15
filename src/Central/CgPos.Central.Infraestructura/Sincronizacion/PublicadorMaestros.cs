@@ -188,11 +188,11 @@ internal sealed class PublicadorMaestros(
             var contenido = fila.Contenido();
             if (existentes.TryGetValue((fila.Tipo, fila.Id), out var maestro))
             {
-                if (maestro.Actualizar(fila.Codigo, fila.CajaId, contenido, ahora, usuario)) publicados++; else sinCambios++;
+                if (maestro.Actualizar(fila.Codigo, fila.CajaId, contenido, ahora, usuario, fila.TextoBusqueda())) publicados++; else sinCambios++;
                 continue;
             }
 
-            maestro = MaestroCentral.Publicar(fila.Tipo, fila.Id, fila.Codigo, fila.CajaId, contenido, ahora, usuario);
+            maestro = MaestroCentral.Publicar(fila.Tipo, fila.Id, fila.Codigo, fila.CajaId, contenido, ahora, usuario, fila.TextoBusqueda());
             contexto.MaestrosCentral.Add(maestro);
             existentes[(fila.Tipo, fila.Id)] = maestro;
             publicados++;
@@ -367,6 +367,40 @@ internal sealed class PublicadorMaestros(
                     if (mayor is null || rango.Hasta > mayor.Hasta)
                         mayor = rango;
                 }
+            }
+        }
+
+        if (paquete.TopesDescuento is { Count: > 0 } topes)
+        {
+            async Task<HashSet<Guid>> ExistentesAsync(TipoMaestro tipo, IEnumerable<Guid> referidos, IEnumerable<Guid> delPaquete)
+            {
+                var buscar = referidos.Except(delPaquete).Distinct().ToList();
+                var ids = delPaquete.ToHashSet();
+                if (buscar.Count > 0)
+                    ids.UnionWith(await contexto.MaestrosCentral.Where(m => m.Tipo == tipo && buscar.Contains(m.Id)).Select(m => m.Id).ToListAsync(cancelacion));
+                return ids;
+            }
+
+            var familias = await ExistentesAsync(TipoMaestro.Familia, topes.Select(t => t.FamiliaId).OfType<Guid>(), (paquete.Familias ?? []).Select(f => f.Id));
+            var articulosTope = await ExistentesAsync(TipoMaestro.Articulo, topes.Select(t => t.ArticuloId).OfType<Guid>(), (paquete.Articulos ?? []).Select(a => a.Id));
+            foreach (var tope in topes)
+            {
+                if (tope.FamiliaId is { } familiaId && !familias.Contains(familiaId))
+                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia una familia inexistente ({familiaId}).");
+                if (tope.ArticuloId is { } articuloId && !articulosTope.Contains(articuloId))
+                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia un artículo inexistente ({articuloId}).");
+            }
+
+            // Dentro de un alcance, la caja toma el tope del nivel del autorizador: dos topes del mismo nivel y alcance serían ambiguos.
+            var idsTopes = topes.Select(t => t.Id).ToHashSet();
+            foreach (var repetido in publicados.Where(m => m.Tipo == TipoMaestro.TopeDescuento && !idsTopes.Contains(m.Id))
+                         .Select(FormatoMaestros.Leer<TopeDescuentoCarga>)
+                         .Concat(topes)
+                         .GroupBy(t => (t.Nivel, t.FamiliaId, t.ArticuloId))
+                         .Where(g => g.Count() > 1))
+            {
+                var alcance = repetido.Key.ArticuloId is not null ? "ese artículo" : repetido.Key.FamiliaId is not null ? "esa familia" : "el alcance general";
+                errores.Add($"Ya hay un tope de descuento de nivel {repetido.Key.Nivel} para {alcance}; cambie ese tope.");
             }
         }
 

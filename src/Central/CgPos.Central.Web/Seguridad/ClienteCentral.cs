@@ -151,6 +151,41 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesMaestrosAsync() => ListarAsync<DatosSucursal>("api/maestros/sucursales");
 
+    /// <summary>Catálogo tipado (familias, unidades…) para referencias.</summary>
+    public Task<IReadOnlyList<DatosMaestroCentral<T>>?> ListarMaestroAsync<T>(string ruta) => ListarAsync<DatosMaestroCentral<T>>($"api/maestros/{ruta}");
+
+    // ---------- Artículos y precios ----------
+
+    /// <param name="modulo">"maestros" o "precios", según el permiso con el que se consulta.</param>
+    /// <returns>Nulo si no se pudo consultar.</returns>
+    public async Task<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>?> BuscarArticulosAsync(string modulo, string? texto, int pagina, int tamano,
+        CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>>(
+                $"api/{modulo}/articulos?buscar={Uri.EscapeDataString(texto ?? string.Empty)}&pagina={pagina}&tamano={tamano}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaAdministracion> GuardarArticuloAsync(CgPos.Contratos.Catalogo.ArticuloCarga articulo) =>
+        EnviarAsync(HttpMethod.Put, $"api/maestros/articulos/{articulo.Id}", articulo);
+
+    public Task<RespuestaAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud) =>
+        EnviarAsync(HttpMethod.Put, $"api/precios/articulos/{articuloId}", solicitud);
+
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>?> ListarFamiliasPreciosAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>("api/precios/familias");
+
+    public Task<IReadOnlyList<DatosTopeDescuentoCentral>?> ListarTopesAsync() => ListarAsync<DatosTopeDescuentoCentral>("api/precios/topes");
+
+    public Task<RespuestaAdministracion> GuardarTopeAsync(CgPos.Contratos.Catalogo.TopeDescuentoCarga tope) =>
+        EnviarAsync(HttpMethod.Put, $"api/precios/topes/{tope.Id}", tope);
+
     // ---------- Comunes ----------
 
     /// <returns>Nulo si no se pudo consultar (sin comunicación, sesión vencida o sin permiso).</returns>

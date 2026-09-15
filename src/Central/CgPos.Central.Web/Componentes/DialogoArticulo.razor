@@ -1,0 +1,211 @@
+@* Alta o edición de un artículo. Los precios solo se indican al crearlo; después se cambian en Precios, con vigencia. *@
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Catalogo
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Articulo is not null)" HelperText="No cambia después de crearlo." />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" @bind-Value="_descripcion" Label="Descripción" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="TipoArticulo" @bind-Value="_tipo" Label="Tipo" Variant="Variant.Outlined" ToStringFunc="EtiquetasArticulo.Tipo">
+                    @foreach (var tipo in EtiquetasArticulo.Tipos)
+                    {
+                        <MudSelectItem T="TipoArticulo" Value="@tipo">@EtiquetasArticulo.Tipo(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" @bind-Value="_referencia" Label="Referencia (opcional)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="Guid?" @bind-Value="_familiaId" Label="Familia" Placeholder="Seleccione" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Referencias.Familias.FirstOrDefault(f => f.Id == id)?.Nombre)">
+                    @foreach (var familia in Referencias.Familias.Where(f => f.Activa || f.Id == Articulo?.FamiliaId))
+                    {
+                        <MudSelectItem T="Guid?" Value="@familia.Id">@familia.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="Guid?" @bind-Value="_unidadId" Label="Unidad de medida" Placeholder="Seleccione" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Referencias.Unidades.FirstOrDefault(u => u.Id == id)?.Nombre)">
+                    @foreach (var unidad in Referencias.Unidades)
+                    {
+                        <MudSelectItem T="Guid?" Value="@unidad.Id">@unidad.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="Guid?" @bind-Value="_impuestoId" Label="Impuesto" Placeholder="Seleccione" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Referencias.Impuestos.FirstOrDefault(i => i.Id == id)?.Nombre)">
+                    @foreach (var impuesto in Referencias.Impuestos.Where(i => i.Activo || i.Id == Articulo?.ImpuestoId))
+                    {
+                        <MudSelectItem T="Guid?" Value="@impuesto.Id">@impuesto.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_codigosBarras" Label="Códigos de barras" Variant="Variant.Outlined" Lines="3" HelperText="Uno por línea." />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_codigosProveedor" Label="Códigos de proveedor" Variant="Variant.Outlined" Lines="3" HelperText="Uno por línea." />
+            </MudItem>
+
+            @if (Articulo is null)
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle1">Precios iniciales</MudText>
+                    <MudText Typo="Typo.caption" Class="cg-central__detalle">Detalle, mayor y mínimo con impuesto incluido; el costo sin impuesto.</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal?" @bind-Value="_precioDetalle" Label="Precio detalle" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal?" @bind-Value="_precioMayor" Label="Precio por mayor" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal?" @bind-Value="_cantidadMinimaMayor" Label="Cantidad mínima para mayor" Variant="Variant.Outlined" HideSpinButtons="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal?" @bind-Value="_precioMinimo" Label="Precio mínimo" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal?" @bind-Value="_costo" Label="Costo" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
+                </MudItem>
+            }
+            else
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Detalle @Articulo.PrecioDetalle.ToString("N2")@(Articulo.PrecioMayor is { } mayor ? $" · Mayor {mayor:N2}" : "")@(Articulo.PrecioMinimo is { } minimo ? $" · Mínimo {minimo:N2}" : "").
+                        Los precios se cambian en Precios de artículos.
+                    </MudAlert>
+                </MudItem>
+            }
+
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="decimal?" @bind-Value="_tara" Label="Tara (pesados)" Variant="Variant.Outlined" HideSpinButtons="true" />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" @bind-Value="_rutaImagen" Label="Ruta de la imagen (opcional)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSwitch T="bool" @bind-Value="_mostrarEnCatalogo" Label="Mostrar en el catálogo de la caja" Color="Color.Secondary" />
+                <MudSwitch T="bool" @bind-Value="_ventaEnPos" Label="Se vende en la caja" Color="Color.Secondary" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSwitch T="bool" @bind-Value="_esServicio" Label="Es un servicio" Color="Color.Secondary" />
+                <MudSwitch T="bool" @bind-Value="_activo" Label="@(_activo ? "Activo" : "Inactivo")" Color="Color.Secondary" />
+            </MudItem>
+
+            @if (_mensaje is not null)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public ArticuloCarga? Articulo { get; set; }
+    [Parameter] public ReferenciasArticulo Referencias { get; set; } = ReferenciasArticulo.Vacias;
+
+    private string? _codigo;
+    private string? _descripcion;
+    private string? _referencia;
+    private TipoArticulo _tipo = TipoArticulo.Normal;
+    private Guid? _familiaId;
+    private Guid? _unidadId;
+    private Guid? _impuestoId;
+    private string? _codigosBarras;
+    private string? _codigosProveedor;
+    private decimal? _precioDetalle;
+    private decimal? _precioMayor;
+    private decimal? _cantidadMinimaMayor;
+    private decimal? _precioMinimo;
+    private decimal? _costo;
+    private decimal? _tara;
+    private string? _rutaImagen;
+    private bool _mostrarEnCatalogo;
+    private bool _ventaEnPos = true;
+    private bool _esServicio;
+    private bool _activo = true;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override void OnInitialized()
+    {
+        if (Articulo is not { } a)
+            return;
+
+        (_codigo, _descripcion, _referencia, _tipo) = (a.Codigo, a.Descripcion, a.Referencia, a.Tipo);
+        (_familiaId, _unidadId, _impuestoId) = (a.FamiliaId, a.UnidadMedidaId, a.ImpuestoId);
+        _codigosBarras = string.Join(Environment.NewLine, a.CodigosBarras ?? []);
+        _codigosProveedor = string.Join(Environment.NewLine, a.CodigosProveedor ?? []);
+        (_tara, _rutaImagen, _mostrarEnCatalogo, _ventaEnPos, _esServicio, _activo) = (a.Tara, a.RutaImagen, a.MostrarEnCatalogo, a.VentaEnPos, a.EsServicio, a.Activo);
+    }
+
+    private static List<string> Lineas(string? texto) =>
+        (texto ?? string.Empty).Split(['\n', '\r', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToList();
+
+    private async Task GuardarAsync()
+    {
+        _mensaje = (_familiaId, _unidadId, _impuestoId) switch
+        {
+            (null, _, _) => "Seleccione la familia.",
+            (_, null, _) => "Seleccione la unidad de medida.",
+            (_, _, null) => "Seleccione el impuesto.",
+            _ when Articulo is null && _precioDetalle is null => "Indique el precio detalle.",
+            _ => null,
+        };
+        if (_mensaje is not null)
+            return;
+
+        var articulo = new ArticuloCarga(
+            Articulo?.Id ?? Guid.CreateVersion7(),
+            _codigo ?? string.Empty,
+            _descripcion ?? string.Empty,
+            _familiaId!.Value,
+            _unidadId!.Value,
+            _impuestoId!.Value,
+            Articulo?.PrecioDetalle ?? _precioDetalle!.Value,
+            Articulo is null ? _precioMayor : Articulo.PrecioMayor,
+            _tipo,
+            string.IsNullOrWhiteSpace(_referencia) ? null : _referencia.Trim(),
+            Articulo is null ? _costo : Articulo.Costo,
+            Articulo is null ? _precioMinimo : Articulo.PrecioMinimo,
+            Articulo is null ? _cantidadMinimaMayor : Articulo.CantidadMinimaMayor,
+            Lineas(_codigosBarras),
+            Lineas(_codigosProveedor),
+            string.IsNullOrWhiteSpace(_rutaImagen) ? null : _rutaImagen.Trim(),
+            _mostrarEnCatalogo,
+            _ventaEnPos,
+            _activo,
+            Articulo?.PreciosVigentesDesde,
+            _tara,
+            _esServicio);
+
+        _procesando = true;
+        var respuesta = await Cliente.GuardarArticuloAsync(articulo);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el artículo.";
+    }
+}

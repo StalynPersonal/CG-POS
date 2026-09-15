@@ -82,6 +82,7 @@ internal sealed class MaestroCentralConfiguracion : IEntityTypeConfiguration<Mae
         constructor.Property(m => m.Codigo).HasMaxLength(MaestroCentral.LargoMaximoCodigo);
         constructor.Property(m => m.Contenido).IsRequired().Metadata.SetMaxLength(null);
         constructor.Property(m => m.ModificadoPor).HasMaxLength(MaestroCentral.LargoMaximoUsuario).IsRequired();
+        constructor.Property(m => m.TextoBusqueda).HasMaxLength(MaestroCentral.LargoMaximoTextoBusqueda);
 
         constructor.HasOne<Caja>().WithMany().HasForeignKey(m => m.CajaId).OnDelete(DeleteBehavior.Restrict);
 

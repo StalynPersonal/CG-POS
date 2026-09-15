@@ -12,10 +12,24 @@ namespace CgPos.Central.Aplicacion.Maestros;
 /// </summary>
 public interface IServicioMaestrosCentral
 {
+    public const int TamanoMaximoPagina = 100;
+
     /// <typeparam name="T">Registro de carga del tipo de maestro.</typeparam>
     Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(TipoMaestro tipo, CancellationToken cancelacion = default);
+
+    /// <summary>Busca en el código y en el contenido del registro (descripción, códigos de barras…), ordenado por código.</summary>
+    /// <param name="pagina">Página desde cero.</param>
+    Task<PaginaMaestros<T>> BuscarAsync<T>(TipoMaestro tipo, string? texto, int pagina, int tamano, CancellationToken cancelacion = default);
 
     /// <summary>Publica un paquete con un solo registro nuevo o cambiado.</summary>
     /// <param name="id">Id del registro publicado, para la respuesta.</param>
     Task<ResultadoAdministracion> PublicarAsync(PaqueteMaestros paquete, Guid id, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    /// <summary>Crea o cambia los datos de un artículo. Un artículo ya publicado conserva sus precios: se cambian con <see cref="CambiarPreciosAsync"/>.</summary>
+    Task<ResultadoAdministracion> GuardarArticuloAsync(Guid articuloId, ArticuloCarga articulo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    Task<ResultadoAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    /// <summary>Topes de descuento con su alcance legible: generales, luego por familia y por artículo.</summary>
+    Task<IReadOnlyList<DatosTopeDescuentoCentral>> ListarTopesAsync(CancellationToken cancelacion = default);
 }

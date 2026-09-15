@@ -1,0 +1,93 @@
+@page "/precios/topes"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPrecios)]
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Topes de descuento · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Topes de descuento</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Descuento manual máximo por nivel. Rige el alcance más específico: artículo, familia o general.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => AbrirDialogoAsync(null)">Nuevo tope</MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los topes. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosTopeDescuentoCentral" Items="_topes" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
+              GroupBy="_agrupar" GroupHeaderClass="cg-central__grupo-tabla">
+        <HeaderContent>
+            <MudTh>Alcance</MudTh>
+            <MudTh>Nivel</MudTh>
+            <MudTh Style="text-align: right">% máximo</MudTh>
+            <MudTh Style="text-align: right">Monto máximo</MudTh>
+            <MudTh>Modificado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <GroupHeaderTemplate>
+            <MudTh colspan="6"><strong>@context.Key</strong></MudTh>
+        </GroupHeaderTemplate>
+        <RowTemplate>
+            <MudTd DataLabel="Alcance">@context.Alcance</MudTd>
+            <MudTd DataLabel="Nivel">@context.Tope.Nivel</MudTd>
+            <MudTd DataLabel="% máximo" Style="text-align: right">@context.Tope.PorcentajeMaximo?.ToString("0.##")</MudTd>
+            <MudTd DataLabel="Monto máximo" Style="text-align: right">@context.Tope.MontoMaximo?.ToString("N2")</MudTd>
+            <MudTd DataLabel="Modificado">
+                <div>@context.ModificadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="cg-central__detalle">@context.ModificadoPor</div>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay topes de descuento: las cajas no permiten descuentos manuales.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private readonly TableGroupDefinition<DatosTopeDescuentoCentral> _agrupar = new()
+    {
+        Indentation = false,
+        Expandable = false,
+        Selector = t => t.Tope.ArticuloId is not null ? "Por artículo" : t.Tope.FamiliaId is not null ? "Por familia" : "Generales",
+    };
+
+    private IReadOnlyList<DatosTopeDescuentoCentral> _topes = [];
+    private IReadOnlyList<FamiliaCarga> _familias = [];
+    private bool _cargando = true;
+    private bool _error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var topes = await Cliente.ListarTopesAsync();
+        _familias = (await Cliente.ListarFamiliasPreciosAsync() ?? []).Select(f => f.Dato).OrderBy(f => f.Nombre, StringComparer.CurrentCulture).ToList();
+        _error = topes is null;
+        _topes = topes ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(DatosTopeDescuentoCentral? tope)
+    {
+        var parametros = new DialogParameters<DialogoTope> { { d => d.Tope, tope }, { d => d.Familias, _familias } };
+        var referencia = await Dialogos.ShowAsync<DialogoTope>(tope is null ? "Nuevo tope de descuento" : "Editar tope de descuento", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Tope guardado. Baja a las cajas en su próxima sincronización.", Severity.Success);
+        await CargarAsync();
+    }
+}

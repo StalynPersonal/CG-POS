@@ -13,6 +13,17 @@ namespace CgPos.Central.Infraestructura.Sincronizacion;
 internal sealed record FilaMaestro(TipoMaestro Tipo, Guid Id, string? Codigo, Guid? CajaId, object Dato)
 {
     public string Contenido() => JsonSerializer.Serialize(Dato, Dato.GetType(), OpcionesJson.Predeterminadas);
+
+    /// <summary>Lo que se busca en el Manager de los maestros que no se listan completos; nulo en los demás.</summary>
+    public string? TextoBusqueda() => Dato switch
+    {
+        ArticuloCarga a => Unir([a.Codigo, a.Descripcion, a.Referencia, .. a.CodigosBarras ?? [], .. a.CodigosProveedor ?? []]),
+        ClienteCarga c => Unir([c.Documento, c.Nombre, c.Telefono, c.Correo]),
+        MiembroFidelidadCarga m => Unir([m.Cedula, m.Nombre, m.Telefono, m.Correo]),
+        _ => null,
+    };
+
+    private static string Unir(IEnumerable<string?> partes) => string.Join(" | ", partes.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
 }
 
 /// <summary>Conversión entre el paquete de maestros de la caja y las filas publicadas del Central.</summary>

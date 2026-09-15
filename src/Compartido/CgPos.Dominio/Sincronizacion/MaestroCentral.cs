@@ -40,6 +40,7 @@ public sealed class MaestroCentral
 {
     public const int LargoMaximoCodigo = 100;
     public const int LargoMaximoUsuario = 150;
+    public const int LargoMaximoTextoBusqueda = 1000;
 
     private MaestroCentral()
     {
@@ -62,24 +63,43 @@ public sealed class MaestroCentral
     public DateTimeOffset ModificadoEn { get; private set; }
     public string ModificadoPor { get; private set; } = string.Empty;
 
-    public static MaestroCentral Publicar(TipoMaestro tipo, Guid id, string? codigo, Guid? cajaId, string contenido, DateTimeOffset ahora, string usuario)
+    /// <summary>Texto donde se busca (código, descripción, códigos de barras…) en minúsculas y sin acentos; nulo si el tipo no se busca.</summary>
+    public string? TextoBusqueda { get; private set; }
+
+    public static MaestroCentral Publicar(TipoMaestro tipo, Guid id, string? codigo, Guid? cajaId, string contenido, DateTimeOffset ahora, string usuario,
+        string? textoBusqueda = null)
     {
         var maestro = new MaestroCentral { Tipo = tipo, Id = Validar.Id(id, "Maestro") };
-        maestro.Asignar(codigo, cajaId, contenido, ahora, usuario);
+        maestro.Asignar(codigo, cajaId, contenido, ahora, usuario, textoBusqueda);
         return maestro;
     }
 
     /// <returns><c>true</c> si algo cambió: solo entonces el maestro recibe una versión nueva y baja otra vez a las cajas.</returns>
-    public bool Actualizar(string? codigo, Guid? cajaId, string contenido, DateTimeOffset ahora, string usuario)
+    public bool Actualizar(string? codigo, Guid? cajaId, string contenido, DateTimeOffset ahora, string usuario, string? textoBusqueda = null)
     {
-        if (Contenido == contenido && Codigo == Normalizar(codigo) && CajaId == cajaId)
+        if (Contenido == contenido && Codigo == Normalizar(codigo) && CajaId == cajaId && TextoBusqueda == NormalizarBusqueda(textoBusqueda))
             return false;
 
-        Asignar(codigo, cajaId, contenido, ahora, usuario);
+        Asignar(codigo, cajaId, contenido, ahora, usuario, textoBusqueda);
         return true;
     }
 
-    private void Asignar(string? codigo, Guid? cajaId, string contenido, DateTimeOffset ahora, string usuario)
+    /// <summary>Minúsculas y sin acentos, para que "jabon" encuentre "Jabón".</summary>
+    public static string? NormalizarBusqueda(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+            return null;
+
+        var descompuesto = texto.Trim().Normalize(System.Text.NormalizationForm.FormD);
+        var limpio = new System.Text.StringBuilder(descompuesto.Length);
+        foreach (var caracter in descompuesto.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark))
+            limpio.Append(char.ToLowerInvariant(caracter));
+
+        var normalizado = limpio.ToString().Normalize(System.Text.NormalizationForm.FormC);
+        return normalizado.Length > LargoMaximoTextoBusqueda ? normalizado[..LargoMaximoTextoBusqueda] : normalizado;
+    }
+
+    private void Asignar(string? codigo, Guid? cajaId, string contenido, DateTimeOffset ahora, string usuario, string? textoBusqueda)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(contenido);
         if (cajaId == Guid.Empty)
@@ -90,6 +110,7 @@ public sealed class MaestroCentral
             : Normalizar(codigo);
         CajaId = cajaId;
         Contenido = contenido;
+        TextoBusqueda = NormalizarBusqueda(textoBusqueda);
         ModificadoEn = ahora;
         ModificadoPor = Validar.Texto(usuario, "Modificado por", LargoMaximoUsuario);
     }

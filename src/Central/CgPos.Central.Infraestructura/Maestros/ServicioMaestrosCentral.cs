@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
-internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador) : IServicioMaestrosCentral
+internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, TimeProvider reloj) : IServicioMaestrosCentral
 {
     public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(TipoMaestro tipo, CancellationToken cancelacion = default) =>
         (await contexto.MaestrosCentral.AsNoTracking()
@@ -19,8 +19,25 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             .OrderBy(m => m.Codigo)
             .ThenByDescending(m => m.ModificadoEn)
             .ToListAsync(cancelacion))
-        .Select(m => new DatosMaestroCentral<T>(FormatoMaestros.Leer<T>(m), m.ModificadoEn, m.ModificadoPor))
+        .Select(Datos<T>)
         .ToList();
+
+    public async Task<PaginaMaestros<T>> BuscarAsync<T>(TipoMaestro tipo, string? texto, int pagina, int tamano, CancellationToken cancelacion = default)
+    {
+        tamano = Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina);
+        pagina = Math.Max(pagina, 0);
+
+        var consulta = contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == tipo);
+        if (MaestroCentral.NormalizarBusqueda(texto) is { } buscado)
+        {
+            var patron = Patron(buscado);
+            consulta = consulta.Where(m => m.TextoBusqueda != null && EF.Functions.Like(m.TextoBusqueda, patron));
+        }
+
+        var total = await consulta.CountAsync(cancelacion);
+        var filas = await consulta.OrderBy(m => m.Codigo).ThenBy(m => m.Id).Skip(pagina * tamano).Take(tamano).ToListAsync(cancelacion);
+        return new PaginaMaestros<T>(filas.Select(Datos<T>).ToList(), total);
+    }
 
     public async Task<ResultadoAdministracion> PublicarAsync(PaqueteMaestros paquete, Guid id, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
@@ -37,4 +54,80 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             return ResultadoAdministracion.Error(string.Join(" ", excepcion.Errores));
         }
     }
+
+    public async Task<ResultadoAdministracion> GuardarArticuloAsync(Guid articuloId, ArticuloCarga articulo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    {
+        if (articulo.Id != articuloId)
+            return ResultadoAdministracion.Error("El Id del registro no coincide con el de la ruta.");
+
+        var anterior = await LeerAsync<ArticuloCarga>(TipoMaestro.Articulo, articuloId, cancelacion);
+        var publicar = anterior is null
+            ? articulo with { PreciosVigentesDesde = articulo.PreciosVigentesDesde ?? reloj.GetUtcNow() }
+            : articulo with
+            {
+                PrecioDetalle = anterior.PrecioDetalle,
+                PrecioMayor = anterior.PrecioMayor,
+                CantidadMinimaMayor = anterior.CantidadMinimaMayor,
+                PrecioMinimo = anterior.PrecioMinimo,
+                Costo = anterior.Costo,
+                PreciosVigentesDesde = anterior.PreciosVigentesDesde,
+            };
+
+        return await PublicarAsync(new PaqueteMaestros(Articulos: [publicar]), articuloId, actor, cancelacion);
+    }
+
+    public async Task<ResultadoAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor,
+        CancellationToken cancelacion = default)
+    {
+        if (await LeerAsync<ArticuloCarga>(TipoMaestro.Articulo, articuloId, cancelacion) is not { } anterior)
+            return ResultadoAdministracion.Inexistente("El artículo no existe.");
+
+        // Todas las cajas registran el cambio con la misma vigencia, aunque lo reciban en momentos distintos.
+        var articulo = anterior with
+        {
+            PrecioDetalle = solicitud.PrecioDetalle,
+            PrecioMayor = solicitud.PrecioMayor,
+            CantidadMinimaMayor = solicitud.CantidadMinimaMayor,
+            PrecioMinimo = solicitud.PrecioMinimo,
+            Costo = solicitud.Costo,
+            PreciosVigentesDesde = solicitud.VigenteDesde ?? reloj.GetUtcNow(),
+        };
+
+        return await PublicarAsync(new PaqueteMaestros(Articulos: [articulo]), articuloId, actor, cancelacion);
+    }
+
+    public async Task<IReadOnlyList<DatosTopeDescuentoCentral>> ListarTopesAsync(CancellationToken cancelacion = default)
+    {
+        var topes = await ListarAsync<TopeDescuentoCarga>(TipoMaestro.TopeDescuento, cancelacion);
+        var idsFamilias = topes.Select(t => t.Dato.FamiliaId).OfType<Guid>().Distinct().ToList();
+        var idsArticulos = topes.Select(t => t.Dato.ArticuloId).OfType<Guid>().Distinct().ToList();
+
+        var familias = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Familia && idsFamilias.Contains(m.Id)).ToListAsync(cancelacion))
+            .Select(FormatoMaestros.Leer<FamiliaCarga>).ToDictionary(f => f.Id);
+        var articulos = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && idsArticulos.Contains(m.Id)).ToListAsync(cancelacion))
+            .Select(FormatoMaestros.Leer<ArticuloCarga>).ToDictionary(a => a.Id);
+
+        string Alcance(TopeDescuentoCarga tope) => (tope.ArticuloId, tope.FamiliaId) switch
+        {
+            ({ } articuloId, _) => articulos.TryGetValue(articuloId, out var articulo) ? $"Artículo {articulo.Codigo} · {articulo.Descripcion}" : $"Artículo {articuloId}",
+            (_, { } familiaId) => familias.TryGetValue(familiaId, out var familia) ? $"Familia {familia.Codigo} · {familia.Nombre}" : $"Familia {familiaId}",
+            _ => "General",
+        };
+
+        return topes
+            .Select(t => new DatosTopeDescuentoCentral(t.Dato, Alcance(t.Dato), t.ModificadoEn, t.ModificadoPor))
+            .OrderBy(t => t.Tope.ArticuloId is not null ? 2 : t.Tope.FamiliaId is not null ? 1 : 0)
+            .ThenBy(t => t.Alcance, StringComparer.CurrentCulture)
+            .ThenBy(t => t.Tope.Nivel)
+            .ToList();
+    }
+
+    private async Task<T?> LeerAsync<T>(TipoMaestro tipo, Guid id, CancellationToken cancelacion) where T : class =>
+        await contexto.MaestrosCentral.AsNoTracking().SingleOrDefaultAsync(m => m.Tipo == tipo && m.Id == id, cancelacion) is { } fila
+            ? FormatoMaestros.Leer<T>(fila)
+            : null;
+
+    private static DatosMaestroCentral<T> Datos<T>(MaestroCentral fila) => new(FormatoMaestros.Leer<T>(fila), fila.ModificadoEn, fila.ModificadoPor);
+
+    private static string Patron(string texto) => $"%{texto.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]")}%";
 }

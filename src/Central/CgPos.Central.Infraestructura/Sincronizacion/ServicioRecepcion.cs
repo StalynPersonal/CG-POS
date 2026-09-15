@@ -171,7 +171,8 @@ internal sealed class ServicioRecepcion(
 
         var miembro = new MiembroFidelidadCarga(inscripcion.MiembroId, cedula, inscripcion.Nombre, inscripcion.Telefono, inscripcion.Correo, InscritoEn: inscripcion.InscritoEn);
         contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null,
-            JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, $"Inscripción en caja {documento.CajaId}"));
+            JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, $"Inscripción en caja {documento.CajaId}",
+            new FilaMaestro(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null, miembro).TextoBusqueda()));
     }
 
     private async Task<RespuestaRecepcionCentral> RechazarAsync(MensajeSincronizacion mensaje, CajaRemitente remitente, EstadoSincronizacionCaja estado,

@@ -1,0 +1,107 @@
+@* Alta o edición de un tope de descuento: alcance (general, familia o artículo), nivel y máximos. *@
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudRadioGroup T="string" @bind-Value="_alcance">
+                <MudRadio T="string" Value="@General" Color="Color.Secondary">General</MudRadio>
+                <MudRadio T="string" Value="@PorFamilia" Color="Color.Secondary">Familia</MudRadio>
+                <MudRadio T="string" Value="@PorArticulo" Color="Color.Secondary">Artículo</MudRadio>
+            </MudRadioGroup>
+
+            @if (_alcance == PorFamilia)
+            {
+                <MudSelect T="Guid?" @bind-Value="_familiaId" Label="Familia" Placeholder="Seleccione la familia" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Familias.FirstOrDefault(f => f.Id == id) is { } f ? $"{f.Codigo} · {f.Nombre}" : null)">
+                    @foreach (var familia in Familias)
+                    {
+                        <MudSelectItem T="Guid?" Value="@familia.Id">@familia.Codigo · @familia.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else if (_alcance == PorArticulo)
+            {
+                <MudAutocomplete T="ArticuloCarga" @bind-Value="_articulo" SearchFunc="BuscarArticulosAsync" Label="Artículo" Variant="Variant.Outlined"
+                                 ToStringFunc="@(a => a is null ? null : $"{a.Codigo} · {a.Descripcion}")" DebounceInterval="350" MinCharacters="2"
+                                 Placeholder="@(_articuloIdOriginal is not null ? Tope!.Alcance : "Busque por código o descripción")" ResetValueOnEmptyText="true" />
+            }
+
+            <MudNumericField T="int" @bind-Value="_nivel" Label="Nivel del autorizador" Variant="Variant.Outlined" Min="1" Max="9"
+                             HelperText="1 cajero, 2 supervisor, 3 gerente… según los roles de caja." />
+            <div class="d-flex gap-3">
+                <MudNumericField T="decimal?" @bind-Value="_porcentaje" Label="% máximo" Variant="Variant.Outlined" HideSpinButtons="true" />
+                <MudNumericField T="decimal?" @bind-Value="_monto" Label="Monto máximo" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
+            </div>
+            <MudText Typo="Typo.caption" Class="cg-central__detalle">Indique uno o ambos. Para retirar un tope, déjelo en 0.</MudText>
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const string General = "general";
+    private const string PorFamilia = "familia";
+    private const string PorArticulo = "articulo";
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosTopeDescuentoCentral? Tope { get; set; }
+    [Parameter] public IReadOnlyList<FamiliaCarga> Familias { get; set; } = [];
+
+    private string _alcance = General;
+    private Guid? _familiaId;
+    private ArticuloCarga? _articulo;
+    private Guid? _articuloIdOriginal;
+    private int _nivel = 1;
+    private decimal? _porcentaje;
+    private decimal? _monto;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override void OnInitialized()
+    {
+        if (Tope?.Tope is not { } tope)
+            return;
+
+        _alcance = tope.ArticuloId is not null ? PorArticulo : tope.FamiliaId is not null ? PorFamilia : General;
+        (_familiaId, _articuloIdOriginal, _nivel, _porcentaje, _monto) = (tope.FamiliaId, tope.ArticuloId, tope.Nivel, tope.PorcentajeMaximo, tope.MontoMaximo);
+    }
+
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Cliente.BuscarArticulosAsync("precios", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    private async Task GuardarAsync()
+    {
+        Guid? familiaId = _alcance == PorFamilia ? _familiaId : null;
+        Guid? articuloId = _alcance == PorArticulo ? _articulo?.Id ?? _articuloIdOriginal : null;
+
+        _mensaje = (_alcance, familiaId, articuloId) switch
+        {
+            (PorFamilia, null, _) => "Seleccione la familia.",
+            (PorArticulo, _, null) => "Busque y seleccione el artículo.",
+            _ when _porcentaje is null && _monto is null => "Indique el porcentaje o el monto máximo.",
+            _ => null,
+        };
+        if (_mensaje is not null)
+            return;
+
+        _procesando = true;
+        var respuesta = await Cliente.GuardarTopeAsync(new TopeDescuentoCarga(Tope?.Tope.Id ?? Guid.CreateVersion7(), _nivel, _porcentaje, _monto, familiaId, articuloId));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar el tope.";
+    }
+}

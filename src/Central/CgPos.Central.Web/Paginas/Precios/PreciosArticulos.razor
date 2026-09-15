@@ -1,0 +1,103 @@
+@page "/precios/articulos"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPrecios)]
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Precios de artículos · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Precios de artículos</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Cada cambio queda en la bitácora de precios de las cajas con su vigencia.</MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los precios. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosMaestroCentral<ArticuloCarga>" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+              Elevation="0" RowsPerPage="25">
+        <ToolBarContent>
+            <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="Buscar por código, código de barras o descripción"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Artículo</MudTh>
+            <MudTh Style="text-align: right">Detalle</MudTh>
+            <MudTh Style="text-align: right">Mayor</MudTh>
+            <MudTh Style="text-align: right">Mínimo</MudTh>
+            <MudTh Style="text-align: right">Costo</MudTh>
+            <MudTh>Vigente desde</MudTh>
+            <MudTh>Modificado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Artículo"><strong>@context.Dato.Codigo</strong><div class="cg-central__detalle">@context.Dato.Descripcion</div></MudTd>
+            <MudTd DataLabel="Detalle" Style="text-align: right">@context.Dato.PrecioDetalle.ToString("N2")</MudTd>
+            <MudTd DataLabel="Mayor" Style="text-align: right">
+                @context.Dato.PrecioMayor?.ToString("N2")
+                @if (context.Dato is { PrecioMayor: not null, CantidadMinimaMayor: { } cantidad })
+                {
+                    <div class="cg-central__detalle">desde @cantidad.ToString("0.###")</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Mínimo" Style="text-align: right">@context.Dato.PrecioMinimo?.ToString("N2")</MudTd>
+            <MudTd DataLabel="Costo" Style="text-align: right">@context.Dato.Costo?.ToString("N2")</MudTd>
+            <MudTd DataLabel="Vigente desde">
+                @context.Dato.PreciosVigentesDesde?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                @if (context.Dato.PreciosVigentesDesde > DateTimeOffset.Now)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Programado</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Modificado">
+                <div>@context.ModificadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="cg-central__detalle">@context.ModificadoPor</div>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.PriceChange" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context.Dato)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay artículos que coincidan.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<DatosMaestroCentral<ArticuloCarga>>? _tabla;
+    private string? _buscar;
+    private bool _error;
+
+    private async Task<TableData<DatosMaestroCentral<ArticuloCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarArticulosAsync("precios", _buscar, estado.Page, estado.PageSize, cancelacion);
+        _error = pagina is null;
+        return new TableData<DatosMaestroCentral<ArticuloCarga>> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private Task BuscarAsync(string? texto)
+    {
+        _buscar = texto;
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private async Task AbrirDialogoAsync(ArticuloCarga articulo)
+    {
+        var parametros = new DialogParameters<DialogoPrecios> { { d => d.Articulo, articulo } };
+        var referencia = await Dialogos.ShowAsync<DialogoPrecios>($"Precios de {articulo.Codigo}", parametros);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Precios guardados. Bajan a las cajas en su próxima sincronización.", Severity.Success);
+        await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+    }
+}
