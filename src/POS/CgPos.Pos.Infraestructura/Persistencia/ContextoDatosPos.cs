@@ -38,6 +38,7 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Articulo> Articulos => Set<Articulo>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<ContribuyenteDgii> ContribuyentesDgii => Set<ContribuyenteDgii>();
+    public DbSet<Moneda> Monedas => Set<Moneda>();
     public DbSet<FormaPago> FormasPago => Set<FormaPago>();
     public DbSet<Banco> Bancos => Set<Banco>();
     public DbSet<TipoTarjeta> TiposTarjeta => Set<TipoTarjeta>();

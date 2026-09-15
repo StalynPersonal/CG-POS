@@ -26,7 +26,7 @@ internal static class ConversionesDevolucion
         new(devolucion.Id, devolucion.Numero, devolucion.VentaOrigenId, devolucion.VentaOrigenNumero, devolucion.EncfOrigen, devolucion.VentaOrigenCobradaEn,
             devolucion.ClienteTipoDocumento, devolucion.ClienteDocumento, devolucion.ClienteNombre, devolucion.MotivoCodigo, devolucion.MotivoNombre,
             devolucion.Observacion, devolucion.UsuarioNombre, devolucion.AutorizadoPorNombre, devolucion.RetieneImpuesto, devolucion.EsTotal,
-            devolucion.Subtotal, devolucion.Impuesto, devolucion.ImpuestoRetenido, devolucion.Total, devolucion.Saldo, devolucion.VenceEn,
+            devolucion.Subtotal, devolucion.Impuesto, devolucion.ImpuestoRetenido, devolucion.Total, devolucion.Saldo, devolucion.Moneda, devolucion.VenceEn,
             devolucion.EstadoSaldo(hoy), devolucion.CreadaEn,
             devolucion.Lineas.OrderBy(l => l.NumeroLineaOrigen)
                 .Select(l => new DatosLineaNotaCredito(l.NumeroLineaOrigen, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.UnidadMedidaCodigo,
@@ -187,7 +187,7 @@ internal sealed class ServicioDevoluciones(
 
         var aviso = await ImprimirAsync(sesion, datos, esCopia: false, cancelacion);
         return new RespuestaDevolucion(CodigoResultadoDevolucion.Correcto,
-            $"Nota de crédito {devolucion.Encf} por RD${devolucion.Total:N2} emitida.{(aviso is null ? null : $" {aviso}")}", NotaCredito: datos);
+            $"Nota de crédito {devolucion.Encf} por {devolucion.SimboloMoneda}{devolucion.Total:N2} emitida.{(aviso is null ? null : $" {aviso}")}", NotaCredito: datos);
     }
 
     public async Task<RespuestaSaldoNotaCredito> ConsultarNotaCreditoAsync(SesionUsuario sesion, string codigo, CancellationToken cancelacion = default)
@@ -208,7 +208,7 @@ internal sealed class ServicioDevoluciones(
                 $"La nota de crédito {nota.Encf ?? nota.Numero} ya fue consumida.", datos),
             EstadoNotaCredito.Vencida => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoVencida,
                 $"La nota de crédito {nota.Encf ?? nota.Numero} venció el {nota.VenceEn:dd/MM/yyyy}.", datos),
-            _ => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.Correcto, $"Saldo disponible: RD${nota.Saldo:N2}.", datos),
+            _ => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.Correcto, $"Saldo disponible: {nota.SimboloMoneda}{nota.Saldo:N2}.", datos),
         };
     }
 

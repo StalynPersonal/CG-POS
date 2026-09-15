@@ -106,6 +106,8 @@ public sealed record DatosVenta(
     bool LimiteCompraExcedido,
     bool RequiereIdentificacion,
     decimal MontoIdentificacion,
+    string Moneda,
+    string SimboloMoneda,
     DatosDescuentoFactura? DescuentoFactura = null,
     IReadOnlyList<DatosPagoVenta>? Pagos = null,
     decimal? TotalCobrado = null,

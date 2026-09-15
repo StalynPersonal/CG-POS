@@ -22,7 +22,7 @@ public class CobroPruebas
 
     private static Venta VentaCon(int cinceles = 1)
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "Cajera", Ahora);
+        var venta = Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Ahora);
         venta.AgregarArticulo(Cincel, cinceles, Ahora);
         return venta;
     }

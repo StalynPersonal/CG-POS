@@ -52,7 +52,8 @@ public sealed record DatosEstadoCaja(
     string? CajaNombre = null,
     string? SucursalNombre = null,
     string? EmpresaNombre = null,
-    string? Problema = null);
+    string? Problema = null,
+    Catalogo.DatosMoneda? MonedaLocal = null);
 
 /// <summary>Nombres de los atributos del token de sesión de la caja.</summary>
 public static class AtributosToken

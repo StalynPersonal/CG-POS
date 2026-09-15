@@ -60,7 +60,7 @@ else
                     <div class="cg-venta__etiqueta">@_venta.Totales.CantidadArticulos.ToString("0.###") artículos</div>
                     @if (_venta.LimiteCompra is { } limite)
                     {
-                        <div class="cg-venta__etiqueta @(_venta.LimiteCompraExcedido ? "cg-venta__limite--excedido" : null)">Límite RD$@limite.ToString("N2")</div>
+                        <div class="cg-venta__etiqueta @(_venta.LimiteCompraExcedido ? "cg-venta__limite--excedido" : null)">Límite @limite.ToString("C")</div>
                     }
                 </div>
             </section>
@@ -72,7 +72,7 @@ else
                 {
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Descuentos</span><span class="cg-numero">−@_venta.Totales.Descuento.ToString("N2")</span></div>
                 }
-                <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (RD$)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
+                <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
             </section>
         </header>
 
@@ -95,11 +95,11 @@ else
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
                 <div>
                     <span>Transacción @cobro.NumeroTransaccion cobrada</span>
-                    <strong>Total RD$@cobro.TotalCobrado.ToString("N2")</strong>
+                    <strong>Total @cobro.TotalCobrado.ToString("C")</strong>
                 </div>
                 <div class="cg-venta__devuelta">
                     <span>Devuelta</span>
-                    <strong>RD$@cobro.Devuelta.ToString("N2")</strong>
+                    <strong>@cobro.Devuelta.ToString("C")</strong>
                 </div>
                 <span class="cg-espaciador"></span>
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Print" OnClick="ReimprimirAsync">Reimprimir</MudButton>
@@ -112,13 +112,13 @@ else
         @if (_venta.RequiereIdentificacion)
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Class="cg-venta__aviso">
-                Factura de consumo desde RD$@_venta.MontoIdentificacion.ToString("N2"): la DGII exige la cédula o el RNC del cliente (F12).
+                Factura de consumo desde @_venta.MontoIdentificacion.ToString("C"): la DGII exige la cédula o el RNC del cliente (F12).
             </MudAlert>
         }
         @if (_venta.LimiteCompraExcedido)
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Class="cg-venta__aviso">
-                El total superó el límite de compra de RD$@_venta.LimiteCompra!.Value.ToString("N2") que indicó el cliente.
+                El total superó el límite de compra de @_venta.LimiteCompra!.Value.ToString("C") que indicó el cliente.
             </MudAlert>
         }
 
@@ -403,7 +403,7 @@ else
     private async Task RetirarEfectivoAsync()
     {
         _barra?.MostrarPrincipal();
-        var texto = await PedirTextoAsync("Retiro de efectivo", "Monto a retirar (RD$)", ayuda: "Se imprime el comprobante y se abre la gaveta.");
+        var texto = await PedirTextoAsync("Retiro de efectivo", $"Monto a retirar ({MonedaPantalla.Simbolo})", ayuda: "Se imprime el comprobante y se abre la gaveta.");
         if (texto is null || !decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var monto))
             return;
 
@@ -412,7 +412,7 @@ else
             return;
 
         var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.RetirarEfectivoAsync(monto, motivo, autorizacion),
-            $"Retiro de efectivo por RD${monto:N2}");
+            $"Retiro de efectivo por {monto:C}");
         if (respuesta is null)
             return;
 
@@ -443,7 +443,7 @@ else
         }
 
         var motivo = await PedirTextoAsync($"Reabrir el turno {ultimo.TurnoNumero}", "Motivo de la reapertura",
-            ayuda: $"Cierre de {ultimo.UsuarioNombre} con diferencia de RD${ultimo.Diferencia:N2}. Requiere autorización de un nivel superior.",
+            ayuda: $"Cierre de {ultimo.UsuarioNombre} con diferencia de {ultimo.Diferencia:C}. Requiere autorización de un nivel superior.",
             decimales: false, modo: ModoTeclado.Alfanumerico);
         if (motivo is null)
             return;
@@ -643,7 +643,7 @@ else
 
         _dialogoAbierto = true;
         var confirmado = _venta.Lineas.Count == 0 || await Dialogos.ConfirmarAsync("Limpiar pantalla",
-            $"¿Anular la transacción {_venta.NumeroTransaccion} con {_venta.Totales.CantidadLineas} líneas por RD${_venta.Totales.Total:N2}?", "Limpiar", esPeligrosa: true);
+            $"¿Anular la transacción {_venta.NumeroTransaccion} con {_venta.Totales.CantidadLineas} líneas por {_venta.Totales.Total:C}?", "Limpiar", esPeligrosa: true);
         _dialogoAbierto = false;
         _enfocar = true;
         if (!confirmado)
@@ -695,7 +695,7 @@ else
 
         if (_venta.RequiereIdentificacion)
         {
-            _mensaje = $"Antes de cobrar, asigne la cédula o el RNC del cliente (factura de consumo desde RD${_venta.MontoIdentificacion:N2}).";
+            _mensaje = $"Antes de cobrar, asigne la cédula o el RNC del cliente (factura de consumo desde {_venta.MontoIdentificacion:C}).";
             await AbrirClienteAsync();
             return;
         }
@@ -823,7 +823,7 @@ else
         if (_venta is null)
             return;
 
-        var texto = await PedirTextoAsync("Límite de compra", "Monto límite en RD$ (0 para quitarlo)",
+        var texto = await PedirTextoAsync("Límite de compra", $"Monto límite en {MonedaPantalla.Simbolo} (0 para quitarlo)",
             valorInicial: _venta.LimiteCompra?.ToString("0.##", CultureInfo.InvariantCulture) ?? string.Empty);
         if (texto is null)
             return;
@@ -868,7 +868,7 @@ else
         _barra?.MostrarPrincipal();
         await EjecutarConAutorizacionAsync(
             autorizacion => Cliente.AnularVentaAsync(_venta!.Id, motivo, autorizacion),
-            $"Anular la transacción {_venta.NumeroTransaccion} por RD${_venta.Totales.Total:N2}");
+            $"Anular la transacción {_venta.NumeroTransaccion} por {_venta.Totales.Total:C}");
         _codigosInternos.Clear();
     }
 

@@ -123,6 +123,7 @@ public sealed class EscenarioSeguridad
             ],
             Parametros:
             [
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MonedaLocal, "DOP", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosPin, "3", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosBloqueo, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosVigenciaAutorizacion, "5", CajaId: CajaUno),

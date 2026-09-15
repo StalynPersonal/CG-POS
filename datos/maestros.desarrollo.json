@@ -1,4 +1,8 @@
 {
+  "monedas": [
+    { "id": "01990000-0000-7000-8001-000000001001", "codigo": "DOP", "nombre": "Peso dominicano", "simbolo": "RD$" },
+    { "id": "01990000-0000-7000-8001-000000001002", "codigo": "USD", "nombre": "Dólar estadounidense", "simbolo": "US$" }
+  ],
   "familias": [
     { "id": "01990000-0000-7000-8001-000000000101", "codigo": "FER", "nombre": "Ferretería" },
     { "id": "01990000-0000-7000-8001-000000000102", "codigo": "CON", "nombre": "Materiales de construcción" },
@@ -117,16 +121,16 @@
     }
   ],
   "formasPago": [
-    { "id": "01990000-0000-7000-8001-000000000601", "codigo": "EFE", "nombre": "Efectivo", "tipo": "Efectivo", "orden": 1 },
-    { "id": "01990000-0000-7000-8001-000000000602", "codigo": "TAR", "nombre": "Tarjeta", "tipo": "Tarjeta", "orden": 2 },
-    { "id": "01990000-0000-7000-8001-000000000603", "codigo": "TRA", "nombre": "Transferencia", "tipo": "Transferencia", "orden": 3 },
-    { "id": "01990000-0000-7000-8001-000000000604", "codigo": "CHE", "nombre": "Cheque", "tipo": "Cheque", "orden": 4 },
+    { "id": "01990000-0000-7000-8001-000000000601", "codigo": "EFE", "nombre": "Efectivo", "tipo": "Efectivo", "orden": 1, "moneda": "DOP" },
+    { "id": "01990000-0000-7000-8001-000000000602", "codigo": "TAR", "nombre": "Tarjeta", "tipo": "Tarjeta", "orden": 2, "moneda": "DOP" },
+    { "id": "01990000-0000-7000-8001-000000000603", "codigo": "TRA", "nombre": "Transferencia", "tipo": "Transferencia", "orden": 3, "moneda": "DOP" },
+    { "id": "01990000-0000-7000-8001-000000000604", "codigo": "CHE", "nombre": "Cheque", "tipo": "Cheque", "orden": 4, "moneda": "DOP" },
     { "id": "01990000-0000-7000-8001-000000000605", "codigo": "USD", "nombre": "Dólares", "tipo": "MonedaExtranjera", "orden": 5, "moneda": "USD" },
-    { "id": "01990000-0000-7000-8001-000000000606", "codigo": "NC", "nombre": "Nota de crédito", "tipo": "NotaCredito", "orden": 6, "requiereReferencia": true, "permiteDevuelta": false },
-    { "id": "01990000-0000-7000-8001-000000000607", "codigo": "BONO", "nombre": "Bono de regalo", "tipo": "BonoRegalo", "orden": 7 },
-    { "id": "01990000-0000-7000-8001-000000000608", "codigo": "GIFT", "nombre": "Tarjeta de regalo", "tipo": "TarjetaRegalo", "orden": 8 },
-    { "id": "01990000-0000-7000-8001-000000000609", "codigo": "PRE", "nombre": "Préstamo bancario", "tipo": "PrestamoBancario", "orden": 9 },
-    { "id": "01990000-0000-7000-8001-000000000610", "codigo": "PUN", "nombre": "Puntos", "tipo": "Puntos", "orden": 10 }
+    { "id": "01990000-0000-7000-8001-000000000606", "codigo": "NC", "nombre": "Nota de crédito", "tipo": "NotaCredito", "orden": 6, "moneda": "DOP", "requiereReferencia": true, "permiteDevuelta": false },
+    { "id": "01990000-0000-7000-8001-000000000607", "codigo": "BONO", "nombre": "Bono de regalo", "tipo": "BonoRegalo", "orden": 7, "moneda": "DOP" },
+    { "id": "01990000-0000-7000-8001-000000000608", "codigo": "GIFT", "nombre": "Tarjeta de regalo", "tipo": "TarjetaRegalo", "orden": 8, "moneda": "DOP" },
+    { "id": "01990000-0000-7000-8001-000000000609", "codigo": "PRE", "nombre": "Préstamo bancario", "tipo": "PrestamoBancario", "orden": 9, "moneda": "DOP" },
+    { "id": "01990000-0000-7000-8001-000000000610", "codigo": "PUN", "nombre": "Puntos", "tipo": "Puntos", "orden": 10, "moneda": "DOP" }
   ],
   "bancos": [
     { "id": "01990000-0000-7000-8001-000000000701", "codigo": "BPD", "nombre": "Banco Popular Dominicano" },

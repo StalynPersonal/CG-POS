@@ -88,16 +88,36 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
 {
     private readonly FirmadorEcf _firmador = new();
 
+    /// <summary>Moneda en que la DGII recibe los montos del e-CF (norma fiscal, no configurable).</summary>
+    private const string MonedaEcf = "DOP";
+
     /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
-    public Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion) =>
-        EmitirDocumentoAsync(venta.Id, venta.CajaId, venta.SucursalId, venta.TipoComprobante, venta.CobradaEn,
+    public Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion)
+    {
+        ValidarMoneda(venta.Moneda);
+        return EmitirDocumentoAsync(venta.Id, venta.CajaId, venta.SucursalId, venta.TipoComprobante, venta.CobradaEn,
             (encf, vence, emisor, ahora, tipoIngresos) => ConversionEcf.DesdeVenta(venta, encf, vence, emisor, ahora, tipoIngresos), cancelacion);
+    }
+
+    /// <summary>
+    /// El e-CF se expresa en pesos dominicanos. Una caja con otra moneda local no puede emitirlo hasta definir la conversión
+    /// (sección de otra moneda del e-CF con su tasa); se rechaza en lugar de enviar montos en una moneda que la DGII no espera.
+    /// </summary>
+    private static void ValidarMoneda(string moneda)
+    {
+        if (!string.Equals(moneda, MonedaEcf, StringComparison.OrdinalIgnoreCase))
+            throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido,
+                $"La moneda local de la caja es {moneda}: el e-CF de la DGII se emite en {MonedaEcf} y la conversión aún no está definida.");
+    }
 
     /// <summary>Nota de crédito E34 de una devolución, referenciando el e-CF de la factura (RF-227).</summary>
     /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
-    public Task<EmisionEcf> EmitirNotaCreditoAsync(Devolucion devolucion, CancellationToken cancelacion) =>
-        EmitirDocumentoAsync(devolucion.Id, devolucion.CajaId, devolucion.SucursalId, TipoComprobante.NotaCredito, devolucion.CreadaEn,
+    public Task<EmisionEcf> EmitirNotaCreditoAsync(Devolucion devolucion, CancellationToken cancelacion)
+    {
+        ValidarMoneda(devolucion.Moneda);
+        return EmitirDocumentoAsync(devolucion.Id, devolucion.CajaId, devolucion.SucursalId, TipoComprobante.NotaCredito, devolucion.CreadaEn,
             (encf, vence, emisor, ahora, tipoIngresos) => ConversionEcf.DesdeNotaCredito(devolucion, encf, vence, emisor, ahora, tipoIngresos), cancelacion);
+    }
 
     /// <param name="documentoId">Venta o devolución que origina el comprobante.</param>
     private async Task<EmisionEcf> EmitirDocumentoAsync(Guid documentoId, Guid cajaId, Guid sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,

@@ -41,7 +41,7 @@
                 </div>
                 <div class="cg-cierre__total">
                     <span>@EtiquetaDiferencia(cierre.Diferencia)</span>
-                    <span class="@ClaseDiferencia(cierre.Diferencia)">RD$@cierre.Diferencia.ToString("N2")</span>
+                    <span class="@ClaseDiferencia(cierre.Diferencia)">@cierre.Diferencia.ToString("C")</span>
                 </div>
             </div>
         }
@@ -92,13 +92,13 @@
                         </div>
                     }
                     <div class="cg-cierre__total">
-                        <span>Total declarado RD$</span>
+                        <span>Total declarado @MonedaPantalla.Simbolo</span>
                         <span>@TotalDeclaradoLocal.ToString("N2")</span>
                     </div>
                     @if (_resumen.TotalRetiros > 0)
                     {
                         <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Retiros del turno: RD$@_resumen.TotalRetiros.ToString("N2") (@_resumen.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro))
+                            Retiros del turno: @_resumen.TotalRetiros.ToString("C") (@_resumen.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro))
                         </MudText>
                     }
                 </section>
@@ -167,7 +167,7 @@
     private IReadOnlyList<string> _bloqueos = [];
     private Guid? _formaActiva;
     private Guid? _denominacionActiva;
-    private string _monedaConteo = "DOP";
+    private string _monedaConteo = string.Empty;
     private string? _mensaje;
     private string? _aviso;
     private bool _procesando;
@@ -183,7 +183,8 @@
 
         _resumen = resumen;
         _bloqueos = resumen.Bloqueos;
-        _monedaConteo = MonedasConteo.FirstOrDefault() ?? "DOP";
+        // Se empieza contando la moneda local.
+        _monedaConteo = MonedasConteo.Contains(resumen.MonedaLocal) ? resumen.MonedaLocal : MonedasConteo.FirstOrDefault() ?? resumen.MonedaLocal;
         _denominacionActiva = DenominacionesConteo.FirstOrDefault()?.Id;
         if (_denominacionActiva is null)
             _formaActiva = FormasDeclarables.FirstOrDefault()?.FormaPagoId;
@@ -208,8 +209,8 @@
     private decimal Declarado(DatosFormaPagoTurno forma) => PorConteo(forma) ? TotalContado(forma.Moneda) : Monto(_declarado.GetValueOrDefault(forma.FormaPagoId));
 
     private decimal TotalDeclaradoLocal =>
-        FormasDeclarables.Where(f => f.Moneda == "DOP").Sum(f => Monto(_declarado.GetValueOrDefault(f.FormaPagoId)))
-        + (_resumen!.FormasPago.Any(f => f.Moneda == "DOP" && PorConteo(f)) ? TotalContado("DOP") : 0m);
+        FormasDeclarables.Where(f => f.Moneda == _resumen!.MonedaLocal).Sum(f => Monto(_declarado.GetValueOrDefault(f.FormaPagoId)))
+        + (_resumen!.FormasPago.Any(f => f.Moneda == _resumen.MonedaLocal && PorConteo(f)) ? TotalContado(_resumen.MonedaLocal) : 0m);
 
     private string ValorCampo
     {
@@ -338,7 +339,8 @@
         _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
     }
 
-    private static string MonedaTexto(string moneda) => moneda == "DOP" ? string.Empty : $" ({moneda})";
+    /// <summary>Marca las formas de pago en moneda extranjera; la moneda local no se indica.</summary>
+    private string MonedaTexto(string moneda) => moneda == (_cierre?.Moneda ?? _resumen?.MonedaLocal) ? string.Empty : $" ({moneda})";
 
     private static string ClaseDiferencia(decimal diferencia) => diferencia switch
     {

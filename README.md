@@ -71,6 +71,7 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Caja.FondoPredeterminado` | Fondo sugerido al abrir turno | No |
 | `Devoluciones.DiasRetencionImpuesto`, `Devoluciones.MesesVigenciaNotaCredito` | Retención del ITBIS y vigencia de la nota de crédito | Sí |
 | `Devoluciones.PoliticaNotaCredito`, `Devoluciones.PoliticaNotaCreditoContabilidad` | Textos impresos en la nota de crédito | No |
+| `General.MonedaLocal` | Código ISO de la moneda local (debe existir activa en el maestro `monedas`, con su nombre y símbolo). Cobro, cierre, tickets y pantallas la usan; las demás monedas se cobran a la tasa del día. El e-CF solo se emite con moneda local DOP | Sí |
 | `Tickets.MensajePie` | Mensaje al pie del ticket | No |
 | `Pantallas.MensajeBienvenida`, `Pantallas.MensajeDespedida` | Mensajes de la pantalla del cliente | No |
 | `Pantallas.SegundosPorImagen` | Rotación de la publicidad (sin él no rota) | No |

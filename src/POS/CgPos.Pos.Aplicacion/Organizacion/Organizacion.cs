@@ -58,6 +58,9 @@ public static class ParametrosExtensiones
 /// <summary>Claves de parámetros conocidas. Los valores numéricos usan formato invariante (punto decimal).</summary>
 public static class ClavesParametros
 {
+    /// <summary>Código ISO de la moneda local de la caja; debe existir activa en el maestro de monedas.</summary>
+    public const string MonedaLocal = "General.MonedaLocal";
+
     public const string IntentosMaximosPin = "Seguridad.IntentosMaximosPin";
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
 

@@ -74,7 +74,7 @@
                         </div>
                         @if (seleccionada.Moneda != MonedaLocal && MontoDigitado is { } enMoneda && Tasa(seleccionada.Moneda) is { } tasa)
                         {
-                            <MudText Typo="Typo.body1" Class="cg-descuento__estimado">Equivale a RD$@((enMoneda * tasa).ToString("N2"))</MudText>
+                            <MudText Typo="Typo.body1" Class="cg-descuento__estimado">Equivale a @((enMoneda * tasa).ToString("C"))</MudText>
                         }
 
                         @if (seleccionada.PermiteDevuelta)
@@ -160,7 +160,8 @@
 </MudDialog>
 
 @code {
-    private const string MonedaLocal = "DOP";
+    /// <summary>La moneda de la venta es la moneda local de la caja al iniciarla.</summary>
+    private string MonedaLocal => Venta.Moneda;
 
     private enum Campo
     {
@@ -316,7 +317,7 @@
 
         if (forma.Moneda == MonedaLocal && !forma.PermiteDevuelta && monto > Math.Max(0m, Saldo))
         {
-            _mensaje = $"{forma.Nombre} no da devuelta: el monto no puede superar lo que falta (RD${Math.Max(0m, Saldo):N2}).";
+            _mensaje = $"{forma.Nombre} no da devuelta: el monto no puede superar lo que falta ({Math.Max(0m, Saldo):C}).";
             return;
         }
 

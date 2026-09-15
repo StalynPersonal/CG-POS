@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Globalizacion;
 using CgPos.Dominio.Turnos;
@@ -18,7 +19,8 @@ internal sealed record EncabezadoTicket(
     string? SucursalDireccion,
     string CajaCodigo,
     string? MensajePie,
-    TimeZoneInfo ZonaHoraria);
+    TimeZoneInfo ZonaHoraria,
+    DatosMoneda Moneda);
 
 /// <summary>
 /// Ticket de venta para impresora térmica de 80 mm (42 columnas): texto plano y ESC/POS con la página de códigos PC858 para
@@ -111,7 +113,7 @@ internal static class GeneradorTicket
             Importe($"ITBIS {tasa.Porcentaje.ToString("0.##", cultura)}%", tasa.Impuesto);
         if (venta.Totales.Descuento > 0)
             Importe("DESCUENTOS", -venta.Totales.Descuento);
-        Importe("TOTAL RD$", venta.Totales.Total, Estilo.Titulo);
+        Importe($"TOTAL {venta.SimboloMoneda}", venta.Totales.Total, Estilo.Titulo);
         if (venta.RedondeoEfectivo != 0)
             Importe("Redondeo efectivo", venta.RedondeoEfectivo);
         if (venta.TotalCobrado is { } cobrado && cobrado != venta.Totales.Total)
@@ -122,7 +124,7 @@ internal static class GeneradorTicket
             Separador();
             foreach (var pago in pagos)
             {
-                var detalle = pago.Moneda == Venta.MonedaLocal
+                var detalle = pago.Moneda == venta.Moneda
                     ? pago.FormaPagoNombre
                     : $"{pago.FormaPagoNombre} {pago.MontoRecibido.ToString("N2", cultura)} {pago.Moneda} @ {pago.TasaCambio?.ToString("N2", cultura)}";
                 Importe(detalle, pago.MontoAplicado);
@@ -212,7 +214,7 @@ internal static class GeneradorTicket
             Importe("ITBIS", nota.Impuesto);
         if (nota.ImpuestoRetenido > 0)
             Importe("ITBIS retenido (fuera de plazo)", nota.ImpuestoRetenido);
-        Importe("TOTAL RD$", nota.Total, Estilo.Titulo);
+        Importe($"TOTAL {Simbolo(encabezado, nota.Moneda)}", nota.Total, Estilo.Titulo);
 
         if (!copiaContabilidad)
         {
@@ -241,7 +243,8 @@ internal static class GeneradorTicket
     }
 
     /// <summary>Voucher con el saldo que queda de una nota de crédito usada parcialmente (RF-43).</summary>
-    public static DocumentoImpresion GenerarSaldoNotaCredito(EncabezadoTicket encabezado, string codigo, string cliente, decimal saldo, DateOnly venceEn, string ventaNumero)
+    public static DocumentoImpresion GenerarSaldoNotaCredito(EncabezadoTicket encabezado, string codigo, string cliente, decimal saldo, string moneda, DateOnly venceEn,
+        string ventaNumero)
     {
         var cultura = CulturaRd.Crear();
         var lineas = new List<(string Texto, Estilo Estilo)>();
@@ -254,7 +257,7 @@ internal static class GeneradorTicket
             Agregar(parte);
         Agregar($"Usada en la factura {ventaNumero}");
         Agregar(new string('-', Ancho));
-        Agregar(Columnas("SALDO DISPONIBLE RD$", saldo.ToString("N2", cultura)), Estilo.Titulo);
+        Agregar(Columnas($"SALDO DISPONIBLE {Simbolo(encabezado, moneda)}", saldo.ToString("N2", cultura)), Estilo.Titulo);
         Agregar($"Válida hasta el {venceEn.ToString("dd/MM/yyyy", cultura)}", Estilo.Negrita);
         Agregar(codigo, Estilo.Barras);
 
@@ -308,7 +311,7 @@ internal static class GeneradorTicket
         Separador();
         Agregar("ESPERADO POR FORMA DE PAGO", Estilo.Negrita);
         foreach (var forma in resumen.FormasPago.Where(f => (f.Esperado ?? 0m) != 0m || (f.Transacciones ?? 0) > 0))
-            Importe($"{forma.Nombre}{Moneda(forma.Moneda)} ({forma.Transacciones ?? 0})", forma.Esperado ?? 0m);
+            Importe($"{forma.Nombre}{MonedaExtranjera(resumen.MonedaLocal, forma.Moneda)} ({forma.Transacciones ?? 0})", forma.Esperado ?? 0m);
 
         if (resumen.Bloqueos.Count > 0)
         {
@@ -352,15 +355,17 @@ internal static class GeneradorTicket
         Agregar("CUADRE POR FORMA DE PAGO", Estilo.Negrita);
         foreach (var forma in cierre.FormasPago)
         {
-            Agregar($"{forma.Nombre}{Moneda(forma.Moneda)} · {forma.Transacciones.ToString("N0", cultura)} trx");
+            Agregar($"{forma.Nombre}{MonedaExtranjera(cierre.Moneda, forma.Moneda)} · {forma.Transacciones.ToString("N0", cultura)} trx");
             Importe("  Esperado", forma.Esperado);
             Importe("  Declarado", forma.Declarado);
             Importe("  Diferencia", forma.Diferencia, forma.Diferencia == 0m ? Estilo.Normal : Estilo.Negrita);
         }
         Separador();
-        Importe("TOTAL ESPERADO RD$", cierre.TotalEsperado);
-        Importe("TOTAL DECLARADO RD$", cierre.TotalDeclarado);
-        Importe(cierre.Diferencia switch { > 0m => "SOBRANTE RD$", < 0m => "FALTANTE RD$", _ => "CUADRADO RD$" }, cierre.Diferencia, Estilo.Titulo);
+        var simbolo = Simbolo(encabezado, cierre.Moneda);
+        var resultado = cierre.Diferencia switch { > 0m => "SOBRANTE", < 0m => "FALTANTE", _ => "CUADRADO" };
+        Importe($"TOTAL ESPERADO {simbolo}", cierre.TotalEsperado);
+        Importe($"TOTAL DECLARADO {simbolo}", cierre.TotalDeclarado);
+        Importe($"{resultado} {simbolo}", cierre.Diferencia, Estilo.Titulo);
 
         if (cierre.Denominaciones.Count > 0)
         {
@@ -437,7 +442,11 @@ internal static class GeneradorTicket
     private static string HoraCorta(EncabezadoTicket encabezado, DateTimeOffset fecha, CultureInfo cultura) =>
         TimeZoneInfo.ConvertTime(fecha, encabezado.ZonaHoraria).ToString("h:mm tt", cultura);
 
-    private static string Moneda(string moneda) => moneda == Venta.MonedaLocal ? string.Empty : $" ({moneda})";
+    /// <summary>Marca las formas de pago en moneda extranjera; la moneda local no se indica.</summary>
+    private static string MonedaExtranjera(string monedaLocal, string moneda) => moneda == monedaLocal ? string.Empty : $" ({moneda})";
+
+    /// <summary>Símbolo de la moneda local configurada, o el código si el documento está en otra moneda.</summary>
+    private static string Simbolo(EncabezadoTicket encabezado, string moneda) => moneda == encabezado.Moneda.Codigo ? encabezado.Moneda.Simbolo : moneda;
 
     private static byte[] EscPos(IEnumerable<(string Texto, Estilo Estilo)> lineas)
     {

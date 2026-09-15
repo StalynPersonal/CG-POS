@@ -53,7 +53,7 @@ public sealed class PagoVenta : Entidad
     public string FormaPagoCodigo { get; private set; } = string.Empty;
     public string FormaPagoNombre { get; private set; } = string.Empty;
     public TipoFormaPago Tipo { get; private set; }
-    public string Moneda { get; private set; } = "DOP";
+    public string Moneda { get; private set; } = string.Empty;
     public decimal MontoRecibido { get; private set; }
     public decimal? TasaCambio { get; private set; }
 
@@ -76,7 +76,8 @@ public sealed class PagoVenta : Entidad
 
     public bool PermiteDevuelta { get; private set; }
 
-    internal static PagoVenta Crear(Guid ventaId, int numero, PagoSolicitado pago, decimal montoAplicado) =>
+    /// <param name="monedaVenta">Moneda de la venta: los pagos en ella no llevan tasa.</param>
+    internal static PagoVenta Crear(Guid ventaId, string monedaVenta, int numero, PagoSolicitado pago, decimal montoAplicado) =>
         new()
         {
             Id = Guid.CreateVersion7(),
@@ -88,7 +89,7 @@ public sealed class PagoVenta : Entidad
             Tipo = pago.Forma.Tipo,
             Moneda = pago.Forma.Moneda,
             MontoRecibido = decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero),
-            TasaCambio = pago.Forma.Moneda == Venta.MonedaLocal ? null : pago.TasaCambio,
+            TasaCambio = pago.Forma.Moneda == monedaVenta ? null : pago.TasaCambio,
             MontoAplicado = montoAplicado,
             Referencia = Validar.TextoOpcional(pago.Referencia, "Referencia del pago", LargoMaximoReferencia),
             BancoId = pago.BancoId,

@@ -1,4 +1,5 @@
 using CgPos.Pos.Aplicacion.Organizacion;
+using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,9 @@ namespace CgPos.Pos.Infraestructura.Tickets;
 
 internal static class ConsultasTicket
 {
-    /// <summary>Empresa, sucursal, caja, mensaje al pie configurado y zona horaria del equipo, para el encabezado de tickets y reportes de caja.</summary>
+    /// <summary>
+    /// Empresa, sucursal, caja, mensaje al pie configurado, zona horaria del equipo y moneda local, para el encabezado de tickets y reportes de caja.
+    /// </summary>
     public static async Task<EncabezadoTicket> EncabezadoTicketAsync(this ContextoDatosPos contexto, IParametros parametros, TimeZoneInfo zonaHoraria, Guid cajaId,
         CancellationToken cancelacion)
     {
@@ -21,7 +24,8 @@ internal static class ConsultasTicket
             .SingleAsync(cancelacion);
 
         var mensajePie = await parametros.ObtenerAsync(ClavesParametros.MensajePieTicket, cajaId, cancelacion);
+        var moneda = await contexto.MonedaLocalAsync(parametros, cajaId, cancelacion);
         return new EncabezadoTicket(datos.Empresa, datos.Rnc, datos.EmpresaDireccion, datos.Telefono, datos.Sucursal, datos.SucursalDireccion, datos.Caja,
-            string.IsNullOrWhiteSpace(mensajePie) ? null : mensajePie, zonaHoraria);
+            string.IsNullOrWhiteSpace(mensajePie) ? null : mensajePie, zonaHoraria, moneda);
     }
 }

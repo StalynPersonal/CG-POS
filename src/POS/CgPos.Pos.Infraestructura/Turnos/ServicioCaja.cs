@@ -9,6 +9,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using CgPos.Pos.Infraestructura.Ventas;
@@ -24,7 +25,7 @@ internal static class ConversionesCaja
 
     public static DatosCierre ADatos(this CierreTurno cierre, IEnumerable<MovimientoCaja> movimientos) =>
         new(cierre.Id, cierre.TurnoId, cierre.TurnoNumero, cierre.Numero, cierre.CajaId, cierre.SucursalId, cierre.FechaOperacion, cierre.Ciego,
-            cierre.FondoInicial, cierre.FondoEnCuadre, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado,
+            cierre.FondoInicial, cierre.FondoEnCuadre, cierre.Moneda, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado,
             cierre.TotalDeclarado, cierre.Diferencia, cierre.UsuarioNombre, cierre.AbiertoEn, cierre.CerradoEn, cierre.Estado, cierre.ReabiertoPorNombre,
             cierre.ReabiertoEn, cierre.MotivoReapertura,
             cierre.FormasPago.OrderBy(f => f.Orden)
@@ -58,7 +59,8 @@ internal sealed class ServicioCaja(
         IReadOnlyList<EsperadoFormaPago> Esperados,
         IReadOnlyList<DatosDenominacion> Denominaciones,
         IReadOnlyList<MovimientoCaja> Movimientos,
-        IReadOnlyList<string> Bloqueos);
+        IReadOnlyList<string> Bloqueos,
+        DatosMoneda MonedaLocal);
 
     public async Task<RespuestaCaja> ObtenerResumenAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
     {
@@ -111,14 +113,14 @@ internal sealed class ServicioCaja(
         var calculo = await CalcularAsync(turno!, cancelacion);
         if (monto > calculo.EfectivoEnGaveta)
             return new RespuestaCaja(CodigoResultadoCaja.EfectivoInsuficiente,
-                $"El retiro (RD${monto:N2}) supera el efectivo en la gaveta (RD${calculo.EfectivoEnGaveta:N2}).");
+                $"El retiro ({calculo.MonedaLocal.Simbolo}{monto:N2}) supera el efectivo en la gaveta ({calculo.MonedaLocal.Simbolo}{calculo.EfectivoEnGaveta:N2}).");
 
         var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.RetiroEfectivo, autorizacionId, TipoEntidadTurno, turno!.Id.ToString(), cancelacion);
         if (!permiso.Permitido)
             return Rechazo(permiso, CatalogoPermisos.RetiroEfectivo, "El retiro de efectivo requiere autorización de un supervisor.");
 
         var numero = calculo.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro) + 1;
-        var retiro = MovimientoCaja.Retiro(turno, numero, monto, motivo, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre,
+        var retiro = MovimientoCaja.Retiro(turno, numero, monto, calculo.MonedaLocal.Codigo, motivo, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre,
             reloj.GetUtcNow());
         contexto.MovimientosCaja.Add(retiro);
 
@@ -137,7 +139,7 @@ internal sealed class ServicioCaja(
         var gaveta = await impresora.AbrirGavetaAsync(cancelacion);
         var avisos = string.Join(" ", new[] { impresion.Correcto ? null : impresion.Mensaje, gaveta.Correcto ? null : gaveta.Mensaje }.Where(a => a is not null));
 
-        return new RespuestaCaja(CodigoResultadoCaja.Correcto, $"Retiro {numero} por RD${monto:N2} registrado. {avisos}".Trim(), Movimiento: datos, Turno: turno.ADatos());
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, $"Retiro {numero} por {calculo.MonedaLocal.Simbolo}{monto:N2} registrado. {avisos}".Trim(), Movimiento: datos, Turno: turno.ADatos());
     }
 
     public async Task<RespuestaCaja> RelevarAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
@@ -201,7 +203,7 @@ internal sealed class ServicioCaja(
         {
             cierre = CierreTurno.Registrar(turno, numero, calculo.Ciego, calculo.FondoEnCuadre, calculo.CantidadVentas, calculo.TotalVentas, calculo.TotalRetiros,
                 calculo.Esperados, declaraciones.Select(d => new DeclaradoFormaPago(d.FormaPagoId, d.Monto)).ToList(), conteos,
-                sesion.UsuarioId, sesion.Nombre, ahora);
+                calculo.MonedaLocal.Codigo, sesion.UsuarioId, sesion.Nombre, ahora);
         }
         catch (ReglaCierreExcepcion excepcion)
         {
@@ -328,6 +330,7 @@ internal sealed class ServicioCaja(
     {
         var ciego = await parametros.ObtenerBooleanoAsync(ClavesParametros.CierreCiego, turno.CajaId, cancelacion);
         var fondoEnCuadre = await parametros.ObtenerBooleanoAsync(ClavesParametros.FondoEnCuadre, turno.CajaId, cancelacion);
+        var monedaLocal = await contexto.MonedaLocalAsync(parametros, turno.CajaId, cancelacion);
 
         var ventas = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).Include(v => v.Pagos)
             .Where(v => v.TurnoId == turno.Id && v.Estado != EstadoVenta.Anulada)
@@ -346,7 +349,7 @@ internal sealed class ServicioCaja(
         var esperados = ReglasCuadre.CalcularEsperados(
             formas.Where(f => f.Activa || pagos.Any(p => p.FormaPagoId == f.Id)).Select(f => new FormaPagoCuadre(f.Id, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Orden)),
             pagos.Select(p => new PagoCuadre(p.FormaPagoId, p.MontoRecibido, p.MontoAplicado)),
-            cobradas.Sum(v => v.Devuelta), retiros, turno.FondoInicial, fondoEnCuadre);
+            cobradas.Sum(v => v.Devuelta), retiros, turno.FondoInicial, fondoEnCuadre, monedaLocal.Codigo);
 
         // Validaciones de cierre (RF-265, RN-22).
         var bloqueos = new List<string>();
@@ -365,7 +368,8 @@ internal sealed class ServicioCaja(
             bloqueos.Add($"Hay {sinEcf.Count} venta(s) sin e-CF firmado: {string.Join(", ", sinEcf.Take(5))}.");
 
         return new CalculoTurno(ciego, fondoEnCuadre, cobradas.Count, cobradas.Sum(v => v.TotalCobrado ?? 0m), retiros,
-            ReglasCuadre.EfectivoLocalEnGaveta(esperados, turno.FondoInicial, fondoEnCuadre), esperados, denominaciones, movimientos, bloqueos);
+            ReglasCuadre.EfectivoLocalEnGaveta(esperados, turno.FondoInicial, fondoEnCuadre, monedaLocal.Codigo), esperados, denominaciones, movimientos, bloqueos,
+            monedaLocal);
     }
 
     private static DatosResumenTurno Resumen(Turno turno, CalculoTurno calculo, bool mostrarEsperado) =>
@@ -379,7 +383,8 @@ internal sealed class ServicioCaja(
                 .ToList(),
             calculo.Denominaciones,
             calculo.Movimientos.Select(m => m.ADatos()).ToList(),
-            calculo.Bloqueos);
+            calculo.Bloqueos,
+            calculo.MonedaLocal.Codigo);
 
     private async Task<(Turno? Turno, RespuestaCaja? Rechazo)> TurnoDelUsuarioAsync(SesionUsuario sesion, CancellationToken cancelacion)
     {

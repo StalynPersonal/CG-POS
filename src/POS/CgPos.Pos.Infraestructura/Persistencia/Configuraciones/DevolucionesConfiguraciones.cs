@@ -42,6 +42,8 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
         constructor.Property(d => d.ImpuestoRetenido).HasPrecision(18, 2);
         constructor.Property(d => d.Total).HasPrecision(18, 2);
         constructor.Property(d => d.Saldo).HasPrecision(18, 2);
+        constructor.Property(d => d.Moneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(d => d.SimboloMoneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo).IsRequired();
 
         constructor.HasOne<Venta>().WithMany().HasForeignKey(d => d.VentaOrigenId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasIndex(d => d.VentaOrigenId);

@@ -54,10 +54,10 @@
                     <div class="cg-devolucion__dato"><small>Válida hasta</small><strong>@nota.VenceEn.ToString("dd/MM/yyyy")</strong></div>
                     @if (nota.RetieneImpuesto)
                     {
-                        <div class="cg-devolucion__dato"><small>ITBIS retenido</small><strong>RD$@nota.ImpuestoRetenido.ToString("N2")</strong></div>
+                        <div class="cg-devolucion__dato"><small>ITBIS retenido</small><strong>@nota.ImpuestoRetenido.ToString("C")</strong></div>
                     }
                 </div>
-                <div class="cg-devolucion__total">RD$@nota.Total.ToString("N2")</div>
+                <div class="cg-devolucion__total">@nota.Total.ToString("C")</div>
                 <div class="cg-devolucion__acciones">
                     <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Print" Disabled="_procesando" OnClick="ReimprimirAsync">Reimprimir</MudButton>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.AssignmentReturn"
@@ -79,7 +79,7 @@
                     }
                     @foreach (var previa in factura.NotasPrevias)
                     {
-                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">Devuelto antes: @(previa.Encf ?? previa.Numero) · RD$@previa.Total.ToString("N2")</MudChip>
+                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">Devuelto antes: @(previa.Encf ?? previa.Numero) · @previa.Total.ToString("C")</MudChip>
                     }
                 </div>
 
@@ -153,7 +153,7 @@
                     </div>
                     <div>
                         <div class="cg-devolucion__etiqueta">Nota de crédito estimada@(factura.RetieneImpuesto ? " (sin ITBIS)" : null)</div>
-                        <div class="cg-devolucion__total">RD$@TotalEstimado.ToString("N2")</div>
+                        <div class="cg-devolucion__total">@TotalEstimado.ToString("C")</div>
                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" StartIcon="@Icons.Material.Filled.AssignmentReturn"
                                    Disabled="@(_procesando || TotalEstimado <= 0)" Style="min-height: var(--cg-toque-minimo); font-size: 1.1rem" OnClick="EmitirAsync">
                             Emitir nota de crédito
@@ -176,7 +176,7 @@
                     @saldo.Mensaje
                     @if (saldo.NotaCredito is { } datos)
                     {
-                        <span> · @datos.ClienteNombre · Total RD$@datos.Total.ToString("N2") · Vence @datos.VenceEn.ToString("dd/MM/yyyy")</span>
+                        <span> · @datos.ClienteNombre · Total @datos.Total.ToString("C") ·Vence @datos.VenceEn.ToString("dd/MM/yyyy")</span>
                     }
                 </MudAlert>
             }
@@ -284,7 +284,7 @@
         _procesando = true;
         _mensaje = null;
         var respuesta = await Autorizaciones.EjecutarDevolucionAsync(autorizacion => Cliente.RegistrarDevolucionAsync(solicitud with { AutorizacionId = autorizacion }),
-            $"Devolución de la factura {factura.NumeroTransaccion} por RD${TotalEstimado:N2}", factura.NumeroTransaccion);
+            $"Devolución de la factura {factura.NumeroTransaccion} por {TotalEstimado:C}", factura.NumeroTransaccion);
         _procesando = false;
         if (respuesta is null)
             return;

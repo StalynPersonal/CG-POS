@@ -14,13 +14,14 @@ public class CulturaRdPruebas
     }
 
     [Fact]
-    public void Moneda_usa_simbolo_RD()
+    public void Moneda_usa_el_simbolo_de_la_moneda_local()
     {
-        var cultura = CulturaRd.Crear();
+        var cultura = CulturaRd.Crear("RD$");
 
         Assert.Equal("RD$850.00", 850m.ToString("C", cultura));
         Assert.Equal("RD$2,175.34", 2175.34m.ToString("C", cultura));
         Assert.Equal("-RD$850.00", (-850m).ToString("C", cultura));
+        Assert.Equal("US$850.00", 850m.ToString("C", CulturaRd.Crear("US$")));
     }
 
     [Fact]

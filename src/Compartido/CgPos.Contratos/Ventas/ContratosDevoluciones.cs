@@ -93,6 +93,7 @@ public sealed record DatosNotaCredito(
     decimal ImpuestoRetenido,
     decimal Total,
     decimal Saldo,
+    string Moneda,
     DateOnly VenceEn,
     EstadoNotaCredito Estado,
     DateTimeOffset CreadaEn,

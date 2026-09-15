@@ -198,6 +198,19 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     }
 
     [SkippableFact]
+    public async Task Forma_de_pago_con_moneda_fuera_del_maestro_se_rechaza()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        var escenario = new EscenarioCatalogo();
+        await AplicarAsync(escenario.Paquete());
+
+        var error = await Assert.ThrowsAsync<CargaMaestrosInvalidaExcepcion>(() => AplicarAsync(new PaqueteMaestros(
+            FormasPago: [new FormaPagoCarga(Guid.CreateVersion7(), $"EUR{escenario.Sufijo}", "Euros", CgPos.Dominio.Pagos.TipoFormaPago.MonedaExtranjera, 9, "EUR")])));
+
+        Assert.Contains(error.Errores, e => e.Contains("EUR") && e.Contains("maestro de monedas"));
+    }
+
+    [SkippableFact]
     public async Task Consulta_de_documento_combina_padron_dgii_y_cliente_registrado()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

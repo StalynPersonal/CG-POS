@@ -57,11 +57,11 @@
         {
             <div class="cg-turno__formulario">
                 <div class="cg-turno__fondo">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Fondo de caja (RD$)</MudText>
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Fondo de caja (@MonedaPantalla.Simbolo)</MudText>
                     <div class="cg-total-grande">@FondoMostrado</div>
                     @if (Estado.FondoSugerido is { } sugerido)
                     {
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">Sugerido: RD$@sugerido.ToString("N2")</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Sugerido: @sugerido.ToString("C")</MudText>
                     }
                     <div class="cg-turno__acciones">
                         <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="Procesando" Class="cg-turno__boton">Salir</MudButton>

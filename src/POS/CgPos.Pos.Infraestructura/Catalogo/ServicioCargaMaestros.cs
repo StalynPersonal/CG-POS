@@ -66,6 +66,7 @@ internal sealed class ServicioCargaMaestros(
         var tasasCambio = paquete.TasasCambio ?? [];
         var secuenciasEcf = paquete.SecuenciasEcf ?? [];
         var motivosDevolucion = paquete.MotivosDevolucion ?? [];
+        var monedas = paquete.Monedas ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -75,6 +76,9 @@ internal sealed class ServicioCargaMaestros(
         {
             var ahora = reloj.GetUtcNow();
 
+            // Las monedas primero: formas de pago, denominaciones y tasas las referencian.
+            foreach (var dato in monedas)
+                await AplicarMonedaAsync(dato, cancelacion);
             foreach (var dato in familias)
                 await AplicarFamiliaAsync(dato, cancelacion);
             foreach (var dato in unidades)
@@ -308,8 +312,37 @@ internal sealed class ServicioCargaMaestros(
         if (dato.Activo) cliente.Activar(); else cliente.Desactivar();
     }
 
+    private async Task AplicarMonedaAsync(MonedaCarga dato, CancellationToken cancelacion)
+    {
+        var moneda = await contexto.Monedas.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion);
+        if (moneda is null)
+        {
+            moneda = Moneda.Crear(dato.Codigo, dato.Nombre, dato.Simbolo, dato.Id);
+            contexto.Monedas.Add(moneda);
+            _creados++;
+        }
+        else
+        {
+            if (!string.Equals(moneda.Codigo, dato.Codigo?.Trim(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"No se puede cambiar el código de la moneda '{moneda.Codigo}'; cree una nueva.");
+            moneda.Actualizar(dato.Nombre, dato.Simbolo);
+            _actualizados++;
+        }
+
+        if (dato.Activa) moneda.Activar(); else moneda.Desactivar();
+    }
+
+    /// <summary>Formas de pago, denominaciones y tasas solo pueden usar monedas del maestro (las del paquete o las ya cargadas).</summary>
+    private async Task ValidarMonedaAsync(string? codigo, string referencia, CancellationToken cancelacion)
+    {
+        var normalizado = codigo?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (!contexto.Monedas.Local.Any(m => m.Codigo == normalizado) && !await contexto.Monedas.AnyAsync(m => m.Codigo == normalizado, cancelacion))
+            throw new InvalidOperationException($"{referencia} usa la moneda '{normalizado}', que no está en el maestro de monedas.");
+    }
+
     private async Task AplicarFormaPagoAsync(FormaPagoCarga dato, CancellationToken cancelacion)
     {
+        await ValidarMonedaAsync(dato.Moneda, $"La forma de pago '{dato.Codigo}'", cancelacion);
         var forma = await contexto.FormasPago.SingleOrDefaultAsync(f => f.Id == dato.Id, cancelacion);
         if (forma is null)
         {
@@ -375,6 +408,7 @@ internal sealed class ServicioCargaMaestros(
 
     private async Task AplicarDenominacionAsync(DenominacionCarga dato, CancellationToken cancelacion)
     {
+        await ValidarMonedaAsync(dato.Moneda, $"La denominación {dato.Valor}", cancelacion);
         var denominacion = await contexto.Denominaciones.SingleOrDefaultAsync(d => d.Id == dato.Id, cancelacion);
         if (denominacion is null)
         {
@@ -468,6 +502,7 @@ internal sealed class ServicioCargaMaestros(
 
     private async Task AplicarTasaCambioAsync(TasaCambioCarga dato, CancellationToken cancelacion)
     {
+        await ValidarMonedaAsync(dato.Moneda, "La tasa de cambio", cancelacion);
         var tasa = await contexto.TasasCambio.SingleOrDefaultAsync(t => t.Id == dato.Id, cancelacion);
         if (tasa is null)
         {

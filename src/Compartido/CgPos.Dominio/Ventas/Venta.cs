@@ -144,7 +144,6 @@ public sealed class Venta : Entidad
     public const int LargoMaximoNombreCliente = 150;
     public const int LargoMaximoDocumento = 20;
     public const decimal CantidadMaxima = 99_999m;
-    public const string MonedaLocal = "DOP";
 
     private readonly List<LineaVenta> _lineas = [];
     private readonly List<PagoVenta> _pagos = [];
@@ -160,6 +159,12 @@ public sealed class Venta : Entidad
     public Guid TurnoId { get; private set; }
     public Guid UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
+
+    /// <summary>Moneda local de la caja al iniciar la venta (ISO 4217): los montos de la factura están en ella.</summary>
+    public string Moneda { get; private set; } = string.Empty;
+
+    public string SimboloMoneda { get; private set; } = string.Empty;
+
     public EstadoVenta Estado { get; private set; }
     public DateTimeOffset IniciadaEn { get; private set; }
     public DateTimeOffset ActualizadaEn { get; private set; }
@@ -213,7 +218,7 @@ public sealed class Venta : Entidad
         $"{codigoSucursal.Trim()}-{codigoCaja.Trim()}-{secuencia:D8}";
 
     public static Venta Iniciar(Guid sucursalId, string codigoSucursal, Guid cajaId, string codigoCaja, Guid turnoId, long secuencia,
-        Guid usuarioId, string usuarioNombre, DateTimeOffset ahora)
+        Guid usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
 
@@ -227,6 +232,8 @@ public sealed class Venta : Entidad
             TurnoId = Validar.Id(turnoId, "Turno"),
             UsuarioId = Validar.Id(usuarioId, "Usuario"),
             UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario),
+            Moneda = FormaPago.ValidarMoneda(moneda),
+            SimboloMoneda = Validar.Texto(simboloMoneda, "Símbolo de la moneda", CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo),
             Estado = EstadoVenta.EnCurso,
             IniciadaEn = ahora,
             ActualizadaEn = ahora,
@@ -724,7 +731,7 @@ public sealed class Venta : Entidad
             throw new ReglaVentaExcepcion(CodigoErrorVenta.SinLineas, "No hay artículos que cobrar.");
         if (RequiereIdentificacion(montoIdentificacion))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.DocumentoRequerido,
-                $"Una factura de consumo desde RD${montoIdentificacion:N2} exige la cédula o el RNC del cliente.");
+                $"Una factura de consumo desde {SimboloMoneda}{montoIdentificacion:N2} exige la cédula o el RNC del cliente.");
         if (pagos.Count == 0)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, "Agregue al menos una forma de pago.");
 
@@ -738,7 +745,7 @@ public sealed class Venta : Entidad
 
         var pagado = aplicados.Sum();
         if (pagado < totalCobrado)
-            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInsuficiente, $"Falta cobrar RD${totalCobrado - pagado:N2}.");
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInsuficiente, $"Falta cobrar {SimboloMoneda}{totalCobrado - pagado:N2}.");
 
         var devuelta = pagado - totalCobrado;
         var conDevuelta = pagos.Select((pago, indice) => pago.Forma.PermiteDevuelta ? aplicados[indice] : 0m).Sum();
@@ -747,7 +754,7 @@ public sealed class Venta : Entidad
                 "La devuelta solo aplica al efectivo: los demás medios deben cubrir su monto exacto.");
 
         for (var i = 0; i < pagos.Count; i++)
-            _pagos.Add(PagoVenta.Crear(Id, i + 1, pagos[i], aplicados[i]));
+            _pagos.Add(PagoVenta.Crear(Id, Moneda, i + 1, pagos[i], aplicados[i]));
 
         Estado = EstadoVenta.Cobrada;
         CobradaEn = ahora;
@@ -761,7 +768,7 @@ public sealed class Venta : Entidad
         return new ResultadoCobro(total, totalCobrado, pagado, devuelta, RedondeoEfectivo, pagos.Any(p => p.Forma.AbreGaveta));
     }
 
-    /// <returns>Monto en pesos que abona el pago.</returns>
+    /// <returns>Monto en la moneda de la venta que abona el pago.</returns>
     private decimal ValidarPago(PagoSolicitado pago)
     {
         ArgumentNullException.ThrowIfNull(pago);
@@ -784,7 +791,7 @@ public sealed class Venta : Entidad
             throw new ReglaVentaExcepcion(CodigoErrorVenta.ComprobanteNoPermitido,
                 $"{forma.Nombre} no se acepta con comprobante {ReglasComprobante.Nombre(TipoComprobante)}.");
 
-        if (forma.Moneda == MonedaLocal)
+        if (forma.Moneda == Moneda)
             return decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero);
 
         if (pago.TasaCambio is not > 0)

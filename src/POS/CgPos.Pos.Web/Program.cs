@@ -34,7 +34,12 @@ constructor.Services.AddScoped<AuthenticationStateProvider, EstadoAutenticacionC
 
 var anfitrion = constructor.Build();
 
-// Formato RD fijo (RD$ 2,175.34 · dd/MM/yyyy), independiente del idioma del navegador (RNF-27).
-CulturaRd.Aplicar();
+// Formato RD fijo (2,175.34 · dd/MM/yyyy), independiente del idioma del navegador (RNF-27), con el símbolo
+// de la moneda local que el Central configuró para esta caja.
+await using (var ambito = anfitrion.Services.CreateAsyncScope())
+{
+    var estado = await ambito.ServiceProvider.GetRequiredService<ClienteAgente>().ObtenerEstadoCajaAsync();
+    CulturaRd.Aplicar(estado?.MonedaLocal?.Simbolo);
+}
 
 await anfitrion.RunAsync();

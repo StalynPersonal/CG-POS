@@ -107,9 +107,9 @@ public class CatalogoPruebas
     [Fact]
     public void Forma_de_pago_toma_valores_sugeridos_por_tipo()
     {
-        var efectivo = FormaPago.Crear("EFE", "Efectivo", TipoFormaPago.Efectivo, 1);
-        var tarjeta = FormaPago.Crear("TAR", "Tarjeta", TipoFormaPago.Tarjeta, 2);
-        var bono = FormaPago.Crear("BONO", "Bono de regalo", TipoFormaPago.BonoRegalo, 5);
+        var efectivo = FormaPago.Crear("EFE", "Efectivo", TipoFormaPago.Efectivo, 1, "DOP");
+        var tarjeta = FormaPago.Crear("TAR", "Tarjeta", TipoFormaPago.Tarjeta, 2, "DOP");
+        var bono = FormaPago.Crear("BONO", "Bono de regalo", TipoFormaPago.BonoRegalo, 5, "DOP");
 
         Assert.True(efectivo.AbreGaveta);
         Assert.True(efectivo.PermiteDevuelta);
@@ -117,5 +117,16 @@ public class CatalogoPruebas
         Assert.True(tarjeta.RequiereReferencia);
         Assert.False(bono.PermiteComprobanteFiscal);
         Assert.Throws<ArgumentException>(() => FormaPago.Crear("USD", "Dólares", TipoFormaPago.MonedaExtranjera, 3, "US$"));
+    }
+
+    [Fact]
+    public void Moneda_valida_codigo_iso_y_simbolo()
+    {
+        var euro = Moneda.Crear("eur", "Euro", "€");
+
+        Assert.Equal("EUR", euro.Codigo);
+        Assert.Equal("€", euro.Simbolo);
+        Assert.Throws<ArgumentException>(() => Moneda.Crear("EURO", "Euro", "€"));
+        Assert.Throws<ArgumentException>(() => Moneda.Crear("EUR", "Euro", " "));
     }
 }

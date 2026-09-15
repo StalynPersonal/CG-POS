@@ -24,7 +24,14 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<TopeDescuentoCarga>? TopesDescuento = null,
     IReadOnlyList<TasaCambioCarga>? TasasCambio = null,
     IReadOnlyList<SecuenciaEcfCarga>? SecuenciasEcf = null,
-    IReadOnlyList<MotivoDevolucionCarga>? MotivosDevolucion = null);
+    IReadOnlyList<MotivoDevolucionCarga>? MotivosDevolucion = null,
+    IReadOnlyList<MonedaCarga>? Monedas = null);
+
+/// <summary>Moneda del maestro del Central (ISO 4217) con su símbolo para pantallas y tickets.</summary>
+public sealed record MonedaCarga(Guid Id, string Codigo, string Nombre, string Simbolo, bool Activa = true);
+
+/// <summary>Moneda local de la caja, según el parámetro General.MonedaLocal y el maestro de monedas.</summary>
+public sealed record DatosMoneda(string Codigo, string Nombre, string Simbolo);
 
 /// <summary>Motivo seleccionable de devolución (RF-232).</summary>
 public sealed record MotivoDevolucionCarga(Guid Id, string Codigo, string Nombre, bool Activo = true);
@@ -133,7 +140,7 @@ public sealed record FormaPagoCarga(
     string Nombre,
     TipoFormaPago Tipo,
     int Orden,
-    string Moneda = "DOP",
+    string Moneda,
     bool? AbreGaveta = null,
     bool? PermiteDevuelta = null,
     bool? RequiereReferencia = null,

@@ -15,6 +15,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Ecf;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
@@ -71,6 +72,8 @@ internal static class ConversionesVenta
             venta.LimiteCompra is { } limite && totales.Total > limite,
             venta.TipoComprobante == TipoComprobante.FacturaConsumo && venta.ClienteDocumento is null && totales.Total >= montoIdentificacion,
             montoIdentificacion,
+            venta.Moneda,
+            venta.SimboloMoneda,
             venta.DescuentoFacturaTipo is { } tipoDescuento
                 ? new DatosDescuentoFactura(
                     tipoDescuento,
@@ -369,7 +372,7 @@ internal sealed class ServicioVentas(
 
         // Voucher con el saldo que queda de cada nota de crédito usada (RF-43).
         foreach (var (nota, saldo) in saldosNotas.Where(n => n.Saldo > 0))
-            await impresora.ImprimirAsync(GeneradorTicket.GenerarSaldoNotaCredito(encabezado, nota.Encf ?? nota.Numero, nota.ClienteNombre, saldo, nota.VenceEn,
+            await impresora.ImprimirAsync(GeneradorTicket.GenerarSaldoNotaCredito(encabezado, nota.Encf ?? nota.Numero, nota.ClienteNombre, saldo, nota.Moneda, nota.VenceEn,
                 venta.NumeroTransaccion), cancelacion);
 
         var gaveta = resultado.AbreGaveta ? await impresora.AbrirGavetaAsync(cancelacion) : null;
@@ -499,7 +502,7 @@ internal sealed class ServicioVentas(
                 {
                     EstadoNotaCredito.Consumida => $"La nota de crédito {codigo} ya fue consumida.",
                     EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn:dd/MM/yyyy}.",
-                    _ when monto > disponible => $"La nota de crédito {codigo} solo tiene RD${disponible:N2} disponibles.",
+                    _ when monto > disponible => $"La nota de crédito {codigo} solo tiene {venta.SimboloMoneda}{disponible:N2} disponibles.",
                     _ => null,
                 };
                 if (problema is not null)
@@ -515,7 +518,7 @@ internal sealed class ServicioVentas(
             solicitados.Add(new PagoSolicitado(
                 formaCobro,
                 pago.MontoRecibido,
-                forma.Moneda == Venta.MonedaLocal ? null : TasaCambio.Vigente(tasas, forma.Moneda, ahora),
+                forma.Moneda == venta.Moneda ? null : TasaCambio.Vigente(tasas, forma.Moneda, ahora),
                 referencia,
                 pago.BancoId,
                 pago.BancoId is { } bancoId && bancos.TryGetValue(bancoId, out var banco) ? banco : null,
@@ -1089,14 +1092,14 @@ internal sealed class ServicioVentas(
 
         var limite = evaluacion switch
         {
-            { PorcentajeMaximo: { } porcentaje, MontoMaximo: { } monto } => $"{porcentaje:0.##}% y RD${monto:N2}",
+            { PorcentajeMaximo: { } porcentaje, MontoMaximo: { } monto } => $"{porcentaje:0.##}% y {venta.SimboloMoneda}{monto:N2}",
             { PorcentajeMaximo: { } porcentaje } => $"{porcentaje:0.##}%",
-            { MontoMaximo: { } monto } => $"RD${monto:N2}",
+            { MontoMaximo: { } monto } => $"{venta.SimboloMoneda}{monto:N2}",
             _ => "sin descuento",
         };
         var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
         return new RespuestaVenta(CodigoResultadoVenta.TopeDescuentoExcedido,
-            $"El descuento ({vista.Porcentaje:0.##}%, RD${vista.Monto:N2}) supera el tope del nivel {nivel} ({limite}). Requiere autorización de un nivel superior.",
+            $"El descuento ({vista.Porcentaje:0.##}%, {venta.SimboloMoneda}{vista.Monto:N2}) supera el tope del nivel {nivel} ({limite}). Requiere autorización de un nivel superior.",
             Datos(ventaActual), codigoPermiso);
     }
 
@@ -1115,10 +1118,11 @@ internal sealed class ServicioVentas(
     private async Task<Venta> IniciarVentaAsync(SesionUsuario sesion, Turno turno, CancellationToken cancelacion)
     {
         var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
+        var moneda = await contexto.MonedaLocalAsync(parametros, sesion.CajaId, cancelacion);
         var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion);
 
         var venta = Venta.Iniciar(sesion.SucursalId, codigoSucursal, sesion.CajaId, sesion.CajaCodigo, turno.Id, secuencia,
-            sesion.UsuarioId, sesion.Nombre, reloj.GetUtcNow());
+            sesion.UsuarioId, sesion.Nombre, moneda.Codigo, moneda.Simbolo, reloj.GetUtcNow());
         contexto.Ventas.Add(venta);
         await contexto.SaveChangesAsync(cancelacion);
         return venta;

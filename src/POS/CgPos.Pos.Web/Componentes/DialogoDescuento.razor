@@ -14,11 +14,11 @@
                     @if (Linea is { } linea)
                     {
                         <MudText Typo="Typo.h6" Style="font-weight: 700">@linea.Descripcion</MudText>
-                        <MudText Typo="Typo.body2">@linea.Cantidad.ToString("N" + linea.DecimalesCantidad) × @linea.PrecioUnitario.ToString("N2") = RD$@linea.ImporteBruto.ToString("N2")</MudText>
+                        <MudText Typo="Typo.body2">@linea.Cantidad.ToString("N" + linea.DecimalesCantidad) × @linea.PrecioUnitario.ToString("N2") = @linea.ImporteBruto.ToString("C")</MudText>
                     }
                     else
                     {
-                        <MudText Typo="Typo.h6" Style="font-weight: 700">Total RD$@Venta.Totales.Total.ToString("N2")</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 700">Total @Venta.Totales.Total.ToString("C")</MudText>
                     }
                 </div>
                 @if (TieneDescuento)
@@ -37,15 +37,15 @@
                         </button>
                         <button type="button" class="cg-cliente__comprobante @(_tipo == TipoDescuento.Monto ? "cg-cliente__comprobante--activo" : null)"
                                 @onclick="() => _tipo = TipoDescuento.Monto">
-                            <span class="cg-cliente__codigo-ecf">RD$</span><span>Monto</span>
+                            <span class="cg-cliente__codigo-ecf">@MonedaPantalla.Simbolo</span><span>Monto</span>
                         </button>
                     </div>
 
-                    <MudTextField T="string" @bind-Value="_valor" Label="@(_tipo == TipoDescuento.Porcentaje ? "Porcentaje (%)" : "Monto (RD$)")"
+                    <MudTextField T="string" @bind-Value="_valor" Label="@(_tipo == TipoDescuento.Porcentaje ? "Porcentaje (%)" : $"Monto ({MonedaPantalla.Simbolo})")"
                                   Variant="Variant.Outlined" Immediate="true" AutoFocus="true" Class="cg-campo-activo cg-dialogo-teclado__campo" />
                     @if (MontoEstimado is { } monto)
                     {
-                        <MudText Typo="Typo.subtitle1" Class="cg-descuento__estimado">Descuento estimado: RD$@monto.ToString("N2")</MudText>
+                        <MudText Typo="Typo.subtitle1" Class="cg-descuento__estimado">Descuento estimado: @monto.ToString("C")</MudText>
                     }
 
                     <MudText Typo="Typo.subtitle2" Color="Color.Primary">Motivo</MudText>
@@ -195,7 +195,7 @@
             return;
         }
 
-        var texto = _tipo == TipoDescuento.Porcentaje ? $"{valor:0.##}%" : $"RD${valor:N2}";
+        var texto = _tipo == TipoDescuento.Porcentaje ? $"{valor:0.##}%" : $"{valor:C}";
         var lineas = _seleccion.Count > 0 ? _seleccion.Order().ToList() : null;
         var motivo = _motivo;
 

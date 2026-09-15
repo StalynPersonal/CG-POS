@@ -154,6 +154,20 @@ internal sealed class ContribuyenteDgiiConfiguracion : IEntityTypeConfiguration<
     }
 }
 
+internal sealed class MonedaConfiguracion : IEntityTypeConfiguration<Moneda>
+{
+    public void Configure(EntityTypeBuilder<Moneda> constructor)
+    {
+        constructor.ToTable("Monedas");
+        constructor.HasKey(m => m.Id);
+        constructor.Property(m => m.Id).ValueGeneratedNever();
+        constructor.Property(m => m.Codigo).HasMaxLength(Moneda.LargoCodigo).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(m => m.Nombre).HasMaxLength(Moneda.LargoMaximoNombre).IsRequired();
+        constructor.Property(m => m.Simbolo).HasMaxLength(Moneda.LargoMaximoSimbolo).IsRequired();
+        constructor.HasIndex(m => m.Codigo).IsUnique();
+    }
+}
+
 internal sealed class FormaPagoConfiguracion : IEntityTypeConfiguration<FormaPago>
 {
     public void Configure(EntityTypeBuilder<FormaPago> constructor)

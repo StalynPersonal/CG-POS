@@ -575,6 +575,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Contains(catalogo.Tasas!, t => t.Moneda == "USD" && t.Tasa == 60.25m);
 
         var venta = await caja.VentaActualAsync();
+        // La venta toma la moneda local configurada (General.MonedaLocal) con su símbolo del maestro.
+        Assert.Equal("DOP", venta.Moneda);
+        Assert.Equal("RD$", venta.SimboloMoneda);
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
         var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
             s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(formaDolares, 20m)], null));

@@ -9,7 +9,7 @@ public sealed record DatosMovimientoCaja(
     TipoMovimientoCaja Tipo,
     int Numero,
     decimal Monto,
-    string Moneda,
+    string? Moneda,
     string? Motivo,
     string UsuarioNombre,
     string? UsuarioAnteriorNombre,
@@ -36,7 +36,8 @@ public sealed record DatosResumenTurno(
     IReadOnlyList<DatosFormaPagoTurno> FormasPago,
     IReadOnlyList<DatosDenominacion> Denominaciones,
     IReadOnlyList<DatosMovimientoCaja> Movimientos,
-    IReadOnlyList<string> Bloqueos);
+    IReadOnlyList<string> Bloqueos,
+    string MonedaLocal);
 
 public sealed record SolicitudRetiroEfectivo(decimal Monto, string? Motivo, Guid? AutorizacionId);
 
@@ -77,6 +78,7 @@ public sealed record DatosCierre(
     bool Ciego,
     decimal FondoInicial,
     bool FondoEnCuadre,
+    string Moneda,
     int CantidadVentas,
     decimal TotalVentas,
     decimal TotalRetiros,

@@ -132,6 +132,12 @@ public sealed class Devolucion : Entidad
     public decimal Total { get; private set; }
 
     public decimal Saldo { get; private set; }
+
+    /// <summary>Moneda de la factura de origen: la de los montos de la nota.</summary>
+    public string Moneda { get; private set; } = string.Empty;
+
+    public string SimboloMoneda { get; private set; } = string.Empty;
+
     public DateOnly VenceEn { get; private set; }
     public DateTimeOffset CreadaEn { get; private set; }
 
@@ -178,6 +184,8 @@ public sealed class Devolucion : Entidad
             VentaOrigenNumero = venta.NumeroTransaccion,
             VentaOrigenCobradaEn = cobradaEn,
             TipoComprobanteOrigen = venta.TipoComprobante,
+            Moneda = venta.Moneda,
+            SimboloMoneda = venta.SimboloMoneda,
             EncfOrigen = encfOrigen,
             ClienteTipoDocumento = cliente.TipoDocumento,
             ClienteDocumento = DocumentoIdentidad.Normalizar(cliente.Documento),
@@ -261,7 +269,7 @@ public sealed class Devolucion : Entidad
         }
 
         if (redondeado > Saldo)
-            throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.SaldoInsuficiente, $"La nota de crédito {Encf ?? Numero} solo tiene RD${Saldo:N2} disponibles.");
+            throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.SaldoInsuficiente, $"La nota de crédito {Encf ?? Numero} solo tiene {SimboloMoneda}{Saldo:N2} disponibles.");
 
         Saldo -= redondeado;
         _consumos.Add(ConsumoNotaCredito.Crear(Id, ventaId, ventaNumero, cajaId, redondeado, Saldo, ahora));

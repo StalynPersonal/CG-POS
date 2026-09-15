@@ -20,7 +20,7 @@ public class DevolucionPruebas
 
     private static Venta VentaCobrada(decimal cinceles)
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "Cajera", Cobro);
+        var venta = Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Cobro);
         venta.AgregarArticulo(Cincel, cinceles, Cobro);
         venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Cobro);
         return venta;

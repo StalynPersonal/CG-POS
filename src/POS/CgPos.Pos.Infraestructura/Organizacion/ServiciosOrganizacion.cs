@@ -1,6 +1,8 @@
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Seguridad;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
+using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -38,7 +40,7 @@ internal sealed class ServicioParametros(ContextoDatosPos contexto) : IParametro
     }
 }
 
-internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaja contextoCaja) : IEstadoCaja
+internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaja contextoCaja, IParametros parametros) : IEstadoCaja
 {
     public async Task<DatosEstadoCaja> ObtenerAsync(CancellationToken cancelacion = default)
     {
@@ -71,7 +73,17 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
                 ? "La sucursal de esta caja está inactiva."
                 : null;
 
-        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema);
+        // Sin moneda local configurada se puede ingresar; vender o cuadrar informa qué falta configurar.
+        DatosMoneda? moneda = null;
+        try
+        {
+            moneda = await contexto.MonedaLocalAsync(parametros, cajaId, cancelacion);
+        }
+        catch (ParametroNoConfiguradoExcepcion)
+        {
+        }
+
+        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
     }
 }
 

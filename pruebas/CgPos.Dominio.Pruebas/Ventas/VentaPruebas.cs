@@ -10,7 +10,7 @@ public class VentaPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "02", Guid.CreateVersion7(), 123, Guid.CreateVersion7(), "Cajera Prueba", Ahora);
+        Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "02", Guid.CreateVersion7(), 123, Guid.CreateVersion7(), "Cajera Prueba", "DOP", "RD$", Ahora);
 
     private static ArticuloParaVenta Cincel() => new(
         Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Guid.CreateVersion7(), true,

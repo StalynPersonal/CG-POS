@@ -39,7 +39,7 @@
                     {
                         <div class="cg-pantalla-cliente__ahorro-total"><span>Usted ahorró</span><span class="cg-numero">@cobrada.Totales.Descuento.ToString("N2")</span></div>
                     }
-                    <div class="cg-pantalla-cliente__total"><span>Devuelta</span><span class="cg-numero">RD$@cobrada.Devuelta.ToString("N2")</span></div>
+                    <div class="cg-pantalla-cliente__total"><span>Devuelta</span><span class="cg-numero">@cobrada.Devuelta.ToString("C")</span></div>
                 </div>
             </section>
 
@@ -93,7 +93,7 @@
                     {
                         <div class="cg-pantalla-cliente__ahorro-total"><span>Usted ahorra</span><span class="cg-numero">@venta.Totales.Descuento.ToString("N2")</span></div>
                     }
-                    <div class="cg-pantalla-cliente__total"><span>Total RD$</span><span class="cg-numero">@venta.Totales.Total.ToString("N2")</span></div>
+                    <div class="cg-pantalla-cliente__total"><span>Total @MonedaPantalla.Simbolo</span><span class="cg-numero">@venta.Totales.Total.ToString("N2")</span></div>
                 </div>
             </section>
 

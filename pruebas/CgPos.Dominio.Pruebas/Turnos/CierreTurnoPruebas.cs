@@ -7,6 +7,7 @@ public class CierreTurnoPruebas
 {
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 18, 0, 0, TimeSpan.FromHours(-4));
     private static readonly Guid Cajera = Guid.CreateVersion7();
+    private const string MonedaLocal = "DOP";
 
     private static readonly FormaPagoCuadre Efectivo = new(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1);
     private static readonly FormaPagoCuadre Dolares = new(Guid.CreateVersion7(), "USD", "Dólares", TipoFormaPago.MonedaExtranjera, "USD", 2);
@@ -26,16 +27,31 @@ public class CierreTurnoPruebas
             new PagoCuadre(Tarjeta.FormaPagoId, 500m, 500m),
         };
 
-        var esperados = ReglasCuadre.CalcularEsperados([Efectivo, Dolares, Tarjeta], pagos, devuelta: 200m, retiros: 300m, fondoInicial: 2000m, fondoEnCuadre: false);
+        var esperados = ReglasCuadre.CalcularEsperados([Efectivo, Dolares, Tarjeta], pagos, devuelta: 200m, retiros: 300m, fondoInicial: 2000m, fondoEnCuadre: false,
+            MonedaLocal);
 
         Assert.Equal(500m, esperados.Single(e => e.FormaPagoId == Efectivo.FormaPagoId).Esperado);
         Assert.Equal(20m, esperados.Single(e => e.FormaPagoId == Dolares.FormaPagoId).Esperado);
         Assert.Equal(500m, esperados.Single(e => e.FormaPagoId == Tarjeta.FormaPagoId).Esperado);
-        Assert.Equal(2500m, ReglasCuadre.EfectivoLocalEnGaveta(esperados, 2000m, fondoEnCuadre: false));
+        Assert.Equal(2500m, ReglasCuadre.EfectivoLocalEnGaveta(esperados, 2000m, fondoEnCuadre: false, MonedaLocal));
 
-        var conFondo = ReglasCuadre.CalcularEsperados([Efectivo], pagos, 200m, 300m, 2000m, fondoEnCuadre: true);
+        var conFondo = ReglasCuadre.CalcularEsperados([Efectivo], pagos, 200m, 300m, 2000m, fondoEnCuadre: true, MonedaLocal);
         Assert.Equal(2500m, conFondo.Single().Esperado);
-        Assert.Equal(2500m, ReglasCuadre.EfectivoLocalEnGaveta(conFondo, 2000m, fondoEnCuadre: true));
+        Assert.Equal(2500m, ReglasCuadre.EfectivoLocalEnGaveta(conFondo, 2000m, fondoEnCuadre: true, MonedaLocal));
+    }
+
+    [Fact]
+    public void La_moneda_local_es_la_configurada_y_no_una_fija()
+    {
+        // Con dólares como moneda local, la devuelta y los retiros salen del efectivo en dólares y los pesos se cuadran aparte.
+        var efectivoDolares = Dolares with { Tipo = TipoFormaPago.Efectivo };
+        var pagos = new[] { new PagoCuadre(Efectivo.FormaPagoId, 5000m, 100m), new PagoCuadre(efectivoDolares.FormaPagoId, 300m, 300m) };
+
+        var esperados = ReglasCuadre.CalcularEsperados([Efectivo, efectivoDolares], pagos, devuelta: 20m, retiros: 50m, fondoInicial: 100m, fondoEnCuadre: false, "USD");
+
+        Assert.Equal(5000m, esperados.Single(e => e.FormaPagoId == Efectivo.FormaPagoId).Esperado);
+        Assert.Equal(230m, esperados.Single(e => e.FormaPagoId == efectivoDolares.FormaPagoId).Esperado);
+        Assert.Equal(330m, ReglasCuadre.EfectivoLocalEnGaveta(esperados, 100m, fondoEnCuadre: false, "USD"));
     }
 
     [Fact]
@@ -55,7 +71,7 @@ public class CierreTurnoPruebas
         };
 
         var cierre = CierreTurno.Registrar(turno, 1, ciego: true, fondoEnCuadre: false, 6, 4650m, 300m, esperados,
-            [new DeclaradoFormaPago(Tarjeta.FormaPagoId, 1250m)], conteo, Cajera, "Cajera", Ahora);
+            [new DeclaradoFormaPago(Tarjeta.FormaPagoId, 1250m)], conteo, MonedaLocal, Cajera, "Cajera", Ahora);
 
         var efectivo = cierre.FormasPago.Single(f => f.FormaPagoId == Efectivo.FormaPagoId);
         Assert.Equal(3400m, efectivo.Declarado);
@@ -76,7 +92,7 @@ public class CierreTurnoPruebas
         var conteo = new[] { new ConteoDenominacion(Guid.CreateVersion7(), "DOP", 500m, TipoDenominacion.Billete, 2) };
 
         CodigoErrorCierre Rechazo(DeclaradoFormaPago[] declarados, ConteoDenominacion[] contado) =>
-            Assert.Throws<ReglaCierreExcepcion>(() => CierreTurno.Registrar(turno, 1, true, false, 1, 1000m, 0m, esperados, declarados, contado, Cajera, "Cajera", Ahora)).Codigo;
+            Assert.Throws<ReglaCierreExcepcion>(() => CierreTurno.Registrar(turno, 1, true, false, 1, 1000m, 0m, esperados, declarados, contado, MonedaLocal, Cajera, "Cajera", Ahora)).Codigo;
 
         Assert.Equal(CodigoErrorCierre.ConteoNoCoincide, Rechazo([new DeclaradoFormaPago(Efectivo.FormaPagoId, 900m)], conteo));
         Assert.Equal(CodigoErrorCierre.MontoInvalido, Rechazo([new DeclaradoFormaPago(Efectivo.FormaPagoId, -1m)], []));
@@ -97,7 +113,7 @@ public class CierreTurnoPruebas
         Assert.Equal(relevista, turno.UsuarioActualId);
         Assert.Throws<InvalidOperationException>(() => turno.Relevar(2, relevista, "Relevista", null, null, Ahora));
 
-        var cierre = CierreTurno.Registrar(turno, 1, true, false, 0, 0m, 0m, [], [], [], relevista, "Relevista", Ahora);
+        var cierre = CierreTurno.Registrar(turno, 1, true, false, 0, 0m, 0m, [], [], [], MonedaLocal, relevista, "Relevista", Ahora);
         Assert.Equal(CodigoErrorCierre.MotivoRequerido, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Guid.CreateVersion7(), "Gerente", " ", Ahora)).Codigo);
 
         cierre.Reabrir(Guid.CreateVersion7(), "Gerente", "Billete de 1,000 mal contado", Ahora);

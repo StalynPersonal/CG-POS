@@ -56,8 +56,18 @@ public sealed class EscenarioCatalogo
     public string CodigoFueraDePos => $"NOP-{Sufijo}";
     public string RncCliente { get; } = RncAleatorioValido();
 
+    /// <summary>Mismos Ids que los datos de desarrollo: el código de moneda es único y las pruebas comparten base.</summary>
+    public static readonly Guid MonedaPesos = Guid.Parse("01990000-0000-7000-8001-000000001001");
+
+    public static readonly Guid MonedaDolares = Guid.Parse("01990000-0000-7000-8001-000000001002");
+
     public PaqueteMaestros Paquete(decimal precioCemento = 485m, DateTimeOffset? vigenciaPrecios = null) =>
         new(
+            Monedas:
+            [
+                new MonedaCarga(MonedaPesos, "DOP", "Peso dominicano", "RD$"),
+                new MonedaCarga(MonedaDolares, "USD", "Dólar estadounidense", "US$"),
+            ],
             Familias:
             [
                 new FamiliaCarga(FamiliaFerreteria, CodigoFerreteria, $"Ferretería {Sufijo}"),
@@ -104,9 +114,9 @@ public sealed class EscenarioCatalogo
             ],
             FormasPago:
             [
-                new FormaPagoCarga(FormaTarjeta, $"TAR{Sufijo}", "Tarjeta", TipoFormaPago.Tarjeta, 2),
-                new FormaPagoCarga(FormaEfectivo, $"EFE{Sufijo}", "Efectivo", TipoFormaPago.Efectivo, 1),
-                new FormaPagoCarga(FormaNotaCredito, $"NC{Sufijo}", "Nota de crédito", TipoFormaPago.NotaCredito, 3, RequiereReferencia: true, PermiteDevuelta: false),
+                new FormaPagoCarga(FormaTarjeta, $"TAR{Sufijo}", "Tarjeta", TipoFormaPago.Tarjeta, 2, "DOP"),
+                new FormaPagoCarga(FormaEfectivo, $"EFE{Sufijo}", "Efectivo", TipoFormaPago.Efectivo, 1, "DOP"),
+                new FormaPagoCarga(FormaNotaCredito, $"NC{Sufijo}", "Nota de crédito", TipoFormaPago.NotaCredito, 3, "DOP", RequiereReferencia: true, PermiteDevuelta: false),
             ],
             MotivosDevolucion: [new MotivoDevolucionCarga(MotivoDevolucion, CodigoMotivoDevolucion, "Artículo defectuoso")],
             Bancos: [new BancoCarga(Banco, $"BAN{Sufijo}", $"Banco {Sufijo}")],

@@ -30,7 +30,10 @@ public sealed class MovimientoCaja : Entidad
     public int Numero { get; private set; }
 
     public decimal Monto { get; private set; }
-    public string Moneda { get; private set; } = Venta.MonedaLocal;
+
+    /// <summary>Moneda del monto retirado; el relevo no mueve dinero y no la lleva.</summary>
+    public string? Moneda { get; private set; }
+
     public string? Motivo { get; private set; }
     public Guid UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
@@ -43,7 +46,8 @@ public sealed class MovimientoCaja : Entidad
     public string? AutorizadoPorNombre { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
 
-    public static MovimientoCaja Retiro(Turno turno, int numero, decimal monto, string? motivo, Guid usuarioId, string usuarioNombre,
+    /// <param name="moneda">Moneda local de la caja: los retiros salen del efectivo local.</param>
+    public static MovimientoCaja Retiro(Turno turno, int numero, decimal monto, string moneda, string? motivo, Guid usuarioId, string usuarioNombre,
         Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(turno);
@@ -53,7 +57,9 @@ public sealed class MovimientoCaja : Entidad
         var redondeado = decimal.Round(monto, 2, MidpointRounding.AwayFromZero);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(redondeado, nameof(monto));
 
-        return Crear(turno, TipoMovimientoCaja.Retiro, numero, redondeado, motivo, usuarioId, usuarioNombre, autorizadoPorId, autorizadoPorNombre, ahora);
+        var retiro = Crear(turno, TipoMovimientoCaja.Retiro, numero, redondeado, motivo, usuarioId, usuarioNombre, autorizadoPorId, autorizadoPorNombre, ahora);
+        retiro.Moneda = FormaPago.ValidarMoneda(moneda);
+        return retiro;
     }
 
     internal static MovimientoCaja Relevo(Turno turno, int numero, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre,
@@ -130,16 +136,17 @@ public static class ReglasCuadre
     public static bool EsEfectivo(TipoFormaPago tipo) => tipo is TipoFormaPago.Efectivo or TipoFormaPago.MonedaExtranjera;
 
     /// <summary>
-    /// El efectivo cuenta lo recibido en su moneda. El efectivo en pesos descuenta la devuelta de todas las ventas (siempre sale en pesos) y los
-    /// retiros, y suma el fondo solo si el fondo forma parte del cuadre (RF-4). Los demás medios cuentan lo aplicado a las facturas.
+    /// El efectivo cuenta lo recibido en su moneda. El efectivo en moneda local descuenta la devuelta de todas las ventas (siempre sale en moneda
+    /// local) y los retiros, y suma el fondo solo si el fondo forma parte del cuadre (RF-4). Los demás medios cuentan lo aplicado a las facturas.
     /// </summary>
+    /// <param name="monedaLocal">Moneda local de la caja (parámetro General.MonedaLocal).</param>
     public static IReadOnlyList<EsperadoFormaPago> CalcularEsperados(IEnumerable<FormaPagoCuadre> formas, IEnumerable<PagoCuadre> pagos, decimal devuelta,
-        decimal retiros, decimal fondoInicial, bool fondoEnCuadre)
+        decimal retiros, decimal fondoInicial, bool fondoEnCuadre, string monedaLocal)
     {
         var listaPagos = pagos.ToList();
         var ordenadas = formas.OrderBy(f => f.Orden).ToList();
-        // La devuelta y los retiros salen del efectivo en pesos que recibió pagos; si ninguno los recibió, del primero por orden.
-        var efectivosLocales = ordenadas.Where(f => f.Tipo == TipoFormaPago.Efectivo && f.Moneda == Venta.MonedaLocal).ToList();
+        // La devuelta y los retiros salen del efectivo en moneda local que recibió pagos; si ninguno los recibió, del primero por orden.
+        var efectivosLocales = ordenadas.Where(f => f.Tipo == TipoFormaPago.Efectivo && f.Moneda == monedaLocal).ToList();
         var efectivoLocal = efectivosLocales.FirstOrDefault(f => listaPagos.Any(p => p.FormaPagoId == f.FormaPagoId)) ?? efectivosLocales.FirstOrDefault();
 
         return ordenadas.Select(forma =>
@@ -154,10 +161,10 @@ public static class ReglasCuadre
             .ToList();
     }
 
-    /// <summary>Efectivo en pesos que físicamente hay en la gaveta, con el fondo, para validar retiros.</summary>
-    public static decimal EfectivoLocalEnGaveta(IEnumerable<EsperadoFormaPago> esperados, decimal fondoInicial, bool fondoEnCuadre)
+    /// <summary>Efectivo en moneda local que físicamente hay en la gaveta, con el fondo, para validar retiros.</summary>
+    public static decimal EfectivoLocalEnGaveta(IEnumerable<EsperadoFormaPago> esperados, decimal fondoInicial, bool fondoEnCuadre, string monedaLocal)
     {
-        var locales = esperados.Where(e => e.Tipo == TipoFormaPago.Efectivo && e.Moneda == Venta.MonedaLocal).ToList();
+        var locales = esperados.Where(e => e.Tipo == TipoFormaPago.Efectivo && e.Moneda == monedaLocal).ToList();
         return locales.Sum(e => e.Esperado) + (fondoEnCuadre ? 0m : fondoInicial);
     }
 
@@ -196,7 +203,10 @@ public sealed class CierreTurno : Entidad
     public decimal TotalVentas { get; private set; }
     public decimal TotalRetiros { get; private set; }
 
-    /// <summary>Totales en pesos; las monedas extranjeras se cuadran aparte, en su moneda.</summary>
+    /// <summary>Moneda local de la caja al cerrar: la de los totales.</summary>
+    public string Moneda { get; private set; } = string.Empty;
+
+    /// <summary>Totales en moneda local; las monedas extranjeras se cuadran aparte, en su moneda.</summary>
     public decimal TotalEsperado { get; private set; }
 
     public decimal TotalDeclarado { get; private set; }
@@ -218,7 +228,7 @@ public sealed class CierreTurno : Entidad
 
     public static CierreTurno Registrar(Turno turno, int numero, bool ciego, bool fondoEnCuadre, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
         IReadOnlyCollection<EsperadoFormaPago> esperados, IReadOnlyCollection<DeclaradoFormaPago> declarados, IReadOnlyCollection<ConteoDenominacion> conteo,
-        Guid usuarioId, string usuarioNombre, DateTimeOffset ahora)
+        string monedaLocal, Guid usuarioId, string usuarioNombre, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(turno);
         ArgumentOutOfRangeException.ThrowIfLessThan(numero, 1);
@@ -245,6 +255,7 @@ public sealed class CierreTurno : Entidad
             Ciego = ciego,
             FondoInicial = turno.FondoInicial,
             FondoEnCuadre = fondoEnCuadre,
+            Moneda = FormaPago.ValidarMoneda(monedaLocal),
             CantidadVentas = cantidadVentas,
             TotalVentas = ReglasCuadre.Redondear(totalVentas),
             TotalRetiros = ReglasCuadre.Redondear(totalRetiros),
@@ -280,7 +291,7 @@ public sealed class CierreTurno : Entidad
             cierre._formasPago.Add(CierreFormaPago.Crear(cierre.Id, esperado, declarado));
         }
 
-        var locales = cierre._formasPago.Where(f => f.Moneda == Venta.MonedaLocal).ToList();
+        var locales = cierre._formasPago.Where(f => f.Moneda == cierre.Moneda).ToList();
         cierre.TotalEsperado = locales.Sum(f => f.Esperado);
         cierre.TotalDeclarado = locales.Sum(f => f.Declarado);
         cierre.Diferencia = cierre.TotalDeclarado - cierre.TotalEsperado;
@@ -316,7 +327,7 @@ public sealed class CierreFormaPago : Entidad
     public string Codigo { get; private set; } = string.Empty;
     public string Nombre { get; private set; } = string.Empty;
     public TipoFormaPago Tipo { get; private set; }
-    public string Moneda { get; private set; } = Venta.MonedaLocal;
+    public string Moneda { get; private set; } = string.Empty;
     public int Orden { get; private set; }
     public int Transacciones { get; private set; }
     public decimal Esperado { get; private set; }
@@ -349,7 +360,7 @@ public sealed class CierreDenominacion : Entidad
 
     public Guid CierreTurnoId { get; private set; }
     public Guid DenominacionId { get; private set; }
-    public string Moneda { get; private set; } = Venta.MonedaLocal;
+    public string Moneda { get; private set; } = string.Empty;
     public decimal Valor { get; private set; }
     public TipoDenominacion Tipo { get; private set; }
     public int Cantidad { get; private set; }

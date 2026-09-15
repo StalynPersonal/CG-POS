@@ -13,7 +13,7 @@ internal sealed class MovimientoCajaConfiguracion : IEntityTypeConfiguration<Mov
         constructor.HasKey(m => m.Id);
         constructor.Property(m => m.Id).ValueGeneratedNever();
         constructor.Property(m => m.Monto).HasPrecision(18, 2);
-        constructor.Property(m => m.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
+        constructor.Property(m => m.Moneda).HasMaxLength(Moneda.LargoCodigo).IsUnicode(false);
         constructor.Property(m => m.Motivo).HasMaxLength(MovimientoCaja.LargoMaximoMotivo);
         constructor.Property(m => m.UsuarioNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
         constructor.Property(m => m.UsuarioAnteriorNombre).HasMaxLength(Turno.LargoMaximoUsuario);
@@ -32,6 +32,7 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.Id).ValueGeneratedNever();
         constructor.Property(c => c.FondoInicial).HasPrecision(18, 2);
+        constructor.Property(c => c.Moneda).HasMaxLength(Moneda.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(c => c.TotalVentas).HasPrecision(18, 2);
         constructor.Property(c => c.TotalRetiros).HasPrecision(18, 2);
         constructor.Property(c => c.TotalEsperado).HasPrecision(18, 2);

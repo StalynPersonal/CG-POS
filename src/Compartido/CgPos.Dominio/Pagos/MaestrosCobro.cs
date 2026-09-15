@@ -16,6 +16,52 @@ public enum TipoFormaPago
     MonedaExtranjera,
 }
 
+/// <summary>
+/// Moneda del maestro del Central. La moneda local de la caja se elige con el parámetro General.MonedaLocal;
+/// las demás se cobran a la tasa del día.
+/// </summary>
+public sealed class Moneda : Entidad
+{
+    public const int LargoCodigo = 3;
+    public const int LargoMaximoNombre = 50;
+    public const int LargoMaximoSimbolo = 5;
+
+    private Moneda()
+    {
+    }
+
+    /// <summary>Código ISO 4217, ej. "DOP", "USD".</summary>
+    public string Codigo { get; private set; } = string.Empty;
+
+    public string Nombre { get; private set; } = string.Empty;
+
+    /// <summary>Símbolo con que se muestran los montos en pantallas y tickets, ej. "RD$".</summary>
+    public string Simbolo { get; private set; } = string.Empty;
+
+    public bool Activa { get; private set; } = true;
+
+    public static Moneda Crear(string codigo, string nombre, string simbolo, Guid? id = null)
+    {
+        var moneda = new Moneda
+        {
+            Id = id ?? Guid.CreateVersion7(),
+            Codigo = FormaPago.ValidarMoneda(codigo),
+        };
+        moneda.Actualizar(nombre, simbolo);
+        return moneda;
+    }
+
+    public void Actualizar(string nombre, string simbolo)
+    {
+        Nombre = Validar.Texto(nombre, "Nombre de la moneda", LargoMaximoNombre);
+        Simbolo = Validar.Texto(simbolo, "Símbolo de la moneda", LargoMaximoSimbolo);
+    }
+
+    public void Activar() => Activa = true;
+
+    public void Desactivar() => Activa = false;
+}
+
 /// <summary>Forma de pago configurable (RF-184). El orden define su posición en la pantalla de cobro (RF-150).</summary>
 public sealed class FormaPago : Entidad
 {
@@ -31,7 +77,7 @@ public sealed class FormaPago : Entidad
     public TipoFormaPago Tipo { get; private set; }
 
     /// <summary>Código ISO 4217 de la moneda, ej. "DOP", "USD".</summary>
-    public string Moneda { get; private set; } = "DOP";
+    public string Moneda { get; private set; } = string.Empty;
 
     public int Orden { get; private set; }
 
@@ -49,7 +95,7 @@ public sealed class FormaPago : Entidad
 
     public bool Activa { get; private set; } = true;
 
-    public static FormaPago Crear(string codigo, string nombre, TipoFormaPago tipo, int orden, string moneda = "DOP", Guid? id = null)
+    public static FormaPago Crear(string codigo, string nombre, TipoFormaPago tipo, int orden, string moneda, Guid? id = null)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de forma de pago no válido.");
@@ -188,7 +234,7 @@ public sealed class Denominacion : Entidad
     {
     }
 
-    public string Moneda { get; private set; } = "DOP";
+    public string Moneda { get; private set; } = string.Empty;
     public decimal Valor { get; private set; }
     public TipoDenominacion Tipo { get; private set; }
     public bool Activa { get; private set; } = true;
