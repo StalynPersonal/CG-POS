@@ -76,6 +76,8 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Fidelidad.MesesVigenciaPuntos` | Vigencia de los puntos que acumula la caja (sin él no les pone vencimiento) | No |
 | `Fidelidad.MinimoPuntosCanje`, `Fidelidad.MaximoPuntosCanjeSinConexion` | Mínimo por canje y tope por transacción mientras la caja no confirma el saldo con el Central | No |
 | `Entregas.PoliticaPendiente` | Texto impreso en el voucher de pendiente de entrega o envío | No |
+| `Sincronizacion.DiasRetencionXmlEnviados`, `Sincronizacion.DiasRetencionMensajesConfirmados`, `Respaldo.DiasRetencion` | Retención de lo ya confirmado por el Central y de los respaldos (sin ellos no se purga) | No |
+| `Sincronizacion.AlertaTamanoBaseDatosMb`, `Sincronizacion.HorasAlertaPendientes`, `Reloj.ToleranciaSegundos` | Umbrales de alerta: tamaño de la base, documentos sin sincronizar y desfase del reloj | No |
 | `Tickets.MensajePie` | Mensaje al pie del ticket | No |
 | `Pantallas.MensajeBienvenida`, `Pantallas.MensajeDespedida` | Mensajes de la pantalla del cliente | No |
 | `Pantallas.SegundosPorImagen` | Rotación de la publicidad (sin él no rota) | No |
@@ -226,6 +228,14 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Pantalla `/despacho`:** se escanea el voucher o la factura; preparación, entrega total o parcial con quien recibe y serial, constancia impresa, y anulación con motivo y `Pendientes.Anular`. Opera con `Pendientes.Despachar`.
 - **Pendiente para el Central (Etapa 2):** pendientes de otras cajas o sucursales, notificación por correo al cliente, documento de entrega o traslado en SAP B1 y reportes.
 - **API:** `POST /api/ventas/{id}/entregas`, `DELETE /api/ventas/{id}/entregas/{numero}`, `GET /api/entregas/almacenes`, `GET /api/despacho/pendientes/abiertos`, `GET /api/despacho/pendientes/buscar/{codigo}`, `POST /api/despacho/pendientes/{id}/estado|entregas|anular`.
+
+### Sincronización con el Central y mantenimiento
+
+- **Bandeja de salida:** todo documento (venta, nota de crédito, cierre, pendiente, movimiento de puntos…) se guarda con su mensaje en la misma transacción. Un servicio en segundo plano del Agente lo envía cada `Sincronizacion:IntervaloSegundos` en orden de creación, con el Id del mensaje como clave de idempotencia y el SHA-256 del contenido. Sin comunicación detiene el lote y reintenta con espera progresiva (`EsperaInicialSegundos` duplicada hasta `EsperaMaximaSegundos`); la caja sigue operando.
+- **Central:** `Central:Url` para el Central real (`POST api/sincronizacion/mensajes`) o `Central:Modo = Simulado`, que guarda los mensajes en `Central:CarpetaSimulada` con la misma idempotencia y validación de hash. Sin ninguno, la barra muestra «Sin Central».
+- **XML de e-CF:** al confirmarse la venta o la nota de crédito, el e-CF queda *Sincronizado* y su XML pasa de `Pendientes` a `Enviados`; nada sale de `Pendientes` sin confirmación del Central.
+- **Mantenimiento** (cada `Mantenimiento:IntervaloMinutos`): verificación de la hora contra `Reloj:ServidorNtp`; respaldo diario de la base desde `Respaldo:Hora` en `Respaldo:Carpeta` (vacía = carpeta de respaldos de la instancia; la cuenta del servicio de SQL Server debe poder escribir en ella); purga de XML enviados, mensajes confirmados y respaldos según los parámetros de retención.
+- **Alertas en la barra de estado:** tamaño de la base, documentos atrasados sin sincronizar, hora desfasada y respaldo fallido.
 
 ### Pantalla del cliente y monitores
 

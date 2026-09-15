@@ -53,6 +53,10 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
             anfitrion.UseSetting("Perifericos:Impresora:Carpeta", _baseDatos.CarpetaImpresiones);
             anfitrion.UseSetting("Ecf:CarpetaXml", _baseDatos.CarpetaEcf);
+
+            // El mantenimiento en segundo plano no respalda la base de pruebas ni consulta servidores de hora.
+            anfitrion.UseSetting("Respaldo:Hora", string.Empty);
+            anfitrion.UseSetting("Reloj:ServidorNtp", string.Empty);
             anfitrion.UseSetting("Ecf:Ambiente", "Pruebas");
             anfitrion.UseSetting("Ecf:Certificado:Ruta", _baseDatos.RutaCertificado);
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);

@@ -1124,6 +1124,65 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.NotNull(estado.UltimaSincronizacion);
     }
 
+    [SkippableFact]
+    public async Task Mantenimiento_purga_solo_lo_confirmado_vencido_alerta_y_respalda_la_base()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        Task<ResultadoProcesoBandeja> ProcesarAsync() =>
+            caja.EjecutarAsync<IServiceProvider, ResultadoProcesoBandeja>(proveedor =>
+                ActivatorUtilities.CreateInstance<CgPos.Pos.Infraestructura.Sincronizacion.ProcesadorBandejaSalida>(proveedor, new CentralDePrueba(ResultadoEnvioCentral.Recibido()))
+                    .ProcesarAsync());
+
+        Task<(string RutaXml, Guid MensajeId)> DocumentoAsync(Guid ventaId) =>
+            caja.EjecutarAsync<ContextoDatosPos, (string, Guid)>(async contexto =>
+                (await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == ventaId).Select(d => d.RutaXml).SingleAsync(),
+                 await contexto.BandejaSalida.AsNoTracking().Where(m => m.AgregadoId == ventaId && m.TipoMensaje == "Venta.Cobrada").Select(m => m.Id).SingleAsync()));
+
+        // Una venta confirmada por el Central (XML en Enviados) y otra aún pendiente.
+        var sincronizada = (await caja.CobrarCincelEnEfectivoAsync()).Venta!.Id;
+        var (_, mensajeSincronizado) = await DocumentoAsync(sincronizada);
+        for (var ciclo = 0; ciclo < 50 && (await caja.EjecutarAsync<ContextoDatosPos, EstadoMensajeSalida>(contexto =>
+                 contexto.BandejaSalida.Where(m => m.Id == mensajeSincronizado).Select(m => m.Estado).SingleAsync())) != EstadoMensajeSalida.Confirmado; ciclo++)
+            await ProcesarAsync();
+        var (xmlEnviado, _) = await DocumentoAsync(sincronizada);
+        Assert.Contains($"{Path.DirectorySeparatorChar}Enviados{Path.DirectorySeparatorChar}", xmlEnviado);
+
+        var pendiente = (await caja.CobrarCincelEnEfectivoAsync()).Venta!.Id;
+        var (xmlPendiente, mensajePendiente) = await DocumentoAsync(pendiente);
+
+        // Pasados 40 días (retención de 30): se purga lo confirmado; lo pendiente nunca (RN-19).
+        caja.Reloj.Avanzar(TimeSpan.FromDays(40));
+        var purga = await caja.EjecutarAsync<IServicioMantenimiento, ResultadoPurga>(s => s.PurgarAsync());
+        Assert.True(purga.XmlEliminados >= 1);
+        Assert.True(purga.MensajesEliminados >= 1);
+        Assert.False(File.Exists(xmlEnviado));
+        Assert.True(File.Exists(xmlPendiente));
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.BandejaSalida.AnyAsync(m => m.Id == mensajeSincronizado)));
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.BandejaSalida.AnyAsync(m => m.Id == mensajePendiente)));
+
+        // Alertas: base sobre el umbral de 1 MB, documento de hace 40 días sin sincronizar y reloj 30 s desfasado (tolerancia 5 s).
+        await caja.EjecutarAsync<EstadoMantenimiento, bool>(estado =>
+        {
+            estado.UltimaHora = new ResultadoHora(true, TimeSpan.FromSeconds(30), "ntp.prueba", null, caja.Reloj.Ahora);
+            return Task.FromResult(true);
+        });
+        var alertas = await caja.EjecutarAsync<IServicioMantenimiento, IReadOnlyList<string>>(s => s.ObtenerAlertasAsync());
+        Assert.Contains(alertas, a => a.Contains("MB"));
+        Assert.Contains(alertas, a => a.Contains("sin sincronizar"));
+        Assert.Contains(alertas, a => a.Contains("hora"));
+        var estadoSincronizacion = await caja.EjecutarAsync<IEstadoSincronizacion, DatosEstadoSincronizacion>(s => s.ObtenerAsync());
+        Assert.Equal(alertas.Count, estadoSincronizacion.Alertas!.Count);
+
+        // Respaldo de la base en la carpeta de respaldos de la instancia; luego se borra el archivo de prueba desde SQL Server.
+        var respaldo = await caja.EjecutarAsync<IServicioMantenimiento, ResultadoRespaldo>(s => s.RespaldarAsync());
+        Assert.True(respaldo.Correcto, respaldo.Error);
+        Assert.EndsWith(".bak", respaldo.Ruta);
+        await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
+            contexto.Database.ExecuteSqlRawAsync("EXEC master.dbo.xp_delete_file 0, {0}", respaldo.Ruta!));
+    }
+
     private static class BalanzaPrueba
     {
         public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;

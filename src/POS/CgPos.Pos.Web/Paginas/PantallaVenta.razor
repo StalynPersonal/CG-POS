@@ -288,7 +288,7 @@ else
                     @TextoEcf
                 </button>
             }
-            <span class="cg-venta__sincronizacion cg-venta__sincronizacion--@ClaseSincronizacion">
+            <span class="cg-venta__sincronizacion cg-venta__sincronizacion--@ClaseSincronizacion" title="@DetalleSincronizacion">
                 <MudIcon Icon="@IconoSincronizacion" Size="Size.Small" />
                 @TextoSincronizacion
             </span>
@@ -1186,10 +1186,17 @@ else
     private string TextoSincronizacion => _sincronizacion switch
     {
         null => "Agente sin respuesta",
-        { EnLinea: true } estado => $"En línea · {estado.DocumentosPendientes} pendientes",
-        { CentralConfigurado: false } estado => $"Sin Central · {estado.DocumentosPendientes} pendientes",
-        var estado => $"Fuera de línea · {estado.DocumentosPendientes} pendientes",
+        { EnLinea: true } estado => $"En línea · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
+        { CentralConfigurado: false } estado => $"Sin Central · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
+        var estado => $"Fuera de línea · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
     };
+
+    private string? AvisoAlertas => _sincronizacion?.Alertas is { Count: > 0 } alertas ? $" · {alertas.Count} alerta(s)" : null;
+
+    /// <summary>Último error de sincronización y alertas de mantenimiento (base, documentos atrasados, hora, respaldo).</summary>
+    private string? DetalleSincronizacion => _sincronizacion is { } estado
+        ? string.Join("\n", new[] { estado.UltimoError }.Concat(estado.Alertas ?? []).Where(texto => !string.IsNullOrWhiteSpace(texto)))
+        : null;
 
     /// <summary>Iniciales de la empresa configurada en la caja, para el recuadro del logo.</summary>
     private static string Iniciales(string? nombre) =>

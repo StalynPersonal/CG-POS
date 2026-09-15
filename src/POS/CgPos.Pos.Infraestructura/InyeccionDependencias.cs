@@ -101,6 +101,11 @@ public static class InyeccionDependencias
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
         servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();
 
+        // Mantenimiento de la caja: respaldo, purga controlada, hora y alertas.
+        servicios.AddSingleton(OpcionesMantenimiento.Leer(configuracion));
+        servicios.AddSingleton<Aplicacion.Sincronizacion.EstadoMantenimiento>();
+        servicios.AddScoped<Aplicacion.Sincronizacion.IServicioMantenimiento, ServicioMantenimiento>();
+
         return servicios;
     }
 

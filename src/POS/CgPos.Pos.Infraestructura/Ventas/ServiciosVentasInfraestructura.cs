@@ -1460,6 +1460,8 @@ internal sealed class ServicioEstadoSincronizacion(
     CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral central,
     CgPos.Pos.Aplicacion.Sincronizacion.IEstadoConexionCentral conexion,
     Sincronizacion.OpcionesSincronizacion opciones,
+    CgPos.Pos.Aplicacion.Sincronizacion.IServicioMantenimiento mantenimiento,
+    CgPos.Pos.Aplicacion.Sincronizacion.EstadoMantenimiento estadoMantenimiento,
     TimeProvider reloj) : IEstadoSincronizacion
 {
     public async Task<DatosEstadoSincronizacion> ObtenerAsync(CancellationToken cancelacion = default)
@@ -1480,6 +1482,8 @@ internal sealed class ServicioEstadoSincronizacion(
             EnLinea: enLinea,
             DocumentosPendientes: pendientes,
             UltimaSincronizacion: ultima,
-            UltimoError: enLinea ? null : conexion.UltimoError);
+            UltimoError: enLinea ? null : conexion.UltimoError,
+            Alertas: await mantenimiento.ObtenerAlertasAsync(cancelacion),
+            UltimoRespaldo: estadoMantenimiento.UltimoRespaldoCorrecto);
     }
 }

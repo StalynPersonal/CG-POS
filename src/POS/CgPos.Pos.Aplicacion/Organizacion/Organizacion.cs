@@ -61,6 +61,24 @@ public static class ClavesParametros
     /// <summary>Código ISO de la moneda local de la caja; debe existir activa en el maestro de monedas.</summary>
     public const string MonedaLocal = "General.MonedaLocal";
 
+    /// <summary>Días que la caja conserva los XML de e-CF ya confirmados por el Central (carpeta Enviados). Opcional: sin él no se purgan.</summary>
+    public const string DiasRetencionXmlEnviados = "Sincronizacion.DiasRetencionXmlEnviados";
+
+    /// <summary>Días que la caja conserva los mensajes ya confirmados de la bandeja de salida. Opcional: sin él no se purgan.</summary>
+    public const string DiasRetencionMensajesConfirmados = "Sincronizacion.DiasRetencionMensajesConfirmados";
+
+    /// <summary>Tamaño de la base de datos (MB) desde el que se alerta; SQL Server Express limita cada base a 10 GB. Opcional.</summary>
+    public const string AlertaTamanoBaseDatosMb = "Sincronizacion.AlertaTamanoBaseDatosMb";
+
+    /// <summary>Horas sin sincronizar un documento desde las que se alerta. Opcional.</summary>
+    public const string HorasAlertaPendientes = "Sincronizacion.HorasAlertaPendientes";
+
+    /// <summary>Días que se conservan los respaldos en su carpeta. Opcional: sin él no se borran.</summary>
+    public const string DiasRetencionRespaldos = "Respaldo.DiasRetencion";
+
+    /// <summary>Segundos de diferencia con el servidor de hora desde los que se alerta (los e-CF registran la hora de firma). Opcional.</summary>
+    public const string ToleranciaRelojSegundos = "Reloj.ToleranciaSegundos";
+
     /// <summary>Política impresa en el voucher de pendiente de entrega o envío (RF-249). Opcional.</summary>
     public const string PoliticaPendiente = "Entregas.PoliticaPendiente";
 

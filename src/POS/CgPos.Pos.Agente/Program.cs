@@ -43,6 +43,9 @@ try
     // Envío de la bandeja de salida al Central en segundo plano (M14).
     constructor.Services.AddHostedService<CgPos.Pos.Agente.Sincronizacion.TrabajadorSincronizacion>();
 
+    // Respaldo diario, purga controlada y verificación de la hora.
+    constructor.Services.AddHostedService<CgPos.Pos.Agente.Sincronizacion.TrabajadorMantenimiento>();
+
     // Pantalla del cliente en tiempo real (segundo monitor).
     constructor.Services.AddSignalR().AddJsonProtocol(opciones =>
     {

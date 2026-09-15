@@ -221,9 +221,12 @@ public sealed record RespuestaVenta(
 
 /// <summary>Indicador permanente de conexión con el Central y documentos pendientes (RF-192).</summary>
 /// <param name="UltimoError">Último motivo por el que no se pudo sincronizar, mientras la caja está sin conexión.</param>
+/// <param name="Alertas">Tamaño de la base, documentos atrasados, hora desfasada o respaldo fallido.</param>
 public sealed record DatosEstadoSincronizacion(
     bool CentralConfigurado,
     bool EnLinea,
     int DocumentosPendientes,
     DateTimeOffset? UltimaSincronizacion,
-    string? UltimoError = null);
+    string? UltimoError = null,
+    IReadOnlyList<string>? Alertas = null,
+    DateTimeOffset? UltimoRespaldo = null);

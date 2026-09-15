@@ -127,6 +127,11 @@ public sealed class EscenarioSeguridad
             [
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MonedaLocal, "DOP", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.ValorPuntoFidelidad, "1", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasRetencionXmlEnviados, "30", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasRetencionMensajesConfirmados, "30", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.AlertaTamanoBaseDatosMb, "1", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasAlertaPendientes, "24", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.ToleranciaRelojSegundos, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MesesVigenciaPuntos, "12", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MaximoPuntosCanjeSinConexion, "5000", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosPin, "3", CajaId: CajaUno),
