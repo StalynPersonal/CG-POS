@@ -1,0 +1,16 @@
+@inherits LayoutComponentBase
+@inject AtajosTecladoService Atajos
+
+<CgPosProveedores />
+
+<MudLayout>
+    @Body
+</MudLayout>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await Atajos.IniciarAsync();
+    }
+}

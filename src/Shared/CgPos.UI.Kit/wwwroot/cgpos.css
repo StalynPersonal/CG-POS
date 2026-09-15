@@ -1,0 +1,133 @@
+/* CG-POS · Layout Verde Institucional
+   Tokens y estilos táctiles compartidos por las pantallas de cajero, cliente y devoluciones. */
+
+:root {
+    --cg-primary: #1b4d3e;
+    --cg-primary-dark: #123629;
+    --cg-accent: #2e7d32;
+    --cg-surface: #e8f5e9;
+    --cg-bg: #f4f7f5;
+    --cg-text: #1f2a26;
+    --cg-text-muted: #51605a;
+    --cg-line: #cfd8d3;
+    --cg-danger: #b3261e;
+    --cg-warning: #b7791f;
+
+    --cg-touch-min: 64px;   /* blanco táctil mínimo */
+    --cg-row-min: 56px;     /* alto mínimo de fila en grillas */
+    --cg-radius: 6px;
+    --cg-font: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--cg-bg);
+    color: var(--cg-text);
+    font-family: var(--cg-font);
+    touch-action: manipulation;       /* sin zoom por doble toque */
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;                 /* evita selección accidental en pantalla táctil */
+}
+
+input, textarea, [contenteditable] {
+    user-select: text;
+}
+
+/* ---------- Tecla de función (F2…F12) ---------- */
+.cg-barra-teclas {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 4px;
+    background: var(--cg-primary-dark);
+}
+
+.cg-tecla-f {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: calc(var(--cg-touch-min) + 16px);
+    padding: 6px 4px;
+    border: 1px solid var(--cg-line);
+    border-radius: var(--cg-radius);
+    background: #ffffff;
+    color: var(--cg-text);
+    font: 600 0.85rem/1.1 var(--cg-font);
+    cursor: pointer;
+    transition: background-color .08s, transform .08s;
+}
+
+.cg-tecla-f:hover:not(:disabled) { background: var(--cg-surface); }
+.cg-tecla-f:active:not(:disabled) { transform: scale(.97); background: #d4ecd7; }
+.cg-tecla-f:focus-visible { outline: 3px solid var(--cg-accent); outline-offset: 1px; }
+.cg-tecla-f:disabled { color: #9aa6a0; background: #eef1ef; cursor: not-allowed; }
+
+.cg-tecla-f__icono { font-size: 2rem !important; color: var(--cg-primary); }
+.cg-tecla-f:disabled .cg-tecla-f__icono { color: #b5bfba; }
+.cg-tecla-f__atajo { color: var(--cg-accent); margin-right: 3px; }
+
+.cg-tecla-f--accion { background: var(--cg-accent); color: #fff; border-color: var(--cg-accent); }
+.cg-tecla-f--accion .cg-tecla-f__icono,
+.cg-tecla-f--accion .cg-tecla-f__atajo { color: #fff; }
+.cg-tecla-f--accion:hover:not(:disabled) { background: #276b2b; }
+
+/* ---------- Grilla táctil ---------- */
+.cg-grilla .mud-table-head .mud-table-cell {
+    background: var(--cg-primary) !important;
+    color: #fff !important;
+    font-weight: 700;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+
+.cg-grilla .mud-table-body .mud-table-row { height: var(--cg-row-min); }
+.cg-grilla .mud-table-body .mud-table-cell { font-size: 1.05rem; }
+.cg-grilla .mud-table-row.cg-fila--seleccionada { background: var(--cg-surface) !important; box-shadow: inset 4px 0 0 var(--cg-accent); }
+.cg-grilla .mud-table-row.cg-fila--anulada .mud-table-cell { color: var(--cg-danger); }
+
+/* ---------- Teclado táctil ---------- */
+.cg-teclado {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: var(--cg-primary-dark);
+    border-radius: var(--cg-radius);
+}
+
+.cg-teclado__fila { display: flex; gap: 6px; }
+
+.cg-teclado__tecla {
+    flex: 1 1 0;
+    min-width: var(--cg-touch-min);
+    min-height: var(--cg-touch-min);
+    border: none;
+    border-radius: var(--cg-radius);
+    background: #ffffff;
+    color: var(--cg-text);
+    font: 600 1.5rem var(--cg-font);
+    cursor: pointer;
+}
+
+.cg-teclado__tecla:active { background: #d4ecd7; }
+.cg-teclado__tecla--ancha { flex-grow: 2; }
+.cg-teclado__tecla--espacio { flex-grow: 5; }
+.cg-teclado__tecla--control { background: var(--cg-surface); font-size: 1.1rem; }
+.cg-teclado__tecla--confirmar { background: var(--cg-accent); color: #fff; }
+.cg-teclado__tecla--confirmar:active { background: #276b2b; }
+
+/* ---------- Totales grandes ---------- */
+.cg-total-grande {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--cg-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.cg-numero { font-variant-numeric: tabular-nums; text-align: right; }
