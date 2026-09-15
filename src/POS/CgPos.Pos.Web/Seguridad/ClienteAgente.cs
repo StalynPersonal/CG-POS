@@ -233,6 +233,44 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
+    // ---------- Turno: retiros, relevo y cierre (C8) ----------
+
+    public Task<RespuestaCaja> ObtenerResumenTurnoAsync(CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaCaja>(HttpMethod.Get, "api/caja/turno/resumen", null, ErrorCaja, cancelacion);
+
+    public Task<RespuestaCaja> PreCierreAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/turno/precierre", new SolicitudConAutorizacion(autorizacionId), ErrorCaja, cancelacion);
+
+    public Task<RespuestaCaja> RetirarEfectivoAsync(decimal monto, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/turno/retiros", new SolicitudRetiroEfectivo(monto, motivo, autorizacionId), ErrorCaja, cancelacion);
+
+    public Task<RespuestaCaja> RelevarTurnoAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/turno/relevo", new SolicitudConAutorizacion(autorizacionId), ErrorCaja, cancelacion);
+
+    public Task<RespuestaCaja> CerrarTurnoAsync(IReadOnlyList<SolicitudDeclaracionFormaPago> declaraciones, IReadOnlyList<SolicitudConteoDenominacion> conteo,
+        Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/turno/cierre", new SolicitudCierreTurno(declaraciones, conteo, autorizacionId), ErrorCaja, cancelacion);
+
+    public async Task<IReadOnlyList<DatosCierre>> ListarCierresAsync(int maximo = 10, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosCierre>>($"api/caja/cierres/?maximo={maximo}", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return [];
+        }
+    }
+
+    public Task<RespuestaCaja> ReabrirCierreAsync(Guid cierreId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/caja/cierres/{cierreId}/reabrir", new SolicitudReabrirCierre(motivo, autorizacionId), ErrorCaja, cancelacion);
+
+    public Task<RespuestaCaja> ReimprimirCierreAsync(Guid cierreId, CancellationToken cancelacion = default) =>
+        EnviarAsync<object?, RespuestaCaja>(HttpMethod.Post, $"api/caja/cierres/{cierreId}/reimprimir", null, ErrorCaja, cancelacion);
+
+    private static RespuestaCaja ErrorCaja(string mensaje) => new(CodigoResultadoCaja.TurnoNoAbierto, mensaje);
+
     // ---------- Facturación electrónica (C7) ----------
 
     public async Task<DatosEstadoEcf?> ObtenerEstadoEcfAsync(CancellationToken cancelacion = default)

@@ -81,7 +81,7 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            cajero, CatalogoPermisos.ReabrirCierre, "Ajuste de cierre", new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+            cajero, CatalogoPermisos.VenderBajoPrecioMinimo, "Venta bajo el mínimo", new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
 
         Assert.Equal(MotivoRechazoAutorizacion.SinPermisoParaAutorizar, resultado.Motivo);
     }

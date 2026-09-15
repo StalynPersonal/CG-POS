@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Globalizacion;
+using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Perifericos;
 
@@ -150,14 +151,182 @@ internal static class GeneradorTicket
 
         Agregar("¡Gracias por su compra!", Estilo.Centrado);
 
+        return Documento($"ticket-{venta.NumeroTransaccion}{(esCopia ? "-copia" : null)}", lineas);
+    }
+
+    /// <summary>Comprobante de retiro parcial de efectivo (RF-261), con firmas de quien entrega y quien recibe.</summary>
+    public static DocumentoImpresion GenerarRetiro(EncabezadoTicket encabezado, DatosMovimientoCaja retiro, long turnoNumero)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia: false);
+        Agregar($"RETIRO DE EFECTIVO Nº {retiro.Numero}", Estilo.Titulo);
+        Agregar($"Turno: {turnoNumero}");
+        Agregar($"Fecha: {HoraLocal(retiro.Fecha, cultura)}");
+        Agregar($"Cajero: {retiro.UsuarioNombre}");
+        if (retiro.AutorizadoPorNombre is { } autorizo)
+            Agregar($"Autorizó: {autorizo}");
+        if (retiro.Motivo is { } motivo)
+            foreach (var parte in Envolver($"Motivo: {motivo}"))
+                Agregar(parte);
+        Agregar(new string('-', Ancho));
+        Agregar(Columnas($"MONTO {retiro.Moneda}", retiro.Monto.ToString("N2", cultura)), Estilo.Titulo);
+        AgregarFirmas(lineas, "Entrega", "Recibe");
+
+        return Documento($"retiro-{turnoNumero}-{retiro.Numero}", lineas);
+    }
+
+    /// <summary>Pre-cierre (RF-8): lo esperado por forma de pago sin cerrar el turno.</summary>
+    public static DocumentoImpresion GenerarPreCierre(EncabezadoTicket encabezado, DatosResumenTurno resumen, DateTimeOffset emitido)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+        void Separador() => Agregar(new string('-', Ancho));
+        void Importe(string etiqueta, decimal monto, Estilo estilo = Estilo.Normal) => Agregar(Columnas(etiqueta, monto.ToString("N2", cultura)), estilo);
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia: false);
+        Agregar("PRE-CIERRE", Estilo.Titulo);
+        Agregar("(no cierra el turno)", Estilo.Centrado);
+        Agregar($"Turno {resumen.Turno.Numero} · {resumen.Turno.UsuarioActualNombre}");
+        Agregar($"Apertura: {HoraLocal(resumen.Turno.AbiertoEn, cultura)}");
+        Agregar($"Emitido:  {HoraLocal(emitido, cultura)}");
+        Separador();
+        Agregar(Columnas("Ventas cobradas", (resumen.CantidadVentas ?? 0).ToString("N0", cultura)));
+        Importe("Total ventas", resumen.TotalVentas ?? 0m);
+        Importe(resumen.FondoEnCuadre ? "Fondo inicial" : "Fondo inicial (fuera)", resumen.Turno.FondoInicial);
+        Importe("Retiros", -resumen.TotalRetiros);
+        Separador();
+        Agregar("ESPERADO POR FORMA DE PAGO", Estilo.Negrita);
+        foreach (var forma in resumen.FormasPago.Where(f => (f.Esperado ?? 0m) != 0m || (f.Transacciones ?? 0) > 0))
+            Importe($"{forma.Nombre}{Moneda(forma.Moneda)} ({forma.Transacciones ?? 0})", forma.Esperado ?? 0m);
+
+        if (resumen.Bloqueos.Count > 0)
+        {
+            Separador();
+            Agregar("PENDIENTE ANTES DE CERRAR", Estilo.Negrita);
+            foreach (var bloqueo in resumen.Bloqueos)
+                foreach (var parte in Envolver($"- {bloqueo}"))
+                    Agregar(parte);
+        }
+
+        return Documento($"precierre-{resumen.Turno.Numero}-{emitido.ToUnixTimeSeconds()}", lineas);
+    }
+
+    /// <summary>
+    /// Reporte de cierre de turno (RF-106, RF-263, RF-291): esperado, declarado y diferencia por forma de pago, conteo por denominaciones,
+    /// retiros y relevos. La reimpresión reproduce el mismo reporte.
+    /// </summary>
+    public static DocumentoImpresion GenerarCierre(EncabezadoTicket encabezado, DatosCierre cierre, bool esCopia)
+    {
+        var cultura = CulturaRd.Crear();
+        var lineas = new List<(string Texto, Estilo Estilo)>();
+        void Agregar(string texto, Estilo estilo = Estilo.Normal) => lineas.Add((texto, estilo));
+        void Separador() => Agregar(new string('-', Ancho));
+        void Importe(string etiqueta, decimal monto, Estilo estilo = Estilo.Normal) => Agregar(Columnas(etiqueta, monto.ToString("N2", cultura)), estilo);
+
+        AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia);
+        Agregar($"CIERRE DE TURNO Nº {cierre.TurnoNumero}", Estilo.Titulo);
+        if (cierre.Estado == EstadoCierre.Reabierto)
+            Agregar("*** CIERRE REABIERTO ***", Estilo.Negrita);
+        Agregar($"Cierre {cierre.Numero}{(cierre.Ciego ? " · ciego" : string.Empty)} · Día {cierre.FechaOperacion.ToString("dd/MM/yyyy", cultura)}");
+        Agregar($"Apertura: {HoraLocal(cierre.AbiertoEn, cultura)}");
+        Agregar($"Cierre:   {HoraLocal(cierre.CerradoEn, cultura)}");
+        Agregar($"Cajero: {cierre.UsuarioNombre}");
+        Separador();
+        Agregar(Columnas("Ventas cobradas", cierre.CantidadVentas.ToString("N0", cultura)));
+        Importe("Total ventas", cierre.TotalVentas);
+        Importe(cierre.FondoEnCuadre ? "Fondo inicial" : "Fondo inicial (fuera)", cierre.FondoInicial);
+        Importe("Retiros", -cierre.TotalRetiros);
+        Separador();
+
+        Agregar("CUADRE POR FORMA DE PAGO", Estilo.Negrita);
+        foreach (var forma in cierre.FormasPago)
+        {
+            Agregar($"{forma.Nombre}{Moneda(forma.Moneda)} · {forma.Transacciones.ToString("N0", cultura)} trx");
+            Importe("  Esperado", forma.Esperado);
+            Importe("  Declarado", forma.Declarado);
+            Importe("  Diferencia", forma.Diferencia, forma.Diferencia == 0m ? Estilo.Normal : Estilo.Negrita);
+        }
+        Separador();
+        Importe("TOTAL ESPERADO RD$", cierre.TotalEsperado);
+        Importe("TOTAL DECLARADO RD$", cierre.TotalDeclarado);
+        Importe(cierre.Diferencia switch { > 0m => "SOBRANTE RD$", < 0m => "FALTANTE RD$", _ => "CUADRADO RD$" }, cierre.Diferencia, Estilo.Titulo);
+
+        if (cierre.Denominaciones.Count > 0)
+        {
+            Separador();
+            Agregar("CONTEO POR DENOMINACIONES", Estilo.Negrita);
+            foreach (var denominacion in cierre.Denominaciones)
+                Importe($"  {denominacion.Moneda} {denominacion.Valor.ToString("N2", cultura)} x {denominacion.Cantidad.ToString("N0", cultura)}", denominacion.Importe);
+        }
+
+        var retiros = cierre.Movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Retiro).ToList();
+        if (retiros.Count > 0)
+        {
+            Separador();
+            Agregar("RETIROS", Estilo.Negrita);
+            foreach (var retiro in retiros)
+                Importe($"  Nº {retiro.Numero} {HoraCorta(retiro.Fecha, cultura)} {retiro.AutorizadoPorNombre}", retiro.Monto);
+        }
+
+        var relevos = cierre.Movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Relevo).ToList();
+        if (relevos.Count > 0)
+        {
+            Separador();
+            Agregar("RELEVOS", Estilo.Negrita);
+            foreach (var relevo in relevos)
+                foreach (var parte in Envolver($"  {HoraCorta(relevo.Fecha, cultura)} {relevo.UsuarioAnteriorNombre} -> {relevo.UsuarioNombre}"))
+                    Agregar(parte);
+        }
+
+        if (cierre is { Estado: EstadoCierre.Reabierto, ReabiertoEn: { } reabiertoEn })
+        {
+            Separador();
+            foreach (var parte in Envolver($"Reabierto por {cierre.ReabiertoPorNombre} el {HoraLocal(reabiertoEn, cultura)}. Motivo: {cierre.MotivoReapertura}"))
+                Agregar(parte);
+        }
+
+        AgregarFirmas(lineas, "Cajero", "Supervisor");
+        return Documento($"cierre-{cierre.TurnoNumero}-{cierre.Numero}{(esCopia ? "-copia" : null)}", lineas);
+    }
+
+    private static void AgregarEncabezadoCaja(List<(string Texto, Estilo Estilo)> lineas, EncabezadoTicket encabezado, CultureInfo cultura, bool esCopia)
+    {
+        lineas.Add((encabezado.EmpresaNombre.ToUpper(cultura), Estilo.Titulo));
+        lineas.Add(($"RNC {encabezado.EmpresaRnc}", Estilo.Centrado));
+        lineas.Add(($"{encabezado.SucursalNombre} · Caja {encabezado.CajaCodigo}", Estilo.Centrado));
+        if (esCopia)
+            lineas.Add(("*** COPIA ***", Estilo.Negrita));
+        lineas.Add((new string('-', Ancho), Estilo.Normal));
+    }
+
+    private static void AgregarFirmas(List<(string Texto, Estilo Estilo)> lineas, string izquierda, string derecha)
+    {
+        lineas.Add((string.Empty, Estilo.Normal));
+        lineas.Add((string.Empty, Estilo.Normal));
+        lineas.Add(("___________________  ___________________", Estilo.Normal));
+        lineas.Add((izquierda.PadRight(21) + derecha, Estilo.Normal));
+    }
+
+    private static DocumentoImpresion Documento(string nombre, List<(string Texto, Estilo Estilo)> lineas)
+    {
         var texto = string.Join('\n', lineas.SelectMany(l => l.Estilo switch
         {
             Estilo.Centrado or Estilo.Titulo => [Centrar(l.Texto)],
             Estilo.Qr => ["[QR del timbre e-CF]", .. Trozos(l.Texto)],
             _ => new[] { l.Texto },
         }));
-        return new DocumentoImpresion($"ticket-{venta.NumeroTransaccion}{(esCopia ? "-copia" : null)}", texto, EscPos(lineas));
+        return new DocumentoImpresion(nombre, texto, EscPos(lineas));
     }
+
+    private static string HoraLocal(DateTimeOffset fecha, CultureInfo cultura) => fecha.ToOffset(TimeSpan.FromHours(-4)).ToString("dd/MM/yyyy h:mm tt", cultura);
+
+    private static string HoraCorta(DateTimeOffset fecha, CultureInfo cultura) => fecha.ToOffset(TimeSpan.FromHours(-4)).ToString("h:mm tt", cultura);
+
+    private static string Moneda(string moneda) => moneda == Venta.MonedaLocal ? string.Empty : $" ({moneda})";
 
     private static byte[] EscPos(IEnumerable<(string Texto, Estilo Estilo)> lineas)
     {

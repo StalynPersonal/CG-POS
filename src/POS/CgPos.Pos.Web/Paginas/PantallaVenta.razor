@@ -24,7 +24,7 @@ else if (_venta is null)
 {
     <PanelAperturaTurno Estado="_estadoTurno" Mensaje="_mensaje" Procesando="_procesando"
                         NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
-                        AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" />
+                        AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" AlRelevar="RelevarTurnoAsync" AlReabrir="ReabrirUltimoCierreAsync" />
 }
 else if (_suspendida)
 {
@@ -251,6 +251,8 @@ else
                 <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
                 <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="AbrirGavetaAsync" />
                 <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="ReimprimirAsync" />
+                <TeclaFuncion Texto="Retiro" Icono="@Icons.Material.Filled.Savings" AlPresionar="RetirarEfectivoAsync" />
+                <TeclaFuncion Texto="Cierre de turno" Icono="@Icons.Material.Filled.LockClock" AlPresionar="CerrarTurnoAsync" />
                 <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="SalirAsync" />
             </PaginaSecundaria>
         </BarraTeclasFuncion>
@@ -361,6 +363,87 @@ else
         _procesando = false;
 
         if (!respuesta.Exitosa && respuesta.Resultado != CodigoResultadoTurno.YaExisteTurnoAbierto)
+        {
+            _mensaje = respuesta.Mensaje;
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    // ---------- Relevo, retiros, cierre y reapertura (C8) ----------
+
+    private async Task RelevarTurnoAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.RelevarTurnoAsync(autorizacion),
+            $"Relevo del turno de {_estadoTurno?.TurnoAbierto?.UsuarioActualNombre}");
+        _procesando = false;
+        if (respuesta is null)
+            return;
+        if (!respuesta.Exitosa)
+        {
+            _mensaje = respuesta.Mensaje;
+            return;
+        }
+
+        await CargarAsync();
+    }
+
+    private async Task RetirarEfectivoAsync()
+    {
+        _barra?.MostrarPrincipal();
+        var texto = await PedirTextoAsync("Retiro de efectivo", "Monto a retirar (RD$)", ayuda: "Se imprime el comprobante y se abre la gaveta.");
+        if (texto is null || !decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var monto))
+            return;
+
+        var motivo = await PedirTextoAsync("Retiro de efectivo", "Motivo del retiro", ayuda: "Ej.: remesa a bóveda.", decimales: false, modo: ModoTeclado.Alfanumerico);
+        if (motivo is null)
+            return;
+
+        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.RetirarEfectivoAsync(monto, motivo, autorizacion),
+            $"Retiro de efectivo por RD${monto:N2}");
+        if (respuesta is null)
+            return;
+
+        _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
+        _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+        _enfocar = true;
+    }
+
+    private async Task CerrarTurnoAsync()
+    {
+        _barra?.MostrarPrincipal();
+        var respuesta = await MostrarDialogoAsync<DialogoCierreTurno, RespuestaCaja>("Cierre de turno", new DialogParameters(), MaxWidth.ExtraLarge);
+
+        // Se recarga siempre: si el turno quedó cerrado, la pantalla vuelve a la apertura.
+        await CargarAsync();
+        if (respuesta is { Exitosa: true })
+            _aviso = respuesta.Mensaje;
+    }
+
+    private async Task ReabrirUltimoCierreAsync()
+    {
+        _mensaje = null;
+        var cierres = await Cliente.ListarCierresAsync(1);
+        if (cierres is not [{ Estado: CgPos.Dominio.Turnos.EstadoCierre.Vigente } ultimo])
+        {
+            _mensaje = "No hay un cierre vigente para reabrir en esta caja.";
+            return;
+        }
+
+        var motivo = await PedirTextoAsync($"Reabrir el turno {ultimo.TurnoNumero}", "Motivo de la reapertura",
+            ayuda: $"Cierre de {ultimo.UsuarioNombre} con diferencia de RD${ultimo.Diferencia:N2}. Requiere autorización de un nivel superior.",
+            decimales: false, modo: ModoTeclado.Alfanumerico);
+        if (motivo is null)
+            return;
+
+        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.ReabrirCierreAsync(ultimo.Id, motivo, autorizacion),
+            $"Reabrir el cierre del turno {ultimo.TurnoNumero}. Motivo: {motivo}", "CierreTurno", ultimo.Id.ToString());
+        if (respuesta is null)
+            return;
+        if (!respuesta.Exitosa)
         {
             _mensaje = respuesta.Mensaje;
             return;

@@ -30,12 +30,17 @@
             {
                 <MudAlert Severity="Severity.Warning" Class="mb-4">
                     La caja tiene abierto el turno <strong>@turno.Numero</strong> de <strong>@turno.UsuarioActualNombre</strong>
-                    desde las @turno.AbiertoEn.ToLocalTime().ToString("h:mm tt"). Solicite a su supervisor el relevo o el cierre de ese turno.
+                    desde las @turno.AbiertoEn.ToLocalTime().ToString("h:mm tt"). Puede tomar el turno con un relevo autorizado por su supervisor, sin cerrarlo.
                 </MudAlert>
             }
             <div class="cg-turno__acciones">
-                <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Class="cg-turno__boton">Salir</MudButton>
-                @if (!Estado.EsDeOtroUsuario)
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="Procesando" Class="cg-turno__boton">Salir</MudButton>
+                @if (Estado.EsDeOtroUsuario)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AlRelevar" Disabled="Procesando" Class="cg-turno__boton"
+                               StartIcon="@Icons.Material.Filled.SwapHoriz">Relevar turno</MudButton>
+                }
+                else
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AlReintentar" Class="cg-turno__boton">Reintentar</MudButton>
                 }
@@ -60,6 +65,9 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AbrirAsync" Disabled="Procesando" Class="cg-turno__boton"
                                    StartIcon="@Icons.Material.Filled.LockOpen">Abrir turno</MudButton>
                     </div>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="AlReabrir" Disabled="Procesando" StartIcon="@Icons.Material.Filled.History">
+                        Reabrir el último cierre
+                    </MudButton>
                     @if (Procesando)
                     {
                         <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
@@ -80,6 +88,8 @@
     [Parameter] public EventCallback<decimal> AlAbrir { get; set; }
     [Parameter] public EventCallback AlReintentar { get; set; }
     [Parameter] public EventCallback AlSalir { get; set; }
+    [Parameter] public EventCallback AlRelevar { get; set; }
+    [Parameter] public EventCallback AlReabrir { get; set; }
 
     private string _fondo = string.Empty;
     private decimal? _sugeridoAplicado;

@@ -78,4 +78,28 @@ public sealed class Turno : Entidad
         Estado = EstadoTurno.Cerrado;
         CerradoEn = ahora;
     }
+
+    /// <summary>Otro usuario toma el turno sin cerrarlo ni cuadrar (RF-260, RF-113). Devuelve el movimiento para el historial.</summary>
+    public MovimientoCaja Relevar(int numero, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    {
+        if (!EstaAbierto)
+            throw new InvalidOperationException("No se puede relevar un turno cerrado.");
+        if (usuarioId == UsuarioActualId)
+            throw new InvalidOperationException("El turno ya está a nombre de ese usuario.");
+
+        var movimiento = MovimientoCaja.Relevo(this, numero, usuarioId, usuarioNombre, autorizadoPorId, autorizadoPorNombre, ahora);
+        UsuarioActualId = movimiento.UsuarioId;
+        UsuarioActualNombre = movimiento.UsuarioNombre;
+        return movimiento;
+    }
+
+    /// <summary>Vuelve a abrir el turno al reabrir su cierre (RF-266).</summary>
+    public void Reabrir()
+    {
+        if (EstaAbierto)
+            throw new InvalidOperationException("El turno ya está abierto.");
+
+        Estado = EstadoTurno.Abierto;
+        CerradoEn = null;
+    }
 }

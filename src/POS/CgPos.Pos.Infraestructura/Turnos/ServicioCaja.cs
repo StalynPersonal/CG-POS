@@ -1,0 +1,405 @@
+using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Seguridad;
+using CgPos.Dominio.Turnos;
+using CgPos.Dominio.Ventas;
+using CgPos.Pos.Aplicacion.Abstracciones;
+using CgPos.Pos.Aplicacion.Organizacion;
+using CgPos.Pos.Aplicacion.Perifericos;
+using CgPos.Pos.Aplicacion.Seguridad;
+using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Infraestructura.Persistencia;
+using CgPos.Pos.Infraestructura.Tickets;
+using CgPos.Pos.Infraestructura.Ventas;
+using Microsoft.EntityFrameworkCore;
+
+namespace CgPos.Pos.Infraestructura.Turnos;
+
+internal static class ConversionesCaja
+{
+    public static DatosMovimientoCaja ADatos(this MovimientoCaja movimiento) =>
+        new(movimiento.Id, movimiento.Tipo, movimiento.Numero, movimiento.Monto, movimiento.Moneda, movimiento.Motivo, movimiento.UsuarioNombre,
+            movimiento.UsuarioAnteriorNombre, movimiento.AutorizadoPorNombre, movimiento.Fecha);
+
+    public static DatosCierre ADatos(this CierreTurno cierre, IEnumerable<MovimientoCaja> movimientos) =>
+        new(cierre.Id, cierre.TurnoId, cierre.TurnoNumero, cierre.Numero, cierre.CajaId, cierre.SucursalId, cierre.FechaOperacion, cierre.Ciego,
+            cierre.FondoInicial, cierre.FondoEnCuadre, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado,
+            cierre.TotalDeclarado, cierre.Diferencia, cierre.UsuarioNombre, cierre.AbiertoEn, cierre.CerradoEn, cierre.Estado, cierre.ReabiertoPorNombre,
+            cierre.ReabiertoEn, cierre.MotivoReapertura,
+            cierre.FormasPago.OrderBy(f => f.Orden)
+                .Select(f => new DatosCierreFormaPago(f.FormaPagoId, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado, f.Declarado, f.Diferencia))
+                .ToList(),
+            cierre.Denominaciones.OrderBy(d => d.Moneda).ThenByDescending(d => d.Valor)
+                .Select(d => new DatosCierreDenominacion(d.Moneda, d.Valor, d.Tipo, d.Cantidad, d.Importe))
+                .ToList(),
+            movimientos.OrderBy(m => m.Fecha).ThenBy(m => m.Numero).Select(m => m.ADatos()).ToList());
+}
+
+internal sealed class ServicioCaja(
+    ContextoDatosPos contexto,
+    IValidadorAutorizaciones autorizaciones,
+    IParametros parametros,
+    IImpresoraTicket impresora,
+    IBandejaSalida bandejaSalida,
+    IAuditoria auditoria,
+    TimeProvider reloj) : IServicioCaja
+{
+    private const string TipoEntidadTurno = "Turno";
+    private const string TipoEntidadCierre = "CierreTurno";
+
+    private sealed record CalculoTurno(
+        bool Ciego,
+        bool FondoEnCuadre,
+        int CantidadVentas,
+        decimal TotalVentas,
+        decimal TotalRetiros,
+        decimal EfectivoEnGaveta,
+        IReadOnlyList<EsperadoFormaPago> Esperados,
+        IReadOnlyList<DatosDenominacion> Denominaciones,
+        IReadOnlyList<MovimientoCaja> Movimientos,
+        IReadOnlyList<string> Bloqueos);
+
+    public async Task<RespuestaCaja> ObtenerResumenAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
+    {
+        var turno = await contexto.Turnos.AsNoTracking().FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
+        if (turno is null)
+            return SinTurno();
+
+        var calculo = await CalcularAsync(turno, cancelacion);
+        var mostrar = !calculo.Ciego || sesion.TienePermiso(CatalogoPermisos.PreCierre);
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, null, Resumen: Resumen(turno, calculo, mostrar), Turno: turno.ADatos());
+    }
+
+    public async Task<RespuestaCaja> PreCierreAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var turno = await contexto.Turnos.AsNoTracking().FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
+        if (turno is null)
+            return SinTurno();
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.PreCierre, autorizacionId, TipoEntidadTurno, turno.Id.ToString(), cancelacion);
+        if (!permiso.Permitido)
+            return Rechazo(permiso, CatalogoPermisos.PreCierre, "El pre-cierre se emite con clave de supervisor.");
+
+        var calculo = await CalcularAsync(turno, cancelacion);
+        var resumen = Resumen(turno, calculo, mostrarEsperado: true);
+        var ahora = reloj.GetUtcNow();
+
+        auditoria.Registrar(new EntradaAuditoria("Caja.PreCierre", TipoEntidadTurno, turno.Id.ToString(),
+            Detalle: new { turno.Numero, calculo.CantidadVentas, calculo.TotalVentas },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+            AutorizadoPor: Autorizador(permiso)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarPreCierre(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), resumen, ahora),
+            cancelacion);
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, impresion.Correcto ? "Pre-cierre impreso." : impresion.Mensaje, Resumen: resumen, Turno: turno.ADatos());
+    }
+
+    public async Task<RespuestaCaja> RetirarEfectivoAsync(SesionUsuario sesion, decimal monto, string? motivo, Guid? autorizacionId,
+        CancellationToken cancelacion = default)
+    {
+        var (turno, rechazo) = await TurnoDelUsuarioAsync(sesion, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        monto = decimal.Round(monto, 2, MidpointRounding.AwayFromZero);
+        if (monto <= 0)
+            return new RespuestaCaja(CodigoResultadoCaja.MontoInvalido, "El monto del retiro debe ser mayor que cero.");
+
+        // Antes de pedir la clave del supervisor: no se puede retirar más de lo que hay en la gaveta.
+        var calculo = await CalcularAsync(turno!, cancelacion);
+        if (monto > calculo.EfectivoEnGaveta)
+            return new RespuestaCaja(CodigoResultadoCaja.EfectivoInsuficiente,
+                $"El retiro (RD${monto:N2}) supera el efectivo en la gaveta (RD${calculo.EfectivoEnGaveta:N2}).");
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.RetiroEfectivo, autorizacionId, TipoEntidadTurno, turno!.Id.ToString(), cancelacion);
+        if (!permiso.Permitido)
+            return Rechazo(permiso, CatalogoPermisos.RetiroEfectivo, "El retiro de efectivo requiere autorización de un supervisor.");
+
+        var numero = calculo.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro) + 1;
+        var retiro = MovimientoCaja.Retiro(turno, numero, monto, motivo, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre,
+            reloj.GetUtcNow());
+        contexto.MovimientosCaja.Add(retiro);
+
+        var datos = retiro.ADatos();
+        bandejaSalida.Encolar("Caja.RetiroEfectivo", retiro.Id, new DocumentoMovimientoCaja(datos, turno.Id, turno.Numero, turno.CajaId, turno.SucursalId));
+        auditoria.Registrar(new EntradaAuditoria("Caja.RetiroEfectivo", TipoEntidadTurno, turno.Id.ToString(),
+            Detalle: new { turno.Numero, Retiro = numero, Monto = monto },
+            Motivo: retiro.Motivo,
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+            AutorizadoPor: Autorizador(permiso)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        // Después de guardar: la impresora o la gaveta nunca deshacen el retiro.
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarRetiro(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), datos, turno.Numero),
+            cancelacion);
+        var gaveta = await impresora.AbrirGavetaAsync(cancelacion);
+        var avisos = string.Join(" ", new[] { impresion.Correcto ? null : impresion.Mensaje, gaveta.Correcto ? null : gaveta.Mensaje }.Where(a => a is not null));
+
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, $"Retiro {numero} por RD${monto:N2} registrado. {avisos}".Trim(), Movimiento: datos, Turno: turno.ADatos());
+    }
+
+    public async Task<RespuestaCaja> RelevarAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var turno = await contexto.Turnos.FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
+        if (turno is null)
+            return SinTurno();
+        if (turno.UsuarioActualId == sesion.UsuarioId)
+            return new RespuestaCaja(CodigoResultadoCaja.TurnoDelMismoUsuario, "El turno ya está a su nombre.", Turno: turno.ADatos());
+        if (!sesion.TienePermiso(CatalogoPermisos.RegistrarVenta))
+            return new RespuestaCaja(CodigoResultadoCaja.SinPermiso, "Su usuario no puede operar la caja.");
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.RelevoCajero, autorizacionId, TipoEntidadTurno, turno.Id.ToString(), cancelacion);
+        if (!permiso.Permitido)
+            return Rechazo(permiso, CatalogoPermisos.RelevoCajero, $"El relevo de {turno.UsuarioActualNombre} requiere autorización de un supervisor.");
+
+        var numero = await contexto.MovimientosCaja.CountAsync(m => m.TurnoId == turno.Id && m.Tipo == TipoMovimientoCaja.Relevo, cancelacion) + 1;
+        var relevo = turno.Relevar(numero, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre, reloj.GetUtcNow());
+        contexto.MovimientosCaja.Add(relevo);
+
+        var datos = relevo.ADatos();
+        bandejaSalida.Encolar("Caja.RelevoCajero", relevo.Id, new DocumentoMovimientoCaja(datos, turno.Id, turno.Numero, turno.CajaId, turno.SucursalId));
+        auditoria.Registrar(new EntradaAuditoria("Caja.RelevoCajero", TipoEntidadTurno, turno.Id.ToString(),
+            Detalle: new { turno.Numero, Anterior = relevo.UsuarioAnteriorNombre, Nuevo = relevo.UsuarioNombre },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+            AutorizadoPor: Autorizador(permiso)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, $"Relevo registrado: {sesion.Nombre} opera el turno {turno.Numero}.", Movimiento: datos,
+            Turno: turno.ADatos());
+    }
+
+    public async Task<RespuestaCaja> CerrarAsync(SesionUsuario sesion, IReadOnlyList<SolicitudDeclaracionFormaPago> declaraciones,
+        IReadOnlyList<SolicitudConteoDenominacion> conteo, Guid? autorizacionId, CancellationToken cancelacion = default)
+    {
+        var (turno, rechazo) = await TurnoDelUsuarioAsync(sesion, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        var calculo = await CalcularAsync(turno!, cancelacion);
+        if (calculo.Bloqueos.Count > 0)
+            return new RespuestaCaja(CodigoResultadoCaja.CierreBloqueado, "No se puede cerrar el turno todavía.", Bloqueos: calculo.Bloqueos);
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.CerrarTurno, autorizacionId, TipoEntidadTurno, turno!.Id.ToString(), cancelacion);
+        if (!permiso.Permitido)
+            return Rechazo(permiso, CatalogoPermisos.CerrarTurno, "Cerrar el turno requiere autorización de un supervisor.");
+
+        var denominaciones = calculo.Denominaciones.ToDictionary(d => d.Id);
+        var conteos = new List<ConteoDenominacion>();
+        foreach (var item in conteo)
+        {
+            if (!denominaciones.TryGetValue(item.DenominacionId, out var denominacion))
+                return new RespuestaCaja(CodigoResultadoCaja.DeclaracionInvalida, "Una denominación del conteo no existe o está inactiva.");
+            conteos.Add(new ConteoDenominacion(denominacion.Id, denominacion.Moneda, denominacion.Valor, denominacion.Tipo, item.Cantidad));
+        }
+
+        var ahora = reloj.GetUtcNow();
+        var numero = await contexto.CierresTurno.CountAsync(c => c.TurnoId == turno.Id, cancelacion) + 1;
+        CierreTurno cierre;
+        try
+        {
+            cierre = CierreTurno.Registrar(turno, numero, calculo.Ciego, calculo.FondoEnCuadre, calculo.CantidadVentas, calculo.TotalVentas, calculo.TotalRetiros,
+                calculo.Esperados, declaraciones.Select(d => new DeclaradoFormaPago(d.FormaPagoId, d.Monto)).ToList(), conteos,
+                sesion.UsuarioId, sesion.Nombre, ahora);
+        }
+        catch (ReglaCierreExcepcion excepcion)
+        {
+            contexto.ChangeTracker.Clear();
+            return new RespuestaCaja(CodigoResultadoCaja.DeclaracionInvalida, excepcion.Message);
+        }
+
+        contexto.CierresTurno.Add(cierre);
+
+        // Las transacciones en curso sin artículos activos no son documentos: se descartan o anulan al cerrar.
+        var enCurso = await contexto.Ventas.Include(v => v.Lineas)
+            .Where(v => v.TurnoId == turno.Id && v.Estado == EstadoVenta.EnCurso)
+            .ToListAsync(cancelacion);
+        foreach (var venta in enCurso)
+        {
+            if (venta.Lineas.Count == 0)
+                contexto.Ventas.Remove(venta);
+            else
+                venta.Anular("Sin artículos al cerrar el turno", sesion.UsuarioId, sesion.Nombre, ahora);
+        }
+
+        var datos = cierre.ADatos(calculo.Movimientos);
+        bandejaSalida.Encolar("Caja.TurnoCerrado", cierre.Id, datos);
+        auditoria.Registrar(new EntradaAuditoria("Caja.TurnoCerrado", TipoEntidadTurno, turno.Id.ToString(),
+            Detalle: new { turno.Numero, Cierre = cierre.Numero, cierre.Ciego, cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+            AutorizadoPor: Autorizador(permiso)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), datos, esCopia: false),
+            cancelacion);
+        var mensaje = $"Turno {turno.Numero} cerrado.{(impresion.Correcto ? string.Empty : $" {impresion.Mensaje}")}";
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, mensaje, Cierre: datos, Turno: turno.ADatos());
+    }
+
+    public async Task<RespuestaCaja> ReabrirCierreAsync(SesionUsuario sesion, Guid cierreId, string? motivo, Guid? autorizacionId,
+        CancellationToken cancelacion = default)
+    {
+        var cierre = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Denominaciones)
+            .SingleOrDefaultAsync(c => c.Id == cierreId && c.CajaId == sesion.CajaId, cancelacion);
+        if (cierre is null)
+            return new RespuestaCaja(CodigoResultadoCaja.CierreNoEncontrado, "El cierre no existe en esta caja.");
+        if (string.IsNullOrWhiteSpace(motivo))
+            return new RespuestaCaja(CodigoResultadoCaja.MotivoRequerido, "Indique el motivo de la reapertura.");
+        if (cierre.Estado != EstadoCierre.Vigente)
+            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "El cierre ya fue reabierto.");
+
+        var ultimo = await contexto.CierresTurno.AsNoTracking().Where(c => c.CajaId == sesion.CajaId)
+            .OrderByDescending(c => c.CerradoEn).Select(c => c.Id).FirstAsync(cancelacion);
+        if (ultimo != cierre.Id)
+            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "Solo se puede reabrir el último cierre de la caja.");
+        if (await contexto.Turnos.AnyAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion))
+            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "La caja tiene un turno abierto: ciérrelo antes de reabrir el anterior.");
+
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.ReabrirCierre, autorizacionId, TipoEntidadCierre, cierre.Id.ToString(), cancelacion);
+        if (!permiso.Permitido)
+            return Rechazo(permiso, CatalogoPermisos.ReabrirCierre, "La reapertura de un cierre requiere autorización de un nivel superior.");
+
+        var turno = await contexto.Turnos.SingleAsync(t => t.Id == cierre.TurnoId, cancelacion);
+        var ahora = reloj.GetUtcNow();
+        var porId = permiso.SupervisorId ?? sesion.UsuarioId;
+        var porNombre = permiso.SupervisorNombre ?? sesion.Nombre;
+        cierre.Reabrir(porId, porNombre, motivo, ahora);
+        turno.Reabrir();
+
+        bandejaSalida.Encolar("Caja.CierreReabierto", cierre.Id,
+            new DocumentoReaperturaCierre(cierre.Id, turno.Id, turno.Numero, turno.CajaId, turno.SucursalId, porNombre, cierre.MotivoReapertura!, ahora));
+        auditoria.Registrar(new EntradaAuditoria("Caja.CierreReabierto", TipoEntidadTurno, turno.Id.ToString(),
+            Detalle: new { turno.Numero, Cierre = cierre.Numero, cierre.Diferencia },
+            Motivo: cierre.MotivoReapertura,
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
+            AutorizadoPor: Autorizador(permiso)));
+
+        try
+        {
+            await contexto.SaveChangesAsync(cancelacion);
+        }
+        catch (DbUpdateException)
+        {
+            // El índice de un solo turno abierto por caja ganó una carrera con una apertura simultánea.
+            contexto.ChangeTracker.Clear();
+            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "La caja ya tiene un turno abierto.");
+        }
+
+        return new RespuestaCaja(CodigoResultadoCaja.Correcto, $"Turno {turno.Numero} reabierto: {turno.UsuarioActualNombre} puede continuar.", Turno: turno.ADatos());
+    }
+
+    public async Task<IReadOnlyList<DatosCierre>> ListarCierresAsync(SesionUsuario sesion, int maximo = 20, CancellationToken cancelacion = default)
+    {
+        var cierres = await contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Denominaciones)
+            .Where(c => c.CajaId == sesion.CajaId)
+            .OrderByDescending(c => c.CerradoEn)
+            .Take(Math.Clamp(maximo, 1, 100))
+            .ToListAsync(cancelacion);
+
+        var turnos = cierres.Select(c => c.TurnoId).Distinct().ToList();
+        var movimientos = await contexto.MovimientosCaja.AsNoTracking().Where(m => turnos.Contains(m.TurnoId)).ToListAsync(cancelacion);
+
+        return cierres.Select(c => c.ADatos(movimientos.Where(m => m.TurnoId == c.TurnoId))).ToList();
+    }
+
+    public async Task<RespuestaCaja> ReimprimirCierreAsync(SesionUsuario sesion, Guid cierreId, CancellationToken cancelacion = default)
+    {
+        var cierre = await contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Denominaciones)
+            .SingleOrDefaultAsync(c => c.Id == cierreId && c.CajaId == sesion.CajaId, cancelacion);
+        if (cierre is null)
+            return new RespuestaCaja(CodigoResultadoCaja.CierreNoEncontrado, "El cierre no existe en esta caja.");
+
+        var movimientos = await contexto.MovimientosCaja.AsNoTracking().Where(m => m.TurnoId == cierre.TurnoId).ToListAsync(cancelacion);
+        var datos = cierre.ADatos(movimientos);
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion), datos, esCopia: true),
+            cancelacion);
+
+        auditoria.Registrar(new EntradaAuditoria("Caja.CierreReimpreso", TipoEntidadCierre, cierre.Id.ToString(),
+            Detalle: new { cierre.TurnoNumero, impresion.Correcto }, Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        return impresion.Correcto
+            ? new RespuestaCaja(CodigoResultadoCaja.Correcto, "Cierre reimpreso.", Cierre: datos)
+            : new RespuestaCaja(CodigoResultadoCaja.Correcto, impresion.Mensaje, Cierre: datos);
+    }
+
+    private async Task<CalculoTurno> CalcularAsync(Turno turno, CancellationToken cancelacion)
+    {
+        var ciego = await parametros.ObtenerBooleanoAsync(ClavesParametros.CierreCiego, turno.CajaId, true, cancelacion);
+        var fondoEnCuadre = await parametros.ObtenerBooleanoAsync(ClavesParametros.FondoEnCuadre, turno.CajaId, false, cancelacion);
+
+        var ventas = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).Include(v => v.Pagos)
+            .Where(v => v.TurnoId == turno.Id && v.Estado != EstadoVenta.Anulada)
+            .ToListAsync(cancelacion);
+        var cobradas = ventas.Where(v => v.Estado == EstadoVenta.Cobrada).ToList();
+        var pagos = cobradas.SelectMany(v => v.Pagos).ToList();
+
+        var formas = await contexto.FormasPago.AsNoTracking().OrderBy(f => f.Orden).ToListAsync(cancelacion);
+        var movimientos = await contexto.MovimientosCaja.AsNoTracking().Where(m => m.TurnoId == turno.Id).OrderBy(m => m.Fecha).ToListAsync(cancelacion);
+        var denominaciones = await contexto.Denominaciones.AsNoTracking().Where(d => d.Activa)
+            .OrderBy(d => d.Moneda).ThenByDescending(d => d.Valor)
+            .Select(d => new DatosDenominacion(d.Id, d.Moneda, d.Valor, d.Tipo))
+            .ToListAsync(cancelacion);
+
+        var retiros = movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Retiro).Sum(m => m.Monto);
+        var esperados = ReglasCuadre.CalcularEsperados(
+            formas.Where(f => f.Activa || pagos.Any(p => p.FormaPagoId == f.Id)).Select(f => new FormaPagoCuadre(f.Id, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Orden)),
+            pagos.Select(p => new PagoCuadre(p.FormaPagoId, p.MontoRecibido, p.MontoAplicado)),
+            cobradas.Sum(v => v.Devuelta), retiros, turno.FondoInicial, fondoEnCuadre);
+
+        // Validaciones de cierre (RF-265, RN-22).
+        var bloqueos = new List<string>();
+        var enEspera = ventas.Where(v => v.Estado == EstadoVenta.EnEspera).Select(v => v.NumeroTransaccion).ToList();
+        if (enEspera.Count > 0)
+            bloqueos.Add($"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. Retómelas y cóbrelas o anúlelas.");
+        foreach (var venta in ventas.Where(v => v.Estado == EstadoVenta.EnCurso && v.TieneLineasActivas))
+            bloqueos.Add($"La transacción {venta.NumeroTransaccion} de {venta.UsuarioNombre} está en curso con artículos: cóbrela o anúlela.");
+
+        var idsCobradas = cobradas.Select(v => v.Id).ToList();
+        var conEcf = idsCobradas.Count == 0
+            ? []
+            : await contexto.DocumentosElectronicos.AsNoTracking().Where(d => idsCobradas.Contains(d.VentaId)).Select(d => d.VentaId).ToListAsync(cancelacion);
+        var sinEcf = cobradas.Where(v => !conEcf.Contains(v.Id)).Select(v => v.NumeroTransaccion).ToList();
+        if (sinEcf.Count > 0)
+            bloqueos.Add($"Hay {sinEcf.Count} venta(s) sin e-CF firmado: {string.Join(", ", sinEcf.Take(5))}.");
+
+        return new CalculoTurno(ciego, fondoEnCuadre, cobradas.Count, cobradas.Sum(v => v.TotalCobrado ?? 0m), retiros,
+            ReglasCuadre.EfectivoLocalEnGaveta(esperados, turno.FondoInicial, fondoEnCuadre), esperados, denominaciones, movimientos, bloqueos);
+    }
+
+    private static DatosResumenTurno Resumen(Turno turno, CalculoTurno calculo, bool mostrarEsperado) =>
+        new(turno.ADatos(), calculo.Ciego, mostrarEsperado, calculo.FondoEnCuadre,
+            mostrarEsperado ? calculo.CantidadVentas : null,
+            mostrarEsperado ? calculo.TotalVentas : null,
+            calculo.TotalRetiros,
+            calculo.Esperados
+                .Select(e => new DatosFormaPagoTurno(e.FormaPagoId, e.Codigo, e.Nombre, e.Tipo, e.Moneda, e.Orden,
+                    mostrarEsperado ? e.Esperado : null, mostrarEsperado ? e.Transacciones : null))
+                .ToList(),
+            calculo.Denominaciones,
+            calculo.Movimientos.Select(m => m.ADatos()).ToList(),
+            calculo.Bloqueos);
+
+    private async Task<(Turno? Turno, RespuestaCaja? Rechazo)> TurnoDelUsuarioAsync(SesionUsuario sesion, CancellationToken cancelacion)
+    {
+        var turno = await contexto.Turnos.FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
+        if (turno is null)
+            return (null, SinTurno());
+        if (turno.UsuarioActualId != sesion.UsuarioId)
+            return (null, new RespuestaCaja(CodigoResultadoCaja.TurnoDeOtroUsuario,
+                $"El turno {turno.Numero} está a nombre de {turno.UsuarioActualNombre}. Haga el relevo primero.", Turno: turno.ADatos()));
+
+        return (turno, null);
+    }
+
+    private static RespuestaCaja SinTurno() => new(CodigoResultadoCaja.TurnoNoAbierto, "La caja no tiene turno abierto.");
+
+    private static RespuestaCaja Rechazo(ResultadoPermiso permiso, string codigoPermiso, string mensaje) =>
+        permiso.AutorizacionRechazada
+            ? new RespuestaCaja(CodigoResultadoCaja.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", codigoPermiso)
+            : new RespuestaCaja(CodigoResultadoCaja.RequiereAutorizacion, mensaje, codigoPermiso);
+
+    private static UsuarioAuditoria? Autorizador(ResultadoPermiso permiso) =>
+        permiso.SupervisorId is { } supervisorId ? new UsuarioAuditoria(supervisorId, permiso.SupervisorNombre!) : null;
+}

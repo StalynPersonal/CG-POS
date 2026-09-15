@@ -38,6 +38,12 @@ public static class ClavesParametros
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
     public const string FondoPredeterminado = "Caja.FondoPredeterminado";
 
+    /// <summary>Cierre ciego: el cajero declara sin ver lo esperado (RF-9, RN-23). Por defecto true.</summary>
+    public const string CierreCiego = "Caja.CierreCiego";
+
+    /// <summary>Si el fondo de caja forma parte del efectivo esperado en el cuadre. Por defecto false: el fondo no se mezcla con el cuadre (RF-4).</summary>
+    public const string FondoEnCuadre = "Caja.FondoEnCuadre";
+
     /// <summary>Total desde el cual la factura de consumo exige cédula o RNC (RF-26, RF-171). Por defecto 250000.</summary>
     public const string MontoIdentificacionConsumo = "Fiscal.MontoIdentificacionConsumo";
 

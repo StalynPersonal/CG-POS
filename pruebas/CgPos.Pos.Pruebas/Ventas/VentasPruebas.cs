@@ -6,6 +6,7 @@ using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
+using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Catalogo;
@@ -658,6 +659,120 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Contains(estado.Alertas, a => a.Contains("E32") && a.Contains("No hay secuencia"));
     }
 
+    [SkippableFact]
+    public async Task Cierre_ciego_cuadra_el_efectivo_con_devuelta_y_retiros_e_imprime_el_reporte()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var total = cobro.Venta!.TotalCobrado!.Value;
+
+        // El cajero no tiene permiso de retiro y no puede retirar más de lo que hay en la gaveta.
+        var excesivo = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RetirarEfectivoAsync(caja.Cajero, total + 1m, null, null));
+        Assert.Equal(CodigoResultadoCaja.EfectivoInsuficiente, excesivo.Resultado);
+        var sinPermiso = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RetirarEfectivoAsync(caja.Cajero, 100m, "Remesa a bóveda", null));
+        Assert.Equal(CodigoResultadoCaja.RequiereAutorizacion, sinPermiso.Resultado);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.RetiroEfectivo, "Remesa a bóveda");
+        var retiro = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RetirarEfectivoAsync(caja.Cajero, 100m, "Remesa a bóveda", autorizacion));
+        Assert.True(retiro.Exitosa, retiro.Mensaje);
+        Assert.Equal(1, retiro.Movimiento!.Numero);
+
+        // Cierre ciego: el cajero no ve lo esperado.
+        var resumen = (await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.ObtenerResumenAsync(caja.Cajero))).Resumen!;
+        Assert.True(resumen.CierreCiego);
+        Assert.False(resumen.MuestraEsperado);
+        Assert.All(resumen.FormasPago, forma => Assert.Null(forma.Esperado));
+        Assert.Empty(resumen.Bloqueos);
+
+        // Declara RD$5 menos del efectivo esperado: lo cobrado menos la devuelta menos el retiro.
+        var efectivoEsperado = total - 100m;
+        var respuesta = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero,
+            [new SolicitudDeclaracionFormaPago(caja.Catalogo.FormaEfectivo, efectivoEsperado - 5m)], [], null));
+
+        Assert.True(respuesta.Exitosa, respuesta.Mensaje);
+        var cierre = respuesta.Cierre!;
+        var efectivo = cierre.FormasPago.Single(f => f.FormaPagoId == caja.Catalogo.FormaEfectivo);
+        Assert.Equal(efectivoEsperado, efectivo.Esperado);
+        Assert.Equal(-5m, efectivo.Diferencia);
+        Assert.Equal(-5m, cierre.Diferencia);
+        Assert.Equal(1, cierre.CantidadVentas);
+        Assert.Equal(100m, cierre.TotalRetiros);
+        Assert.Single(cierre.Movimientos);
+
+        var estado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.Null(estado.TurnoAbierto);
+
+        var retiroId = retiro.Movimiento.Id;
+        var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.BandejaSalida.CountAsync(m =>
+            (m.TipoMensaje == "Caja.TurnoCerrado" && m.AgregadoId == cierre.Id) || (m.TipoMensaje == "Caja.RetiroEfectivo" && m.AgregadoId == retiroId)));
+        Assert.Equal(2, mensajes);
+
+        var reportes = Directory.GetFiles(baseDatos.CarpetaImpresiones, "*cierre-*.txt").Select(File.ReadAllText);
+        Assert.Contains(reportes, texto => texto.Contains("FALTANTE RD$") && texto.Contains("CUADRE POR FORMA DE PAGO"));
+    }
+
+    [SkippableFact]
+    public async Task No_se_cierra_el_turno_con_facturas_en_espera_y_se_listan()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var espera = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, venta.Id));
+        Assert.True(espera.Exitosa, espera.Mensaje);
+
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
+
+        Assert.Equal(CodigoResultadoCaja.CierreBloqueado, cierre.Resultado);
+        Assert.Contains(cierre.Bloqueos!, bloqueo => bloqueo.Contains(venta.NumeroTransaccion));
+        var estado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.NotNull(estado.TurnoAbierto);
+    }
+
+    [SkippableFact]
+    public async Task Relevo_con_autorizacion_pasa_el_turno_y_la_reapertura_del_cierre_queda_auditada()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var sinAutorizacion = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RelevarAsync(caja.CajeroDos, null));
+        Assert.Equal(CodigoResultadoCaja.RequiereAutorizacion, sinAutorizacion.Resultado);
+        Assert.Equal(CatalogoPermisos.RelevoCajero, sinAutorizacion.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.RelevoCajero, "Almuerzo", caja.CajeroDos);
+        var relevo = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RelevarAsync(caja.CajeroDos, autorizacion));
+        Assert.True(relevo.Exitosa, relevo.Mensaje);
+        Assert.Equal(caja.Escenario.CajeroDos, relevo.Turno!.UsuarioActualId);
+
+        var cajeroOriginal = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.ObtenerActualAsync(caja.Cajero));
+        Assert.Equal(CodigoResultadoVenta.TurnoDeOtroUsuario, cajeroOriginal.Resultado);
+
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.CajeroDos, [], [], null));
+        Assert.True(cierre.Exitosa, cierre.Mensaje);
+        var cierreId = cierre.Cierre!.Id;
+        Assert.Equal(0m, cierre.Cierre.Diferencia);
+
+        var sinMotivo = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.ReabrirCierreAsync(caja.CajeroDos, cierreId, null, null));
+        Assert.Equal(CodigoResultadoCaja.MotivoRequerido, sinMotivo.Resultado);
+
+        const string Motivo = "Faltó declarar un voucher";
+        var autorizacionReapertura = await caja.AutorizarAsync(CatalogoPermisos.ReabrirCierre, Motivo, caja.CajeroDos);
+        var reapertura = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.ReabrirCierreAsync(caja.CajeroDos, cierreId, Motivo, autorizacionReapertura));
+        Assert.True(reapertura.Exitosa, reapertura.Mensaje);
+        Assert.Equal(EstadoTurno.Abierto, reapertura.Turno!.Estado);
+
+        var cierres = await caja.EjecutarAsync<IServicioCaja, IReadOnlyList<DatosCierre>>(s => s.ListarCierresAsync(caja.CajeroDos));
+        Assert.Equal(EstadoCierre.Reabierto, Assert.Single(cierres).Estado);
+
+        var turnoId = reapertura.Turno.Id.ToString();
+        Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
+            contexto.Auditoria.CountAsync(registro => registro.Accion == "Caja.CierreReabierto" && registro.EntidadId == turnoId)));
+    }
+
     private static class BalanzaPrueba
     {
         public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;
@@ -802,10 +917,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         public Task<ResultadoCargaMaestros> CargarOfertasAsync(params PromocionCarga[] promociones) =>
             EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(Promociones: promociones), "Pruebas"));
 
-        public async Task<Guid> AutorizarAsync(string permiso, string motivo)
+        public async Task<Guid> AutorizarAsync(string permiso, string motivo, SesionUsuario? solicitante = null)
         {
             var resultado = await EscenarioSeguridad.AutorizarAsync(_proveedor, new SolicitudAutorizacionSupervisor(
-                Cajero, permiso, motivo, new CredencialUsuario.Pin(Escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+                solicitante ?? Cajero, permiso, motivo, new CredencialUsuario.Pin(Escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
             Assert.True(resultado.Concedida, resultado.Motivo?.ToString());
             return resultado.AutorizacionId!.Value;
         }

@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente), C5 (descuentos y promociones), C6 (cobro y periféricos) y C7 (facturación electrónica offline) completadas.
+**Estado actual:** fases C0 (fundaciones), C1 (configuración y seguridad local), C2 (maestros, precios y padrón DGII), C3 (apertura de turno y pantalla de venta base), C4 (venta avanzada y pantalla del cliente), C5 (descuentos y promociones), C6 (cobro y periféricos), C7 (facturación electrónica offline) y C8 (turnos y cierre) completadas.
 
 ## Stack
 
@@ -159,6 +159,17 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Ticket:** e-NCF, vencimiento de la secuencia, código de seguridad, fecha de firma y QR del timbre (ESC/POS nativo).
 - **API:** `GET /api/ecf/estado`, `POST /api/ecf/certificado`, `GET /api/ecf/documentos?estado=`.
 - **Por confirmar con la DGII:** esquema XML definitivo (colocar los XSD en `Ecf:CarpetaXsd`), código de seguridad y URL del timbre.
+
+### Turno y cierre
+
+- **Relevo:** si la caja tiene abierto el turno de otro cajero, la apertura ofrece *Relevar turno*; con autorización de supervisor el nuevo usuario toma el turno sin cerrarlo ni cuadrar.
+- **Retiro** (segunda página de teclas): monto y motivo, autorización de supervisor, comprobante impreso con firmas y apertura de gaveta. No se puede retirar más del efectivo en la gaveta.
+- **Cierre de turno:** declaración por forma de pago y conteo del efectivo por denominaciones. Con `Caja.CierreCiego` (por defecto `true`) el cajero no ve lo esperado; *Pre-cierre* imprime lo esperado con clave de supervisor.
+- **Lo esperado:** el efectivo cuenta lo recibido menos la devuelta y los retiros; el fondo solo entra si `Caja.FondoEnCuadre` es `true` (por defecto no se mezcla). Moneda extranjera se cuadra en su moneda; los demás medios, por lo aplicado a las facturas.
+- **No se cierra** con facturas en espera, transacciones en curso con artículos o ventas sin e-CF firmado; la pantalla lista qué falta. Las transacciones vacías se descartan al cerrar.
+- **Al cerrar:** se imprime el reporte (esperado, declarado, diferencia por forma de pago, denominaciones, retiros y relevos) y el cierre queda en la bandeja de salida (`Caja.TurnoCerrado`), igual que retiros, relevos y reaperturas.
+- **Reapertura:** desde la apertura, *Reabrir el último cierre* con motivo y autorización de nivel superior (en los datos de desarrollo, el gerente G001). El cierre queda como *Reabierto* y el turno vuelve a su cajero.
+- **API:** `GET /api/caja/turno/resumen`, `POST /api/caja/turno/{precierre|retiros|relevo|cierre}`, `GET /api/caja/cierres`, `POST /api/caja/cierres/{id}/{reabrir|reimprimir}`.
 
 ### Pantalla del cliente y monitores
 

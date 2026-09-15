@@ -471,19 +471,8 @@ internal sealed class ServicioVentas(
         return new PagosArmados(solicitados, usadas, null);
     }
 
-    private async Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion)
-    {
-        var datos = await (
-                from caja in contexto.Cajas
-                join sucursal in contexto.Sucursales on caja.SucursalId equals sucursal.Id
-                join empresa in contexto.Empresas on sucursal.EmpresaId equals empresa.Id
-                where caja.Id == sesion.CajaId
-                select new { Empresa = empresa.NombreComercial ?? empresa.RazonSocial, empresa.Rnc, EmpresaDireccion = empresa.Direccion, empresa.Telefono,
-                    Sucursal = sucursal.Nombre, SucursalDireccion = sucursal.Direccion, Caja = caja.Codigo })
-            .SingleAsync(cancelacion);
-
-        return new EncabezadoTicket(datos.Empresa, datos.Rnc, datos.EmpresaDireccion, datos.Telefono, datos.Sucursal, datos.SucursalDireccion, datos.Caja);
-    }
+    private Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
+        contexto.EncabezadoTicketAsync(sesion.CajaId, cancelacion);
 
     private static DatosOperacionTerminal DatosOperacion(OperacionTerminal operacion, bool sinConexion) =>
         new(operacion.Id, operacion.Estado == EstadoOperacionTerminal.Aprobada, sinConexion, operacion.Monto, operacion.Aprobacion, operacion.UltimosDigitos,
