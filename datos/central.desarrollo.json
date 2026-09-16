@@ -130,6 +130,18 @@
       "clave": "Central.Monitor.MinutosAlertaDgii",
       "valor": "60",
       "descripcion": "Minutos sin resultado de la DGII tras los que un e-CF es alerta"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000912",
+      "clave": "Central.NotasCredito.MinutosReserva",
+      "valor": "10",
+      "descripcion": "Minutos que se retiene el saldo de una nota mientras la caja cobra"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000913",
+      "clave": "Central.NotasCredito.MesesMaximoProrroga",
+      "valor": "12",
+      "descripcion": "Meses desde la emisión hasta los que se habilita una nota vencida"
     }
   ],
   "rolesCentral": [

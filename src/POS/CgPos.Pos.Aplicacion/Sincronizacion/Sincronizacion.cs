@@ -1,3 +1,4 @@
+using CgPos.Contratos.Central;
 using CgPos.Contratos.Sincronizacion;
 
 namespace CgPos.Pos.Aplicacion.Sincronizacion;
@@ -51,6 +52,15 @@ public interface IClienteCentral
 
     /// <summary>Pide los maestros cambiados desde la versión que la caja ya aplicó (0 = aprovisionamiento completo).</summary>
     Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default);
+
+    /// <summary>Consulta en el Central una nota de crédito que esta caja no tiene, porque se emitió en otra sucursal (RF-43).</summary>
+    Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default);
+
+    /// <summary>Pide al Central retener saldo de esa nota mientras la caja cobra; la reserva vence sola si no se confirma.</summary>
+    Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(Guid notaCreditoId, decimal monto, CancellationToken cancelacion = default);
+
+    /// <summary>Devuelve el saldo retenido cuando la venta no llegó a cobrarse.</summary>
+    Task LiberarReservaNotaCreditoAsync(Guid reservaId, CancellationToken cancelacion = default);
 }
 
 /// <summary>Resultado de pedir maestros al Central.</summary>
@@ -62,6 +72,27 @@ public sealed record ResultadoBajadaCentral(PaqueteBajadaMaestros? Paquete, bool
     public static ResultadoBajadaCentral Rechazado(string error) => new(null, true, error);
 
     public static ResultadoBajadaCentral SinConexion(string error) => new(null, false, error);
+}
+
+/// <summary>Resultado de consultar una nota de crédito en el Central.</summary>
+/// <param name="CentralRespondio">Falso si no hubo comunicación: la caja no puede validar notas de otras sucursales sin el Central.</param>
+public sealed record ResultadoNotaCreditoCentral(DatosNotaCreditoCentral? Nota, bool CentralRespondio, string? Error)
+{
+    public static ResultadoNotaCreditoCentral Encontrada(DatosNotaCreditoCentral nota) => new(nota, true, null);
+
+    public static ResultadoNotaCreditoCentral NoExiste(string error) => new(null, true, error);
+
+    public static ResultadoNotaCreditoCentral SinConexion(string error) => new(null, false, error);
+}
+
+/// <param name="Monto">Lo que el Central retuvo, que puede ser menos de lo pedido.</param>
+public sealed record ResultadoReservaNotaCredito(bool Exitosa, Guid? ReservaId, decimal Monto, string? Error, bool CentralRespondio)
+{
+    public static ResultadoReservaNotaCredito Reservada(Guid reservaId, decimal monto) => new(true, reservaId, monto, null, true);
+
+    public static ResultadoReservaNotaCredito Rechazada(string error) => new(false, null, 0m, error, true);
+
+    public static ResultadoReservaNotaCredito SinConexion(string error) => new(false, null, 0m, error, false);
 }
 
 /// <summary>Último contacto con el Central, para el indicador de conexión (RF-192).</summary>

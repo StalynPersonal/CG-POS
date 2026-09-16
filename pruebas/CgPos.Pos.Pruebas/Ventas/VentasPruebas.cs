@@ -1,4 +1,5 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Central;
 using CgPos.Contratos.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Promociones;
@@ -849,6 +850,45 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Nota_de_credito_de_otra_sucursal_se_reserva_en_el_Central_y_se_libera_si_el_cobro_no_ocurre()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        const string encf = "E340000000777";
+        var notaId = Guid.CreateVersion7();
+        caja.Central.NotasCredito[encf] = new DatosNotaCreditoCentral(notaId, "NC-777", encf, Guid.CreateVersion7(), "S99", "01", "401007551",
+            "Cliente de Otra Sucursal", "DOP", 500m, 0m, 0m, 500m, new DateOnly(2027, 12, 31), CgPos.Dominio.Devoluciones.EstadoNotaCreditoCentral.Vigente, false,
+            caja.Reloj.GetUtcNow(), null, null, null);
+
+        // Lo que no está en esta caja ni en el Central se rechaza.
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var desconocida = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, 50m, "E340000000001")], null));
+        Assert.Equal(CodigoResultadoVenta.PagoInvalido, desconocida.Resultado);
+        Assert.Contains("no existe", desconocida.Mensaje);
+
+        // Si el cobro no se completa, el Central recupera el saldo que retuvo.
+        var insuficiente = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, 1m, encf)], null));
+        Assert.False(insuficiente.Exitosa);
+        Assert.Single(caja.Central.Reservas);
+        Assert.Single(caja.Central.ReservasLiberadas);
+
+        // Cobro con la nota de otra sucursal: el consumo se le informa al Central por la bandeja de salida (RF-43).
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, 50m, encf), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Equal(2, caja.Central.Reservas.Count);
+        Assert.Single(caja.Central.ReservasLiberadas);
+
+        var mensaje = await caja.EjecutarAsync<ContextoDatosPos, MensajeSalida>(contexto =>
+            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.TipoMensaje == "NotaCredito.Consumida" && m.AgregadoId == notaId));
+        Assert.Contains(encf, mensaje.Contenido);
+    }
+
+    [SkippableFact]
     public async Task Miembro_de_fidelidad_acumula_por_reglas_y_nivel_canjea_con_autorizacion_y_la_devolucion_reversa()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -1406,9 +1446,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         /// <summary>Primer número del rango de e-CF de esta caja de prueba.</summary>
         public long DesdeSecuencia { get; } = Interlocked.Increment(ref _siguienteRango) * 10_000 + 1;
 
+        /// <summary>Central de prueba de esta caja: responde las consultas y reservas de notas de crédito de otras sucursales (RF-43).</summary>
+        public CentralDePrueba Central { get; } = new(ResultadoEnvioCentral.Recibido());
+
         private void PrepararProveedor()
         {
-            (_proveedor, var reloj) = Escenario.CrearProveedor(Escenario.CajaUno);
+            (_proveedor, var reloj) = Escenario.CrearProveedor(Escenario.CajaUno,
+                extras: servicios => servicios.AddSingleton<CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral>(Central));
             Reloj = reloj;
 
             // El certificado vive en memoria del proveedor, como en el Agente: se carga con su PIN (RF-217).

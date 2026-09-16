@@ -1,0 +1,134 @@
+@page "/notas-credito"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarNotasCredito)]
+@using CgPos.Dominio.Devoluciones
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+
+<PageTitle>Notas de crédito · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Notas de crédito</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Emitidas en cualquier sucursal, con su saldo y lo retenido mientras una caja cobra. Una vencida se puede habilitar con su motivo.
+        </MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las notas de crédito. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosNotaCreditoCentral" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
+              RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+        <ToolBarContent>
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                              Placeholder="e-NCF, número, documento o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="min-width: 260px" />
+                <MudSelect T="EstadoNotaCreditoCentral?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
+                           Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todas")" Style="max-width: 200px">
+                    <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vigente">Vigentes</MudSelectItem>
+                    <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Consumida">Consumidas</MudSelectItem>
+                    <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vencida">Vencidas</MudSelectItem>
+                </MudSelect>
+                <MudSwitch T="bool" Value="_soloSobregiradas" ValueChanged="@(v => FiltrarAsync(() => _soloSobregiradas = v))" Label="Solo sobregiradas"
+                           Color="Color.Error" />
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Nota</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Emitida</MudTh>
+            <MudTh Style="text-align: right">Total</MudTh>
+            <MudTh Style="text-align: right">Disponible</MudTh>
+            <MudTh>Vence</MudTh>
+            <MudTh>Estado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Nota"><strong>@(context.Encf ?? context.Numero)</strong><div class="cg-central__detalle">@context.Numero</div></MudTd>
+            <MudTd DataLabel="Cliente">@context.ClienteNombre<div class="cg-central__detalle">@context.ClienteDocumento</div></MudTd>
+            <MudTd DataLabel="Emitida">
+                @context.EmitidaEn.ToLocalTime().ToString("dd/MM/yyyy")
+                <div class="cg-central__detalle">Sucursal @context.SucursalCodigo · caja @context.CajaCodigo</div>
+            </MudTd>
+            <MudTd DataLabel="Total" Style="text-align: right">
+                @context.Total.ToString("N2")
+                <div class="cg-central__detalle">Consumido @context.Consumido.ToString("N2")</div>
+            </MudTd>
+            <MudTd DataLabel="Disponible" Style="text-align: right">
+                <strong>@context.Disponible.ToString("N2")</strong>
+                @if (context.Reservado > 0)
+                {
+                    <div class="cg-central__detalle">Reservado @context.Reservado.ToString("N2")</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Vence">
+                @context.VenceEn.ToString("dd/MM/yyyy")
+                @if (context.ProrrogadaEn is not null)
+                {
+                    <div class="cg-central__detalle">Habilitada</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@ColorEstado(context.Estado)" Variant="Variant.Outlined">@Etiqueta(context.Estado)</MudChip>
+                @if (context.Sobregirada)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="MudBlazor.Color.Error">Sobregirada</MudChip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay notas de crédito que coincidan.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<DatosNotaCreditoCentral>? _tabla;
+    private string? _buscar;
+    private EstadoNotaCreditoCentral? _estado;
+    private bool _soloSobregiradas;
+    private bool _error;
+
+    private static string Etiqueta(EstadoNotaCreditoCentral estado) => estado switch
+    {
+        EstadoNotaCreditoCentral.Consumida => "Consumida",
+        EstadoNotaCreditoCentral.Vencida => "Vencida",
+        _ => "Vigente",
+    };
+
+    private static Color ColorEstado(EstadoNotaCreditoCentral estado) => estado switch
+    {
+        EstadoNotaCreditoCentral.Consumida => MudBlazor.Color.Default,
+        EstadoNotaCreditoCentral.Vencida => MudBlazor.Color.Warning,
+        _ => MudBlazor.Color.Success,
+    };
+
+    private async Task<TableData<DatosNotaCreditoCentral>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarNotasCreditoAsync(_buscar, _estado, _soloSobregiradas, estado.Page, estado.PageSize, cancelacion);
+        _error = pagina is null;
+        return new TableData<DatosNotaCreditoCentral> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private async Task AbrirAsync(DatosNotaCreditoCentral nota)
+    {
+        var parametros = new DialogParameters<DialogoNotaCredito> { { d => d.Nota, nota } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoNotaCredito>($"Nota de crédito {nota.Encf ?? nota.Numero}", parametros, opciones);
+        if (await referencia.Result is { Canceled: false })
+            await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+    }
+}

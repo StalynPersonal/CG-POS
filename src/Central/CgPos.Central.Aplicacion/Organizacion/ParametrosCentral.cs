@@ -81,4 +81,10 @@ public static class ClavesParametrosCentral
 
     /// <summary>Minutos desde la recepción tras los que un e-CF sin resultado de la DGII es una alerta.</summary>
     public const string MonitorMinutosAlertaDgii = "Central.Monitor.MinutosAlertaDgii";
+
+    /// <summary>Minutos que el Central retiene el saldo de una nota de crédito mientras una caja termina de cobrar.</summary>
+    public const string NotasCreditoMinutosReserva = "Central.NotasCredito.MinutosReserva";
+
+    /// <summary>Meses desde la emisión hasta los que se puede habilitar una nota de crédito vencida (RF-40).</summary>
+    public const string NotasCreditoMesesMaximoProrroga = "Central.NotasCredito.MesesMaximoProrroga";
 }

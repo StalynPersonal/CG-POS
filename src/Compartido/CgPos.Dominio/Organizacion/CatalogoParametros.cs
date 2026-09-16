@@ -150,6 +150,9 @@ public static class CatalogoParametros
 
         new("Central.Monitor.MinutosSinComunicacion", "Monitor de sincronización", "Minutos sin mensajes ni descargas tras los que una caja habilitada es alerta", Entero, true, Central, Minimo: 1),
         new("Central.Monitor.MinutosAlertaDgii", "Monitor de sincronización", "Minutos sin resultado de la DGII tras los que un e-CF es alerta", Entero, true, Central, Minimo: 1),
+
+        new("Central.NotasCredito.MinutosReserva", "Notas de crédito", "Minutos que se retiene el saldo de una nota de crédito mientras una caja cobra", Entero, true, Central, Minimo: 1),
+        new("Central.NotasCredito.MesesMaximoProrroga", "Notas de crédito", "Meses desde la emisión hasta los que se puede habilitar una nota vencida", Entero, true, Central, Minimo: 1, Maximo: 60),
     ];
 
     private static readonly FrozenDictionary<string, DefinicionParametro> PorClave = Todos.ToFrozenDictionary(d => d.Clave, StringComparer.Ordinal);

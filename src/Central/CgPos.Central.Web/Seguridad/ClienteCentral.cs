@@ -267,6 +267,30 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> ResolverConflictoAsync(Guid conflictoId, string resolucion) =>
         EnviarAsync(HttpMethod.Post, $"api/monitor/conflictos/{conflictoId}/resolver", new SolicitudResolverConflicto(resolucion));
 
+    // ---------- Notas de crédito ----------
+
+    public async Task<PaginaNotasCreditoCentral?> BuscarNotasCreditoAsync(string? buscar, CgPos.Dominio.Devoluciones.EstadoNotaCreditoCentral? estado,
+        bool soloSobregiradas, int pagina, int tamano, CancellationToken cancelacion = default)
+    {
+        var ruta = $"api/manager/notas-credito?pagina={pagina}&tamano={tamano}&soloSobregiradas={(soloSobregiradas ? "true" : "false")}"
+                   + (estado is { } filtro ? $"&estado={filtro}" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaNotasCreditoCentral>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<IReadOnlyList<DatosMovimientoNotaCredito>?> ListarMovimientosNotaCreditoAsync(Guid notaCreditoId) =>
+        ListarAsync<DatosMovimientoNotaCredito>($"api/manager/notas-credito/{notaCreditoId}/movimientos");
+
+    public Task<RespuestaAdministracion> ProrrogarNotaCreditoAsync(Guid notaCreditoId, DateOnly venceEn, string motivo) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/notas-credito/{notaCreditoId}/prorrogar", new SolicitudProrrogaNotaCredito(venceEn, motivo));
+
     // ---------- Comunes ----------
 
     /// <returns>La respuesta tipada o el motivo por el que no se obtuvo.</returns>

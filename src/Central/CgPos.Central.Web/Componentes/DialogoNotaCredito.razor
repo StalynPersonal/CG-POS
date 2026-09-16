@@ -1,0 +1,122 @@
+@* Detalle de una nota de crédito: saldo, movimientos y habilitación de una vencida (RF-40). *@
+@using CgPos.Dominio.Devoluciones
+@inject ClienteCentral Central
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Número</div>@Nota.Numero</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Emitida</div>@Nota.EmitidaEn.ToLocalTime().ToString("dd/MM/yyyy")</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Sucursal y caja</div>@Nota.SucursalCodigo · @Nota.CajaCodigo</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Vence</div>@Nota.VenceEn.ToString("dd/MM/yyyy")</MudItem>
+            <MudItem xs="12" sm="6"><div class="cg-central__detalle">Cliente</div>@Nota.ClienteNombre (@Nota.ClienteDocumento)</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Total</div>@Nota.Moneda @Nota.Total.ToString("N2")</MudItem>
+            <MudItem xs="6" sm="3">
+                <div class="cg-central__detalle">Disponible</div>
+                <MudText Typo="Typo.h6" Color="Color.Primary">@Nota.Disponible.ToString("N2")</MudText>
+                @if (Nota.Reservado > 0)
+                {
+                    <div class="cg-central__detalle">Reservado @Nota.Reservado.ToString("N2")</div>
+                }
+            </MudItem>
+
+            @if (Nota.Sobregirada)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Error" Dense="true">
+                        Las cajas consumieron @Nota.Consumido.ToString("N2") de un total de @Nota.Total.ToString("N2"): revíselo con las sucursales.
+                    </MudAlert>
+                </MudItem>
+            }
+            @if (Nota.ProrrogadaEn is { } prorrogada)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Habilitada el @prorrogada.ToLocalTime().ToString("dd/MM/yyyy") por @Nota.ProrrogadaPor: @Nota.MotivoProrroga
+                    </MudAlert>
+                </MudItem>
+            }
+
+            @if (Nota.Estado == EstadoNotaCreditoCentral.Vencida)
+            {
+                <MudItem xs="12"><MudText Typo="Typo.subtitle1">Habilitar la nota vencida</MudText></MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudDatePicker @bind-Date="_venceEn" Label="Nueva fecha de vencimiento" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="8">
+                    <MudTextField T="string" @bind-Value="_motivo" Label="Motivo y quién lo autoriza" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.EventAvailable" Disabled="_procesando"
+                               OnClick="ProrrogarAsync">Habilitar</MudButton>
+                </MudItem>
+            }
+
+            <MudItem xs="12"><MudText Typo="Typo.subtitle1">Movimientos</MudText></MudItem>
+            <MudItem xs="12">
+                <MudSimpleTable Dense="true" Style="max-height: 280px; overflow-y: auto">
+                    <thead>
+                        <tr><th>Fecha</th><th>Tipo</th><th>Caja</th><th style="text-align: right">Monto</th><th>Detalle</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var movimiento in _movimientos)
+                        {
+                            <tr>
+                                <td>@movimiento.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@movimiento.Tipo</td>
+                                <td>@movimiento.CajaCodigo</td>
+                                <td style="text-align: right">@(movimiento.Monto == 0 ? "" : movimiento.Monto.ToString("N2"))</td>
+                                <td>@movimiento.Detalle</td>
+                            </tr>
+                        }
+                        @if (_movimientos.Count == 0)
+                        {
+                            <tr><td colspan="5">Sin movimientos.</td></tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            @if (_mensaje is not null)
+            {
+                <MudItem xs="12"><MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert></MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosNotaCreditoCentral Nota { get; set; } = default!;
+
+    private IReadOnlyList<DatosMovimientoNotaCredito> _movimientos = [];
+    private DateTime? _venceEn = DateTime.Today.AddMonths(1);
+    private string? _motivo;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync() =>
+        _movimientos = await Central.ListarMovimientosNotaCreditoAsync(Nota.Id) ?? [];
+
+    private async Task ProrrogarAsync()
+    {
+        _mensaje = _venceEn is null ? "Indique la nueva fecha de vencimiento."
+            : string.IsNullOrWhiteSpace(_motivo) ? "Indique el motivo y quién lo autoriza."
+            : null;
+        if (_mensaje is not null)
+            return;
+
+        _procesando = true;
+        var respuesta = await Central.ProrrogarNotaCreditoAsync(Nota.Id, DateOnly.FromDateTime(_venceEn!.Value), _motivo!.Trim());
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo habilitar la nota de crédito.";
+    }
+}

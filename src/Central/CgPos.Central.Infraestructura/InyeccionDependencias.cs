@@ -53,6 +53,9 @@ public static class InyeccionDependencias
         servicios.AddScoped<Aplicacion.Sincronizacion.IServicioBajadaMaestros, Sincronizacion.ServicioBajadaMaestros>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IServicioMonitorCentral, Sincronizacion.ServicioMonitorCentral>();
 
+        // Notas de crédito entre sucursales (M10).
+        servicios.AddScoped<Aplicacion.Devoluciones.IServicioNotasCreditoCentral, Devoluciones.ServicioNotasCreditoCentral>();
+
         // Envío de los e-CF a la DGII (M09). Sin "Dgii:Cliente" se usa la DGII real; el simulador es solo para desarrollo.
         var opcionesDgii = new Dgii.OpcionesDgii(configuracion["Dgii:Cliente"], configuracion["Dgii:Certificado:Ruta"], configuracion["Dgii:Certificado:Pin"]);
         servicios.AddSingleton(opcionesDgii);

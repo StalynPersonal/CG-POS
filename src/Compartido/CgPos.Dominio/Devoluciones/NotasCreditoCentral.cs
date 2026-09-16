@@ -1,0 +1,183 @@
+using CgPos.Dominio.Comun;
+
+namespace CgPos.Dominio.Devoluciones;
+
+public enum EstadoNotaCreditoCentral
+{
+    Vigente,
+    Consumida,
+    Vencida,
+}
+
+/// <summary>
+/// Nota de crédito emitida por una caja y registrada en el Central para poder consumirla en cualquier sucursal (RF-38, RF-43).
+/// El saldo es el total menos lo consumido; una reserva retiene saldo mientras otra caja termina de cobrar.
+/// </summary>
+public sealed class NotaCreditoCentral : Entidad
+{
+    public const int LargoMaximoNumero = 40;
+    public const int LargoMaximoEncf = 13;
+    public const int LargoMaximoTexto = 200;
+    public const int LargoMaximoMoneda = 3;
+    public const int LargoMaximoMotivo = 500;
+
+    private NotaCreditoCentral()
+    {
+    }
+
+    public string Numero { get; private set; } = string.Empty;
+    public string? Encf { get; private set; }
+    public Guid CajaId { get; private set; }
+    public Guid SucursalId { get; private set; }
+    public string ClienteDocumento { get; private set; } = string.Empty;
+    public string ClienteNombre { get; private set; } = string.Empty;
+    public string Moneda { get; private set; } = string.Empty;
+    public decimal Total { get; private set; }
+
+    /// <summary>Suma de los consumos informados por las cajas.</summary>
+    public decimal Consumido { get; private set; }
+
+    public DateOnly VenceEn { get; private set; }
+    public DateTimeOffset EmitidaEn { get; private set; }
+    public DateTimeOffset RegistradaEn { get; private set; }
+    public DateTimeOffset? ProrrogadaEn { get; private set; }
+    public string? ProrrogadaPor { get; private set; }
+    public string? MotivoProrroga { get; private set; }
+
+    public decimal Saldo => Total - Consumido;
+
+    /// <summary>Cajas sin conexión consumieron más que el total: hay que revisarlo con la sucursal.</summary>
+    public bool Sobregirada => Consumido > Total;
+
+    public EstadoNotaCreditoCentral Estado(DateOnly hoy) =>
+        Saldo <= 0 ? EstadoNotaCreditoCentral.Consumida
+        : hoy > VenceEn ? EstadoNotaCreditoCentral.Vencida
+        : EstadoNotaCreditoCentral.Vigente;
+
+    public static NotaCreditoCentral Registrar(Guid id, string numero, string? encf, Guid cajaId, Guid sucursalId, string? clienteDocumento, string? clienteNombre,
+        string moneda, decimal total, DateOnly venceEn, DateTimeOffset emitidaEn, DateTimeOffset ahora)
+    {
+        if (total <= 0)
+            throw new ArgumentOutOfRangeException(nameof(total), total, "El total de la nota de crédito debe ser mayor que cero.");
+
+        return new NotaCreditoCentral
+        {
+            Id = Validar.Id(id, "Nota de crédito"),
+            Numero = Validar.Texto(numero, "Número de la nota de crédito", LargoMaximoNumero),
+            Encf = Validar.TextoOpcional(encf, "e-NCF", LargoMaximoEncf),
+            CajaId = Validar.Id(cajaId, "Caja"),
+            SucursalId = Validar.Id(sucursalId, "Sucursal"),
+            ClienteDocumento = Validar.TextoOpcional(clienteDocumento, "Documento del cliente", LargoMaximoTexto) ?? string.Empty,
+            ClienteNombre = Validar.TextoOpcional(clienteNombre, "Nombre del cliente", LargoMaximoTexto) ?? string.Empty,
+            Moneda = Validar.Texto(moneda, "Moneda", LargoMaximoMoneda).ToUpperInvariant(),
+            Total = total,
+            VenceEn = venceEn,
+            EmitidaEn = emitidaEn,
+            RegistradaEn = ahora,
+        };
+    }
+
+    /// <summary>Consumo ya hecho por una caja: se registra aunque deje el saldo en negativo, para que el Central lo muestre.</summary>
+    public void AplicarConsumo(decimal monto)
+    {
+        if (monto <= 0)
+            throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto consumido debe ser mayor que cero.");
+
+        Consumido += monto;
+    }
+
+    /// <summary>Habilita una nota de crédito vencida hasta una fecha nueva, con quién lo autorizó y por qué (RF-40).</summary>
+    public void Prorrogar(DateOnly nuevaFecha, string usuario, string motivo, DateTimeOffset ahora)
+    {
+        if (nuevaFecha <= VenceEn)
+            throw new ArgumentException("La nueva fecha debe ser posterior al vencimiento actual.", nameof(nuevaFecha));
+
+        VenceEn = nuevaFecha;
+        ProrrogadaEn = ahora;
+        ProrrogadaPor = Validar.Texto(usuario, "Usuario", LargoMaximoTexto);
+        MotivoProrroga = Validar.Texto(motivo, "Motivo", LargoMaximoMotivo);
+    }
+}
+
+/// <summary>Consumo de una nota de crédito informado por una caja. Una venta la consume una sola vez (RF-38).</summary>
+public sealed class ConsumoNotaCreditoCentral : Entidad
+{
+    private ConsumoNotaCreditoCentral()
+    {
+    }
+
+    public Guid NotaCreditoId { get; private set; }
+    public Guid VentaId { get; private set; }
+    public string VentaNumero { get; private set; } = string.Empty;
+    public Guid CajaId { get; private set; }
+    public decimal Monto { get; private set; }
+    public DateTimeOffset Fecha { get; private set; }
+    public DateTimeOffset RegistradoEn { get; private set; }
+
+    public static ConsumoNotaCreditoCentral Registrar(Guid notaCreditoId, Guid ventaId, string? ventaNumero, Guid cajaId, decimal monto, DateTimeOffset fecha,
+        DateTimeOffset ahora)
+    {
+        if (monto <= 0)
+            throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto consumido debe ser mayor que cero.");
+
+        return new ConsumoNotaCreditoCentral
+        {
+            NotaCreditoId = Validar.Id(notaCreditoId, "Nota de crédito"),
+            VentaId = Validar.Id(ventaId, "Venta"),
+            VentaNumero = Validar.TextoOpcional(ventaNumero, "Número de la venta", NotaCreditoCentral.LargoMaximoNumero) ?? string.Empty,
+            CajaId = Validar.Id(cajaId, "Caja"),
+            Monto = monto,
+            Fecha = fecha,
+            RegistradoEn = ahora,
+        };
+    }
+}
+
+/// <summary>
+/// Saldo retenido para una caja mientras cobra con una nota de crédito de otra sucursal: evita que dos cajas consuman el mismo saldo.
+/// Vence sola si la caja no confirma el consumo.
+/// </summary>
+public sealed class ReservaNotaCreditoCentral : Entidad
+{
+    public const int LargoMaximoCierre = 40;
+
+    private ReservaNotaCreditoCentral()
+    {
+    }
+
+    public Guid NotaCreditoId { get; private set; }
+    public Guid CajaId { get; private set; }
+    public decimal Monto { get; private set; }
+    public DateTimeOffset CreadaEn { get; private set; }
+    public DateTimeOffset VenceEn { get; private set; }
+    public DateTimeOffset? CerradaEn { get; private set; }
+
+    /// <summary>Cómo terminó: consumida por la venta, liberada por la caja o vencida sin usarse.</summary>
+    public string? Cierre { get; private set; }
+
+    public bool EstaVigente(DateTimeOffset ahora) => CerradaEn is null && VenceEn > ahora;
+
+    public static ReservaNotaCreditoCentral Crear(Guid notaCreditoId, Guid cajaId, decimal monto, DateTimeOffset ahora, TimeSpan vigencia)
+    {
+        if (monto <= 0)
+            throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto de la reserva debe ser mayor que cero.");
+
+        return new ReservaNotaCreditoCentral
+        {
+            NotaCreditoId = Validar.Id(notaCreditoId, "Nota de crédito"),
+            CajaId = Validar.Id(cajaId, "Caja"),
+            Monto = monto,
+            CreadaEn = ahora,
+            VenceEn = ahora + vigencia,
+        };
+    }
+
+    public void Cerrar(string cierre, DateTimeOffset ahora)
+    {
+        if (CerradaEn is not null)
+            return;
+
+        CerradaEn = ahora;
+        Cierre = Validar.Texto(cierre, "Cierre", LargoMaximoCierre);
+    }
+}

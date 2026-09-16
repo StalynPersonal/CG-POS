@@ -8,6 +8,7 @@ using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +66,10 @@ internal sealed class ServicioRecepcion(
 
         if (mensaje.TipoMensaje == TiposMensaje.InscripcionFidelidad)
             await PublicarInscripcionAsync(documento, ahora, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.NotaCreditoEmitida)
+            await RegistrarNotaCreditoAsync(documento, ahora, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.NotaCreditoConsumida)
+            await RegistrarConsumoNotaCreditoAsync(documento, ahora, cancelacion);
 
         estado.RegistrarRecepcion(ahora);
 
@@ -173,6 +178,83 @@ internal sealed class ServicioRecepcion(
         contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null,
             JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, $"Inscripción en caja {documento.CajaId}",
             new FilaMaestro(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null, miembro).TextoBusqueda()));
+    }
+
+    /// <summary>Registra la nota de crédito en el Central para poder consumirla en cualquier sucursal (RF-43).</summary>
+    private async Task RegistrarNotaCreditoAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        DocumentoNotaCreditoEmitida? emitida = null;
+        try
+        {
+            emitida = JsonSerializer.Deserialize<DocumentoNotaCreditoEmitida>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (emitida?.NotaCredito is not { } datos || datos.Id == Guid.Empty)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                "La nota de crédito no se pudo leer; el mensaje se guardó sin registrarla para otras sucursales.", ahora, cancelacion);
+            return;
+        }
+
+        if (await contexto.NotasCredito.AnyAsync(n => n.Id == datos.Id, cancelacion))
+            return;
+
+        try
+        {
+            var nota = NotaCreditoCentral.Registrar(datos.Id, datos.Numero, datos.Comprobante?.Encf, documento.CajaId, documento.SucursalId, datos.ClienteDocumento,
+                datos.ClienteNombre, datos.Moneda, datos.Total, datos.VenceEn, datos.CreadaEn, ahora);
+
+            // Un consumo puede llegar antes que la emisión: los mensajes de una caja llegan en orden, pero los de dos cajas no.
+            var consumido = await contexto.ConsumosNotaCredito.Where(c => c.NotaCreditoId == nota.Id).SumAsync(c => (decimal?)c.Monto, cancelacion) ?? 0m;
+            if (consumido > 0)
+                nota.AplicarConsumo(consumido);
+
+            contexto.NotasCredito.Add(nota);
+        }
+        catch (ArgumentException excepcion)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                $"La nota de crédito {datos.Numero} no se pudo registrar: {ValidacionMaestros.MensajeError(excepcion)}", ahora, cancelacion);
+        }
+    }
+
+    /// <summary>Descuenta del saldo central lo que una caja consumió y cierra la reserva que tenía (RF-38).</summary>
+    private async Task RegistrarConsumoNotaCreditoAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        DocumentoConsumoNotaCredito? consumo = null;
+        try
+        {
+            consumo = JsonSerializer.Deserialize<DocumentoConsumoNotaCredito>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (consumo is null || consumo.NotaCreditoId == Guid.Empty || consumo.VentaId == Guid.Empty || consumo.Monto <= 0)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                "El consumo de la nota de crédito no se pudo leer; el mensaje se guardó sin descontar el saldo.", ahora, cancelacion);
+            return;
+        }
+
+        if (await contexto.ConsumosNotaCredito.AnyAsync(c => c.NotaCreditoId == consumo.NotaCreditoId && c.VentaId == consumo.VentaId, cancelacion))
+            return;
+
+        contexto.ConsumosNotaCredito.Add(ConsumoNotaCreditoCentral.Registrar(consumo.NotaCreditoId, consumo.VentaId, consumo.VentaNumero, documento.CajaId,
+            consumo.Monto, consumo.Fecha, ahora));
+
+        // Si la emisión todavía no llegó, el saldo se ajusta al registrarla.
+        if (await contexto.NotasCredito.SingleOrDefaultAsync(n => n.Id == consumo.NotaCreditoId, cancelacion) is { } nota)
+            nota.AplicarConsumo(consumo.Monto);
+
+        var reserva = await contexto.ReservasNotaCredito
+            .Where(r => r.NotaCreditoId == consumo.NotaCreditoId && r.CajaId == documento.CajaId && r.CerradaEn == null)
+            .OrderBy(r => r.CreadaEn)
+            .FirstOrDefaultAsync(cancelacion);
+        reserva?.Cerrar("Consumida", ahora);
     }
 
     private async Task<RespuestaRecepcionCentral> RechazarAsync(MensajeSincronizacion mensaje, CajaRemitente remitente, EstadoSincronizacionCaja estado,

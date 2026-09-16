@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización).
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). De H5 está hecho el consumo de notas de crédito entre sucursales.
 
 ## Stack
 
@@ -222,7 +222,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Plazo:** pasados `Devoluciones.DiasRetencionImpuesto` días (30 por defecto) se retiene el ITBIS y la nota acredita solo la base.
 - **Nota de crédito E34:** se firma en la caja en la misma transacción, con referencia al e-CF de la factura (código 1 si completa la factura, 3 si es parcial), y viaja al Central en `Devolucion.NotaCreditoEmitida`. Se imprimen la copia del cliente (código de barras y política `Devoluciones.PoliticaNotaCredito`) y la de contabilidad.
 - **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente (`Devoluciones.MesesVigenciaNotaCredito`) y tenga saldo. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
-- **Otra sucursal:** las facturas y notas de crédito que no existen en la caja se informan como tales; se validarán con el Central en la Etapa 2.
+- **Otra sucursal:** una nota de crédito que no está en la caja se valida y se reserva en el Central al cobrar (ver *Notas de crédito entre sucursales*); las facturas de otra sucursal se siguen informando como no encontradas.
 - **API:** `GET /api/devoluciones/factura/{numero}`, `POST /api/devoluciones`, `GET /api/devoluciones/notas-credito/{codigo}`, `POST /api/devoluciones/{id}/reimprimir`, `GET /api/devoluciones/motivos`.
 
 ### Programa de fidelidad
@@ -349,6 +349,22 @@ dotnet run --project src/Central/CgPos.Central.Api
 | `Central.Monitor.MinutosAlertaDgii` | Minutos sin resultado de la DGII tras los que un e-CF es alerta | Sí |
 
 - **API:** `GET /api/monitor`; `GET /api/monitor/comprobantes?estado=&cajaId=&buscar=&soloConFallo=&pagina=&tamano=`, `GET /api/monitor/comprobantes/{id}/xml`, `POST /api/monitor/comprobantes/{id}/reenviar`; `GET /api/monitor/conflictos?abiertos=`, `POST /api/monitor/conflictos/{id}/resolver`.
+
+### Notas de crédito entre sucursales
+
+- Cada nota de crédito que emite una caja se registra en el Central al sincronizar, con su total, cliente y vencimiento. Cualquier caja puede consultar su saldo por e-NCF o número, aunque se haya emitido en otra sucursal (RF-43).
+- **Reserva:** antes de cobrar con una nota, la caja pide retener el monto; el Central bloquea la fila y entrega lo que haya disponible (o menos, y lo avisa). La reserva vence sola a los `Central.NotasCredito.MinutosReserva` minutos y la caja puede liberarla si no cobra. Así dos cajas no consumen el mismo saldo.
+- **Consumo:** el mensaje de la caja descuenta el saldo y cierra su reserva. Una venta consume una nota una sola vez, aunque el mensaje llegue repetido. Un consumo puede llegar antes que la emisión (son cajas distintas): se guarda igual y el saldo se ajusta al registrarla.
+- **Sobregiro:** si varias cajas sin conexión consumen más que el total, la nota queda marcada como sobregirada para revisarla con las sucursales; el Central no descarta lo que la caja ya cobró.
+- **Central Manager** (permiso `Central.NotasCredito.Administrar`): listado con búsqueda por e-NCF, número, documento o nombre, filtros por estado y sobregiradas, detalle con sus movimientos (consumos, reservas y prórrogas) y **habilitación de una nota vencida** (RF-40) con motivo, hasta `Central.NotasCredito.MesesMaximoProrroga` meses desde la emisión; queda en la auditoría.
+- **En la caja:** al cobrar con la forma de pago *Nota de crédito*, si el e-NCF no está en la caja se consulta al Central y se reserva el monto antes de cobrar. Si el Central no responde no se acepta (solo él conoce el saldo de otras sucursales), si el saldo no alcanza se devuelve la reserva y se indica lo disponible, y si el cobro no se completa (pago rechazado, falta de autorización o falla del e-CF) la reserva se libera. Cobrada la venta, el consumo sale en la bandeja de salida como `NotaCredito.Consumida`.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.NotasCredito.MinutosReserva` | Minutos que se retiene el saldo mientras la caja cobra | Sí |
+| `Central.NotasCredito.MesesMaximoProrroga` | Meses desde la emisión hasta los que se habilita una nota vencida | Sí |
+
+- **API de las cajas:** `GET /api/notas-credito/{codigo}`, `POST /api/notas-credito/{id}/reservas`, `DELETE /api/notas-credito/reservas/{id}`. **API del Manager:** `GET /api/manager/notas-credito?buscar=&estado=&soloSobregiradas=`, `GET /api/manager/notas-credito/{id}/movimientos`, `POST /api/manager/notas-credito/{id}/prorrogar`.
 
 ### Recepción de documentos de las cajas
 

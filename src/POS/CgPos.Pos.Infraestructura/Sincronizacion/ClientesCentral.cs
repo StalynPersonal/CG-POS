@@ -69,6 +69,14 @@ internal sealed class CentralNoConfigurado : IClienteCentral
 
     public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoBajadaCentral.SinConexion(Motivo));
+
+    public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoNotaCreditoCentral.SinConexion(Motivo));
+
+    public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(Guid notaCreditoId, decimal monto, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoReservaNotaCredito.SinConexion(Motivo));
+
+    public Task LiberarReservaNotaCreditoAsync(Guid reservaId, CancellationToken cancelacion = default) => Task.CompletedTask;
 }
 
 /// <summary>
@@ -77,6 +85,8 @@ internal sealed class CentralNoConfigurado : IClienteCentral
 /// </summary>
 internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 {
+    private const string SinNotasCredito = "El Central simulado no valida notas de crédito de otras sucursales.";
+
     public string Carpeta { get; } = carpeta;
 
     public bool Configurado => true;
@@ -91,6 +101,14 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 
     public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoBajadaCentral.Recibido(new PaqueteBajadaMaestros(desde, desde, null, null)));
+
+    public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoNotaCreditoCentral.SinConexion(SinNotasCredito));
+
+    public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(Guid notaCreditoId, decimal monto, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoReservaNotaCredito.SinConexion(SinNotasCredito));
+
+    public Task LiberarReservaNotaCreditoAsync(Guid reservaId, CancellationToken cancelacion = default) => Task.CompletedTask;
 
     public async Task<RespuestaRecepcionCentral> RecibirAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {
@@ -122,6 +140,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     public const string RutaRecepcion = "api/sincronizacion/mensajes";
     public const string RutaMaestros = "api/sincronizacion/maestros";
     public const string RutaToken = "api/dispositivos/token";
+    public const string RutaNotasCredito = "api/notas-credito";
 
     private static readonly SocketsHttpHandler Manejador = new()
     {
@@ -219,6 +238,74 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     }
 
     /// <summary>Envía la solicitud con el token de la caja; si el Central no lo acepta (venció o se revocó) pide otro una sola vez.</summary>
+    /// <summary>Retiene saldo de la nota mientras esta caja cobra; el Central la libera sola si no se confirma.</summary>
+    public async Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(Guid notaCreditoId, decimal monto, CancellationToken cancelacion = default)
+    {
+        var (respuesta, fallo) = await SolicitarAsync(() => new HttpRequestMessage(HttpMethod.Post, $"{RutaNotasCredito}/{notaCreditoId}/reservas")
+        {
+            Content = JsonContent.Create(new SolicitudReservaNotaCredito(monto), options: OpcionesJson.Predeterminadas),
+        }, cancelacion);
+
+        if (fallo is not null)
+            return ResultadoReservaNotaCredito.SinConexion(fallo.Error!);
+
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                if (!respuesta.IsSuccessStatusCode)
+                    return ResultadoReservaNotaCredito.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al reservar la nota de crédito.");
+
+                var reserva = await respuesta.Content.ReadFromJsonAsync<RespuestaReservaNotaCredito>(OpcionesJson.Predeterminadas, cancelacion);
+                return reserva is { Exitosa: true, ReservaId: { } reservaId }
+                    ? ResultadoReservaNotaCredito.Reservada(reservaId, reserva.Monto)
+                    : ResultadoReservaNotaCredito.Rechazada(reserva?.Mensaje ?? "El Central no reservó el saldo de la nota de crédito.");
+            }
+            catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
+            {
+                return ResultadoReservaNotaCredito.SinConexion(SinConexionPor(excepcion).Error!);
+            }
+        }
+    }
+
+    public async Task LiberarReservaNotaCreditoAsync(Guid reservaId, CancellationToken cancelacion = default)
+    {
+        var (respuesta, _) = await SolicitarAsync(() => new HttpRequestMessage(HttpMethod.Delete, $"{RutaNotasCredito}/reservas/{reservaId}"), cancelacion);
+        respuesta?.Dispose();
+    }
+
+    /// <summary>Saldo de una nota de crédito emitida en cualquier sucursal (RF-43).</summary>
+    public async Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default)
+    {
+        var (respuesta, fallo) = await SolicitarAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"{RutaNotasCredito}/{Uri.EscapeDataString(codigo)}"), cancelacion);
+
+        if (fallo is not null)
+            return ResultadoNotaCreditoCentral.SinConexion(fallo.Error!);
+
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                if (respuesta.StatusCode == HttpStatusCode.NotFound)
+                    return ResultadoNotaCreditoCentral.NoExiste($"El Central no tiene la nota de crédito {codigo}.");
+                if (!respuesta.IsSuccessStatusCode)
+                    return ResultadoNotaCreditoCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al consultar la nota de crédito.");
+
+                var nota = await respuesta.Content.ReadFromJsonAsync<DatosNotaCreditoCentral>(OpcionesJson.Predeterminadas, cancelacion);
+                return nota is null
+                    ? ResultadoNotaCreditoCentral.SinConexion("El Central devolvió una respuesta vacía.")
+                    : ResultadoNotaCreditoCentral.Encontrada(nota);
+            }
+            catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
+            {
+                return ResultadoNotaCreditoCentral.SinConexion(SinConexionPor(excepcion).Error!);
+            }
+        }
+    }
+
     private async Task<(HttpResponseMessage? Respuesta, ResultadoEnvioCentral? Fallo)> SolicitarAsync(Func<HttpRequestMessage> crearSolicitud, CancellationToken cancelacion)
     {
         if (_cajaId == Guid.Empty || _secreto is null)

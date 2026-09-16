@@ -70,6 +70,11 @@
                     <MudNavLink Href="promociones/simular" Icon="@Icons.Material.Filled.Calculate">Simular</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarNotasCredito">
+                <MudNavGroup Title="Devoluciones" Icon="@Icons.Material.Filled.AssignmentReturn" Expanded="true">
+                    <MudNavLink Href="notas-credito" Icon="@Icons.Material.Filled.ReceiptLong">Notas de crédito</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">
                 <MudNavGroup Title="Fiscal" Icon="@Icons.Material.Filled.ReceiptLong" Expanded="true">
                     <MudNavLink Href="fiscal/secuencias" Icon="@Icons.Material.Filled.FormatListNumbered">Rangos de e-CF</MudNavLink>

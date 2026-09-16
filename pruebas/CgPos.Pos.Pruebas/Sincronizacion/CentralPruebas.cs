@@ -1,5 +1,6 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
+using CgPos.Contratos.Central;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Sincronizacion;
@@ -154,4 +155,34 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
 
     public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoBajadaCentral.Recibido(bajada ?? new PaqueteBajadaMaestros(desde, desde, null, null)));
+
+    /// <summary>Notas de crédito de otras sucursales que este Central conoce, por código consultado (RF-43).</summary>
+    public Dictionary<string, DatosNotaCreditoCentral> NotasCredito { get; } = [];
+
+    public List<(Guid NotaCreditoId, decimal Monto)> Reservas { get; } = [];
+
+    public List<Guid> ReservasLiberadas { get; } = [];
+
+    public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
+        Task.FromResult(NotasCredito.TryGetValue(codigo, out var nota)
+            ? ResultadoNotaCreditoCentral.Encontrada(nota)
+            : ResultadoNotaCreditoCentral.NoExiste("La nota de crédito no existe en el Central."));
+
+    public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(Guid notaCreditoId, decimal monto, CancellationToken cancelacion = default)
+    {
+        var nota = NotasCredito.Values.SingleOrDefault(n => n.Id == notaCreditoId);
+        if (nota is null || nota.Disponible <= 0m)
+            return Task.FromResult(ResultadoReservaNotaCredito.Rechazada("La nota de crédito no tiene saldo disponible."));
+
+        var reservado = Math.Min(monto, nota.Disponible);
+        Reservas.Add((notaCreditoId, reservado));
+        NotasCredito[NotasCredito.First(p => p.Value.Id == notaCreditoId).Key] = nota with { Reservado = nota.Reservado + reservado, Disponible = nota.Disponible - reservado };
+        return Task.FromResult(ResultadoReservaNotaCredito.Reservada(Guid.CreateVersion7(), reservado));
+    }
+
+    public Task LiberarReservaNotaCreditoAsync(Guid reservaId, CancellationToken cancelacion = default)
+    {
+        ReservasLiberadas.Add(reservaId);
+        return Task.CompletedTask;
+    }
 }

@@ -1,4 +1,4 @@
-using CgPos.Contratos.CargaInicial;
+﻿using CgPos.Contratos.CargaInicial;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Organizacion;
@@ -60,7 +60,7 @@ public sealed class EscenarioSeguridad
     }
 
     /// <summary>Proveedor con reloj controlable, la caja indicada como caja actual y un lector de huella fijo.</summary>
-    public (ServiceProvider Proveedor, RelojPrueba Reloj) CrearProveedor(Guid? cajaId, Guid? usuarioHuella = null)
+    public (ServiceProvider Proveedor, RelojPrueba Reloj) CrearProveedor(Guid? cajaId, Guid? usuarioHuella = null, Action<IServiceCollection>? extras = null)
     {
         var reloj = new RelojPrueba(Inicio);
         var proveedor = _baseDatos.CrearProveedor(servicios =>
@@ -68,6 +68,7 @@ public sealed class EscenarioSeguridad
             servicios.AddSingleton<TimeProvider>(reloj);
             servicios.AddSingleton<IContextoCaja>(new ContextoCajaFijo(cajaId));
             servicios.AddScoped<ILectorHuella>(_ => new LectorHuellaFijo(usuarioHuella));
+            extras?.Invoke(servicios);
         });
 
         return (proveedor, reloj);

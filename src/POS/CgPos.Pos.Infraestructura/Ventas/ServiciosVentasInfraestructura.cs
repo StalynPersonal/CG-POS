@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
@@ -221,6 +221,7 @@ internal sealed class ServicioVentas(
     EmisionComprobantes emisorEcf,
     GeneradorSecuencias secuencias,
     IAuditoria auditoria,
+    CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral central,
     TimeProvider reloj) : IServicioVentas, IServicioCobro
 {
     // ---------- Cobro y periféricos (M08) ----------
@@ -312,9 +313,12 @@ internal sealed class ServicioVentas(
         {
             permisoCanje = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.CanjearPuntos, autorizacionId, TipoEntidadVenta, venta.NumeroTransaccion, cancelacion);
             if (!permisoCanje.Permitido)
+            {
+                await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
                 return new RespuestaCobro(
                     permisoCanje.AutorizacionRechazada ? CodigoResultadoVenta.AutorizacionInvalida : CodigoResultadoVenta.RequiereAutorizacion,
                     "El canje de puntos requiere autorización de un supervisor.", null, null, Datos(venta), CatalogoPermisos.CanjearPuntos);
+            }
         }
 
         var paso = await parametros.ObtenerDecimalAsync(ClavesParametros.PasoRedondeoEfectivo, sesion.CajaId, cancelacion);
@@ -326,6 +330,7 @@ internal sealed class ServicioVentas(
         catch (ReglaVentaExcepcion excepcion)
         {
             contexto.ChangeTracker.Clear();
+            await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
             var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
             return new RespuestaCobro(excepcion.Codigo.ACodigoResultado(), excepcion.Message, null, null, Datos(ventaActual));
         }
@@ -346,6 +351,7 @@ internal sealed class ServicioVentas(
         {
             await transaccion.RollbackAsync(cancelacion);
             contexto.ChangeTracker.Clear();
+            await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
             var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
             return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
         }
@@ -359,6 +365,11 @@ internal sealed class ServicioVentas(
             bandejaSalida.Encolar("NotaCredito.Consumida", nota.Id,
                 new DocumentoConsumoNotaCredito(nota.Id, nota.Encf, venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, saldo, ahora));
         }
+
+        // Notas de crédito de otras sucursales: el Central ya retuvo su saldo y aquí se le informa el consumo (RF-43).
+        foreach (var externa in solicitados.NotasExternas)
+            bandejaSalida.Encolar("NotaCredito.Consumida", externa.NotaId,
+                new DocumentoConsumoNotaCredito(externa.NotaId, externa.Encf, venta.Id, venta.NumeroTransaccion, venta.CajaId, externa.Monto, 0m, ahora));
 
         // Pendientes de entrega y envío: un documento numerado por destino, en la bandeja de salida (RF-249, RN-14).
         var pendientes = new List<PendienteEntrega>();
@@ -488,14 +499,18 @@ internal sealed class ServicioVentas(
             : new RespuestaVenta(CodigoResultadoVenta.Correcto, gaveta.Mensaje, null);
     }
 
+    /// <summary>Nota de crédito de otra sucursal: el Central la validó y retuvo su saldo mientras esta caja cobra (RF-43).</summary>
+    private sealed record NotaCreditoExternaUsada(Guid NotaId, string Encf, decimal Monto, Guid? ReservaId);
+
     private sealed record PagosArmados(
         IReadOnlyList<PagoSolicitado> Pagos,
         IReadOnlyList<OperacionTerminal> Operaciones,
         IReadOnlyList<(Devolucion Nota, decimal Monto)> NotasCredito,
+        IReadOnlyList<NotaCreditoExternaUsada> NotasExternas,
         (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo,
         int PuntosCanjeados = 0)
     {
-        public static PagosArmados Rechazado(CodigoResultadoVenta codigo, string mensaje) => new([], [], [], (codigo, mensaje));
+        public static PagosArmados Rechazado(CodigoResultadoVenta codigo, string mensaje) => new([], [], [], [], (codigo, mensaje));
     }
 
     /// <summary>
@@ -537,7 +552,19 @@ internal sealed class ServicioVentas(
     }
 
     /// <summary>Completa cada pago con los datos del maestro, la tasa del día y la aprobación registrada del terminal.</summary>
+    /// <summary>Arma los pagos y, si alguno se rechaza, devuelve al Central el saldo que ya se hubiera reservado de notas de otras sucursales (RF-43).</summary>
     private async Task<PagosArmados> ArmarPagosAsync(Venta venta, IReadOnlyList<SolicitudPago> pagos, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        var externas = new List<NotaCreditoExternaUsada>();
+        var armados = await ArmarPagosAsync(venta, pagos, ahora, externas, cancelacion);
+        if (armados.Rechazo is not null)
+            await LiberarReservasAsync(externas, cancelacion);
+
+        return armados;
+    }
+
+    private async Task<PagosArmados> ArmarPagosAsync(Venta venta, IReadOnlyList<SolicitudPago> pagos, DateTimeOffset ahora,
+        List<NotaCreditoExternaUsada> externas, CancellationToken cancelacion)
     {
         var idsFormas = pagos.Select(p => p.FormaPagoId).Distinct().ToList();
         var formas = await contexto.FormasPago.AsNoTracking().Where(f => idsFormas.Contains(f.Id) && f.Activa).ToDictionaryAsync(f => f.Id, cancelacion);
@@ -579,7 +606,7 @@ internal sealed class ServicioVentas(
                 usadas.Add(operacion);
             }
 
-            // Nota de crédito por su e-NCF (RF-36): debe existir en esta caja, estar vigente y tener saldo para lo que se aplica (RF-43).
+            // Nota de crédito por su e-NCF (RF-36): de esta caja o, si no la tiene, validada y reservada en el Central (RF-43).
             if (forma.Tipo == TipoFormaPago.NotaCredito)
             {
                 var codigo = pago.Referencia?.Trim().ToUpperInvariant();
@@ -587,25 +614,36 @@ internal sealed class ServicioVentas(
                     ? null
                     : notas.Select(n => n.Nota).FirstOrDefault(n => n.Encf == codigo)
                         ?? await contexto.Devoluciones.Include(d => d.Consumos).SingleOrDefaultAsync(d => d.Encf == codigo, cancelacion);
-                if (nota is null)
-                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, string.IsNullOrEmpty(codigo)
-                        ? "Escanee el código de la nota de crédito."
-                        : $"La nota de crédito {codigo} no existe en esta caja. Verifique el número; las de otra sucursal se validan con el Central.");
-
                 var monto = decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero);
-                var disponible = nota.Saldo - notas.Where(n => n.Nota == nota).Sum(n => n.Monto);
-                var problema = nota.EstadoSaldo(hoy) switch
-                {
-                    EstadoNotaCredito.Consumida => $"La nota de crédito {codigo} ya fue consumida.",
-                    EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn:dd/MM/yyyy}.",
-                    _ when monto > disponible => $"La nota de crédito {codigo} solo tiene {venta.SimboloMoneda}{disponible:N2} disponibles.",
-                    _ => null,
-                };
-                if (problema is not null)
-                    return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, problema);
 
-                notas.Add((nota, monto));
-                referencia = nota.Encf;
+                if (nota is null)
+                {
+                    if (string.IsNullOrEmpty(codigo))
+                        return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, "Escanee el código de la nota de crédito.");
+
+                    var (externa, rechazoExterna) = await ReservarEnCentralAsync(codigo, monto, externas, cancelacion);
+                    if (rechazoExterna is not null)
+                        return rechazoExterna;
+
+                    externas.Add(externa!);
+                    referencia = externa!.Encf;
+                }
+                else
+                {
+                    var disponible = nota.Saldo - notas.Where(n => n.Nota == nota).Sum(n => n.Monto);
+                    var problema = nota.EstadoSaldo(hoy) switch
+                    {
+                        EstadoNotaCredito.Consumida => $"La nota de crédito {codigo} ya fue consumida.",
+                        EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn:dd/MM/yyyy}.",
+                        _ when monto > disponible => $"La nota de crédito {codigo} solo tiene {venta.SimboloMoneda}{disponible:N2} disponibles.",
+                        _ => null,
+                    };
+                    if (problema is not null)
+                        return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, problema);
+
+                    notas.Add((nota, monto));
+                    referencia = nota.Encf;
+                }
             }
 
             // Puntos del miembro de la venta al valor configurado, con saldo, mínimo y tope sin conexión (RF-239, RF-243).
@@ -651,7 +689,49 @@ internal sealed class ServicioVentas(
                 operacionId));
         }
 
-        return new PagosArmados(solicitados, usadas, notas, null, puntosCanje);
+        return new PagosArmados(solicitados, usadas, notas, externas, null, puntosCanje);
+    }
+
+    /// <summary>
+    /// Nota de crédito que esta caja no tiene: el Central la valida y retiene su saldo mientras se cobra (RF-43). Sin comunicación no se acepta,
+    /// porque el saldo de las notas de otras sucursales solo lo conoce el Central.
+    /// </summary>
+    private async Task<(NotaCreditoExternaUsada? Nota, PagosArmados? Rechazo)> ReservarEnCentralAsync(string codigo, decimal monto,
+        IReadOnlyList<NotaCreditoExternaUsada> yaAplicadas, CancellationToken cancelacion)
+    {
+        var consulta = await central.ConsultarNotaCreditoAsync(codigo, cancelacion);
+        if (consulta.Nota is not { } nota)
+            return (null, PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, consulta.CentralRespondio
+                ? $"La nota de crédito {codigo} no existe en esta caja ni en el Central."
+                : $"La nota de crédito {codigo} no es de esta caja y el Central no responde: {consulta.Error}"));
+
+        if (yaAplicadas.Any(aplicada => aplicada.NotaId == nota.Id))
+            return (null, PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido, $"La nota de crédito {codigo} ya está aplicada en este cobro."));
+
+        var reserva = await central.ReservarNotaCreditoAsync(nota.Id, monto, cancelacion);
+        if (!reserva.Exitosa || reserva.ReservaId is not { } reservaId)
+            return (null, PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido,
+                reserva.Error ?? $"El Central no reservó el saldo de la nota de crédito {codigo}."));
+
+        // El Central retiene lo que haya: si no alcanza, se devuelve y se pide el monto correcto.
+        if (reserva.Monto < monto)
+        {
+            await central.LiberarReservaNotaCreditoAsync(reservaId, cancelacion);
+            return (null, PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido,
+                $"La nota de crédito {codigo} solo tiene {reserva.Monto:N2} disponibles en el Central."));
+        }
+
+        return (new NotaCreditoExternaUsada(nota.Id, nota.Encf ?? nota.Numero, monto, reservaId), null);
+    }
+
+    /// <summary>Devuelve al Central el saldo retenido cuando el cobro no se completó.</summary>
+    private async Task LiberarReservasAsync(IReadOnlyList<NotaCreditoExternaUsada> externas, CancellationToken cancelacion)
+    {
+        foreach (var externa in externas)
+        {
+            if (externa.ReservaId is { } reservaId)
+                await central.LiberarReservaNotaCreditoAsync(reservaId, cancelacion);
+        }
     }
 
     private Task<EncabezadoTicket> EncabezadoTicketAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
