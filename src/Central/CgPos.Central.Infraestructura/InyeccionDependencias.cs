@@ -62,6 +62,15 @@ public static class InyeccionDependencias
 
         // Pendientes de entrega y envíos de todas las sucursales (M12).
         servicios.AddScoped<Aplicacion.Entregas.IServicioDespachoCentral, Entregas.ServicioDespachoCentral>();
+
+        // Reportes y su exportación a Excel, PDF y al formato 607 (M16).
+        servicios.AddScoped<Reportes.RegistroVentasCentral>();
+        servicios.AddScoped<Aplicacion.Reportes.IServicioReportesCentral, Reportes.ServicioReportesCentral>();
+        servicios.AddSingleton<Aplicacion.Reportes.IExportadorReportes, Reportes.ExportadorReportes>();
+
+        // Actualización remota del Agente de las cajas (H7).
+        servicios.AddScoped<Aplicacion.Actualizaciones.IServicioActualizacionesCaja, Actualizaciones.ServicioActualizacionesCaja>();
+        servicios.AddScoped<Aplicacion.Padron.IServicioPadronCentral, Padron.ServicioPadronCentral>();
         if (!string.Equals(configuracion["Fidelidad:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
             servicios.AddHostedService<Fidelidad.TrabajadorVencimientoPuntos>();
 

@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Sincronizacion;
+﻿using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
 using CgPos.Contratos.Sincronizacion;
@@ -60,6 +60,13 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
                 .ToListAsync(cancelacion);
         }
 
+        // Todos los parámetros vigentes de esta caja: así la caja borra los que se eliminaron en el Central, que por definición no viajan en el rango.
+        var vigentes = await contexto.Parametros.AsNoTracking()
+            .Where(p => !p.Clave.StartsWith(PublicadorMaestros.PrefijoParametrosCentral)
+                && ((p.SucursalId == null && p.CajaId == null) || p.SucursalId == caja.SucursalId || p.CajaId == caja.CajaId))
+            .Select(p => p.Id)
+            .ToListAsync(cancelacion);
+
         var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == caja.CajaId, cancelacion);
         if (estado is null)
         {
@@ -70,7 +77,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         estado.RegistrarDescarga(reloj.GetUtcNow(), desde, hasta);
         await contexto.SaveChangesAsync(cancelacion);
 
-        return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null);
+        return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null, vigentes);
     }
 
     private static IQueryable<T> EnRango<T>(IQueryable<T> consulta, long desde, long hasta) where T : class =>

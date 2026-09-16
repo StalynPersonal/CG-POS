@@ -1,4 +1,4 @@
-using CgPos.Contratos.Sincronizacion;
+﻿using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 using CgPos.Pos.Aplicacion.CargaInicial;
@@ -62,6 +62,9 @@ internal sealed class DescargaMaestros(
 
             if (paquete.EstadosDgii is { Count: > 0 } estados)
                 actualizados += await AplicarEstadosDgiiAsync(estados, ahora, cancelacion);
+
+            if (paquete.ParametrosVigentes is { Count: > 0 } vigentes)
+                actualizados += await BorrarParametrosEliminadosAsync(vigentes, cancelacion);
         }
         catch (Exception excepcion) when (excepcion is CargaInicialInvalidaExcepcion or CargaMaestrosInvalidaExcepcion)
         {
@@ -90,6 +93,23 @@ internal sealed class DescargaMaestros(
     /// Resultado que la DGII dio a los e-CF ya emitidos por esta caja (RF-223). Solo cambia los documentos cuyo estado es distinto,
     /// para no repetir el historial en cada descarga.
     /// </summary>
+    /// <summary>
+    /// Borra los parámetros que ya no existen en el Central (RN-24): una baja no viaja en el rango de versiones, así que el Central
+    /// manda en cada descarga todos los que hoy aplican a esta caja y lo que sobre aquí se elimina.
+    /// </summary>
+    private async Task<int> BorrarParametrosEliminadosAsync(IReadOnlyList<Guid> vigentes, CancellationToken cancelacion)
+    {
+        var sobrantes = await contexto.Parametros.Where(p => !vigentes.Contains(p.Id)).ToListAsync(cancelacion);
+        if (sobrantes.Count == 0)
+            return 0;
+
+        contexto.Parametros.RemoveRange(sobrantes);
+        await contexto.SaveChangesAsync(cancelacion);
+        registro.LogInformation("Se borraron {Cantidad} parámetros que ya no existen en el Central: {Claves}", sobrantes.Count,
+            string.Join(", ", sobrantes.Select(p => p.Clave)));
+        return sobrantes.Count;
+    }
+
     private async Task<int> AplicarEstadosDgiiAsync(IReadOnlyList<EstadoDgiiCarga> estados, DateTimeOffset ahora, CancellationToken cancelacion)
     {
         var encfs = estados.Select(e => e.Encf).ToList();

@@ -1,4 +1,4 @@
-using CgPos.Pos.Aplicacion.Sincronizacion;
+﻿using CgPos.Pos.Aplicacion.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,5 +11,6 @@ internal sealed class MarcaSincronizacionConfiguracion : IEntityTypeConfiguratio
         constructor.ToTable("MarcasSincronizacion");
         constructor.HasKey(m => m.Clave);
         constructor.Property(m => m.Clave).HasMaxLength(MarcaSincronizacion.LargoMaximoClave).IsUnicode(false);
+        constructor.Property(m => m.Texto).HasMaxLength(MarcaSincronizacion.LargoMaximoTexto).IsUnicode(false);
     }
 }

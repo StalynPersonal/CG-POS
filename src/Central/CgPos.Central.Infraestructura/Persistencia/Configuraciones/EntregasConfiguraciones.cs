@@ -23,7 +23,7 @@ internal sealed class PendienteCentralConfiguracion : IEntityTypeConfiguration<P
         constructor.Property(p => p.ClienteNombre).HasMaxLength(PendienteCentral.LargoMaximoTexto);
         constructor.Property(p => p.Telefono).HasMaxLength(PendienteCentral.LargoMaximoTexto);
         constructor.Property(p => p.TextoBusqueda).HasMaxLength(PendienteCentral.LargoMaximoBusqueda).IsRequired();
-        constructor.Property(p => p.Contenido).IsRequired();
+        constructor.Property(p => p.Contenido).IsRequired().Metadata.SetMaxLength(null);
         constructor.Property(p => p.Unidades).HasPrecision(18, 3);
         constructor.Property(p => p.UnidadesEntregadas).HasPrecision(18, 3);
 

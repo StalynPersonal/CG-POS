@@ -2971,6 +2971,11 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
+                    b.Property<string>("Texto")
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<long>("Valor")
                         .HasColumnType("bigint");
 

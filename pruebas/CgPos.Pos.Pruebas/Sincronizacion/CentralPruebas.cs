@@ -185,4 +185,21 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
         ReservasLiberadas.Add(reservaId);
         return Task.CompletedTask;
     }
+
+    /// <summary>Padrón que este Central publica, con su contenido, para la actualización del padrón en la caja (RF-33).</summary>
+    public (DatosPadronPublicado Datos, byte[] Contenido)? Padron { get; set; }
+
+    public int DescargasPadron { get; private set; }
+
+    public Task<DatosPadronPublicado?> ConsultarPadronAsync(CancellationToken cancelacion = default) =>
+        Task.FromResult(Padron?.Datos);
+
+    public Task<Stream?> DescargarPadronAsync(CancellationToken cancelacion = default)
+    {
+        if (Padron is not { } padron)
+            return Task.FromResult<Stream?>(null);
+
+        DescargasPadron++;
+        return Task.FromResult<Stream?>(new MemoryStream(padron.Contenido));
+    }
 }

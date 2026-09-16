@@ -41,6 +41,7 @@
                     <MudNavLink Href="organizacion/sucursales" Icon="@Icons.Material.Filled.Store">Sucursales</MudNavLink>
                     <MudNavLink Href="organizacion/cajas" Icon="@Icons.Material.Filled.PointOfSale">Cajas</MudNavLink>
                     <MudNavLink Href="organizacion/parametros" Icon="@Icons.Material.Filled.Tune">Parámetros</MudNavLink>
+                    <MudNavLink Href="organizacion/actualizaciones" Icon="@Icons.Material.Filled.SystemUpdate">Actualización de cajas</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.MonitorearSincronizacion">
@@ -94,6 +95,11 @@
                 <MudNavGroup Title="Usuarios de caja" Icon="@Icons.Material.Filled.Badge" Expanded="true">
                     <MudNavLink Href="cajas/usuarios" Icon="@Icons.Material.Filled.PersonPin">Usuarios</MudNavLink>
                     <MudNavLink Href="cajas/roles" Icon="@Icons.Material.Filled.Rule">Roles y permisos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.ConsultarReportes">
+                <MudNavGroup Title="Reportes" Icon="@Icons.Material.Filled.Assessment" Expanded="true">
+                    <MudNavLink Href="reportes" Icon="@Icons.Material.Filled.TableChart">Reportes y exportación</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">

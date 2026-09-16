@@ -1,0 +1,75 @@
+@page "/organizacion/actualizaciones"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
+@inject ClienteCentral Cliente
+
+<PageTitle>Actualización de cajas · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Actualización de cajas</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Versión del Agente publicada para las cajas y cuál tiene instalada cada una. Cada caja se actualiza con su script cuando el negocio lo permite.
+        </MudText>
+    </div>
+</div>
+
+@if (_publicada is { } publicada)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        Publicada la versión <strong>@publicada.Version</strong> (@publicada.Archivo, @($"{publicada.Tamano / 1024d / 1024d:N1}") MB,
+        del @publicada.PublicadaEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")). Las cajas verifican su hash antes de instalarla.
+    </MudAlert>
+}
+else
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        No hay ninguna versión publicada. Configure <code>Central.Actualizaciones.CarpetaPaquetes</code> y
+        <code>Central.Actualizaciones.VersionPublicada</code> en Parámetros, y deje el paquete en esa carpeta.
+    </MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosVersionCaja" Items="_cajas" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" Dense="true">
+        <HeaderContent>
+            <MudTh>Sucursal</MudTh>
+            <MudTh>Caja</MudTh>
+            <MudTh>Versión instalada</MudTh>
+            <MudTh>Reportada</MudTh>
+            <MudTh>Estado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Sucursal">@context.SucursalCodigo</MudTd>
+            <MudTd DataLabel="Caja">@context.CajaCodigo<div class="cg-central__detalle">@context.CajaNombre</div></MudTd>
+            <MudTd DataLabel="Versión instalada">@(context.Version ?? "Sin reportar")</MudTd>
+            <MudTd DataLabel="Reportada">@(context.ReportadaEn?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (!context.Habilitada)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Deshabilitada</MudChip>
+                }
+                else if (context.AlDia)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Al día</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Pendiente</MudChip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay cajas registradas.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosVersionCaja> _cajas = [];
+    private DatosActualizacionCaja? _publicada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _publicada = await Cliente.VersionPublicadaAsync();
+        _cajas = await Cliente.ListarVersionesCajasAsync() ?? [];
+    }
+}

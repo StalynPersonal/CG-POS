@@ -21,6 +21,7 @@ internal sealed class ServicioRecepcion(
     ContextoDatosCentral contexto,
     IAuditoriaCentral auditoria,
     Fidelidad.RecalculadorPuntos recalculadorPuntos,
+    Reportes.RegistroVentasCentral registroVentas,
     TimeProvider reloj,
     ILogger<ServicioRecepcion> registro) : IServicioRecepcion
 {
@@ -66,7 +67,11 @@ internal sealed class ServicioRecepcion(
         if (ecf is not null)
             await RegistrarComprobanteAsync(documento, ecf, ahora, cancelacion);
 
-        if (mensaje.TipoMensaje == TiposMensaje.InscripcionFidelidad)
+        if (mensaje.TipoMensaje == TiposMensaje.VentaCobrada)
+            await RegistrarVentaAsync(documento, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.TurnoCerrado)
+            await RegistrarCierreAsync(documento, ahora, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.InscripcionFidelidad)
             await PublicarInscripcionAsync(documento, ahora, cancelacion);
         else if (mensaje.TipoMensaje == TiposMensaje.NotaCreditoEmitida)
             await RegistrarNotaCreditoAsync(documento, ahora, cancelacion);
@@ -230,6 +235,44 @@ internal sealed class ServicioRecepcion(
         }
     }
 
+    /// <summary>La venta cobrada alimenta el modelo de lectura de los reportes (ventas, ITBIS y 607); si no se puede leer, el documento se guarda igual.</summary>
+    private async Task RegistrarVentaAsync(DocumentoRecibido documento, CancellationToken cancelacion)
+    {
+        DocumentoVentaCobrada? venta = null;
+        try
+        {
+            venta = JsonSerializer.Deserialize<DocumentoVentaCobrada>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (venta?.Venta is { } datos && datos.Id != Guid.Empty)
+            await registroVentas.RegistrarVentaAsync(venta, documento.SucursalId, documento.CajaId, cancelacion);
+    }
+
+    /// <summary>El cierre de turno alimenta el reporte de cuadres (RF-267).</summary>
+    private async Task RegistrarCierreAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        DatosCierre? cierre = null;
+        try
+        {
+            cierre = JsonSerializer.Deserialize<DatosCierre>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (cierre is null || cierre.Id == Guid.Empty || cierre.TurnoId == Guid.Empty)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                "El cierre de turno no se pudo leer; el mensaje se guardó sin incluirlo en los cuadres.", ahora, cancelacion);
+            return;
+        }
+
+        await registroVentas.RegistrarCierreAsync(cierre, documento.SucursalId, documento.CajaId, cancelacion);
+    }
+
     /// <summary>
     /// Refleja en el Central el pendiente de entrega o envío que informa una caja (RF-249, RF-252), para verlos todos juntos y seguir los atrasos.
     /// La caja es la autoridad sobre sus pendientes: un mensaje más viejo que lo ya registrado no pisa el estado más reciente.
@@ -305,6 +348,7 @@ internal sealed class ServicioRecepcion(
                 nota.AplicarConsumo(consumido);
 
             contexto.NotasCredito.Add(nota);
+            await registroVentas.RegistrarNotaCreditoAsync(emitida, documento.SucursalId, documento.CajaId, cancelacion);
         }
         catch (ArgumentException excepcion)
         {

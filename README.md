@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). De H5 están hechos el consumo de notas de crédito entre sucursales y el saldo central de puntos de fidelidad.
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). También están hechas H5 (notas de crédito entre sucursales, saldo central de puntos y despacho), H6 (reportes con exportación a Excel y PDF) y H7 (instalación y actualización remota de las cajas). La integración con SAP B1 queda fuera del alcance por decisión del cliente.
 
 ## Stack
 
@@ -238,7 +238,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Marcar (tecla «Entrega / envío»):** líneas completas o en parte para retiro en un almacén (`almacenes` en los maestros) o envío a dirección, con fecha comprometida; varios destinos por factura. Requiere `Pendientes.Marcar` o clave de supervisor. Los serializados pueden registrarse sin serial si se entregan después.
 - **Al cobrar:** un pendiente por destino (`PE-sucursal-caja-secuencia`) con voucher de código de barras, copia del cliente y del despacho y la política `Entregas.PoliticaPendiente`. Lo pendiente no se devuelve hasta anular el pendiente.
 - **Pantalla `/despacho`:** se escanea el voucher o la factura; preparación, entrega total o parcial con quien recibe y serial, constancia impresa, y anulación con motivo y `Pendientes.Anular`. Opera con `Pendientes.Despachar`.
-- **Pendiente para el Central (Etapa 2):** pendientes de otras cajas o sucursales, notificación por correo al cliente, documento de entrega o traslado en SAP B1 y reportes.
+- **En el Central:** los pendientes de todas las sucursales se ven juntos en el Central Manager (ver *Despacho en el Central*). **Pendiente:** notificación por correo al cliente, que necesita el servidor de correo de la empresa.
 - **API:** `POST /api/ventas/{id}/entregas`, `DELETE /api/ventas/{id}/entregas/{numero}`, `GET /api/entregas/almacenes`, `GET /api/despacho/pendientes/abiertos`, `GET /api/despacho/pendientes/buscar/{codigo}`, `POST /api/despacho/pendientes/{id}/estado|entregas|anular`.
 
 ### Sincronización con el Central y mantenimiento
@@ -382,6 +382,49 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 - **API del Manager:** `GET /api/manager/fidelidad/miembros?buscar=&soloConPuntos=`, `GET /api/manager/fidelidad/miembros/{id}`, `GET /api/manager/fidelidad/miembros/{id}/movimientos`, `POST /api/manager/fidelidad/miembros/{id}/ajustes`.
 
+### Despacho en el Central
+
+- Cada pendiente de entrega o envío que crea o actualiza una caja (`Entregas.PendienteCreado` y `Entregas.PendienteActualizado`) se refleja en el Central con su factura, cliente, destino, unidades y estado.
+- **La caja manda:** el Central es una copia para consultar. Un mensaje más viejo que lo ya registrado no pisa el estado más reciente, así que un reenvío tardío no devuelve un pendiente entregado a "pendiente".
+- **Central Manager** (permiso `Central.Despacho.Operar`): tablero con abiertos, atrasados, retiros, envíos y entregados hoy; listado de todas las sucursales ordenado por fecha comprometida (los atrasados primero), filtros por estado, método, solo abiertos y solo atrasados, búsqueda por pendiente, factura, cliente o teléfono, y detalle con artículos y entregas ya hechas.
+- **Pendiente:** avisar al cliente por correo cuando su pedido está listo; falta definir el servidor de correo de la empresa.
+- **API del Manager:** `GET /api/manager/despacho/pendientes?buscar=&estado=&metodo=&sucursalId=&soloAtrasados=&soloAbiertos=`, `GET /api/manager/despacho/pendientes/{id}`, `GET /api/manager/despacho/resumen`.
+
+### Reportes del Central
+
+- El Central arma un modelo de lectura con lo que informan las cajas: cada venta cobrada, cada nota de crédito (en negativo) y cada cierre de turno. Los reportes salen de ahí, no de recorrer los mensajes recibidos.
+- **Reportes** (permiso `Central.Reportes.Consultar`), todos por rango de días de operación y opcionalmente por sucursal o caja:
+  - **Ventas:** por día, sucursal y caja, con facturas, notas de crédito, subtotal, descuento, ITBIS y total.
+  - **ITBIS por tasa:** base e impuesto de cada tasa del período.
+  - **Formato 607:** un registro por comprobante con e-NCF, e-NCF modificado, RNC o cédula del cliente, monto e ITBIS. Además del listado, se descarga el **archivo de envío** (una línea por comprobante, campos separados por `|`, con el RNC de la empresa y el período).
+  - **Cuadres de caja:** turno, cajero, esperado, declarado y diferencia. Un cierre reabierto y vuelto a cerrar actualiza su fila.
+  - **e-CF y DGII:** e-NCF, estado, trackId y mensaje de la DGII.
+  - **Sincronización:** última comunicación, mensajes, rechazos, conflictos y alertas de cada caja.
+- **Exportación:** cada reporte se descarga en **Excel** (.xlsx) y **PDF**, generados en el propio Central sin librerías externas ni internet, con exactamente las mismas filas que la pantalla.
+- **API del Manager:** `GET /api/manager/reportes/{tipo}?desde=&hasta=&sucursalId=&cajaId=`, con `/excel` y `/pdf` para descargar, y `GET /api/manager/reportes/formato607/archivo` para el archivo de la DGII.
+
+### Instalación y actualización de las cajas
+
+- **Instalar una caja** (`scripts/caja/instalar-caja.ps1`, como administrador): verifica SQL Server Express y el paquete, crea `C:\CGPOS` con Agente, Logs, Xml, Respaldos y Certificado, escribe `appsettings.Production.json` (conexión, Id de la caja, URL y secreto del Central, carpetas) con permisos solo para el servicio y los administradores, copia el `.p12` (el PIN nunca se guarda: lo digita el supervisor en la caja), instala el servicio y comprueba `/salud`. La base de datos la crea y migra el propio Agente al arrancar.
+- **Actualizar una caja** (`scripts/caja/actualizar-caja.ps1`): pregunta al Central qué versión hay publicada, descarga el paquete con la credencial de la caja, **verifica su SHA-256**, respalda la versión actual, la reemplaza (la configuración, la base de datos y los XML no se tocan), arranca y comprueba `/salud`; si algo falla, **restaura el respaldo** y deja la caja como estaba. Al terminar informa al Central qué versión quedó.
+- **Publicar una versión:** se deja el paquete `cgpos-agente-{versión}.zip` en la carpeta configurada y se indican los parámetros; las cajas no se actualizan solas, cada sucursal corre el script cuando el negocio lo permite.
+- **Central Manager** (Organización → Actualización de cajas): versión publicada y qué tiene instalada cada caja, con las pendientes marcadas.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Actualizaciones.CarpetaPaquetes` | Carpeta del servidor con los paquetes del Agente | No (sin él no hay actualización remota) |
+| `Central.Actualizaciones.VersionPublicada` | Versión que deben instalar las cajas | No |
+
+- **API de las cajas:** `GET /api/actualizaciones/caja`, `GET /api/actualizaciones/caja/paquete`, `POST /api/actualizaciones/caja/version`. **API del Manager:** `GET /api/manager/actualizaciones/cajas`, `GET /api/manager/actualizaciones/publicada`.
+
+### Piloto y despliegue gradual
+
+1. **Central:** instalar, cargar empresa, sucursales, cajas, parámetros y maestros, y emitir la credencial de cada caja.
+2. **Una caja piloto:** instalarla con `instalar-caja.ps1`, cargar el certificado con su PIN y verificar venta, e-CF, cierre y sincronización de un día completo.
+3. **Revisar en el Central:** monitor de sincronización sin alertas, e-CF aceptados por la DGII, cuadre del día y reporte 607 del período.
+4. **Resto de la sucursal:** las demás cajas con el mismo paquete; luego sucursal por sucursal, dejando siempre una caja al día antes de seguir.
+5. **Actualizaciones:** publicar la versión en el Central y correr `actualizar-caja.ps1` fuera del horario de venta, empezando por una caja de la sucursal piloto.
+
 ### Recepción de documentos de las cajas
 
 - `POST /api/sincronizacion/mensajes` (token de dispositivo): el Central valida que el mensaje sea de la caja autenticada, el SHA-256 del contenido y el del XML del e-CF, y guarda el documento una sola vez. Un reenvío con el mismo contenido responde *Duplicado* y la caja lo da por confirmado; lo rechazado responde 422 y la caja reintenta más tarde.
@@ -394,7 +437,8 @@ dotnet run --project src/Central/CgPos.Central.Api
 - **Bajada incremental:** `GET /api/sincronizacion/maestros?desde={versión}` (token de dispositivo) entrega lo cambiado por versión de fila (rowversion) hasta la última versión confirmada; publicar lo mismo no genera versión nueva. Desde 0 es el aprovisionamiento completo de una caja nueva. La respuesta se comprime.
 - **Alcance por caja:** baja la organización completa, los parámetros generales, los de su sucursal y los suyos (nunca los `Central.*`) y solo sus rangos de e-CF. El estado de cada caja guarda su última descarga y la versión confirmada y entregada.
 - **Inscripciones de fidelidad hechas en caja:** se publican como miembros para todas las cajas con el Id de la caja; si la cédula ya estaba en el Central con otro Id se conserva la del Central y queda un conflicto *MiembroDuplicado*.
-- **Pendiente:** el padrón DGII se sigue importando en cada caja desde el archivo de la DGII hasta definir su distribución; los parámetros eliminados en el Central no se borran en las cajas.
+- **Padrón de la DGII:** el archivo se carga una sola vez en el Central (parámetros `Central.Padron.Archivo` y `Central.Padron.Version`) y cada caja lo descarga e importa cuando cambia, comparando el SHA-256 con el que ya tiene; si la importación falla, el próximo ciclo la reintenta. También se puede seguir importando a mano en una caja.
+- **Bajas:** un parámetro borrado en el Central se borra en la caja: como una baja no viaja en el rango de versiones, cada descarga trae todos los parámetros que hoy aplican a esa caja y la caja elimina lo que sobre.
 
 ```powershell
 dotnet ef database update --project src/Central/CgPos.Central.Infraestructura --startup-project src/Central/CgPos.Central.Api

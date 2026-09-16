@@ -311,6 +311,64 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<IReadOnlyList<DatosMovimientoPuntosCentral>?> ListarMovimientosPuntosAsync(Guid miembroId) =>
         ListarAsync<DatosMovimientoPuntosCentral>($"api/manager/fidelidad/miembros/{miembroId}/movimientos");
 
+    // ---------- Actualización de las cajas ----------
+
+    public Task<IReadOnlyList<DatosVersionCaja>?> ListarVersionesCajasAsync() =>
+        ListarAsync<DatosVersionCaja>("api/manager/actualizaciones/cajas");
+
+    public async Task<DatosActualizacionCaja?> VersionPublicadaAsync()
+    {
+        try
+        {
+            using var respuesta = await Http.GetAsync("api/manager/actualizaciones/publicada");
+            return respuesta.StatusCode == System.Net.HttpStatusCode.NoContent || !respuesta.IsSuccessStatusCode
+                ? null
+                : await respuesta.Content.ReadFromJsonAsync<DatosActualizacionCaja>(OpcionesJson.Predeterminadas);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    // ---------- Reportes ----------
+
+    public async Task<TablaReporte?> ReporteAsync(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<TablaReporte>(RutaReporte(tipo, desde, hasta, sucursalId, null), OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <returns>El archivo con su nombre y tipo, o nulo si el Central no lo generó.</returns>
+    public async Task<(string Nombre, string TipoContenido, byte[] Contenido)?> DescargarReporteAsync(TipoReporteCentral tipo, string formato, DateOnly desde,
+        DateOnly hasta, Guid? sucursalId)
+    {
+        var ruta = formato == "607" ? RutaReporte(TipoReporteCentral.Formato607, desde, hasta, sucursalId, "archivo") : RutaReporte(tipo, desde, hasta, sucursalId, formato);
+        try
+        {
+            using var respuesta = await Http.GetAsync(ruta);
+            if (!respuesta.IsSuccessStatusCode)
+                return null;
+
+            var nombre = respuesta.Content.Headers.ContentDisposition?.FileNameStar ?? respuesta.Content.Headers.ContentDisposition?.FileName ?? $"reporte.{formato}";
+            return (nombre.Trim('"'), respuesta.Content.Headers.ContentType?.ToString() ?? "application/octet-stream", await respuesta.Content.ReadAsByteArrayAsync());
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    private static string RutaReporte(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, string? formato) =>
+        $"api/manager/reportes/{tipo}{(formato is null ? string.Empty : "/" + formato)}?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}"
+        + (sucursalId is { } sucursal ? $"&sucursalId={sucursal}" : string.Empty);
+
     // ---------- Despacho de pendientes y envíos ----------
 
     public async Task<PaginaPendientesCentral?> BuscarPendientesAsync(string? buscar, CgPos.Dominio.Entregas.EstadoPendiente? estado,

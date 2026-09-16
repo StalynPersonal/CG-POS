@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 
 namespace CgPos.Contratos.Sincronizacion;
@@ -61,12 +61,14 @@ public enum EstadoRecepcion
 /// <param name="Organizacion">Empresa, sucursales, cajas, parámetros, roles y usuarios de caja; nulo si nada de eso cambió.</param>
 /// <param name="Maestros">Catálogo, precios, promociones, fidelidad, rangos de e-CF…; nulo si nada cambió.</param>
 /// <param name="EstadosDgii">Resultados de la DGII de los e-CF de esa caja que cambiaron; nulo si ninguno cambió.</param>
+/// <param name="ParametrosVigentes">Todos los parámetros que hoy aplican a esa caja: los que la caja tenga y no estén aquí se borraron en el Central.</param>
 public sealed record PaqueteBajadaMaestros(
     long Desde,
     long Hasta,
     CargaInicial.PaqueteCargaInicial? Organizacion,
     Catalogo.PaqueteMaestros? Maestros,
-    IReadOnlyList<EstadoDgiiCarga>? EstadosDgii = null)
+    IReadOnlyList<EstadoDgiiCarga>? EstadosDgii = null,
+    IReadOnlyList<Guid>? ParametrosVigentes = null)
 {
     public bool SinCambios => Organizacion is null && Maestros is null && EstadosDgii is not { Count: > 0 };
 }

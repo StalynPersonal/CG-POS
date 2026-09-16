@@ -1,0 +1,99 @@
+#requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    Instala una caja CG-POS completa: carpetas, configuración, certificado, base de datos y el servicio del Agente.
+
+.DESCRIPTION
+    Pensado para una caja nueva en una sucursal. Deja el equipo listo para vender:
+      1. Verifica SQL Server (Express) y el paquete publicado del Agente.
+      2. Crea C:\CGPOS con Agente, Logs, Xml y Respaldos.
+      3. Copia el Agente y escribe appsettings.Production.json con la conexión, la caja y el Central.
+      4. Copia el certificado .p12 de la empresa (el PIN no se guarda: lo digita el supervisor en la caja).
+      5. Instala el servicio con instalar-agente.ps1, lo arranca y comprueba /salud.
+    La base de datos la crea y migra el propio Agente al arrancar.
+
+.EXAMPLE
+    .\instalar-caja.ps1 -Paquete C:\temp\cgpos-agente-1.0.0.zip -CajaId 019a0000-0000-7000-8000-000000000101 `
+        -SecretoCaja "(el que emitió el Central)" -UrlCentral https://central.contrerasgroup.com.do -Certificado C:\temp\empresa.p12
+#>
+param(
+    [Parameter(Mandatory = $true)][string] $Paquete,
+    [Parameter(Mandatory = $true)][string] $CajaId,
+    [Parameter(Mandatory = $true)][string] $SecretoCaja,
+    [Parameter(Mandatory = $true)][string] $UrlCentral,
+    [string] $Certificado,
+    [string] $InstanciaSql = '.\SQLEXPRESS',
+    [string] $ServicioSql = 'MSSQL$SQLEXPRESS',
+    [string] $BaseDatos = 'CgPos',
+    [string] $Raiz = 'C:\CGPOS',
+    [int] $Puerto = 5180
+)
+
+$ErrorActionPreference = 'Stop'
+
+function Escribir($mensaje) { Write-Host "[CG-POS] $mensaje" }
+
+if (-not (Test-Path $Paquete)) { throw "No existe el paquete: $Paquete" }
+if (-not (Get-Service -Name $ServicioSql -ErrorAction SilentlyContinue)) {
+    throw "No se encontró el servicio de SQL Server '$ServicioSql'. Instale SQL Server Express antes de continuar."
+}
+if ($Certificado -and -not (Test-Path $Certificado)) { throw "No existe el certificado: $Certificado" }
+
+$carpetaAgente = Join-Path $Raiz 'Agente'
+foreach ($carpeta in @($Raiz, $carpetaAgente, (Join-Path $Raiz 'Logs'), (Join-Path $Raiz 'Xml'), (Join-Path $Raiz 'Respaldos'), (Join-Path $Raiz 'Certificado'))) {
+    New-Item -ItemType Directory -Force -Path $carpeta | Out-Null
+}
+
+Escribir "Extrayendo el Agente en $carpetaAgente"
+Expand-Archive -Path $Paquete -DestinationPath $carpetaAgente -Force
+
+$ejecutable = Join-Path $carpetaAgente 'CgPos.Pos.Agente.exe'
+if (-not (Test-Path $ejecutable)) { throw "El paquete no contiene CgPos.Pos.Agente.exe" }
+
+if ($Certificado) {
+    $destinoCertificado = Join-Path $Raiz 'Certificado\empresa.p12'
+    Copy-Item -Path $Certificado -Destination $destinoCertificado -Force
+    Escribir "Certificado copiado en $destinoCertificado (el PIN se digita en la caja, no se guarda)"
+}
+
+# La configuración de producción: la caja, su credencial ante el Central y dónde viven XML y respaldos.
+$configuracion = [ordered]@{
+    ConnectionStrings = [ordered]@{
+        Pos = "Server=$InstanciaSql;Database=$BaseDatos;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False"
+    }
+    Kestrel           = [ordered]@{ Endpoints = [ordered]@{ Http = [ordered]@{ Url = "http://localhost:$Puerto" } } }
+    Caja              = [ordered]@{ Id = $CajaId }
+    Central           = [ordered]@{ Url = $UrlCentral; Secreto = $SecretoCaja }
+    Ecf               = [ordered]@{ Certificado = (Join-Path $Raiz 'Certificado\empresa.p12'); CarpetaXml = (Join-Path $Raiz 'Xml') }
+    Respaldo          = [ordered]@{ Carpeta = (Join-Path $Raiz 'Respaldos') }
+}
+
+$rutaConfiguracion = Join-Path $carpetaAgente 'appsettings.Production.json'
+$configuracion | ConvertTo-Json -Depth 6 | Out-File -FilePath $rutaConfiguracion -Encoding utf8
+Escribir "Configuración escrita en $rutaConfiguracion"
+
+# Solo el servicio y los administradores leen la configuración: lleva el secreto de la caja.
+icacls $rutaConfiguracion /inheritance:r /grant:r "SYSTEM:(R)" "Administrators:(F)" | Out-Null
+
+$env:ASPNETCORE_ENVIRONMENT = 'Production'
+[Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT', 'Production', 'Machine')
+
+Escribir 'Instalando el servicio del Agente'
+& (Join-Path $PSScriptRoot 'instalar-agente.ps1') -RutaEjecutable $ejecutable -ServicioSql $ServicioSql
+
+Escribir 'Comprobando la salud del Agente'
+$intentos = 0
+do {
+    Start-Sleep -Seconds 3
+    $intentos++
+    try {
+        $salud = Invoke-RestMethod -Uri "http://localhost:$Puerto/salud" -TimeoutSec 5
+    } catch {
+        $salud = $null
+    }
+} while (-not $salud -and $intentos -lt 10)
+
+if (-not $salud) { throw "El Agente no respondió en http://localhost:$Puerto/salud. Revise C:\CGPOS\Logs." }
+
+Escribir "Caja instalada. Salud: $($salud.status ?? $salud)"
+Escribir "Siguiente paso: abrir las pantallas con abrir-pantallas.ps1 y cargar el certificado con su PIN desde la caja."

@@ -34,7 +34,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     CreadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     ActualizadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     RecibidoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
-                    Contenido = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    Contenido = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     TextoBusqueda = table.Column<string>(type: "nvarchar(600)", maxLength: 600, nullable: false)
                 },
                 constraints: table =>

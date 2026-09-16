@@ -156,6 +156,12 @@ public static class CatalogoParametros
 
         new("Central.Fidelidad.MinutosCicloVencimiento", "Fidelidad", "Minutos entre revisiones de los puntos de fidelidad que ya vencieron", Entero, true, Central, Minimo: 1),
         new("Central.Fidelidad.LoteVencimiento", "Fidelidad", "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo de vencimiento", Entero, true, Central, Minimo: 1, Maximo: 10000),
+
+        new("Central.Actualizaciones.CarpetaPaquetes", "Actualización de cajas", "Carpeta del servidor con los paquetes del Agente que descargan las cajas", Texto, false, Central),
+        new("Central.Actualizaciones.VersionPublicada", "Actualización de cajas", "Versión del Agente que deben instalar las cajas", Texto, false, Central),
+
+        new("Central.Padron.Archivo", "Padrón DGII", "Archivo del padrón de la DGII en el servidor, que las cajas descargan", Texto, false, Central),
+        new("Central.Padron.Version", "Padrón DGII", "Versión del padrón publicado; la caja lo importa solo si cambió", Texto, false, Central),
     ];
 
     private static readonly FrozenDictionary<string, DefinicionParametro> PorClave = Todos.ToFrozenDictionary(d => d.Clave, StringComparer.Ordinal);

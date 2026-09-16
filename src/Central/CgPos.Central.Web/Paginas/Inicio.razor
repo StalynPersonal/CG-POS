@@ -88,6 +88,14 @@
             <MudButton Href="despacho/pendientes" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Consultar</MudButton>
         </MudPaper>
     </AuthorizeView>
+    <AuthorizeView Policy="@CatalogoPermisosCentral.ConsultarReportes">
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6">Reportes</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Ventas, ITBIS, formato 607, cuadres, e-CF y sincronización, con exportación a Excel y PDF.</MudText>
+            <MudButton Href="reportes" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Consultar</MudButton>
+        </MudPaper>
+    </AuthorizeView>
     <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
         <MudPaper Elevation="1" Class="cg-central__tarjeta">
             <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />

@@ -41,6 +41,12 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     // Pendientes de entrega y envíos de todas las sucursales (M12)
     public DbSet<CgPos.Dominio.Entregas.PendienteCentral> PendientesEntrega => Set<CgPos.Dominio.Entregas.PendienteCentral>();
 
+    // Modelo de lectura para los reportes (M16)
+    public DbSet<CgPos.Dominio.Reportes.ComprobanteVentaCentral> VentasCentral => Set<CgPos.Dominio.Reportes.ComprobanteVentaCentral>();
+    public DbSet<CgPos.Dominio.Reportes.ImpuestoVentaCentral> ImpuestosVenta => Set<CgPos.Dominio.Reportes.ImpuestoVentaCentral>();
+    public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
+    public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();
+
     /// <summary>Versión de fila (rowversion) de lo que baja a las cajas: permite entregar solo lo cambiado (RF-273).</summary>
     public const string ColumnaVersion = "Version";
 

@@ -1,4 +1,4 @@
-using CgPos.Pos.Aplicacion.Sincronizacion;
+﻿using CgPos.Pos.Aplicacion.Sincronizacion;
 
 namespace CgPos.Pos.Agente.Sincronizacion;
 
@@ -28,6 +28,14 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, IConf
                     if (resultado.Error is not null)
                         registro.LogWarning("Descarga de maestros sin aplicar: {Error}", resultado.Error);
                 }, "La descarga de maestros del Central falló", detener);
+
+                // El padrón de la DGII se publica en el Central y cada caja lo importa cuando cambia (RF-33).
+                await EjecutarAsync<IActualizacionPadron>(async padron =>
+                {
+                    var importados = await padron.ActualizarAsync(detener);
+                    if (importados > 0)
+                        registro.LogInformation("Padrón de la DGII actualizado desde el Central: {Cantidad:N0} contribuyentes.", importados);
+                }, "La actualización del padrón de la DGII falló", detener);
             }
 
             await EjecutarAsync<IProcesadorBandejaSalida>(async procesador =>

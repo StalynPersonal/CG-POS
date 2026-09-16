@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260916012851_PendientesEntregaCentral")]
-    partial class PendientesEntregaCentral
+    [Migration("20260916015051_ReportesCentral")]
+    partial class ReportesCentral
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -280,8 +280,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
                     b.Property<string>("Contenido")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasPrecision(3)
@@ -670,6 +669,319 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("Sucursales", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreFormaPagoCentral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CierreId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Declarado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Diferencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Esperado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Transacciones")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CierreId");
+
+                    b.ToTable("CierresFormaPago", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("AbiertoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid>("CajaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CantidadVentas")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CerradoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<bool>("Ciego")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Diferencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateOnly>("FechaOperacion")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("FondoInicial")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<string>("MotivoReapertura")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("ReabiertoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ReabiertoPorNombre")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("RegistradoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<Guid>("SucursalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalDeclarado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalEsperado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalRetiros")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalVentas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("TurnoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("TurnoNumero")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UsuarioNombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CajaId");
+
+                    b.HasIndex("SucursalId");
+
+                    b.HasIndex("FechaOperacion", "SucursalId", "CajaId");
+
+                    b.ToTable("CierresTurno", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.ComprobanteVentaCentral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CajaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CantidadLineas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClienteDocumento")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ClienteNombre")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("ClienteTipoDocumento")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Descuento")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Encf")
+                        .HasMaxLength(13)
+                        .IsUnicode(false)
+                        .HasColumnType("char(13)")
+                        .IsFixedLength();
+
+                    b.Property<string>("EncfModificado")
+                        .HasMaxLength(13)
+                        .IsUnicode(false)
+                        .HasColumnType("char(13)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("Fecha")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateOnly>("FechaOperacion")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Impuesto")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("ImpuestoRetenido")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset>("RegistradoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("SucursalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TipoComprobanteFiscal")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("TurnoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UsuarioNombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CajaId");
+
+                    b.HasIndex("Encf");
+
+                    b.HasIndex("SucursalId");
+
+                    b.HasIndex("FechaOperacion", "SucursalId", "CajaId");
+
+                    b.ToTable("VentasCentral", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.ImpuestoVentaCentral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Base")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("ComprobanteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Impuesto")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Porcentaje")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComprobanteId");
+
+                    b.ToTable("ImpuestosVenta", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.PagoVentaCentral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ComprobanteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FormaPagoNombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<decimal>("Monto")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComprobanteId");
+
+                    b.ToTable("PagosVenta", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentral", b =>
@@ -1255,6 +1567,63 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreFormaPagoCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Reportes.CierreTurnoCentral", null)
+                        .WithMany("FormasPago")
+                        .HasForeignKey("CierreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
+                        .WithMany()
+                        .HasForeignKey("CajaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
+                        .WithMany()
+                        .HasForeignKey("SucursalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.ComprobanteVentaCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
+                        .WithMany()
+                        .HasForeignKey("CajaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
+                        .WithMany()
+                        .HasForeignKey("SucursalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.ImpuestoVentaCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Reportes.ComprobanteVentaCentral", null)
+                        .WithMany("Impuestos")
+                        .HasForeignKey("ComprobanteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.PagoVentaCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Reportes.ComprobanteVentaCentral", null)
+                        .WithMany("Pagos")
+                        .HasForeignKey("ComprobanteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentralPermiso", b =>
                 {
                     b.HasOne("CgPos.Dominio.Seguridad.RolCentral", null)
@@ -1330,6 +1699,18 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .WithMany()
                         .HasForeignKey("CajaId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
+                {
+                    b.Navigation("FormasPago");
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.ComprobanteVentaCentral", b =>
+                {
+                    b.Navigation("Impuestos");
+
+                    b.Navigation("Pagos");
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentral", b =>

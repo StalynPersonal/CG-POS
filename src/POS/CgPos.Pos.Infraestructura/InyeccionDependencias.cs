@@ -1,4 +1,4 @@
-using CgPos.Pos.Aplicacion.Abstracciones;
+﻿using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Ecf;
@@ -100,6 +100,7 @@ public static class InyeccionDependencias
         servicios.AddSingleton(_ => FabricaClienteCentral.Crear(configuracion));
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IDescargaMaestros, DescargaMaestros>();
+        servicios.AddScoped<Aplicacion.Sincronizacion.IActualizacionPadron, ActualizacionPadron>();
         servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();
 
         // Mantenimiento de la caja: respaldo, purga controlada, hora y alertas.

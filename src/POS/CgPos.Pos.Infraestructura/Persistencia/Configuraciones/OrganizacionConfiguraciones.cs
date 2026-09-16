@@ -1,4 +1,4 @@
-using CgPos.Dominio.Organizacion;
+﻿using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -50,6 +50,10 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
 
         constructor.Property(c => c.Codigo).HasMaxLength(Caja.LargoMaximoCodigo).IsRequired();
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
+
+        // La versión del Agente instalada la lleva el Central para seguir el despliegue; la caja no la guarda.
+        constructor.Ignore(c => c.VersionAgente);
+        constructor.Ignore(c => c.VersionReportadaEn);
 
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasIndex(c => new { c.SucursalId, c.Codigo }).IsUnique();
