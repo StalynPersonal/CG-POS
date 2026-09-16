@@ -1,4 +1,4 @@
-using CgPos.Dominio.Auditoria;
+﻿using CgPos.Dominio.Auditoria;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Fiscal;
@@ -61,6 +61,9 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
 
     // Descuentos y promociones (M06, M07)
     public DbSet<Promocion> Promociones => Set<Promocion>();
+
+    /// <summary>Descuentos del banco por BIN de tarjeta (RF-98).</summary>
+    public DbSet<DescuentoTarjeta> DescuentosTarjeta => Set<DescuentoTarjeta>();
     public DbSet<MotivoDescuento> MotivosDescuento => Set<MotivoDescuento>();
     public DbSet<TopeDescuento> TopesDescuento => Set<TopeDescuento>();
 
@@ -81,6 +84,9 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     // Facturación electrónica (M09)
     public DbSet<SecuenciaEcf> SecuenciasEcf => Set<SecuenciaEcf>();
     public DbSet<DocumentoElectronico> DocumentosElectronicos => Set<DocumentoElectronico>();
+
+    /// <summary>Ventas cobradas con comprobante provisional mientras la caja no pudo firmar su e-CF (contingencia).</summary>
+    public DbSet<ComprobanteContingencia> ComprobantesContingencia => Set<ComprobanteContingencia>();
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {

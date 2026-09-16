@@ -1,4 +1,4 @@
-@page "/devoluciones"
+﻿@page "/devoluciones"
 @attribute [Authorize]
 @using System.Globalization
 @using CgPos.Dominio.Devoluciones
@@ -146,6 +146,23 @@
                             }
                         </div>
                         <MudTextField T="string" @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+                        @* Cómo se le devuelve el dinero (RF-123); lo que no esté habilitado en los parámetros se rechaza al emitir. *@
+                        <div class="cg-devolucion__etiqueta">Se le devuelve</div>
+                        <div class="cg-devolucion__motivos">
+                            @foreach (var reembolso in Reembolsos)
+                            {
+                                <MudButton Variant="@(_reembolso == reembolso.Tipo ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
+                                           Class="cg-devolucion__motivo-boton" OnClick="() => _reembolso = reembolso.Tipo">@reembolso.Etiqueta</MudButton>
+                            }
+                        </div>
+                        @if (_reembolso is TipoReembolso.Tarjeta or TipoReembolso.Cheque)
+                        {
+                            <MudTextField T="string" @bind-Value="_reembolsoReferencia" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                          Label="@(_reembolso == TipoReembolso.Tarjeta ? "Autorización del terminal" : "Número del cheque (si ya se emitió)")" />
+                            <MudTextField T="string" @bind-Value="_reembolsoDetalle" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                          Label="@(_reembolso == TipoReembolso.Tarjeta ? "Tarjeta (opcional)" : "Banco y a nombre de quién")" />
+                        }
                     </div>
                     <div class="cg-devolucion__acciones">
                         <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="DevolverTodo">Devolver todo</MudButton>
@@ -200,6 +217,18 @@
     private DatosFacturaDevolucion? _factura;
     private List<LineaEdicion> _lineas = [];
     private string? _motivo;
+    private TipoReembolso _reembolso = TipoReembolso.SaldoNotaCredito;
+    private string? _reembolsoReferencia;
+    private string? _reembolsoDetalle;
+
+    /// <summary>Formas de devolver el dinero; el Agente rechaza las que el negocio no habilitó.</summary>
+    private static readonly (TipoReembolso Tipo, string Etiqueta)[] Reembolsos =
+    [
+        (TipoReembolso.SaldoNotaCredito, "Saldo en la nota"),
+        (TipoReembolso.Efectivo, "Efectivo"),
+        (TipoReembolso.Tarjeta, "A la tarjeta"),
+        (TipoReembolso.Cheque, "Cheque"),
+    ];
     private string? _observacion;
     private string? _clienteDocumento;
     private string? _clienteNombre;
@@ -245,6 +274,9 @@
         _factura = respuesta.Factura;
         _lineas = respuesta.Factura?.Lineas.Select(l => new LineaEdicion(l)).ToList() ?? [];
         _motivo = null;
+        _reembolso = TipoReembolso.SaldoNotaCredito;
+        _reembolsoReferencia = null;
+        _reembolsoDetalle = null;
         _observacion = null;
         _clienteDocumento = null;
         _clienteNombre = null;
@@ -279,7 +311,10 @@
             _clienteNombre,
             _motivo,
             _observacion,
-            null);
+            null,
+            _reembolso,
+            _reembolsoReferencia,
+            _reembolsoDetalle);
 
         _procesando = true;
         _mensaje = null;

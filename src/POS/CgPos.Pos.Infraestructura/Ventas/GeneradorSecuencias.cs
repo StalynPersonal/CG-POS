@@ -1,4 +1,4 @@
-using CgPos.Pos.Infraestructura.Persistencia;
+﻿using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Pos.Infraestructura.Ventas;
@@ -19,6 +19,9 @@ internal static class TiposSecuencia
     public const string Transaccion = "Transaccion";
     public const string NotaCredito = "NotaCredito";
     public const string PendienteEntrega = "PendienteEntrega";
+
+    /// <summary>Comprobante provisional de una venta cobrada sin e-CF (contingencia).</summary>
+    public const string Contingencia = "Contingencia";
 }
 
 /// <summary>

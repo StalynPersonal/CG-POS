@@ -105,4 +105,27 @@ public static class ClavesParametrosCentral
 
     /// <summary>Versión del padrón publicado (ej. la fecha de la DGII); la caja solo lo importa si cambió.</summary>
     public const string PadronVersion = "Central.Padron.Version";
+
+    /// <summary>Servidor SMTP de la empresa desde el que el Central envía correos. Opcional: sin él no se envía nada.</summary>
+    public const string CorreoServidor = "Central.Correo.Servidor";
+
+    public const string CorreoPuerto = "Central.Correo.Puerto";
+
+    public const string CorreoUsarTls = "Central.Correo.UsarTls";
+
+    /// <summary>Usuario del buzón; su contraseña va en la configuración del servidor (Correo:Contrasena), nunca en los parámetros.</summary>
+    public const string CorreoUsuario = "Central.Correo.Usuario";
+
+    public const string CorreoRemitente = "Central.Correo.Remitente";
+
+    public const string CorreoNombreRemitente = "Central.Correo.NombreRemitente";
+
+    /// <summary>Avisa por correo al cliente cuando su pedido queda preparado (RF-256).</summary>
+    public const string DespachoAvisarPreparado = "Central.Despacho.AvisarPreparado";
+
+    /// <summary>Minutos entre revisiones de pedidos preparados sin avisar.</summary>
+    public const string DespachoMinutosCicloAvisos = "Central.Despacho.MinutosCicloAvisos";
+
+    /// <summary>Máximo de avisos por ciclo.</summary>
+    public const string DespachoLoteAvisos = "Central.Despacho.LoteAvisos";
 }

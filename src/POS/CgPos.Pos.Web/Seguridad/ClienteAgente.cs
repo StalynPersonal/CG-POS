@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Contratos.Catalogo;
@@ -246,6 +246,10 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/descuento", new SolicitudDescuentoFactura(tipo, valor, lineas, motivo, autorizacionId), ErrorVenta, cancelacion);
 
+    /// <summary>Descuento del banco por el BIN de la tarjeta (RF-98), antes de cobrar.</summary>
+    public Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(Guid ventaId, string bin, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/descuento-tarjeta", new SolicitudDescuentoTarjeta(bin), ErrorVenta, cancelacion);
+
     public Task<RespuestaVenta> QuitarDescuentoFacturaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/descuento", null, ErrorVenta, cancelacion);
 
@@ -307,6 +311,22 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     public Task<RespuestaCaja> PreCierreAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/caja/turno/precierre", new SolicitudConAutorizacion(autorizacionId), ErrorCaja, cancelacion);
+
+    /// <summary>Cierra el lote del terminal y cuadra las tarjetas del turno (RF-215); nulo si el Agente no respondió.</summary>
+    public async Task<DatosConciliacionTarjetas?> ConciliarTarjetasAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.PostAsync("api/caja/turno/conciliacion-tarjetas", null, cancelacion);
+            return respuesta.IsSuccessStatusCode
+                ? await respuesta.Content.ReadFromJsonAsync<DatosConciliacionTarjetas>(OpcionesJson.Predeterminadas, cancelacion)
+                : null;
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
 
     public Task<RespuestaCaja> RetirarEfectivoAsync(decimal monto, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/caja/turno/retiros", new SolicitudRetiroEfectivo(monto, motivo, autorizacionId), ErrorCaja, cancelacion);

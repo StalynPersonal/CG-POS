@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
@@ -42,6 +42,7 @@ internal sealed class ServicioCaja(
     IValidadorAutorizaciones autorizaciones,
     IParametros parametros,
     IImpresoraTicket impresora,
+    ITerminalPago terminal,
     IBandejaSalida bandejaSalida,
     IAuditoria auditoria,
     TimeProvider reloj) : IServicioCaja
@@ -96,6 +97,45 @@ internal sealed class ServicioCaja(
         var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarPreCierre(await contexto.EncabezadoTicketAsync(parametros, reloj.LocalTimeZone, sesion.CajaId, cancelacion), resumen, ahora),
             cancelacion);
         return new RespuestaCaja(CodigoResultadoCaja.Correcto, impresion.Correcto ? "Pre-cierre impreso." : impresion.Mensaje, Resumen: resumen, Turno: turno.ADatos());
+    }
+
+    /// <summary>
+    /// Cierra el lote del terminal y lo cuadra con las tarjetas aprobadas del turno (RF-215). Si el modelo del terminal no detalla
+    /// el lote, se informa lo de la caja para compararlo con el comprobante que imprime el terminal.
+    /// </summary>
+    public async Task<DatosConciliacionTarjetas> ConciliarTarjetasAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
+    {
+        var turno = await contexto.Turnos.AsNoTracking().FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
+        if (turno is null)
+            return new DatosConciliacionTarjetas(false, null, 0, 0m, 0, 0m, 0m, [], [], false, "No hay un turno abierto en esta caja.");
+
+        var operaciones = await contexto.OperacionesTerminal.AsNoTracking()
+            .Where(o => o.TurnoId == turno.Id && o.Estado == EstadoOperacionTerminal.Aprobada && o.Tipo == TipoOperacionTerminal.Venta)
+            .ToListAsync(cancelacion);
+
+        var enCaja = operaciones.Where(o => o.Aprobacion is { Length: > 0 }).Select(o => o.Aprobacion!).ToList();
+        var montoCaja = operaciones.Sum(o => o.Monto);
+
+        var lote = await terminal.CerrarLoteAsync(cancelacion);
+        if (!lote.Correcto)
+            return new DatosConciliacionTarjetas(false, null, operaciones.Count, montoCaja, 0, 0m, montoCaja, enCaja, [], false,
+                lote.Mensaje ?? "No se pudo cerrar el lote del terminal.");
+
+        var aprobacionesTerminal = lote.Aprobaciones ?? [];
+        var detalla = lote.Transacciones > 0 || aprobacionesTerminal.Count > 0;
+
+        return new DatosConciliacionTarjetas(
+            true,
+            lote.NumeroLote,
+            operaciones.Count,
+            montoCaja,
+            lote.Transacciones,
+            lote.Monto,
+            detalla ? montoCaja - lote.Monto : 0m,
+            detalla ? enCaja.Except(aprobacionesTerminal, StringComparer.OrdinalIgnoreCase).ToList() : [],
+            aprobacionesTerminal.Except(enCaja, StringComparer.OrdinalIgnoreCase).ToList(),
+            detalla,
+            detalla ? lote.Mensaje : "El terminal cerró el lote sin detallarlo: compare con el comprobante que imprimió.");
     }
 
     public async Task<RespuestaCaja> RetirarEfectivoAsync(SesionUsuario sesion, decimal monto, string? motivo, Guid? autorizacionId,
@@ -345,7 +385,8 @@ internal sealed class ServicioCaja(
             .Select(d => new DatosDenominacion(d.Id, d.Moneda, d.Valor, d.Tipo))
             .ToListAsync(cancelacion);
 
-        var retiros = movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Retiro).Sum(m => m.Monto);
+        // Retiros y reembolsos al cliente: todo lo que salió de la gaveta baja lo esperado (RF-123, RF-261).
+        var retiros = movimientos.Where(m => m.Tipo is TipoMovimientoCaja.Retiro or TipoMovimientoCaja.Reembolso).Sum(m => m.Monto);
         var esperados = ReglasCuadre.CalcularEsperados(
             formas.Where(f => f.Activa || pagos.Any(p => p.FormaPagoId == f.Id)).Select(f => new FormaPagoCuadre(f.Id, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Orden)),
             pagos.Select(p => new PagoCuadre(p.FormaPagoId, p.MontoRecibido, p.MontoAplicado)),
@@ -365,7 +406,19 @@ internal sealed class ServicioCaja(
             : await contexto.DocumentosElectronicos.AsNoTracking().Where(d => idsCobradas.Contains(d.VentaId)).Select(d => d.VentaId).ToListAsync(cancelacion);
         var sinEcf = cobradas.Where(v => !conEcf.Contains(v.Id)).Select(v => v.NumeroTransaccion).ToList();
         if (sinEcf.Count > 0)
-            bloqueos.Add($"Hay {sinEcf.Count} venta(s) sin e-CF firmado: {string.Join(", ", sinEcf.Take(5))}.");
+        {
+            // Las cobradas en contingencia no bloquean el cierre si el negocio lo permitió: se emiten al restablecerse el certificado o la secuencia.
+            var enContingencia = await contexto.ComprobantesContingencia.AsNoTracking()
+                .Where(c => c.TurnoId == turno.Id && c.RegularizadoEn == null)
+                .Select(c => c.VentaNumero)
+                .ToListAsync(cancelacion);
+            var permiteCerrar = enContingencia.Count > 0
+                && await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ContingenciaPermiteCerrar, turno.CajaId, cancelacion);
+
+            var bloquean = permiteCerrar ? sinEcf.Except(enContingencia, StringComparer.Ordinal).ToList() : sinEcf;
+            if (bloquean.Count > 0)
+                bloqueos.Add($"Hay {bloquean.Count} venta(s) sin e-CF firmado: {string.Join(", ", bloquean.Take(5))}.");
+        }
 
         return new CalculoTurno(ciego, fondoEnCuadre, cobradas.Count, cobradas.Sum(v => v.TotalCobrado ?? 0m), retiros,
             ReglasCuadre.EfectivoLocalEnGaveta(esperados, turno.FondoInicial, fondoEnCuadre, monedaLocal.Codigo), esperados, denominaciones, movimientos, bloqueos,

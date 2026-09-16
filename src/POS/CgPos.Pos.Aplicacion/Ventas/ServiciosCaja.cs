@@ -1,4 +1,4 @@
-using CgPos.Contratos.Ventas;
+﻿using CgPos.Contratos.Ventas;
 using CgPos.Pos.Aplicacion.Seguridad;
 
 namespace CgPos.Pos.Aplicacion.Ventas;
@@ -14,6 +14,12 @@ public interface IServicioCaja
 
     /// <summary>Imprime lo esperado por forma de pago sin cerrar el turno, con permiso o clave de supervisor (RF-8).</summary>
     Task<RespuestaCaja> PreCierreAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Cierra el lote del terminal y cuadra las tarjetas del turno contra lo que reportó (RF-215). No cambia nada de la venta:
+    /// es una comprobación para el cierre.
+    /// </summary>
+    Task<DatosConciliacionTarjetas> ConciliarTarjetasAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
     /// <summary>Retiro parcial de efectivo con autorización, comprobante impreso y apertura de gaveta (RF-261).</summary>
     Task<RespuestaCaja> RetirarEfectivoAsync(SesionUsuario sesion, decimal monto, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);

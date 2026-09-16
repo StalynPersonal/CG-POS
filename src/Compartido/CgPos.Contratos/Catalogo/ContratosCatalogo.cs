@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Promociones;
@@ -29,7 +29,24 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<NivelFidelidadCarga>? NivelesFidelidad = null,
     IReadOnlyList<ReglaAcumulacionCarga>? ReglasAcumulacion = null,
     IReadOnlyList<MiembroFidelidadCarga>? MiembrosFidelidad = null,
-    IReadOnlyList<AlmacenCarga>? Almacenes = null);
+    IReadOnlyList<AlmacenCarga>? Almacenes = null,
+    IReadOnlyList<DescuentoTarjetaCarga>? DescuentosTarjeta = null);
+
+/// <summary>Descuento del banco al pagar con ciertas tarjetas, identificadas por su BIN (RF-98).</summary>
+public sealed record DescuentoTarjetaCarga(
+    Guid Id,
+    string Codigo,
+    string Nombre,
+    string Bines,
+    TipoDescuentoTarjeta Tipo,
+    decimal Valor,
+    DateTimeOffset VigenteDesde,
+    DateTimeOffset VigenteHasta,
+    decimal? MontoMinimo = null,
+    decimal? MontoMaximo = null,
+    Guid? BancoId = null,
+    DiasSemana Dias = DiasSemana.Todos,
+    bool Activo = true);
 
 /// <summary>Almacén o sucursal donde se retira mercancía pendiente (RF-140).</summary>
 public sealed record AlmacenCarga(Guid Id, string Codigo, string Nombre, Guid SucursalId, string? Direccion = null, bool Activo = true);

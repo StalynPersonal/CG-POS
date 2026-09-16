@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Sincronizacion;
 
@@ -24,6 +24,9 @@ public enum TipoMaestro
     ReglaAcumulacion,
     MiembroFidelidad,
     Almacen,
+
+    /// <summary>Descuento del banco por BIN de tarjeta (RF-98).</summary>
+    DescuentoTarjeta,
 
     /// <summary>Rol de los usuarios de caja (con su nivel y permisos del catálogo de la caja).</summary>
     RolCaja,

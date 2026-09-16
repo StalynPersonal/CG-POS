@@ -1,4 +1,4 @@
-namespace CgPos.Pos.Aplicacion.Perifericos;
+﻿namespace CgPos.Pos.Aplicacion.Perifericos;
 
 /// <param name="Estable">La balanza reporta el peso detenido; solo así se factura.</param>
 /// <param name="Unidad">Unidad en la que pesa la balanza (ej. "LB", "KG").</param>
@@ -27,7 +27,21 @@ public interface ITerminalPago
 
     /// <summary>Anula una venta aprobada (RF-214).</summary>
     Task<ResultadoTerminal> AnularAsync(string aprobacion, decimal monto, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Cierra el lote del terminal al cerrar el turno y devuelve lo que el terminal contabilizó, para cuadrarlo con lo cobrado en la caja (RF-215).
+    /// </summary>
+    Task<ResultadoLoteTerminal> CerrarLoteAsync(CancellationToken cancelacion = default);
 }
+
+/// <param name="Aprobaciones">Autorizaciones que el terminal reporta en el lote; vacía si el modelo no las detalla.</param>
+public sealed record ResultadoLoteTerminal(
+    bool Correcto,
+    string? Mensaje,
+    string? NumeroLote = null,
+    int Transacciones = 0,
+    decimal Monto = 0m,
+    IReadOnlyList<string>? Aprobaciones = null);
 
 /// <param name="Nombre">Nombre corto del documento, ej. "ticket-01-01-00000002".</param>
 /// <param name="Texto">Versión en texto plano (vista previa y copia en archivo).</param>

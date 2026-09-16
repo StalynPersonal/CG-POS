@@ -71,6 +71,13 @@ public static class InyeccionDependencias
         // Actualización remota del Agente de las cajas (H7).
         servicios.AddScoped<Aplicacion.Actualizaciones.IServicioActualizacionesCaja, Actualizaciones.ServicioActualizacionesCaja>();
         servicios.AddScoped<Aplicacion.Padron.IServicioPadronCentral, Padron.ServicioPadronCentral>();
+
+        // Correo de la empresa y aviso al cliente cuando su pedido está listo (RF-256).
+        servicios.AddSingleton(new Notificaciones.OpcionesCorreo(configuracion["Correo:Contrasena"]));
+        servicios.AddScoped<Aplicacion.Notificaciones.IServicioCorreo, Notificaciones.ServicioCorreoSmtp>();
+        servicios.AddScoped<Aplicacion.Notificaciones.IAvisosDespacho, Notificaciones.AvisosDespacho>();
+        if (!string.Equals(configuracion["Despacho:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
+            servicios.AddHostedService<Notificaciones.TrabajadorAvisosDespacho>();
         if (!string.Equals(configuracion["Fidelidad:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
             servicios.AddHostedService<Fidelidad.TrabajadorVencimientoPuntos>();
 

@@ -1,4 +1,4 @@
-using CgPos.Contratos.Ventas;
+﻿using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -39,7 +39,7 @@ internal static class ConversionesDevolucion
                 ? null
                 : new DatosComprobanteElectronico(documento.Encf, documento.TipoComprobante, documento.CodigoSeguridad, documento.FechaFirma,
                     documento.UrlTimbre, documento.Estado),
-            devolucion.PuntosReversados);
+            devolucion.PuntosReversados, devolucion.Reembolso, devolucion.ReembolsoReferencia, devolucion.ReembolsoDetalle);
 
     /// <summary>Cantidad e importe ya devueltos por línea de la factura (RF-42).</summary>
     public static Dictionary<int, DevueltoLinea> Devuelto(this IEnumerable<Devolucion> devoluciones) =>
@@ -161,6 +161,19 @@ internal sealed class ServicioDevoluciones(
             emision = await emisorEcf.EmitirNotaCreditoAsync(devolucion, cancelacion);
             devolucion.AsignarComprobante(emision.Documento.Encf);
 
+            // El cliente puede llevarse el dinero en vez del saldo a favor (RF-123); la nota de crédito se emite igual.
+            if (solicitud.Reembolso != TipoReembolso.SaldoNotaCredito)
+            {
+                var problema = await ReembolsarAsync(sesion, solicitud, devolucion, turnoId, permiso, ahora, cancelacion);
+                if (problema is not null)
+                {
+                    await transaccion.RollbackAsync(cancelacion);
+                    contexto.ChangeTracker.Clear();
+                    EmisionComprobantes.DescartarArchivo(emision);
+                    return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, problema);
+                }
+            }
+
             // La devolución reversa los puntos que acumuló la compra, en proporción a lo devuelto (RF-244, RN-21).
             if (venta.TieneFidelidad && venta.PuntosAcumulados > 0)
             {
@@ -274,6 +287,60 @@ internal sealed class ServicioDevoluciones(
             .OrderBy(m => m.Nombre)
             .Select(m => new DatosMotivoDevolucion(m.Codigo, m.Nombre))
             .ToListAsync(cancelacion);
+
+    /// <summary>
+    /// Entrega el dinero de la devolución según lo permita la configuración (RF-123): efectivo de la gaveta, devolución a la tarjeta
+    /// o cheque que emite contabilidad. Devuelve el motivo del rechazo, o nulo si el reembolso quedó registrado.
+    /// </summary>
+    private async Task<string?> ReembolsarAsync(SesionUsuario sesion, SolicitudDevolucion solicitud, Devolucion devolucion, Guid? turnoId,
+        ResultadoPermiso permiso, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        var referencia = solicitud.ReembolsoReferencia?.Trim();
+        var detalle = solicitud.ReembolsoDetalle?.Trim();
+
+        switch (solicitud.Reembolso)
+        {
+            case TipoReembolso.Efectivo:
+                if (!await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ReembolsoEfectivo, sesion.CajaId, cancelacion))
+                    return "La devolución en efectivo no está habilitada; el cliente queda con el saldo de la nota de crédito.";
+
+                var maximo = await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.MontoMaximoReembolsoEfectivo, sesion.CajaId, cancelacion);
+                if (maximo is { } tope && devolucion.Total > tope)
+                    return $"En efectivo solo se devuelven hasta {devolucion.SimboloMoneda}{tope:N2}; el resto queda en la nota de crédito.";
+
+                if (turnoId is not { } turnoAbierto)
+                    return "Para devolver efectivo tiene que haber un turno abierto en la caja.";
+
+                var turno = await contexto.Turnos.SingleAsync(t => t.Id == turnoAbierto, cancelacion);
+                var numero = await contexto.MovimientosCaja.Where(m => m.TurnoId == turno.Id).CountAsync(cancelacion) + 1;
+
+                // Sale de la gaveta: baja lo esperado del cuadre igual que un retiro.
+                contexto.MovimientosCaja.Add(MovimientoCaja.Reembolso(turno, numero, devolucion.Total, devolucion.Moneda,
+                    $"Devolución {devolucion.Numero} de la factura {devolucion.VentaOrigenNumero}", sesion.UsuarioId, sesion.Nombre,
+                    permiso.SupervisorId, permiso.SupervisorNombre, ahora));
+                break;
+
+            case TipoReembolso.Tarjeta:
+                if (!await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ReembolsoTarjeta, sesion.CajaId, cancelacion))
+                    return "La devolución a la tarjeta no está habilitada.";
+                if (string.IsNullOrWhiteSpace(referencia))
+                    return "Indique la autorización con la que el terminal devolvió el monto a la tarjeta.";
+                break;
+
+            case TipoReembolso.Cheque:
+                if (!await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ReembolsoCheque, sesion.CajaId, cancelacion))
+                    return "La devolución con cheque no está habilitada.";
+                if (string.IsNullOrWhiteSpace(detalle))
+                    return "Indique a nombre de quién y en qué banco se emite el cheque.";
+                break;
+
+            default:
+                return "Tipo de reembolso no válido.";
+        }
+
+        devolucion.RegistrarReembolso(solicitud.Reembolso, referencia, detalle, ahora);
+        return null;
+    }
 
     private async Task<Venta?> BuscarVentaAsync(string codigo, bool seguimiento, CancellationToken cancelacion)
     {

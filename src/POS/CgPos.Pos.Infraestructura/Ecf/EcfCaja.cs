@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CgPos.Contratos.Ventas;
@@ -402,7 +402,13 @@ internal static class ConversionEcf
     private static decimal Redondear(decimal valor) => decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
 }
 
-internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja certificado, IParametros parametros, IAuditoria auditoria, TimeProvider reloj) : IServicioEcf
+internal sealed class ServicioEcf(
+    ContextoDatosPos contexto,
+    ICertificadoCaja certificado,
+    IParametros parametros,
+    IAuditoria auditoria,
+    IRegularizacionContingencia contingenciaEcf,
+    TimeProvider reloj) : IServicioEcf
 {
     private static readonly TipoComprobante[] TiposDeVenta =
         [TipoComprobante.FacturaConsumo, TipoComprobante.FacturaCreditoFiscal, TipoComprobante.RegimenesEspeciales, TipoComprobante.Gubernamental];
@@ -469,6 +475,12 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
         if (rechazadosDgii > 0)
             alertas.Add($"{rechazadosDgii} e-CF rechazados por la DGII. Consulte el detalle con el Central.");
 
+        // Ventas cobradas con comprobante provisional que todavía esperan su e-CF (contingencia).
+        var contingencias = await contexto.ComprobantesContingencia.AsNoTracking()
+            .CountAsync(c => c.CajaId == sesion.CajaId && c.RegularizadoEn == null, cancelacion);
+        if (contingencias > 0)
+            alertas.Add($"{contingencias} venta(s) cobradas en contingencia esperan su e-CF. Se emiten solas al restablecerse el certificado o la secuencia.");
+
         if (!certificado.Configurado)
             alertas.Add("La caja no tiene certificado digital instalado.");
         else if (!certificado.Cargado)
@@ -478,7 +490,8 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
         if (diasParaVencer is { } dias && diasAlerta is { } diasLimite && dias <= diasLimite)
             alertas.Add(dias < 0 ? "El certificado digital de la caja está vencido." : $"El certificado digital de la caja vence en {dias} días.");
 
-        return new DatosEstadoEcf(certificado.Configurado, certificado.Cargado, certificado.Sujeto, certificado.VenceEn, diasParaVencer, datos, alertas, rechazadosDgii, aceptadosDgii);
+        return new DatosEstadoEcf(certificado.Configurado, certificado.Cargado, certificado.Sujeto, certificado.VenceEn, diasParaVencer, datos, alertas,
+            rechazadosDgii, aceptadosDgii, contingencias);
     }
 
     public async Task<RespuestaCertificado> CargarCertificadoAsync(SesionUsuario sesion, string pin, CancellationToken cancelacion = default)
@@ -491,7 +504,16 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
         await contexto.SaveChangesAsync(cancelacion);
 
-        return new RespuestaCertificado(error is null, error ?? "Certificado digital cargado. La caja puede facturar.", await ObtenerEstadoAsync(sesion, cancelacion));
+        // Con el certificado cargado, las ventas que quedaron en contingencia se emiten de una vez.
+        var mensaje = error ?? "Certificado digital cargado. La caja puede facturar.";
+        if (error is null)
+        {
+            var regularizacion = await contingenciaEcf.RegularizarAsync(sesion.CajaId, cancelacion);
+            if (regularizacion.Emitidos > 0)
+                mensaje += $" Se emitieron {regularizacion.Emitidos} e-CF que quedaron en contingencia.";
+        }
+
+        return new RespuestaCertificado(error is null, mensaje, await ObtenerEstadoAsync(sesion, cancelacion));
     }
 
     public async Task<IReadOnlyList<DatosDocumentoElectronico>> ListarDocumentosAsync(SesionUsuario sesion, EstadoDocumentoElectronico? estado, int maximo = 100,

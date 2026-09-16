@@ -104,6 +104,13 @@ public static class CatalogoParametros
         new("Devoluciones.MesesVigenciaNotaCredito", "Devoluciones", "Meses de vigencia de la nota de crédito para consumirla", Entero, true, Minimo: 1),
         new("Devoluciones.PoliticaNotaCredito", "Devoluciones", "Política impresa en la copia del cliente de la nota de crédito", Texto, false),
         new("Devoluciones.PoliticaNotaCreditoContabilidad", "Devoluciones", "Texto impreso en la copia de contabilidad de la nota de crédito", Texto, false),
+        new("Ecf.ContingenciaHabilitada", "Facturación electrónica", "Permite cobrar con comprobante provisional cuando la caja no puede firmar el e-CF", Booleano, false),
+        new("Ecf.ContingenciaPermiteCerrarTurno", "Facturación electrónica", "Permite cerrar el turno con ventas en contingencia pendientes de e-CF", Booleano, false),
+
+        new("Devoluciones.ReembolsoEfectivo", "Devoluciones", "Permite devolver el dinero en efectivo de la gaveta", Booleano, false),
+        new("Devoluciones.MontoMaximoReembolsoEfectivo", "Devoluciones", "Monto máximo que se devuelve en efectivo por devolución", Decimal, false, Minimo: 0),
+        new("Devoluciones.ReembolsoTarjeta", "Devoluciones", "Permite devolver el dinero a la tarjeta con la que se pagó", Booleano, false),
+        new("Devoluciones.ReembolsoCheque", "Devoluciones", "Permite registrar la devolución para pagarla con cheque", Booleano, false),
 
         new("Fidelidad.ValorPunto", "Fidelidad", "Valor en moneda local de cada punto al canjearlo (sin él no se canjean puntos)", Decimal, false, Minimo: 0),
         new("Fidelidad.MesesVigenciaPuntos", "Fidelidad", "Meses de vigencia de los puntos que acumula la caja", Entero, false, Minimo: 1),
@@ -162,6 +169,17 @@ public static class CatalogoParametros
 
         new("Central.Padron.Archivo", "Padrón DGII", "Archivo del padrón de la DGII en el servidor, que las cajas descargan", Texto, false, Central),
         new("Central.Padron.Version", "Padrón DGII", "Versión del padrón publicado; la caja lo importa solo si cambió", Texto, false, Central),
+
+        new("Central.Correo.Servidor", "Correo", "Servidor SMTP de la empresa desde el que el Central envía correos", Texto, false, Central),
+        new("Central.Correo.Puerto", "Correo", "Puerto del servidor SMTP", Entero, false, Central, Minimo: 1, Maximo: 65535),
+        new("Central.Correo.UsarTls", "Correo", "Cifra la conexión con el servidor de correo", Booleano, false, Central),
+        new("Central.Correo.Usuario", "Correo", "Usuario del buzón (la contraseña va en la configuración del servidor)", Texto, false, Central),
+        new("Central.Correo.Remitente", "Correo", "Dirección desde la que se envían los correos", Texto, false, Central),
+        new("Central.Correo.NombreRemitente", "Correo", "Nombre que ve el cliente como remitente", Texto, false, Central),
+
+        new("Central.Despacho.AvisarPreparado", "Despacho", "Avisa por correo al cliente cuando su pedido queda preparado", Booleano, false, Central),
+        new("Central.Despacho.MinutosCicloAvisos", "Despacho", "Minutos entre revisiones de pedidos preparados sin avisar", Entero, true, Central, Minimo: 1),
+        new("Central.Despacho.LoteAvisos", "Despacho", "Máximo de avisos al cliente por ciclo", Entero, true, Central, Minimo: 1, Maximo: 1000),
     ];
 
     private static readonly FrozenDictionary<string, DefinicionParametro> PorClave = Todos.ToFrozenDictionary(d => d.Clave, StringComparer.Ordinal);

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 
@@ -46,6 +46,9 @@ public sealed record DatosFacturaDevolucion(
 public sealed record SolicitudLineaDevolucion(int NumeroLinea, decimal Cantidad, string? Serial = null);
 
 /// <param name="ClienteDocumento">Obligatorio si la factura no tiene cliente (RF-160).</param>
+/// <param name="Reembolso">Cómo se le devuelve el dinero (RF-123); por omisión queda como saldo en la nota de crédito.</param>
+/// <param name="ReembolsoReferencia">Operación del terminal para la tarjeta o número del cheque.</param>
+/// <param name="ReembolsoDetalle">Banco del cheque, tarjeta o quien recibe el efectivo.</param>
 public sealed record SolicitudDevolucion(
     Guid VentaId,
     IReadOnlyList<SolicitudLineaDevolucion> Lineas,
@@ -53,7 +56,10 @@ public sealed record SolicitudDevolucion(
     string? ClienteNombre,
     string? MotivoCodigo,
     string? Observacion,
-    Guid? AutorizacionId);
+    Guid? AutorizacionId,
+    TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
+    string? ReembolsoReferencia = null,
+    string? ReembolsoDetalle = null);
 
 public sealed record DatosLineaNotaCredito(
     int NumeroLineaOrigen,
@@ -99,7 +105,10 @@ public sealed record DatosNotaCredito(
     DateTimeOffset CreadaEn,
     IReadOnlyList<DatosLineaNotaCredito> Lineas,
     DatosComprobanteElectronico? Comprobante,
-    int PuntosReversados = 0);
+    int PuntosReversados = 0,
+    TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
+    string? ReembolsoReferencia = null,
+    string? ReembolsoDetalle = null);
 
 /// <summary>Mensaje para el Central: la nota de crédito y su XML firmado. Su saldo solo está disponible en otras tiendas al sincronizar (RF-235).</summary>
 public sealed record DocumentoNotaCreditoEmitida(DatosNotaCredito NotaCredito, Guid SucursalId, Guid CajaId, Guid? TurnoId, DocumentoElectronicoParaCentral Ecf);

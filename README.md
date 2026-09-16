@@ -182,6 +182,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Columna Promo:** muestra la oferta (ej. `2x1`, `-15%`). Al tocarla se ve el detalle, las ofertas vigentes y la opción de **desactivarla**, que requiere permiso.
 - **Descuento a la línea** (tocar el precio) y **a la factura** (segunda página): por porcentaje o monto, con motivo de la lista `motivosDescuento`. Requiere permiso o clave de supervisor. No aplica a artículos en oferta ni a familias sin descuento manual (panadería, vegetales). El de factura puede limitarse a líneas elegidas y se prorratea al centavo.
 - **Topes** (`topesDescuento`): por nivel de usuario, general, por familia o por artículo. Si el descuento supera el tope de quien autoriza, se pide la clave de un nivel superior. En desarrollo: supervisor (S001) hasta 10 % o RD$2,000; gerente (G001) hasta 30 % o RD$20,000.
+- **Descuento del banco por tarjeta (RF-98)** (`descuentosTarjeta` en los maestros): el Central define qué BIN participan (los primeros 4 a 8 dígitos de la tarjeta), el porcentaje o monto, la compra mínima, el tope del descuento, la vigencia y los días. En el cobro, al elegir tarjeta se digitan (o los entrega el terminal) los primeros dígitos y el descuento se aplica **a la factura antes de emitir el e-CF**, para que el comprobante fiscal salga con lo realmente cobrado; si varios bancos cubren el mismo BIN, gana el que más descuenta. Queda auditado como `Ventas.DescuentoTarjeta`.
 - Cada línea guarda la oferta aplicada y cada descuento queda auditado con motivo y autorizador.
 
 ### Cobro y periféricos
@@ -201,6 +202,13 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Al cobrar:** dentro de la misma transacción se toma el siguiente e-NCF, se genera y valida el XML, se firma, se calcula el código de seguridad y la URL del timbre, y el XML firmado se guarda en `{Ecf:CarpetaXml}\Pendientes\yyyy\MM\dd\{RNC}{eNCF}.xml` (en desarrollo `logs/ecf`; en producción `C:\CGPOS\eCF`). El documento queda "Pendiente por sincronizar" y el XML viaja al Central en `Venta.Cobrada`. Si algo falla, no se consume la secuencia.
 - **Ticket:** e-NCF, vencimiento de la secuencia, código de seguridad, fecha de firma y QR del timbre (ESC/POS nativo).
 - **API:** `GET /api/ecf/estado`, `POST /api/ecf/certificado`, `GET /api/ecf/documentos?estado=`.
+- **Contingencia:** si la caja no puede firmar (certificado sin cargar o vencido, secuencia agotada) y `Ecf.ContingenciaHabilitada` está activo, la venta **se cobra igual** con un comprobante provisional numerado (`CTG-caja-secuencia`) impreso en el ticket. El e-CF se emite y firma solo, con la fecha real del cobro, en cuanto se restablece lo que faltaba —al cargar el certificado o en el ciclo de sincronización— y la venta vuelve a salir al Central ya con su e-CF. La barra de estado alerta mientras haya contingencias abiertas, y el cierre de turno las exige regularizadas salvo que `Ecf.ContingenciaPermiteCerrarTurno` lo permita.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Ecf.ContingenciaHabilitada` | Permite cobrar con comprobante provisional cuando no se puede firmar el e-CF | No (sin él, el cobro se rechaza) |
+| `Ecf.ContingenciaPermiteCerrarTurno` | Permite cerrar el turno con ventas en contingencia pendientes | No |
+
 - **Por confirmar con la DGII:** esquema XML definitivo (colocar los XSD en `Ecf:CarpetaXsd`), código de seguridad y URL del timbre.
 
 ### Turno y cierre
@@ -210,7 +218,8 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Cierre de turno:** declaración por forma de pago y conteo del efectivo por denominaciones. Con `Caja.CierreCiego` (por defecto `true`) el cajero no ve lo esperado; *Pre-cierre* imprime lo esperado con clave de supervisor.
 - **Lo esperado:** el efectivo cuenta lo recibido menos la devuelta y los retiros; el fondo solo entra si `Caja.FondoEnCuadre` es `true` (por defecto no se mezcla). Moneda extranjera se cuadra en su moneda; los demás medios, por lo aplicado a las facturas.
 - **No se cierra** con facturas en espera, transacciones en curso con artículos o ventas sin e-CF firmado; la pantalla lista qué falta. Las transacciones vacías se descartan al cerrar.
-- **Al cerrar:** se imprime el reporte (esperado, declarado, diferencia por forma de pago, denominaciones, retiros y relevos) y el cierre queda en la bandeja de salida (`Caja.TurnoCerrado`), igual que retiros, relevos y reaperturas.
+- **Al cerrar:** se imprime el reporte (esperado, declarado, diferencia por forma de pago, denominaciones, retiros, reembolsos y relevos) y el cierre queda en la bandeja de salida (`Caja.TurnoCerrado`), igual que retiros, relevos y reaperturas.
+- **Cierre de lote (RF-215):** *Cerrar lote* cierra el lote del terminal de pago y cuadra las tarjetas aprobadas del turno con lo que el terminal reporta: si detalla el lote se muestran la diferencia y las autorizaciones que faltan de un lado o del otro; si el modelo no lo detalla, se muestra lo de la caja para compararlo con el comprobante que imprime el terminal.
 - **Reapertura:** desde la apertura, *Reabrir el último cierre* con motivo y autorización de nivel superior (en los datos de desarrollo, el gerente G001). El cierre queda como *Reabierto* y el turno vuelve a su cajero.
 - **API:** `GET /api/caja/turno/resumen`, `POST /api/caja/turno/{precierre|retiros|relevo|cierre}`, `GET /api/caja/cierres`, `POST /api/caja/cierres/{id}/{reabrir|reimprimir}`.
 
@@ -223,6 +232,12 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Nota de crédito E34:** se firma en la caja en la misma transacción, con referencia al e-CF de la factura (código 1 si completa la factura, 3 si es parcial), y viaja al Central en `Devolucion.NotaCreditoEmitida`. Se imprimen la copia del cliente (código de barras y política `Devoluciones.PoliticaNotaCredito`) y la de contabilidad.
 - **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente (`Devoluciones.MesesVigenciaNotaCredito`) y tenga saldo. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
 - **Otra sucursal:** una nota de crédito que no está en la caja se valida y se reserva en el Central al cobrar (ver *Notas de crédito entre sucursales*); las facturas de otra sucursal se siguen informando como no encontradas.
+- **Reembolso (RF-123):** el cliente puede llevarse el dinero en vez del saldo a favor. La nota de crédito E34 se emite igual (la DGII la exige) pero queda sin saldo, y se registra cómo se pagó: **efectivo** de la gaveta (que baja lo esperado del cuadre como un retiro y sale en el reporte del cierre), **a la tarjeta** con la autorización del terminal, o **cheque** con banco y a nombre de quién. Cada forma se habilita por parámetro y el máximo en efectivo se configura; lo que no esté habilitado se rechaza.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Devoluciones.ReembolsoEfectivo`, `Devoluciones.ReembolsoTarjeta`, `Devoluciones.ReembolsoCheque` | Formas de devolver el dinero que el negocio permite | No (sin ellos solo queda saldo en la nota) |
+| `Devoluciones.MontoMaximoReembolsoEfectivo` | Tope de la devolución en efectivo | No |
 - **API:** `GET /api/devoluciones/factura/{numero}`, `POST /api/devoluciones`, `GET /api/devoluciones/notas-credito/{codigo}`, `POST /api/devoluciones/{id}/reimprimir`, `GET /api/devoluciones/motivos`.
 
 ### Programa de fidelidad
@@ -238,7 +253,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Marcar (tecla «Entrega / envío»):** líneas completas o en parte para retiro en un almacén (`almacenes` en los maestros) o envío a dirección, con fecha comprometida; varios destinos por factura. Requiere `Pendientes.Marcar` o clave de supervisor. Los serializados pueden registrarse sin serial si se entregan después.
 - **Al cobrar:** un pendiente por destino (`PE-sucursal-caja-secuencia`) con voucher de código de barras, copia del cliente y del despacho y la política `Entregas.PoliticaPendiente`. Lo pendiente no se devuelve hasta anular el pendiente.
 - **Pantalla `/despacho`:** se escanea el voucher o la factura; preparación, entrega total o parcial con quien recibe y serial, constancia impresa, y anulación con motivo y `Pendientes.Anular`. Opera con `Pendientes.Despachar`.
-- **En el Central:** los pendientes de todas las sucursales se ven juntos en el Central Manager (ver *Despacho en el Central*). **Pendiente:** notificación por correo al cliente, que necesita el servidor de correo de la empresa.
+- **En el Central:** los pendientes de todas las sucursales se ven juntos en el Central Manager y, si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda preparado (ver *Despacho en el Central*).
 - **API:** `POST /api/ventas/{id}/entregas`, `DELETE /api/ventas/{id}/entregas/{numero}`, `GET /api/entregas/almacenes`, `GET /api/despacho/pendientes/abiertos`, `GET /api/despacho/pendientes/buscar/{codigo}`, `POST /api/despacho/pendientes/{id}/estado|entregas|anular`.
 
 ### Sincronización con el Central y mantenimiento
@@ -387,7 +402,13 @@ dotnet run --project src/Central/CgPos.Central.Api
 - Cada pendiente de entrega o envío que crea o actualiza una caja (`Entregas.PendienteCreado` y `Entregas.PendienteActualizado`) se refleja en el Central con su factura, cliente, destino, unidades y estado.
 - **La caja manda:** el Central es una copia para consultar. Un mensaje más viejo que lo ya registrado no pisa el estado más reciente, así que un reenvío tardío no devuelve un pendiente entregado a "pendiente".
 - **Central Manager** (permiso `Central.Despacho.Operar`): tablero con abiertos, atrasados, retiros, envíos y entregados hoy; listado de todas las sucursales ordenado por fecha comprometida (los atrasados primero), filtros por estado, método, solo abiertos y solo atrasados, búsqueda por pendiente, factura, cliente o teléfono, y detalle con artículos y entregas ya hechas.
-- **Pendiente:** avisar al cliente por correo cuando su pedido está listo; falta definir el servidor de correo de la empresa.
+- **Aviso al cliente (RF-256):** con `Central.Despacho.AvisarPreparado` activo y el correo de la empresa configurado, el Central le escribe al cliente cuando su pedido queda preparado, usando el correo del maestro de clientes. A quien no tiene correo registrado se le marca para llamarlo por teléfono; si el servidor de correo falla, el aviso se reintenta en el próximo ciclo.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Correo.Servidor`, `Central.Correo.Puerto`, `Central.Correo.UsarTls`, `Central.Correo.Usuario`, `Central.Correo.Remitente`, `Central.Correo.NombreRemitente` | Servidor SMTP de la empresa (la contraseña va en `Correo:Contrasena` de la configuración del servidor, nunca en los parámetros) | No |
+| `Central.Despacho.AvisarPreparado` | Activa el aviso por correo al cliente | No |
+| `Central.Despacho.MinutosCicloAvisos`, `Central.Despacho.LoteAvisos` | Cada cuánto se revisan los pedidos preparados y cuántos se avisan por ciclo | Sí |
 - **API del Manager:** `GET /api/manager/despacho/pendientes?buscar=&estado=&metodo=&sucursalId=&soloAtrasados=&soloAbiertos=`, `GET /api/manager/despacho/pendientes/{id}`, `GET /api/manager/despacho/resumen`.
 
 ### Reportes del Central

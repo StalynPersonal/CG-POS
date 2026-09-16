@@ -342,18 +342,30 @@ internal sealed class ServicioVentas(
 
         // El e-CF se emite y firma dentro de la misma transacción del cobro: si algo falla no se consume la secuencia.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
-        EmisionEcf emision;
+        EmisionEcf? emision = null;
+        ComprobanteContingencia? contingencia = null;
         try
         {
             emision = await emisorEcf.EmitirAsync(venta, cancelacion);
         }
         catch (EmisionEcfExcepcion excepcion)
         {
-            await transaccion.RollbackAsync(cancelacion);
-            contexto.ChangeTracker.Clear();
-            await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
-            var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
-            return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
+            // Contingencia (RF-224): si el negocio la habilitó y lo que falta es el certificado o la secuencia, la venta se cobra con un
+            // comprobante provisional y el e-CF se emite en cuanto se restablezca. Un e-CF inválido nunca entra aquí: eso se corrige antes.
+            var elegible = excepcion.Codigo is CodigoResultadoVenta.CertificadoNoCargado or CodigoResultadoVenta.ComprobanteNoDisponible;
+            if (!elegible || !await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ContingenciaEcf, sesion.CajaId, cancelacion))
+            {
+                await transaccion.RollbackAsync(cancelacion);
+                contexto.ChangeTracker.Clear();
+                await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
+                var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
+                return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
+            }
+
+            var secuenciaContingencia = await secuencias.SiguienteAsync(venta.CajaId, TiposSecuencia.Contingencia, cancelacion);
+            contingencia = ComprobanteContingencia.Registrar(venta.Id, venta.NumeroTransaccion, venta.CajaId, venta.TurnoId,
+                $"CTG-{sesion.CajaCodigo}-{secuenciaContingencia:00000000}", venta.TipoComprobante, resultado.TotalCobrado, excepcion.Message, ahora);
+            contexto.ComprobantesContingencia.Add(contingencia);
         }
 
         // Consumo de notas de crédito en la misma transacción del cobro (RF-38).
@@ -395,9 +407,9 @@ internal sealed class ServicioVentas(
         }
 
         // Documento, e-CF, mensaje para el Central y auditoría en la misma transacción (RF-270).
-        var datosVenta = venta.ADatos(_montoIdentificacion, emision.Documento, emision.VenceSecuencia);
+        var datosVenta = venta.ADatos(_montoIdentificacion, emision?.Documento, emision?.VenceSecuencia);
         bandejaSalida.Encolar("Venta.Cobrada", venta.Id,
-            new DocumentoVentaCobrada(datosVenta, venta.SucursalId, venta.CajaId, venta.TurnoId, sesion.UsuarioId, ahora, emision.ParaCentral));
+            new DocumentoVentaCobrada(datosVenta, venta.SucursalId, venta.CajaId, venta.TurnoId, sesion.UsuarioId, ahora, emision?.ParaCentral));
         auditoria.Registrar(new EntradaAuditoria("Ventas.Cobrada", TipoEntidadVenta, venta.NumeroTransaccion,
             Detalle: new
             {
@@ -423,13 +435,14 @@ internal sealed class ServicioVentas(
         catch
         {
             // Si el cobro no quedó guardado, su XML no debe quedar en pendientes.
-            EmisionComprobantes.DescartarArchivo(emision);
+            if (emision is not null)
+                EmisionComprobantes.DescartarArchivo(emision);
             throw;
         }
 
         // Periféricos después de guardar: un fallo de impresora o gaveta nunca deshace el cobro.
         var encabezado = await EncabezadoTicketAsync(sesion, cancelacion);
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(encabezado, datosVenta, esCopia: false), cancelacion);
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(encabezado, datosVenta, esCopia: false, contingencia?.Numero), cancelacion);
 
         // Voucher con el saldo que queda de cada nota de crédito usada (RF-43).
         foreach (var (nota, saldo) in saldosNotas.Where(n => n.Saldo > 0))
@@ -1291,6 +1304,50 @@ internal sealed class ServicioVentas(
             Mensaje = $"Las líneas {string.Join(", ", conExcluidas.LineasExcluidas)} no tomaron el descuento: están en oferta o su familia no admite descuento manual.",
             LineasExcluidas = conExcluidas.LineasExcluidas,
         };
+    }
+
+    public async Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(SesionUsuario sesion, Guid ventaId, string bin, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        var digitos = DescuentoTarjeta.SoloDigitos(bin);
+        if (digitos.Length < DescuentoTarjeta.LargoMinimoBin)
+            return new RespuestaVenta(CodigoResultadoVenta.DocumentoInvalido,
+                $"Digite al menos los primeros {DescuentoTarjeta.LargoMinimoBin} dígitos de la tarjeta.", Datos(venta!));
+
+        var total = venta!.CalcularTotales().Total;
+        var ahoraLocal = reloj.GetLocalNow();
+        var candidatos = await contexto.DescuentosTarjeta.AsNoTracking()
+            .Where(d => d.Activo && d.VigenteDesde <= ahoraLocal && d.VigenteHasta >= ahoraLocal)
+            .ToListAsync(cancelacion);
+
+        // Si varios bancos cubren el mismo BIN, gana el que más le descuenta al cliente.
+        var descuento = candidatos
+            .Where(d => d.AplicaA(digitos, total, ahoraLocal))
+            .OrderByDescending(d => d.Calcular(total))
+            .FirstOrDefault();
+
+        if (descuento is null)
+            return new RespuestaVenta(CodigoResultadoVenta.Correcto, "Esa tarjeta no tiene descuento vigente.", Datos(venta));
+
+        var monto = descuento.Calcular(total);
+        if (monto <= 0)
+            return new RespuestaVenta(CodigoResultadoVenta.Correcto, "Esa tarjeta no tiene descuento vigente.", Datos(venta));
+
+        var respuesta = await EjecutarAsync(venta, () =>
+        {
+            venta.AplicarDescuentoFactura(TipoDescuento.Monto, monto, null, $"{descuento.Nombre} ({descuento.Codigo})", sesion.UsuarioId, sesion.Nombre,
+                reloj.GetUtcNow());
+            auditoria.Registrar(new EntradaAuditoria("Ventas.DescuentoTarjeta", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: new { descuento.Codigo, descuento.Nombre, Bin = digitos, Monto = monto },
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        }, cancelacion);
+
+        return respuesta.Exitosa
+            ? respuesta with { Mensaje = $"{descuento.Nombre}: {venta.SimboloMoneda}{monto:N2} de descuento por pagar con esa tarjeta." }
+            : respuesta;
     }
 
     public async Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)

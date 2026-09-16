@@ -1,10 +1,24 @@
-using CgPos.Dominio.Promociones;
+﻿using CgPos.Dominio.Promociones;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace CgPos.Pos.Infraestructura.Persistencia.Configuraciones;
+
+internal sealed class DescuentoTarjetaConfiguracion : IEntityTypeConfiguration<DescuentoTarjeta>
+{
+    public void Configure(EntityTypeBuilder<DescuentoTarjeta> constructor)
+    {
+        constructor.ToTable("DescuentosTarjeta");
+        constructor.HasKey(d => d.Id);
+        constructor.Property(d => d.Id).ValueGeneratedNever();
+        constructor.Property(d => d.Codigo).HasMaxLength(DescuentoTarjeta.LargoMaximoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(d => d.Nombre).HasMaxLength(DescuentoTarjeta.LargoMaximoNombre).IsRequired();
+        constructor.Property(d => d.Bines).HasMaxLength(DescuentoTarjeta.LargoMaximoBines).IsUnicode(false).IsRequired();
+        constructor.HasIndex(d => d.Codigo).IsUnique();
+    }
+}
 
 internal sealed class PromocionConfiguracion : IEntityTypeConfiguration<Promocion>
 {

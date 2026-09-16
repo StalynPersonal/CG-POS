@@ -1,4 +1,4 @@
-@* Cierre de turno (M13): lo entregado por forma de pago y el efectivo contado por denominaciones, en modalidad ciega (RF-9, RN-23).
+﻿@* Cierre de turno (M13): lo entregado por forma de pago y el efectivo contado por denominaciones, en modalidad ciega (RF-9, RN-23).
    El pre-cierre imprime lo esperado con clave de supervisor (RF-8). *@
 @using System.Globalization
 @using CgPos.Dominio.Turnos
@@ -142,6 +142,8 @@
                        OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
             <MudButton Size="Size.Large" Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || _resumen is null)" StartIcon="@Icons.Material.Filled.ReceiptLong"
                        Style="min-height: var(--cg-toque-minimo)" OnClick="PreCierreAsync">Pre-cierre</MudButton>
+            <MudButton Size="Size.Large" Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || _resumen is null)" StartIcon="@Icons.Material.Filled.CreditCard"
+                       Style="min-height: var(--cg-toque-minimo)" OnClick="ConciliarTarjetasAsync">Cerrar lote</MudButton>
             <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || _resumen is null)" StartIcon="@Icons.Material.Filled.LockClock"
                        Style="min-height: var(--cg-toque-minimo); min-width: 200px; font-size: 1.1rem" OnClick="CerrarAsync">Cerrar turno</MudButton>
         }
@@ -289,6 +291,37 @@
         _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
         if (respuesta.Resumen is { } resumen)
             _bloqueos = resumen.Bloqueos;
+    }
+
+    /// <summary>Cierra el lote del terminal y muestra si las tarjetas del turno cuadran con lo que reportó (RF-215).</summary>
+    private async Task ConciliarTarjetasAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        _aviso = null;
+        var conciliacion = await Cliente.ConciliarTarjetasAsync();
+        _procesando = false;
+
+        if (conciliacion is null)
+        {
+            _mensaje = "No se pudo cerrar el lote del terminal.";
+            return;
+        }
+
+        var lote = conciliacion.NumeroLote is { Length: > 0 } numero ? $"Lote {numero}. " : string.Empty;
+        var caja = $"En caja {conciliacion.TransaccionesCaja} tarjeta(s) por {conciliacion.MontoCaja:C}.";
+
+        if (!conciliacion.LoteCerrado)
+            _mensaje = $"{conciliacion.Mensaje} {caja}";
+        else if (!conciliacion.DetalleDelTerminal)
+            _aviso = $"{lote}{caja} {conciliacion.Mensaje}";
+        else if (conciliacion.Cuadra)
+            _aviso = $"{lote}{caja} El terminal reporta lo mismo: cuadra.";
+        else
+            _mensaje = $"{lote}{caja} El terminal reporta {conciliacion.TransaccionesTerminal} por {conciliacion.MontoTerminal:C}: "
+                + $"diferencia de {conciliacion.Diferencia:C}."
+                + (conciliacion.SoloEnCaja.Count > 0 ? $" Solo en la caja: {string.Join(", ", conciliacion.SoloEnCaja)}." : string.Empty)
+                + (conciliacion.SoloEnTerminal.Count > 0 ? $" Solo en el terminal: {string.Join(", ", conciliacion.SoloEnTerminal)}." : string.Empty);
     }
 
     private async Task CerrarAsync()

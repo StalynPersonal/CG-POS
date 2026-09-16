@@ -656,6 +656,61 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task En_contingencia_la_venta_se_cobra_con_comprobante_provisional_y_el_ecf_sale_al_cargar_el_certificado()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, cargarCertificado: false);
+
+        await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
+        {
+            contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.ContingenciaEcf, "true",
+                cajaId: caja.Escenario.CajaUno));
+            contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.ContingenciaPermiteCerrar, "true",
+                cajaId: caja.Escenario.CajaUno));
+            return await contexto.SaveChangesAsync();
+        });
+
+        // Sin certificado, con contingencia habilitada la venta se cobra igual y se entrega un comprobante provisional.
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Null(cobro.Venta!.Comprobante);
+
+        var contingencia = await caja.EjecutarAsync<ContextoDatosPos, CgPos.Dominio.Fiscal.ComprobanteContingencia>(contexto =>
+            contexto.ComprobantesContingencia.AsNoTracking().SingleAsync(c => c.VentaId == cobro.Venta.Id));
+        Assert.StartsWith("CTG-", contingencia.Numero);
+        Assert.True(contingencia.EstaPendiente);
+        Assert.Contains("certificado", contingencia.Motivo);
+        Assert.NotEmpty(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{cobro.Venta.NumeroTransaccion}*.txt"));
+
+        var estado = await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.Equal(1, estado.ContingenciasPendientes);
+        Assert.Contains(estado.Alertas, a => a.Contains("contingencia"));
+
+        // El turno se puede cerrar porque el negocio lo permitió para las ventas en contingencia.
+        var resumen = await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Ventas.IServicioCaja, RespuestaCaja>(s => s.ObtenerResumenAsync(caja.Cajero));
+        Assert.DoesNotContain(resumen.Resumen!.Bloqueos, b => b.Contains("sin e-CF"));
+
+        // Al cargar el certificado, el e-CF se emite solo con la fecha real del cobro y vuelve a salir al Central.
+        var certificado = await caja.EjecutarAsync<IServicioEcf, RespuestaCertificado>(s => s.CargarCertificadoAsync(caja.Cajero, BaseDatosPruebas.PinCertificado));
+        Assert.True(certificado.Correcto, certificado.Mensaje);
+        Assert.Contains("contingencia", certificado.Mensaje);
+
+        var regularizada = await caja.EjecutarAsync<ContextoDatosPos, CgPos.Dominio.Fiscal.ComprobanteContingencia>(contexto =>
+            contexto.ComprobantesContingencia.AsNoTracking().SingleAsync(c => c.VentaId == cobro.Venta.Id));
+        Assert.False(regularizada.EstaPendiente);
+        Assert.StartsWith("E32", regularizada.Encf);
+
+        var documento = await caja.EjecutarAsync<ContextoDatosPos, DocumentoElectronico>(contexto =>
+            contexto.DocumentosElectronicos.AsNoTracking().SingleAsync(d => d.VentaId == cobro.Venta.Id));
+        Assert.Equal(regularizada.Encf, documento.Encf);
+
+        var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
+            contexto.BandejaSalida.AsNoTracking().Where(m => m.AgregadoId == cobro.Venta.Id && m.TipoMensaje == "Venta.Cobrada").CountAsync());
+        Assert.Equal(2, mensajes);
+        Assert.Equal(0, (await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero))).ContingenciasPendientes);
+    }
+
+    [SkippableFact]
     public async Task Secuencia_agotada_bloquea_el_cobro_y_el_estado_lo_alerta()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -1230,6 +1285,117 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var conBaja = await DescargarAsync(new PaqueteBajadaMaestros(desde + 700, desde + 800, null, null, null, vigentes));
         Assert.True(conBaja.Descargado);
         Assert.Null(await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Organizacion.IParametros, string?>(p => p.ObtenerAsync(clave, escenario.CajaUno)));
+    }
+
+    [SkippableFact]
+    public async Task El_descuento_del_banco_por_bin_baja_el_total_antes_de_emitir_el_ecf()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var ahora = caja.Reloj.GetLocalNow();
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(DescuentosTarjeta:
+        [
+            new DescuentoTarjetaCarga(Guid.CreateVersion7(), $"BIN{caja.Escenario.Sufijo}", "10 % con tarjetas del banco", "455123,401288",
+                CgPos.Dominio.Promociones.TipoDescuentoTarjeta.Porcentaje, 10m, ahora.AddDays(-1), ahora.AddMonths(1)),
+        ]), "Pruebas"));
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var total = (await caja.VentaActualAsync()).Totales.Total;
+
+        // Una tarjeta que no participa deja la venta igual.
+        var sinDescuento = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AplicarDescuentoTarjetaAsync(caja.Cajero, venta.Id, "521000"));
+        Assert.True(sinDescuento.Exitosa, sinDescuento.Mensaje);
+        Assert.Contains("no tiene descuento", sinDescuento.Mensaje);
+        Assert.Equal(total, sinDescuento.Venta!.Totales.Total);
+
+        // Con el BIN del banco, el total baja antes de cobrar y el e-CF sale por el monto real.
+        var conDescuento = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AplicarDescuentoTarjetaAsync(caja.Cajero, venta.Id, "4551234567"));
+        Assert.True(conDescuento.Exitosa, conDescuento.Mensaje);
+        Assert.Contains("descuento por pagar con esa tarjeta", conDescuento.Mensaje);
+        var esperado = decimal.Round(total * 0.9m, 2, MidpointRounding.AwayFromZero);
+        Assert.Equal(esperado, conDescuento.Venta!.Totales.Total);
+
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Equal(esperado, cobro.Venta!.TotalCobrado);
+    }
+
+    [SkippableFact]
+    public async Task El_cierre_de_lote_cuadra_las_tarjetas_del_turno_con_lo_que_reporta_el_terminal()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var operacion = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s =>
+            s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 100m));
+        Assert.True(operacion.Exitosa, operacion.Mensaje);
+
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, 100m, OperacionTerminalId: operacion.Operacion!.Id),
+             new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+
+        // El terminal simulado cierra el lote sin detallarlo: se informa lo de la caja para compararlo con su comprobante.
+        var conciliacion = await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Ventas.IServicioCaja, DatosConciliacionTarjetas>(s =>
+            s.ConciliarTarjetasAsync(caja.Cajero));
+
+        Assert.True(conciliacion.LoteCerrado, conciliacion.Mensaje);
+        Assert.Equal((1, 100m), (conciliacion.TransaccionesCaja, conciliacion.MontoCaja));
+        Assert.False(conciliacion.DetalleDelTerminal);
+        Assert.Contains("comprobante", conciliacion.Mensaje);
+    }
+
+    [SkippableFact]
+    public async Task La_devolucion_puede_pagarse_en_efectivo_y_baja_lo_esperado_del_cuadre()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var factura = cobro.Venta!;
+        var total = factura.TotalCobrado!.Value;
+
+        var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        var linea = Assert.Single(buscada.Factura!.Lineas);
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Cliente pidió su dinero");
+        var solicitud = new SolicitudDevolucion(factura.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Reembolso",
+            caja.Catalogo.CodigoMotivoDevolucion, null, autorizacion, CgPos.Dominio.Devoluciones.TipoReembolso.Efectivo);
+
+        // Sin habilitarlo en los parámetros, el dinero no sale de la gaveta.
+        var sinPermitir = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
+        Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, sinPermitir.Resultado);
+        Assert.Contains("no está habilitada", sinPermitir.Mensaje);
+
+        await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
+        {
+            contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.ReembolsoEfectivo, "true",
+                cajaId: caja.Escenario.CajaUno));
+            return await contexto.SaveChangesAsync();
+        });
+
+        var nuevaAutorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Cliente pidió su dinero");
+        var devuelta = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s =>
+            s.RegistrarAsync(caja.Cajero, solicitud with { AutorizacionId = nuevaAutorizacion }));
+        Assert.True(devuelta.Exitosa, devuelta.Mensaje);
+
+        // La nota de crédito se emite igual (la DGII la exige) pero sin saldo: el cliente ya se llevó el dinero.
+        var nota = devuelta.NotaCredito!;
+        Assert.Equal((CgPos.Dominio.Devoluciones.TipoReembolso.Efectivo, 0m), (nota.Reembolso, nota.Saldo));
+        Assert.StartsWith("E34", nota.Comprobante!.Encf);
+
+        var saldo = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaSaldoNotaCredito>(s => s.ConsultarNotaCreditoAsync(caja.Cajero, nota.Comprobante.Encf));
+        Assert.Equal(CodigoResultadoDevolucion.NotaCreditoConsumida, saldo.Resultado);
+
+        // El efectivo salió de la gaveta: el cuadre espera menos.
+        var resumen = await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Ventas.IServicioCaja, RespuestaCaja>(s => s.ObtenerResumenAsync(caja.Cajero));
+        Assert.True(resumen.Exitosa, resumen.Mensaje);
+        Assert.Equal(total, resumen.Resumen!.TotalRetiros);
     }
 
     [SkippableFact]

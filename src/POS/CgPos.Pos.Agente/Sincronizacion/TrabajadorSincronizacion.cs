@@ -1,3 +1,4 @@
+using CgPos.Pos.Aplicacion.Organizacion;
 ﻿using CgPos.Pos.Aplicacion.Sincronizacion;
 
 namespace CgPos.Pos.Agente.Sincronizacion;
@@ -37,6 +38,19 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, IConf
                         registro.LogInformation("Padrón de la DGII actualizado desde el Central: {Cantidad:N0} contribuyentes.", importados);
                 }, "La actualización del padrón de la DGII falló", detener);
             }
+
+            // Ventas cobradas en contingencia: su e-CF se emite en cuanto la caja vuelve a poder firmarlo (RF-224).
+            await EjecutarAsync<IContextoCaja>(async contextoCaja =>
+            {
+                if (contextoCaja.CajaId is not { } cajaId)
+                    return;
+
+                await using var ambito = ambitos.CreateAsyncScope();
+                var resultado = await ambito.ServiceProvider.GetRequiredService<CgPos.Pos.Aplicacion.Ecf.IRegularizacionContingencia>()
+                    .RegularizarAsync(cajaId, detener);
+                if (resultado.Emitidos > 0)
+                    registro.LogInformation("Contingencia: {Emitidos} e-CF emitidos; quedan {Pendientes}.", resultado.Emitidos, resultado.Pendientes);
+            }, "La emisión de los e-CF en contingencia falló", detener);
 
             await EjecutarAsync<IProcesadorBandejaSalida>(async procesador =>
             {

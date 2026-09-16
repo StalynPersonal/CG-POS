@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Entregas;
 
@@ -41,6 +41,9 @@ public sealed class PendienteCentral : Entidad
     public DateTimeOffset ActualizadoEn { get; private set; }
 
     public DateTimeOffset RecibidoEn { get; private set; }
+
+    /// <summary>Cuándo se le avisó al cliente que su pedido está listo; nulo si todavía no se le avisó (RF-256).</summary>
+    public DateTimeOffset? AvisoEnviadoEn { get; private set; }
 
     /// <summary>Documento completo tal como lo envió la caja (líneas y entregas), para el detalle.</summary>
     public string Contenido { get; private set; } = string.Empty;
@@ -94,6 +97,11 @@ public sealed class PendienteCentral : Entidad
         TextoBusqueda = Texto(datos);
         return true;
     }
+
+    /// <summary>El pedido está listo para que el cliente lo retire y todavía no se le ha avisado.</summary>
+    public bool EsperaAviso => AvisoEnviadoEn is null && Estado == EstadoPendiente.Preparado;
+
+    public void MarcarAvisado(DateTimeOffset ahora) => AvisoEnviadoEn = ahora;
 
     private static string Texto(DatosPendienteCentral datos)
     {

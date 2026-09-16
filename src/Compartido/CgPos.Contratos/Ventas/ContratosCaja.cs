@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Turnos;
 
@@ -38,6 +38,29 @@ public sealed record DatosResumenTurno(
     IReadOnlyList<DatosMovimientoCaja> Movimientos,
     IReadOnlyList<string> Bloqueos,
     string MonedaLocal);
+
+/// <summary>
+/// Cuadre de las tarjetas del turno contra el lote del terminal (RF-215): lo que la caja registró como aprobado frente a lo que
+/// el terminal contabilizó al cerrar el lote.
+/// </summary>
+/// <param name="SoloEnCaja">Autorizaciones que la caja tiene y el terminal no reportó.</param>
+/// <param name="SoloEnTerminal">Autorizaciones del lote que la caja no tiene.</param>
+public sealed record DatosConciliacionTarjetas(
+    bool LoteCerrado,
+    string? NumeroLote,
+    int TransaccionesCaja,
+    decimal MontoCaja,
+    int TransaccionesTerminal,
+    decimal MontoTerminal,
+    decimal Diferencia,
+    IReadOnlyList<string> SoloEnCaja,
+    IReadOnlyList<string> SoloEnTerminal,
+    bool DetalleDelTerminal,
+    string? Mensaje)
+{
+    /// <summary>El terminal detalló el lote y cuadra con la caja.</summary>
+    public bool Cuadra => LoteCerrado && DetalleDelTerminal && Diferencia == 0m && SoloEnCaja.Count == 0 && SoloEnTerminal.Count == 0;
+}
 
 public sealed record SolicitudRetiroEfectivo(decimal Monto, string? Motivo, Guid? AutorizacionId);
 

@@ -1,4 +1,4 @@
-@* Cobro de la venta (F8): formas de pago en horizontal por uso (RF-150), pago mixto con el saldo siempre visible (RF-211),
+﻿@* Cobro de la venta (F8): formas de pago en horizontal por uso (RF-150), pago mixto con el saldo siempre visible (RF-211),
    dólares a la tasa del día (RF-212), tarjeta por el terminal o aprobación manual por contingencia (RF-213). *@
 @using System.Globalization
 @inject ClienteAgente Cliente
@@ -106,6 +106,17 @@
                             </div>
                         }
 
+                        @* Descuento del banco por la tarjeta (RF-98): se aplica antes de cobrar, así el e-CF sale con el monto real. *@
+                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta)
+                        {
+                            <div class="cg-cobro__bin">
+                                <MudTextField T="string" @bind-Value="_bin" Label="Primeros dígitos de la tarjeta (descuento del banco)" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Immediate="true" />
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || string.IsNullOrWhiteSpace(_bin))"
+                                           OnClick="AplicarDescuentoTarjetaAsync">Aplicar descuento</MudButton>
+                            </div>
+                        }
+
                         @if (seleccionada.RequiereBanco)
                         {
                             <div class="cg-descuento__motivos">
@@ -192,6 +203,7 @@
     private string _digitos = string.Empty;
     private Guid? _banco;
     private Guid? _tipoTarjeta;
+    private string? _bin;
     private bool _contingencia;
     private bool _procesando;
     private string? _mensaje;
@@ -370,6 +382,29 @@
             EsTerminal: false));
 
         SeleccionarForma(forma);
+    }
+
+    /// <summary>Pide el descuento del banco para esa tarjeta; si aplica, la venta baja de total antes de cobrar (RF-98).</summary>
+    private async Task AplicarDescuentoTarjetaAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_bin))
+            return;
+
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.AplicarDescuentoTarjetaAsync(Venta.Id, _bin);
+        _procesando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            _mensaje = respuesta.Mensaje;
+            return;
+        }
+
+        if (respuesta.Venta is { } actualizada)
+            Venta = actualizada;
+
+        _estado = respuesta.Mensaje;
     }
 
     private async Task PasarTarjetaAsync(DatosFormaPago forma, decimal monto)

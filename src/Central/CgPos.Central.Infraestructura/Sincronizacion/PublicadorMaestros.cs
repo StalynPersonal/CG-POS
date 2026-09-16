@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -238,6 +238,7 @@ internal sealed class PublicadorMaestros(
         [TipoMaestro.ReglaAcumulacion] = "de la regla de acumulación",
         [TipoMaestro.Almacen] = "del almacén",
         [TipoMaestro.MiembroFidelidad] = "(cédula) del miembro de fidelidad",
+        [TipoMaestro.DescuentoTarjeta] = "del descuento por tarjeta",
     };
 
     /// <summary>Lo que la caja rechaza cambiar se valida antes de publicar: un maestro así detendría su sincronización.</summary>

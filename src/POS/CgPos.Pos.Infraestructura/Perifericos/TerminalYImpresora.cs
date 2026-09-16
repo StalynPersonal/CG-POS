@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net.Sockets;
 using CgPos.Pos.Aplicacion.Perifericos;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +33,21 @@ internal sealed class TerminalPagoSimulado(IConfiguration configuracion) : ITerm
         return EsVerdadero(seccion["SinConexion"])
             ? new ResultadoTerminal(false, true, null, null, null, "El terminal de pago no responde.")
             : new ResultadoTerminal(true, false, NuevaAprobacion(), seccion["UltimosDigitos"] ?? "4242", seccion["Marca"] ?? "VISA", $"Anulada la aprobación {aprobacion}");
+    }
+
+    /// <summary>
+    /// Cierre de lote simulado: informa lo que la propia caja registró como aprobado, que es lo que un terminal real debería reportar.
+    /// El modelo definitivo se conecta aquí cuando se defina la pasarela.
+    /// </summary>
+    public async Task<ResultadoLoteTerminal> CerrarLoteAsync(CancellationToken cancelacion = default)
+    {
+        var seccion = configuracion.GetSection("Perifericos:TerminalSimulado");
+        await EsperarAsync(seccion, cancelacion);
+
+        if (EsVerdadero(seccion["SinConexion"]))
+            return new ResultadoLoteTerminal(false, "El terminal de pago no responde.");
+
+        return new ResultadoLoteTerminal(true, "Lote cerrado.", seccion["NumeroLote"] ?? DateTime.Now.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
     }
 
     private static Task EsperarAsync(IConfigurationSection seccion, CancellationToken cancelacion) =>

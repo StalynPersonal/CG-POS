@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Catalogo;
@@ -71,6 +71,7 @@ internal sealed class ServicioCargaMaestros(
         var reglasAcumulacion = paquete.ReglasAcumulacion ?? [];
         var miembrosFidelidad = paquete.MiembrosFidelidad ?? [];
         var almacenes = paquete.Almacenes ?? [];
+        var descuentosTarjeta = paquete.DescuentosTarjeta ?? [];
 
         await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
@@ -121,6 +122,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarMiembroFidelidadAsync(dato, cancelacion);
             foreach (var dato in almacenes)
                 await AplicarAlmacenAsync(dato, cancelacion);
+            foreach (var dato in descuentosTarjeta)
+                await AplicarDescuentoTarjetaAsync(dato, cancelacion);
 
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
@@ -529,6 +532,26 @@ internal sealed class ServicioCargaMaestros(
         if (dato.SaldoAl is { } saldoAl)
             miembro.SincronizarSaldo(dato.SaldoPuntos, saldoAl, dato.PuntosPorVencer, dato.ProximoVencimiento);
         if (dato.Activo) miembro.Activar(); else miembro.Desactivar();
+    }
+
+    /// <summary>Descuento del banco por BIN de tarjeta (RF-98): lo define el Central y la caja lo aplica al cobrar.</summary>
+    private async Task AplicarDescuentoTarjetaAsync(DescuentoTarjetaCarga dato, CancellationToken cancelacion)
+    {
+        var descuento = await contexto.DescuentosTarjeta.SingleOrDefaultAsync(d => d.Id == dato.Id, cancelacion);
+        if (descuento is null)
+        {
+            contexto.DescuentosTarjeta.Add(DescuentoTarjeta.Crear(dato.Id, dato.Codigo, dato.Nombre, dato.Bines, dato.Tipo, dato.Valor, dato.MontoMinimo,
+                dato.MontoMaximo, dato.BancoId, dato.VigenteDesde, dato.VigenteHasta, dato.Dias, dato.Activo));
+            _creados++;
+            return;
+        }
+
+        if (descuento.Codigo != dato.Codigo.Trim().ToUpperInvariant())
+            throw new InvalidOperationException($"No se puede cambiar el código del descuento de tarjeta '{descuento.Codigo}'.");
+
+        descuento.Actualizar(dato.Nombre, dato.Bines, dato.Tipo, dato.Valor, dato.MontoMinimo, dato.MontoMaximo, dato.BancoId, dato.VigenteDesde,
+            dato.VigenteHasta, dato.Dias, dato.Activo);
+        _actualizados++;
     }
 
     private async Task AplicarAlmacenAsync(AlmacenCarga dato, CancellationToken cancelacion)

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Fiscal;
+﻿using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Contratos.Ventas;
 
@@ -29,7 +29,8 @@ public sealed record DatosEstadoEcf(
     IReadOnlyList<DatosSecuenciaEcf> Secuencias,
     IReadOnlyList<string> Alertas,
     int RechazadosDgii = 0,
-    int AceptadosDgii = 0);
+    int AceptadosDgii = 0,
+    int ContingenciasPendientes = 0);
 
 public sealed record SolicitudCargarCertificado(string Pin);
 

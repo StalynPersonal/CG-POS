@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Turnos;
@@ -166,6 +166,9 @@ public sealed record SolicitudDescuentoLinea(TipoDescuento Tipo, decimal Valor, 
 
 /// <param name="Lineas">Números de línea a los que se limita; vacío o nulo = todas (RF-201).</param>
 public sealed record SolicitudDescuentoFactura(TipoDescuento Tipo, decimal Valor, IReadOnlyList<int>? Lineas, string? Motivo, Guid? AutorizacionId = null);
+
+/// <summary>Primeros dígitos de la tarjeta (BIN) para aplicar el descuento del banco (RF-98).</summary>
+public sealed record SolicitudDescuentoTarjeta(string Bin);
 
 public enum CodigoResultadoVenta
 {

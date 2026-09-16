@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Contratos.Seguridad;
 using CgPos.Dominio.Organizacion;
 
@@ -36,6 +36,12 @@ public static class ParametrosExtensiones
         bool.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), out var valor)
             ? valor
             : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser true o false");
+
+    /// <summary>Para reglas que el negocio puede no activar: <c>false</c> si no está configurado, error si está mal escrito.</summary>
+    public static async Task<bool> ObtenerBooleanoOpcionalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+        await parametros.ObtenerAsync(clave, cajaId, cancelacion) is not { Length: > 0 } texto ? false
+        : bool.TryParse(texto, out var valor) ? valor
+        : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser true o false");
 
     /// <summary>Para valores que el negocio puede no usar (ej. fondo sugerido): nulo si no está configurado, error si está mal escrito.</summary>
     public static async Task<decimal?> ObtenerDecimalOpcionalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
@@ -131,6 +137,27 @@ public static class ClavesParametros
 
     /// <summary>Texto impreso en la copia de contabilidad de la nota de crédito (RF-163).</summary>
     public const string PoliticaNotaCreditoContabilidad = "Devoluciones.PoliticaNotaCreditoContabilidad";
+
+    /// <summary>
+    /// Permite cobrar sin e-CF cuando la caja no puede firmarlo (certificado sin cargar o vencido, secuencia agotada): se entrega un
+    /// comprobante provisional y el e-CF se emite al restablecerse. Opcional: sin él, el cobro se rechaza.
+    /// </summary>
+    public const string ContingenciaEcf = "Ecf.ContingenciaHabilitada";
+
+    /// <summary>Permite cerrar el turno con ventas en contingencia pendientes de e-CF; sin él, el cierre las exige regularizadas.</summary>
+    public const string ContingenciaPermiteCerrar = "Ecf.ContingenciaPermiteCerrarTurno";
+
+    /// <summary>Permite devolver el dinero en efectivo de la gaveta (RF-123). Opcional: sin él solo queda saldo en la nota.</summary>
+    public const string ReembolsoEfectivo = "Devoluciones.ReembolsoEfectivo";
+
+    /// <summary>Monto máximo que se devuelve en efectivo en una devolución.</summary>
+    public const string MontoMaximoReembolsoEfectivo = "Devoluciones.MontoMaximoReembolsoEfectivo";
+
+    /// <summary>Permite devolver el dinero a la tarjeta con la que se pagó, por el terminal.</summary>
+    public const string ReembolsoTarjeta = "Devoluciones.ReembolsoTarjeta";
+
+    /// <summary>Permite registrar la devolución para pagarla con cheque.</summary>
+    public const string ReembolsoCheque = "Devoluciones.ReembolsoCheque";
 
     /// <summary>Porcentaje restante de una secuencia de e-CF desde el cual se alerta (RF-225). Por defecto 10.</summary>
     public const string PorcentajeAlertaSecuenciaEcf = "Fiscal.PorcentajeAlertaSecuenciaEcf";

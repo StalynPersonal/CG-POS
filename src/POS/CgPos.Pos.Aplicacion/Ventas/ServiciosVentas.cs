@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
@@ -96,6 +96,12 @@ public interface IServicioVentas
         string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Aplica el descuento que el banco da a esa tarjeta (RF-98), identificándola por su BIN. Se aplica antes de cobrar para que el
+    /// e-CF salga con el monto real; si no hay ninguno vigente para esa tarjeta, la venta queda igual y se informa.
+    /// </summary>
+    Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(SesionUsuario sesion, Guid ventaId, string bin, CancellationToken cancelacion = default);
 
     /// <summary>Desactiva la oferta de un artículo en la venta, con permiso (RF-124).</summary>
     Task<RespuestaVenta> DesactivarPromocionAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default);

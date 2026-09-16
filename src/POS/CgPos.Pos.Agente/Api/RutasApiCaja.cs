@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Contratos.Ventas;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Seguridad;
@@ -21,6 +21,10 @@ public static class RutasApiCaja
 
         turno.MapPost("/precierre", (SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.PreCierreAsync(sesion, solicitud.AutorizacionId, cancelacion))));
+
+        // Cuadre de las tarjetas contra el lote del terminal antes de cerrar (RF-215).
+        turno.MapPost("/conciliacion-tarjetas", (ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Results.Ok(await servicio.ConciliarTarjetasAsync(sesion, cancelacion))));
 
         turno.MapPost("/retiros", (SolicitudRetiroEfectivo solicitud, ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.RetirarEfectivoAsync(sesion, solicitud.Monto, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));

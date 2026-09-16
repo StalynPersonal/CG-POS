@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Agente.Pantallas;
@@ -111,6 +111,10 @@ public static class RutasApiVentas
 
         ventas.MapPost("/{ventaId:guid}/descuento", (Guid ventaId, SolicitudDescuentoFactura solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.AplicarDescuentoFacturaAsync(sesion, ventaId, solicitud.Tipo, solicitud.Valor, solicitud.Lineas, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
+
+        // Descuento del banco por la tarjeta con la que se va a pagar (RF-98), antes de cobrar y de emitir el e-CF.
+        ventas.MapPost("/{ventaId:guid}/descuento-tarjeta", (Guid ventaId, SolicitudDescuentoTarjeta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.AplicarDescuentoTarjetaAsync(sesion, ventaId, solicitud.Bin, cancelacion))));
 
         ventas.MapDelete("/{ventaId:guid}/descuento", (Guid ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.QuitarDescuentoFacturaAsync(sesion, ventaId, cancelacion))));

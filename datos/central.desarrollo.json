@@ -154,6 +154,18 @@
       "clave": "Central.Fidelidad.LoteVencimiento",
       "valor": "500",
       "descripcion": "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000916",
+      "clave": "Central.Despacho.MinutosCicloAvisos",
+      "valor": "15",
+      "descripcion": "Minutos entre revisiones de pedidos preparados sin avisar"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000917",
+      "clave": "Central.Despacho.LoteAvisos",
+      "valor": "50",
+      "descripcion": "Máximo de avisos al cliente por ciclo"
     }
   ],
   "rolesCentral": [

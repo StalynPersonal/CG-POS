@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Ventas;
 
@@ -11,6 +11,9 @@ public enum TipoMovimientoCaja
 
     /// <summary>Cambio del usuario que opera el turno sin cerrarlo (RF-260).</summary>
     Relevo,
+
+    /// <summary>Efectivo devuelto al cliente en una devolución (RF-123): sale de la gaveta como un retiro.</summary>
+    Reembolso,
 }
 
 /// <summary>Retiro de efectivo o relevo de cajero registrado en un turno; ambos van al Central.</summary>
@@ -60,6 +63,22 @@ public sealed class MovimientoCaja : Entidad
         var retiro = Crear(turno, TipoMovimientoCaja.Retiro, numero, redondeado, motivo, usuarioId, usuarioNombre, autorizadoPorId, autorizadoPorNombre, ahora);
         retiro.Moneda = FormaPago.ValidarMoneda(moneda);
         return retiro;
+    }
+
+    /// <summary>Efectivo entregado al cliente al devolver mercancía (RF-123); baja lo esperado en la gaveta igual que un retiro.</summary>
+    public static MovimientoCaja Reembolso(Turno turno, int numero, decimal monto, string moneda, string? motivo, Guid usuarioId, string usuarioNombre,
+        Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(turno);
+        if (!turno.EstaAbierto)
+            throw new InvalidOperationException("No se puede reembolsar efectivo en un turno cerrado.");
+
+        var redondeado = decimal.Round(monto, 2, MidpointRounding.AwayFromZero);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(redondeado, nameof(monto));
+
+        var reembolso = Crear(turno, TipoMovimientoCaja.Reembolso, numero, redondeado, motivo, usuarioId, usuarioNombre, autorizadoPorId, autorizadoPorNombre, ahora);
+        reembolso.Moneda = FormaPago.ValidarMoneda(moneda);
+        return reembolso;
     }
 
     internal static MovimientoCaja Relevo(Turno turno, int numero, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre,

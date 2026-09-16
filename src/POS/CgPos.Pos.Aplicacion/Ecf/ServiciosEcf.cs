@@ -1,4 +1,4 @@
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Security.Cryptography.X509Certificates;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Pos.Aplicacion.Seguridad;
@@ -35,6 +35,18 @@ public interface IServicioEcf
 
     Task<IReadOnlyList<DatosDocumentoElectronico>> ListarDocumentosAsync(SesionUsuario sesion, EstadoDocumentoElectronico? estado, int maximo = 100,
         CancellationToken cancelacion = default);
+}
+
+/// <param name="Pendientes">Ventas en contingencia que siguen sin e-CF después del intento.</param>
+public sealed record ResultadoRegularizacion(int Emitidos, int Pendientes, string? UltimoError);
+
+/// <summary>
+/// Emite el e-CF de las ventas cobradas en contingencia en cuanto la caja vuelve a poder firmarlas (RF-224): al cargar el
+/// certificado, al recibir una secuencia nueva y en cada ciclo de sincronización.
+/// </summary>
+public interface IRegularizacionContingencia
+{
+    Task<ResultadoRegularizacion> RegularizarAsync(Guid cajaId, CancellationToken cancelacion = default);
 }
 
 /// <summary>Configuración del e-CF en la caja (sección <c>Ecf</c>).</summary>

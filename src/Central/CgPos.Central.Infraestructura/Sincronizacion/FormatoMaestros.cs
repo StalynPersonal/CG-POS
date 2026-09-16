@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CgPos.Contratos.CargaInicial;
@@ -50,6 +50,7 @@ internal static class FormatoMaestros
         foreach (var d in paquete.NivelesFidelidad ?? []) yield return new(TipoMaestro.NivelFidelidad, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.ReglasAcumulacion ?? []) yield return new(TipoMaestro.ReglaAcumulacion, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.MiembrosFidelidad ?? []) yield return new(TipoMaestro.MiembroFidelidad, d.Id, CedulaNormalizada(d.Cedula), null, d);
+        foreach (var d in paquete.DescuentosTarjeta ?? []) yield return new(TipoMaestro.DescuentoTarjeta, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.Almacenes ?? []) yield return new(TipoMaestro.Almacen, d.Id, d.Codigo, null, d);
     }
 
@@ -82,6 +83,7 @@ internal static class FormatoMaestros
             NivelesFidelidad: Lista<NivelFidelidadCarga>(TipoMaestro.NivelFidelidad),
             ReglasAcumulacion: Lista<ReglaAcumulacionCarga>(TipoMaestro.ReglaAcumulacion),
             MiembrosFidelidad: Lista<MiembroFidelidadCarga>(TipoMaestro.MiembroFidelidad),
+            DescuentosTarjeta: Lista<DescuentoTarjetaCarga>(TipoMaestro.DescuentoTarjeta),
             Almacenes: Lista<AlmacenCarga>(TipoMaestro.Almacen));
     }
 

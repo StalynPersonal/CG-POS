@@ -4,6 +4,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosPos))]
-    partial class ContextoDatosPosModelSnapshot : ModelSnapshot
+    [Migration("20260916022335_ReembolsoDevolucion")]
+    partial class ReembolsoDevolucion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1292,72 +1295,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.ToTable("ReglasAcumulacion", (string)null);
                 });
 
-            modelBuilder.Entity("CgPos.Dominio.Fiscal.ComprobanteContingencia", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<string>("Encf")
-                        .HasMaxLength(13)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(13)");
-
-                    b.Property<int>("Intentos")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Motivo")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTimeOffset?>("RegularizadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<int>("TipoComprobante")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Total")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<Guid?>("TurnoId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("UltimoError")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<Guid>("VentaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("VentaNumero")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VentaId")
-                        .IsUnique();
-
-                    b.HasIndex("CajaId", "RegularizadoEn");
-
-                    b.ToTable("ComprobantesContingencia", (string)null);
-                });
-
             modelBuilder.Entity("CgPos.Dominio.Fiscal.ContribuyenteDgii", b =>
                 {
                     b.Property<string>("Documento")
@@ -1931,68 +1868,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("TiposTarjeta", (string)null);
-                });
-
-            modelBuilder.Entity("CgPos.Dominio.Promociones.DescuentoTarjeta", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("Activo")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid?>("BancoId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Bines")
-                        .IsRequired()
-                        .HasMaxLength(400)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(400)");
-
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<int>("Dias")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("MontoMaximo")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal?>("MontoMinimo")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<int>("Tipo")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Valor")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<DateTimeOffset>("VigenteDesde")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<DateTimeOffset>("VigenteHasta")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Codigo")
-                        .IsUnique();
-
-                    b.ToTable("DescuentosTarjeta", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Promociones.MotivoDescuento", b =>

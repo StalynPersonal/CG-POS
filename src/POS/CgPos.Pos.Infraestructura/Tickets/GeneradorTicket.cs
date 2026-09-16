@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Ventas;
@@ -48,7 +48,8 @@ internal static class GeneradorTicket
 
     static GeneradorTicket() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    public static DocumentoImpresion Generar(EncabezadoTicket encabezado, DatosVenta venta, bool esCopia)
+    /// <param name="numeroContingencia">Número del comprobante provisional si la venta se cobró sin poder firmar el e-CF.</param>
+    public static DocumentoImpresion Generar(EncabezadoTicket encabezado, DatosVenta venta, bool esCopia, string? numeroContingencia = null)
     {
         var cultura = CulturaRd.Crear();
         var lineas = new List<(string Texto, Estilo Estilo)>();
@@ -74,6 +75,13 @@ internal static class GeneradorTicket
             Agregar($"e-NCF: {encabezadoEcf.Encf}", Estilo.Negrita);
             if (encabezadoEcf.VenceSecuencia is { } vence)
                 Agregar($"Válido hasta: {vence.ToString("dd/MM/yyyy", cultura)}");
+        }
+        else if (numeroContingencia is { Length: > 0 })
+        {
+            // Contingencia: el cliente se lleva un comprobante provisional y el e-CF se emite en cuanto la caja pueda firmarlo.
+            Agregar("COMPROBANTE PROVISIONAL", Estilo.Negrita | Estilo.Centrado);
+            Agregar($"Contingencia: {numeroContingencia}", Estilo.Negrita);
+            Agregar("e-NCF: pendiente de emisión");
         }
         else
         {
@@ -518,6 +526,15 @@ internal static class GeneradorTicket
             Agregar("RETIROS", Estilo.Negrita);
             foreach (var retiro in retiros)
                 Importe($"  Nº {retiro.Numero} {HoraCorta(encabezado, retiro.Fecha, cultura)} {retiro.AutorizadoPorNombre}", retiro.Monto);
+        }
+
+        var reembolsos = cierre.Movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Reembolso).ToList();
+        if (reembolsos.Count > 0)
+        {
+            Separador();
+            Agregar("REEMBOLSOS AL CLIENTE", Estilo.Negrita);
+            foreach (var reembolso in reembolsos)
+                Importe($"  Nº {reembolso.Numero} {HoraCorta(encabezado, reembolso.Fecha, cultura)} {reembolso.Motivo}", reembolso.Monto);
         }
 
         var relevos = cierre.Movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Relevo).ToList();

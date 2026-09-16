@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
@@ -78,6 +78,21 @@ public sealed record ClienteDevolucion(TipoDocumentoIdentidad? TipoDocumento, st
 /// (RF-41, RF-42); los serializados exigen el serial vendido (RF-45). Pasado el plazo configurado se retiene el ITBIS (RF-44).
 /// El monto queda como saldo consumible en caja hasta su vencimiento (RF-36, RF-39); se emite como e-CF E34 (RF-227).
 /// </summary>
+/// <summary>Cómo se le devuelve el dinero al cliente (RF-123). En todos los casos se emite la nota de crédito E34 que exige la DGII.</summary>
+public enum TipoReembolso
+{
+    /// <summary>Queda como saldo a favor en la nota de crédito, para consumirlo en otra compra.</summary>
+    SaldoNotaCredito,
+
+    Efectivo,
+
+    /// <summary>Devolución a la tarjeta con la que se pagó, por el terminal.</summary>
+    Tarjeta,
+
+    /// <summary>Queda registrado para que contabilidad emita el cheque.</summary>
+    Cheque,
+}
+
 public sealed class Devolucion : Entidad
 {
     public const int LargoMaximoNumero = 30;
@@ -146,6 +161,17 @@ public sealed class Devolucion : Entidad
 
     /// <summary>e-NCF de la nota de crédito (E34); también es el código para consumirla en caja (RF-57).</summary>
     public string? Encf { get; private set; }
+
+    /// <summary>Cómo se le devolvió el dinero al cliente (RF-123).</summary>
+    public TipoReembolso Reembolso { get; private set; }
+
+    /// <summary>Autorización del terminal, número del cheque o lo que identifique el reembolso.</summary>
+    public string? ReembolsoReferencia { get; private set; }
+
+    /// <summary>Banco, tarjeta o quien recibió, según el tipo de reembolso.</summary>
+    public string? ReembolsoDetalle { get; private set; }
+
+    public DateTimeOffset? ReembolsadaEn { get; private set; }
 
     public IReadOnlyList<LineaDevolucion> Lineas => _lineas;
     public IReadOnlyList<ConsumoNotaCredito> Consumos => _consumos;
@@ -253,6 +279,24 @@ public sealed class Devolucion : Entidad
     }
 
     public void AsignarComprobante(string encf) => Encf = Validar.Texto(encf, "e-NCF", DocumentoElectronico.LargoEncf);
+
+    /// <summary>
+    /// El cliente se lleva el dinero en vez del saldo a favor (RF-123): la nota de crédito se emite igual, pero queda sin saldo
+    /// porque ya se le pagó en efectivo, a su tarjeta o con un cheque.
+    /// </summary>
+    public void RegistrarReembolso(TipoReembolso tipo, string? referencia, string? detalle, DateTimeOffset ahora)
+    {
+        if (tipo == TipoReembolso.SaldoNotaCredito)
+            throw new ArgumentException("El saldo a favor no es un reembolso.", nameof(tipo));
+        if (!Enum.IsDefined(tipo))
+            throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de reembolso no válido.");
+
+        Reembolso = tipo;
+        ReembolsoReferencia = Validar.TextoOpcional(referencia, "Referencia del reembolso", LargoMaximoNombre);
+        ReembolsoDetalle = Validar.TextoOpcional(detalle, "Detalle del reembolso", LargoMaximoObservacion);
+        ReembolsadaEn = ahora;
+        Saldo = 0m;
+    }
 
     public EstadoNotaCredito EstadoSaldo(DateOnly hoy) =>
         Saldo <= 0m ? EstadoNotaCredito.Consumida : hoy > VenceEn ? EstadoNotaCredito.Vencida : EstadoNotaCredito.Vigente;
