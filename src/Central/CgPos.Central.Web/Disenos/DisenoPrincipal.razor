@@ -13,12 +13,9 @@
         <MudSpacer />
         @if (Almacen.Sesion is { } sesion)
         {
-            <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                <ActivatorContent>
-                    <MudButton Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle" EndIcon="@Icons.Material.Filled.ArrowDropDown">
-                        @sesion.Nombre
-                    </MudButton>
-                </ActivatorContent>
+            @* El botón del menú lo arma el propio MudMenu: un botón propio dentro del activador se queda con el clic y no despliega. *@
+            <MudMenu Label="@sesion.Nombre" Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle"
+                     EndIcon="@Icons.Material.Filled.ArrowDropDown" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
                 <ChildContent>
                     <div class="cg-central__menu-usuario">
                         <strong>@sesion.Codigo</strong>
