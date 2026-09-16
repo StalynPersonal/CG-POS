@@ -149,6 +149,7 @@ public static class CatalogoParametros
 
         new("Central.Dgii.Habilitado", "Envío a la DGII", "Envía a la DGII los e-CF recibidos de las cajas", Booleano, false, Central),
         new("Central.Dgii.UrlBase", "Envío a la DGII", "Dirección base (https) de los servicios de e-CF de la DGII según el ambiente", Texto, false, Central),
+        new("Central.Dgii.UrlBaseConsumo", "Envío a la DGII", "Dirección base del servicio de facturas de consumo, que recibe los resúmenes (RFCE)", Texto, false, Central),
         new("Central.Dgii.SegundosCiclo", "Envío a la DGII", "Segundos entre ciclos de envío y consulta de resultados", Entero, true, Central, Minimo: 5),
         new("Central.Dgii.LoteEnvio", "Envío a la DGII", "Máximo de e-CF enviados y de resultados consultados por ciclo", Entero, true, Central, Minimo: 1, Maximo: 1000),
         new("Central.Dgii.MinutosReintento", "Envío a la DGII", "Minutos de espera tras un envío fallido; se duplica en cada fallo seguido", Entero, true, Central, Minimo: 1),

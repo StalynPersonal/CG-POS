@@ -1,5 +1,7 @@
 ﻿using CgPos.Contratos.Catalogo;
+using System.Text.Json;
 using CgPos.Contratos.Central;
+using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Promociones;
@@ -1288,6 +1290,33 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Una_factura_de_consumo_bajo_el_monto_de_identificacion_viaja_al_central_como_resumen()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.StartsWith("E32", cobro.Venta!.Comprobante!.Encf);
+
+        var mensaje = await caja.EjecutarAsync<ContextoDatosPos, MensajeSalida>(contexto =>
+            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.AgregadoId == cobro.Venta.Id && m.TipoMensaje == "Venta.Cobrada"));
+        var documento = JsonSerializer.Deserialize<DocumentoVentaCobrada>(mensaje.Contenido, OpcionesJson.Predeterminadas)!;
+
+        // La venta no llega al monto de identificación: a la DGII va el resumen (RFCE), no el e-CF completo.
+        Assert.NotNull(documento.Ecf);
+        Assert.True(documento.Ecf.EsResumenConsumo);
+        Assert.Contains("<RFCE", documento.Ecf.XmlFirmado, StringComparison.Ordinal);
+        Assert.Contains("<CodigoSeguridadeCF>", documento.Ecf.XmlFirmado, StringComparison.Ordinal);
+        Assert.DoesNotContain("<DetallesItems>", documento.Ecf.XmlFirmado, StringComparison.Ordinal);
+
+        // El e-CF completo sigue guardado en la caja: es el que se le entrega al cliente.
+        var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == cobro.Venta.Id).Select(d => d.RutaXml).SingleAsync());
+        Assert.Contains("<DetallesItems>", await File.ReadAllTextAsync(rutaXml), StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
     public async Task El_descuento_del_banco_por_bin_baja_el_total_antes_de_emitir_el_ecf()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -1494,7 +1523,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
     private static class BalanzaPrueba
     {
-        public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.BalanzaSimulada.PesoPredeterminado;
+        public const decimal PesoSimulado = CgPos.Pos.Infraestructura.Perifericos.Balanzas.BalanzaSimulada.PesoPredeterminado;
     }
 
     [SkippableFact]

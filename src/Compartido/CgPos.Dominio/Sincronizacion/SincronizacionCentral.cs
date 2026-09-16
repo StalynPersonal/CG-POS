@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Dominio.Sincronizacion;
@@ -93,6 +93,9 @@ public sealed class ComprobanteRecibido : Entidad
     public string HashXml { get; private set; } = string.Empty;
     public DateTimeOffset FechaFirma { get; private set; }
     public DateTimeOffset RecibidoEn { get; private set; }
+
+    /// <summary>El XML recibido es el resumen de consumo (RFCE) y no el e-CF completo: la DGII lo recibe en otro servicio.</summary>
+    public bool EsResumenConsumo { get; private set; }
     public EstadoEnvioDgii EstadoDgii { get; private set; }
     public DateTimeOffset? EstadoDgiiEn { get; private set; }
     public string? MensajeDgii { get; private set; }
@@ -191,8 +194,9 @@ public sealed class ComprobanteRecibido : Entidad
     private static string? Recortar(string? texto, int largo) =>
         string.IsNullOrWhiteSpace(texto) ? null : texto.Trim() is var limpio && limpio.Length > largo ? limpio[..largo] : texto.Trim();
 
+    /// <param name="esResumenConsumo">El XML es el resumen de una factura de consumo (RFCE): se envía al servicio de consumo de la DGII.</param>
     public static ComprobanteRecibido Registrar(DocumentoRecibido documento, string encf, TipoComprobante tipoComprobante, string xmlFirmado, string hashXml,
-        DateTimeOffset fechaFirma, DateTimeOffset ahora)
+        DateTimeOffset fechaFirma, DateTimeOffset ahora, bool esResumenConsumo = false)
     {
         ArgumentNullException.ThrowIfNull(documento);
         ArgumentException.ThrowIfNullOrEmpty(xmlFirmado);
@@ -213,6 +217,7 @@ public sealed class ComprobanteRecibido : Entidad
             HashXml = hashXml.ToUpperInvariant(),
             FechaFirma = fechaFirma,
             RecibidoEn = ahora,
+            EsResumenConsumo = esResumenConsumo,
             EstadoDgii = EstadoEnvioDgii.Pendiente,
         };
     }

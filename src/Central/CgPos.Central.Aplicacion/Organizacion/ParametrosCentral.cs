@@ -61,6 +61,9 @@ public static class ClavesParametrosCentral
     /// <summary>Dirección base (https) de los servicios de e-CF de la DGII: ambiente de pruebas, certificación o producción.</summary>
     public const string DgiiUrlBase = "Central.Dgii.UrlBase";
 
+    /// <summary>Dirección base del servicio de facturas de consumo de la DGII, donde se reciben los resúmenes (RFCE).</summary>
+    public const string DgiiUrlBaseConsumo = "Central.Dgii.UrlBaseConsumo";
+
     /// <summary>Segundos entre ciclos de envío y consulta.</summary>
     public const string DgiiSegundosCiclo = "Central.Dgii.SegundosCiclo";
 

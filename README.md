@@ -175,7 +175,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Facturas en espera (F7):** quedan ligadas al cajero y al turno; al retomar una, la actual pasa a espera.
 - **Anular** (con motivo) y **Suspender** (bloquea la pantalla hasta digitar el PIN) están en la segunda página de teclas y requieren permiso o autorización de supervisor.
 - **Serializados:** al escanearlos se pide el serial; no se repite en la misma venta.
-- **Balanza (F5):** un pesado sin etiqueta toma el peso estable de la balanza menos la tara del artículo. En desarrollo la balanza está simulada (`Perifericos:BalanzaSimulada:Peso`).
+- **Balanza (F5):** un pesado sin etiqueta toma el peso estable de la balanza menos la tara del artículo. En desarrollo está simulada (`Perifericos:BalanzaSimulada:Peso`); en una caja real se conecta por puerto serie (ver *Periféricos configurables*).
 - **Catálogo en mosaicos:** botón junto al campo de escaneo; muestra los artículos con `mostrarEnCatalogo`.
 
 ### Descuentos y ofertas
@@ -197,6 +197,24 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Al cobrar:** la venta, sus pagos, el mensaje para el Central (`Venta.Cobrada` en la bandeja de salida) y la auditoría se guardan en una sola transacción. Después se imprime el ticket, se abre la gaveta si hubo un medio físico y empieza otra venta. La pantalla del cliente muestra el pago y la devuelta.
 - **Impresora:** `Perifericos:Impresora:Tipo` = `Archivo` deja el ticket en texto y ESC/POS en `Carpeta` (en desarrollo `src/POS/CgPos.Pos.Agente/logs/impresiones`); `Red` lo envía a `Host`:`Puerto` (9100). Reimprimir y abrir la gaveta sin venta (con permiso) están en la segunda página de teclas.
 
+### Periféricos configurables
+
+Balanza y terminal de pago se eligen por configuración, no por código: cada modelo es un **perfil** con lo que cambia entre equipos (qué se le envía y cómo se lee su respuesta). Sustituir un equipo por otro es cambiar el modelo y, si hace falta, ajustar el perfil en `appsettings`.
+
+| Clave | Uso |
+| --- | --- |
+| `Perifericos:Balanza:Tipo` | `Simulada` (desarrollo) o `Serie` (balanza conectada) |
+| `Perifericos:Balanza:Modelo` | Perfil del equipo: `Datalogic Magellan 9556` o vacío para el genérico |
+| `Perifericos:Balanza:Puerto`, `Baudios`, `Paridad`, `BitsDatos`, `BitsParada` | Puerto COM y sus parámetros |
+| `Perifericos:Balanza:Comando`, `Patron`, `Terminador`, `Unidad`, `Estables`, `MilisegundosEspera` | Ajustes del protocolo si el equipo difiere del perfil |
+| `Perifericos:Terminal:Tipo` | `Simulado` (desarrollo) o `Conectado` |
+| `Perifericos:Terminal:Modelo` | Perfil: `CardNet Ingenico Lane/7000` o genérico |
+| `Perifericos:Terminal:Transporte` | `Socket` (`Host` y `Puerto`) o `Serie` (`Puerto` y `Baudios`) |
+| `Perifericos:Terminal:PlantillaCobro`, `PlantillaAnulacion`, `PlantillaCierreLote`, `PatronRespuesta`, `Aprobadas`, `SegundosEspera` | Mensajes y lectura de la respuesta del modelo |
+
+- La **balanza** pide el peso con el comando del perfil y lee peso, unidad y estabilidad de su respuesta; el Datalogic Magellan viene con los valores de su manual (9600 baudios, 7 bits, paridad impar, comando `S`). Si no responde, la caja sigue operando y el cajero digita el peso.
+- El **terminal** arma el mensaje de cobro, anulación o cierre de lote con las plantillas del perfil (`{monto}`, `{montoCentavos}`, `{referencia}`, `{aprobacion}`, `{fecha}`) y lee la respuesta con su expresión regular. Las plantillas del CardNet Lane/7000 son provisionales: **cuando CardNet entregue su documento de integración se ajustan en la configuración, sin recompilar**. Si el terminal no responde, se ofrece la aprobación manual autorizada (RF-213).
+
 ### Facturación electrónica (e-CF)
 
 - **Certificado:** `Ecf:Certificado:Ruta` apunta al `.p12` de la caja. El PIN se digita en la pantalla (botón e-CF de la barra de estado, o al cobrar) y queda solo en memoria del Agente: al reiniciarlo se vuelve a pedir. En desarrollo, `Ecf:Certificado:PinDesarrollo` crea un certificado autofirmado en `logs/certificado-desarrollo.p12` y lo carga solo.
@@ -211,7 +229,9 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 | `Ecf.ContingenciaHabilitada` | Permite cobrar con comprobante provisional cuando no se puede firmar el e-CF | No (sin él, el cobro se rechaza) |
 | `Ecf.ContingenciaPermiteCerrarTurno` | Permite cerrar el turno con ventas en contingencia pendientes | No |
 
-- **Por confirmar con la DGII:** esquema XML definitivo (colocar los XSD en `Ecf:CarpetaXsd`), código de seguridad y URL del timbre.
+- **Validación contra los esquemas de la DGII:** los XSD oficiales están en `datos/xsd` y se configuran con `Ecf:CarpetaXsd`. Cada comprobante se valida contra el esquema de su tipo **después de firmarlo** (el esquema exige la firma); si no cumple, no se emite. Las unidades de medida viajan con el código de la tabla de la DGII (`UND` = 43, `LB` = 23…) y la cantidad con dos decimales, como exige el esquema.
+- **Resumen de consumo (RFCE):** una factura de consumo que no llega a `Fiscal.MontoIdentificacionConsumo` se le informa a la DGII como **resumen**: totales, formas de pago y el código de seguridad del e-CF, sin las líneas. La caja lo firma y lo envía al Central marcado como resumen, y el Central lo entrega en el servicio de facturas de consumo (`Central.Dgii.UrlBaseConsumo`). El e-CF completo queda en la caja y es el que se le entrega al cliente.
+- **Por confirmar en la certificación:** rutas exactas de los servicios y detalles del resumen de consumo.
 
 ### Turno y cierre
 

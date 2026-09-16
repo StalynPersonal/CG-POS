@@ -5,6 +5,7 @@
 
 # CG-POS: documentos de negocio de referencia (solo locales, no se versionan)
 documentos referencia/
+sistemaReferencia-eNcf/
 
 # dotenv files
 .env

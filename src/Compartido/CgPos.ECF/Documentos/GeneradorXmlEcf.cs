@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Xml;
 
@@ -66,14 +66,18 @@ public static class GeneradorXmlEcf
             Elemento("FechaEmision", Fecha(documento.FechaEmision));
             xml.WriteEndElement(); // Emisor
 
-            if (documento.Comprador is { Rnc: { Length: > 0 } rncComprador } comprador)
+            // El esquema de la DGII exige el bloque del comprador aunque sus datos sean opcionales: una factura de consumo
+            // por debajo del monto de identificación lo lleva vacío.
+            xml.WriteStartElement("Comprador");
+            if (documento.Comprador is { } comprador)
             {
-                xml.WriteStartElement("Comprador");
-                Elemento("RNCComprador", rncComprador);
+                if (comprador.Rnc is { Length: > 0 } rncComprador)
+                    Elemento("RNCComprador", rncComprador);
                 if (!string.IsNullOrWhiteSpace(comprador.RazonSocial))
                     Elemento("RazonSocialComprador", comprador.RazonSocial);
-                xml.WriteEndElement();
             }
+
+            xml.WriteEndElement();
 
             var totales = documento.Totales;
             xml.WriteStartElement("Totales");
@@ -114,9 +118,10 @@ public static class GeneradorXmlEcf
                 Elemento("IndicadorFacturacion", item.IndicadorFacturacion.ToString(CultureInfo.InvariantCulture));
                 Elemento("NombreItem", item.Nombre.Length > LargoMaximoNombreItem ? item.Nombre[..LargoMaximoNombreItem] : item.Nombre);
                 Elemento("IndicadorBienoServicio", item.IndicadorBienServicio.ToString(CultureInfo.InvariantCulture));
-                Elemento("CantidadItem", item.Cantidad.ToString("0.00##", CultureInfo.InvariantCulture));
-                if (!string.IsNullOrWhiteSpace(item.UnidadMedida))
-                    Elemento("UnidadMedida", item.UnidadMedida);
+                // El esquema admite hasta dos decimales en la cantidad.
+                Elemento("CantidadItem", decimal.Round(item.Cantidad, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture));
+                if (UnidadesMedidaEcf.Codigo(item.UnidadMedida) is { } unidad)
+                    Elemento("UnidadMedida", unidad);
                 Elemento("PrecioUnitarioItem", item.PrecioUnitario.ToString("0.00##", CultureInfo.InvariantCulture));
                 if (item.Descuento > 0)
                     Monto("DescuentoMonto", item.Descuento);

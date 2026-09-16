@@ -135,7 +135,8 @@ internal sealed class ServicioRecepcion(
 
         if (anterior is null)
         {
-            contexto.ComprobantesRecibidos.Add(ComprobanteRecibido.Registrar(documento, encf, ecf.TipoComprobante, ecf.XmlFirmado, ecf.HashXml, ecf.FechaFirma, ahora));
+            contexto.ComprobantesRecibidos.Add(ComprobanteRecibido.Registrar(documento, encf, ecf.TipoComprobante, ecf.XmlFirmado, ecf.HashXml, ecf.FechaFirma, ahora,
+                ecf.EsResumenConsumo));
             return;
         }
 

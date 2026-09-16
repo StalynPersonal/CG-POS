@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Schema;
 
@@ -17,6 +17,15 @@ public static partial class ValidadorEcf
     /// difiere unos centavos del total por tasa; también absorbe el redondeo del efectivo en las formas de pago.
     /// </summary>
     public const decimal Tolerancia = 1.00m;
+
+    /// <summary>Líneas máximas de un e-CF según el formato de la DGII.</summary>
+    public const int MaximoItems = 1000;
+
+    public const int LargoMaximoRazonSocial = 150;
+    public const int LargoMaximoNombreItem = 80;
+
+    /// <summary>Largos que admite el NCF modificado de una nota de crédito o débito: e-NCF (13), NCF nuevo (11) o NCF antiguo (19).</summary>
+    private static readonly int[] LargosNcfModificado = [11, 13, 19];
 
     /// <param name="montoIdentificacionConsumo">Total desde el cual la factura de consumo identifica al comprador (parámetro del negocio).</param>
     public static IReadOnlyList<string> Validar(DocumentoEcf documento, decimal montoIdentificacionConsumo)
@@ -39,6 +48,10 @@ public static partial class ValidadorEcf
             errores.Add("El RNC del emisor debe tener 9 u 11 dígitos.");
         if (string.IsNullOrWhiteSpace(documento.Emisor.RazonSocial))
             errores.Add("Falta la razón social del emisor.");
+        else if (documento.Emisor.RazonSocial.Length > LargoMaximoRazonSocial)
+            errores.Add($"La razón social del emisor excede {LargoMaximoRazonSocial} caracteres.");
+        if (documento.Comprador?.RazonSocial is { Length: > LargoMaximoRazonSocial })
+            errores.Add($"La razón social del comprador excede {LargoMaximoRazonSocial} caracteres.");
         if (string.IsNullOrWhiteSpace(documento.Emisor.Direccion))
             errores.Add("Falta la dirección del emisor.");
 
@@ -59,8 +72,22 @@ public static partial class ValidadorEcf
         if (documento.TipoEcf == 34 && documento.Referencia is null)
             errores.Add("La nota de crédito requiere la referencia al comprobante modificado.");
 
+        // Comprobante modificado (RF-227): la DGII acepta el e-NCF, el NCF nuevo o el antiguo, y su fecha no puede ser futura.
+        if (documento.Referencia is { } referencia)
+        {
+            var modificado = (referencia.NcfModificado ?? string.Empty).Trim();
+            if (!LargosNcfModificado.Contains(modificado.Length))
+                errores.Add($"El comprobante modificado '{modificado}' debe tener 11, 13 o 19 caracteres.");
+            if (referencia.FechaNcfModificado > DateOnly.FromDateTime(documento.FechaEmision.LocalDateTime))
+                errores.Add("La fecha del comprobante modificado no puede ser posterior a la emisión.");
+            if (referencia.CodigoModificacion is < 1 or > 5)
+                errores.Add($"El código de modificación {referencia.CodigoModificacion} no es válido (1 a 5).");
+        }
+
         if (documento.Items.Count == 0)
             errores.Add("El e-CF debe tener al menos un ítem.");
+        else if (documento.Items.Count > MaximoItems)
+            errores.Add($"El e-CF no puede tener más de {MaximoItems} líneas ({documento.Items.Count}).");
 
         for (var i = 0; i < documento.Items.Count; i++)
         {
@@ -75,6 +102,12 @@ public static partial class ValidadorEcf
                 errores.Add($"El ítem {item.NumeroLinea} tiene montos negativos.");
             if (item.IndicadorFacturacion is < 1 or > 4)
                 errores.Add($"El ítem {item.NumeroLinea} tiene un indicador de facturación no válido.");
+            if (item.Nombre is { Length: > LargoMaximoNombreItem })
+                errores.Add($"El nombre del ítem {item.NumeroLinea} excede {LargoMaximoNombreItem} caracteres.");
+            if (item.IndicadorBienServicio is < 1 or > 2)
+                errores.Add($"El ítem {item.NumeroLinea} debe indicar si es bien (1) o servicio (2).");
+            if (item.Descuento > item.PrecioUnitario * item.Cantidad + Tolerancia)
+                errores.Add($"El descuento del ítem {item.NumeroLinea} es mayor que su importe.");
         }
 
         var totales = documento.Totales;
@@ -109,19 +142,44 @@ public static partial class ValidadorEcf
         if (documento.FechaHoraFirma < documento.FechaEmision.AddMinutes(-1))
             errores.Add("La fecha de firma no puede ser anterior a la fecha de emisión.");
 
+        // La DGII rechaza un comprobante emitido "en el futuro" o con la secuencia ya vencida.
+        if (documento.FechaEmision > documento.FechaHoraFirma.AddMinutes(1))
+            errores.Add("La fecha de emisión no puede ser posterior a la fecha de firma.");
+        if (documento.FechaVencimientoSecuencia is { } vence && DateOnly.FromDateTime(documento.FechaEmision.LocalDateTime) > vence)
+            errores.Add($"La secuencia de e-CF venció el {vence:dd/MM/yyyy}.");
+
+        if (totales.MontoTotal <= 0)
+            errores.Add("El monto total del e-CF debe ser mayor que cero.");
+        if (totales.TotalItbis < 0)
+            errores.Add("El ITBIS total del e-CF no puede ser negativo.");
+
         return errores;
     }
 
     /// <summary>
-    /// Valida el XML contra los esquemas XSD oficiales de la DGII si hay archivos .xsd en la carpeta indicada.
-    /// Sin esquemas no hay errores: la validación estructural de <see cref="Validar"/> sigue aplicando.
+    /// Valida el XML contra el esquema oficial de la DGII del tipo indicado, si está en la carpeta configurada. Cada tipo tiene su
+    /// XSD (ej. "e-CF 32 v.1.0.xsd") y todos definen el mismo elemento raíz, así que se carga solo el del comprobante que se emite.
+    /// Sin esquema no hay errores: la validación estructural de <see cref="Validar"/> sigue aplicando.
     /// </summary>
-    public static IReadOnlyList<string> ValidarContraXsd(string xml, string? carpetaXsd)
+    /// <param name="tipoEcf">Tipo del comprobante (31, 32, 34…); nulo si se elige el esquema por nombre.</param>
+    /// <param name="nombreEsquema">Esquema que no es un e-CF: "RFCE" para el resumen de consumo, "ACECF" para el acuse…</param>
+    public static IReadOnlyList<string> ValidarContraXsd(string xml, string? carpetaXsd, int? tipoEcf = null, string? nombreEsquema = null)
     {
         if (string.IsNullOrWhiteSpace(carpetaXsd) || !Directory.Exists(carpetaXsd))
             return [];
 
         var archivos = Directory.GetFiles(carpetaXsd, "*.xsd");
+        if (nombreEsquema is { Length: > 0 } nombre)
+        {
+            archivos = archivos.Where(a => Path.GetFileName(a).StartsWith(nombre, StringComparison.OrdinalIgnoreCase)).ToArray();
+        }
+        else if (tipoEcf is { } tipo)
+        {
+            // "e-CF 32 v.1.0.xsd" o cualquier nombre que lleve el tipo; los acuses y la semilla no aplican a un e-CF.
+            archivos = archivos.Where(a => Path.GetFileNameWithoutExtension(a).Contains($"{tipo}", StringComparison.Ordinal)
+                && Path.GetFileName(a).StartsWith("e-CF", StringComparison.OrdinalIgnoreCase)).ToArray();
+        }
+
         if (archivos.Length == 0)
             return [];
 

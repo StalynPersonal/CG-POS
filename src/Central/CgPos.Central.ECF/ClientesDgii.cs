@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -68,6 +68,9 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
     private const string RutaRecepcion = "recepcion/api/FacturasElectronicas";
     private const string RutaEstado = "consultaresultado/api/Consultas/Estado";
 
+    /// <summary>Servicio de facturas de consumo: recibe el resumen (RFCE) de las que no llegan al monto de identificación.</summary>
+    private const string RutaRecepcionConsumo = "recepcionfc/api/recepcion/ecf";
+
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private sealed record RespuestaTokenDgii(string? Token, DateTimeOffset? Expira);
@@ -81,8 +84,10 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
     public async Task<RespuestaDgii> EnviarAsync(ComprobanteParaDgii comprobante, CancellationToken cancelacion = default)
     {
         var nombre = $"{RncEmisor(comprobante.XmlFirmado)}{comprobante.Encf}.xml";
+        var ruta = comprobante.EsResumenConsumo ? RutaRecepcionConsumo : RutaRecepcion;
         using var respuesta = await EnviarAutenticadoAsync(
-            urlBase => new HttpRequestMessage(HttpMethod.Post, new Uri(urlBase, RutaRecepcion)) { Content = ContenidoXml(comprobante.XmlFirmado, nombre) }, cancelacion);
+            urlBase => new HttpRequestMessage(HttpMethod.Post, new Uri(urlBase, ruta)) { Content = ContenidoXml(comprobante.XmlFirmado, nombre) },
+            cancelacion, comprobante.EsResumenConsumo);
         var cuerpo = await respuesta.Content.ReadAsStringAsync(cancelacion);
 
         if (respuesta.StatusCode == HttpStatusCode.BadRequest)
@@ -116,13 +121,15 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
         return new RespuestaDgii(resultado, trackId, mensajes.Length == 0 ? null : mensajes);
     }
 
-    private async Task<HttpResponseMessage> EnviarAutenticadoAsync(Func<Uri, HttpRequestMessage> crear, CancellationToken cancelacion)
+    /// <param name="consumo">El envío va al servicio de facturas de consumo, que tiene su propia dirección base.</param>
+    private async Task<HttpResponseMessage> EnviarAutenticadoAsync(Func<Uri, HttpRequestMessage> crear, CancellationToken cancelacion, bool consumo = false)
     {
-        var urlBase = await UrlBaseAsync(cancelacion);
+        var urlBase = await UrlBaseAsync(cancelacion, consumo);
         for (var intento = 1; ; intento++)
         {
             using var solicitud = crear(urlBase);
-            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await TokenAsync(urlBase, cancelacion));
+            // El token se obtiene siempre del servicio de e-CF, aunque el envío vaya al de consumo.
+            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await TokenAsync(await UrlBaseAsync(cancelacion), cancelacion));
             var respuesta = await http.SendAsync(solicitud, cancelacion);
             if (respuesta.StatusCode != HttpStatusCode.Unauthorized || intento > 1)
                 return respuesta;
@@ -167,13 +174,15 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
         }
     }
 
-    private async Task<Uri> UrlBaseAsync(CancellationToken cancelacion)
+    /// <param name="consumo">Dirección del servicio de facturas de consumo (RFCE), que la DGII publica en otro host.</param>
+    private async Task<Uri> UrlBaseAsync(CancellationToken cancelacion, bool consumo = false)
     {
+        var clave = consumo ? ClavesParametrosCentral.DgiiUrlBaseConsumo : ClavesParametrosCentral.DgiiUrlBase;
         await using var ambito = fabricaAmbitos.CreateAsyncScope();
-        var texto = await ambito.ServiceProvider.GetRequiredService<IParametrosCentral>().ObtenerRequeridoAsync(ClavesParametrosCentral.DgiiUrlBase, cancelacion);
+        var texto = await ambito.ServiceProvider.GetRequiredService<IParametrosCentral>().ObtenerRequeridoAsync(clave, cancelacion);
         return Uri.TryCreate(texto.EndsWith('/') ? texto : texto + "/", UriKind.Absolute, out var url) && url.Scheme == Uri.UriSchemeHttps
             ? url
-            : throw new ParametroNoConfiguradoExcepcion(ClavesParametrosCentral.DgiiUrlBase, "debe ser una dirección https");
+            : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser una dirección https");
     }
 
     private static MultipartFormDataContent ContenidoXml(string xml, string nombreArchivo)

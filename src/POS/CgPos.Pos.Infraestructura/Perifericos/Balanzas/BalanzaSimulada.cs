@@ -1,8 +1,8 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Pos.Aplicacion.Perifericos;
 using Microsoft.Extensions.Configuration;
 
-namespace CgPos.Pos.Infraestructura.Perifericos;
+namespace CgPos.Pos.Infraestructura.Perifericos.Balanzas;
 
 /// <summary>
 /// Balanza de desarrollo: devuelve siempre un peso estable configurable en <c>Perifericos:BalanzaSimulada</c>

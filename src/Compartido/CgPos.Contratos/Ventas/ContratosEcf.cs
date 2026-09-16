@@ -13,7 +13,12 @@ public sealed record DatosComprobanteElectronico(
     DateOnly? VenceSecuencia = null);
 
 /// <summary>Lo que el Central necesita del e-CF para enviarlo a la DGII (RF-222): el XML firmado y su hash.</summary>
-public sealed record DocumentoElectronicoParaCentral(string Encf, TipoComprobante TipoComprobante, string XmlFirmado, string HashXml, DateTimeOffset FechaFirma);
+/// <param name="EsResumenConsumo">
+/// El XML firmado es el resumen de factura de consumo (RFCE) y no el e-CF completo: la DGII lo recibe en su servicio de
+/// facturas de consumo. El e-CF completo queda en la caja y es el que se le entrega al cliente.
+/// </param>
+public sealed record DocumentoElectronicoParaCentral(string Encf, TipoComprobante TipoComprobante, string XmlFirmado, string HashXml, DateTimeOffset FechaFirma,
+    bool EsResumenConsumo = false);
 
 public sealed record DatosSecuenciaEcf(TipoComprobante TipoComprobante, long Desde, long Hasta, long Ultimo, long Restantes, decimal PorcentajeRestante, DateOnly VenceEn,
     bool Disponible, bool EnAlerta);

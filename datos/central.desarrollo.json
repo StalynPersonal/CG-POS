@@ -90,6 +90,12 @@
       "descripcion": "Ambiente de pruebas de e-CF de la DGII"
     },
     {
+      "id": "01990000-0000-7000-8000-000000000918",
+      "clave": "Central.Dgii.UrlBaseConsumo",
+      "valor": "https://fc.dgii.gov.do/testecf/",
+      "descripcion": "Servicio de facturas de consumo de la DGII (resúmenes RFCE)"
+    },
+    {
       "id": "01990000-0000-7000-8000-00000000090b",
       "clave": "Central.Dgii.SegundosCiclo",
       "valor": "30",

@@ -1,8 +1,9 @@
-using CgPos.Dominio.Fiscal;
+﻿using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Central.Aplicacion.Dgii;
 
-public sealed record ComprobanteParaDgii(Guid Id, string Encf, TipoComprobante TipoComprobante, string XmlFirmado);
+/// <param name="EsResumenConsumo">El XML es el resumen de una factura de consumo (RFCE): va al servicio de consumo de la DGII.</param>
+public sealed record ComprobanteParaDgii(Guid Id, string Encf, TipoComprobante TipoComprobante, string XmlFirmado, bool EsResumenConsumo = false);
 
 public enum ResultadoRespuestaDgii
 {

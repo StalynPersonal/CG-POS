@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Dgii;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -42,7 +42,7 @@ internal sealed class DespachadorDgii(
         foreach (var comprobante in pendientes)
         {
             var respuesta = await LlamarAsync(
-                () => cliente.EnviarAsync(new ComprobanteParaDgii(comprobante.Id, comprobante.Encf, comprobante.TipoComprobante, comprobante.XmlFirmado), cancelacion),
+                () => cliente.EnviarAsync(new ComprobanteParaDgii(comprobante.Id, comprobante.Encf, comprobante.TipoComprobante, comprobante.XmlFirmado, comprobante.EsResumenConsumo), cancelacion),
                 cancelacion);
             ahora = reloj.GetUtcNow();
 

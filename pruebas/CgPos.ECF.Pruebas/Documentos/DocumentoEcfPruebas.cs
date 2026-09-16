@@ -1,4 +1,4 @@
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
 using CgPos.ECF.Documentos;
 using CgPos.ECF.Firma;
 using Validador = CgPos.ECF.Documentos.ValidadorEcf;
@@ -35,6 +35,47 @@ public class DocumentoEcfPruebas
             FormasPago: [new FormaPagoEcf(1, 904.63m)]);
 
     [Fact]
+    public void El_resumen_de_consumo_lleva_los_totales_y_el_codigo_de_seguridad_y_cumple_su_esquema()
+    {
+        var carpeta = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "datos", "xsd"));
+        Assert.True(Directory.Exists(carpeta), $"No están los esquemas de la DGII en {carpeta}.");
+
+        using var certificado = CertificadoFirma.CargarPkcs12(CertificadoFirma.CrearAutofirmadoDesarrollo("CN=CAJA PRUEBA", "1234",
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1)), "1234");
+        var firmadoEcf = new FirmadorEcf().Firmar(GeneradorXmlEcf.Generar(Consumo()), certificado);
+        var codigoSeguridad = CodigoSeguridadEcf.Obtener(firmadoEcf);
+
+        var resumen = GeneradorXmlRfce.Generar(Consumo(), codigoSeguridad);
+        var xml = XDocument.Parse(resumen);
+        var encabezado = xml.Root!.Element("Encabezado")!;
+
+        Assert.Equal("RFCE", xml.Root!.Name.LocalName);
+        Assert.Equal("E320000000123", encabezado.Element("IdDoc")!.Element("eNCF")!.Value);
+        Assert.Equal("904.63", encabezado.Element("Totales")!.Element("MontoTotal")!.Value);
+        Assert.Equal(codigoSeguridad, encabezado.Element("CodigoSeguridadeCF")!.Value);
+
+        // El resumen no lleva las líneas: solo los totales y el código de seguridad del e-CF.
+        Assert.Null(encabezado.Element("DetallesItems"));
+
+        var firmado = new FirmadorEcf().Firmar(resumen, certificado);
+        Assert.Empty(ValidadorEcf.ValidarContraXsd(firmado, carpeta, tipoEcf: null, nombreEsquema: "RFCE"));
+    }
+
+    [Fact]
+    public void El_xml_firmado_cumple_el_esquema_oficial_de_la_dgii()
+    {
+        // Los XSD oficiales viven en datos/xsd; el esquema exige la firma, así que se valida el documento ya firmado.
+        var carpeta = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "datos", "xsd"));
+        Assert.True(Directory.Exists(carpeta), $"No están los esquemas de la DGII en {carpeta}.");
+
+        using var certificado = CertificadoFirma.CargarPkcs12(CertificadoFirma.CrearAutofirmadoDesarrollo("CN=CAJA PRUEBA", "1234",
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1)), "1234");
+        var firmado = new FirmadorEcf().Firmar(GeneradorXmlEcf.Generar(Consumo()), certificado);
+
+        Assert.Empty(ValidadorEcf.ValidarContraXsd(firmado, carpeta, 32));
+    }
+
+    [Fact]
     public void Genera_el_xml_del_e_cf_con_estructura_y_formatos_de_la_dgii()
     {
         var xml = XDocument.Parse(GeneradorXmlEcf.Generar(Consumo()));
@@ -46,7 +87,9 @@ public class DocumentoEcfPruebas
         Assert.Equal("E320000000123", encabezado.Element("IdDoc")!.Element("eNCF")!.Value);
         Assert.Null(encabezado.Element("IdDoc")!.Element("FechaVencimientoSecuencia")); // no se exige en consumo
         Assert.Equal("15-09-2026", encabezado.Element("Emisor")!.Element("FechaEmision")!.Value);
-        Assert.Null(encabezado.Element("Comprador"));
+        // El esquema de la DGII exige el bloque del comprador: en consumo sin identificar va vacío.
+        Assert.NotNull(encabezado.Element("Comprador"));
+        Assert.False(encabezado.Element("Comprador")!.HasElements);
 
         var totales = encabezado.Element("Totales")!;
         Assert.Equal("677.97", totales.Element("MontoGravadoI1")!.Value);
@@ -58,7 +101,9 @@ public class DocumentoEcfPruebas
         var items = xml.Root.Element("DetallesItems")!.Elements("Item").ToList();
         Assert.Equal(2, items.Count);
         Assert.Equal("42.37", items[0].Element("DescuentoMonto")!.Value);
-        Assert.Equal("2.325", items[1].Element("CantidadItem")!.Value);
+        // El esquema admite dos decimales en la cantidad: un pesado de 2.325 lb se informa redondeado.
+        Assert.Equal("2.33", items[1].Element("CantidadItem")!.Value);
+        Assert.Equal("23", items[1].Element("UnidadMedida")!.Value); // LB en la tabla de la DGII
         Assert.Null(items[1].Element("DescuentoMonto"));
 
         Assert.Equal("15-09-2026 14:30:07", xml.Root.Element("FechaHoraFirma")!.Value);
@@ -104,7 +149,8 @@ public class DocumentoEcfPruebas
     public void Url_del_timbre_usa_la_consulta_simplificada_en_consumo_menor_y_la_completa_en_los_demas()
     {
         var consumo = TimbreEcf.Url(AmbienteEcf.Pruebas, Consumo(), "Ab+9/z", MontoIdentificacion);
-        Assert.StartsWith("https://ecf.dgii.gov.do/testecf/ConsultaTimbreFC?", consumo);
+        // La consulta simplificada vive en el servicio de facturas de consumo de la DGII, con su propio host.
+        Assert.StartsWith("https://fc.dgii.gov.do/testecf/ConsultaTimbreFC?", consumo);
         Assert.Contains("ENCF=E320000000123", consumo);
         Assert.Contains("MontoTotal=904.63", consumo);
         Assert.Contains("CodigoSeguridad=Ab%2B9%2Fz", consumo);

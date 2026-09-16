@@ -140,11 +140,17 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
 
         var montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, cajaId, cancelacion);
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
-        var errores = ValidadorEcf.Validar(documentoEcf, montoIdentificacion).Concat(ValidadorEcf.ValidarContraXsd(xml, configuracion[ClavesEcf.CarpetaXsd])).ToList();
+        var errores = ValidadorEcf.Validar(documentoEcf, montoIdentificacion).ToList();
         if (errores.Count > 0)
             throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El e-CF no pasó la validación: {string.Join(" ", errores.Take(3))}");
 
         var firmado = _firmador.Firmar(xml, certificadoFirma);
+
+        // El esquema de la DGII exige la firma, así que se valida el XML ya firmado: si no cumple, no se envía nada.
+        var erroresXsd = ValidadorEcf.ValidarContraXsd(firmado, configuracion[ClavesEcf.CarpetaXsd], documentoEcf.TipoEcf);
+        if (erroresXsd.Count > 0)
+            throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El e-CF no cumple el esquema de la DGII: {string.Join(" ", erroresXsd.Take(3))}");
+
         var codigoSeguridad = CodigoSeguridadEcf.Obtener(firmado);
         var urlTimbre = TimbreEcf.Url(ambiente, documentoEcf, codigoSeguridad, montoIdentificacion);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(firmado)));
@@ -157,7 +163,25 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
             codigoSeguridad, documentoEcf.Totales.MontoTotal, hash, ruta, urlTimbre);
         contexto.DocumentosElectronicos.Add(documento);
 
-        return new EmisionEcf(documento, new DocumentoElectronicoParaCentral(encf, tipo, firmado, hash, documentoEcf.FechaHoraFirma), asignada.VenceEn);
+        // Una factura de consumo que no llega al monto de identificación se le informa a la DGII como resumen (RFCE): el e-CF
+        // completo queda en la caja y es el que recibe el cliente; al Central viaja el resumen firmado.
+        var paraCentral = documentoEcf.TipoEcf == GeneradorXmlRfce.TipoResumible && documentoEcf.Totales.MontoTotal < montoIdentificacion
+            ? ResumenConsumo(documentoEcf, codigoSeguridad, certificadoFirma, configuracion[ClavesEcf.CarpetaXsd])
+            : new DocumentoElectronicoParaCentral(encf, tipo, firmado, hash, documentoEcf.FechaHoraFirma);
+
+        return new EmisionEcf(documento, paraCentral, asignada.VenceEn);
+    }
+
+    /// <summary>Resumen de consumo firmado, listo para que el Central lo envíe al servicio de facturas de consumo de la DGII.</summary>
+    private DocumentoElectronicoParaCentral ResumenConsumo(DocumentoEcf documentoEcf, string codigoSeguridad, X509Certificate2 certificado, string? carpetaXsd)
+    {
+        var resumen = _firmador.Firmar(GeneradorXmlRfce.Generar(documentoEcf, codigoSeguridad), certificado);
+        var errores = ValidadorEcf.ValidarContraXsd(resumen, carpetaXsd, nombreEsquema: "RFCE");
+        if (errores.Count > 0)
+            throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El resumen de consumo no cumple el esquema de la DGII: {string.Join(" ", errores.Take(3))}");
+
+        return new DocumentoElectronicoParaCentral(documentoEcf.Encf, (TipoComprobante)documentoEcf.TipoEcf, resumen,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(resumen))), documentoEcf.FechaHoraFirma, EsResumenConsumo: true);
     }
 
     void IEmisorComprobantes.DescartarArchivo(EmisionEcf emision) => DescartarArchivo(emision);
