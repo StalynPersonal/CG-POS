@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "CgPos.Central.Web": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:17147;http://localhost:17148"
+    }
+  }
+}

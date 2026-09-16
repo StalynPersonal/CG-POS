@@ -81,6 +81,14 @@ try
         }
     });
 
+    // Pantallas de la caja (Blazor WebAssembly de CgPos.Pos.Web): sus archivos son públicos y se sirven antes de autenticar.
+    var servirPantallas = aplicacion.Configuration.GetValue("Agente:ServirPantallas", true);
+    if (servirPantallas)
+    {
+        aplicacion.UseBlazorFrameworkFiles();
+        aplicacion.UseStaticFiles();
+    }
+
     aplicacion.UseAuthentication();
     aplicacion.UseAuthorization();
 
@@ -95,12 +103,9 @@ try
     aplicacion.MapearApiDespacho();
     aplicacion.MapearPantallaCliente();
 
-    // Pantallas de la caja (Blazor Wasm de CgPos.Pos.Web), servidas localmente.
-    if (aplicacion.Configuration.GetValue("Agente:ServirPantallas", true))
-    {
-        aplicacion.MapStaticAssets();
+    // Cualquier ruta de las pantallas (cajero, cliente, devoluciones, despacho) la resuelve la propia aplicación.
+    if (servirPantallas)
         aplicacion.MapFallbackToFile("index.html");
-    }
 
     await aplicacion.Services.InicializarBaseDatosPosAsync();
 

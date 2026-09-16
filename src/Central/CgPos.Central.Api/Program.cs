@@ -87,6 +87,14 @@ try
 
     aplicacion.UseWhen(contexto => contexto.Request.Path.StartsWithSegments("/api/sincronizacion/maestros"), rama => rama.UseResponseCompression());
 
+    // Central Manager (Blazor WebAssembly de CgPos.Central.Web): sus archivos son públicos y se sirven antes de autenticar.
+    var servirManager = aplicacion.Configuration.GetValue("Central:ServirManager", true);
+    if (servirManager)
+    {
+        aplicacion.UseBlazorFrameworkFiles();
+        aplicacion.UseStaticFiles();
+    }
+
     aplicacion.UseAuthentication();
     aplicacion.UseAuthorization();
 
@@ -106,10 +114,10 @@ try
     aplicacion.MapearApiReportes();
     aplicacion.MapearApiActualizaciones();
 
-    // Central Manager (Blazor WebAssembly de CgPos.Central.Web). Las rutas /api desconocidas responden 404, no la aplicación.
-    if (aplicacion.Configuration.GetValue("Central:ServirManager", true))
+    // La aplicación responde en la raíz y en sus rutas; las rutas /api desconocidas dan 404, no el index.html.
+    if (servirManager)
     {
-        aplicacion.MapStaticAssets();
+        aplicacion.MapFallbackToFile("/", "index.html");
         aplicacion.MapFallbackToFile("{*ruta:nonfile:regex(^(?!api/).*$)}", "index.html");
     }
 
