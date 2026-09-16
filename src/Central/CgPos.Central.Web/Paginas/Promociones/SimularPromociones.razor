@@ -1,0 +1,135 @@
+@page "/promociones/simular"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPromociones)]
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+
+<PageTitle>Simular promociones · CG-POS Central</PageTitle>
+
+<MudBreadcrumbs Items="_migas" Class="px-0 pt-0" />
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Simular promociones</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Qué oferta aplicaría la caja a un artículo en una sucursal, fecha y hora, con las mismas reglas de la venta.</MudText>
+    </div>
+</div>
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="4">
+        <MudPaper Elevation="1" Class="pa-4 d-flex flex-column gap-3">
+            <MudAutocomplete T="ArticuloCarga" @bind-Value="_articulo" SearchFunc="BuscarArticulosAsync" Label="Artículo" Variant="Variant.Outlined"
+                             ToStringFunc="@(a => a is null ? null : $"{a.Codigo} · {a.Descripcion}")" DebounceInterval="350" MinCharacters="2" ResetValueOnEmptyText="true" />
+            <MudNumericField T="decimal" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Min="0" HideSpinButtons="true" />
+            <MudSelect T="Guid?" @bind-Value="_sucursalId" Label="Sucursal" Variant="Variant.Outlined" ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id)?.Nombre)">
+                @foreach (var sucursal in _sucursales)
+                {
+                    <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+            <div class="d-flex gap-2">
+                <MudDatePicker @bind-Date="_fecha" Label="Fecha" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudTimePicker @bind-Time="_hora" Label="Hora" Variant="Variant.Outlined" />
+            </div>
+            <MudSwitch T="bool" @bind-Value="_conFidelidad" Label="Cliente del programa de fidelidad" Color="Color.Secondary" />
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Calculate" Disabled="_procesando" OnClick="SimularAsync">Simular</MudButton>
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="8">
+        @if (_resultado is { } resultado)
+        {
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudText Typo="Typo.h6">@resultado.Articulo</MudText>
+                <div class="d-flex flex-wrap gap-6 my-3">
+                    <div><div class="cg-central__detalle">Cantidad</div><strong>@resultado.Cantidad.ToString("0.###")</strong></div>
+                    <div><div class="cg-central__detalle">Precio detalle</div><strong>@resultado.PrecioDetalle.ToString("N2")</strong></div>
+                    <div><div class="cg-central__detalle">Importe detalle</div><strong>@resultado.BrutoDetalle.ToString("N2")</strong></div>
+                    @if (resultado.BrutoMayor is { } mayor)
+                    {
+                        <div><div class="cg-central__detalle">Importe por mayor</div><strong>@mayor.ToString("N2")</strong></div>
+                    }
+                    <div><div class="cg-central__detalle">Total a cobrar</div><MudText Typo="Typo.h5" Color="Color.Primary">@resultado.Total.ToString("N2")</MudText></div>
+                </div>
+                <MudAlert Severity="@(resultado.GanadoraId is null ? Severity.Info : Severity.Success)" Dense="true" Class="mb-3">@resultado.Explicacion</MudAlert>
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                        <tr><th>Promoción</th><th>Oferta</th><th>Resultado</th><th style="text-align: right">Descuento</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var candidata in resultado.Candidatas)
+                        {
+                            <tr style="@(candidata.Id == resultado.GanadoraId ? "background: rgba(46, 125, 50, 0.10); font-weight: 600" : null)">
+                                <td>@candidata.Codigo<div class="cg-central__detalle">@candidata.Nombre</div></td>
+                                <td>@candidata.Oferta</td>
+                                <td>
+                                    @if (candidata.Id == resultado.GanadoraId)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Aplica</MudChip>
+                                    }
+                                    else if (candidata.Aplica)
+                                    {
+                                        <span>Aplica, pero no es la mejor</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="cg-central__detalle">@candidata.Motivo</span>
+                                    }
+                                </td>
+                                <td style="text-align: right">@candidata.Descuento.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 d-flex flex-column align-center">
+                <MudIcon Icon="@Icons.Material.Filled.Calculate" Size="Size.Large" Color="Color.Default" />
+                <MudText Typo="Typo.body2" Class="cg-central__detalle mt-2">Elija un artículo y simule para ver qué oferta aplicaría.</MudText>
+            </MudPaper>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+    private readonly List<BreadcrumbItem> _migas = [new("Promociones", "promociones"), new("Simular", null, disabled: true)];
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private ArticuloCarga? _articulo;
+    private decimal _cantidad = 1;
+    private Guid? _sucursalId;
+    private DateTime? _fecha = DateTime.Today;
+    private TimeSpan? _hora = DateTime.Now.TimeOfDay;
+    private bool _conFidelidad;
+    private ResultadoSimulacionPromociones? _resultado;
+    private string? _error;
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sucursales = await Cliente.ListarSucursalesPromocionesAsync() ?? [];
+        _sucursalId = _sucursales.FirstOrDefault()?.Id;
+    }
+
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Cliente.BuscarArticulosAsync("promociones", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    private async Task SimularAsync()
+    {
+        _error = _articulo is null ? "Elija el artículo."
+            : _sucursalId is null ? "Elija la sucursal."
+            : EtiquetasPromocion.Momento(_fecha, _hora) is null ? "Indique la fecha."
+            : null;
+        if (_error is not null)
+            return;
+
+        _procesando = true;
+        var (resultado, error) = await Cliente.SimularPromocionesAsync(
+            new SolicitudSimulacionPromociones(_articulo!.Id, _cantidad, _sucursalId!.Value, EtiquetasPromocion.Momento(_fecha, _hora)!.Value, _conFidelidad));
+        _procesando = false;
+        (_resultado, _error) = (resultado, error);
+    }
+}

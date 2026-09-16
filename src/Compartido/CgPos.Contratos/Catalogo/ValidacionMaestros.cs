@@ -95,14 +95,7 @@ public static class ValidacionMaestros
             Probar($"Denominación {d.Moneda} {d.Valor}", () => Denominacion.Crear(d.Moneda, d.Valor, d.Tipo, d.Id));
 
         foreach (var d in paquete.Promociones ?? [])
-            Probar($"Promoción '{d.Codigo}'", () =>
-            {
-                var promocion = Promocion.Crear(d.Codigo, d.Nombre, d.Tipo, d.Valor, d.VigenteDesde, d.VigenteHasta, d.Id);
-                promocion.ConfigurarCantidades(d.CantidadLleva, d.CantidadPaga, d.CantidadMinima, d.LimitePorCliente);
-                promocion.Programar(d.Dias, d.HoraDesde, d.HoraHasta);
-                promocion.AsignarAlcance(d.Articulos, d.Familias, d.Sucursales);
-                promocion.ConfigurarFidelidad(d.SoloFidelidad);
-            });
+            Probar($"Promoción '{d.Codigo}'", () => ConversionMaestros.ConstruirPromocion(d));
 
         foreach (var d in paquete.MotivosDescuento ?? [])
             Probar($"Motivo de descuento '{d.Codigo}'", () => MotivoDescuento.Crear(d.Codigo, d.Nombre, d.Id));

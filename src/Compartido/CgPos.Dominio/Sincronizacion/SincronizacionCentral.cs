@@ -97,6 +97,100 @@ public sealed class ComprobanteRecibido : Entidad
     public DateTimeOffset? EstadoDgiiEn { get; private set; }
     public string? MensajeDgii { get; private set; }
 
+    /// <summary>Identificador con el que la DGII recibió el e-CF, para consultar su resultado.</summary>
+    public string? TrackId { get; private set; }
+
+    /// <summary>Envíos a la DGII intentados, contando los fallidos.</summary>
+    public int IntentosEnvio { get; private set; }
+
+    public DateTimeOffset? EnviadoEn { get; private set; }
+
+    /// <summary>Cuándo toca el próximo envío (si está pendiente) o la próxima consulta del resultado (si está enviado); nulo si ya tiene resultado.</summary>
+    public DateTimeOffset? ProximoIntentoEn { get; private set; }
+
+    public bool TieneResultado => EstadoDgii is EstadoEnvioDgii.Aceptado or EstadoEnvioDgii.AceptadoCondicional or EstadoEnvioDgii.Rechazado;
+
+    public const int LargoMaximoTrackId = 100;
+    public const int LargoMaximoMensajeDgii = 2000;
+
+    /// <summary>La DGII recibió el e-CF y dará su resultado al consultarlo.</summary>
+    public void RegistrarEnvio(string trackId, DateTimeOffset ahora, DateTimeOffset proximaConsulta)
+    {
+        if (EstadoDgii != EstadoEnvioDgii.Pendiente)
+            throw new InvalidOperationException($"El e-CF {Encf} ya se envió a la DGII.");
+        ArgumentException.ThrowIfNullOrWhiteSpace(trackId);
+
+        TrackId = Recortar(trackId, LargoMaximoTrackId);
+        IntentosEnvio++;
+        EnviadoEn = ahora;
+        EstadoDgii = EstadoEnvioDgii.Enviado;
+        EstadoDgiiEn = ahora;
+        MensajeDgii = null;
+        ProximoIntentoEn = proximaConsulta;
+    }
+
+    /// <summary>El envío no llegó a la DGII (comunicación, autenticación, error del servicio): sigue pendiente y se reintenta después.</summary>
+    public void RegistrarFalloEnvio(string motivo, DateTimeOffset ahora, DateTimeOffset proximoIntento)
+    {
+        if (EstadoDgii != EstadoEnvioDgii.Pendiente)
+            throw new InvalidOperationException($"El e-CF {Encf} no está pendiente de envío.");
+
+        IntentosEnvio++;
+        MensajeDgii = Recortar(motivo, LargoMaximoMensajeDgii);
+        EstadoDgiiEn = ahora;
+        ProximoIntentoEn = proximoIntento;
+    }
+
+    /// <summary>Resultado de la DGII, al enviarlo (respuesta inmediata) o al consultarlo.</summary>
+    public void RegistrarResultado(EstadoEnvioDgii estado, string? mensaje, DateTimeOffset ahora, string? trackId = null)
+    {
+        if (estado is not (EstadoEnvioDgii.Aceptado or EstadoEnvioDgii.AceptadoCondicional or EstadoEnvioDgii.Rechazado))
+            throw new ArgumentOutOfRangeException(nameof(estado), estado, "El resultado de la DGII es aceptado, aceptado condicional o rechazado.");
+        if (TieneResultado)
+            throw new InvalidOperationException($"El e-CF {Encf} ya tiene resultado de la DGII.");
+
+        if (EstadoDgii == EstadoEnvioDgii.Pendiente)
+        {
+            IntentosEnvio++;
+            EnviadoEn = ahora;
+        }
+
+        if (!string.IsNullOrWhiteSpace(trackId))
+            TrackId ??= Recortar(trackId, LargoMaximoTrackId);
+        EstadoDgii = estado;
+        EstadoDgiiEn = ahora;
+        MensajeDgii = Recortar(mensaje, LargoMaximoMensajeDgii);
+        ProximoIntentoEn = null;
+    }
+
+    /// <summary>La DGII aún no tiene resultado, o no se pudo consultar: se vuelve a consultar más tarde.</summary>
+    public void ProgramarConsulta(DateTimeOffset proximaConsulta, string? mensaje = null)
+    {
+        if (EstadoDgii != EstadoEnvioDgii.Enviado)
+            throw new InvalidOperationException($"El e-CF {Encf} no está esperando resultado de la DGII.");
+
+        ProximoIntentoEn = proximaConsulta;
+        if (mensaje is not null)
+            MensajeDgii = Recortar(mensaje, LargoMaximoMensajeDgii);
+    }
+
+    /// <summary>Un usuario del Central vuelve a poner en cola un e-CF rechazado o que no se ha podido enviar (reenvío dirigido).</summary>
+    public void PrepararReenvio(DateTimeOffset ahora)
+    {
+        if (EstadoDgii is EstadoEnvioDgii.Aceptado or EstadoEnvioDgii.AceptadoCondicional)
+            throw new InvalidOperationException($"El e-CF {Encf} ya fue aceptado por la DGII y no se reenvía.");
+        if (EstadoDgii == EstadoEnvioDgii.Enviado)
+            throw new InvalidOperationException($"El e-CF {Encf} está en proceso en la DGII: espere su resultado.");
+
+        EstadoDgii = EstadoEnvioDgii.Pendiente;
+        TrackId = null;
+        EstadoDgiiEn = ahora;
+        ProximoIntentoEn = ahora;
+    }
+
+    private static string? Recortar(string? texto, int largo) =>
+        string.IsNullOrWhiteSpace(texto) ? null : texto.Trim() is var limpio && limpio.Length > largo ? limpio[..largo] : texto.Trim();
+
     public static ComprobanteRecibido Registrar(DocumentoRecibido documento, string encf, TipoComprobante tipoComprobante, string xmlFirmado, string hashXml,
         DateTimeOffset fechaFirma, DateTimeOffset ahora)
     {

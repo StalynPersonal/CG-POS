@@ -195,7 +195,106 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> GuardarTopeAsync(CgPos.Contratos.Catalogo.TopeDescuentoCarga tope) =>
         EnviarAsync(HttpMethod.Put, $"api/precios/topes/{tope.Id}", tope);
 
+    // ---------- Promociones ----------
+
+    public Task<IReadOnlyList<DatosPromocionCentral>?> ListarPromocionesAsync() => ListarAsync<DatosPromocionCentral>("api/promociones");
+
+    public Task<RespuestaAdministracion> GuardarPromocionAsync(CgPos.Contratos.Catalogo.PromocionCarga promocion) =>
+        EnviarAsync(HttpMethod.Put, $"api/promociones/{promocion.Id}", promocion);
+
+    public Task<(ResultadoImportacionPromociones? Datos, string? Error)> ImportarPromocionesAsync(SolicitudImportacionPromociones solicitud) =>
+        PostearAsync<ResultadoImportacionPromociones>("api/promociones/importar", solicitud);
+
+    public Task<(ResultadoSimulacionPromociones? Datos, string? Error)> SimularPromocionesAsync(SolicitudSimulacionPromociones solicitud) =>
+        PostearAsync<ResultadoSimulacionPromociones>("api/promociones/simular", solicitud);
+
+    public async Task<IReadOnlyList<CgPos.Contratos.Catalogo.ArticuloCarga>> ArticulosPromocionAsync(IReadOnlyList<Guid> ids) =>
+        ids.Count == 0 ? [] : (await PostearAsync<List<CgPos.Contratos.Catalogo.ArticuloCarga>>("api/promociones/articulos/por-id", ids)).Datos ?? [];
+
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>?> ListarFamiliasPromocionesAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>("api/promociones/familias");
+
+    public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesPromocionesAsync() => ListarAsync<DatosSucursal>("api/promociones/sucursales");
+
+    // ---------- Monitor de sincronización ----------
+
+    public async Task<DatosMonitorCentral?> ObtenerMonitorAsync()
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosMonitorCentral>("api/monitor", OpcionesJson.Predeterminadas);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<PaginaComprobantesDgii?> BuscarComprobantesDgiiAsync(CgPos.Dominio.Sincronizacion.EstadoEnvioDgii? estado, Guid? cajaId, string? buscar,
+        bool soloConFallo, int pagina, int tamano, CancellationToken cancelacion = default)
+    {
+        var ruta = $"api/monitor/comprobantes?pagina={pagina}&tamano={tamano}&soloConFallo={(soloConFallo ? "true" : "false")}"
+                   + (estado is { } e ? $"&estado={e}" : string.Empty)
+                   + (cajaId is { } c ? $"&cajaId={c}" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaComprobantesDgii>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<string?> ObtenerXmlComprobanteAsync(Guid comprobanteId)
+    {
+        try
+        {
+            return await Http.GetStringAsync($"api/monitor/comprobantes/{comprobanteId}/xml");
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaAdministracion> ReenviarComprobanteAsync(Guid comprobanteId) => EnviarAsync(HttpMethod.Post, $"api/monitor/comprobantes/{comprobanteId}/reenviar");
+
+    public Task<IReadOnlyList<DatosConflictoSincronizacion>?> ListarConflictosAsync(bool abiertos) =>
+        ListarAsync<DatosConflictoSincronizacion>($"api/monitor/conflictos?abiertos={(abiertos ? "true" : "false")}");
+
+    public Task<RespuestaAdministracion> ResolverConflictoAsync(Guid conflictoId, string resolucion) =>
+        EnviarAsync(HttpMethod.Post, $"api/monitor/conflictos/{conflictoId}/resolver", new SolicitudResolverConflicto(resolucion));
+
     // ---------- Comunes ----------
+
+    /// <returns>La respuesta tipada o el motivo por el que no se obtuvo.</returns>
+    private async Task<(T? Datos, string? Error)> PostearAsync<T>(string ruta, object cuerpo)
+    {
+        try
+        {
+            using var respuesta = await Http.PostAsJsonAsync(ruta, cuerpo, OpcionesJson.Predeterminadas);
+            if (respuesta.IsSuccessStatusCode)
+                return (await respuesta.Content.ReadFromJsonAsync<T>(OpcionesJson.Predeterminadas), null);
+
+            return (default, respuesta.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => "La sesión venció. Ingrese nuevamente.",
+                HttpStatusCode.Forbidden => "No tiene permiso para esta operación.",
+                HttpStatusCode.NotFound => "No se encontró el registro.",
+                _ => $"El Central respondió {(int)respuesta.StatusCode}.",
+            });
+        }
+        catch (HttpRequestException)
+        {
+            return (default, ServicioSesionCentral.SinComunicacion);
+        }
+        catch (JsonException)
+        {
+            return (default, "La respuesta del Central no es válida.");
+        }
+    }
 
     /// <returns>Nulo si no se pudo consultar (sin comunicación, sesión vencida o sin permiso).</returns>
     private async Task<IReadOnlyList<T>?> ListarAsync<T>(string ruta)

@@ -39,7 +39,11 @@ internal sealed class ComprobanteRecibidoConfiguracion : IEntityTypeConfiguratio
         constructor.Property(c => c.XmlFirmado).IsRequired().Metadata.SetMaxLength(null);
         constructor.Property(c => c.HashXml).HasMaxLength(DocumentoRecibido.LargoHash).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(c => c.EstadoDgii).HasConversion<string>().HasMaxLength(30);
-        constructor.Property(c => c.MensajeDgii).HasMaxLength(2000);
+        constructor.Property(c => c.MensajeDgii).HasMaxLength(ComprobanteRecibido.LargoMaximoMensajeDgii);
+        constructor.Property(c => c.TrackId).HasMaxLength(ComprobanteRecibido.LargoMaximoTrackId).IsUnicode(false);
+
+        // El despacho a la DGII toma los pendientes y enviados cuyo próximo intento ya llegó.
+        constructor.HasIndex(c => new { c.EstadoDgii, c.ProximoIntentoEn });
 
         constructor.HasOne<DocumentoRecibido>().WithMany().HasForeignKey(c => c.DocumentoId).OnDelete(DeleteBehavior.Restrict);
 

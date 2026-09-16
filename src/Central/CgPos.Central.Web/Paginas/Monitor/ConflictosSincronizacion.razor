@@ -1,0 +1,124 @@
+@page "/monitor/conflictos"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.MonitorearSincronizacion)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Conflictos de sincronización · CG-POS Central</PageTitle>
+
+<MudBreadcrumbs Items="_migas" Class="px-0 pt-0" />
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Conflictos de sincronización</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Mensajes de las cajas que el Central no pudo aceptar tal cual. Quedan abiertos hasta que alguien los revisa y deja la resolución.</MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los conflictos. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosConflictoSincronizacion" Items="_conflictos" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudChipSet T="bool" SelectedValue="_abiertos" SelectedValueChanged="CambiarVistaAsync" SelectionMode="SelectionMode.SingleSelection" CheckMark="true"
+                        Color="Color.Secondary" Variant="Variant.Outlined">
+                <MudChip T="bool" Value="true" Text="Abiertos" />
+                <MudChip T="bool" Value="false" Text="Resueltos" />
+            </MudChipSet>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Detectado</MudTh>
+            <MudTh>Caja</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Detalle</MudTh>
+            <MudTh>Veces</MudTh>
+            <MudTh>@(_abiertos ? "" : "Resolución")</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Detectado">
+                @context.DetectadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                @if (context.Ocurrencias > 1)
+                {
+                    <div class="cg-central__detalle">Última @context.UltimaOcurrenciaEn.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+            <MudTd DataLabel="Tipo">
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@EtiquetasMonitor.Conflicto(context.Tipo)</MudChip>
+                <div class="cg-central__detalle">@context.TipoMensaje</div>
+            </MudTd>
+            <MudTd DataLabel="Detalle" Style="max-width: 420px">
+                @context.Detalle
+                <div class="cg-central__detalle">Mensaje @context.MensajeId</div>
+            </MudTd>
+            <MudTd DataLabel="Veces">@context.Ocurrencias</MudTd>
+            <MudTd>
+                @if (context.ResueltoEn is { } resuelto)
+                {
+                    <div>@context.Resolucion</div>
+                    <div class="cg-central__detalle">@context.ResueltoPor · @resuelto.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                }
+                else
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.TaskAlt" OnClick="() => ResolverAsync(context)">
+                        Resolver
+                    </MudButton>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>@(_abiertos ? "No hay conflictos abiertos." : "No hay conflictos resueltos.")</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private readonly List<BreadcrumbItem> _migas = [new("Monitor", "monitor"), new("Conflictos", null, disabled: true)];
+    private IReadOnlyList<DatosConflictoSincronizacion> _conflictos = [];
+    private bool _abiertos = true;
+    private bool _cargando = true;
+    private bool _error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private Task CambiarVistaAsync(bool abiertos)
+    {
+        _abiertos = abiertos;
+        return CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var conflictos = await Cliente.ListarConflictosAsync(_abiertos);
+        _error = conflictos is null;
+        _conflictos = conflictos ?? [];
+        _cargando = false;
+    }
+
+    private async Task ResolverAsync(DatosConflictoSincronizacion conflicto)
+    {
+        var parametros = new DialogParameters<DialogoMotivo>
+        {
+            { d => d.Mensaje, $"{EtiquetasMonitor.Conflicto(conflicto.Tipo)} en la caja {conflicto.CajaCodigo}. Indique qué se revisó o corrigió." },
+            { d => d.Etiqueta, "Resolución" },
+            { d => d.TextoConfirmar, "Resolver" },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoMotivo>("Resolver conflicto", parametros);
+        if (await referencia.Result is not { Canceled: false, Data: string resolucion })
+            return;
+
+        var respuesta = await Cliente.ResolverConflictoAsync(conflicto.Id, resolucion);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo resolver el conflicto.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add("Conflicto resuelto.", Severity.Success);
+        await CargarAsync();
+    }
+}

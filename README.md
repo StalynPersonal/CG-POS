@@ -311,9 +311,43 @@ dotnet run --project src/Central/CgPos.Central.Api
 - *Artículos* (permiso `Central.Maestros.Administrar`): búsqueda paginada en el servidor por código, código de barras o descripción; alta con precios iniciales y edición de datos, familia, unidad, impuesto, códigos de barras y de proveedor, tara y presentación. Un artículo ya publicado conserva sus precios aunque se guarde desde aquí.
 - *Precios* (permiso `Central.Precios.Administrar`): detalle, por mayor con su cantidad mínima, mínimo y costo, de inmediato o desde una fecha y hora. Todas las cajas registran el cambio en su bitácora con la misma vigencia. *Topes de descuento* por nivel del autorizador, generales, por familia o por artículo; no puede haber dos del mismo nivel y alcance, y un tope se retira dejándolo en 0.
 - *Clientes* (permiso `Central.Maestros.Administrar`): búsqueda paginada por documento, nombre, teléfono o correo; comprobante predeterminado, lista de precios, exoneración de ITBIS, retención y direcciones de envío con su principal. El tipo y número de documento no cambian (la caja no los aplicaría) y el mismo documento, con o sin guiones, es un solo cliente.
+- *Promociones* (permiso `Central.Promociones.Administrar`): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde una cantidad; por artículos o familias, en todas o algunas sucursales, con vigencia, días, horario (puede cruzar la medianoche), límite de unidades y solo para fidelidad. El Central valida que existan los artículos, familias y sucursales. La lista muestra el estado (vigente, programada, vencida, inactiva) y la **distribución**: cuántas cajas habilitadas de sus sucursales ya confirmaron tener esa versión.
+- *Importación de promociones* desde CSV (separador `;` o `,`): columnas obligatorias `codigo`, `nombre`, `tipo`, `desde`, `hasta`; opcionales `valor`, `articulos`, `familias`, `sucursales` (códigos separados por `|`), `lleva`, `paga`, `cantidad_minima`, `limite_cliente`, `dias` (`todos` o `lun|mar|…`), `hora_desde`, `hora_hasta`, `solo_fidelidad`, `activa`. Las fechas se leen en la hora local de quien importa y un `hasta` sin hora incluye todo el día. Se valida el archivo completo y solo se publica si ninguna línea tiene errores; un código existente actualiza esa promoción.
+- *Simulación*: para un artículo, cantidad, sucursal, fecha y hora, con o sin fidelidad, muestra cada promoción que lo alcanza, por qué aplica o no y cuál elegiría la caja: la de mayor descuento, solo si deja el importe por debajo del precio por mayor.
+- **API de promociones:** `GET /api/promociones`, `PUT /api/promociones/{id}`, `POST /api/promociones/importar`, `POST /api/promociones/simular`; referencias `GET /api/promociones/articulos`, `POST /api/promociones/articulos/por-id`, `GET /api/promociones/familias` y `GET /api/promociones/sucursales`.
 - **API de artículos y precios:** `GET /api/maestros/clientes?buscar=&pagina=&tamano=` y `PUT /api/maestros/clientes/{id}`; `GET /api/maestros/articulos?buscar=&pagina=&tamano=` y `PUT /api/maestros/articulos/{id}`; `GET /api/precios/articulos?buscar=&pagina=&tamano=` y `PUT /api/precios/articulos/{id}`; `GET /api/precios/familias`; `GET /api/precios/topes` y `PUT /api/precios/topes/{id}`.
 - **API de maestros:** `GET /api/maestros/{catálogo}` y `PUT /api/maestros/{catálogo}/{id}` (crea o cambia el registro con ese Id) para `monedas`, `tasas-cambio`, `familias`, `unidades-medida`, `impuestos`, `formas-pago`, `denominaciones`, `bancos`, `tipos-tarjeta`, `motivos-descuento`, `motivos-devolucion` y `almacenes`; `GET /api/maestros/sucursales` como referencia.
 - **API de cajas:** `GET|POST /api/fiscal/secuencias`, `PUT /api/fiscal/secuencias/{id}`; `GET /api/usuarios-caja/permisos`; `GET|POST /api/usuarios-caja/roles`, `PUT /api/usuarios-caja/roles/{id}`; `GET|POST /api/usuarios-caja/usuarios`, `PUT /api/usuarios-caja/usuarios/{id}`.
+
+### Envío de e-CF a la DGII
+
+- El Central envía a la DGII los e-CF que recibe de las cajas y consulta su resultado (RF-222, RN-18). Un trabajador en segundo plano toma los pendientes cuyo próximo intento ya llegó, los envía y guarda el trackId; después consulta el resultado hasta obtener **aceptado**, **aceptado condicional** o **rechazado**. Los rechazos y las aceptaciones condicionales quedan en la auditoría con su motivo.
+- Un envío que no llega (sin conexión, autenticación, error del servicio) sigue pendiente y se reintenta con espera creciente: se duplica desde `Central.Dgii.MinutosReintento` hasta `Central.Dgii.MinutosMaximoReintento`. Cada comprobante guarda sus intentos y el último mensaje.
+- **Cliente:** `Dgii:Cliente = Http` (predeterminado) usa la DGII real: pide la semilla, la firma con el certificado del emisor (`Dgii:Certificado:Ruta` y `Dgii:Certificado:Pin` en la configuración segura, nunca en la base de datos), obtiene el token y envía cada XML firmado. `Simulado` (solo en desarrollo) recibe todo y lo acepta en la primera consulta. **Por confirmar en la certificación con la DGII (TesteCF):** rutas y formatos exactos de los servicios y el envío del resumen de facturas de consumo menores al monto de identificación (RFCE).
+- `Dgii:TrabajadorHabilitado = false` desactiva el trabajador (las pruebas ejecutan el despacho a demanda).
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Dgii.Habilitado` | Envía a la DGII los e-CF recibidos; sin él no se envía nada | No |
+| `Central.Dgii.UrlBase` | Dirección https de los servicios de la DGII según el ambiente (pruebas, certificación, producción) | Con el cliente Http |
+| `Central.Dgii.SegundosCiclo` | Segundos entre ciclos de envío y consulta | Sí |
+| `Central.Dgii.LoteEnvio` | e-CF enviados y resultados consultados por ciclo | Sí |
+| `Central.Dgii.MinutosReintento` | Espera tras el primer envío fallido | Sí |
+| `Central.Dgii.MinutosMaximoReintento` | Espera máxima entre reintentos | Sí |
+| `Central.Dgii.SegundosConsultaEstado` | Segundos entre consultas del resultado | Sí |
+
+### Monitor de sincronización (Central Manager)
+
+- Permiso `Central.Sincronizacion.Monitorear`. **Monitor:** por caja, la última comunicación (mensajes y descargas de maestros), mensajes recibidos, repetidos y rechazados, e-CF sin resultado y rechazados por la DGII, y alertas: nunca se comunicó o lleva más de `Central.Monitor.MinutosSinComunicacion` minutos sin hacerlo, su último mensaje fue rechazado, e-CF sin resultado de la DGII por más de `Central.Monitor.MinutosAlertaDgii` minutos, e-CF rechazados y conflictos abiertos. Resumen de e-CF por estado, envíos con fallo y el pendiente más antiguo. La pantalla se actualiza sola cada minuto.
+- **e-CF y DGII:** búsqueda por e-NCF o trackId, estado, caja y envíos con fallo; detalle con el mensaje de la DGII, los intentos y el XML firmado. **Reenvío dirigido:** un e-CF rechazado o pendiente vuelve a la cola de inmediato (queda en la auditoría); uno aceptado o en proceso no se reenvía.
+- **Conflictos:** abiertos y resueltos; resolver exige escribir la resolución y queda con el usuario y la fecha.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Monitor.MinutosSinComunicacion` | Minutos sin mensajes ni descargas tras los que una caja habilitada es alerta | Sí |
+| `Central.Monitor.MinutosAlertaDgii` | Minutos sin resultado de la DGII tras los que un e-CF es alerta | Sí |
+
+- **API:** `GET /api/monitor`; `GET /api/monitor/comprobantes?estado=&cajaId=&buscar=&soloConFallo=&pagina=&tamano=`, `GET /api/monitor/comprobantes/{id}/xml`, `POST /api/monitor/comprobantes/{id}/reenviar`; `GET /api/monitor/conflictos?abiertos=`, `POST /api/monitor/conflictos/{id}/resolver`.
 
 ### Recepción de documentos de las cajas
 

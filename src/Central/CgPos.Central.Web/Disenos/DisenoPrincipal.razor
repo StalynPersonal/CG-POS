@@ -43,6 +43,13 @@
                     <MudNavLink Href="organizacion/parametros" Icon="@Icons.Material.Filled.Tune">Parámetros</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.MonitorearSincronizacion">
+                <MudNavGroup Title="Sincronización" Icon="@Icons.Material.Filled.Sync" Expanded="true">
+                    <MudNavLink Href="monitor" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.MonitorHeart">Monitor</MudNavLink>
+                    <MudNavLink Href="monitor/comprobantes" Icon="@Icons.Material.Filled.ReceiptLong">e-CF y DGII</MudNavLink>
+                    <MudNavLink Href="monitor/conflictos" Icon="@Icons.Material.Filled.ReportProblem">Conflictos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarMaestros">
                 <MudNavGroup Title="Maestros" Icon="@Icons.Material.Filled.Inventory2" Expanded="true">
                     <MudNavLink Href="articulos" Icon="@Icons.Material.Filled.Inventory">Artículos</MudNavLink>
@@ -54,6 +61,13 @@
                 <MudNavGroup Title="Precios" Icon="@Icons.Material.Filled.Sell" Expanded="true">
                     <MudNavLink Href="precios/articulos" Icon="@Icons.Material.Filled.PriceChange">Precios de artículos</MudNavLink>
                     <MudNavLink Href="precios/topes" Icon="@Icons.Material.Filled.Discount">Topes de descuento</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarPromociones">
+                <MudNavGroup Title="Promociones" Icon="@Icons.Material.Filled.LocalOffer" Expanded="true">
+                    <MudNavLink Href="promociones" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Campaign">Promociones</MudNavLink>
+                    <MudNavLink Href="promociones/importar" Icon="@Icons.Material.Filled.UploadFile">Importar</MudNavLink>
+                    <MudNavLink Href="promociones/simular" Icon="@Icons.Material.Filled.Calculate">Simular</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">

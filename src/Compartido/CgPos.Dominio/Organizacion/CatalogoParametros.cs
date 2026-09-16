@@ -139,6 +139,17 @@ public static class CatalogoParametros
         new("Central.Seguridad.LargoMinimoContrasena", "Seguridad del Central", "Largo mínimo de las contraseñas del Central", Entero, true, Central, Minimo: 1),
         new("Central.Seguridad.ContrasenaCompleja", "Seguridad del Central", "Exige mayúsculas, minúsculas, números y símbolos, sin contener el usuario", Booleano, false, Central),
         new("Central.Dispositivos.MinutosToken", "Seguridad del Central", "Minutos de vigencia del token con el que las cajas se comunican con el Central", Entero, true, Central, Minimo: 1),
+
+        new("Central.Dgii.Habilitado", "Envío a la DGII", "Envía a la DGII los e-CF recibidos de las cajas", Booleano, false, Central),
+        new("Central.Dgii.UrlBase", "Envío a la DGII", "Dirección base (https) de los servicios de e-CF de la DGII según el ambiente", Texto, false, Central),
+        new("Central.Dgii.SegundosCiclo", "Envío a la DGII", "Segundos entre ciclos de envío y consulta de resultados", Entero, true, Central, Minimo: 5),
+        new("Central.Dgii.LoteEnvio", "Envío a la DGII", "Máximo de e-CF enviados y de resultados consultados por ciclo", Entero, true, Central, Minimo: 1, Maximo: 1000),
+        new("Central.Dgii.MinutosReintento", "Envío a la DGII", "Minutos de espera tras un envío fallido; se duplica en cada fallo seguido", Entero, true, Central, Minimo: 1),
+        new("Central.Dgii.MinutosMaximoReintento", "Envío a la DGII", "Espera máxima en minutos entre reintentos de envío", Entero, true, Central, Minimo: 1),
+        new("Central.Dgii.SegundosConsultaEstado", "Envío a la DGII", "Segundos entre consultas del resultado de un e-CF ya recibido por la DGII", Entero, true, Central, Minimo: 5),
+
+        new("Central.Monitor.MinutosSinComunicacion", "Monitor de sincronización", "Minutos sin mensajes ni descargas tras los que una caja habilitada es alerta", Entero, true, Central, Minimo: 1),
+        new("Central.Monitor.MinutosAlertaDgii", "Monitor de sincronización", "Minutos sin resultado de la DGII tras los que un e-CF es alerta", Entero, true, Central, Minimo: 1),
     ];
 
     private static readonly FrozenDictionary<string, DefinicionParametro> PorClave = Todos.ToFrozenDictionary(d => d.Clave, StringComparer.Ordinal);

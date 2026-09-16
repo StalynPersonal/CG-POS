@@ -1,0 +1,247 @@
+@* Alta o edición de una promoción: tipo y valores, vigencia con días y horas, alcance (artículos, familias, sucursales) y fidelidad. *@
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Promociones
+@inject ClienteCentral Central
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Promocion is not null)" HelperText="No cambia después de crearla." />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="TipoPromocion" @bind-Value="_tipo" Label="Tipo" Variant="Variant.Outlined" ToStringFunc="EtiquetasPromocion.Tipo">
+                    @foreach (var tipo in EtiquetasPromocion.Tipos)
+                    {
+                        <MudSelectItem T="TipoPromocion" Value="@tipo">@EtiquetasPromocion.Tipo(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            @if (EtiquetasPromocion.EtiquetaValor(_tipo) is { } etiquetaValor)
+            {
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal?" @bind-Value="_valor" Label="@etiquetaValor" Variant="Variant.Outlined" HideSpinButtons="true" />
+                </MudItem>
+            }
+            @if (_tipo == TipoPromocion.LlevaPaga)
+            {
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int?" @bind-Value="_lleva" Label="Lleva" Variant="Variant.Outlined" Min="2" />
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudNumericField T="int?" @bind-Value="_paga" Label="Paga" Variant="Variant.Outlined" Min="1" />
+                </MudItem>
+            }
+            @if (_tipo == TipoPromocion.PrecioPorCantidad)
+            {
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal?" @bind-Value="_cantidadMinima" Label="Desde la cantidad" Variant="Variant.Outlined" HideSpinButtons="true" />
+                </MudItem>
+            }
+            <MudItem xs="12" sm="6">
+                <MudNumericField T="decimal?" @bind-Value="_limite" Label="Límite de unidades por compra (opcional)" Variant="Variant.Outlined" HideSpinButtons="true" />
+            </MudItem>
+
+            <MudItem xs="12"><MudText Typo="Typo.subtitle1">Vigencia</MudText></MudItem>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker @bind-Date="_desdeFecha" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudTimePicker @bind-Time="_desdeHora" Label="Hora" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudDatePicker @bind-Date="_hastaFecha" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudTimePicker @bind-Time="_hastaHora" Label="Hora" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex flex-wrap align-center gap-1">
+                <MudText Typo="Typo.body2" Class="mr-2">Días:</MudText>
+                @foreach (var (dia, nombre) in EtiquetasPromocion.Dias)
+                {
+                    <MudCheckBox T="bool" Value="@_dias.HasFlag(dia)" ValueChanged="@((bool marcado) => _dias = marcado ? _dias | dia : _dias & ~dia)"
+                                 Label="@nombre" Color="Color.Secondary" Dense="true" />
+                }
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSwitch T="bool" @bind-Value="_conHorario" Label="Solo en un horario" Color="Color.Secondary" />
+            </MudItem>
+            @if (_conHorario)
+            {
+                <MudItem xs="6" sm="4">
+                    <MudTimePicker @bind-Time="_horaDesde" Label="De" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudTimePicker @bind-Time="_horaHasta" Label="A" Variant="Variant.Outlined" HelperText="Puede cruzar la medianoche." />
+                </MudItem>
+            }
+
+            <MudItem xs="12"><MudText Typo="Typo.subtitle1">Alcance</MudText></MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="Guid" @bind-SelectedValues="_familias" MultiSelection="true" Label="Familias" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Familias.FirstOrDefault(f => f.Id == id)?.Nombre ?? string.Empty)">
+                    @foreach (var familia in Familias)
+                    {
+                        <MudSelectItem T="Guid" Value="@familia.Id">@familia.Codigo · @familia.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="Guid" @bind-SelectedValues="_sucursales" MultiSelection="true" Label="Sucursales" Variant="Variant.Outlined" HelperText="Ninguna = todas."
+                           ToStringFunc="@(id => Sucursales.FirstOrDefault(s => s.Id == id)?.Nombre ?? string.Empty)">
+                    @foreach (var sucursal in Sucursales)
+                    {
+                        <MudSelectItem T="Guid" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudAutocomplete T="ArticuloCarga" Value="_articuloBuscado" ValueChanged="AgregarArticulo" SearchFunc="BuscarArticulosAsync" Label="Agregar artículo"
+                                 Variant="Variant.Outlined" ToStringFunc="@(a => a is null ? null : $"{a.Codigo} · {a.Descripcion}")" DebounceInterval="350" MinCharacters="2"
+                                 ResetValueOnEmptyText="true" Clearable="true" AdornmentIcon="@Icons.Material.Filled.Search" />
+                <div class="d-flex flex-wrap gap-1 mt-2">
+                    @foreach (var articulo in _articulos)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" Text="@articulo.Texto"
+                                 OnClose="@(_ => _articulos.Remove(articulo))" />
+                    }
+                </div>
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudSwitch T="bool" @bind-Value="_soloFidelidad" Label="Solo miembros del programa de fidelidad" Color="Color.Secondary" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSwitch T="bool" @bind-Value="_activa" Label="@(_activa ? "Activa" : "Inactiva")" Color="Color.Secondary" />
+            </MudItem>
+
+            @if (_mensaje is not null)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private sealed record ArticuloElegido(Guid Id, string Texto);
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public PromocionCarga? Promocion { get; set; }
+    [Parameter] public IReadOnlyList<FamiliaCarga> Familias { get; set; } = [];
+    [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
+
+    private readonly List<ArticuloElegido> _articulos = [];
+    private string? _codigo;
+    private string? _nombre;
+    private TipoPromocion _tipo = TipoPromocion.Porcentaje;
+    private decimal? _valor;
+    private int? _lleva = 2;
+    private int? _paga = 1;
+    private decimal? _cantidadMinima;
+    private decimal? _limite;
+    private DateTime? _desdeFecha = DateTime.Today;
+    private TimeSpan? _desdeHora = TimeSpan.Zero;
+    private DateTime? _hastaFecha = DateTime.Today.AddDays(7);
+    private TimeSpan? _hastaHora = new TimeSpan(23, 59, 0);
+    private DiasSemana _dias = DiasSemana.Todos;
+    private bool _conHorario;
+    private TimeSpan? _horaDesde = new TimeSpan(8, 0, 0);
+    private TimeSpan? _horaHasta = new TimeSpan(12, 0, 0);
+    private IReadOnlyCollection<Guid> _familias = [];
+    private IReadOnlyCollection<Guid> _sucursales = [];
+    private ArticuloCarga? _articuloBuscado;
+    private bool _soloFidelidad;
+    private bool _activa = true;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Promocion is not { } p)
+            return;
+
+        (_codigo, _nombre, _tipo, _valor, _limite) = (p.Codigo, p.Nombre, p.Tipo, p.Valor, p.LimitePorCliente);
+        (_lleva, _paga, _cantidadMinima) = (p.CantidadLleva ?? 2, p.CantidadPaga ?? 1, p.CantidadMinima);
+        var desde = p.VigenteDesde.ToLocalTime();
+        var hasta = p.VigenteHasta.ToLocalTime();
+        (_desdeFecha, _desdeHora, _hastaFecha, _hastaHora) = (desde.Date, desde.TimeOfDay, hasta.Date, hasta.TimeOfDay);
+        _dias = p.Dias;
+        _conHorario = p.HoraDesde is not null;
+        if (p is { HoraDesde: { } horaDesde, HoraHasta: { } horaHasta })
+            (_horaDesde, _horaHasta) = (horaDesde.ToTimeSpan(), horaHasta.ToTimeSpan());
+        _familias = (p.Familias ?? []).ToHashSet();
+        _sucursales = (p.Sucursales ?? []).ToHashSet();
+        (_soloFidelidad, _activa) = (p.SoloFidelidad, p.Activa);
+
+        var ids = p.Articulos ?? [];
+        var encontrados = (await Central.ArticulosPromocionAsync(ids)).ToDictionary(a => a.Id);
+        foreach (var id in ids)
+            _articulos.Add(new ArticuloElegido(id, encontrados.TryGetValue(id, out var a) ? $"{a.Codigo} · {a.Descripcion}" : $"Artículo {id}"));
+    }
+
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Central.BuscarArticulosAsync("promociones", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    private void AgregarArticulo(ArticuloCarga? articulo)
+    {
+        if (articulo is not null && _articulos.All(a => a.Id != articulo.Id))
+            _articulos.Add(new ArticuloElegido(articulo.Id, $"{articulo.Codigo} · {articulo.Descripcion}"));
+        _articuloBuscado = null;
+    }
+
+    private async Task GuardarAsync()
+    {
+        var desde = EtiquetasPromocion.Momento(_desdeFecha, _desdeHora);
+        var hasta = EtiquetasPromocion.Momento(_hastaFecha, _hastaHora);
+        _mensaje = string.IsNullOrWhiteSpace(_codigo) ? "Indique el código."
+            : string.IsNullOrWhiteSpace(_nombre) ? "Indique el nombre."
+            : EtiquetasPromocion.EtiquetaValor(_tipo) is not null && _valor is null ? "Indique el valor de la oferta."
+            : desde is null || hasta is null ? "Indique desde y hasta cuándo rige."
+            : _dias == DiasSemana.Ninguno ? "Elija al menos un día."
+            : _articulos.Count == 0 && _familias.Count == 0 ? "Agregue al menos un artículo o una familia."
+            : null;
+        if (_mensaje is not null)
+            return;
+
+        var promocion = new PromocionCarga(
+            Promocion?.Id ?? Guid.CreateVersion7(),
+            _codigo!.Trim(),
+            _nombre!.Trim(),
+            _tipo,
+            _tipo == TipoPromocion.LlevaPaga ? 0m : _valor!.Value,
+            desde!.Value,
+            hasta!.Value,
+            _articulos.Select(a => a.Id).ToList(),
+            _familias.ToList(),
+            _sucursales.ToList(),
+            _tipo == TipoPromocion.LlevaPaga ? _lleva : null,
+            _tipo == TipoPromocion.LlevaPaga ? _paga : null,
+            _tipo == TipoPromocion.PrecioPorCantidad ? _cantidadMinima : null,
+            _limite,
+            _dias,
+            _conHorario && _horaDesde is { } horaDesde ? TimeOnly.FromTimeSpan(horaDesde) : null,
+            _conHorario && _horaHasta is { } horaHasta ? TimeOnly.FromTimeSpan(horaHasta) : null,
+            _soloFidelidad,
+            _activa);
+
+        _procesando = true;
+        var respuesta = await Central.GuardarPromocionAsync(promocion);
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo guardar la promoción.";
+    }
+}

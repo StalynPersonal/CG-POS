@@ -1,0 +1,166 @@
+@page "/monitor"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.MonitorearSincronizacion)]
+@using CgPos.Dominio.Sincronizacion
+@implements IDisposable
+@inject ClienteCentral Cliente
+
+<PageTitle>Monitor de sincronización · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Monitor de sincronización</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Comunicación de cada caja y envío de sus e-CF a la DGII. @(_monitor is null ? null : $"Actualizado {_monitor.GeneradoEn.ToLocalTime():HH:mm:ss}; se actualiza solo cada minuto.")
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Refresh" Disabled="_cargando" OnClick="CargarAsync">Actualizar</MudButton>
+</div>
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+}
+
+@if (_monitor is { } monitor)
+{
+    <div class="cg-central__tarjetas mb-4">
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Cajas con alerta</MudText>
+            <MudText Typo="Typo.h4" Color="@(monitor.CajasConAlerta > 0 ? Color.Error : Color.Success)">@monitor.CajasConAlerta</MudText>
+            <MudText Typo="Typo.caption">de @monitor.CajasHabilitadas habilitadas</MudText>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">e-CF sin resultado de la DGII</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Warning">@(Cantidad(EstadoEnvioDgii.Pendiente) + Cantidad(EstadoEnvioDgii.Enviado))</MudText>
+            <MudText Typo="Typo.caption">
+                @Cantidad(EstadoEnvioDgii.Pendiente) por enviar · @Cantidad(EstadoEnvioDgii.Enviado) en proceso
+                @if (monitor.PendienteMasAntiguoDesde is { } desde)
+                {
+                    <span> · el más antiguo @EtiquetasMonitor.Hace(desde, monitor.GeneradoEn).ToLowerInvariant()</span>
+                }
+            </MudText>
+            <MudButton Href="monitor/comprobantes?estado=Pendiente" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small">Ver</MudButton>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Envíos con fallo</MudText>
+            <MudText Typo="Typo.h4" Color="@(monitor.ComprobantesConFallo > 0 ? Color.Error : Color.Default)">@monitor.ComprobantesConFallo</MudText>
+            <MudText Typo="Typo.caption">se reintentan solos</MudText>
+            <MudButton Href="monitor/comprobantes?soloConFallo=true" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small">Ver</MudButton>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Resultados de la DGII</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Success">@(Cantidad(EstadoEnvioDgii.Aceptado) + Cantidad(EstadoEnvioDgii.AceptadoCondicional))</MudText>
+            <MudText Typo="Typo.caption">aceptados (@Cantidad(EstadoEnvioDgii.AceptadoCondicional) condicionales) · @Cantidad(EstadoEnvioDgii.Rechazado) rechazados</MudText>
+            <MudButton Href="monitor/comprobantes?estado=Rechazado" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small">Ver rechazados</MudButton>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Conflictos abiertos</MudText>
+            <MudText Typo="Typo.h4" Color="@(monitor.ConflictosAbiertos > 0 ? Color.Error : Color.Default)">@monitor.ConflictosAbiertos</MudText>
+            <MudText Typo="Typo.caption">esperan revisión</MudText>
+            <MudButton Href="monitor/conflictos" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small">Revisar</MudButton>
+        </MudPaper>
+    </div>
+
+    <MudPaper Elevation="1">
+        <MudTable T="DatosEstadoCaja" Items="monitor.Cajas" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+            <HeaderContent>
+                <MudTh>Caja</MudTh>
+                <MudTh>Última comunicación</MudTh>
+                <MudTh>Mensajes</MudTh>
+                <MudTh>e-CF</MudTh>
+                <MudTh>Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Caja"><strong>@context.SucursalCodigo-@context.CajaCodigo</strong><div class="cg-central__detalle">@context.CajaNombre</div></MudTd>
+                <MudTd DataLabel="Última comunicación">
+                    @EtiquetasMonitor.Hace(context.UltimaComunicacionEn, monitor.GeneradoEn)
+                    <div class="cg-central__detalle">
+                        Envío: @EtiquetasMonitor.Hace(context.UltimaRecepcionEn, monitor.GeneradoEn) · Maestros: @EtiquetasMonitor.Hace(context.UltimaDescargaEn, monitor.GeneradoEn)
+                    </div>
+                </MudTd>
+                <MudTd DataLabel="Mensajes">
+                    @context.MensajesRecibidos.ToString("N0") recibidos
+                    <div class="cg-central__detalle">@context.Duplicados.ToString("N0") repetidos · @context.Rechazados.ToString("N0") rechazados</div>
+                    @if (context.UltimoError is not null && context.Alertas.Any(a => a.Contains("rechazado por el Central")))
+                    {
+                        <div class="cg-central__detalle" style="color: var(--mud-palette-error)">@context.UltimoError</div>
+                    }
+                </MudTd>
+                <MudTd DataLabel="e-CF">
+                    <MudLink Href="@($"monitor/comprobantes?cajaId={context.CajaId}")">@context.ComprobantesPendientes sin resultado</MudLink>
+                    <div class="cg-central__detalle">@context.ComprobantesRechazados rechazados</div>
+                </MudTd>
+                <MudTd DataLabel="Estado">
+                    @if (!context.Habilitada)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Deshabilitada</MudChip>
+                    }
+                    @if (context.Alertas.Count == 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.CheckCircle">Al día</MudChip>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-1">
+                            @foreach (var alerta in context.Alertas)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Warning">@alerta</MudChip>
+                            }
+                        </div>
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No hay cajas registradas.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+else if (_cargando)
+{
+    <MudProgressLinear Color="Color.Secondary" Indeterminate="true" />
+}
+
+@code {
+    private DatosMonitorCentral? _monitor;
+    private string? _error;
+    private bool _cargando;
+    private PeriodicTimer? _temporizador;
+
+    private int Cantidad(EstadoEnvioDgii estado) => _monitor?.ComprobantesPorEstado.FirstOrDefault(c => c.Estado == estado)?.Cantidad ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        _ = ActualizarPeriodicamenteAsync();
+    }
+
+    /// <summary>Refresco de la pantalla (no es una regla de negocio): mientras la página está abierta.</summary>
+    private async Task ActualizarPeriodicamenteAsync()
+    {
+        _temporizador = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        try
+        {
+            while (await _temporizador.WaitForNextTickAsync())
+                await InvokeAsync(async () =>
+                {
+                    await CargarAsync();
+                    StateHasChanged();
+                });
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var monitor = await Cliente.ObtenerMonitorAsync();
+        _error = monitor is null ? "No se pudo consultar el monitor. Verifique la comunicación con el Central y los parámetros Central.Monitor.*." : null;
+        _monitor = monitor ?? _monitor;
+        _cargando = false;
+    }
+
+    public void Dispose() => _temporizador?.Dispose();
+}

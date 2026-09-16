@@ -39,6 +39,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IServicioOrganizacion, ServicioOrganizacionCentral>();
         servicios.AddScoped<IServicioConfiguracionCajas, ServicioConfiguracionCajas>();
         servicios.AddScoped<CgPos.Central.Aplicacion.Maestros.IServicioMaestrosCentral, Maestros.ServicioMaestrosCentral>();
+        servicios.AddScoped<CgPos.Central.Aplicacion.Maestros.IServicioPromocionesCentral, Maestros.ServicioPromocionesCentral>();
         servicios.AddScoped<ICargaInicialCentral, ServicioCargaInicialCentral>();
 
         // Seguridad (M02): sesiones del Central Manager y credenciales de las cajas.
@@ -50,6 +51,24 @@ public static class InyeccionDependencias
         servicios.AddScoped<Aplicacion.Sincronizacion.IServicioRecepcion, Sincronizacion.ServicioRecepcion>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IPublicadorMaestros, Sincronizacion.PublicadorMaestros>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IServicioBajadaMaestros, Sincronizacion.ServicioBajadaMaestros>();
+        servicios.AddScoped<Aplicacion.Sincronizacion.IServicioMonitorCentral, Sincronizacion.ServicioMonitorCentral>();
+
+        // Envío de los e-CF a la DGII (M09). Sin "Dgii:Cliente" se usa la DGII real; el simulador es solo para desarrollo.
+        var opcionesDgii = new Dgii.OpcionesDgii(configuracion["Dgii:Cliente"], configuracion["Dgii:Certificado:Ruta"], configuracion["Dgii:Certificado:Pin"]);
+        servicios.AddSingleton(opcionesDgii);
+        servicios.AddScoped<Aplicacion.Dgii.IDespachadorDgii, Dgii.DespachadorDgii>();
+        if (opcionesDgii.UsaSimulador)
+        {
+            servicios.AddSingleton<Aplicacion.Dgii.IClienteDgii, Dgii.ClienteDgiiSimulado>();
+        }
+        else
+        {
+            servicios.AddSingleton<Dgii.SesionDgii>();
+            servicios.AddHttpClient<Aplicacion.Dgii.IClienteDgii, Dgii.ClienteDgiiHttp>(cliente => cliente.Timeout = TimeSpan.FromSeconds(60));
+        }
+
+        if (!string.Equals(configuracion["Dgii:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
+            servicios.AddHostedService<Dgii.TrabajadorDgii>();
 
         return servicios;
     }

@@ -3,6 +3,9 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using CgPos.Central.Api.Seguridad;
 using CgPos.Central.Aplicacion.Abstracciones;
+using CgPos.Central.Aplicacion.Dgii;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using CgPos.Central.Infraestructura;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Central;
@@ -64,6 +67,15 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             anfitrion.UseSetting(ExtensionesSeguridadCentral.ClaveExigirHttps, "true");
             anfitrion.UseSetting("Central:ServirManager", "false");
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
+
+            // Las pruebas ejecutan el despacho a la DGII cuando lo necesitan, contra una DGII de prueba.
+            anfitrion.UseSetting("Dgii:TrabajadorHabilitado", "false");
+            anfitrion.ConfigureTestServices(servicios =>
+            {
+                servicios.RemoveAll<IClienteDgii>();
+                servicios.AddSingleton<ClienteDgiiPrueba>();
+                servicios.AddSingleton<IClienteDgii>(proveedor => proveedor.GetRequiredService<ClienteDgiiPrueba>());
+            });
         });
 
         // Arranca el Central: aplica migraciones y la carga inicial.
@@ -82,6 +94,14 @@ public sealed class CentralEnPruebas : IAsyncLifetime
         }
 
         await Fabrica.DisposeAsync();
+    }
+
+    public ClienteDgiiPrueba Dgii => Fabrica!.Services.GetRequiredService<ClienteDgiiPrueba>();
+
+    public async Task<ResultadoCicloDgii> ProcesarDgiiAsync()
+    {
+        await using var ambito = Fabrica!.Services.CreateAsyncScope();
+        return await ambito.ServiceProvider.GetRequiredService<IDespachadorDgii>().ProcesarAsync();
     }
 
     public HttpClient CrearCliente(bool https = true) =>

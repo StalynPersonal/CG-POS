@@ -54,4 +54,31 @@ public static class ClavesParametrosCentral
 
     /// <summary>Minutos de vigencia del token con el que una caja se comunica con el Central.</summary>
     public const string MinutosTokenDispositivo = "Central.Dispositivos.MinutosToken";
+
+    /// <summary>Activa el envío a la DGII de los e-CF recibidos. Opcional: sin él no se envía nada.</summary>
+    public const string DgiiHabilitado = "Central.Dgii.Habilitado";
+
+    /// <summary>Dirección base (https) de los servicios de e-CF de la DGII: ambiente de pruebas, certificación o producción.</summary>
+    public const string DgiiUrlBase = "Central.Dgii.UrlBase";
+
+    /// <summary>Segundos entre ciclos de envío y consulta.</summary>
+    public const string DgiiSegundosCiclo = "Central.Dgii.SegundosCiclo";
+
+    /// <summary>Máximo de e-CF que se envían (y de resultados que se consultan) por ciclo.</summary>
+    public const string DgiiLoteEnvio = "Central.Dgii.LoteEnvio";
+
+    /// <summary>Minutos de espera tras el primer envío fallido; se duplica en cada fallo seguido.</summary>
+    public const string DgiiMinutosReintento = "Central.Dgii.MinutosReintento";
+
+    /// <summary>Espera máxima entre reintentos de envío.</summary>
+    public const string DgiiMinutosMaximoReintento = "Central.Dgii.MinutosMaximoReintento";
+
+    /// <summary>Segundos entre consultas del resultado de un e-CF recibido por la DGII.</summary>
+    public const string DgiiSegundosConsultaEstado = "Central.Dgii.SegundosConsultaEstado";
+
+    /// <summary>Minutos sin mensajes ni descargas tras los que el monitor alerta que una caja habilitada no se comunica.</summary>
+    public const string MonitorMinutosSinComunicacion = "Central.Monitor.MinutosSinComunicacion";
+
+    /// <summary>Minutos desde la recepción tras los que un e-CF sin resultado de la DGII es una alerta.</summary>
+    public const string MonitorMinutosAlertaDgii = "Central.Monitor.MinutosAlertaDgii";
 }

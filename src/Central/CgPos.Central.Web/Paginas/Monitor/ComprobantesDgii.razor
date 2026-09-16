@@ -1,0 +1,158 @@
+@page "/monitor/comprobantes"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.MonitorearSincronizacion)]
+@using CgPos.Dominio.Sincronizacion
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>e-CF y DGII · CG-POS Central</PageTitle>
+
+<MudBreadcrumbs Items="_migas" Class="px-0 pt-0" />
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">e-CF y DGII</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Comprobantes recibidos de las cajas con su estado en la DGII. Un rechazado o pendiente se puede reenviar.</MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los comprobantes. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosComprobanteDgii" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25"
+              OnRowClick="@(evento => AbrirDetalleAsync(evento.Item!))" RowStyle="cursor: pointer">
+        <ToolBarContent>
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400" Placeholder="e-NCF o trackId"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="max-width: 240px" />
+                <MudSelect T="EstadoEnvioDgii?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true" Clearable="true"
+                           ToStringFunc="@(e => e is { } valor ? EtiquetasMonitor.Estado(valor) : "Todos")" Style="max-width: 220px">
+                    @foreach (var estado in EtiquetasMonitor.EstadosDgii)
+                    {
+                        <MudSelectItem T="EstadoEnvioDgii?" Value="@estado">@EtiquetasMonitor.Estado(estado)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
+                           ToStringFunc="@(id => _cajas.FirstOrDefault(c => c.CajaId == id) is { } caja ? $"{caja.SucursalCodigo}-{caja.CajaCodigo}" : "Todas")" Style="max-width: 200px">
+                    @foreach (var caja in _cajas)
+                    {
+                        <MudSelectItem T="Guid?" Value="@caja.CajaId">@caja.SucursalCodigo-@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSwitch T="bool" Value="_soloConFallo" ValueChanged="@(v => FiltrarAsync(() => _soloConFallo = v))" Label="Solo envíos con fallo" Color="Color.Secondary" />
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>e-NCF</MudTh>
+            <MudTh>Caja</MudTh>
+            <MudTh>Recibido</MudTh>
+            <MudTh>Estado DGII</MudTh>
+            <MudTh>Detalle</MudTh>
+            <MudTh Style="width: 120px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="e-NCF"><strong>@context.Encf</strong><div class="cg-central__detalle">Firmado @context.FechaFirma.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div></MudTd>
+            <MudTd DataLabel="Caja">@context.SucursalCodigo-@context.CajaCodigo</MudTd>
+            <MudTd DataLabel="Recibido">@context.RecibidoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd DataLabel="Estado DGII">
+                <MudChip T="string" Size="Size.Small" Color="@EtiquetasMonitor.Color(context.EstadoDgii)" Variant="Variant.Outlined">@EtiquetasMonitor.Estado(context.EstadoDgii)</MudChip>
+                @if (context.EstadoDgiiEn is { } en)
+                {
+                    <div class="cg-central__detalle">@en.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Detalle" Style="max-width: 360px">
+                @if (context.MensajeDgii is { } mensaje)
+                {
+                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">@mensaje</div>
+                }
+                <div class="cg-central__detalle">
+                    @context.IntentosEnvio intento(s)
+                    @if (context.ProximoIntentoEn is { } proximo)
+                    {
+                        <span> · próximo @proximo.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                    }
+                </div>
+            </MudTd>
+            <MudTd>
+                @if (EtiquetasMonitor.PuedeReenviarse(context.EstadoDgii))
+                {
+                    <span @onclick:stopPropagation="true">
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Send"
+                                   OnClick="@(() => ReenviarAsync(context))">Reenviar</MudButton>
+                    </span>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay comprobantes que coincidan.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [SupplyParameterFromQuery(Name = "estado")] public string? EstadoInicial { get; set; }
+    [SupplyParameterFromQuery(Name = "cajaId")] public Guid? CajaInicial { get; set; }
+    [SupplyParameterFromQuery(Name = "soloConFallo")] public bool? SoloConFalloInicial { get; set; }
+
+    private readonly List<BreadcrumbItem> _migas = [new("Monitor", "monitor"), new("e-CF y DGII", null, disabled: true)];
+    private MudTable<DatosComprobanteDgii>? _tabla;
+    private IReadOnlyList<DatosEstadoCaja> _cajas = [];
+    private string? _buscar;
+    private EstadoEnvioDgii? _estado;
+    private Guid? _cajaId;
+    private bool _soloConFallo;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _estado = Enum.TryParse<EstadoEnvioDgii>(EstadoInicial, out var estado) ? estado : null;
+        _cajaId = CajaInicial;
+        _soloConFallo = SoloConFalloInicial ?? false;
+        _cajas = (await Cliente.ObtenerMonitorAsync())?.Cajas.OrderBy(c => c.SucursalCodigo).ThenBy(c => c.CajaCodigo).ToList() ?? [];
+    }
+
+    private async Task<TableData<DatosComprobanteDgii>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarComprobantesDgiiAsync(_estado, _cajaId, _buscar, _soloConFallo, estado.Page, estado.PageSize, cancelacion);
+        _error = pagina is null;
+        return new TableData<DatosComprobanteDgii> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private async Task AbrirDetalleAsync(DatosComprobanteDgii comprobante)
+    {
+        var parametros = new DialogParameters<DialogoComprobanteDgii> { { d => d.Comprobante, comprobante } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoComprobanteDgii>($"e-CF {comprobante.Encf}", parametros, opciones);
+        if (await referencia.Result is { Canceled: false })
+            await ReenviarAsync(comprobante);
+    }
+
+    private async Task ReenviarAsync(DatosComprobanteDgii comprobante)
+    {
+        if (!await Dialogos.ConfirmarAsync("Reenviar a la DGII", $"El e-CF {comprobante.Encf} vuelve a la cola y se envía en el próximo ciclo.", "Reenviar"))
+            return;
+
+        var respuesta = await Cliente.ReenviarComprobanteAsync(comprobante.Id);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo reenviar el comprobante.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add($"El e-CF {comprobante.Encf} se enviará en el próximo ciclo.", Severity.Success);
+        await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+    }
+}

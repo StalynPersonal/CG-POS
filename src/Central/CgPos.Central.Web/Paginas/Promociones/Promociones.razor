@@ -1,0 +1,176 @@
+@page "/promociones"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPromociones)]
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Promociones · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Promociones</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Ofertas por artículo o familia. Bajan a las cajas antes de su inicio y se activan solas.</MudText>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Calculate" Href="promociones/simular">Simular</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.UploadFile" Href="promociones/importar">Importar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => AbrirDialogoAsync(null)">Nueva promoción</MudButton>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las promociones. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <div class="d-flex gap-4 flex-wrap align-center" style="width: 100%">
+                <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por código o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Clearable="true" Style="min-width: 240px" />
+                <MudChipSet T="string" @bind-SelectedValue="_vista" SelectionMode="SelectionMode.SingleSelection" CheckMark="true" Color="Color.Secondary" Variant="Variant.Outlined">
+                    <MudChip T="string" Value="@("activas")" Text="Vigentes y programadas" />
+                    <MudChip T="string" Value="@("vigentes")" Text="Vigentes" />
+                    <MudChip T="string" Value="@("programadas")" Text="Programadas" />
+                    <MudChip T="string" Value="@("vencidas")" Text="Vencidas" />
+                    <MudChip T="string" Value="@("todas")" Text="Todas" />
+                </MudChipSet>
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Promoción</MudTh>
+            <MudTh>Oferta</MudTh>
+            <MudTh>Alcance</MudTh>
+            <MudTh>Vigencia</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Distribución</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Promoción"><strong>@context.Promocion.Codigo</strong><div class="cg-central__detalle">@context.Promocion.Nombre</div></MudTd>
+            <MudTd DataLabel="Oferta">
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">@context.Oferta</MudChip>
+                @if (context.Promocion.SoloFidelidad)
+                {
+                    <div class="cg-central__detalle">Solo fidelidad</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Alcance">
+                @Alcance(context.Promocion)
+                <div class="cg-central__detalle">@(context.Promocion.Sucursales is { Count: > 0 } sucursales ? $"{sucursales.Count} sucursal(es)" : "Todas las sucursales")</div>
+            </MudTd>
+            <MudTd DataLabel="Vigencia">
+                <div>@context.Promocion.VigenteDesde.ToLocalTime().ToString("dd/MM/yyyy HH:mm") – @context.Promocion.VigenteHasta.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="cg-central__detalle">@EtiquetasPromocion.Horario(context.Promocion)</div>
+            </MudTd>
+            <MudTd DataLabel="Estado">
+                @switch (EtiquetasPromocion.Estado(context.Promocion, DateTimeOffset.Now))
+                {
+                    case EstadoPromocion.Vigente:
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Vigente</MudChip>
+                        break;
+                    case EstadoPromocion.Programada:
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Programada</MudChip>
+                        break;
+                    case EstadoPromocion.Vencida:
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Vencida</MudChip>
+                        break;
+                    default:
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactiva</MudChip>
+                        break;
+                }
+            </MudTd>
+            <MudTd DataLabel="Distribución" Style="min-width: 140px">
+                @if (context.CajasDestino == 0)
+                {
+                    <span class="cg-central__detalle">Sin cajas habilitadas</span>
+                }
+                else
+                {
+                    <div>@context.CajasConPromocion de @context.CajasDestino cajas</div>
+                    <MudProgressLinear Color="@(context.CajasConPromocion == context.CajasDestino ? Color.Success : Color.Warning)" Rounded="true"
+                                       Value="@(100.0 * context.CajasConPromocion / context.CajasDestino)" />
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context.Promocion)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay promociones que coincidan.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosPromocionCentral> _promociones = [];
+    private IReadOnlyList<FamiliaCarga> _familias = [];
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private string? _filtro;
+    private string _vista = "activas";
+    private bool _cargando = true;
+    private bool _error;
+
+    private IEnumerable<DatosPromocionCentral> Filtradas
+    {
+        get
+        {
+            var ahora = DateTimeOffset.Now;
+            return _promociones
+                .Where(p => (EtiquetasPromocion.Estado(p.Promocion, ahora), _vista) switch
+                {
+                    (_, "todas") => true,
+                    (EstadoPromocion.Vigente or EstadoPromocion.Programada, "activas") => true,
+                    (EstadoPromocion.Vigente, "vigentes") => true,
+                    (EstadoPromocion.Programada, "programadas") => true,
+                    (EstadoPromocion.Vencida, "vencidas") => true,
+                    _ => false,
+                })
+                .Where(p => string.IsNullOrWhiteSpace(_filtro)
+                            || p.Promocion.Codigo.Contains(_filtro.Trim(), StringComparison.CurrentCultureIgnoreCase)
+                            || p.Promocion.Nombre.Contains(_filtro.Trim(), StringComparison.CurrentCultureIgnoreCase));
+        }
+    }
+
+    private string Alcance(PromocionCarga promocion)
+    {
+        var partes = new List<string>();
+        if (promocion.Articulos is { Count: > 0 } articulos)
+            partes.Add(articulos.Count == 1 ? "1 artículo" : $"{articulos.Count} artículos");
+        if (promocion.Familias is { Count: > 0 } familias)
+            partes.Add(string.Join(", ", familias.Select(id => _familias.FirstOrDefault(f => f.Id == id)?.Nombre ?? "familia")));
+        return partes.Count == 0 ? "Sin alcance" : string.Join(" · ", partes);
+    }
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var promociones = await Cliente.ListarPromocionesAsync();
+        _familias = (await Cliente.ListarFamiliasPromocionesAsync() ?? []).Select(f => f.Dato).OrderBy(f => f.Nombre, StringComparer.CurrentCulture).ToList();
+        _sucursales = await Cliente.ListarSucursalesPromocionesAsync() ?? [];
+        _error = promociones is null;
+        _promociones = promociones ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirDialogoAsync(PromocionCarga? promocion)
+    {
+        var parametros = new DialogParameters<DialogoPromocion>
+        {
+            { d => d.Promocion, promocion },
+            { d => d.Familias, _familias },
+            { d => d.Sucursales, _sucursales },
+        };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoPromocion>(promocion is null ? "Nueva promoción" : $"Editar promoción {promocion.Codigo}", parametros, opciones);
+        if (await referencia.Result is not { Canceled: false })
+            return;
+
+        Avisos.Add("Promoción guardada. Baja a las cajas en su próxima sincronización.", Severity.Success);
+        await CargarAsync();
+    }
+}

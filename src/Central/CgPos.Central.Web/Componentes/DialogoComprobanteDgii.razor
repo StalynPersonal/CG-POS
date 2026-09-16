@@ -1,0 +1,56 @@
+@* Detalle de un e-CF recibido: estado en la DGII, intentos y XML firmado. Cerrar con resultado pide reenviarlo. *@
+@inject ClienteCentral Central
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Caja</div>@Comprobante.SucursalCodigo-@Comprobante.CajaCodigo</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Tipo</div>E@((int)Comprobante.TipoComprobante)</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Firmado</div>@Comprobante.FechaFirma.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Recibido</div>@Comprobante.RecibidoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudItem>
+            <MudItem xs="6" sm="3">
+                <div class="cg-central__detalle">Estado DGII</div>
+                <MudChip T="string" Size="Size.Small" Color="@EtiquetasMonitor.Color(Comprobante.EstadoDgii)" Variant="Variant.Outlined">@EtiquetasMonitor.Estado(Comprobante.EstadoDgii)</MudChip>
+            </MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Intentos</div>@Comprobante.IntentosEnvio</MudItem>
+            <MudItem xs="12" sm="6"><div class="cg-central__detalle">TrackId</div>@(Comprobante.TrackId ?? "—")</MudItem>
+            @if (Comprobante.MensajeDgii is { } mensaje)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="@(Comprobante.EstadoDgii == CgPos.Dominio.Sincronizacion.EstadoEnvioDgii.Rechazado ? Severity.Error : Severity.Info)" Dense="true">@mensaje</MudAlert>
+                </MudItem>
+            }
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2">XML firmado</MudText>
+                <MudPaper Outlined="true" Class="pa-2" Style="max-height: 320px; overflow: auto">
+                    @if (_xml is null)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                    }
+                    else
+                    {
+                        <pre style="margin: 0; font-size: 0.72rem; white-space: pre-wrap; word-break: break-all">@_xml</pre>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cerrar</MudButton>
+        @if (EtiquetasMonitor.PuedeReenviarse(Comprobante.EstadoDgii))
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Send" OnClick="() => Dialogo.Close(DialogResult.Ok(true))">Reenviar</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosComprobanteDgii Comprobante { get; set; } = default!;
+
+    private string? _xml;
+
+    protected override async Task OnInitializedAsync() =>
+        _xml = await Central.ObtenerXmlComprobanteAsync(Comprobante.Id) ?? "No se pudo obtener el XML.";
+}

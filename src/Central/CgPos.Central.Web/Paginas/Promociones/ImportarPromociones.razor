@@ -1,0 +1,169 @@
+@page "/promociones/importar"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPromociones)]
+@inject ClienteCentral Cliente
+@inject ISnackbar Avisos
+
+<PageTitle>Importar promociones · CG-POS Central</PageTitle>
+
+<MudBreadcrumbs Items="_migas" Class="px-0 pt-0" />
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Importar promociones</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Primero se valida el archivo completo; solo se publica si ninguna línea tiene errores. Un código ya existente actualiza esa promoción.
+        </MudText>
+    </div>
+</div>
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" md="7">
+        <MudPaper Elevation="1" Class="pa-4">
+            <div class="d-flex gap-3 align-center flex-wrap">
+                <InputFile id="archivo-promociones" OnChange="LeerArchivoAsync" accept=".csv,.txt" hidden />
+                <MudButton HtmlTag="label" for="archivo-promociones" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.UploadFile">
+                    Elegir archivo CSV
+                </MudButton>
+                <MudText Typo="Typo.body2" Class="cg-central__detalle">@(_archivo ?? "o pegue el contenido abajo")</MudText>
+            </div>
+            <MudTextField T="string" Value="_contenido" ValueChanged="CambiarContenido" Label="Contenido" Variant="Variant.Outlined" Lines="12" Class="mt-3"
+                          Style="font-family: Consolas, monospace; font-size: 0.8rem" Immediate="true" />
+            <div class="d-flex gap-2 mt-3">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.FactCheck" Disabled="@(_procesando || string.IsNullOrWhiteSpace(_contenido))"
+                           OnClick="() => ProcesarAsync(soloValidar: true)">Validar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Publish" Disabled="@(_procesando || !_listoParaPublicar)"
+                           OnClick="() => ProcesarAsync(soloValidar: false)">Publicar</MudButton>
+            </div>
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@_error</MudAlert>
+            }
+            @if (_resultado is { } resultado)
+            {
+                <MudAlert Severity="@(resultado.Errores.Count > 0 ? Severity.Warning : Severity.Success)" Class="mt-3">
+                    @if (resultado.Publicada)
+                    {
+                        @($"Publicadas {resultado.Leidas} promociones: {resultado.Nuevas} nuevas y {resultado.Actualizadas} actualizadas.")
+                    }
+                    else if (resultado.Errores.Count > 0)
+                    {
+                        @($"{resultado.Errores.Count} error(es) en {resultado.Leidas} línea(s). Corrija el archivo: no se publicó nada.")
+                    }
+                    else
+                    {
+                        @($"Archivo válido: {resultado.Nuevas} promociones nuevas y {resultado.Actualizadas} actualizadas. Puede publicarlo.")
+                    }
+                </MudAlert>
+                @if (resultado.Errores.Count > 0)
+                {
+                    <MudSimpleTable Dense="true" Class="mt-2" Style="max-height: 320px; overflow-y: auto">
+                        <thead><tr><th style="width: 70px">Línea</th><th>Error</th></tr></thead>
+                        <tbody>
+                            @foreach (var error in resultado.Errores)
+                            {
+                                <tr><td>@(error.Linea == 0 ? "—" : error.Linea)</td><td>@error.Mensaje</td></tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            }
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="5">
+        <MudPaper Elevation="1" Class="pa-4">
+            <MudText Typo="Typo.h6">Formato</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo mb-2">Separador ; o ,. Fechas aaaa-mm-dd o dd/mm/aaaa con hora opcional, en su hora local. Listas separadas por |.</MudText>
+            <MudSimpleTable Dense="true">
+                <tbody>
+                    @foreach (var (columna, descripcion) in Columnas)
+                    {
+                        <tr><td><code>@columna</code></td><td>@descripcion</td></tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+            <MudText Typo="Typo.subtitle2" Class="mt-3">Ejemplo</MudText>
+            <MudPaper Outlined="true" Class="pa-2" Style="overflow-x: auto">
+                <pre style="margin: 0; font-size: 0.75rem">@Ejemplo</pre>
+            </MudPaper>
+            <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.ContentPaste" Class="mt-2" OnClick="UsarEjemplo">Usar el ejemplo</MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private const long LargoMaximoArchivo = 5 * 1024 * 1024;
+
+    private static readonly (string Columna, string Descripcion)[] Columnas =
+    [
+        ("codigo *", "Código único; si ya existe, se actualiza"),
+        ("nombre *", "Nombre de la promoción"),
+        ("tipo *", "porcentaje, monto_por_unidad, precio_especial, lleva_paga o precio_por_cantidad"),
+        ("valor", "%, monto o precio (no aplica en lleva_paga)"),
+        ("desde * / hasta *", "Vigencia; hasta sin hora incluye todo el día"),
+        ("articulos / familias", "Códigos separados por |; al menos uno de los dos"),
+        ("sucursales", "Códigos separados por |; vacío = todas"),
+        ("lleva / paga", "Para lleva_paga (ej. 3 y 2)"),
+        ("cantidad_minima", "Para precio_por_cantidad"),
+        ("limite_cliente", "Máximo de unidades con oferta por compra"),
+        ("dias", "todos, o lun|mar|mie|jue|vie|sab|dom"),
+        ("hora_desde / hora_hasta", "HH:mm; ambas o ninguna"),
+        ("solo_fidelidad / activa", "si o no"),
+    ];
+
+    private const string Ejemplo =
+        "codigo;nombre;tipo;valor;desde;hasta;articulos;familias;sucursales;lleva;paga;dias;hora_desde;hora_hasta;solo_fidelidad\n" +
+        "FERR10;Ferretería 10%;porcentaje;10;2026-10-01;2026-10-31;;FERR;;;;todos;;;no\n" +
+        "CEM2X1;Cemento 3x2;lleva_paga;;2026-10-01 08:00;2026-10-15;CEM-425;;01;3;2;sab|dom;08:00;12:00;si";
+
+    private readonly List<BreadcrumbItem> _migas = [new("Promociones", "promociones"), new("Importar", null, disabled: true)];
+    private string? _contenido;
+    private string? _archivo;
+    private string? _error;
+    private ResultadoImportacionPromociones? _resultado;
+    private bool _listoParaPublicar;
+    private bool _procesando;
+
+    private void CambiarContenido(string? contenido)
+    {
+        _contenido = contenido;
+        _listoParaPublicar = false;
+        _resultado = null;
+    }
+
+    private void UsarEjemplo()
+    {
+        CambiarContenido(Ejemplo);
+        _archivo = null;
+    }
+
+    private async Task LeerArchivoAsync(InputFileChangeEventArgs evento)
+    {
+        _error = null;
+        if (evento.File.Size > LargoMaximoArchivo)
+        {
+            _error = "El archivo supera los 5 MB.";
+            return;
+        }
+
+        await using var flujo = evento.File.OpenReadStream(LargoMaximoArchivo);
+        using var lector = new StreamReader(flujo, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        CambiarContenido(await lector.ReadToEndAsync());
+        _archivo = evento.File.Name;
+    }
+
+    private async Task ProcesarAsync(bool soloValidar)
+    {
+        _procesando = true;
+        _error = null;
+        var desplazamiento = (int)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes;
+        var (resultado, error) = await Cliente.ImportarPromocionesAsync(new SolicitudImportacionPromociones(_contenido ?? string.Empty, desplazamiento, soloValidar));
+        _procesando = false;
+
+        _error = error;
+        _resultado = resultado;
+        _listoParaPublicar = soloValidar && resultado is { Errores.Count: 0 };
+        if (resultado is { Publicada: true })
+            Avisos.Add("Promociones publicadas. Bajan a las cajas en su próxima sincronización.", Severity.Success);
+    }
+}

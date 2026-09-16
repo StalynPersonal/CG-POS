@@ -265,6 +265,19 @@ internal sealed class PublicadorMaestros(
         }
     }
 
+    /// <summary>Ids que existen entre los referidos: los del paquete y los ya publicados, consultados por bloques.</summary>
+    private async Task<HashSet<Guid>> IdsExistentesAsync(TipoMaestro tipo, IEnumerable<Guid> referidos, IEnumerable<Guid> delPaquete, CancellationToken cancelacion)
+    {
+        var ids = delPaquete.ToHashSet();
+        foreach (var bloque in referidos.Where(id => id != Guid.Empty && !ids.Contains(id)).Distinct().Chunk(1000))
+        {
+            var buscar = bloque.ToList();
+            ids.UnionWith(await contexto.MaestrosCentral.Where(m => m.Tipo == tipo && buscar.Contains(m.Id)).Select(m => m.Id).ToListAsync(cancelacion));
+        }
+
+        return ids;
+    }
+
     private static string EtiquetaRango(SecuenciaEcfCarga rango) => $"E{(int)rango.TipoComprobante} {rango.Desde}–{rango.Hasta}";
 
     private static void ValidarUnicos(IReadOnlyList<FilaMaestro> filas, IEnumerable<MaestroCentral> existentes, List<string> errores)
@@ -373,19 +386,27 @@ internal sealed class PublicadorMaestros(
             }
         }
 
+        if (paquete.Promociones is { Count: > 0 } promociones)
+        {
+            var familiasPromocion = await IdsExistentesAsync(TipoMaestro.Familia, promociones.SelectMany(p => p.Familias ?? []), (paquete.Familias ?? []).Select(f => f.Id), cancelacion);
+            var articulosPromocion = await IdsExistentesAsync(TipoMaestro.Articulo, promociones.SelectMany(p => p.Articulos ?? []), (paquete.Articulos ?? []).Select(a => a.Id), cancelacion);
+            var sucursalesExistentes = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
+            foreach (var promocion in promociones)
+            {
+                var etiqueta = $"La promoción '{promocion.Codigo}'";
+                if ((promocion.Articulos ?? []).Count(id => id != Guid.Empty && !articulosPromocion.Contains(id)) is var sinArticulo and > 0)
+                    errores.Add($"{etiqueta} referencia {sinArticulo} artículo(s) inexistente(s).");
+                if ((promocion.Familias ?? []).Count(id => id != Guid.Empty && !familiasPromocion.Contains(id)) is var sinFamilia and > 0)
+                    errores.Add($"{etiqueta} referencia {sinFamilia} familia(s) inexistente(s).");
+                if ((promocion.Sucursales ?? []).Count(id => id != Guid.Empty && !sucursalesExistentes.Contains(id)) is var sinSucursal and > 0)
+                    errores.Add($"{etiqueta} referencia {sinSucursal} sucursal(es) inexistente(s).");
+            }
+        }
+
         if (paquete.TopesDescuento is { Count: > 0 } topes)
         {
-            async Task<HashSet<Guid>> ExistentesAsync(TipoMaestro tipo, IEnumerable<Guid> referidos, IEnumerable<Guid> delPaquete)
-            {
-                var buscar = referidos.Except(delPaquete).Distinct().ToList();
-                var ids = delPaquete.ToHashSet();
-                if (buscar.Count > 0)
-                    ids.UnionWith(await contexto.MaestrosCentral.Where(m => m.Tipo == tipo && buscar.Contains(m.Id)).Select(m => m.Id).ToListAsync(cancelacion));
-                return ids;
-            }
-
-            var familias = await ExistentesAsync(TipoMaestro.Familia, topes.Select(t => t.FamiliaId).OfType<Guid>(), (paquete.Familias ?? []).Select(f => f.Id));
-            var articulosTope = await ExistentesAsync(TipoMaestro.Articulo, topes.Select(t => t.ArticuloId).OfType<Guid>(), (paquete.Articulos ?? []).Select(a => a.Id));
+            var familias = await IdsExistentesAsync(TipoMaestro.Familia, topes.Select(t => t.FamiliaId).OfType<Guid>(), (paquete.Familias ?? []).Select(f => f.Id), cancelacion);
+            var articulosTope = await IdsExistentesAsync(TipoMaestro.Articulo, topes.Select(t => t.ArticuloId).OfType<Guid>(), (paquete.Articulos ?? []).Select(a => a.Id), cancelacion);
             foreach (var tope in topes)
             {
                 if (tope.FamiliaId is { } familiaId && !familias.Contains(familiaId))
