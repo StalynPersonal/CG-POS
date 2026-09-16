@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Facturación electrónica de la caja (M09): certificado, emisión, firma y regularización de las ventas en contingencia. -->
   <ItemGroup>
-    <ProjectReference Include="..\CgPos.Pos.Aplicacion\CgPos.Pos.Aplicacion.csproj" />
-    <ProjectReference Include="..\..\Compartido\CgPos.ECF\CgPos.ECF.csproj" />
+    <ProjectReference Include="..\CgPos.Pos.Infraestructura\CgPos.Pos.Infraestructura.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -12,16 +12,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="CgPos.Pos.Pruebas" />
-    <!-- La facturación electrónica de la caja usa el contexto y las conversiones de la infraestructura. -->
-    <InternalsVisibleTo Include="CgPos.Pos.ECF" />
-    <!-- Prueba de extremo a extremo del cliente de sincronización de la caja contra el Central real. -->
-    <InternalsVisibleTo Include="CgPos.Central.Pruebas" />
   </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>CgPos.Pos.ECF</RootNamespace>
   </PropertyGroup>
 
 </Project>

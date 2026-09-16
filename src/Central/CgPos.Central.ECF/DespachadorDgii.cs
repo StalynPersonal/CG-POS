@@ -6,7 +6,7 @@ using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace CgPos.Central.Infraestructura.Dgii;
+namespace CgPos.Central.ECF;
 
 internal sealed class DespachadorDgii(
     ContextoDatosCentral contexto,

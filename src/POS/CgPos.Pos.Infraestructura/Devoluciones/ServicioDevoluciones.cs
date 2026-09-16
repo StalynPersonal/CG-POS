@@ -8,13 +8,13 @@ using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
+using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Devoluciones;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
-using CgPos.Pos.Infraestructura.Ecf;
 using CgPos.Pos.Infraestructura.Fidelidad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
@@ -53,7 +53,7 @@ internal sealed class ServicioDevoluciones(
     IValidadorAutorizaciones autorizaciones,
     IParametros parametros,
     IConsultaDocumentos consultaDocumentos,
-    EmisionComprobantes emisorEcf,
+    IEmisorComprobantes emisorEcf,
     GeneradorSecuencias secuencias,
     IImpresoraTicket impresora,
     IBandejaSalida bandejaSalida,
@@ -169,7 +169,7 @@ internal sealed class ServicioDevoluciones(
                 {
                     await transaccion.RollbackAsync(cancelacion);
                     contexto.ChangeTracker.Clear();
-                    EmisionComprobantes.DescartarArchivo(emision);
+                    emisorEcf.DescartarArchivo(emision);
                     return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, problema);
                 }
             }
@@ -232,7 +232,7 @@ internal sealed class ServicioDevoluciones(
         }
         catch
         {
-            EmisionComprobantes.DescartarArchivo(emision);
+            emisorEcf.DescartarArchivo(emision);
             throw;
         }
 

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
@@ -35,6 +35,9 @@ public static class RutasApiMaestros
         Catalogo<MotivoDescuentoCarga>(maestros, "motivos-descuento", TipoMaestro.MotivoDescuento, d => d.Id, d => new PaqueteMaestros(MotivosDescuento: [d]));
         Catalogo<MotivoDevolucionCarga>(maestros, "motivos-devolucion", TipoMaestro.MotivoDevolucion, d => d.Id, d => new PaqueteMaestros(MotivosDevolucion: [d]));
         Catalogo<AlmacenCarga>(maestros, "almacenes", TipoMaestro.Almacen, d => d.Id, d => new PaqueteMaestros(Almacenes: [d]));
+        Catalogo<NivelFidelidadCarga>(maestros, "niveles-fidelidad", TipoMaestro.NivelFidelidad, d => d.Id, d => new PaqueteMaestros(NivelesFidelidad: [d]));
+        Catalogo<ReglaAcumulacionCarga>(maestros, "reglas-acumulacion", TipoMaestro.ReglaAcumulacion, d => d.Id, d => new PaqueteMaestros(ReglasAcumulacion: [d]));
+        Catalogo<DescuentoTarjetaCarga>(maestros, "descuentos-tarjeta", TipoMaestro.DescuentoTarjeta, d => d.Id, d => new PaqueteMaestros(DescuentosTarjeta: [d]));
 
         maestros.MapGet("/clientes", async (string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.BuscarAsync<ClienteCarga>(TipoMaestro.Cliente, buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));

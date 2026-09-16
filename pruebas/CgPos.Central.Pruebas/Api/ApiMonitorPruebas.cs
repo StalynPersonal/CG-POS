@@ -1,12 +1,16 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
+using CgPos.Contratos.Sincronizacion;
+using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Sincronizacion;
+using CgPos.Dominio.Ventas;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Pruebas.Api;
@@ -99,6 +103,43 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         {
             await central.CambiarParametroAsync(ClavesParametrosCentral.MonitorMinutosSinComunicacion, anterior);
         }
+    }
+
+    [SkippableFact]
+    public async Task El_monitor_cuenta_las_ventas_que_las_cajas_cobraron_en_contingencia()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+
+        var antes = Assert.Single((await ObtenerAsync<DatosMonitorCentral>(cliente, admin, "/api/monitor")).Cajas, c => c.CajaId == CentralEnPruebas.CajaUno)
+            .VentasEnContingencia;
+
+        // Una venta cobrada sin poder firmar su e-CF llega al Central sin comprobante.
+        var contenido = JsonSerializer.Serialize(VentaSinEcf(), OpcionesJson.Predeterminadas);
+        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.VentaCobrada, Guid.CreateVersion7(), contenido,
+            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CajaUno, DateTimeOffset.UtcNow);
+        using (var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", tokenCaja, mensaje)))
+            respuesta.EnsureSuccessStatusCode();
+
+        var monitor = await ObtenerAsync<DatosMonitorCentral>(cliente, admin, "/api/monitor");
+        var caja = Assert.Single(monitor.Cajas, c => c.CajaId == CentralEnPruebas.CajaUno);
+        Assert.Equal(antes + 1, caja.VentasEnContingencia);
+        Assert.True(monitor.VentasEnContingencia >= caja.VentasEnContingencia);
+        Assert.Contains(caja.Alertas, a => a.Contains("contingencia"));
+    }
+
+    /// <summary>Venta cobrada que la caja no pudo firmar: viaja sin e-CF y el Central la cuenta como contingencia.</summary>
+    private static DocumentoVentaCobrada VentaSinEcf()
+    {
+        var cobrada = DateTimeOffset.UtcNow;
+        var venta = new DatosVenta(Guid.CreateVersion7(), $"01-01-{Random.Shared.Next(100_000, 999_999)}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
+            "Cajero Desarrollo", cobrada.AddMinutes(-3), [],
+            new DatosTotalesVenta(1000m, 180m, 1180m, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, 1000m, 180m, 1180m)]),
+            TipoComprobante.FacturaConsumo, null, null, false, false, 250_000m, "DOP", "RD$", null, null, 1180m, 0m, 0m, cobrada);
+
+        return new DocumentoVentaCobrada(venta, CentralEnPruebas.Sucursal, CentralEnPruebas.CajaUno, venta.TurnoId, Guid.CreateVersion7(), cobrada);
     }
 
     [SkippableFact]

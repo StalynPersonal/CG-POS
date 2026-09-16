@@ -1,4 +1,4 @@
-using MudBlazor;
+﻿using MudBlazor;
 
 namespace CgPos.Central.Web.Maestros;
 
@@ -70,6 +70,32 @@ public static class DefinicionesCatalogos
         new("TarjetaRegalo", "Tarjeta de regalo"),
         new("Puntos", "Puntos de fidelidad"),
         new("MonedaExtranjera", "Moneda extranjera"),
+    ];
+
+    public static IReadOnlyList<OpcionCatalogo> TiposReglaAcumulacion { get; } =
+    [
+        new("Monto", "Todo lo comprado"),
+        new("Familia", "Una familia"),
+        new("Articulo", "Un artículo"),
+        new("DiaSemana", "Un día de la semana"),
+        new("Promocion", "Lo vendido con una promoción"),
+    ];
+
+    public static IReadOnlyList<OpcionCatalogo> DiasSemana { get; } =
+    [
+        new("Sunday", "Domingo"),
+        new("Monday", "Lunes"),
+        new("Tuesday", "Martes"),
+        new("Wednesday", "Miércoles"),
+        new("Thursday", "Jueves"),
+        new("Friday", "Viernes"),
+        new("Saturday", "Sábado"),
+    ];
+
+    public static IReadOnlyList<OpcionCatalogo> TiposDescuentoTarjeta { get; } =
+    [
+        new("Porcentaje", "Porcentaje"),
+        new("Monto", "Monto fijo"),
     ];
 
     public static IReadOnlyList<DefinicionCatalogo> Todos { get; } =
@@ -160,6 +186,52 @@ public static class DefinicionesCatalogos
                 Codigo(fijo: true), Nombre,
                 new("sucursalId", "Sucursal", TipoCampoCatalogo.Sucursal) { Obligatorio = true },
                 new("direccion", "Dirección") { EnTabla = false },
+                Estado(),
+            ]),
+
+        new("niveles-fidelidad", "Niveles de fidelidad", "Nuevo nivel", "Categorías del programa: el factor multiplica los puntos que acumula el cliente.",
+            Icons.Material.Filled.MilitaryTech,
+            [
+                Codigo(fijo: true), Nombre,
+                new("orden", "Orden", TipoCampoCatalogo.Entero) { Obligatorio = true, Predeterminado = 1 },
+                new("factorAcumulacion", "Factor", TipoCampoCatalogo.Decimal)
+                {
+                    Obligatorio = true,
+                    Predeterminado = 1m,
+                    Ayuda = "Multiplica los puntos: 1 = normal, 1.5 = 50 % más.",
+                },
+                Estado(),
+            ]),
+
+        new("reglas-acumulacion", "Reglas de acumulación", "Nueva regla", "Cuántos puntos da cada compra. Si aplican varias a una línea, gana la más favorable.",
+            Icons.Material.Filled.Rule,
+            [
+                Codigo(fijo: true), Nombre,
+                new("tipo", "Aplica a", TipoCampoCatalogo.Opciones) { Obligatorio = true, Opciones = TiposReglaAcumulacion },
+                new("montoBase", "Por cada", TipoCampoCatalogo.Decimal) { Obligatorio = true, Ayuda = "Monto comprado que otorga los puntos, ej. 100." },
+                new("puntos", "Puntos", TipoCampoCatalogo.Decimal) { Obligatorio = true },
+                new("referenciaId", "Familia, artículo o promoción", TipoCampoCatalogo.Texto)
+                {
+                    EnTabla = false,
+                    Ayuda = "Id de lo que abarca la regla; se deja vacío si aplica a todo o a un día.",
+                },
+                new("diaSemana", "Día", TipoCampoCatalogo.Opciones) { EnTabla = false, Opciones = DiasSemana },
+                new("vigenteDesde", "Vigente desde", TipoCampoCatalogo.FechaHora) { EnTabla = false },
+                new("vigenteHasta", "Vigente hasta", TipoCampoCatalogo.FechaHora) { EnTabla = false },
+                Estado("activa"),
+            ]),
+
+        new("descuentos-tarjeta", "Descuentos por tarjeta", "Nuevo descuento", "Descuento del banco por el BIN de la tarjeta; se aplica a la factura antes de emitir el e-CF.",
+            Icons.Material.Filled.CreditScore,
+            [
+                Codigo(fijo: true), Nombre,
+                new("bines", "BIN de las tarjetas") { Obligatorio = true, Ayuda = "Primeros 4 a 8 dígitos, separados por coma: 401234,455678." },
+                new("tipo", "Tipo", TipoCampoCatalogo.Opciones) { Obligatorio = true, Opciones = TiposDescuentoTarjeta },
+                new("valor", "Valor", TipoCampoCatalogo.Decimal) { Obligatorio = true },
+                new("montoMinimo", "Compra mínima", TipoCampoCatalogo.Decimal) { EnTabla = false },
+                new("montoMaximo", "Tope del descuento", TipoCampoCatalogo.Decimal) { EnTabla = false },
+                new("vigenteDesde", "Vigente desde", TipoCampoCatalogo.FechaHora) { Obligatorio = true },
+                new("vigenteHasta", "Vigente hasta", TipoCampoCatalogo.FechaHora) { Obligatorio = true },
                 Estado(),
             ]),
     ];

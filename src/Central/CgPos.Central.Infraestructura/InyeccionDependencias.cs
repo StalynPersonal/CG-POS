@@ -81,23 +81,6 @@ public static class InyeccionDependencias
         if (!string.Equals(configuracion["Fidelidad:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
             servicios.AddHostedService<Fidelidad.TrabajadorVencimientoPuntos>();
 
-        // Envío de los e-CF a la DGII (M09). Sin "Dgii:Cliente" se usa la DGII real; el simulador es solo para desarrollo.
-        var opcionesDgii = new Dgii.OpcionesDgii(configuracion["Dgii:Cliente"], configuracion["Dgii:Certificado:Ruta"], configuracion["Dgii:Certificado:Pin"]);
-        servicios.AddSingleton(opcionesDgii);
-        servicios.AddScoped<Aplicacion.Dgii.IDespachadorDgii, Dgii.DespachadorDgii>();
-        if (opcionesDgii.UsaSimulador)
-        {
-            servicios.AddSingleton<Aplicacion.Dgii.IClienteDgii, Dgii.ClienteDgiiSimulado>();
-        }
-        else
-        {
-            servicios.AddSingleton<Dgii.SesionDgii>();
-            servicios.AddHttpClient<Aplicacion.Dgii.IClienteDgii, Dgii.ClienteDgiiHttp>(cliente => cliente.Timeout = TimeSpan.FromSeconds(60));
-        }
-
-        if (!string.Equals(configuracion["Dgii:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
-            servicios.AddHostedService<Dgii.TrabajadorDgii>();
-
         return servicios;
     }
 

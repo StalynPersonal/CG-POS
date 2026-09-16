@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Catalogo;
@@ -56,6 +56,41 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         Assert.Contains(bajada.Maestros!.Familias!, f => f.Id == familia.Id && !f.PermiteDescuentoManual);
         Assert.Contains(bajada.Maestros.FormasPago!, f => f.Id == forma.Id && f.Moneda == codigoMoneda);
         Assert.DoesNotContain(bajada.Maestros.FormasPago!, f => f.Id == otraForma.Id);
+    }
+
+    [SkippableFact]
+    public async Task Los_catalogos_de_fidelidad_y_de_descuentos_por_tarjeta_se_administran_y_bajan_a_las_cajas()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
+        var sufijo = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
+        var ahora = DateTimeOffset.UtcNow;
+
+        var nivel = new NivelFidelidadCarga(Guid.CreateVersion7(), $"N{sufijo}", "Nivel oro", 2, 1.5m);
+        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/niveles-fidelidad/{nivel.Id}", nivel)).Cuerpo!.Exitosa);
+
+        var regla = new ReglaAcumulacionCarga(Guid.CreateVersion7(), $"R{sufijo}", "Un punto por cada 100",
+            CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Monto, 100m, 1m);
+        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/reglas-acumulacion/{regla.Id}", regla)).Cuerpo!.Exitosa);
+
+        var descuento = new DescuentoTarjetaCarga(Guid.CreateVersion7(), $"T{sufijo}", "10 % con tarjetas del banco", "455123,401288",
+            CgPos.Dominio.Promociones.TipoDescuentoTarjeta.Porcentaje, 10m, ahora.AddDays(-1), ahora.AddMonths(1), MontoMinimo: 500m, MontoMaximo: 2000m);
+        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/descuentos-tarjeta/{descuento.Id}", descuento)).Cuerpo!.Exitosa);
+
+        // Las reglas del dominio se validan antes de publicar: un BIN muy corto no pasa.
+        var invalido = await EnviarAsync(cliente, admin, $"/api/maestros/descuentos-tarjeta/{descuento.Id}", descuento with { Bines = "40" });
+        Assert.Equal(HttpStatusCode.BadRequest, invalido.Estado);
+
+        Assert.Single(await ListarAsync<DatosMaestroCentral<DescuentoTarjetaCarga>>(cliente, admin, "/api/maestros/descuentos-tarjeta"),
+            d => d.Dato.Id == descuento.Id);
+
+        var bajada = await BajarAsync(cliente, tokenCaja, marca);
+        Assert.Contains(bajada.Maestros!.NivelesFidelidad!, n => n.Id == nivel.Id && n.FactorAcumulacion == 1.5m);
+        Assert.Contains(bajada.Maestros.ReglasAcumulacion!, r => r.Id == regla.Id && r.Puntos == 1m);
+        Assert.Contains(bajada.Maestros.DescuentosTarjeta!, d => d.Id == descuento.Id && d.Bines == "455123,401288");
     }
 
     [SkippableFact]

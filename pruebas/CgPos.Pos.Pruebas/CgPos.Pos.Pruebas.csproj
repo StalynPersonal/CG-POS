@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\POS\CgPos.Pos.Aplicacion\CgPos.Pos.Aplicacion.csproj" />
     <ProjectReference Include="..\..\src\POS\CgPos.Pos.Infraestructura\CgPos.Pos.Infraestructura.csproj" />
+    <ProjectReference Include="..\..\src\POS\CgPos.Pos.ECF\CgPos.Pos.ECF.csproj" />
     <ProjectReference Include="..\..\src\POS\CgPos.Pos.Agente\CgPos.Pos.Agente.csproj" />
   </ItemGroup>
 

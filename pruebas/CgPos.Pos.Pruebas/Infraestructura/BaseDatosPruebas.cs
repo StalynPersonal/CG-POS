@@ -1,3 +1,4 @@
+﻿using CgPos.Pos.ECF;
 using CgPos.Pos.Infraestructura;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.Data.SqlClient;
@@ -93,7 +94,8 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
 
         var servicios = new ServiceCollection()
             .AddLogging()
-            .AgregarInfraestructuraPos(_configuracionAplicacion);
+            .AgregarInfraestructuraPos(_configuracionAplicacion)
+            .AgregarEcfPos(_configuracionAplicacion);
 
         ajustar?.Invoke(servicios);
         return servicios.BuildServiceProvider();

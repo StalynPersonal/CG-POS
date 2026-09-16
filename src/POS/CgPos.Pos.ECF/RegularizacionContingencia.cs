@@ -9,7 +9,7 @@ using CgPos.Pos.Infraestructura.Ventas;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace CgPos.Pos.Infraestructura.Ecf;
+namespace CgPos.Pos.ECF;
 
 /// <summary>
 /// Emite el e-CF de las ventas que se cobraron en contingencia, en cuanto la caja vuelve a poder firmarlas. Cada una se emite en su
@@ -17,7 +17,7 @@ namespace CgPos.Pos.Infraestructura.Ecf;
 /// </summary>
 internal sealed class RegularizacionContingencia(
     ContextoDatosPos contexto,
-    EmisionComprobantes emisorEcf,
+    IEmisorComprobantes emisorEcf,
     IBandejaSalida bandejaSalida,
     IAuditoria auditoria,
     IParametros parametros,

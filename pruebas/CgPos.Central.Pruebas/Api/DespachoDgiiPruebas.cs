@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using CgPos.Central.Aplicacion.Dgii;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
@@ -104,7 +104,7 @@ public class DespachoDgiiPruebas(CentralEnPruebas central)
         var maximo = TimeSpan.FromMinutes(60);
 
         Assert.Equal([5, 10, 20, 40, 60, 60],
-            Enumerable.Range(1, 6).Select(intento => CgPos.Central.Infraestructura.Dgii.DespachadorDgii.Espera(intento, reintento, maximo).TotalMinutes));
+            Enumerable.Range(1, 6).Select(intento => CgPos.Central.ECF.DespachadorDgii.Espera(intento, reintento, maximo).TotalMinutes));
     }
 
     [SkippableFact]

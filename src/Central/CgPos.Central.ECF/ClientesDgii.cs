@@ -12,7 +12,7 @@ using CgPos.ECF.Firma;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace CgPos.Central.Infraestructura.Dgii;
+namespace CgPos.Central.ECF;
 
 /// <param name="Cliente">"Simulado" (solo desarrollo) o "Http" (DGII real, el predeterminado).</param>
 /// <param name="RutaCertificado">Certificado .p12 del emisor con el que se firma la semilla de autenticación.</param>

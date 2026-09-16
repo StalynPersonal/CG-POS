@@ -19,7 +19,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace CgPos.Pos.Infraestructura.Ecf;
+namespace CgPos.Pos.ECF;
 
 /// <summary>Certificado de la caja en memoria del Agente (RF-217). Se carga con el PIN y no se guarda el PIN.</summary>
 internal sealed class CertificadoCaja(IConfiguration configuracion, ILogger<CertificadoCaja> registro) : ICertificadoCaja, IDisposable
@@ -72,20 +72,13 @@ internal sealed class CertificadoCaja(IConfiguration configuracion, ILogger<Cert
     public void Dispose() => _certificado?.Dispose();
 }
 
-internal sealed record EmisionEcf(DocumentoElectronico Documento, DocumentoElectronicoParaCentral ParaCentral, DateOnly VenceSecuencia);
-
-internal sealed class EmisionEcfExcepcion(CodigoResultadoVenta codigo, string mensaje) : Exception(mensaje)
-{
-    public CodigoResultadoVenta Codigo { get; } = codigo;
-}
-
 /// <summary>
 /// Emite el e-CF de una venta cobrada dentro de la transacción del cobro (RF-218): toma la siguiente secuencia de la caja,
 /// arma y valida el documento, lo firma con el certificado en memoria, obtiene el código de seguridad y el timbre, y deja el
 /// XML firmado en la carpeta de pendientes (RF-219). Si la transacción no se confirma, la secuencia vuelve atrás.
 /// </summary>
 internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificadoCaja certificado, IParametros parametros, IConfiguration configuracion,
-    TimeProvider reloj)
+    TimeProvider reloj) : IEmisorComprobantes
 {
     private readonly FirmadorEcf _firmador = new();
 
@@ -166,6 +159,8 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
 
         return new EmisionEcf(documento, new DocumentoElectronicoParaCentral(encf, tipo, firmado, hash, documentoEcf.FechaHoraFirma), asignada.VenceEn);
     }
+
+    void IEmisorComprobantes.DescartarArchivo(EmisionEcf emision) => DescartarArchivo(emision);
 
     /// <summary>Si el cobro no llegó a guardarse, su XML no debe quedar como pendiente.</summary>
     public static void DescartarArchivo(EmisionEcf emision)

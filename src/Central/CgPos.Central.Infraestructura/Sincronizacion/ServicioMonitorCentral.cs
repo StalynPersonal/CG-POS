@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
@@ -42,6 +42,14 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             .ToDictionary(c => c.CajaId, c => c.Cantidad);
         var conFallo = await contexto.ComprobantesRecibidos.CountAsync(c => c.EstadoDgii == EstadoEnvioDgii.Pendiente && c.IntentosEnvio > 0, cancelacion);
 
+        // Ventas cobradas en contingencia: llegaron sin e-CF y la caja lo emite al restablecerse (RF-224).
+        var contingencias = (await contexto.VentasCentral.AsNoTracking()
+                .Where(v => v.Tipo == CgPos.Dominio.Reportes.TipoComprobanteVenta.Factura && v.Encf == null)
+                .GroupBy(v => v.CajaId)
+                .Select(g => new { CajaId = g.Key, Cantidad = g.Count() })
+                .ToListAsync(cancelacion))
+            .ToDictionary(c => c.CajaId, c => c.Cantidad);
+
         int Contar(Guid cajaId, params EstadoEnvioDgii[] estadosDgii) =>
             comprobantes.Where(c => c.CajaId == cajaId && estadosDgii.Contains(c.EstadoDgii)).Sum(c => c.Cantidad);
 
@@ -67,10 +75,12 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
                     alertas.Add($"{rechazados} e-CF rechazados por la DGII");
                 if (abiertos > 0)
                     alertas.Add($"{abiertos} conflicto(s) de sincronización abierto(s)");
+                if (contingencias.GetValueOrDefault(caja.Id) is var enContingencia and > 0)
+                    alertas.Add($"{enContingencia} venta(s) cobradas en contingencia esperan su e-CF");
 
                 return new DatosEstadoCaja(caja.Id, caja.Codigo, caja.Nombre, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty, caja.Habilitada, ultima,
                     estado?.UltimaRecepcionEn, estado?.UltimaDescargaEn, estado?.MensajesRecibidos ?? 0, estado?.Duplicados ?? 0, estado?.Rechazados ?? 0,
-                    estado?.UltimoRechazoEn, estado?.UltimoError, pendientes, rechazados, abiertos, alertas);
+                    estado?.UltimoRechazoEn, estado?.UltimoError, pendientes, rechazados, abiertos, alertas, contingencias.GetValueOrDefault(caja.Id));
             })
             .OrderByDescending(c => c.Alertas.Count > 0)
             .ThenBy(c => c.SucursalCodigo, StringComparer.Ordinal)
@@ -83,7 +93,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
         var pendienteMasAntiguo = comprobantes.Where(c => c.EstadoDgii == EstadoEnvioDgii.Pendiente).Select(c => (DateTimeOffset?)c.MasAntiguo).Min();
 
         return new DatosMonitorCentral(ahora, cajas.Count(c => c.Habilitada), datosCajas.Count(c => c.Alertas.Count > 0), conflictos.Values.Sum(),
-            porEstado, conFallo, pendienteMasAntiguo, datosCajas);
+            porEstado, conFallo, pendienteMasAntiguo, datosCajas, contingencias.Values.Sum());
     }
 
     public async Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,

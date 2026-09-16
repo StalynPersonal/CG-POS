@@ -1,9 +1,8 @@
-using CgPos.Contratos.Sincronizacion;
+﻿using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Fiscal;
 using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Sincronizacion;
-using CgPos.Pos.Infraestructura.Ecf;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

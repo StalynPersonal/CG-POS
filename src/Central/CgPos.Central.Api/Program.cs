@@ -1,6 +1,7 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using CgPos.Central.Api.Api;
 using CgPos.Central.Api.Seguridad;
+using CgPos.Central.ECF;
 using CgPos.Central.Infraestructura;
 using CgPos.Central.Infraestructura.CargaInicial;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -36,6 +37,7 @@ try
     });
 
     constructor.Services.AgregarInfraestructuraCentral(constructor.Configuration);
+    constructor.Services.AgregarEcfCentral(constructor.Configuration);
     constructor.Services.AgregarSeguridadCentral();
 
     // La bajada de maestros de una caja nueva puede ser grande: se comprime (solo esa ruta, sin tokens ni secretos en la respuesta).

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -129,6 +129,11 @@ public static class ValidacionMaestros
                 if (d.SaldoAl is { } saldoAl)
                     miembro.SincronizarSaldo(d.SaldoPuntos, saldoAl, d.PuntosPorVencer, d.ProximoVencimiento);
             });
+
+        foreach (var d in paquete.DescuentosTarjeta ?? [])
+            Probar($"Descuento por tarjeta '{d.Codigo}'", () =>
+                DescuentoTarjeta.Crear(d.Id, d.Codigo, d.Nombre, d.Bines, d.Tipo, d.Valor, d.MontoMinimo, d.MontoMaximo, d.BancoId, d.VigenteDesde,
+                    d.VigenteHasta, d.Dias, d.Activo));
 
         foreach (var d in paquete.Almacenes ?? [])
             Probar($"Almacén '{d.Codigo}'", () => Almacen.Crear(d.Codigo, d.Nombre, d.SucursalId, d.Direccion, d.Id));

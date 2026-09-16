@@ -1,6 +1,8 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Seguridad;
 
 namespace CgPos.Pos.Aplicacion.Ecf;
@@ -47,6 +49,49 @@ public sealed record ResultadoRegularizacion(int Emitidos, int Pendientes, strin
 public interface IRegularizacionContingencia
 {
     Task<ResultadoRegularizacion> RegularizarAsync(Guid cajaId, CancellationToken cancelacion = default);
+}
+
+/// <summary>Comprobante emitido: el documento de la caja, lo que viaja al Central y hasta cuándo vale la secuencia.</summary>
+public sealed record EmisionEcf(DocumentoElectronico Documento, DocumentoElectronicoParaCentral ParaCentral, DateOnly VenceSecuencia);
+
+/// <summary>No se pudo emitir el e-CF: sin certificado, sin secuencia o con el documento inválido.</summary>
+public sealed class EmisionEcfExcepcion(CodigoResultadoVenta codigo, string mensaje) : Exception(mensaje)
+{
+    public CodigoResultadoVenta Codigo { get; } = codigo;
+}
+
+/// <summary>
+/// Emisión del e-CF de una venta o de una nota de crédito (RF-218). La implementa el ensamblado de facturación electrónica de la caja
+/// (<c>CgPos.Pos.ECF</c>), que es el único que conoce el formato, la firma y los rangos de la DGII.
+/// </summary>
+public interface IEmisorComprobantes
+{
+    /// <remarks>Debe llamarse con una transacción abierta en el contexto.</remarks>
+    Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion);
+
+    /// <summary>Nota de crédito E34 de una devolución, referenciando el e-CF de la factura (RF-227).</summary>
+    Task<EmisionEcf> EmitirNotaCreditoAsync(Devolucion devolucion, CancellationToken cancelacion);
+
+    /// <summary>Si el cobro no llegó a guardarse, su XML no debe quedar como pendiente.</summary>
+    void DescartarArchivo(EmisionEcf emision);
+}
+
+/// <summary>Carpetas de los XML de e-CF bajo la carpeta base: Pendientes, Enviados y Errores, organizadas por fecha (RF-219, RNF-15).</summary>
+public static class RutasXmlEcf
+{
+    public const string Pendientes = "Pendientes";
+    public const string Enviados = "Enviados";
+
+    /// <summary>La misma ruta relativa del XML, en la carpeta Enviados; nulo si el XML no está en la carpeta Pendientes de la base.</summary>
+    public static string? RutaEnviados(string rutaPendiente, string carpetaBase)
+    {
+        var pendientes = Path.GetFullPath(Path.Combine(carpetaBase, Pendientes));
+        var completa = Path.GetFullPath(rutaPendiente);
+        if (!completa.StartsWith(pendientes + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return Path.Combine(Path.GetFullPath(Path.Combine(carpetaBase, Enviados)), Path.GetRelativePath(pendientes, completa));
+    }
 }
 
 /// <summary>Configuración del e-CF en la caja (sección <c>Ecf</c>).</summary>

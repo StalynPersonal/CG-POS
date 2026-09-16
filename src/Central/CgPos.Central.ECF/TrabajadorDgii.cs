@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace CgPos.Central.Infraestructura.Dgii;
+namespace CgPos.Central.ECF;
 
 /// <summary>Ejecuta el despacho a la DGII cada <see cref="ClavesParametrosCentral.DgiiSegundosCiclo"/> segundos mientras esté activado.</summary>
 internal sealed class TrabajadorDgii(IServiceScopeFactory fabricaAmbitos, TimeProvider reloj, ILogger<TrabajadorDgii> registro) : BackgroundService

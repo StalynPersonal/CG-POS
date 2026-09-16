@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CgPos.Central.Infraestructura\CgPos.Central.Infraestructura.csproj" />
+    <ProjectReference Include="..\CgPos.Central.ECF\CgPos.Central.ECF.csproj" />
     <ProjectReference Include="..\CgPos.Central.Web\CgPos.Central.Web.csproj" />
   </ItemGroup>
 

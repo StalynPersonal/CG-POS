@@ -1,10 +1,11 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Agente.Api;
 using CgPos.Pos.Agente.Pantallas;
 using CgPos.Pos.Agente.Salud;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Organizacion;
+using CgPos.Pos.ECF;
 using CgPos.Pos.Infraestructura;
 using CgPos.Pos.Infraestructura.CargaInicial;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -39,6 +40,7 @@ try
     });
 
     constructor.Services.AgregarInfraestructuraPos(constructor.Configuration);
+    constructor.Services.AgregarEcfPos(constructor.Configuration);
     constructor.Services.AgregarSeguridadAgente();
 
     // Envío de la bandeja de salida al Central en segundo plano (M14).
@@ -120,7 +122,7 @@ try
 
     // Solo desarrollo: certificado autofirmado cargado con un PIN de configuración. En producción el PIN lo digita un usuario.
     if (aplicacion.Configuration[CgPos.Pos.Aplicacion.Ecf.ClavesEcf.PinDesarrollo] is { Length: > 0 } pinDesarrollo)
-        CgPos.Pos.Infraestructura.Ecf.ExtensionesEcf.PrepararCertificadoDesarrollo(aplicacion.Services, aplicacion.Configuration, pinDesarrollo);
+        CgPos.Pos.ECF.ExtensionesEcf.PrepararCertificadoDesarrollo(aplicacion.Services, aplicacion.Configuration, pinDesarrollo);
 
     await using (var ambito = aplicacion.Services.CreateAsyncScope())
     {

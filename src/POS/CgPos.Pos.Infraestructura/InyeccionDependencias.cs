@@ -3,7 +3,6 @@ using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Perifericos;
-using CgPos.Pos.Infraestructura.Ecf;
 using CgPos.Pos.Aplicacion.Ventas;
 using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Perifericos;
@@ -75,13 +74,6 @@ public static class InyeccionDependencias
         servicios.AddSingleton<IImpresoraTicket>(proveedor => new ImpresoraTicket(configuracion,
             proveedor.GetRequiredService<TimeProvider>(), proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ImpresoraTicket>>()));
 
-        // Facturación electrónica (M09): el certificado vive en memoria mientras corre el Agente.
-        servicios.AddSingleton<ICertificadoCaja>(proveedor => new CertificadoCaja(configuracion,
-            proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CertificadoCaja>>()));
-        servicios.AddScoped(proveedor => new EmisionComprobantes(proveedor.GetRequiredService<ContextoDatosPos>(), proveedor.GetRequiredService<ICertificadoCaja>(),
-            proveedor.GetRequiredService<IParametros>(), configuracion, proveedor.GetRequiredService<TimeProvider>()));
-        servicios.AddScoped<IServicioEcf, ServicioEcf>();
-
         // Turnos y ventas (M13, M05)
         servicios.AddScoped<GeneradorSecuencias>();
         servicios.AddScoped<IValidadorAutorizaciones, ValidadorAutorizaciones>();
@@ -101,7 +93,6 @@ public static class InyeccionDependencias
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IDescargaMaestros, DescargaMaestros>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IActualizacionPadron, ActualizacionPadron>();
-        servicios.AddScoped<Aplicacion.Ecf.IRegularizacionContingencia, Ecf.RegularizacionContingencia>();
         servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();
 
         // Mantenimiento de la caja: respaldo, purga controlada, hora y alertas.

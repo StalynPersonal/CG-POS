@@ -1,10 +1,11 @@
-using CgPos.Dominio.Fiscal;
+﻿using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 
 namespace CgPos.Contratos.Central;
 
 /// <param name="UltimaComunicacionEn">Lo más reciente entre el último mensaje recibido y la última descarga de maestros.</param>
 /// <param name="ComprobantesPendientes">e-CF de la caja aún sin resultado de la DGII (pendientes o en proceso).</param>
+/// <param name="VentasEnContingencia">Ventas que la caja cobró sin poder firmar su e-CF y que aún no lo tienen (RF-224).</param>
 /// <param name="Alertas">Lo que requiere atención, en texto para el usuario; vacía si la caja está al día.</param>
 public sealed record DatosEstadoCaja(
     Guid CajaId,
@@ -23,7 +24,8 @@ public sealed record DatosEstadoCaja(
     int ComprobantesPendientes,
     int ComprobantesRechazados,
     int ConflictosAbiertos,
-    IReadOnlyList<string> Alertas);
+    IReadOnlyList<string> Alertas,
+    int VentasEnContingencia = 0);
 
 public sealed record DatosConteoEstadoDgii(EstadoEnvioDgii Estado, int Cantidad);
 
@@ -37,7 +39,8 @@ public sealed record DatosMonitorCentral(
     IReadOnlyList<DatosConteoEstadoDgii> ComprobantesPorEstado,
     int ComprobantesConFallo,
     DateTimeOffset? PendienteMasAntiguoDesde,
-    IReadOnlyList<DatosEstadoCaja> Cajas);
+    IReadOnlyList<DatosEstadoCaja> Cajas,
+    int VentasEnContingencia = 0);
 
 public sealed record DatosComprobanteDgii(
     Guid Id,
