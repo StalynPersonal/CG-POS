@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.CargaInicial;
 using CgPos.Central.Aplicacion.Dispositivos;
 using CgPos.Central.Aplicacion.Organizacion;
@@ -55,6 +55,15 @@ public static class InyeccionDependencias
 
         // Notas de crédito entre sucursales (M10).
         servicios.AddScoped<Aplicacion.Devoluciones.IServicioNotasCreditoCentral, Devoluciones.ServicioNotasCreditoCentral>();
+
+        // Saldo central de puntos del programa de fidelidad (M11).
+        servicios.AddScoped<Fidelidad.RecalculadorPuntos>();
+        servicios.AddScoped<Aplicacion.Fidelidad.IServicioFidelidadCentral, Fidelidad.ServicioFidelidadCentral>();
+
+        // Pendientes de entrega y envíos de todas las sucursales (M12).
+        servicios.AddScoped<Aplicacion.Entregas.IServicioDespachoCentral, Entregas.ServicioDespachoCentral>();
+        if (!string.Equals(configuracion["Fidelidad:TrabajadorHabilitado"], "false", StringComparison.OrdinalIgnoreCase))
+            servicios.AddHostedService<Fidelidad.TrabajadorVencimientoPuntos>();
 
         // Envío de los e-CF a la DGII (M09). Sin "Dgii:Cliente" se usa la DGII real; el simulador es solo para desarrollo.
         var opcionesDgii = new Dgii.OpcionesDgii(configuracion["Dgii:Cliente"], configuracion["Dgii:Certificado:Ruta"], configuracion["Dgii:Certificado:Pin"]);

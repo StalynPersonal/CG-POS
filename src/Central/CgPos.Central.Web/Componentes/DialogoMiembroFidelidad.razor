@@ -1,0 +1,125 @@
+@* Detalle de un miembro del programa: saldo oficial de puntos, sus movimientos de todas las sucursales y ajuste manual. *@
+@using CgPos.Dominio.Fidelidad
+@inject ClienteCentral Central
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Cédula</div>@Miembro.Cedula</MudItem>
+            <MudItem xs="6" sm="5"><div class="cg-central__detalle">Nombre</div>@Miembro.Nombre</MudItem>
+            <MudItem xs="6" sm="2"><div class="cg-central__detalle">Nivel</div>@(Miembro.Nivel ?? "Sin nivel")</MudItem>
+            <MudItem xs="6" sm="2">
+                <div class="cg-central__detalle">Puntos</div>
+                <MudText Typo="Typo.h6" Color="Color.Primary">@Miembro.Puntos.ToString("N0")</MudText>
+            </MudItem>
+
+            @if (Miembro.ProximoVencimiento is { } vence)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Warning" Dense="true">
+                        @Miembro.PuntosPorVencer.ToString("N0") puntos vencen el @vence.ToString("dd/MM/yyyy").
+                    </MudAlert>
+                </MudItem>
+            }
+            @if (Miembro.Vencidos > 0)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">Ya vencieron @Miembro.Vencidos.ToString("N0") puntos que no se canjearon.</MudAlert>
+                </MudItem>
+            }
+
+            <MudItem xs="12"><MudText Typo="Typo.subtitle1">Ajustar el saldo</MudText></MudItem>
+            <MudItem xs="12" sm="3">
+                <MudNumericField T="int" @bind-Value="_puntos" Label="Puntos (negativo para restar)" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="7">
+                <MudTextField T="string" @bind-Value="_motivo" Label="Motivo y quién lo autoriza" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Loyalty" Disabled="_procesando"
+                           OnClick="AjustarAsync">Ajustar</MudButton>
+            </MudItem>
+
+            <MudItem xs="12"><MudText Typo="Typo.subtitle1">Movimientos</MudText></MudItem>
+            <MudItem xs="12">
+                <MudSimpleTable Dense="true" Style="max-height: 280px; overflow-y: auto">
+                    <thead>
+                        <tr><th>Fecha</th><th>Tipo</th><th>Origen</th><th style="text-align: right">Puntos</th><th>Documento</th><th>Detalle</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var movimiento in _movimientos)
+                        {
+                            <tr>
+                                <td>@movimiento.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@Etiqueta(movimiento.Tipo)</td>
+                                <td>@(movimiento.Origen == OrigenMovimientoPuntos.Central ? "Central" : $"Suc. {movimiento.SucursalCodigo} · caja {movimiento.CajaCodigo}")</td>
+                                <td style="text-align: right">@movimiento.Puntos.ToString("N0")</td>
+                                <td>@movimiento.Documento</td>
+                                <td>
+                                    @movimiento.Motivo
+                                    @if (movimiento.VenceEn is { } venceEn)
+                                    {
+                                        <span class="cg-central__detalle">Vence @venceEn.ToString("dd/MM/yyyy")</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (_movimientos.Count == 0)
+                        {
+                            <tr><td colspan="6">Sin movimientos.</td></tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+
+            @if (_mensaje is not null)
+            {
+                <MudItem xs="12"><MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert></MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosMiembroFidelidadCentral Miembro { get; set; } = default!;
+
+    private IReadOnlyList<DatosMovimientoPuntosCentral> _movimientos = [];
+    private int _puntos;
+    private string? _motivo;
+    private string? _mensaje;
+    private bool _procesando;
+
+    private static string Etiqueta(TipoMovimientoPuntos tipo) => tipo switch
+    {
+        TipoMovimientoPuntos.Acumulacion => "Acumulación",
+        TipoMovimientoPuntos.Canje => "Canje",
+        TipoMovimientoPuntos.Reverso => "Reverso",
+        _ => "Ajuste",
+    };
+
+    protected override async Task OnInitializedAsync() =>
+        _movimientos = await Central.ListarMovimientosPuntosAsync(Miembro.Id) ?? [];
+
+    private async Task AjustarAsync()
+    {
+        _mensaje = _puntos == 0 ? "Indique cuántos puntos se suman o restan."
+            : string.IsNullOrWhiteSpace(_motivo) ? "Indique el motivo y quién lo autoriza."
+            : null;
+        if (_mensaje is not null)
+            return;
+
+        _procesando = true;
+        var respuesta = await Central.AjustarPuntosAsync(Miembro.Id, _puntos, _motivo!.Trim());
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo ajustar el saldo de puntos.";
+    }
+}

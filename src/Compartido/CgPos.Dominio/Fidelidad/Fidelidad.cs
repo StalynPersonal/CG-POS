@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Dominio.Fidelidad;
@@ -268,6 +268,9 @@ public enum TipoMovimientoPuntos
 
     /// <summary>Reverso de lo acumulado por una devolución (RF-244, RN-21).</summary>
     Reverso,
+
+    /// <summary>Ajuste manual hecho en el Central, a favor o en contra, con motivo y responsable.</summary>
+    Ajuste,
 }
 
 /// <summary>Movimiento de puntos hecho en la caja; va al Central, que lleva el saldo oficial.</summary>

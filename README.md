@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). De H5 está hecho el consumo de notas de crédito entre sucursales.
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). De H5 están hechos el consumo de notas de crédito entre sucursales y el saldo central de puntos de fidelidad.
 
 ## Stack
 
@@ -365,6 +365,22 @@ dotnet run --project src/Central/CgPos.Central.Api
 | `Central.NotasCredito.MesesMaximoProrroga` | Meses desde la emisión hasta los que se habilita una nota vencida | Sí |
 
 - **API de las cajas:** `GET /api/notas-credito/{codigo}`, `POST /api/notas-credito/{id}/reservas`, `DELETE /api/notas-credito/reservas/{id}`. **API del Manager:** `GET /api/manager/notas-credito?buscar=&estado=&soloSobregiradas=`, `GET /api/manager/notas-credito/{id}/movimientos`, `POST /api/manager/notas-credito/{id}/prorrogar`.
+
+### Programa de fidelidad en el Central
+
+- El saldo de puntos lo lleva el Central: cada acumulación, canje o reverso que hace una caja llega en `Fidelidad.MovimientoPuntos` y se registra con el Id que la caja generó, así que un reenvío no acumula dos veces (RF-240).
+- **Vencimiento (RF-242):** cada acumulación guarda hasta cuándo valen sus puntos. Un canje gasta primero los puntos que vencen antes, para que el cliente no pierda los que pudo usar; los vencidos salen del saldo y quedan a la vista como "vencidos".
+- **Publicación:** cada vez que el saldo cambia se reescribe el maestro del miembro (saldo, puntos por vencer y próximo vencimiento), que es como llega a todas las cajas para canjear sin conexión. Un movimiento que llega antes que la inscripción se suma igual: al publicarse el miembro sale ya con su saldo.
+- **Vencimiento sin movimientos:** un trabajo en segundo plano recalcula y republica los miembros cuyos puntos ya vencieron, para que la caja no muestre puntos que no valen.
+- **Central Manager** (permiso `Central.Fidelidad.Administrar`): miembros con su saldo, filtro de los que tienen puntos, detalle con todos los movimientos de todas las sucursales y **ajuste manual** a favor o en contra, con motivo y responsable, que queda en la auditoría (`Fidelidad.PuntosAjustados`) y baja a las cajas. Un ajuste en contra no deja el saldo en negativo.
+- **Saldo en negativo:** si dos cajas sin conexión canjean más de lo que el Central ve, el saldo queda corto hasta que lleguen los demás mensajes; no se descarta lo que la caja ya entregó.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Fidelidad.MinutosCicloVencimiento` | Minutos entre revisiones de los puntos ya vencidos | Sí |
+| `Central.Fidelidad.LoteVencimiento` | Máximo de miembros recalculados por ciclo | Sí |
+
+- **API del Manager:** `GET /api/manager/fidelidad/miembros?buscar=&soloConPuntos=`, `GET /api/manager/fidelidad/miembros/{id}`, `GET /api/manager/fidelidad/miembros/{id}/movimientos`, `POST /api/manager/fidelidad/miembros/{id}/ajustes`.
 
 ### Recepción de documentos de las cajas
 

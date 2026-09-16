@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Contratos.Central;
@@ -290,6 +290,79 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<RespuestaAdministracion> ProrrogarNotaCreditoAsync(Guid notaCreditoId, DateOnly venceEn, string motivo) =>
         EnviarAsync(HttpMethod.Post, $"api/manager/notas-credito/{notaCreditoId}/prorrogar", new SolicitudProrrogaNotaCredito(venceEn, motivo));
+
+    // ---------- Programa de fidelidad ----------
+
+    public async Task<PaginaMiembrosFidelidadCentral?> BuscarMiembrosFidelidadAsync(string? buscar, bool soloConPuntos, int pagina, int tamano,
+        CancellationToken cancelacion = default)
+    {
+        var ruta = $"api/manager/fidelidad/miembros?pagina={pagina}&tamano={tamano}&soloConPuntos={(soloConPuntos ? "true" : "false")}"
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaMiembrosFidelidadCentral>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<IReadOnlyList<DatosMovimientoPuntosCentral>?> ListarMovimientosPuntosAsync(Guid miembroId) =>
+        ListarAsync<DatosMovimientoPuntosCentral>($"api/manager/fidelidad/miembros/{miembroId}/movimientos");
+
+    // ---------- Despacho de pendientes y envíos ----------
+
+    public async Task<PaginaPendientesCentral?> BuscarPendientesAsync(string? buscar, CgPos.Dominio.Entregas.EstadoPendiente? estado,
+        CgPos.Dominio.Entregas.MetodoEntrega? metodo, Guid? sucursalId, bool soloAtrasados, bool soloAbiertos, int pagina, int tamano,
+        CancellationToken cancelacion = default)
+    {
+        var ruta = $"api/manager/despacho/pendientes?pagina={pagina}&tamano={tamano}"
+                   + $"&soloAtrasados={(soloAtrasados ? "true" : "false")}&soloAbiertos={(soloAbiertos ? "true" : "false")}"
+                   + (estado is { } filtroEstado ? $"&estado={filtroEstado}" : string.Empty)
+                   + (metodo is { } filtroMetodo ? $"&metodo={filtroMetodo}" : string.Empty)
+                   + (sucursalId is { } sucursal ? $"&sucursalId={sucursal}" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaPendientesCentral>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<DetallePendienteCentral?> ObtenerPendienteAsync(Guid pendienteId)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DetallePendienteCentral>($"api/manager/despacho/pendientes/{pendienteId}", OpcionesJson.Predeterminadas);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<ResumenDespachoCentral?> ResumenDespachoAsync()
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<ResumenDespachoCentral>("api/manager/despacho/resumen", OpcionesJson.Predeterminadas);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<RespuestaAjustePuntos> AjustarPuntosAsync(Guid miembroId, int puntos, string motivo)
+    {
+        var (datos, error) = await PostearAsync<RespuestaAjustePuntos>($"api/manager/fidelidad/miembros/{miembroId}/ajustes",
+            new SolicitudAjustePuntos(puntos, motivo));
+        return datos ?? new RespuestaAjustePuntos(false, error ?? "No se pudo ajustar el saldo de puntos.");
+    }
 
     // ---------- Comunes ----------
 

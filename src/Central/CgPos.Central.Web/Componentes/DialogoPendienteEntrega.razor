@@ -1,0 +1,113 @@
+@* Detalle de un pendiente de entrega o envío: destino, artículos y entregas ya hechas. *@
+@using CgPos.Dominio.Entregas
+@inject ClienteCentral Central
+
+<MudDialog>
+    <DialogContent>
+        @if (_detalle is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="6" sm="3"><div class="cg-central__detalle">Factura</div>@_detalle.Pendiente.VentaNumero</MudItem>
+                <MudItem xs="6" sm="3"><div class="cg-central__detalle">Sucursal y caja</div>@Resumen.SucursalCodigo · @Resumen.CajaCodigo</MudItem>
+                <MudItem xs="6" sm="3"><div class="cg-central__detalle">Creado</div>@_detalle.Pendiente.CreadoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudItem>
+                <MudItem xs="6" sm="3">
+                    <div class="cg-central__detalle">Comprometido</div>
+                    @(_detalle.Pendiente.FechaComprometida?.ToString("dd/MM/yyyy") ?? "Sin fecha")
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <div class="cg-central__detalle">Cliente</div>
+                    @_detalle.Pendiente.ClienteNombre (@_detalle.Pendiente.ClienteDocumento)
+                    <div class="cg-central__detalle">@_detalle.Pendiente.Telefono</div>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <div class="cg-central__detalle">@(_detalle.Pendiente.Metodo == MetodoEntrega.Envio ? "Envío a" : "Retiro en")</div>
+                    @if (_detalle.Pendiente.Metodo == MetodoEntrega.Envio)
+                    {
+                        @($"{_detalle.Pendiente.Direccion}, {_detalle.Pendiente.Sector} {_detalle.Pendiente.Ciudad}")
+                        <div class="cg-central__detalle">@_detalle.Pendiente.Referencia @(_detalle.Pendiente.Transportista is { } t ? $"· {t}" : "")</div>
+                    }
+                    else
+                    {
+                        @_detalle.Pendiente.AlmacenNombre
+                    }
+                </MudItem>
+
+                @if (_detalle.Pendiente.MotivoAnulacion is { } motivo)
+                {
+                    <MudItem xs="12"><MudAlert Severity="Severity.Warning" Dense="true">Anulado: @motivo</MudAlert></MudItem>
+                }
+                else if (Resumen.Atrasado)
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error" Dense="true">
+                            Se pasó de la fecha comprometida (@Resumen.FechaComprometida?.ToString("dd/MM/yyyy")) y aún no se entrega.
+                        </MudAlert>
+                    </MudItem>
+                }
+
+                <MudItem xs="12"><MudText Typo="Typo.subtitle1">Artículos</MudText></MudItem>
+                <MudItem xs="12">
+                    <MudSimpleTable Dense="true">
+                        <thead>
+                            <tr><th>Artículo</th><th style="text-align: right">Cantidad</th><th style="text-align: right">Entregado</th><th>Serial</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var linea in _detalle.Pendiente.Lineas)
+                            {
+                                <tr>
+                                    <td>@linea.Descripcion<div class="cg-central__detalle">@linea.Codigo</div></td>
+                                    <td style="text-align: right">@linea.Cantidad.ToString($"N{linea.DecimalesCantidad}")</td>
+                                    <td style="text-align: right">@linea.CantidadEntregada.ToString($"N{linea.DecimalesCantidad}")</td>
+                                    <td>@linea.Serial</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+
+                <MudItem xs="12"><MudText Typo="Typo.subtitle1">Entregas</MudText></MudItem>
+                <MudItem xs="12">
+                    <MudSimpleTable Dense="true">
+                        <thead>
+                            <tr><th>#</th><th>Fecha</th><th>Recibió</th><th>Despachó</th><th>Artículos</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entrega in _detalle.Pendiente.Entregas)
+                            {
+                                <tr>
+                                    <td>@entrega.Numero</td>
+                                    <td>@entrega.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>@entrega.RecibeNombre<div class="cg-central__detalle">@entrega.RecibeCedula</div></td>
+                                    <td>@entrega.UsuarioNombre</td>
+                                    <td>@string.Join(", ", entrega.Lineas.Select(l => $"{l.Cantidad:N2} × {l.Descripcion}"))</td>
+                                </tr>
+                            }
+                            @if (_detalle.Pendiente.Entregas.Count == 0)
+                            {
+                                <tr><td colspan="5">Todavía no se ha entregado nada.</td></tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosPendienteCentralResumen Resumen { get; set; } = default!;
+
+    private DetallePendienteCentral? _detalle;
+
+    protected override async Task OnInitializedAsync() => _detalle = await Central.ObtenerPendienteAsync(Resumen.Id);
+}

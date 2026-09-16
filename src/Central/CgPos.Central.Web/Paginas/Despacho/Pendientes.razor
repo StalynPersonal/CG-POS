@@ -1,0 +1,167 @@
+@page "/despacho/pendientes"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.OperarDespacho)]
+@using CgPos.Dominio.Entregas
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+
+<PageTitle>Despacho · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Pendientes y envíos</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Lo que queda por entregar en todas las sucursales, con los atrasos primero. Quien entrega sigue siendo la caja que lo emitió.
+        </MudText>
+    </div>
+</div>
+
+@if (_resumen is { } resumen)
+{
+    <div class="cg-central__tarjetas mb-4">
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.h4">@resumen.Abiertos</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Abiertos</MudText>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.h4" Color="@(resumen.Atrasados > 0 ? Color.Error : Color.Default)">@resumen.Atrasados</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Atrasados</MudText>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.h4">@resumen.Retiros</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Retiros en almacén</MudText>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.h4">@resumen.Envios</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Envíos</MudText>
+        </MudPaper>
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudText Typo="Typo.h4">@resumen.EntregadosHoy</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Entregados hoy</MudText>
+        </MudPaper>
+    </div>
+}
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los pendientes. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosPendienteCentralResumen" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+              Elevation="0" RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+        <ToolBarContent>
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                              Placeholder="Pendiente, factura, cliente o teléfono" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="min-width: 260px" />
+                <MudSelect T="EstadoPendiente?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
+                           Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todos")" Style="max-width: 200px">
+                    @foreach (var estado in Enum.GetValues<EstadoPendiente>())
+                    {
+                        <MudSelectItem T="EstadoPendiente?" Value="@estado">@Etiqueta(estado)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="MetodoEntrega?" Value="_metodo" ValueChanged="@(v => FiltrarAsync(() => _metodo = v))" Label="Método" Dense="true"
+                           Clearable="true" ToStringFunc="@(m => m is { } valor ? EtiquetaMetodo(valor) : "Todos")" Style="max-width: 200px">
+                    <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.RetiroAlmacen">Retiro en almacén</MudSelectItem>
+                    <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.Envio">Envío</MudSelectItem>
+                </MudSelect>
+                <MudSwitch T="bool" Value="_soloAbiertos" ValueChanged="@(v => FiltrarAsync(() => _soloAbiertos = v))" Label="Solo abiertos" Color="Color.Primary" />
+                <MudSwitch T="bool" Value="_soloAtrasados" ValueChanged="@(v => FiltrarAsync(() => _soloAtrasados = v))" Label="Solo atrasados" Color="Color.Error" />
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Pendiente</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Destino</MudTh>
+            <MudTh>Comprometido</MudTh>
+            <MudTh Style="text-align: right">Unidades</MudTh>
+            <MudTh>Estado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Pendiente">
+                <strong>@context.Numero</strong>
+                <div class="cg-central__detalle">Factura @context.VentaNumero · suc. @context.SucursalCodigo caja @context.CajaCodigo</div>
+            </MudTd>
+            <MudTd DataLabel="Cliente">@context.ClienteNombre<div class="cg-central__detalle">@context.Telefono</div></MudTd>
+            <MudTd DataLabel="Destino">
+                @EtiquetaMetodo(context.Metodo)
+                <div class="cg-central__detalle">@context.Destino</div>
+            </MudTd>
+            <MudTd DataLabel="Comprometido">
+                @(context.FechaComprometida?.ToString("dd/MM/yyyy") ?? "—")
+                @if (context.Atrasado)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Error">Atrasado</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Unidades" Style="text-align: right">
+                @context.UnidadesEntregadas.ToString("N2") / @context.Unidades.ToString("N2")
+            </MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@ColorEstado(context.Estado)" Variant="Variant.Outlined">@Etiqueta(context.Estado)</MudChip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay pendientes que coincidan.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<DatosPendienteCentralResumen>? _tabla;
+    private ResumenDespachoCentral? _resumen;
+    private string? _buscar;
+    private EstadoPendiente? _estado;
+    private MetodoEntrega? _metodo;
+    private bool _soloAbiertos = true;
+    private bool _soloAtrasados;
+    private bool _error;
+
+    private static string Etiqueta(EstadoPendiente estado) => estado switch
+    {
+        EstadoPendiente.EnPreparacion => "En preparación",
+        EstadoPendiente.Preparado => "Preparado",
+        EstadoPendiente.Despachado => "Despachado",
+        EstadoPendiente.Parcial => "Parcial",
+        EstadoPendiente.Entregado => "Entregado",
+        EstadoPendiente.Anulado => "Anulado",
+        _ => "Pendiente",
+    };
+
+    private static string EtiquetaMetodo(MetodoEntrega metodo) => metodo == MetodoEntrega.Envio ? "Envío" : "Retiro en almacén";
+
+    private static Color ColorEstado(EstadoPendiente estado) => estado switch
+    {
+        EstadoPendiente.Entregado => MudBlazor.Color.Success,
+        EstadoPendiente.Anulado => MudBlazor.Color.Default,
+        EstadoPendiente.Parcial => MudBlazor.Color.Warning,
+        _ => MudBlazor.Color.Info,
+    };
+
+    protected override async Task OnInitializedAsync() => _resumen = await Cliente.ResumenDespachoAsync();
+
+    private async Task<TableData<DatosPendienteCentralResumen>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarPendientesAsync(_buscar, _estado, _metodo, null, _soloAtrasados, _soloAbiertos, estado.Page, estado.PageSize, cancelacion);
+        _error = pagina is null;
+        return new TableData<DatosPendienteCentralResumen> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private async Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        _resumen = await Cliente.ResumenDespachoAsync();
+        await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+    }
+
+    private async Task AbrirAsync(DatosPendienteCentralResumen pendiente)
+    {
+        var parametros = new DialogParameters<DialogoPendienteEntrega> { { d => d.Resumen, pendiente } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        await Dialogos.ShowAsync<DialogoPendienteEntrega>($"Pendiente {pendiente.Numero}", parametros, opciones);
+    }
+}

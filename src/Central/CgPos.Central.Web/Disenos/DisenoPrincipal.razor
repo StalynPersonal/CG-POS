@@ -1,4 +1,4 @@
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 @implements IDisposable
 @inject AlmacenSesionCentral Almacen
 @inject ServicioSesionCentral Sesiones
@@ -73,6 +73,16 @@
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarNotasCredito">
                 <MudNavGroup Title="Devoluciones" Icon="@Icons.Material.Filled.AssignmentReturn" Expanded="true">
                     <MudNavLink Href="notas-credito" Icon="@Icons.Material.Filled.ReceiptLong">Notas de crédito</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFidelidad">
+                <MudNavGroup Title="Fidelidad" Icon="@Icons.Material.Filled.Loyalty" Expanded="true">
+                    <MudNavLink Href="fidelidad/miembros" Icon="@Icons.Material.Filled.CardMembership">Miembros y puntos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.OperarDespacho">
+                <MudNavGroup Title="Despacho" Icon="@Icons.Material.Filled.LocalShipping" Expanded="true">
+                    <MudNavLink Href="despacho/pendientes" Icon="@Icons.Material.Filled.Inventory2">Pendientes y envíos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">

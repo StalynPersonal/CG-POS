@@ -1,4 +1,4 @@
-using CgPos.Dominio.Auditoria;
+﻿using CgPos.Dominio.Auditoria;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +33,13 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Devoluciones.NotaCreditoCentral> NotasCredito => Set<CgPos.Dominio.Devoluciones.NotaCreditoCentral>();
     public DbSet<CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral> ConsumosNotaCredito => Set<CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral>();
     public DbSet<CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral> ReservasNotaCredito => Set<CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral>();
+
+    // Saldo oficial de puntos del programa de fidelidad (M11)
+    public DbSet<CgPos.Dominio.Fidelidad.MovimientoPuntosCentral> MovimientosPuntos => Set<CgPos.Dominio.Fidelidad.MovimientoPuntosCentral>();
+    public DbSet<CgPos.Dominio.Fidelidad.SaldoPuntosCentral> SaldosPuntos => Set<CgPos.Dominio.Fidelidad.SaldoPuntosCentral>();
+
+    // Pendientes de entrega y envíos de todas las sucursales (M12)
+    public DbSet<CgPos.Dominio.Entregas.PendienteCentral> PendientesEntrega => Set<CgPos.Dominio.Entregas.PendienteCentral>();
 
     /// <summary>Versión de fila (rowversion) de lo que baja a las cajas: permite entregar solo lo cambiado (RF-273).</summary>
     public const string ColumnaVersion = "Version";

@@ -1,0 +1,102 @@
+@page "/fidelidad/miembros"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarFidelidad)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+
+<PageTitle>Programa de fidelidad · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Programa de fidelidad</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Saldo oficial de puntos con lo que informan todas las cajas, puntos por vencer y ajustes con motivo.
+        </MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los miembros. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosMiembroFidelidadCentral" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
+              RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+        <ToolBarContent>
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                              Placeholder="Cédula, nombre, teléfono o correo" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="min-width: 260px" />
+                <MudSwitch T="bool" Value="_soloConPuntos" ValueChanged="@(v => FiltrarAsync(() => _soloConPuntos = v))" Label="Solo con puntos"
+                           Color="Color.Primary" />
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Miembro</MudTh>
+            <MudTh>Contacto</MudTh>
+            <MudTh>Nivel</MudTh>
+            <MudTh Style="text-align: right">Puntos</MudTh>
+            <MudTh>Por vencer</MudTh>
+            <MudTh>Saldo calculado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Miembro"><strong>@context.Nombre</strong><div class="cg-central__detalle">@context.Cedula</div></MudTd>
+            <MudTd DataLabel="Contacto">
+                @context.Telefono
+                <div class="cg-central__detalle">@context.Correo</div>
+            </MudTd>
+            <MudTd DataLabel="Nivel">@(context.Nivel ?? "—")</MudTd>
+            <MudTd DataLabel="Puntos" Style="text-align: right"><strong>@context.Puntos.ToString("N0")</strong></MudTd>
+            <MudTd DataLabel="Por vencer">
+                @if (context.ProximoVencimiento is { } vence)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                        @context.PuntosPorVencer.ToString("N0") el @vence.ToString("dd/MM/yyyy")
+                    </MudChip>
+                }
+                else
+                {
+                    <span class="cg-central__detalle">Sin vencimiento</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Saldo calculado">
+                @(context.CalculadoEn is { } calculado ? calculado.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "Sin movimientos")
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay miembros que coincidan.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<DatosMiembroFidelidadCentral>? _tabla;
+    private string? _buscar;
+    private bool _soloConPuntos;
+    private bool _error;
+
+    private async Task<TableData<DatosMiembroFidelidadCentral>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarMiembrosFidelidadAsync(_buscar, _soloConPuntos, estado.Page, estado.PageSize, cancelacion);
+        _error = pagina is null;
+        return new TableData<DatosMiembroFidelidadCentral> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private async Task AbrirAsync(DatosMiembroFidelidadCentral miembro)
+    {
+        var parametros = new DialogParameters<DialogoMiembroFidelidad> { { d => d.Miembro, miembro } };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var referencia = await Dialogos.ShowAsync<DialogoMiembroFidelidad>($"Miembro {miembro.Cedula}", parametros, opciones);
+        if (await referencia.Result is { Canceled: false })
+            await (_tabla?.ReloadServerData() ?? Task.CompletedTask);
+    }
+}

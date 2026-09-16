@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -9,6 +9,7 @@ using CgPos.Dominio.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ namespace CgPos.Central.Infraestructura.Sincronizacion;
 internal sealed class ServicioRecepcion(
     ContextoDatosCentral contexto,
     IAuditoriaCentral auditoria,
+    Fidelidad.RecalculadorPuntos recalculadorPuntos,
     TimeProvider reloj,
     ILogger<ServicioRecepcion> registro) : IServicioRecepcion
 {
@@ -70,6 +72,10 @@ internal sealed class ServicioRecepcion(
             await RegistrarNotaCreditoAsync(documento, ahora, cancelacion);
         else if (mensaje.TipoMensaje == TiposMensaje.NotaCreditoConsumida)
             await RegistrarConsumoNotaCreditoAsync(documento, ahora, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.MovimientoPuntos)
+            await RegistrarMovimientoPuntosAsync(documento, ahora, cancelacion);
+        else if (mensaje.TipoMensaje is TiposMensaje.PendienteCreado or TiposMensaje.PendienteActualizado)
+            await RegistrarPendienteAsync(documento, ahora, cancelacion);
 
         estado.RegistrarRecepcion(ahora);
 
@@ -178,6 +184,92 @@ internal sealed class ServicioRecepcion(
         contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null,
             JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, $"Inscripción en caja {documento.CajaId}",
             new FilaMaestro(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null, miembro).TextoBusqueda()));
+
+        // Sus movimientos pueden haber llegado antes que la inscripción: el maestro sale ya con el saldo que corresponde.
+        await recalculadorPuntos.RecalcularAsync(miembro.Id, cedula, "Inscripción en caja", forzarPublicacion: true, cancelacion: cancelacion);
+    }
+
+    /// <summary>
+    /// Suma al saldo oficial los puntos que acumuló, canjeó o reversó una caja (RF-240). El Id del movimiento es el de la caja, así que un
+    /// reenvío no acumula dos veces, y el saldo recalculado se publica en el maestro del miembro para todas las cajas.
+    /// </summary>
+    private async Task RegistrarMovimientoPuntosAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        DocumentoMovimientoPuntos? movimiento = null;
+        try
+        {
+            movimiento = JsonSerializer.Deserialize<DocumentoMovimientoPuntos>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (movimiento is null || movimiento.Id == Guid.Empty || movimiento.MiembroId == Guid.Empty || movimiento.Puntos == 0)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                "El movimiento de puntos no se pudo leer; el mensaje se guardó sin tocar el saldo del miembro.", ahora, cancelacion);
+            return;
+        }
+
+        if (await contexto.MovimientosPuntos.AnyAsync(m => m.Id == movimiento.Id, cancelacion))
+            return;
+
+        try
+        {
+            contexto.MovimientosPuntos.Add(MovimientoPuntosCentral.DesdeCaja(movimiento.Id, movimiento.MiembroId, movimiento.Cedula, movimiento.Tipo,
+                movimiento.Puntos, movimiento.VentaId, movimiento.DevolucionId, movimiento.Documento, documento.CajaId, documento.SucursalId, movimiento.Fecha,
+                movimiento.VenceEn, ahora));
+
+            await recalculadorPuntos.RecalcularAsync(movimiento.MiembroId, movimiento.Cedula, $"Caja {documento.CajaId}", cancelacion: cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is ArgumentException or ArgumentOutOfRangeException)
+        {
+            contexto.ChangeTracker.Clear();
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                $"El movimiento de puntos no se pudo registrar: {ValidacionMaestros.MensajeError(excepcion)}", ahora, cancelacion);
+        }
+    }
+
+    /// <summary>
+    /// Refleja en el Central el pendiente de entrega o envío que informa una caja (RF-249, RF-252), para verlos todos juntos y seguir los atrasos.
+    /// La caja es la autoridad sobre sus pendientes: un mensaje más viejo que lo ya registrado no pisa el estado más reciente.
+    /// </summary>
+    private async Task RegistrarPendienteAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        DatosPendienteEntrega? pendiente = null;
+        try
+        {
+            pendiente = JsonSerializer.Deserialize<DatosPendienteEntrega>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (pendiente is null || pendiente.Id == Guid.Empty || string.IsNullOrWhiteSpace(pendiente.Numero))
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                "El pendiente de entrega no se pudo leer; el mensaje se guardó sin reflejarlo en el Central.", ahora, cancelacion);
+            return;
+        }
+
+        var datos = new DatosPendienteCentral(pendiente.Numero, pendiente.VentaId, pendiente.VentaNumero, documento.SucursalId, documento.CajaId, pendiente.Metodo,
+            pendiente.Estado, pendiente.AlmacenNombre, pendiente.Ciudad, pendiente.ClienteDocumento, pendiente.ClienteNombre, pendiente.Telefono,
+            pendiente.FechaComprometida, pendiente.Lineas.Sum(l => l.Cantidad), pendiente.Lineas.Sum(l => l.CantidadEntregada), pendiente.CreadoEn,
+            pendiente.ActualizadoEn, documento.Contenido);
+
+        try
+        {
+            if (await contexto.PendientesEntrega.SingleOrDefaultAsync(p => p.Id == pendiente.Id, cancelacion) is { } existente)
+                existente.Actualizar(datos, ahora);
+            else
+                contexto.PendientesEntrega.Add(PendienteCentral.Registrar(pendiente.Id, datos, ahora));
+        }
+        catch (ArgumentException excepcion)
+        {
+            contexto.ChangeTracker.Clear();
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                $"El pendiente {pendiente.Numero} no se pudo registrar: {ValidacionMaestros.MensajeError(excepcion)}", ahora, cancelacion);
+        }
     }
 
     /// <summary>Registra la nota de crédito en el Central para poder consumirla en cualquier sucursal (RF-43).</summary>

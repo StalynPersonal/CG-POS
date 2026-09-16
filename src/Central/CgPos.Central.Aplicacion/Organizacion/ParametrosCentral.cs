@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Central.Aplicacion.Organizacion;
@@ -87,4 +87,10 @@ public static class ClavesParametrosCentral
 
     /// <summary>Meses desde la emisión hasta los que se puede habilitar una nota de crédito vencida (RF-40).</summary>
     public const string NotasCreditoMesesMaximoProrroga = "Central.NotasCredito.MesesMaximoProrroga";
+
+    /// <summary>Minutos entre revisiones de los puntos de fidelidad que ya vencieron (RF-242).</summary>
+    public const string FidelidadMinutosCicloVencimiento = "Central.Fidelidad.MinutosCicloVencimiento";
+
+    /// <summary>Máximo de miembros cuyo saldo se recalcula y republica por ciclo de vencimiento.</summary>
+    public const string FidelidadLoteVencimiento = "Central.Fidelidad.LoteVencimiento";
 }

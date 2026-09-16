@@ -4,6 +4,7 @@ using CgPos.Central.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    partial class ContextoDatosCentralModelSnapshot : ModelSnapshot
+    [Migration("20260916011553_SaldoPuntosCentral")]
+    partial class SaldoPuntosCentral
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -245,102 +248,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("NotaCreditoId", "CerradaEn", "VenceEn");
 
                     b.ToTable("ReservasNotaCredito", (string)null);
-                });
-
-            modelBuilder.Entity("CgPos.Dominio.Entregas.PendienteCentral", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("ActualizadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<string>("AlmacenNombre")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Ciudad")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<string>("ClienteDocumento")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<string>("ClienteNombre")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<string>("Contenido")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<DateTimeOffset>("CreadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<int>("Estado")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly?>("FechaComprometida")
-                        .HasColumnType("date");
-
-                    b.Property<int>("Metodo")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTimeOffset>("RecibidoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Telefono")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<string>("TextoBusqueda")
-                        .IsRequired()
-                        .HasMaxLength(600)
-                        .HasColumnType("nvarchar(600)");
-
-                    b.Property<decimal>("Unidades")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<decimal>("UnidadesEntregadas")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<Guid>("VentaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("VentaNumero")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CajaId");
-
-                    b.HasIndex("Numero");
-
-                    b.HasIndex("SucursalId");
-
-                    b.HasIndex("Estado", "FechaComprometida");
-
-                    b.ToTable("PendientesEntrega", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.MovimientoPuntosCentral", b =>
@@ -1181,21 +1088,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .WithMany()
                         .HasForeignKey("NotaCreditoId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("CgPos.Dominio.Entregas.PendienteCentral", b =>
-                {
-                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
-                        .WithMany()
-                        .HasForeignKey("CajaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
-                        .WithMany()
-                        .HasForeignKey("SucursalId")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

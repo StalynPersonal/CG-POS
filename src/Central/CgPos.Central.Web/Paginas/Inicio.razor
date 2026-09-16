@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @attribute [Authorize]
 @inject AlmacenSesionCentral Almacen
 
@@ -70,6 +70,22 @@
             <MudText Typo="Typo.h6">Notas de crédito</MudText>
             <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Saldo de las notas de todas las sucursales, sus movimientos y habilitación de las vencidas.</MudText>
             <MudButton Href="notas-credito" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Consultar</MudButton>
+        </MudPaper>
+    </AuthorizeView>
+    <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFidelidad">
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudIcon Icon="@Icons.Material.Filled.Loyalty" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6">Fidelidad</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Saldo de puntos de todas las sucursales, puntos por vencer, movimientos y ajustes.</MudText>
+            <MudButton Href="fidelidad/miembros" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Consultar</MudButton>
+        </MudPaper>
+    </AuthorizeView>
+    <AuthorizeView Policy="@CatalogoPermisosCentral.OperarDespacho">
+        <MudPaper Elevation="1" Class="cg-central__tarjeta">
+            <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6">Despacho</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Pendientes de entrega y envíos de todas las sucursales, con los atrasos primero.</MudText>
+            <MudButton Href="despacho/pendientes" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">Consultar</MudButton>
         </MudPaper>
     </AuthorizeView>
     <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">

@@ -142,6 +142,18 @@
       "clave": "Central.NotasCredito.MesesMaximoProrroga",
       "valor": "12",
       "descripcion": "Meses desde la emisión hasta los que se habilita una nota vencida"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000914",
+      "clave": "Central.Fidelidad.MinutosCicloVencimiento",
+      "valor": "60",
+      "descripcion": "Minutos entre revisiones de los puntos de fidelidad que ya vencieron"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000915",
+      "clave": "Central.Fidelidad.LoteVencimiento",
+      "valor": "500",
+      "descripcion": "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo"
     }
   ],
   "rolesCentral": [

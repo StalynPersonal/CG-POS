@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using System.Globalization;
 
 namespace CgPos.Dominio.Organizacion;
@@ -153,6 +153,9 @@ public static class CatalogoParametros
 
         new("Central.NotasCredito.MinutosReserva", "Notas de crédito", "Minutos que se retiene el saldo de una nota de crédito mientras una caja cobra", Entero, true, Central, Minimo: 1),
         new("Central.NotasCredito.MesesMaximoProrroga", "Notas de crédito", "Meses desde la emisión hasta los que se puede habilitar una nota vencida", Entero, true, Central, Minimo: 1, Maximo: 60),
+
+        new("Central.Fidelidad.MinutosCicloVencimiento", "Fidelidad", "Minutos entre revisiones de los puntos de fidelidad que ya vencieron", Entero, true, Central, Minimo: 1),
+        new("Central.Fidelidad.LoteVencimiento", "Fidelidad", "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo de vencimiento", Entero, true, Central, Minimo: 1, Maximo: 10000),
     ];
 
     private static readonly FrozenDictionary<string, DefinicionParametro> PorClave = Todos.ToFrozenDictionary(d => d.Clave, StringComparer.Ordinal);
