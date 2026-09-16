@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad) y H2 (sincronización con las cajas); la H3 (Central Manager) avanza por módulos.
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización).
 
 ## Stack
 
@@ -324,6 +324,7 @@ dotnet run --project src/Central/CgPos.Central.Api
 - El Central envía a la DGII los e-CF que recibe de las cajas y consulta su resultado (RF-222, RN-18). Un trabajador en segundo plano toma los pendientes cuyo próximo intento ya llegó, los envía y guarda el trackId; después consulta el resultado hasta obtener **aceptado**, **aceptado condicional** o **rechazado**. Los rechazos y las aceptaciones condicionales quedan en la auditoría con su motivo.
 - Un envío que no llega (sin conexión, autenticación, error del servicio) sigue pendiente y se reintenta con espera creciente: se duplica desde `Central.Dgii.MinutosReintento` hasta `Central.Dgii.MinutosMaximoReintento`. Cada comprobante guarda sus intentos y el último mensaje.
 - **Cliente:** `Dgii:Cliente = Http` (predeterminado) usa la DGII real: pide la semilla, la firma con el certificado del emisor (`Dgii:Certificado:Ruta` y `Dgii:Certificado:Pin` en la configuración segura, nunca en la base de datos), obtiene el token y envía cada XML firmado. `Simulado` (solo en desarrollo) recibe todo y lo acepta en la primera consulta. **Por confirmar en la certificación con la DGII (TesteCF):** rutas y formatos exactos de los servicios y el envío del resumen de facturas de consumo menores al monto de identificación (RFCE).
+- **Retorno del estado a la caja (RF-223):** cada resultado de la DGII baja en la sincronización de maestros a la caja que emitió el e-CF (y solo a ella), por versión de fila como los demás maestros. La caja actualiza su documento y su historial de estados, y la barra fiscal alerta al cajero si tiene e-CF rechazados.
 - `Dgii:TrabajadorHabilitado = false` desactiva el trabajador (las pruebas ejecutan el despacho a demanda).
 
 | Parámetro | Uso | Obligatorio |

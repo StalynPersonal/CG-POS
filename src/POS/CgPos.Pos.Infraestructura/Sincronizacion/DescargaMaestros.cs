@@ -1,3 +1,6 @@
+using CgPos.Contratos.Sincronizacion;
+using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Sincronizacion;
 using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Sincronizacion;
@@ -56,6 +59,9 @@ internal sealed class DescargaMaestros(
                 creados += carga.Creados;
                 actualizados += carga.Actualizados;
             }
+
+            if (paquete.EstadosDgii is { Count: > 0 } estados)
+                actualizados += await AplicarEstadosDgiiAsync(estados, ahora, cancelacion);
         }
         catch (Exception excepcion) when (excepcion is CargaInicialInvalidaExcepcion or CargaMaestrosInvalidaExcepcion)
         {
@@ -78,5 +84,43 @@ internal sealed class DescargaMaestros(
             registro.LogInformation("Maestros del Central aplicados hasta la versión {Hasta}: {Creados} creados, {Actualizados} actualizados", paquete.Hasta, creados, actualizados);
 
         return new ResultadoDescargaMaestros(true, Math.Max(desde, paquete.Hasta), creados, actualizados, null);
+    }
+
+    /// <summary>
+    /// Resultado que la DGII dio a los e-CF ya emitidos por esta caja (RF-223). Solo cambia los documentos cuyo estado es distinto,
+    /// para no repetir el historial en cada descarga.
+    /// </summary>
+    private async Task<int> AplicarEstadosDgiiAsync(IReadOnlyList<EstadoDgiiCarga> estados, DateTimeOffset ahora, CancellationToken cancelacion)
+    {
+        var encfs = estados.Select(e => e.Encf).ToList();
+        var documentos = await contexto.DocumentosElectronicos.Where(d => encfs.Contains(d.Encf)).ToDictionaryAsync(d => d.Encf, cancelacion);
+        var cambiados = 0;
+
+        foreach (var estado in estados)
+        {
+            if (!documentos.TryGetValue(estado.Encf, out var documento))
+                continue;
+
+            var nuevo = estado.Estado switch
+            {
+                EstadoEnvioDgii.Aceptado => EstadoDocumentoElectronico.Aceptado,
+                EstadoEnvioDgii.AceptadoCondicional => EstadoDocumentoElectronico.AceptadoCondicional,
+                EstadoEnvioDgii.Rechazado => EstadoDocumentoElectronico.Rechazado,
+                _ => EstadoDocumentoElectronico.EnProceso,
+            };
+            if (documento.Estado == nuevo)
+                continue;
+
+            documento.CambiarEstado(nuevo, estado.Mensaje, estado.EstadoEn ?? ahora);
+            cambiados++;
+        }
+
+        if (cambiados > 0)
+        {
+            await contexto.SaveChangesAsync(cancelacion);
+            registro.LogInformation("Resultados de la DGII aplicados a {Cantidad} e-CF de la caja", cambiados);
+        }
+
+        return cambiados;
     }
 }

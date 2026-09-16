@@ -27,7 +27,9 @@ public sealed record DatosEstadoEcf(
     DateTimeOffset? CertificadoVence,
     int? DiasParaVencer,
     IReadOnlyList<DatosSecuenciaEcf> Secuencias,
-    IReadOnlyList<string> Alertas);
+    IReadOnlyList<string> Alertas,
+    int RechazadosDgii = 0,
+    int AceptadosDgii = 0);
 
 public sealed record SolicitudCargarCertificado(string Pin);
 

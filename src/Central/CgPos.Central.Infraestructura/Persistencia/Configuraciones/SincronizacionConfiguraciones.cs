@@ -51,6 +51,10 @@ internal sealed class ComprobanteRecibidoConfiguracion : IEntityTypeConfiguratio
         constructor.HasIndex(c => c.Encf).IsUnique();
         constructor.HasIndex(c => new { c.EstadoDgii, c.RecibidoEn });
         constructor.HasIndex(c => c.DocumentoId);
+
+        // El resultado de la DGII baja a la caja que emitió el e-CF, por versión de fila como los maestros.
+        constructor.Property<long>(ContextoDatosCentral.ColumnaVersion).IsRowVersion().HasConversion<byte[]>();
+        constructor.HasIndex(ContextoDatosCentral.ColumnaVersion);
     }
 }
 

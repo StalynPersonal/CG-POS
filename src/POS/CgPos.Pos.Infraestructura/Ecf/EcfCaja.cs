@@ -456,6 +456,19 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
                 alertas.Add($"Quedan {restantes:N0} comprobantes de {nombre}. Solicite un nuevo rango al Central.");
         }
 
+        // Resultado que la DGII dio a los e-CF de esta caja, que el Central devuelve en la bajada de maestros (RF-223).
+        var resultadosDgii = await contexto.DocumentosElectronicos.AsNoTracking()
+            .Where(d => d.CajaId == sesion.CajaId
+                && (d.Estado == EstadoDocumentoElectronico.Rechazado || d.Estado == EstadoDocumentoElectronico.Aceptado
+                    || d.Estado == EstadoDocumentoElectronico.AceptadoCondicional))
+            .GroupBy(d => d.Estado)
+            .Select(g => new { Estado = g.Key, Cantidad = g.Count() })
+            .ToListAsync(cancelacion);
+        var rechazadosDgii = resultadosDgii.Where(r => r.Estado == EstadoDocumentoElectronico.Rechazado).Sum(r => r.Cantidad);
+        var aceptadosDgii = resultadosDgii.Where(r => r.Estado != EstadoDocumentoElectronico.Rechazado).Sum(r => r.Cantidad);
+        if (rechazadosDgii > 0)
+            alertas.Add($"{rechazadosDgii} e-CF rechazados por la DGII. Consulte el detalle con el Central.");
+
         if (!certificado.Configurado)
             alertas.Add("La caja no tiene certificado digital instalado.");
         else if (!certificado.Cargado)
@@ -465,7 +478,7 @@ internal sealed class ServicioEcf(ContextoDatosPos contexto, ICertificadoCaja ce
         if (diasParaVencer is { } dias && diasAlerta is { } diasLimite && dias <= diasLimite)
             alertas.Add(dias < 0 ? "El certificado digital de la caja está vencido." : $"El certificado digital de la caja vence en {dias} días.");
 
-        return new DatosEstadoEcf(certificado.Configurado, certificado.Cargado, certificado.Sujeto, certificado.VenceEn, diasParaVencer, datos, alertas);
+        return new DatosEstadoEcf(certificado.Configurado, certificado.Cargado, certificado.Sujeto, certificado.VenceEn, diasParaVencer, datos, alertas, rechazadosDgii, aceptadosDgii);
     }
 
     public async Task<RespuestaCertificado> CargarCertificadoAsync(SesionUsuario sesion, string pin, CancellationToken cancelacion = default)

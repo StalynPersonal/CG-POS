@@ -21,6 +21,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
 
         PaqueteCargaInicial? organizacion = null;
         Contratos.Catalogo.PaqueteMaestros? maestros = null;
+        List<EstadoDgiiCarga>? estadosDgii = null;
 
         if (hasta > desde)
         {
@@ -51,6 +52,12 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
             }
 
             maestros = FormatoMaestros.Armar(filas);
+
+            // Resultados de la DGII de los e-CF de esta caja (RF-223): la caja los aplica a sus documentos.
+            estadosDgii = await EnRango(contexto.ComprobantesRecibidos.AsNoTracking(), desde, hasta)
+                .Where(c => c.CajaId == caja.CajaId && c.EstadoDgii != EstadoEnvioDgii.Pendiente)
+                .Select(c => new EstadoDgiiCarga(c.Encf, c.EstadoDgii, c.EstadoDgiiEn, c.MensajeDgii, c.TrackId))
+                .ToListAsync(cancelacion);
         }
 
         var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == caja.CajaId, cancelacion);
@@ -63,7 +70,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         estado.RegistrarDescarga(reloj.GetUtcNow(), desde, hasta);
         await contexto.SaveChangesAsync(cancelacion);
 
-        return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros);
+        return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null);
     }
 
     private static IQueryable<T> EnRango<T>(IQueryable<T> consulta, long desde, long hasta) where T : class =>

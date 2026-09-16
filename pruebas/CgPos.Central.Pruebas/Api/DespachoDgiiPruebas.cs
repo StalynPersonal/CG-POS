@@ -1,6 +1,9 @@
+using System.Net.Http.Json;
 using CgPos.Central.Aplicacion.Dgii;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
+using CgPos.Contratos.Serializacion;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +105,32 @@ public class DespachoDgiiPruebas(CentralEnPruebas central)
 
         Assert.Equal([5, 10, 20, 40, 60, 60],
             Enumerable.Range(1, 6).Select(intento => CgPos.Central.Infraestructura.Dgii.DespachadorDgii.Espera(intento, reintento, maximo).TotalMinutes));
+    }
+
+    [SkippableFact]
+    public async Task El_resultado_de_la_dgii_baja_solo_a_la_caja_que_emitio_el_e_cf()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var tokenUno = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var tokenDos = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaDos);
+        var marcaUno = (await BajarAsync(cliente, tokenUno, 0)).Hasta;
+        var marcaDos = (await BajarAsync(cliente, tokenDos, 0)).Hasta;
+
+        var encf = await RegistrarComprobanteAsync();
+        central.Dgii.ProgramarEnvio(encf, new RespuestaDgii(ResultadoRespuestaDgii.Rechazado, Mensaje: "Firma inválida"));
+        await central.ProcesarDgiiAsync();
+
+        var resultado = Assert.Single((await BajarAsync(cliente, tokenUno, marcaUno)).EstadosDgii!, e => e.Encf == encf);
+        Assert.Equal((EstadoEnvioDgii.Rechazado, "Firma inválida"), (resultado.Estado, resultado.Mensaje));
+        Assert.DoesNotContain((await BajarAsync(cliente, tokenDos, marcaDos)).EstadosDgii ?? [], e => e.Encf == encf);
+    }
+
+    private static async Task<PaqueteBajadaMaestros> BajarAsync(HttpClient cliente, string token, long desde)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, $"/api/sincronizacion/maestros?desde={desde}", token));
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.Content.ReadFromJsonAsync<PaqueteBajadaMaestros>(OpcionesJson.Predeterminadas))!;
     }
 
     private async Task<string> RegistrarComprobanteAsync()

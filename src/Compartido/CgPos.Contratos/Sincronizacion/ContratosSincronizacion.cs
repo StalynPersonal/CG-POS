@@ -60,10 +60,24 @@ public enum EstadoRecepcion
 /// </summary>
 /// <param name="Organizacion">Empresa, sucursales, cajas, parámetros, roles y usuarios de caja; nulo si nada de eso cambió.</param>
 /// <param name="Maestros">Catálogo, precios, promociones, fidelidad, rangos de e-CF…; nulo si nada cambió.</param>
-public sealed record PaqueteBajadaMaestros(long Desde, long Hasta, CargaInicial.PaqueteCargaInicial? Organizacion, Catalogo.PaqueteMaestros? Maestros)
+/// <param name="EstadosDgii">Resultados de la DGII de los e-CF de esa caja que cambiaron; nulo si ninguno cambió.</param>
+public sealed record PaqueteBajadaMaestros(
+    long Desde,
+    long Hasta,
+    CargaInicial.PaqueteCargaInicial? Organizacion,
+    Catalogo.PaqueteMaestros? Maestros,
+    IReadOnlyList<EstadoDgiiCarga>? EstadosDgii = null)
 {
-    public bool SinCambios => Organizacion is null && Maestros is null;
+    public bool SinCambios => Organizacion is null && Maestros is null && EstadosDgii is not { Count: > 0 };
 }
 
 /// <summary>Respuesta del Central a la recepción de un mensaje.</summary>
 public sealed record RespuestaRecepcionCentral(EstadoRecepcion Estado, string? Error = null);
+
+/// <summary>Resultado de la DGII de un e-CF emitido por una caja (RF-223): el Central lo envía en la bajada y la caja lo aplica a su documento.</summary>
+public sealed record EstadoDgiiCarga(
+    string Encf,
+    CgPos.Dominio.Sincronizacion.EstadoEnvioDgii Estado,
+    DateTimeOffset? EstadoEn,
+    string? Mensaje,
+    string? TrackId);

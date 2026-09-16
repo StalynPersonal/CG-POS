@@ -1165,6 +1165,24 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var sinCambios = await DescargarAsync(new PaqueteBajadaMaestros(desde + 500, desde + 600, null, null));
         Assert.True(sinCambios.Descargado);
         Assert.Equal(desde + 600, await MarcaAsync());
+
+        // El Central devuelve el resultado que la DGII dio al e-CF: la caja lo aplica a su documento y lo alerta al cajero.
+        var ventaCobrada = (await caja.CobrarCincelEnEfectivoAsync()).Venta!.Id;
+        var encf = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == ventaCobrada).Select(d => d.Encf).SingleAsync());
+
+        var conResultado = await DescargarAsync(new PaqueteBajadaMaestros(desde + 600, desde + 700, null, null,
+            [new EstadoDgiiCarga(encf, CgPos.Dominio.Sincronizacion.EstadoEnvioDgii.Rechazado, null, "Firma inválida", "TRK-1")]));
+        Assert.True(conResultado.Descargado);
+        Assert.Equal(desde + 700, await MarcaAsync());
+
+        var documento = await caja.EjecutarAsync<ContextoDatosPos, DocumentoElectronico>(contexto =>
+            contexto.DocumentosElectronicos.AsNoTracking().SingleAsync(d => d.Encf == encf));
+        Assert.Equal((EstadoDocumentoElectronico.Rechazado, "Firma inválida"), (documento.Estado, documento.MensajeEstado));
+
+        var estadoEcf = await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.Equal(1, estadoEcf.RechazadosDgii);
+        Assert.Contains(estadoEcf.Alertas, a => a.Contains("rechazados por la DGII"));
     }
 
     [SkippableFact]
