@@ -1,3 +1,4 @@
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Seguridad;
@@ -6,6 +7,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Infraestructura.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using Microsoft.EntityFrameworkCore;
@@ -78,7 +80,7 @@ internal sealed class ServicioDespacho(
             return new RespuestaPendiente(CodigoResultadoPendiente.OperacionInvalida, excepcion.Message, pendiente.ADatos());
         }
 
-        Registrar("Entregas.EstadoCambiado", pendiente, sesion, new { Anterior = anterior, Nuevo = pendiente.Estado });
+        await RegistrarAsync("Entregas.EstadoCambiado", pendiente, sesion, new { Anterior = anterior, Nuevo = pendiente.Estado }, cancelacion);
         await contexto.SaveChangesAsync(cancelacion);
         return new RespuestaPendiente(CodigoResultadoPendiente.Correcto, $"Pendiente {pendiente.Numero}: {NombreEstado(pendiente.Estado)}.", pendiente.ADatos());
     }
@@ -102,14 +104,14 @@ internal sealed class ServicioDespacho(
             return new RespuestaPendiente(CodigoResultadoPendiente.OperacionInvalida, excepcion.Message, pendiente.ADatos());
         }
 
-        Registrar("Entregas.EntregaRegistrada", pendiente, sesion, new
+        await RegistrarAsync("Entregas.EntregaRegistrada", pendiente, sesion, new
         {
             entrega.Numero,
             entrega.RecibeNombre,
             entrega.RecibeCedula,
             Lineas = entrega.Lineas.Select(l => new { l.NumeroLineaVenta, l.Cantidad, l.Serial }),
             pendiente.Estado,
-        });
+        }, cancelacion);
         await contexto.SaveChangesAsync(cancelacion);
 
         // La constancia se imprime después de guardar: un fallo de la impresora no deshace la entrega.
@@ -150,7 +152,7 @@ internal sealed class ServicioDespacho(
                 pendiente.ADatos(), CatalogoPermisos.AnularPendiente);
 
         pendiente.Anular(solicitud.Motivo, permiso.SupervisorNombre ?? sesion.Nombre, ahora);
-        Registrar("Entregas.PendienteAnulado", pendiente, sesion, new { pendiente.Numero, pendiente.VentaNumero }, pendiente.MotivoAnulacion,
+        await RegistrarAsync("Entregas.PendienteAnulado", pendiente, sesion, new { pendiente.Numero, pendiente.VentaNumero }, cancelacion, pendiente.MotivoAnulacion,
             permiso.SupervisorId is { } supervisorId ? new UsuarioAuditoria(supervisorId, permiso.SupervisorNombre!) : null);
         await contexto.SaveChangesAsync(cancelacion);
 
@@ -158,9 +160,10 @@ internal sealed class ServicioDespacho(
     }
 
     /// <summary>Cada cambio del pendiente va al Central con el documento completo y queda auditado.</summary>
-    private void Registrar(string accion, PendienteEntrega pendiente, SesionUsuario sesion, object detalle, string? motivo = null, UsuarioAuditoria? autorizadoPor = null)
+    private async Task RegistrarAsync(string accion, PendienteEntrega pendiente, SesionUsuario sesion, object detalle, CancellationToken cancelacion,
+        string? motivo = null, UsuarioAuditoria? autorizadoPor = null)
     {
-        bandejaSalida.Encolar("Entregas.PendienteActualizado", pendiente.Id, pendiente.ADatos());
+        bandejaSalida.Encolar("Entregas.PendienteActualizado", pendiente.Numero, await contexto.PendienteAsync(pendiente, cancelacion));
         auditoria.Registrar(new EntradaAuditoria(accion, TipoEntidad, pendiente.Numero, Detalle: detalle, Motivo: motivo,
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre), AutorizadoPor: autorizadoPor));
     }

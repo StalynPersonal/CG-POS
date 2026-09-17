@@ -54,7 +54,7 @@ public sealed class NotaCreditoCentral : Entidad
         : hoy > VenceEn ? EstadoNotaCreditoCentral.Vencida
         : EstadoNotaCreditoCentral.Vigente;
 
-    public static NotaCreditoCentral Registrar(Guid id, string numero, string? encf, Guid cajaId, Guid sucursalId, string? clienteDocumento, string? clienteNombre,
+    public static NotaCreditoCentral Registrar(string numero, string? encf, Guid cajaId, Guid sucursalId, string? clienteDocumento, string? clienteNombre,
         string moneda, decimal total, DateOnly venceEn, DateTimeOffset emitidaEn, DateTimeOffset ahora)
     {
         if (total <= 0)
@@ -62,7 +62,6 @@ public sealed class NotaCreditoCentral : Entidad
 
         return new NotaCreditoCentral
         {
-            Id = Validar.Id(id, "Nota de crédito"),
             Numero = Validar.Texto(numero, "Número de la nota de crédito", LargoMaximoNumero),
             Encf = Validar.TextoOpcional(encf, "e-NCF", LargoMaximoEncf),
             CajaId = Validar.Id(cajaId, "Caja"),
@@ -99,22 +98,24 @@ public sealed class NotaCreditoCentral : Entidad
     }
 }
 
-/// <summary>Consumo de una nota de crédito informado por una caja. Una venta la consume una sola vez (RF-38).</summary>
+/// <summary>
+/// Consumo de una nota de crédito informado por una caja. Una factura la consume una sola vez (RF-38): la nota y la factura, por sus números,
+/// identifican el consumo, que puede llegar antes que la nota.
+/// </summary>
 public sealed class ConsumoNotaCreditoCentral : Entidad
 {
     private ConsumoNotaCreditoCentral()
     {
     }
 
-    public Guid NotaCreditoId { get; private set; }
-    public Guid VentaId { get; private set; }
+    public string NotaCreditoNumero { get; private set; } = string.Empty;
     public string VentaNumero { get; private set; } = string.Empty;
     public Guid CajaId { get; private set; }
     public decimal Monto { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
     public DateTimeOffset RegistradoEn { get; private set; }
 
-    public static ConsumoNotaCreditoCentral Registrar(Guid notaCreditoId, Guid ventaId, string? ventaNumero, Guid cajaId, decimal monto, DateTimeOffset fecha,
+    public static ConsumoNotaCreditoCentral Registrar(string notaCreditoNumero, string ventaNumero, Guid cajaId, decimal monto, DateTimeOffset fecha,
         DateTimeOffset ahora)
     {
         if (monto <= 0)
@@ -122,9 +123,8 @@ public sealed class ConsumoNotaCreditoCentral : Entidad
 
         return new ConsumoNotaCreditoCentral
         {
-            NotaCreditoId = Validar.Id(notaCreditoId, "Nota de crédito"),
-            VentaId = Validar.Id(ventaId, "Venta"),
-            VentaNumero = Validar.TextoOpcional(ventaNumero, "Número de la venta", NotaCreditoCentral.LargoMaximoNumero) ?? string.Empty,
+            NotaCreditoNumero = Validar.Texto(notaCreditoNumero, "Número de la nota de crédito", NotaCreditoCentral.LargoMaximoNumero),
+            VentaNumero = Validar.Texto(ventaNumero, "Número de la venta", NotaCreditoCentral.LargoMaximoNumero),
             CajaId = Validar.Id(cajaId, "Caja"),
             Monto = monto,
             Fecha = fecha,
@@ -147,6 +147,10 @@ public sealed class ReservaNotaCreditoCentral : Entidad
 
     public Guid NotaCreditoId { get; private set; }
     public Guid CajaId { get; private set; }
+
+    /// <summary>Factura de la caja para la que se retuvo el saldo: con ella la caja la libera o la confirma al consumir.</summary>
+    public string VentaNumero { get; private set; } = string.Empty;
+
     public decimal Monto { get; private set; }
     public DateTimeOffset CreadaEn { get; private set; }
     public DateTimeOffset VenceEn { get; private set; }
@@ -157,7 +161,7 @@ public sealed class ReservaNotaCreditoCentral : Entidad
 
     public bool EstaVigente(DateTimeOffset ahora) => CerradaEn is null && VenceEn > ahora;
 
-    public static ReservaNotaCreditoCentral Crear(Guid notaCreditoId, Guid cajaId, decimal monto, DateTimeOffset ahora, TimeSpan vigencia)
+    public static ReservaNotaCreditoCentral Crear(Guid notaCreditoId, Guid cajaId, string ventaNumero, decimal monto, DateTimeOffset ahora, TimeSpan vigencia)
     {
         if (monto <= 0)
             throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto de la reserva debe ser mayor que cero.");
@@ -166,6 +170,7 @@ public sealed class ReservaNotaCreditoCentral : Entidad
         {
             NotaCreditoId = Validar.Id(notaCreditoId, "Nota de crédito"),
             CajaId = Validar.Id(cajaId, "Caja"),
+            VentaNumero = Validar.Texto(ventaNumero, "Número de la venta", NotaCreditoCentral.LargoMaximoNumero),
             Monto = monto,
             CreadaEn = ahora,
             VenceEn = ahora + vigencia,

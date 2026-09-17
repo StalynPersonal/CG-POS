@@ -39,7 +39,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
 
         Assert.Equal(1, documento.Reenvios);
         Assert.Equal(CentralEnPruebas.Sucursal, documento.SucursalId);
-        Assert.Equal(mensaje.AgregadoId, comprobante.AgregadoId);
+        Assert.Equal(mensaje.Referencia, comprobante.Referencia);
         Assert.Equal(EstadoEnvioDgii.Pendiente, comprobante.EstadoDgii);
         Assert.StartsWith("<ECF>", comprobante.XmlFirmado);
         Assert.True(estado.MensajesRecibidos >= 1 && estado.Duplicados >= 1);
@@ -55,7 +55,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         var original = MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf());
         Assert.Equal(EstadoRecepcion.Recibido, (await EnviarAsync(cliente, token, original)).Cuerpo!.Estado);
 
-        var otroContenido = MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf(), id: original.Id, agregadoId: original.AgregadoId);
+        var otroContenido = MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf(), id: original.Id, numero: original.Referencia);
         var distinto = await EnviarAsync(cliente, token, otroContenido);
         Assert.Equal((HttpStatusCode.UnprocessableEntity, EstadoRecepcion.Rechazado), (distinto.Estado, distinto.Cuerpo!.Estado));
         Assert.Contains("otro contenido", distinto.Cuerpo.Error);
@@ -111,7 +111,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         var (documentos, comprobantes, conflicto) = await central.UsarContextoAsync(async contexto => (
             await contexto.DocumentosRecibidos.CountAsync(d => d.Id == primera.Id || d.Id == segunda.Id),
             await contexto.ComprobantesRecibidos.Where(c => c.Encf == encf).Select(c => c.DocumentoId).ToListAsync(),
-            await contexto.ConflictosSincronizacion.SingleAsync(c => c.MensajeId == segunda.Id)));
+            await contexto.ConflictosSincronizacion.SingleAsync(c => c.MensajeId == segunda.Id && c.Tipo == TipoConflictoSincronizacion.EncfDuplicado)));
 
         Assert.Equal(2, documentos);
         Assert.Equal([primera.Id], comprobantes);
@@ -164,14 +164,15 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
 
     private static string NuevoEncf() => $"E32{Random.Shared.NextInt64(1, 9_999_999_999):D10}";
 
-    private static MensajeSincronizacion MensajeVenta(Guid cajaId, string encf, Guid? id = null, Guid? agregadoId = null, bool alterarXml = false)
+    private static MensajeSincronizacion MensajeVenta(Guid cajaId, string encf, Guid? id = null, string? numero = null, bool alterarXml = false)
     {
         var xml = $"<ECF><Encabezado><eNCF>{encf}</eNCF></Encabezado><Signature>firma</Signature></ECF>";
         var ecf = new DocumentoElectronicoParaCentral(encf, (TipoComprobante)32, alterarXml ? xml.Replace("firma", "otra", StringComparison.Ordinal) : xml,
             HashSincronizacion.Calcular(xml), DateTimeOffset.UtcNow);
-        var contenido = JsonSerializer.Serialize(new { venta = new { numeroTransaccion = "01-01-00000001", total = 850.00m }, cajaId, ecf }, OpcionesJson.Predeterminadas);
+        numero ??= CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura);
+        var contenido = JsonSerializer.Serialize(new { numero, total = 850.00m, ecf }, OpcionesJson.Predeterminadas);
 
-        return new MensajeSincronizacion(id ?? Guid.CreateVersion7(), TiposMensaje.VentaCobrada, agregadoId ?? Guid.CreateVersion7(), contenido,
+        return new MensajeSincronizacion(id ?? Guid.CreateVersion7(), TiposMensaje.VentaCobrada, numero, contenido,
             HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja, DateTimeOffset.UtcNow);
     }
 

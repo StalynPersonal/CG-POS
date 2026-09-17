@@ -36,11 +36,3 @@ public sealed record RespuestaFidelidad(CodigoResultadoFidelidad Resultado, stri
 {
     public bool Exitosa => Resultado == CodigoResultadoFidelidad.Correcto;
 }
-
-/// <summary>Mensaje para el Central: inscripción hecha en caja (RF-237).</summary>
-public sealed record DocumentoInscripcionFidelidad(Guid MiembroId, string Cedula, string Nombre, string? Telefono, string? Correo, Guid CajaId, Guid SucursalId,
-    string UsuarioNombre, DateTimeOffset InscritoEn);
-
-/// <summary>Mensaje para el Central: puntos acumulados, canjeados o reversados en la caja.</summary>
-public sealed record DocumentoMovimientoPuntos(Guid Id, Guid MiembroId, string Cedula, TipoMovimientoPuntos Tipo, int Puntos, Guid? VentaId, Guid? DevolucionId,
-    string Documento, Guid CajaId, Guid SucursalId, DateTimeOffset Fecha, DateOnly? VenceEn);

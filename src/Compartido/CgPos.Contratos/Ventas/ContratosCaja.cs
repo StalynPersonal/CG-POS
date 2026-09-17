@@ -119,11 +119,6 @@ public sealed record DatosCierre(
     IReadOnlyList<DatosCierreDenominacion> Denominaciones,
     IReadOnlyList<DatosMovimientoCaja> Movimientos);
 
-/// <summary>Mensaje para el Central de un retiro o un relevo.</summary>
-public sealed record DocumentoMovimientoCaja(DatosMovimientoCaja Movimiento, Guid TurnoId, long TurnoNumero, Guid CajaId, Guid SucursalId);
-
-public sealed record DocumentoReaperturaCierre(Guid CierreId, Guid TurnoId, long TurnoNumero, Guid CajaId, Guid SucursalId, string ReabiertoPorNombre,
-    string Motivo, DateTimeOffset ReabiertoEn);
 
 public enum CodigoResultadoCaja
 {

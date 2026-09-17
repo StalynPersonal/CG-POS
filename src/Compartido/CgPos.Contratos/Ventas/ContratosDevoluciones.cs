@@ -110,11 +110,6 @@ public sealed record DatosNotaCredito(
     string? ReembolsoReferencia = null,
     string? ReembolsoDetalle = null);
 
-/// <summary>Mensaje para el Central: la nota de crédito y su XML firmado. Su saldo solo está disponible en otras tiendas al sincronizar (RF-235).</summary>
-public sealed record DocumentoNotaCreditoEmitida(DatosNotaCredito NotaCredito, Guid SucursalId, Guid CajaId, Guid? TurnoId, DocumentoElectronicoParaCentral Ecf);
-
-public sealed record DocumentoConsumoNotaCredito(Guid NotaCreditoId, string? Encf, Guid VentaId, string VentaNumero, Guid CajaId, decimal Monto, decimal SaldoRestante,
-    DateTimeOffset Fecha);
 
 public sealed record DatosSaldoNotaCredito(Guid Id, string Numero, string? Encf, string ClienteNombre, decimal Total, decimal Saldo, DateOnly VenceEn, EstadoNotaCredito Estado);
 

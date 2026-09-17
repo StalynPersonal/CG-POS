@@ -11,8 +11,6 @@ internal sealed class PendienteCentralConfiguracion : IEntityTypeConfiguration<P
     {
         constructor.ToTable("PendientesEntrega");
         constructor.HasKey(p => p.Id);
-
-        // El Id es el del pendiente en la caja: el mismo documento no se duplica aunque el mensaje se reenvíe.
         constructor.Property(p => p.Id).ValueGeneratedNever();
 
         constructor.Property(p => p.Numero).HasMaxLength(PendienteCentral.LargoMaximoNumero).IsRequired();
@@ -32,7 +30,8 @@ internal sealed class PendienteCentralConfiguracion : IEntityTypeConfiguration<P
 
         // El Central lista por estado y por la fecha comprometida, para ver primero los atrasados.
         constructor.HasIndex(p => new { p.Estado, p.FechaComprometida });
-        constructor.HasIndex(p => p.Numero);
+        // El número identifica el pendiente en toda la empresa: el mismo documento no se duplica aunque el mensaje se reenvíe.
+        constructor.HasIndex(p => p.Numero).IsUnique();
         constructor.HasIndex(p => p.SucursalId);
     }
 }

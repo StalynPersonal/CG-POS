@@ -13,14 +13,18 @@ public interface IServicioNotasCreditoCentral
 {
     public const int TamanoMaximoPagina = 100;
 
+    /// <summary>Nota de crédito tal como la consulta una caja, sin Id del Central.</summary>
     /// <param name="codigo">e-NCF o número de la nota de crédito.</param>
-    Task<DatosNotaCreditoCentral?> BuscarAsync(string codigo, CancellationToken cancelacion = default);
+    Task<DatosNotaCreditoParaCaja?> BuscarParaCajaAsync(string codigo, CancellationToken cancelacion = default);
 
-    /// <summary>Retiene saldo para esa caja hasta que confirme el consumo o venza la reserva.</summary>
-    Task<RespuestaReservaNotaCredito> ReservarAsync(Guid notaCreditoId, Guid cajaId, decimal monto, CancellationToken cancelacion = default);
+    /// <summary>
+    /// Retiene saldo de la nota (por su número) para la factura <paramref name="ventaNumero"/> de esa caja, hasta que confirme el consumo o venza la
+    /// reserva. Una reserva abierta de la misma factura se reemplaza.
+    /// </summary>
+    Task<RespuestaReservaNotaCredito> ReservarAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, decimal monto, CancellationToken cancelacion = default);
 
-    /// <returns><c>false</c> si la reserva no existe, ya se cerró o es de otra caja.</returns>
-    Task<bool> LiberarReservaAsync(Guid reservaId, Guid cajaId, CancellationToken cancelacion = default);
+    /// <returns><c>false</c> si esa caja no tiene una reserva abierta de la nota para esa factura.</returns>
+    Task<bool> LiberarReservaAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, CancellationToken cancelacion = default);
 
     Task<PaginaNotasCreditoCentral> ListarAsync(string? buscar, EstadoNotaCreditoCentral? estado, bool soloSobregiradas, int pagina, int tamano,
         CancellationToken cancelacion = default);

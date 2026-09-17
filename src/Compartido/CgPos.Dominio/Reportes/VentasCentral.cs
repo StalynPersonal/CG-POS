@@ -34,7 +34,8 @@ public sealed class ComprobanteVentaCentral : Entidad
     public string Numero { get; private set; } = string.Empty;
     public Guid SucursalId { get; private set; }
     public Guid CajaId { get; private set; }
-    public Guid? TurnoId { get; private set; }
+    /// <summary>Número del turno en la caja; nulo en una nota de crédito emitida fuera de un turno.</summary>
+    public long? TurnoNumero { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
     /// <summary>Momento del cobro o de la emisión de la nota, tal como lo registró la caja.</summary>
@@ -70,7 +71,7 @@ public sealed class ComprobanteVentaCentral : Entidad
     public IReadOnlyList<ImpuestoVentaCentral> Impuestos => _impuestos;
     public IReadOnlyList<PagoVentaCentral> Pagos => _pagos;
 
-    public static ComprobanteVentaCentral Registrar(Guid id, TipoComprobanteVenta tipo, string numero, Guid sucursalId, Guid cajaId, Guid? turnoId,
+    public static ComprobanteVentaCentral Registrar(TipoComprobanteVenta tipo, string numero, Guid sucursalId, Guid cajaId, long? turnoNumero,
         string? usuarioNombre, DateTimeOffset fecha, DateOnly fechaOperacion, TipoComprobante tipoFiscal, string? encf, string? encfModificado,
         TipoDocumentoIdentidad? clienteTipoDocumento, string? clienteDocumento, string? clienteNombre, string moneda, decimal subtotal, decimal descuento,
         decimal impuesto, decimal impuestoRetenido, decimal total, int cantidadLineas, DateTimeOffset ahora)
@@ -78,12 +79,11 @@ public sealed class ComprobanteVentaCentral : Entidad
         var signo = tipo == TipoComprobanteVenta.NotaCredito ? -1m : 1m;
         return new ComprobanteVentaCentral
         {
-            Id = Validar.Id(id, "Comprobante de venta"),
             Tipo = tipo,
             Numero = Validar.Texto(numero, "Número del comprobante", LargoMaximoNumero),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             CajaId = Validar.Id(cajaId, "Caja"),
-            TurnoId = turnoId,
+            TurnoNumero = turnoNumero,
             UsuarioNombre = Validar.TextoOpcional(usuarioNombre, "Usuario", LargoMaximoTexto) ?? string.Empty,
             Fecha = fecha,
             FechaOperacion = fechaOperacion,

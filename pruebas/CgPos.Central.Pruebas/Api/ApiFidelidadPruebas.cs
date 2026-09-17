@@ -26,22 +26,23 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
         var cedula = CedulaValida();
-        var (miembroId, inscripcion) = Inscripcion(cedula);
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenUno, inscripcion));
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenUno, Inscripcion(cedula)));
+        var miembroId = (await BuscarMiembroAsync(cliente, admin, cedula)).Id;
 
         var vencePronto = DateOnly.FromDateTime(DateTime.Today).AddDays(20);
         var venceDespues = DateOnly.FromDateTime(DateTime.Today).AddMonths(8);
-        var acumulacion = Movimiento(CentralEnPruebas.CajaUno, miembroId, cedula, TipoMovimientoPuntos.Acumulacion, 120, vencePronto);
+        var acumulacion = Movimiento(CentralEnPruebas.CajaUno, cedula, TipoMovimientoPuntos.Acumulacion, 120, vencePronto);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenUno, acumulacion));
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenDos,
-            Movimiento(CentralEnPruebas.CajaDos, miembroId, cedula, TipoMovimientoPuntos.Acumulacion, 80, venceDespues)));
+            Movimiento(CentralEnPruebas.CajaDos, cedula, TipoMovimientoPuntos.Acumulacion, 80, venceDespues)));
 
-        // Un reenvío del mismo movimiento no acumula dos veces.
+        // Un reenvío del mismo movimiento no acumula dos veces, ni aunque llegue en otro mensaje: lo identifican el documento y el tipo.
         Assert.Equal(EstadoRecepcion.Duplicado, await EnviarAsync(cliente, tokenUno, acumulacion));
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenUno, acumulacion with { Id = Guid.CreateVersion7() }));
 
         // El canje gasta primero los puntos que vencen antes, para que el cliente no los pierda.
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenDos,
-            Movimiento(CentralEnPruebas.CajaDos, miembroId, cedula, TipoMovimientoPuntos.Canje, -50, null)));
+            Movimiento(CentralEnPruebas.CajaDos, cedula, TipoMovimientoPuntos.Canje, -50, null)));
 
         var miembro = await BuscarMiembroAsync(cliente, admin, cedula);
         Assert.Equal((150, 70, vencePronto), (miembro.Puntos, miembro.PuntosPorVencer, miembro.ProximoVencimiento));
@@ -65,11 +66,10 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
         var cedula = CedulaValida();
-        var (miembroId, inscripcion) = Inscripcion(cedula);
 
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token,
-            Movimiento(CentralEnPruebas.CajaUno, miembroId, cedula, TipoMovimientoPuntos.Acumulacion, 45, null)));
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, inscripcion));
+            Movimiento(CentralEnPruebas.CajaUno, cedula, TipoMovimientoPuntos.Acumulacion, 45, null)));
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Inscripcion(cedula)));
 
         var maestro = Assert.Single((await BajarAsync(cliente, token, 0)).Maestros!.MiembrosFidelidad!, m => m.Cedula == cedula);
         Assert.Equal(45, maestro.SaldoPuntos);
@@ -85,8 +85,8 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
         var cedula = CedulaValida();
-        var (miembroId, inscripcion) = Inscripcion(cedula);
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, inscripcion));
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Inscripcion(cedula)));
+        var miembroId = (await BuscarMiembroAsync(cliente, admin, cedula)).Id;
 
         var sinMotivo = await AjustarAsync(cliente, admin, miembroId, 100, "  ");
         Assert.False(sinMotivo.Exitosa);
@@ -129,21 +129,21 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    private static (Guid MiembroId, MensajeSincronizacion Mensaje) Inscripcion(string cedula)
+    private static MensajeSincronizacion Inscripcion(string cedula)
     {
-        var miembroId = Guid.CreateVersion7();
-        var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(miembroId, cedula, "Miembro de Fidelidad", null, null, CentralEnPruebas.CajaUno,
-            CentralEnPruebas.Sucursal, "Cajero Desarrollo", DateTimeOffset.UtcNow), OpcionesJson.Predeterminadas);
-        return (miembroId, new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, miembroId, contenido,
-            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow));
+        var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(cedula, "Miembro de Fidelidad", null, null, "Cajero Desarrollo", DateTimeOffset.UtcNow),
+            OpcionesJson.Predeterminadas);
+        return new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, cedula, contenido,
+            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
     }
 
-    private static MensajeSincronizacion Movimiento(Guid cajaId, Guid miembroId, string cedula, TipoMovimientoPuntos tipo, int puntos, DateOnly? venceEn)
+    /// <summary>Movimiento de una factura nueva de esa caja.</summary>
+    private static MensajeSincronizacion Movimiento(Guid cajaId, string cedula, TipoMovimientoPuntos tipo, int puntos, DateOnly? venceEn)
     {
-        var id = Guid.CreateVersion7();
-        var contenido = JsonSerializer.Serialize(new DocumentoMovimientoPuntos(id, miembroId, cedula, tipo, puntos, Guid.CreateVersion7(), null, "01-01-00000010",
-            cajaId, CentralEnPruebas.Sucursal, DateTimeOffset.UtcNow, venceEn), OpcionesJson.Predeterminadas);
-        return new MensajeSincronizacion(id, TiposMensaje.MovimientoPuntos, id, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja, DateTimeOffset.UtcNow);
+        var factura = CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura);
+        var contenido = JsonSerializer.Serialize(new DocumentoMovimientoPuntos(cedula, tipo, puntos, factura, DateTimeOffset.UtcNow, venceEn),
+            OpcionesJson.Predeterminadas);
+        return new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.MovimientoPuntos, $"{factura}-{tipo}", contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja, DateTimeOffset.UtcNow);
     }
 
     private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, MensajeSincronizacion mensaje)

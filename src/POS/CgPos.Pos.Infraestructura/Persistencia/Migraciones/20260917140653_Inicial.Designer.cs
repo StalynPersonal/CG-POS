@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosPos))]
-    [Migration("20260917035341_Inicial")]
+    [Migration("20260917140653_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -3216,9 +3216,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("AgregadoId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTimeOffset?>("ConfirmadoEn")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
@@ -3252,6 +3249,12 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
                     b.Property<string>("TipoMensaje")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -3263,7 +3266,7 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AgregadoId");
+                    b.HasIndex("Referencia");
 
                     b.HasIndex("Estado", "ProximoIntentoEn")
                         .HasDatabaseName("IX_BandejaSalida_Estado_ProximoIntentoEn");

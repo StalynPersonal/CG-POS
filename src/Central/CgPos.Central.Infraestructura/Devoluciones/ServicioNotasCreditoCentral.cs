@@ -15,20 +15,26 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
 {
     private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
 
-    public async Task<DatosNotaCreditoCentral?> BuscarAsync(string codigo, CancellationToken cancelacion = default)
+    public async Task<DatosNotaCreditoParaCaja?> BuscarParaCajaAsync(string codigo, CancellationToken cancelacion = default)
     {
         var buscado = (codigo ?? string.Empty).Trim().ToUpperInvariant();
         if (buscado.Length == 0)
             return null;
 
         var nota = await contexto.NotasCredito.AsNoTracking().FirstOrDefaultAsync(n => n.Encf == buscado || n.Numero == buscado, cancelacion);
-        return nota is null ? null : (await DatosAsync([nota], cancelacion))[0];
+        return nota is null ? null : ParaCaja((await DatosAsync([nota], cancelacion))[0]);
     }
 
-    public async Task<RespuestaReservaNotaCredito> ReservarAsync(Guid notaCreditoId, Guid cajaId, decimal monto, CancellationToken cancelacion = default)
+    public async Task<RespuestaReservaNotaCredito> ReservarAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, decimal monto,
+        CancellationToken cancelacion = default)
     {
         if (monto <= 0)
             return new RespuestaReservaNotaCredito(false, "El monto a reservar debe ser mayor que cero.");
+        if (string.IsNullOrWhiteSpace(ventaNumero))
+            return new RespuestaReservaNotaCredito(false, "Indique la factura para la que se reserva el saldo.");
+
+        var numero = (notaCreditoNumero ?? string.Empty).Trim();
+        var factura = ventaNumero.Trim();
 
         var minutos = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.NotasCreditoMinutosReserva, cancelacion);
         var ahora = reloj.GetUtcNow();
@@ -36,7 +42,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         // La fila de la nota se bloquea mientras se calcula el disponible: dos cajas no pueden reservar el mismo saldo.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
         var nota = await contexto.NotasCredito
-            .FromSql($"SELECT * FROM NotasCredito WITH (UPDLOCK, ROWLOCK) WHERE Id = {notaCreditoId}")
+            .FromSql($"SELECT * FROM NotasCredito WITH (UPDLOCK, ROWLOCK) WHERE Numero = {numero}")
             .SingleOrDefaultAsync(cancelacion);
         if (nota is null)
             return new RespuestaReservaNotaCredito(false, "La nota de crédito no existe en el Central.");
@@ -48,28 +54,38 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         foreach (var vencida in reservas.Where(r => !r.EstaVigente(ahora)))
             vencida.Cerrar("Vencida", ahora);
 
-        var disponible = nota.Saldo - reservas.Where(r => r.EstaVigente(ahora)).Sum(r => r.Monto);
+        // Un reintento del cobro de la misma factura reemplaza su reserva anterior.
+        foreach (var anterior in reservas.Where(r => r.CajaId == cajaId && r.VentaNumero == factura && r.CerradaEn is null))
+            anterior.Cerrar("Reemplazada", ahora);
+
+        var disponible = nota.Saldo - reservas.Where(r => r.CerradaEn is null && r.EstaVigente(ahora)).Sum(r => r.Monto);
         if (disponible <= 0)
             return new RespuestaReservaNotaCredito(false, $"La nota de crédito {nota.Encf ?? nota.Numero} no tiene saldo disponible.");
 
         var reservado = Math.Min(monto, disponible);
-        var reserva = ReservaNotaCreditoCentral.Crear(nota.Id, cajaId, reservado, ahora, TimeSpan.FromMinutes(minutos));
+        var reserva = ReservaNotaCreditoCentral.Crear(nota.Id, cajaId, factura, reservado, ahora, TimeSpan.FromMinutes(minutos));
         contexto.ReservasNotaCredito.Add(reserva);
         await contexto.SaveChangesAsync(cancelacion);
         await transaccion.CommitAsync(cancelacion);
 
         var datos = (await DatosAsync([nota], cancelacion))[0];
         var mensaje = reservado < monto ? $"Solo hay {reservado:N2} {nota.Moneda} disponible en la nota de crédito." : null;
-        return new RespuestaReservaNotaCredito(true, mensaje, reserva.Id, reservado, reserva.VenceEn, datos);
+        return new RespuestaReservaNotaCredito(true, mensaje, reservado, reserva.VenceEn, ParaCaja(datos));
     }
 
-    public async Task<bool> LiberarReservaAsync(Guid reservaId, Guid cajaId, CancellationToken cancelacion = default)
+    public async Task<bool> LiberarReservaAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, CancellationToken cancelacion = default)
     {
-        var reserva = await contexto.ReservasNotaCredito.SingleOrDefaultAsync(r => r.Id == reservaId && r.CajaId == cajaId, cancelacion);
-        if (reserva is null || reserva.CerradaEn is not null)
+        var numero = (notaCreditoNumero ?? string.Empty).Trim();
+        var factura = (ventaNumero ?? string.Empty).Trim();
+        var reservas = await contexto.ReservasNotaCredito
+            .Where(r => r.CajaId == cajaId && r.VentaNumero == factura && r.CerradaEn == null)
+            .Join(contexto.NotasCredito.Where(n => n.Numero == numero), r => r.NotaCreditoId, n => n.Id, (r, _) => r)
+            .ToListAsync(cancelacion);
+        if (reservas.Count == 0)
             return false;
 
-        reserva.Cerrar("Liberada", reloj.GetUtcNow());
+        foreach (var reserva in reservas)
+            reserva.Cerrar("Liberada", reloj.GetUtcNow());
         await contexto.SaveChangesAsync(cancelacion);
         return true;
     }
@@ -107,16 +123,17 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
 
     public async Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(Guid notaCreditoId, CancellationToken cancelacion = default)
     {
-        var consumos = await contexto.ConsumosNotaCredito.AsNoTracking().Where(c => c.NotaCreditoId == notaCreditoId).ToListAsync(cancelacion);
-        var reservas = await contexto.ReservasNotaCredito.AsNoTracking().Where(r => r.NotaCreditoId == notaCreditoId).ToListAsync(cancelacion);
         var nota = await contexto.NotasCredito.AsNoTracking().SingleOrDefaultAsync(n => n.Id == notaCreditoId, cancelacion);
+        var numero = nota?.Numero;
+        var consumos = await contexto.ConsumosNotaCredito.AsNoTracking().Where(c => c.NotaCreditoNumero == numero).ToListAsync(cancelacion);
+        var reservas = await contexto.ReservasNotaCredito.AsNoTracking().Where(r => r.NotaCreditoId == notaCreditoId).ToListAsync(cancelacion);
         var cajas = await CodigosCajasAsync(consumos.Select(c => c.CajaId).Concat(reservas.Select(r => r.CajaId)), cancelacion);
         var ahora = reloj.GetUtcNow();
 
         var movimientos = consumos
             .Select(c => new DatosMovimientoNotaCredito(c.Fecha, "Consumo", cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.Monto, $"Venta {c.VentaNumero}"))
             .Concat(reservas.Select(r => new DatosMovimientoNotaCredito(r.CreadaEn, "Reserva", cajas.GetValueOrDefault(r.CajaId) ?? string.Empty, r.Monto,
-                r.Cierre ?? (r.EstaVigente(ahora) ? "Vigente" : "Vencida"))))
+                $"Venta {r.VentaNumero}: {r.Cierre ?? (r.EstaVigente(ahora) ? "Vigente" : "Vencida")}")))
             .ToList();
 
         if (nota is { ProrrogadaEn: { } prorrogada })
@@ -181,6 +198,10 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
                 nota.MotivoProrroga);
         }).ToList();
     }
+
+    private static DatosNotaCreditoParaCaja ParaCaja(DatosNotaCreditoCentral nota) =>
+        new(nota.Numero, nota.Encf, nota.SucursalCodigo, nota.CajaCodigo, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Total, nota.Disponible,
+            nota.VenceEn, nota.Estado);
 
     private async Task<Dictionary<Guid, string>> CodigosCajasAsync(IEnumerable<Guid> ids, CancellationToken cancelacion)
     {

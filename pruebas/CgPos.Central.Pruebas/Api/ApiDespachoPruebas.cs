@@ -42,7 +42,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         var porCliente = await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={aTiempo.VentaNumero}");
         Assert.Equal(aTiempo.Numero, Assert.Single(porCliente.Elementos).Numero);
 
-        var detalle = await ObtenerAsync<DetallePendienteCentral>(cliente, admin, $"/api/manager/despacho/pendientes/{atrasado.Id}");
+        var detalle = await ObtenerAsync<DetallePendienteCentral>(cliente, admin, $"/api/manager/despacho/pendientes/{resumen.Id}");
         Assert.Equal(atrasado.Numero, detalle.Pendiente.Numero);
         Assert.Equal("Cincel", Assert.Single(detalle.Pendiente.Lineas).Descripcion);
     }
@@ -95,23 +95,23 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    private static DatosPendienteEntrega Pendiente(Guid cajaId, MetodoEntrega metodo, EstadoPendiente estado, DateOnly? comprometida, decimal cantidad,
+    private static DocumentoPendienteEntrega Pendiente(Guid cajaId, MetodoEntrega metodo, EstadoPendiente estado, DateOnly? comprometida, decimal cantidad,
         decimal entregada)
     {
-        var sufijo = Random.Shared.Next(100_000, 999_999);
         var creado = DateTimeOffset.UtcNow.AddHours(-2);
-        return new DatosPendienteEntrega(Guid.CreateVersion7(), $"PE-{sufijo}", Guid.CreateVersion7(), $"01-01-{sufijo}", CentralEnPruebas.Sucursal, cajaId,
-            metodo, estado, metodo == MetodoEntrega.RetiroAlmacen ? Guid.CreateVersion7() : null, metodo == MetodoEntrega.RetiroAlmacen ? "Almacén Central" : null,
+        return new DocumentoPendienteEntrega(CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.PendienteEntrega),
+            CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura),
+            metodo, estado, metodo == MetodoEntrega.RetiroAlmacen ? "ALM01" : null, metodo == MetodoEntrega.RetiroAlmacen ? "Almacén Central" : null,
             metodo == MetodoEntrega.Envio ? "Calle Principal 10" : null, "Los Prados", "Santo Domingo", "Casa azul", "8095551234", "Transporte Veloz", 350m,
             comprometida, "Llamar antes", "00113918205", "Cliente de Despacho", "Cajero Desarrollo", null, creado, creado, "Cajero Desarrollo", null,
             [new DatosLineaPendiente(1, "CINCEL", "Cincel", "UND", 0, false, cantidad, entregada, null)],
             []);
     }
 
-    private static MensajeSincronizacion Mensaje(string tipo, DatosPendienteEntrega pendiente, Guid cajaId)
+    private static MensajeSincronizacion Mensaje(string tipo, DocumentoPendienteEntrega pendiente, Guid cajaId)
     {
         var contenido = JsonSerializer.Serialize(pendiente, OpcionesJson.Predeterminadas);
-        return new MensajeSincronizacion(Guid.CreateVersion7(), tipo, pendiente.Id, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja,
+        return new MensajeSincronizacion(Guid.CreateVersion7(), tipo, pendiente.Numero, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja,
             DateTimeOffset.UtcNow);
     }
 

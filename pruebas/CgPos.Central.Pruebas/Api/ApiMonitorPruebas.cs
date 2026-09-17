@@ -125,8 +125,9 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
             .VentasEnContingencia;
 
         // Una venta cobrada sin poder firmar su e-CF llega al Central sin comprobante.
-        var contenido = JsonSerializer.Serialize(VentaSinEcf(), OpcionesJson.Predeterminadas);
-        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.VentaCobrada, Guid.CreateVersion7(), contenido,
+        var venta = VentaSinEcf();
+        var contenido = JsonSerializer.Serialize(venta, OpcionesJson.Predeterminadas);
+        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.VentaCobrada, venta.Numero, contenido,
             HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
         using (var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", tokenCaja, mensaje)))
             respuesta.EnsureSuccessStatusCode();
@@ -142,12 +143,9 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
     private static DocumentoVentaCobrada VentaSinEcf()
     {
         var cobrada = DateTimeOffset.UtcNow;
-        var venta = new DatosVenta(Guid.CreateVersion7(), $"0101{Guid.NewGuid().ToString("N")[..12]}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
-            "Cajero Desarrollo", cobrada.AddMinutes(-3), [],
-            new DatosTotalesVenta(1000m, 180m, 1180m, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, 1000m, 180m, 1180m)]),
-            TipoComprobante.FacturaConsumo, null, null, false, false, 250_000m, "DOP", "RD$", null, null, 1180m, 0m, 0m, cobrada);
-
-        return new DocumentoVentaCobrada(venta, CentralEnPruebas.Sucursal, CentralEnPruebas.CajaUno, venta.TurnoId, Guid.CreateVersion7(), cobrada);
+        return new DocumentoVentaCobrada(CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura), 1, "C001",
+            "Cajero Desarrollo", cobrada.AddMinutes(-3), cobrada, TipoComprobante.FacturaConsumo, null, "DOP", [],
+            new DatosTotalesVenta(1000m, 180m, 1180m, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, 1000m, 180m, 1180m)]), null, [], 1180m, 0m, 0m, null, null, []);
     }
 
     [SkippableFact]
@@ -170,7 +168,7 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         var id = await central.UsarContextoAsync(async contexto =>
         {
             var ahora = DateTimeOffset.UtcNow;
-            var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaUno, CentralEnPruebas.Sucursal, "Venta.Cobrada", Guid.CreateVersion7(),
+            var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaUno, CentralEnPruebas.Sucursal, "Venta.Cobrada", Guid.NewGuid().ToString("N")[..12],
                 "{}", new string('A', DocumentoRecibido.LargoHash), ahora, ahora);
             var comprobante = ComprobanteRecibido.Registrar(documento, encf, TipoComprobante.FacturaCreditoFiscal,
                 "<ECF><Encabezado><Emisor><RNCEmisor>131246796</RNCEmisor></Emisor></Encabezado></ECF>", new string('B', DocumentoRecibido.LargoHash), ahora, ahora);

@@ -213,9 +213,9 @@ public sealed class MiembroFidelidad : Entidad
     }
 
     /// <summary>Miembro que envía el Central con su saldo al día.</summary>
-    public static MiembroFidelidad DesdeCentral(string cedula, string nombre, DateTimeOffset inscritoEn, Guid id)
+    public static MiembroFidelidad DesdeCentral(string cedula, string nombre, DateTimeOffset inscritoEn, Guid? id = null)
     {
-        var miembro = new MiembroFidelidad { Id = id, Cedula = ValidarCedula(cedula), InscritoEn = inscritoEn };
+        var miembro = new MiembroFidelidad { Id = id ?? Guid.CreateVersion7(), Cedula = ValidarCedula(cedula), InscritoEn = inscritoEn };
         miembro.ActualizarContacto(nombre, null, null);
         return miembro;
     }

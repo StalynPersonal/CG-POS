@@ -19,19 +19,19 @@ public static class RutasApiNotasCredito
 
         // La caja consulta el saldo de una nota emitida en cualquier sucursal (RF-43).
         cajas.MapGet("/{codigo}", async (string codigo, IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
-            await servicio.BuscarAsync(codigo, cancelacion) is { } nota ? Results.Ok(nota) : Results.NotFound());
+            await servicio.BuscarParaCajaAsync(codigo, cancelacion) is { } nota ? Results.Ok(nota) : Results.NotFound());
 
-        // Retiene el saldo mientras la caja cobra; si no cobra, lo libera o la reserva vence sola.
-        cajas.MapPost("/{notaCreditoId:guid}/reservas", async (Guid notaCreditoId, SolicitudReservaNotaCredito solicitud, ClaimsPrincipal usuario,
+        // Retiene el saldo para una factura mientras la caja cobra; si no cobra, lo libera con el mismo número o la reserva vence sola.
+        cajas.MapPost("/{numero}/reservas", async (string numero, SolicitudReservaNotaCredito solicitud, ClaimsPrincipal usuario,
                 IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
             EmisorTokensCentral.LeerDispositivo(usuario) is { } caja
-                ? Results.Ok(await servicio.ReservarAsync(notaCreditoId, caja.CajaId, solicitud.Monto, cancelacion))
+                ? Results.Ok(await servicio.ReservarAsync(numero, caja.CajaId, solicitud.VentaNumero, solicitud.Monto, cancelacion))
                 : Results.Unauthorized());
 
-        cajas.MapDelete("/reservas/{reservaId:guid}", async (Guid reservaId, ClaimsPrincipal usuario, IServicioNotasCreditoCentral servicio,
-                CancellationToken cancelacion) =>
+        cajas.MapDelete("/{numero}/reservas/{ventaNumero}", async (string numero, string ventaNumero, ClaimsPrincipal usuario,
+                IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
             EmisorTokensCentral.LeerDispositivo(usuario) is not { } caja ? Results.Unauthorized()
-                : await servicio.LiberarReservaAsync(reservaId, caja.CajaId, cancelacion) ? Results.NoContent()
+                : await servicio.LiberarReservaAsync(numero, caja.CajaId, ventaNumero, cancelacion) ? Results.NoContent()
                 : Results.NotFound());
 
         var manager = aplicacion.MapGroup("/api/manager/notas-credito").RequireAuthorization(CatalogoPermisosCentral.AdministrarNotasCredito);

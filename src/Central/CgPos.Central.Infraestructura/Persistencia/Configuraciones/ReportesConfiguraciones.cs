@@ -11,8 +11,6 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
     {
         constructor.ToTable("VentasCentral");
         constructor.HasKey(c => c.Id);
-
-        // El Id es el de la venta o la nota de crédito en la caja: un reenvío no duplica la fila.
         constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.Numero).HasMaxLength(ComprobanteVentaCentral.LargoMaximoNumero).IsRequired();
@@ -35,7 +33,7 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
         constructor.HasIndex(c => new { c.FechaOperacion, c.SucursalId, c.CajaId });
         constructor.HasIndex(c => c.Encf);
 
-        // El número de factura o de nota de crédito identifica el documento en toda la empresa.
+        // El número de factura o de nota de crédito identifica el documento en toda la empresa: un reenvío no duplica la fila.
         constructor.HasIndex(c => new { c.Tipo, c.Numero }).IsUnique();
     }
 }
@@ -84,6 +82,9 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.Navigation(c => c.FormasPago).AutoInclude(false);
 
         constructor.HasIndex(c => new { c.FechaOperacion, c.SucursalId, c.CajaId });
+
+        // Un cierre por turno de cada caja; al reabrirlo y cerrarlo otra vez se actualiza.
+        constructor.HasIndex(c => new { c.CajaId, c.TurnoNumero }).IsUnique();
     }
 }
 

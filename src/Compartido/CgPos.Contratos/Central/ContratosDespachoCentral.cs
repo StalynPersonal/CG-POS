@@ -1,3 +1,4 @@
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 
@@ -30,4 +31,4 @@ public sealed record PaginaPendientesCentral(IReadOnlyList<DatosPendienteCentral
 public sealed record ResumenDespachoCentral(int Abiertos, int Atrasados, int Retiros, int Envios, int EntregadosHoy);
 
 /// <param name="Pendiente">Documento completo tal como lo informó la caja, con líneas y entregas.</param>
-public sealed record DetallePendienteCentral(DatosPendienteCentralResumen Resumen, DatosPendienteEntrega Pendiente);
+public sealed record DetallePendienteCentral(DatosPendienteCentralResumen Resumen, DocumentoPendienteEntrega Pendiente);

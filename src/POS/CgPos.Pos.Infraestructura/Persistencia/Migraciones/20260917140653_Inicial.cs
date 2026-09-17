@@ -92,7 +92,7 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TipoMensaje = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    AgregadoId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Referencia = table.Column<string>(type: "varchar(40)", unicode: false, maxLength: 40, nullable: false),
                     Contenido = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     HashContenido = table.Column<string>(type: "char(64)", unicode: false, fixedLength: true, maxLength: 64, nullable: false),
                     Estado = table.Column<int>(type: "int", nullable: false),
@@ -1612,14 +1612,14 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_BandejaSalida_AgregadoId",
-                table: "BandejaSalida",
-                column: "AgregadoId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_BandejaSalida_Estado_ProximoIntentoEn",
                 table: "BandejaSalida",
                 columns: new[] { "Estado", "ProximoIntentoEn" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BandejaSalida_Referencia",
+                table: "BandejaSalida",
+                column: "Referencia");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Cajas_SucursalId_Codigo",

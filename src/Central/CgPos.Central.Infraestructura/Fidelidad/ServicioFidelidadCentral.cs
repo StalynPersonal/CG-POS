@@ -47,8 +47,9 @@ internal sealed class ServicioFidelidadCentral(
 
     public async Task<IReadOnlyList<DatosMovimientoPuntosCentral>> ListarMovimientosAsync(Guid miembroId, CancellationToken cancelacion = default)
     {
+        var cedula = await contexto.MiembrosFidelidad.AsNoTracking().Where(m => m.Id == miembroId).Select(m => m.Cedula).SingleOrDefaultAsync(cancelacion);
         var movimientos = await contexto.MovimientosPuntos.AsNoTracking()
-            .Where(m => m.MiembroId == miembroId)
+            .Where(m => m.Cedula == cedula)
             .OrderByDescending(m => m.Fecha)
             .ToListAsync(cancelacion);
 
@@ -82,14 +83,14 @@ internal sealed class ServicioFidelidadCentral(
         try
         {
             // Los puntos que el Central regala vencen como los demás, con el plazo que ya tenga configurado el miembro.
-            contexto.MovimientosPuntos.Add(MovimientoPuntosCentral.Ajuste(miembroId, miembro.Cedula, puntos, actor.Nombre, motivo, null, ahora));
+            contexto.MovimientosPuntos.Add(MovimientoPuntosCentral.Ajuste(miembro.Cedula, puntos, actor.Nombre, motivo, null, ahora));
         }
         catch (ArgumentException excepcion)
         {
             return new RespuestaAjustePuntos(false, ValidacionMaestros.MensajeError(excepcion));
         }
 
-        await recalculador.RecalcularAsync(miembroId, miembro.Cedula, actor.Nombre, cancelacion: cancelacion);
+        await recalculador.RecalcularAsync(miembro.Cedula, actor.Nombre, cancelacion: cancelacion);
         auditoria.Registrar(new EntradaAuditoria("Fidelidad.PuntosAjustados", "MiembroFidelidad", miembroId.ToString(),
             Detalle: new { miembro.Cedula, miembro.Nombre, Puntos = puntos, Motivo = motivo, Usuario = actor.Nombre }));
         await contexto.SaveChangesAsync(cancelacion);
@@ -104,11 +105,11 @@ internal sealed class ServicioFidelidadCentral(
             .Where(s => s.ProximoVencimiento != null && s.ProximoVencimiento < hoy)
             .OrderBy(s => s.ProximoVencimiento)
             .Take(Math.Max(maximo, 1))
-            .Select(s => new { s.MiembroId, s.Cedula })
+            .Select(s => s.Cedula)
             .ToListAsync(cancelacion);
 
-        foreach (var miembro in pendientes)
-            await recalculador.RecalcularAsync(miembro.MiembroId, miembro.Cedula, "Vencimiento de puntos", cancelacion: cancelacion);
+        foreach (var cedula in pendientes)
+            await recalculador.RecalcularAsync(cedula, "Vencimiento de puntos", cancelacion: cancelacion);
 
         if (pendientes.Count > 0)
             await contexto.SaveChangesAsync(cancelacion);

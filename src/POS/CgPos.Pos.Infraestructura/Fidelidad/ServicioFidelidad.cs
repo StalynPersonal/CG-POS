@@ -1,3 +1,4 @@
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Fidelidad;
 using CgPos.Dominio.Fidelidad;
 using CgPos.Dominio.Fiscal;
@@ -37,10 +38,6 @@ internal static class ConsultasFidelidad
         nivelId is { } id
             ? await contexto.NivelesFidelidad.AsNoTracking().Where(n => n.Id == id).Select(n => n.Nombre).FirstOrDefaultAsync(cancelacion)
             : null;
-
-    public static DocumentoMovimientoPuntos ADocumento(this MovimientoPuntos movimiento, Guid sucursalId) =>
-        new(movimiento.Id, movimiento.MiembroId, movimiento.Cedula, movimiento.Tipo, movimiento.Puntos, movimiento.VentaId, movimiento.DevolucionId,
-            movimiento.Documento, movimiento.CajaId, sucursalId, movimiento.Fecha, movimiento.VenceEn);
 }
 
 internal sealed class ServicioFidelidad(
@@ -96,9 +93,8 @@ internal sealed class ServicioFidelidad(
         }
 
         contexto.MiembrosFidelidad.Add(miembro);
-        bandejaSalida.Encolar("Fidelidad.Inscripcion", miembro.Id,
-            new DocumentoInscripcionFidelidad(miembro.Id, miembro.Cedula, miembro.Nombre, miembro.Telefono, miembro.Correo, sesion.CajaId, sesion.SucursalId,
-                sesion.Nombre, miembro.InscritoEn));
+        bandejaSalida.Encolar("Fidelidad.Inscripcion", miembro.Cedula,
+            new DocumentoInscripcionFidelidad(miembro.Cedula, miembro.Nombre, miembro.Telefono, miembro.Correo, sesion.Nombre, miembro.InscritoEn));
         auditoria.Registrar(new EntradaAuditoria("Fidelidad.Inscripcion", "MiembroFidelidad", miembro.Cedula,
             Detalle: new { miembro.Nombre, miembro.Telefono, miembro.Correo },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));

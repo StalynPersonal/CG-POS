@@ -10,8 +10,8 @@ public enum OrigenMovimientoPuntos
 }
 
 /// <summary>
-/// Movimiento de puntos en el saldo oficial del Central (RF-240). Los de las cajas conservan el Id con el que se crearon allá,
-/// así un reenvío no acumula dos veces; los ajustes del Central llevan usuario y motivo.
+/// Movimiento de puntos en el saldo oficial del Central (RF-240), del miembro con esa cédula. Los de las cajas se identifican por el documento que
+/// los originó y su tipo, así un reenvío no acumula dos veces; los ajustes del Central llevan usuario y motivo.
 /// </summary>
 public sealed class MovimientoPuntosCentral : Entidad
 {
@@ -24,7 +24,6 @@ public sealed class MovimientoPuntosCentral : Entidad
     {
     }
 
-    public Guid MiembroId { get; private set; }
     public string Cedula { get; private set; } = string.Empty;
     public TipoMovimientoPuntos Tipo { get; private set; }
     public OrigenMovimientoPuntos Origen { get; private set; }
@@ -32,8 +31,7 @@ public sealed class MovimientoPuntosCentral : Entidad
     /// <summary>Positivo al acumular o ajustar a favor; negativo al canjear, reversar o ajustar en contra.</summary>
     public int Puntos { get; private set; }
 
-    public Guid? VentaId { get; private set; }
-    public Guid? DevolucionId { get; private set; }
+    /// <summary>Número de la factura o de la nota de crédito que originó el movimiento; vacío en un ajuste.</summary>
     public string Documento { get; private set; } = string.Empty;
     public Guid? CajaId { get; private set; }
     public Guid? SucursalId { get; private set; }
@@ -46,9 +44,9 @@ public sealed class MovimientoPuntosCentral : Entidad
     public string? Usuario { get; private set; }
     public string? Motivo { get; private set; }
 
-    /// <summary>Movimiento informado por una caja; el Id es el que la caja generó, que sirve de clave de idempotencia.</summary>
-    public static MovimientoPuntosCentral DesdeCaja(Guid id, Guid miembroId, string cedula, TipoMovimientoPuntos tipo, int puntos, Guid? ventaId, Guid? devolucionId,
-        string? documento, Guid cajaId, Guid sucursalId, DateTimeOffset fecha, DateOnly? venceEn, DateTimeOffset ahora)
+    /// <summary>Movimiento informado por una caja; el documento y el tipo son su clave de idempotencia.</summary>
+    public static MovimientoPuntosCentral DesdeCaja(string cedula, TipoMovimientoPuntos tipo, int puntos, string documento, Guid cajaId, Guid sucursalId,
+        DateTimeOffset fecha, DateOnly? venceEn, DateTimeOffset ahora)
     {
         if (puntos == 0)
             throw new ArgumentOutOfRangeException(nameof(puntos), puntos, "El movimiento de puntos no puede ser cero.");
@@ -59,15 +57,11 @@ public sealed class MovimientoPuntosCentral : Entidad
 
         return new MovimientoPuntosCentral
         {
-            Id = Validar.Id(id, "Movimiento de puntos"),
-            MiembroId = Validar.Id(miembroId, "Miembro"),
             Cedula = MiembroFidelidad.ValidarCedula(cedula),
             Tipo = tipo,
             Origen = OrigenMovimientoPuntos.Caja,
             Puntos = puntos,
-            VentaId = ventaId,
-            DevolucionId = devolucionId,
-            Documento = Validar.TextoOpcional(documento, "Documento", LargoMaximoDocumento) ?? string.Empty,
+            Documento = Validar.Texto(documento, "Documento", LargoMaximoDocumento),
             CajaId = Validar.Id(cajaId, "Caja"),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             Fecha = fecha,
@@ -77,14 +71,13 @@ public sealed class MovimientoPuntosCentral : Entidad
     }
 
     /// <summary>Ajuste manual del Central, a favor o en contra, siempre con motivo y responsable.</summary>
-    public static MovimientoPuntosCentral Ajuste(Guid miembroId, string cedula, int puntos, string usuario, string motivo, DateOnly? venceEn, DateTimeOffset ahora)
+    public static MovimientoPuntosCentral Ajuste(string cedula, int puntos, string usuario, string motivo, DateOnly? venceEn, DateTimeOffset ahora)
     {
         if (puntos == 0)
             throw new ArgumentOutOfRangeException(nameof(puntos), puntos, "El ajuste de puntos no puede ser cero.");
 
         return new MovimientoPuntosCentral
         {
-            MiembroId = Validar.Id(miembroId, "Miembro"),
             Cedula = MiembroFidelidad.ValidarCedula(cedula),
             Tipo = TipoMovimientoPuntos.Ajuste,
             Origen = OrigenMovimientoPuntos.Central,

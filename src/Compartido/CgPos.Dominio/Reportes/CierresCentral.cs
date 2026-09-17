@@ -5,7 +5,7 @@ namespace CgPos.Dominio.Reportes;
 
 /// <summary>
 /// Cierre de turno informado por una caja (RF-267), para el reporte de cuadres del Central: lo esperado, lo declarado y la diferencia,
-/// con el detalle por forma de pago. Un cierre reabierto y vuelto a cerrar llega otra vez y se actualiza.
+/// con el detalle por forma de pago. Se identifica por la caja y el número del turno: un cierre reabierto y vuelto a cerrar llega otra vez y se actualiza.
 /// </summary>
 public sealed class CierreTurnoCentral : Entidad
 {
@@ -19,7 +19,6 @@ public sealed class CierreTurnoCentral : Entidad
     {
     }
 
-    public Guid TurnoId { get; private set; }
     public long TurnoNumero { get; private set; }
     public int Numero { get; private set; }
     public Guid SucursalId { get; private set; }
@@ -47,14 +46,12 @@ public sealed class CierreTurnoCentral : Entidad
     /// <summary>Faltó o sobró dinero respecto de lo esperado.</summary>
     public bool ConDiferencia => Diferencia != 0m;
 
-    public static CierreTurnoCentral Registrar(Guid id, Guid turnoId, long turnoNumero, int numero, Guid sucursalId, Guid cajaId, DateOnly fechaOperacion,
+    public static CierreTurnoCentral Registrar(long turnoNumero, int numero, Guid sucursalId, Guid cajaId, DateOnly fechaOperacion,
         string? usuarioNombre, string moneda, bool ciego, decimal fondoInicial, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
         decimal totalEsperado, decimal totalDeclarado, decimal diferencia, DateTimeOffset abiertoEn, DateTimeOffset cerradoEn, DateTimeOffset ahora)
     {
         var cierre = new CierreTurnoCentral
         {
-            Id = Validar.Id(id, "Cierre de turno"),
-            TurnoId = Validar.Id(turnoId, "Turno"),
             TurnoNumero = turnoNumero,
             Numero = numero,
             SucursalId = Validar.Id(sucursalId, "Sucursal"),

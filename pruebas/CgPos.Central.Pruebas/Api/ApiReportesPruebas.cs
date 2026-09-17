@@ -31,7 +31,7 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var dia = new DateOnly(2026, 3, 10);
 
         var (venta, encf) = Venta(dia, 1000m, 180m);
-        var mensaje = Mensaje(TiposMensaje.VentaCobrada, venta.Venta.Id, venta);
+        var mensaje = Mensaje(TiposMensaje.VentaCobrada, venta.Numero, venta);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, mensaje));
 
         // Reenviar el mismo mensaje no duplica la venta en los reportes.
@@ -57,29 +57,32 @@ public class ApiReportesPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
-    public async Task Un_numero_de_factura_repetido_por_otra_transaccion_no_entra_en_los_reportes_y_queda_como_conflicto()
+    public async Task La_factura_se_identifica_por_su_numero_y_una_caja_no_puede_informar_documentos_de_otra()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
         var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var dia = new DateOnly(2026, 5, 20);
-        var numero = $"0101{Random.Shared.NextInt64(1, 9_999_999):D7}";
 
-        var (primera, _) = Venta(dia, 100m, 18m, numero);
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, primera.Venta.Id, primera)));
+        // La misma factura en otro mensaje (la regularización de una contingencia la reenvía): no se duplica en los reportes.
+        var (primera, _) = Venta(dia, 100m, 18m);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, primera.Numero, primera)));
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, primera.Numero, primera with { TotalCobrado = 1m })));
 
-        // Otra transacción con el mismo número (ej. una caja reinstalada que reinició su numeración): el mensaje se guarda, pero no se duplica la factura.
-        var (segunda, _) = Venta(dia, 500m, 90m, numero);
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, segunda.Venta.Id, segunda)));
+        // El número lleva la sucursal y la caja: la caja 01 no puede informar una factura de la caja 02.
+        var ajena = CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaDos, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura);
+        var (segunda, _) = Venta(dia, 500m, 90m, ajena);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, ajena, segunda)));
 
         var ventas = await TablaAsync(cliente, admin, TipoReporteCentral.Ventas, dia, dia);
-        Assert.Equal("1", Assert.Single(ventas.Filas, f => f[0] == "20/05/2026")[3]);
+        var fila = Assert.Single(ventas.Filas, f => f[0] == "20/05/2026");
+        Assert.Equal(("1", "118.00"), (fila[3], fila[8]));
 
         await using var ambito = central.Fabrica!.Services.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<CgPos.Central.Infraestructura.Persistencia.ContextoDatosCentral>();
         Assert.True(await contexto.ConflictosSincronizacion.AsNoTracking()
-            .AnyAsync(c => c.Tipo == CgPos.Dominio.Sincronizacion.TipoConflictoSincronizacion.NumeroDuplicado && c.Detalle.Contains(numero)));
+            .AnyAsync(c => c.Tipo == CgPos.Dominio.Sincronizacion.TipoConflictoSincronizacion.DocumentoInvalido && c.Detalle.Contains(ajena)));
     }
 
     [SkippableFact]
@@ -92,19 +95,20 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var dia = new DateOnly(2026, 4, 15);
 
         var cierre = Cierre(dia, esperado: 5000m, declarado: 4950m);
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, cierre.Id, cierre)));
+        var turno = cierre.TurnoNumero.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, cierre)));
 
         var cuadres = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
-        var fila = Assert.Single(cuadres.Filas, f => f[3] == "7");
+        var fila = Assert.Single(cuadres.Filas, f => f[3] == turno);
         Assert.Equal(("5,000.00", "4,950.00", "-50.00"), (fila[7], fila[8], fila[9]));
 
         // Un cierre reabierto y cerrado otra vez actualiza la fila, no crea otra.
         var corregido = cierre with { TotalDeclarado = 5000m, Diferencia = 0m, ReabiertoPorNombre = "Supervisor", ReabiertoEn = DateTimeOffset.UtcNow,
             MotivoReapertura = "Faltó contar un sobre" };
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, cierre.Id, corregido)));
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, corregido)));
 
         var despues = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
-        Assert.Equal("0.00", Assert.Single(despues.Filas, f => f[3] == "7")[9]);
+        Assert.Equal("0.00", Assert.Single(despues.Filas, f => f[3] == turno)[9]);
 
         // Excel es un .xlsx legible y el PDF empieza por su cabecera.
         var excel = await DescargarAsync(cliente, admin, "/api/manager/reportes/Cuadres/excel", dia, dia);
@@ -143,33 +147,31 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var encf = $"E32{Random.Shared.NextInt64(1, 9_999_999_999):D10}";
         var cobrada = new DateTimeOffset(dia.ToDateTime(new TimeOnly(11, 30)), TimeSpan.FromHours(-4));
         var total = baseImponible + impuesto;
-        var venta = new DatosVenta(Guid.CreateVersion7(), numero ?? $"0101{Guid.NewGuid().ToString("N")[..12]}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
-            "Cajero Desarrollo", cobrada.AddMinutes(-5),
-            [],
-            new DatosTotalesVenta(baseImponible, impuesto, total, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, baseImponible, impuesto, total)]),
-            TipoComprobante.FacturaCreditoFiscal,
-            new DatosClienteVenta(null, TipoDocumentoIdentidad.Rnc, "401007551", "Cliente de Reportes"),
-            null, false, false, 250_000m, "DOP", "RD$", null,
-            [new DatosPagoVenta(1, Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", total, null, total, null, null, null, null, false)],
-            total, 0m, 0m, cobrada,
+        var venta = new DocumentoVentaCobrada(numero ?? CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura),
+            1, "C001", "Cajero Desarrollo", cobrada.AddMinutes(-5), cobrada, TipoComprobante.FacturaCreditoFiscal,
+            new DocumentoClienteVenta(null, TipoDocumentoIdentidad.Rnc, "401007551", "Cliente de Reportes"), "DOP", [],
+            new DatosTotalesVenta(baseImponible, impuesto, total, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, baseImponible, impuesto, total)]), null,
+            [new DocumentoPagoVenta(1, "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", total, null, total, null, null, null, null, false)],
+            total, 0m, 0m,
             new DatosComprobanteElectronico(encf, TipoComprobante.FacturaCreditoFiscal, "ABC123", cobrada, "https://ecf.dgii.gov.do/consulta",
-                EstadoDocumentoElectronico.PendienteSincronizar));
+                EstadoDocumentoElectronico.PendienteSincronizar),
+            null, []);
 
-        return (new DocumentoVentaCobrada(venta, CentralEnPruebas.Sucursal, CentralEnPruebas.CajaUno, venta.TurnoId, Guid.CreateVersion7(), cobrada), encf);
+        return (venta, encf);
     }
 
-    private static DatosCierre Cierre(DateOnly dia, decimal esperado, decimal declarado) =>
-        new(Guid.CreateVersion7(), Guid.CreateVersion7(), 7, 1, CentralEnPruebas.CajaUno, CentralEnPruebas.Sucursal, dia, true, 1000m, false, "DOP",
+    private static DocumentoCierreTurno Cierre(DateOnly dia, decimal esperado, decimal declarado) =>
+        new(Random.Shared.NextInt64(1_000, 999_999), 1, dia, true, 1000m, false, "DOP",
             12, 5000m, 0m, esperado, declarado, declarado - esperado, "Cajero Desarrollo",
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)), EstadoCierre.Vigente, null, null, null,
-            [new DatosCierreFormaPago(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 12, esperado, declarado, declarado - esperado)],
+            [new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 12, esperado, declarado, declarado - esperado)],
             [], []);
 
-    private static MensajeSincronizacion Mensaje(string tipo, Guid agregadoId, object documento, Guid? id = null)
+    private static MensajeSincronizacion Mensaje(string tipo, string referencia, object documento, Guid? id = null)
     {
         var contenido = JsonSerializer.Serialize(documento, OpcionesJson.Predeterminadas);
-        return new MensajeSincronizacion(id ?? Guid.CreateVersion7(), tipo, agregadoId, contenido, HashSincronizacion.Calcular(contenido),
+        return new MensajeSincronizacion(id ?? Guid.CreateVersion7(), tipo, referencia, contenido, HashSincronizacion.Calcular(contenido),
             CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
     }
 

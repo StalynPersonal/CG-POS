@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260917035349_Inicial")]
+    [Migration("20260917140724_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -611,15 +611,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("NotaCreditoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("NotaCreditoNumero")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<DateTimeOffset>("RegistradoEn")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<Guid>("VentaId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("VentaNumero")
                         .IsRequired()
@@ -630,7 +629,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
                     b.HasIndex("CajaId");
 
-                    b.HasIndex("NotaCreditoId", "VentaId")
+                    b.HasIndex("NotaCreditoNumero", "VentaNumero")
                         .IsUnique();
 
                     b.ToTable("ConsumosNotaCredito", (string)null);
@@ -757,7 +756,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnique()
                         .HasFilter("[Encf] IS NOT NULL");
 
-                    b.HasIndex("Numero");
+                    b.HasIndex("Numero")
+                        .IsUnique();
 
                     b.HasIndex("SucursalId");
 
@@ -796,6 +796,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<DateTimeOffset>("VenceEn")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("VentaNumero")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.HasKey("Id");
 
@@ -936,9 +941,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
-                    b.Property<Guid>("VentaId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("VentaNumero")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -948,7 +950,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
                     b.HasIndex("CajaId");
 
-                    b.HasIndex("Numero");
+                    b.HasIndex("Numero")
+                        .IsUnique();
 
                     b.HasIndex("SucursalId");
 
@@ -1052,9 +1055,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("char(11)")
                         .IsFixedLength();
 
-                    b.Property<Guid?>("DevolucionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Documento")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -1063,9 +1063,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<DateTimeOffset>("Fecha")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<Guid>("MiembroId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Motivo")
                         .HasMaxLength(500)
@@ -1094,18 +1091,17 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<DateOnly?>("VenceEn")
                         .HasColumnType("date");
 
-                    b.Property<Guid?>("VentaId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CajaId");
 
-                    b.HasIndex("Cedula");
-
                     b.HasIndex("SucursalId");
 
-                    b.HasIndex("MiembroId", "Fecha");
+                    b.HasIndex("Cedula", "Fecha");
+
+                    b.HasIndex("Documento", "Tipo")
+                        .IsUnique()
+                        .HasFilter("[Origen] = 0");
 
                     b.ToTable("MovimientosPuntos", (string)null);
                 });
@@ -2313,9 +2309,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("TurnoId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<long>("TurnoNumero")
                         .HasColumnType("bigint");
 
@@ -2326,9 +2319,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CajaId");
-
                     b.HasIndex("SucursalId");
+
+                    b.HasIndex("CajaId", "TurnoNumero")
+                        .IsUnique();
 
                     b.HasIndex("FechaOperacion", "SucursalId", "CajaId");
 
@@ -2421,8 +2415,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid?>("TurnoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<long?>("TurnoNumero")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("UsuarioNombre")
                         .IsRequired()
@@ -2807,9 +2801,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("AgregadoId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid>("CajaId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2864,6 +2855,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<DateTimeOffset>("RecibidoEn")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
 
                     b.Property<Guid>("SucursalId")
                         .HasColumnType("uniqueidentifier");
@@ -2968,9 +2965,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("AgregadoId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid>("CajaId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2996,6 +2990,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("Reenvios")
                         .HasColumnType("int");
 
+                    b.Property<string>("Referencia")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
                     b.Property<Guid>("SucursalId")
                         .HasColumnType("uniqueidentifier");
 
@@ -3010,7 +3010,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AgregadoId");
+                    b.HasIndex("Referencia");
 
                     b.HasIndex("SucursalId");
 

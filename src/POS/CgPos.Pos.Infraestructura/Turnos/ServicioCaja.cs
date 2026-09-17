@@ -1,4 +1,6 @@
-﻿using CgPos.Contratos.Catalogo;
+﻿using System.Globalization;
+using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
@@ -9,6 +11,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Infraestructura.Sincronizacion;
 using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
@@ -165,7 +168,8 @@ internal sealed class ServicioCaja(
         contexto.MovimientosCaja.Add(retiro);
 
         var datos = retiro.ADatos();
-        bandejaSalida.Encolar("Caja.RetiroEfectivo", retiro.Id, new DocumentoMovimientoCaja(datos, turno.Id, turno.Numero, turno.CajaId, turno.SucursalId));
+        bandejaSalida.Encolar("Caja.RetiroEfectivo", $"{turno.Numero}-{datos.Tipo}-{datos.Numero}",
+            new DocumentoMovimientoCaja(turno.Numero, DocumentosParaCentral.MovimientoTurno(datos)));
         auditoria.Registrar(new EntradaAuditoria("Caja.RetiroEfectivo", TipoEntidadTurno, turno.Id.ToString(),
             Detalle: new { turno.Numero, Retiro = numero, Monto = monto },
             Motivo: retiro.Motivo,
@@ -201,7 +205,8 @@ internal sealed class ServicioCaja(
         contexto.MovimientosCaja.Add(relevo);
 
         var datos = relevo.ADatos();
-        bandejaSalida.Encolar("Caja.RelevoCajero", relevo.Id, new DocumentoMovimientoCaja(datos, turno.Id, turno.Numero, turno.CajaId, turno.SucursalId));
+        bandejaSalida.Encolar("Caja.RelevoCajero", $"{turno.Numero}-{datos.Tipo}-{datos.Numero}",
+            new DocumentoMovimientoCaja(turno.Numero, DocumentosParaCentral.MovimientoTurno(datos)));
         auditoria.Registrar(new EntradaAuditoria("Caja.RelevoCajero", TipoEntidadTurno, turno.Id.ToString(),
             Detalle: new { turno.Numero, Anterior = relevo.UsuarioAnteriorNombre, Nuevo = relevo.UsuarioNombre },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
@@ -266,7 +271,7 @@ internal sealed class ServicioCaja(
         }
 
         var datos = cierre.ADatos(calculo.Movimientos);
-        bandejaSalida.Encolar("Caja.TurnoCerrado", cierre.Id, datos);
+        bandejaSalida.Encolar("Caja.TurnoCerrado", turno.Numero.ToString(CultureInfo.InvariantCulture), DocumentosParaCentral.CierreTurno(datos));
         auditoria.Registrar(new EntradaAuditoria("Caja.TurnoCerrado", TipoEntidadTurno, turno.Id.ToString(),
             Detalle: new { turno.Numero, Cierre = cierre.Numero, cierre.Ciego, cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
@@ -309,8 +314,8 @@ internal sealed class ServicioCaja(
         cierre.Reabrir(porId, porNombre, motivo, ahora);
         turno.Reabrir();
 
-        bandejaSalida.Encolar("Caja.CierreReabierto", cierre.Id,
-            new DocumentoReaperturaCierre(cierre.Id, turno.Id, turno.Numero, turno.CajaId, turno.SucursalId, porNombre, cierre.MotivoReapertura!, ahora));
+        bandejaSalida.Encolar("Caja.CierreReabierto", turno.Numero.ToString(CultureInfo.InvariantCulture),
+            new DocumentoReaperturaCierre(turno.Numero, cierre.Numero, porNombre, cierre.MotivoReapertura!, ahora));
         auditoria.Registrar(new EntradaAuditoria("Caja.CierreReabierto", TipoEntidadTurno, turno.Id.ToString(),
             Detalle: new { turno.Numero, Cierre = cierre.Numero, cierre.Diferencia },
             Motivo: cierre.MotivoReapertura,

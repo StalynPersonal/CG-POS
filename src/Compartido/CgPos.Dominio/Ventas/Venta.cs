@@ -237,29 +237,6 @@ public sealed class Venta : Entidad
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
     /// <summary>Menor cantidad de dígitos que admite la secuencia de un número de documento.</summary>
-    public const int DigitosMinimosSecuencia = 5;
-
-    /// <summary>Mayor cantidad de dígitos de la secuencia (un billón de documentos por caja); con los prefijos NC- y PE- el número cabe en sus columnas.</summary>
-    public const int DigitosMaximosSecuencia = 12;
-
-    /// <summary>
-    /// Número de un documento de la caja: código de sucursal + código de caja + secuencia rellena con ceros a los dígitos configurados
-    /// (ej. sucursal 01, caja 01, secuencia 1 con 7 dígitos = 01010000001). Si la secuencia supera esos dígitos, el número crece: nunca se repite.
-    /// </summary>
-    public static string FormatearNumero(int codigoSucursal, int codigoCaja, long secuencia, int digitos)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(codigoSucursal, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(codigoSucursal, Comun.CodigosCatalogo.MaximoSucursalCaja);
-        ArgumentOutOfRangeException.ThrowIfLessThan(codigoCaja, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(codigoCaja, Comun.CodigosCatalogo.MaximoSucursalCaja);
-        ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(digitos, DigitosMinimosSecuencia);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(digitos, DigitosMaximosSecuencia);
-
-        return codigoSucursal.ToString("00", CultureInfo.InvariantCulture) + codigoCaja.ToString("00", CultureInfo.InvariantCulture)
-            + secuencia.ToString(new string('0', digitos), CultureInfo.InvariantCulture);
-    }
-
     public static Venta Iniciar(Guid sucursalId, int codigoSucursal, Guid cajaId, int codigoCaja, Guid turnoId, long secuencia, int digitosSecuencia,
         Guid usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
     {
@@ -268,7 +245,7 @@ public sealed class Venta : Entidad
         return new Venta
         {
             Id = Guid.CreateVersion7(),
-            NumeroTransaccion = Validar.Texto(FormatearNumero(codigoSucursal, codigoCaja, secuencia, digitosSecuencia), "Número de transacción", LargoMaximoNumero),
+            NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(codigoSucursal, codigoCaja, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia), "Número de transacción", LargoMaximoNumero),
             Secuencia = secuencia,
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             CajaId = Validar.Id(cajaId, "Caja"),

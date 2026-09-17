@@ -24,7 +24,7 @@ internal sealed class ProcesadorBandejaSalida(
     TimeProvider reloj,
     ILogger<ProcesadorBandejaSalida> registro) : IProcesadorBandejaSalida
 {
-    /// <summary>Mensajes cuyo documento tiene un e-CF firmado en la caja (su agregado es la venta o la devolución).</summary>
+    /// <summary>Mensajes cuyo documento lleva su e-CF firmado en la propiedad <c>ecf</c>.</summary>
     private static IReadOnlySet<string> TiposConEcf => TiposMensaje.ConEcf;
 
     public async Task<ResultadoProcesoBandeja> ProcesarAsync(CancellationToken cancelacion = default)
@@ -59,7 +59,7 @@ internal sealed class ProcesadorBandejaSalida(
             try
             {
                 resultado = await central.EnviarAsync(
-                    new MensajeSincronizacion(mensaje.Id, mensaje.TipoMensaje, mensaje.AgregadoId, mensaje.Contenido, mensaje.HashContenido, sucursalCodigo, cajaCodigo, mensaje.CreadoEn),
+                    new MensajeSincronizacion(mensaje.Id, mensaje.TipoMensaje, mensaje.Referencia, mensaje.Contenido, mensaje.HashContenido, sucursalCodigo, cajaCodigo, mensaje.CreadoEn),
                     cancelacion);
             }
             catch (Exception excepcion) when (excepcion is not OperationCanceledException)
@@ -109,7 +109,10 @@ internal sealed class ProcesadorBandejaSalida(
         if (!TiposConEcf.Contains(mensaje.TipoMensaje))
             return null;
 
-        var documento = await contexto.DocumentosElectronicos.FirstOrDefaultAsync(d => d.VentaId == mensaje.AgregadoId, cancelacion);
+        if (EncfDelContenido(mensaje.Contenido) is not { } encf)
+            return null;
+
+        var documento = await contexto.DocumentosElectronicos.FirstOrDefaultAsync(d => d.Encf == encf, cancelacion);
         if (documento is not { Estado: EstadoDocumentoElectronico.PendienteSincronizar })
             return null;
 
@@ -150,6 +153,23 @@ internal sealed class ProcesadorBandejaSalida(
         catch (Exception excepcion) when (excepcion is IOException or UnauthorizedAccessException)
         {
             registro.LogWarning(excepcion, "El XML {Ruta} ya está en Enviados pero no se pudo borrar de Pendientes.", ruta);
+        }
+    }
+
+    /// <summary>e-NCF del comprobante que lleva el documento en <c>ecf.encf</c>; nulo si no lo lleva o no se puede leer.</summary>
+    private static string? EncfDelContenido(string contenido)
+    {
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(contenido);
+            return json.RootElement.TryGetProperty("ecf", out var ecf) && ecf.ValueKind == System.Text.Json.JsonValueKind.Object
+                   && ecf.TryGetProperty("encf", out var encf) && encf.ValueKind == System.Text.Json.JsonValueKind.String
+                ? encf.GetString()
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
         }
     }
 }

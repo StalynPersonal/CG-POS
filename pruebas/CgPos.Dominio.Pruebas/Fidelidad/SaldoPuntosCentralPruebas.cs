@@ -6,18 +6,17 @@ public class SaldoPuntosCentralPruebas
 {
     private static readonly DateTimeOffset Inicio = new(2026, 1, 10, 9, 0, 0, TimeSpan.FromHours(-4));
     private static readonly DateOnly Hoy = new(2026, 9, 15);
-    private static readonly Guid Miembro = Guid.CreateVersion7();
     private static readonly Guid Caja = Guid.CreateVersion7();
     private static readonly Guid Sucursal = Guid.CreateVersion7();
     private const string Cedula = "00113918205";
 
     private static MovimientoPuntosCentral Acumula(int puntos, DateOnly? venceEn, int dia) =>
-        MovimientoPuntosCentral.DesdeCaja(Guid.CreateVersion7(), Miembro, Cedula, TipoMovimientoPuntos.Acumulacion, puntos, Guid.CreateVersion7(), null,
-            "01-01-00000001", Caja, Sucursal, Inicio.AddDays(dia), venceEn, Inicio.AddDays(dia));
+        MovimientoPuntosCentral.DesdeCaja(Cedula, TipoMovimientoPuntos.Acumulacion, puntos, $"01011{dia:0000000}", Caja, Sucursal, Inicio.AddDays(dia), venceEn,
+            Inicio.AddDays(dia));
 
     private static MovimientoPuntosCentral Canjea(int puntos, int dia) =>
-        MovimientoPuntosCentral.DesdeCaja(Guid.CreateVersion7(), Miembro, Cedula, TipoMovimientoPuntos.Canje, -puntos, Guid.CreateVersion7(), null,
-            "01-01-00000002", Caja, Sucursal, Inicio.AddDays(dia), null, Inicio.AddDays(dia));
+        MovimientoPuntosCentral.DesdeCaja(Cedula, TipoMovimientoPuntos.Canje, -puntos, $"01011{dia:0000000}", Caja, Sucursal, Inicio.AddDays(dia), null,
+            Inicio.AddDays(dia));
 
     [Fact]
     public void El_canje_gasta_primero_los_puntos_que_vencen_antes()
@@ -61,25 +60,25 @@ public class SaldoPuntosCentralPruebas
     [Fact]
     public void El_ajuste_del_central_exige_motivo_y_responsable_y_no_puede_ser_cero()
     {
-        var ajuste = MovimientoPuntosCentral.Ajuste(Miembro, Cedula, -25, "Gerente Central", "Corrección de acumulación duplicada", null, Inicio);
+        var ajuste = MovimientoPuntosCentral.Ajuste(Cedula, -25, "Gerente Central", "Corrección de acumulación duplicada", null, Inicio);
 
         Assert.Equal((TipoMovimientoPuntos.Ajuste, OrigenMovimientoPuntos.Central, -25), (ajuste.Tipo, ajuste.Origen, ajuste.Puntos));
         Assert.Equal("Gerente Central", ajuste.Usuario);
-        Assert.Throws<ArgumentOutOfRangeException>(() => MovimientoPuntosCentral.Ajuste(Miembro, Cedula, 0, "Gerente", "Nada", null, Inicio));
-        Assert.Throws<ArgumentException>(() => MovimientoPuntosCentral.Ajuste(Miembro, Cedula, 10, "Gerente", "   ", null, Inicio));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MovimientoPuntosCentral.Ajuste(Cedula, 0, "Gerente", "Nada", null, Inicio));
+        Assert.Throws<ArgumentException>(() => MovimientoPuntosCentral.Ajuste(Cedula, 10, "Gerente", "   ", null, Inicio));
     }
 
     [Fact]
     public void Un_movimiento_de_caja_con_el_signo_cambiado_se_rechaza()
     {
-        Assert.Throws<ArgumentException>(() => MovimientoPuntosCentral.DesdeCaja(Guid.CreateVersion7(), Miembro, Cedula, TipoMovimientoPuntos.Canje, 30,
-            Guid.CreateVersion7(), null, "01-01-00000003", Caja, Sucursal, Inicio, null, Inicio));
+        Assert.Throws<ArgumentException>(() => MovimientoPuntosCentral.DesdeCaja(Cedula, TipoMovimientoPuntos.Canje, 30, "010110000003", Caja, Sucursal, Inicio,
+            null, Inicio));
     }
 
     [Fact]
     public void El_saldo_publicado_avisa_cuando_cambia_para_no_republicar_el_maestro_sin_motivo()
     {
-        var saldo = SaldoPuntosCentral.Crear(Miembro, Cedula);
+        var saldo = SaldoPuntosCentral.Crear(Guid.CreateVersion7(), Cedula);
         var calculado = new SaldoPuntos(40, 10, Hoy.AddMonths(1), 0);
 
         Assert.True(saldo.Aplicar(calculado, Inicio));

@@ -1,4 +1,6 @@
 ﻿using CgPos.Contratos.Ventas;
+using CgPos.Contratos.Sincronizacion;
+using CgPos.Dominio.Comun;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -15,6 +17,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Perifericos;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Aplicacion.Ventas;
+using CgPos.Pos.Infraestructura.Sincronizacion;
 using CgPos.Pos.Infraestructura.Fidelidad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
@@ -158,7 +161,7 @@ internal sealed class ServicioDevoluciones(
                 .FirstOrDefaultAsync(cancelacion);
 
             // Lo ya devuelto se relee dentro de la transacción para no devolver dos veces lo mismo (RF-42).
-            devolucion = Armar(await DevueltoAsync(venta.Id, cancelacion), $"NC-{Venta.FormatearNumero(codigoSucursal, sesion.CajaCodigo, secuencia, digitos)}", turnoId, permiso);
+            devolucion = Armar(await DevueltoAsync(venta.Id, cancelacion), NumeroDocumento.Formatear(codigoSucursal, sesion.CajaCodigo, TipoDocumentoNumerado.NotaCredito, secuencia, digitos), turnoId, permiso);
             contexto.Devoluciones.Add(devolucion);
 
             emision = await emisorEcf.EmitirNotaCreditoAsync(devolucion, cancelacion);
@@ -210,10 +213,12 @@ internal sealed class ServicioDevoluciones(
         }
 
         var datos = devolucion.ADatos(emision.Documento, Hoy);
-        bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Id,
-            new DocumentoNotaCreditoEmitida(datos, devolucion.SucursalId, devolucion.CajaId, devolucion.TurnoId, emision.ParaCentral));
+        var turnoNumero = devolucion.TurnoId is { } turnoDevolucion
+            ? await contexto.Turnos.AsNoTracking().Where(t => t.Id == turnoDevolucion).Select(t => (long?)t.Numero).SingleOrDefaultAsync(cancelacion)
+            : null;
+        bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Numero, DocumentosParaCentral.NotaCreditoEmitida(datos, turnoNumero, emision.ParaCentral));
         if (reversoPuntos is not null)
-            bandejaSalida.Encolar("Fidelidad.MovimientoPuntos", reversoPuntos.Id, reversoPuntos.ADocumento(devolucion.SucursalId));
+            bandejaSalida.Encolar("Fidelidad.MovimientoPuntos", DocumentosParaCentral.ReferenciaPuntos(reversoPuntos), DocumentosParaCentral.MovimientoPuntos(reversoPuntos));
         auditoria.Registrar(new EntradaAuditoria("Devoluciones.NotaCreditoEmitida", TipoEntidadDevolucion, devolucion.Numero,
             Detalle: new
             {

@@ -9,7 +9,7 @@ public class ComprobanteRecibidoPruebas
 
     private static ComprobanteRecibido Nuevo()
     {
-        var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), "Venta.Cobrada", Guid.CreateVersion7(), "{}",
+        var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), "Venta.Cobrada", "010110000001", "{}",
             new string('A', DocumentoRecibido.LargoHash), Ahora, Ahora);
         return ComprobanteRecibido.Registrar(documento, "E320000000001", TipoComprobante.FacturaConsumo, "<ECF/>", new string('B', DocumentoRecibido.LargoHash), Ahora, Ahora);
     }

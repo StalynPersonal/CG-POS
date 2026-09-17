@@ -1,10 +1,12 @@
 ﻿using CgPos.Contratos.Ventas;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
+using CgPos.Pos.Infraestructura.Sincronizacion;
 using CgPos.Pos.Infraestructura.Ventas;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -57,8 +59,8 @@ internal sealed class RegularizacionContingencia(
 
                 // El Central recibió la venta sin e-CF: se le reenvía con el comprobante ya firmado.
                 var datos = venta.ADatos(montoIdentificacion, emision.Documento, emision.VenceSecuencia);
-                bandejaSalida.Encolar("Venta.Cobrada", venta.Id,
-                    new DocumentoVentaCobrada(datos, venta.SucursalId, venta.CajaId, venta.TurnoId, venta.UsuarioId, ahora, emision.ParaCentral));
+                bandejaSalida.Encolar("Venta.Cobrada", venta.NumeroTransaccion,
+                    await contexto.VentaCobradaAsync(venta, datos, emision.ParaCentral, ahora, cancelacion));
                 auditoria.Registrar(new EntradaAuditoria("Ecf.ContingenciaRegularizada", "Venta", venta.NumeroTransaccion,
                     Detalle: new { contingencia.Numero, emision.Documento.Encf, contingencia.Motivo }));
 

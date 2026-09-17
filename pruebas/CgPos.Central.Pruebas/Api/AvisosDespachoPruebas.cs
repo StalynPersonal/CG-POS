@@ -54,7 +54,7 @@ public class AvisosDespachoPruebas(CentralEnPruebas central)
 
             // El que aún se prepara no se avisa.
             var sinAviso = await central.UsarContextoAsync(contexto => contexto.PendientesEntrega.AsNoTracking()
-                .Where(p => p.Id == enProceso.Id).Select(p => p.AvisoEnviadoEn).SingleAsync());
+                .Where(p => p.Numero == enProceso.Numero).Select(p => p.AvisoEnviadoEn).SingleAsync());
             Assert.Null(sinAviso);
         }
         finally
@@ -106,21 +106,21 @@ public class AvisosDespachoPruebas(CentralEnPruebas central)
             new PaqueteMaestros(Clientes: [new ClienteCarga($"CL{Codigos.Siguiente()}", TipoDocumentoIdentidad.Rnc, documento, nombre, Correo: correo)]), "Pruebas");
     }
 
-    private static DatosPendienteEntrega Pendiente(string documento, string nombre, EstadoPendiente estado)
+    private static DocumentoPendienteEntrega Pendiente(string documento, string nombre, EstadoPendiente estado)
     {
-        var sufijo = Random.Shared.Next(100_000, 999_999);
         var creado = DateTimeOffset.UtcNow.AddHours(-1);
-        return new DatosPendienteEntrega(Guid.CreateVersion7(), $"PE-{sufijo}", Guid.CreateVersion7(), $"01-01-{sufijo}", CentralEnPruebas.Sucursal,
-            CentralEnPruebas.CajaUno, MetodoEntrega.RetiroAlmacen, estado, Guid.CreateVersion7(), "Almacén Central", null, null, null, null, "8095551234",
+        return new DocumentoPendienteEntrega(CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.PendienteEntrega),
+            CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura),
+            MetodoEntrega.RetiroAlmacen, estado, "ALM01", "Almacén Central", null, null, null, null, "8095551234",
             null, null, DateOnly.FromDateTime(DateTime.Today), null, documento, nombre, "Cajero Desarrollo", null, creado, creado, "Cajero Desarrollo", null,
             [new DatosLineaPendiente(1, "CINCEL", "Cincel", "UND", 0, false, 1m, 0m, null)],
             []);
     }
 
-    private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, DatosPendienteEntrega pendiente)
+    private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, DocumentoPendienteEntrega pendiente)
     {
         var contenido = JsonSerializer.Serialize(pendiente, OpcionesJson.Predeterminadas);
-        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.PendienteCreado, pendiente.Id, contenido,
+        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.PendienteCreado, pendiente.Numero, contenido,
             HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", token, mensaje));
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;

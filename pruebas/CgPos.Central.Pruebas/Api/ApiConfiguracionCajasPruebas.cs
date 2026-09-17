@@ -97,7 +97,7 @@ public class ApiConfiguracionCajasPruebas(CentralEnPruebas central)
         {
             var ahora = DateTimeOffset.UtcNow;
             var documento = CgPos.Dominio.Sincronizacion.DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaDos, CentralEnPruebas.Sucursal,
-                "Venta.Cobrada", Guid.CreateVersion7(), "{}", new string('A', CgPos.Dominio.Sincronizacion.DocumentoRecibido.LargoHash), ahora, ahora);
+                "Venta.Cobrada", Guid.NewGuid().ToString("N")[..12], "{}", new string('A', CgPos.Dominio.Sincronizacion.DocumentoRecibido.LargoHash), ahora, ahora);
             contexto.DocumentosRecibidos.Add(documento);
             contexto.ComprobantesRecibidos.Add(CgPos.Dominio.Sincronizacion.ComprobanteRecibido.Registrar(documento, encf, TipoComprobante.Gubernamental,
                 "<ECF/>", new string('B', CgPos.Dominio.Sincronizacion.DocumentoRecibido.LargoHash), ahora, ahora));

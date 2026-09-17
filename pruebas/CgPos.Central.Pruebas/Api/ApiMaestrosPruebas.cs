@@ -269,12 +269,11 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;
     }
 
-    private static (Guid MiembroId, MensajeSincronizacion Mensaje) Inscripcion(string cedula)
+    private static (string Cedula, MensajeSincronizacion Mensaje) Inscripcion(string cedula)
     {
-        var miembroId = Guid.CreateVersion7();
-        var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(miembroId, cedula, "Miembro de Prueba", null, null, CentralEnPruebas.CajaUno,
-            CentralEnPruebas.Sucursal, "Cajero Desarrollo", DateTimeOffset.UtcNow), OpcionesJson.Predeterminadas);
-        return (miembroId, new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, miembroId, contenido, HashSincronizacion.Calcular(contenido),
+        var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(cedula, "Miembro de Prueba", null, null, "Cajero Desarrollo", DateTimeOffset.UtcNow),
+            OpcionesJson.Predeterminadas);
+        return (cedula, new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, cedula, contenido, HashSincronizacion.Calcular(contenido),
             1, 1, DateTimeOffset.UtcNow));
     }
 

@@ -186,6 +186,13 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             return (sucursal, caja.Codigo);
         }).GetAwaiter().GetResult();
 
+    /// <summary>Número de documento nuevo de esa caja (sucursal + caja + tipo + secuencia aleatoria), como los que numera la caja.</summary>
+    public static string NumeroDocumento(Guid cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado tipo)
+    {
+        var (sucursal, caja) = CodigosCaja(cajaId);
+        return CgPos.Dominio.Comun.NumeroDocumento.Formatear(sucursal, caja, tipo, Random.Shared.NextInt64(1, 999_999_999_999), 12);
+    }
+
     public static async Task<string> TokenCajaAsync(HttpClient cliente, Guid cajaId)
     {
         var secreto = await EmitirCredencialAsync(cliente, cajaId);

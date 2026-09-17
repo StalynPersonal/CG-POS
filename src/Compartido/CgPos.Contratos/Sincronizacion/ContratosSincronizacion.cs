@@ -32,14 +32,15 @@ public static class HashSincronizacion
 }
 
 /// <summary>
-/// Mensaje de la bandeja de salida tal como viaja al Central. <paramref name="Id"/> es la clave de idempotencia (RN-25) y
+/// Mensaje de la bandeja de salida tal como viaja al Central. <paramref name="Id"/> es la clave de idempotencia (RN-25),
+/// <paramref name="Referencia"/> el número del documento (o su llave natural, como la cédula de una inscripción) y
 /// <paramref name="HashContenido"/> el SHA-256 del contenido, que el Central verifica antes de confirmar. La caja se identifica por el código de su
 /// sucursal y el suyo, que deben ser los de la credencial con que se autenticó.
 /// </summary>
 public sealed record MensajeSincronizacion(
     Guid Id,
     string TipoMensaje,
-    Guid AgregadoId,
+    string Referencia,
     string Contenido,
     string HashContenido,
     int SucursalCodigo,

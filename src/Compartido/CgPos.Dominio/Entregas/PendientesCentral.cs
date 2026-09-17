@@ -17,7 +17,6 @@ public sealed class PendienteCentral : Entidad
     }
 
     public string Numero { get; private set; } = string.Empty;
-    public Guid VentaId { get; private set; }
     public string VentaNumero { get; private set; } = string.Empty;
     public Guid SucursalId { get; private set; }
     public Guid CajaId { get; private set; }
@@ -56,14 +55,12 @@ public sealed class PendienteCentral : Entidad
     /// <summary>Se pasó de la fecha comprometida y todavía no se entregó (RF-252).</summary>
     public bool EstaAtrasado(DateOnly hoy) => EstaAbierto && FechaComprometida is { } fecha && fecha < hoy;
 
-    public static PendienteCentral Registrar(Guid id, DatosPendienteCentral datos, DateTimeOffset ahora)
+    public static PendienteCentral Registrar(DatosPendienteCentral datos, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(datos);
         var pendiente = new PendienteCentral
         {
-            Id = Validar.Id(id, "Pendiente de entrega"),
             Numero = Validar.Texto(datos.Numero, "Número del pendiente", LargoMaximoNumero),
-            VentaId = Validar.Id(datos.VentaId, "Venta"),
             VentaNumero = Validar.TextoOpcional(datos.VentaNumero, "Número de la venta", LargoMaximoNumero) ?? string.Empty,
             SucursalId = Validar.Id(datos.SucursalId, "Sucursal"),
             CajaId = Validar.Id(datos.CajaId, "Caja"),
@@ -115,7 +112,6 @@ public sealed class PendienteCentral : Entidad
 /// <summary>Lo que el Central guarda de un pendiente informado por una caja.</summary>
 public sealed record DatosPendienteCentral(
     string Numero,
-    Guid VentaId,
     string VentaNumero,
     Guid SucursalId,
     Guid CajaId,

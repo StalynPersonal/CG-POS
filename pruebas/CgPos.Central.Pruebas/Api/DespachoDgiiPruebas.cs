@@ -171,7 +171,7 @@ public class DespachoDgiiPruebas(CentralEnPruebas central)
         await central.UsarContextoAsync(async contexto =>
         {
             var ahora = DateTimeOffset.UtcNow;
-            var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaUno, CentralEnPruebas.Sucursal, "Venta.Cobrada", Guid.CreateVersion7(),
+            var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaUno, CentralEnPruebas.Sucursal, "Venta.Cobrada", Guid.NewGuid().ToString("N")[..12],
                 "{}", new string('A', DocumentoRecibido.LargoHash), ahora, ahora);
             contexto.DocumentosRecibidos.Add(documento);
             contexto.ComprobantesRecibidos.Add(ComprobanteRecibido.Registrar(documento, encf, TipoComprobante.FacturaConsumo,

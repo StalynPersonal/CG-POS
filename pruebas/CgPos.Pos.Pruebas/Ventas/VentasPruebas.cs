@@ -74,7 +74,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var inicio = await caja.VentaActualAsync();
 
-        Assert.Matches($@"^{caja.Escenario.CodigoSucursal:00}{caja.Escenario.CodigoCajaUno:00}\d{{7}}$", inicio.NumeroTransaccion);
+        Assert.Matches($@"^{caja.Escenario.CodigoSucursal:00}{caja.Escenario.CodigoCajaUno:00}1\d{{7}}$", inicio.NumeroTransaccion);
 
         await caja.AgregarAsync(inicio.Id, caja.Catalogo.BarrasCincel);
         var conMayor = await caja.AgregarAsync(inicio.Id, $"12*{caja.Catalogo.CodigoCemento}");
@@ -540,7 +540,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Empty(cobro.NuevaVenta.Lineas);
 
         var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.BandejaSalida.CountAsync(m => m.TipoMensaje == "Venta.Cobrada" && m.AgregadoId == venta.Id));
+            contexto.BandejaSalida.CountAsync(m => m.TipoMensaje == "Venta.Cobrada" && m.Referencia == venta.NumeroTransaccion));
         Assert.Equal(1, mensajes);
 
         var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{venta.NumeroTransaccion}.txt")));
@@ -659,7 +659,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(documento.HashXml, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(xml))));
 
         var mensaje = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
-            contexto.BandejaSalida.Where(m => m.AgregadoId == primera.Venta.Id).Select(m => m.Contenido).SingleAsync());
+            contexto.BandejaSalida.Where(m => m.Referencia == primera.Venta.NumeroTransaccion).Select(m => m.Contenido).SingleAsync());
         Assert.Contains(encfPrimera, mensaje);
 
         var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{primera.Venta.NumeroTransaccion}.txt")));
@@ -744,7 +744,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(regularizada.Encf, documento.Encf);
 
         var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.BandejaSalida.AsNoTracking().Where(m => m.AgregadoId == cobro.Venta.Id && m.TipoMensaje == "Venta.Cobrada").CountAsync());
+            contexto.BandejaSalida.AsNoTracking().Where(m => m.Referencia == cobro.Venta.NumeroTransaccion && m.TipoMensaje == "Venta.Cobrada").CountAsync());
         Assert.Equal(2, mensajes);
         Assert.Equal(0, (await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero))).ContingenciasPendientes);
     }
@@ -779,6 +779,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var sinPermiso = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RetirarEfectivoAsync(caja.Cajero, 100m, "Remesa a bóveda", null));
         Assert.Equal(CodigoResultadoCaja.RequiereAutorizacion, sinPermiso.Resultado);
 
+        // Otras cajas de prueba comparten la base y numeran sus turnos igual: se cuentan solo los mensajes de esta prueba.
+        var mensajesPrevios = await caja.EjecutarAsync<ContextoDatosPos, List<Guid>>(contexto => contexto.BandejaSalida.Select(m => m.Id).ToListAsync());
+
         var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.RetiroEfectivo, "Remesa a bóveda");
         var retiro = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RetirarEfectivoAsync(caja.Cajero, 100m, "Remesa a bóveda", autorizacion));
         Assert.True(retiro.Exitosa, retiro.Mensaje);
@@ -809,9 +812,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var estado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.Cajero));
         Assert.Null(estado.TurnoAbierto);
 
-        var retiroId = retiro.Movimiento.Id;
-        var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.BandejaSalida.CountAsync(m =>
-            (m.TipoMensaje == "Caja.TurnoCerrado" && m.AgregadoId == cierre.Id) || (m.TipoMensaje == "Caja.RetiroEfectivo" && m.AgregadoId == retiroId)));
+        // Los mensajes del turno se identifican por su número en la caja, nunca por Id.
+        var turnoNumero = cierre.TurnoNumero.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var retiroReferencia = $"{cierre.TurnoNumero}-{retiro.Movimiento.Tipo}-{retiro.Movimiento.Numero}";
+        var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.BandejaSalida.CountAsync(m => !mensajesPrevios.Contains(m.Id) &&
+            ((m.TipoMensaje == "Caja.TurnoCerrado" && m.Referencia == turnoNumero) || (m.TipoMensaje == "Caja.RetiroEfectivo" && m.Referencia == retiroReferencia))));
         Assert.Equal(2, mensajes);
 
         var reportes = Directory.GetFiles(baseDatos.CarpetaImpresiones, "*cierre-*.txt").Select(File.ReadAllText);
@@ -950,10 +955,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
 
         const string encf = "E340000000777";
-        var notaId = Guid.CreateVersion7();
-        caja.Central.NotasCredito[encf] = new DatosNotaCreditoCentral(notaId, "NC-777", encf, Guid.CreateVersion7(), "S99", "01", "401007551",
-            "Cliente de Otra Sucursal", "DOP", 500m, 0m, 0m, 500m, new DateOnly(2027, 12, 31), CgPos.Dominio.Devoluciones.EstadoNotaCreditoCentral.Vigente, false,
-            caja.Reloj.GetUtcNow(), null, null, null);
+        const string numeroNota = "990120000777";
+        caja.Central.NotasCredito[encf] = new DatosNotaCreditoParaCaja(numeroNota, encf, "99", "01", "401007551", "Cliente de Otra Sucursal", "DOP", 500m, 500m,
+            new DateOnly(2027, 12, 31), CgPos.Dominio.Devoluciones.EstadoNotaCreditoCentral.Vigente);
 
         // Lo que no está en esta caja ni en el Central se rechaza.
         var venta = await caja.VentaActualAsync();
@@ -978,8 +982,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Single(caja.Central.ReservasLiberadas);
 
         var mensaje = await caja.EjecutarAsync<ContextoDatosPos, MensajeSalida>(contexto =>
-            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.TipoMensaje == "NotaCredito.Consumida" && m.AgregadoId == notaId));
+            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.TipoMensaje == "NotaCredito.Consumida" && m.Referencia == numeroNota));
         Assert.Contains(encf, mensaje.Contenido);
+
+        // La reserva y su liberación van por el número de la nota y el de la factura: el Central no conoce los Id de la caja.
+        Assert.All(caja.Central.Reservas, r => Assert.Equal((numeroNota, venta.NumeroTransaccion), (r.NotaCreditoNumero, r.VentaNumero)));
+        Assert.Contains(venta.NumeroTransaccion, mensaje.Contenido);
     }
 
     [SkippableFact]
@@ -1227,7 +1235,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         async Task<(CgPos.Dominio.Fiscal.DocumentoElectronico Documento, MensajeSalida Mensaje)> LeerAsync() =>
             await caja.EjecutarAsync<ContextoDatosPos, (CgPos.Dominio.Fiscal.DocumentoElectronico, MensajeSalida)>(async contexto =>
                 (await contexto.DocumentosElectronicos.AsNoTracking().SingleAsync(d => d.VentaId == ventaId),
-                 await contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.AgregadoId == ventaId && m.TipoMensaje == "Venta.Cobrada")));
+                 await contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.Referencia == cobro.Venta.NumeroTransaccion && m.TipoMensaje == "Venta.Cobrada")));
 
         Task<ResultadoProcesoBandeja> ProcesarAsync(IClienteCentral central) =>
             caja.EjecutarAsync<IServiceProvider, ResultadoProcesoBandeja>(proveedor =>
@@ -1343,8 +1351,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.StartsWith("E32", cobro.Venta!.Comprobante!.Encf);
 
         var mensaje = await caja.EjecutarAsync<ContextoDatosPos, MensajeSalida>(contexto =>
-            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.AgregadoId == cobro.Venta.Id && m.TipoMensaje == "Venta.Cobrada"));
+            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.Referencia == cobro.Venta.NumeroTransaccion && m.TipoMensaje == "Venta.Cobrada"));
         var documento = JsonSerializer.Deserialize<DocumentoVentaCobrada>(mensaje.Contenido, OpcionesJson.Predeterminadas)!;
+        Assert.Equal(cobro.Venta.NumeroTransaccion, documento.Numero);
+        Assert.DoesNotContain(cobro.Venta.Id.ToString(), mensaje.Contenido, StringComparison.OrdinalIgnoreCase);
 
         // La venta no llega al monto de identificación: a la DGII va el resumen (RFCE), no el e-CF completo.
         Assert.NotNull(documento.Ecf);
@@ -1519,7 +1529,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Task<(string RutaXml, Guid MensajeId)> DocumentoAsync(Guid ventaId) =>
             caja.EjecutarAsync<ContextoDatosPos, (string, Guid)>(async contexto =>
                 (await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == ventaId).Select(d => d.RutaXml).SingleAsync(),
-                 await contexto.BandejaSalida.AsNoTracking().Where(m => m.AgregadoId == ventaId && m.TipoMensaje == "Venta.Cobrada").Select(m => m.Id).SingleAsync()));
+                 await contexto.BandejaSalida.AsNoTracking()
+                     .Where(m => m.TipoMensaje == "Venta.Cobrada" && contexto.Ventas.Any(v => v.Id == ventaId && v.NumeroTransaccion == m.Referencia))
+                     .Select(m => m.Id).SingleAsync()));
 
         // Una venta confirmada por el Central (XML en Enviados) y otra aún pendiente.
         var sincronizada = (await caja.CobrarCincelEnEfectivoAsync()).Venta!.Id;
@@ -1596,7 +1608,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
         {
-            ambito.ServiceProvider.GetRequiredService<IBandejaSalida>().Encolar("Prueba.Documento", Guid.CreateVersion7(), new { Total = 1m });
+            ambito.ServiceProvider.GetRequiredService<IBandejaSalida>().Encolar("Prueba.Documento", Guid.NewGuid().ToString("N"), new { Total = 1m });
             await ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>().SaveChangesAsync();
         }
 

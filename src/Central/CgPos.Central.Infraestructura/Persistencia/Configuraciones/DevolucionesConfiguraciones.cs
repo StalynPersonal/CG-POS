@@ -26,7 +26,7 @@ internal sealed class NotaCreditoCentralConfiguracion : IEntityTypeConfiguration
 
         // La caja busca por e-NCF o por número; ambos identifican una sola nota.
         constructor.HasIndex(n => n.Encf).IsUnique().HasFilter("[Encf] IS NOT NULL");
-        constructor.HasIndex(n => n.Numero);
+        constructor.HasIndex(n => n.Numero).IsUnique();
         constructor.HasIndex(n => n.ClienteDocumento);
         constructor.HasIndex(n => n.VenceEn);
     }
@@ -39,13 +39,14 @@ internal sealed class ConsumoNotaCreditoCentralConfiguracion : IEntityTypeConfig
         constructor.ToTable("ConsumosNotaCredito");
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.Id).ValueGeneratedNever();
-        constructor.Property(c => c.VentaNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero);
+        constructor.Property(c => c.NotaCreditoNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
+        constructor.Property(c => c.VentaNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
 
         // Sin clave foránea a la nota: el consumo de una caja puede llegar antes que la emisión de otra, y al registrarla se descuenta.
         constructor.HasOne<Caja>().WithMany().HasForeignKey(c => c.CajaId).OnDelete(DeleteBehavior.Restrict);
 
-        // Una venta consume una nota de crédito una sola vez, aunque su mensaje llegue repetido.
-        constructor.HasIndex(c => new { c.NotaCreditoId, c.VentaId }).IsUnique();
+        // Una factura consume una nota de crédito una sola vez, aunque su mensaje llegue repetido.
+        constructor.HasIndex(c => new { c.NotaCreditoNumero, c.VentaNumero }).IsUnique();
     }
 }
 
@@ -57,6 +58,7 @@ internal sealed class ReservaNotaCreditoCentralConfiguracion : IEntityTypeConfig
         constructor.HasKey(r => r.Id);
         constructor.Property(r => r.Id).ValueGeneratedNever();
         constructor.Property(r => r.Cierre).HasMaxLength(ReservaNotaCreditoCentral.LargoMaximoCierre);
+        constructor.Property(r => r.VentaNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
 
         constructor.HasOne<NotaCreditoCentral>().WithMany().HasForeignKey(r => r.NotaCreditoId).OnDelete(DeleteBehavior.Cascade);
         constructor.HasOne<Caja>().WithMany().HasForeignKey(r => r.CajaId).OnDelete(DeleteBehavior.Restrict);

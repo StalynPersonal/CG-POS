@@ -11,6 +11,7 @@ public sealed class DocumentoRecibido : Entidad
 {
     public const int LargoMaximoTipo = 100;
     public const int LargoHash = 64;
+    public const int LargoMaximoReferencia = 40;
 
     private DocumentoRecibido()
     {
@@ -20,8 +21,8 @@ public sealed class DocumentoRecibido : Entidad
     public Guid SucursalId { get; private set; }
     public string TipoMensaje { get; private set; } = string.Empty;
 
-    /// <summary>Id del documento de la caja (venta, nota de crédito, cierre…).</summary>
-    public Guid AgregadoId { get; private set; }
+    /// <summary>Número del documento de la caja (factura, nota de crédito, pendiente…) o su llave natural (cédula, turno).</summary>
+    public string Referencia { get; private set; } = string.Empty;
 
     public string Contenido { get; private set; } = string.Empty;
     public string HashContenido { get; private set; } = string.Empty;
@@ -33,7 +34,7 @@ public sealed class DocumentoRecibido : Entidad
 
     public DateTimeOffset? UltimoReenvioEn { get; private set; }
 
-    public static DocumentoRecibido Recibir(Guid mensajeId, Guid cajaId, Guid sucursalId, string tipoMensaje, Guid agregadoId, string contenido, string hashContenido,
+    public static DocumentoRecibido Recibir(Guid mensajeId, Guid cajaId, Guid sucursalId, string tipoMensaje, string referencia, string contenido, string hashContenido,
         DateTimeOffset creadoEnCaja, DateTimeOffset ahora)
     {
         ArgumentException.ThrowIfNullOrEmpty(contenido);
@@ -46,7 +47,7 @@ public sealed class DocumentoRecibido : Entidad
             CajaId = Validar.Id(cajaId, "Caja"),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             TipoMensaje = Validar.Texto(tipoMensaje, "Tipo de mensaje", LargoMaximoTipo),
-            AgregadoId = Validar.Id(agregadoId, "Documento"),
+            Referencia = Validar.Texto(referencia, "Referencia del documento", LargoMaximoReferencia),
             Contenido = contenido,
             HashContenido = hashContenido.ToUpperInvariant(),
             CreadoEnCaja = creadoEnCaja,
@@ -82,8 +83,8 @@ public sealed class ComprobanteRecibido : Entidad
     /// <summary>Documento recibido (mensaje) que trajo el comprobante.</summary>
     public Guid DocumentoId { get; private set; }
 
-    /// <summary>Venta o devolución de la caja.</summary>
-    public Guid AgregadoId { get; private set; }
+    /// <summary>Número de la factura o de la nota de crédito en la caja.</summary>
+    public string Referencia { get; private set; } = string.Empty;
 
     public Guid CajaId { get; private set; }
     public Guid SucursalId { get; private set; }
@@ -208,7 +209,7 @@ public sealed class ComprobanteRecibido : Entidad
         return new ComprobanteRecibido
         {
             DocumentoId = documento.Id,
-            AgregadoId = documento.AgregadoId,
+            Referencia = documento.Referencia,
             CajaId = documento.CajaId,
             SucursalId = documento.SucursalId,
             Encf = encf,

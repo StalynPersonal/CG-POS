@@ -14,7 +14,7 @@ public class CentralPruebas : IDisposable
     private readonly string _carpeta = Path.Combine(Path.GetTempPath(), "CgPosPruebas", "central-" + Guid.NewGuid().ToString("N"));
 
     private static MensajeSincronizacion Mensaje(string contenido, Guid? id = null) =>
-        new(id ?? Guid.CreateVersion7(), "Venta.Cobrada", Guid.CreateVersion7(), contenido, MensajeSalida.CalcularHash(contenido), 1, 1,
+        new(id ?? Guid.CreateVersion7(), "Venta.Cobrada", "010110000001", contenido, MensajeSalida.CalcularHash(contenido), 1, 1,
             DateTimeOffset.UtcNow);
 
     [Fact]
@@ -156,32 +156,33 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
         Task.FromResult(ResultadoBajadaCentral.Recibido(bajada ?? new PaqueteBajadaMaestros(desde, desde, null, null)));
 
     /// <summary>Notas de crédito de otras sucursales que este Central conoce, por código consultado (RF-43).</summary>
-    public Dictionary<string, DatosNotaCreditoCentral> NotasCredito { get; } = [];
+    public Dictionary<string, DatosNotaCreditoParaCaja> NotasCredito { get; } = [];
 
-    public List<(Guid NotaCreditoId, decimal Monto)> Reservas { get; } = [];
+    public List<(string NotaCreditoNumero, string VentaNumero, decimal Monto)> Reservas { get; } = [];
 
-    public List<Guid> ReservasLiberadas { get; } = [];
+    public List<(string NotaCreditoNumero, string VentaNumero)> ReservasLiberadas { get; } = [];
 
     public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
         Task.FromResult(NotasCredito.TryGetValue(codigo, out var nota)
             ? ResultadoNotaCreditoCentral.Encontrada(nota)
             : ResultadoNotaCreditoCentral.NoExiste("La nota de crédito no existe en el Central."));
 
-    public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(Guid notaCreditoId, decimal monto, CancellationToken cancelacion = default)
+    public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, decimal monto,
+        CancellationToken cancelacion = default)
     {
-        var nota = NotasCredito.Values.SingleOrDefault(n => n.Id == notaCreditoId);
+        var nota = NotasCredito.Values.SingleOrDefault(n => n.Numero == notaCreditoNumero);
         if (nota is null || nota.Disponible <= 0m)
             return Task.FromResult(ResultadoReservaNotaCredito.Rechazada("La nota de crédito no tiene saldo disponible."));
 
         var reservado = Math.Min(monto, nota.Disponible);
-        Reservas.Add((notaCreditoId, reservado));
-        NotasCredito[NotasCredito.First(p => p.Value.Id == notaCreditoId).Key] = nota with { Reservado = nota.Reservado + reservado, Disponible = nota.Disponible - reservado };
-        return Task.FromResult(ResultadoReservaNotaCredito.Reservada(Guid.CreateVersion7(), reservado));
+        Reservas.Add((notaCreditoNumero, ventaNumero, reservado));
+        NotasCredito[NotasCredito.First(p => p.Value.Numero == notaCreditoNumero).Key] = nota with { Disponible = nota.Disponible - reservado };
+        return Task.FromResult(ResultadoReservaNotaCredito.Reservada(reservado));
     }
 
-    public Task LiberarReservaNotaCreditoAsync(Guid reservaId, CancellationToken cancelacion = default)
+    public Task LiberarReservaNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, CancellationToken cancelacion = default)
     {
-        ReservasLiberadas.Add(reservaId);
+        ReservasLiberadas.Add((notaCreditoNumero, ventaNumero));
         return Task.CompletedTask;
     }
 

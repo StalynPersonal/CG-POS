@@ -14,6 +14,7 @@ public sealed class MensajeSalida : Entidad
 {
     public const int LargoMaximoTipo = 100;
     public const int LargoMaximoError = 2000;
+    public const int LargoMaximoReferencia = 40;
 
     private MensajeSalida()
     {
@@ -22,8 +23,8 @@ public sealed class MensajeSalida : Entidad
     /// <summary>Tipo del mensaje, ej. "Factura.Emitida".</summary>
     public string TipoMensaje { get; private set; } = string.Empty;
 
-    /// <summary>Id del documento que originó el mensaje (factura, nota de crédito, cierre…).</summary>
-    public Guid AgregadoId { get; private set; }
+    /// <summary>Número del documento que originó el mensaje (factura, nota de crédito, pendiente…) o su llave natural (cédula, turno).</summary>
+    public string Referencia { get; private set; } = string.Empty;
 
     /// <summary>Contenido serializado en JSON.</summary>
     public string Contenido { get; private set; } = string.Empty;
@@ -42,19 +43,20 @@ public sealed class MensajeSalida : Entidad
     public DateTimeOffset? ConfirmadoEn { get; private set; }
     public string? UltimoError { get; private set; }
 
-    public static MensajeSalida Crear(string tipoMensaje, Guid agregadoId, string contenidoJson, DateTimeOffset ahora)
+    public static MensajeSalida Crear(string tipoMensaje, string referencia, string contenidoJson, DateTimeOffset ahora)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tipoMensaje);
         ArgumentException.ThrowIfNullOrWhiteSpace(contenidoJson);
         if (tipoMensaje.Length > LargoMaximoTipo)
             throw new ArgumentException($"El tipo de mensaje excede {LargoMaximoTipo} caracteres.", nameof(tipoMensaje));
-        if (agregadoId == Guid.Empty)
-            throw new ArgumentException("El Id del documento es obligatorio.", nameof(agregadoId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(referencia);
+        if (referencia.Trim().Length > LargoMaximoReferencia)
+            throw new ArgumentException($"La referencia del documento excede {LargoMaximoReferencia} caracteres.", nameof(referencia));
 
         return new MensajeSalida
         {
             TipoMensaje = tipoMensaje,
-            AgregadoId = agregadoId,
+            Referencia = referencia.Trim(),
             Contenido = contenidoJson,
             HashContenido = CalcularHash(contenidoJson),
             Estado = EstadoMensajeSalida.Pendiente,

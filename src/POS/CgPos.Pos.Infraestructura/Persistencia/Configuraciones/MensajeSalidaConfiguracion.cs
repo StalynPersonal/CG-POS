@@ -23,6 +23,7 @@ internal sealed class MensajeSalidaConfiguracion : IEntityTypeConfiguration<Mens
         constructor.HasIndex(m => new { m.Estado, m.ProximoIntentoEn })
             .HasDatabaseName("IX_BandejaSalida_Estado_ProximoIntentoEn");
 
-        constructor.HasIndex(m => m.AgregadoId);
+        constructor.Property(m => m.Referencia).HasMaxLength(MensajeSalida.LargoMaximoReferencia).IsUnicode(false).IsRequired();
+        constructor.HasIndex(m => m.Referencia);
     }
 }

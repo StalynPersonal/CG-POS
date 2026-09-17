@@ -78,13 +78,3 @@ public sealed record DatosOperacionTerminal(
     string? UltimosDigitos,
     string? Marca,
     string? Mensaje);
-
-/// <summary>Documento que la caja encola para el Central al cobrar (RF-2): la venta completa con sus pagos y su e-CF firmado.</summary>
-public sealed record DocumentoVentaCobrada(
-    DatosVenta Venta,
-    Guid SucursalId,
-    Guid CajaId,
-    Guid TurnoId,
-    Guid UsuarioId,
-    DateTimeOffset CobradaEn,
-    DocumentoElectronicoParaCentral? Ecf = null);

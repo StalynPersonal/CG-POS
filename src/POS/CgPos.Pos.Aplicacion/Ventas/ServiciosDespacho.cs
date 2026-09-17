@@ -9,7 +9,7 @@ namespace CgPos.Pos.Aplicacion.Ventas;
 /// </summary>
 public interface IServicioDespacho
 {
-    /// <summary>Pendientes del voucher (número PE-…) o de la factura (número de transacción o e-NCF) escaneada.</summary>
+    /// <summary>Pendientes del voucher (número de pendiente) o de la factura (número de transacción o e-NCF) escaneada.</summary>
     Task<RespuestaBusquedaPendientes> BuscarAsync(SesionUsuario sesion, string codigo, CancellationToken cancelacion = default);
 
     /// <summary>Pendientes abiertos de la caja, los de fecha comprometida más cercana primero.</summary>

@@ -22,7 +22,8 @@ internal sealed class DocumentoRecibidoConfiguracion : IEntityTypeConfiguration<
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(d => d.SucursalId).OnDelete(DeleteBehavior.Restrict);
 
         constructor.HasIndex(d => new { d.CajaId, d.RecibidoEn });
-        constructor.HasIndex(d => d.AgregadoId);
+        constructor.Property(d => d.Referencia).HasMaxLength(DocumentoRecibido.LargoMaximoReferencia).IsUnicode(false).IsRequired();
+        constructor.HasIndex(d => d.Referencia);
         constructor.HasIndex(d => new { d.TipoMensaje, d.RecibidoEn });
     }
 }
@@ -36,6 +37,7 @@ internal sealed class ComprobanteRecibidoConfiguracion : IEntityTypeConfiguratio
         constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(c => c.Referencia).HasMaxLength(DocumentoRecibido.LargoMaximoReferencia).IsUnicode(false).IsRequired();
         constructor.Property(c => c.XmlFirmado).IsRequired().Metadata.SetMaxLength(null);
         constructor.Property(c => c.HashXml).HasMaxLength(DocumentoRecibido.LargoHash).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(c => c.EstadoDgii).HasConversion<string>().HasMaxLength(30);

@@ -29,14 +29,14 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
             var outbox = ambito.ServiceProvider.GetRequiredService<IBandejaSalida>();
             var auditoria = ambito.ServiceProvider.GetRequiredService<IAuditoria>();
 
-            mensajeId = outbox.Encolar("Prueba.DocumentoEmitido", documentoId, new { Numero = "E320000000001", Total = 850.00m });
+            mensajeId = outbox.Encolar("Prueba.DocumentoEmitido", documentoId.ToString("N"), new { Numero = "E320000000001", Total = 850.00m });
             auditoria.Registrar(new EntradaAuditoria(
                 "Prueba.DocumentoEmitido", TipoDocumento, documentoId.ToString(),
                 Detalle: new { Total = 850.00m },
                 Usuario: new UsuarioAuditoria(Guid.CreateVersion7(), "Cajero Prueba")));
 
             // Encolar y registrar no guardan por sí mismos.
-            Assert.Equal(0, await contexto.BandejaSalida.CountAsync(m => m.AgregadoId == documentoId));
+            Assert.Equal(0, await contexto.BandejaSalida.CountAsync(m => m.Referencia == documentoId.ToString("N")));
 
             await contexto.SaveChangesAsync();
         }
@@ -47,7 +47,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
 
             var mensaje = await contexto.BandejaSalida.SingleAsync(m => m.Id == mensajeId);
             Assert.Equal(EstadoMensajeSalida.Pendiente, mensaje.Estado);
-            Assert.Equal(documentoId, mensaje.AgregadoId);
+            Assert.Equal(documentoId.ToString("N"), mensaje.Referencia);
             Assert.Contains("\"numero\":\"E320000000001\"", mensaje.Contenido);
             Assert.Equal(MensajeSalida.CalcularHash(mensaje.Contenido), mensaje.HashContenido);
 
@@ -69,7 +69,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
             var outbox = ambito.ServiceProvider.GetRequiredService<IBandejaSalida>();
             var auditoria = ambito.ServiceProvider.GetRequiredService<IAuditoria>();
 
-            outbox.Encolar("Prueba.DocumentoEmitido", documentoId, new { Total = 1m });
+            outbox.Encolar("Prueba.DocumentoEmitido", documentoId.ToString("N"), new { Total = 1m });
             auditoria.Registrar(new EntradaAuditoria("Prueba.Valida", TipoDocumento, documentoId.ToString()));
             // Acción más larga que la columna: SQL Server rechaza el INSERT dentro del mismo SaveChanges.
             auditoria.Registrar(new EntradaAuditoria(new string('X', RegistroAuditoria.LargoMaximoAccion + 1), TipoDocumento, documentoId.ToString()));
@@ -94,7 +94,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
 
             await using var transaccion = await contexto.Database.BeginTransactionAsync();
 
-            outbox.Encolar("Prueba.DocumentoEmitido", documentoId, new { Total = 1m });
+            outbox.Encolar("Prueba.DocumentoEmitido", documentoId.ToString("N"), new { Total = 1m });
             await contexto.SaveChangesAsync(); // el mensaje ya se escribió dentro de la transacción
 
             auditoria.Registrar(new EntradaAuditoria(new string('X', RegistroAuditoria.LargoMaximoAccion + 1), TipoDocumento, documentoId.ToString()));
@@ -122,7 +122,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
             var outbox = ambito.ServiceProvider.GetRequiredService<IBandejaSalida>();
             var auditoria = ambito.ServiceProvider.GetRequiredService<IAuditoria>();
 
-            mensajeId = outbox.Encolar("Prueba.DocumentoEmitido", documentoId, new { Lineas = lineas });
+            mensajeId = outbox.Encolar("Prueba.DocumentoEmitido", documentoId.ToString("N"), new { Lineas = lineas });
             auditoria.Registrar(new EntradaAuditoria("Prueba.DocumentoEmitido", TipoDocumento, documentoId.ToString(), Detalle: new { Lineas = lineas }));
             contenidoOriginal = contexto.BandejaSalida.Local.Single(m => m.Id == mensajeId).Contenido;
 
@@ -149,7 +149,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
 
-        Assert.Equal(0, await contexto.BandejaSalida.CountAsync(m => m.AgregadoId == documentoId));
+        Assert.Equal(0, await contexto.BandejaSalida.CountAsync(m => m.Referencia == documentoId.ToString("N")));
         Assert.Equal(0, await contexto.Auditoria.CountAsync(r => r.EntidadId == documentoId.ToString()));
     }
 }

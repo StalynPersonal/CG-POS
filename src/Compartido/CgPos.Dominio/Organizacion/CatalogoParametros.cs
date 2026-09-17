@@ -100,8 +100,8 @@ public static class CatalogoParametros
         new("Fiscal.TipoIngresos", "Fiscal", "Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6)", Entero, true, Minimo: 1, Maximo: 6),
 
         new(DigitosSecuenciaDocumentos, "Numeración de documentos",
-            "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente (sucursal + caja + secuencia); se puede aumentar en cualquier momento",
-            Entero, true, Minimo: Ventas.Venta.DigitosMinimosSecuencia, Maximo: Ventas.Venta.DigitosMaximosSecuencia),
+            "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente (sucursal + caja + tipo + secuencia); se puede aumentar en cualquier momento",
+            Entero, true, Minimo: Comun.NumeroDocumento.DigitosMinimosSecuencia, Maximo: Comun.NumeroDocumento.DigitosMaximosSecuencia),
         new(ProximaFactura, "Numeración de documentos",
             "Secuencia mínima de la próxima factura de la caja (para continuar la numeración tras reinstalarla); nunca hace retroceder la numeración",
             Entero, false, Minimo: 1),

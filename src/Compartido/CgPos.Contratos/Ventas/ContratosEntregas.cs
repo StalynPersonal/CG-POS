@@ -84,7 +84,7 @@ public sealed record RespuestaBusquedaPendientes(CodigoResultadoPendiente Result
     public bool Exitosa => Resultado == CodigoResultadoPendiente.Correcto;
 }
 
-/// <summary>Documento de pendiente de entrega o envío (RF-249, RF-252); también es el mensaje para el Central.</summary>
+/// <summary>Documento de pendiente de entrega o envío (RF-249, RF-252) en la caja.</summary>
 public sealed record DatosPendienteEntrega(
     Guid Id,
     string Numero,

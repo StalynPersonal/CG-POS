@@ -11,12 +11,10 @@ internal sealed class MovimientoPuntosCentralConfiguracion : IEntityTypeConfigur
     {
         constructor.ToTable("MovimientosPuntos");
         constructor.HasKey(m => m.Id);
-
-        // El Id lo genera la caja: reenviar el mismo movimiento no acumula dos veces.
         constructor.Property(m => m.Id).ValueGeneratedNever();
 
         constructor.Property(m => m.Cedula).HasMaxLength(MovimientoPuntosCentral.LargoMaximoCedula).IsFixedLength().IsUnicode(false).IsRequired();
-        constructor.Property(m => m.Documento).HasMaxLength(MovimientoPuntosCentral.LargoMaximoDocumento);
+        constructor.Property(m => m.Documento).HasMaxLength(MovimientoPuntosCentral.LargoMaximoDocumento).IsRequired();
         constructor.Property(m => m.Usuario).HasMaxLength(MovimientoPuntosCentral.LargoMaximoUsuario);
         constructor.Property(m => m.Motivo).HasMaxLength(MovimientoPuntosCentral.LargoMaximoMotivo);
 
@@ -24,9 +22,11 @@ internal sealed class MovimientoPuntosCentralConfiguracion : IEntityTypeConfigur
         constructor.HasOne<Caja>().WithMany().HasForeignKey(m => m.CajaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(m => m.SucursalId).OnDelete(DeleteBehavior.Restrict);
 
-        // El saldo se recalcula con todos los movimientos del miembro, en orden.
-        constructor.HasIndex(m => new { m.MiembroId, m.Fecha });
-        constructor.HasIndex(m => m.Cedula);
+        // El saldo se recalcula con todos los movimientos de la cédula, en orden.
+        constructor.HasIndex(m => new { m.Cedula, m.Fecha });
+
+        // Un documento de caja genera un solo movimiento de cada tipo: reenviar el mensaje no acumula dos veces.
+        constructor.HasIndex(m => new { m.Documento, m.Tipo }).IsUnique().HasFilter($"[Origen] = {(int)OrigenMovimientoPuntos.Caja}");
     }
 }
 

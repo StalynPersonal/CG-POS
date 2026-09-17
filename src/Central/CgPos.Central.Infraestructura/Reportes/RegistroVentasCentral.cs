@@ -1,5 +1,5 @@
 using CgPos.Central.Infraestructura.Persistencia;
-using CgPos.Contratos.Ventas;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,74 +11,64 @@ namespace CgPos.Central.Infraestructura.Reportes;
 /// </summary>
 internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeProvider reloj)
 {
-    /// <returns>El motivo si el número ya pertenece a otra transacción (no se registra), o <c>null</c>.</returns>
-    public async Task<string?> RegistrarVentaAsync(DocumentoVentaCobrada documento, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
+    /// <summary>La factura se identifica por su número: si ya se registró (un reenvío, o la regularización de una contingencia), no se repite.</summary>
+    public async Task RegistrarVentaAsync(DocumentoVentaCobrada venta, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
     {
-        ArgumentNullException.ThrowIfNull(documento);
-        var venta = documento.Venta;
-        if (await contexto.VentasCentral.AnyAsync(c => c.Id == venta.Id, cancelacion))
-            return null;
-        if (await NumeroUsadoAsync(TipoComprobanteVenta.Factura, venta.NumeroTransaccion, venta.Id, cancelacion) is { } duplicado)
-            return duplicado;
+        ArgumentNullException.ThrowIfNull(venta);
+        if (await YaRegistradoAsync(TipoComprobanteVenta.Factura, venta.Numero, cancelacion))
+            return;
 
-        var cobrada = venta.CobradaEn ?? documento.CobradaEn;
-        var comprobante = ComprobanteVentaCentral.Registrar(venta.Id, TipoComprobanteVenta.Factura, venta.NumeroTransaccion, sucursalId, cajaId,
-            documento.TurnoId, venta.UsuarioNombre, cobrada, DateOnly.FromDateTime(cobrada.LocalDateTime), venta.TipoComprobante, venta.Comprobante?.Encf, null,
+        var cobrada = venta.CobradaEn;
+        var comprobante = ComprobanteVentaCentral.Registrar(TipoComprobanteVenta.Factura, venta.Numero.Trim(), sucursalId, cajaId,
+            venta.TurnoNumero, venta.UsuarioNombre, cobrada, DateOnly.FromDateTime(cobrada.LocalDateTime), venta.TipoComprobante, venta.Comprobante?.Encf, null,
             venta.Cliente?.TipoDocumento, venta.Cliente?.Documento, venta.Cliente?.Nombre, venta.Moneda, venta.Totales.Subtotal, venta.Totales.Descuento,
-            venta.Totales.Impuesto, 0m, venta.TotalCobrado ?? venta.Totales.Total, venta.Totales.CantidadLineas, reloj.GetUtcNow());
+            venta.Totales.Impuesto, 0m, venta.TotalCobrado, venta.Totales.CantidadLineas, reloj.GetUtcNow());
 
         foreach (var impuesto in venta.Totales.Desglose)
             comprobante.AgregarImpuesto(impuesto.Porcentaje, impuesto.Base, impuesto.Impuesto);
 
-        foreach (var pago in venta.Pagos ?? [])
+        foreach (var pago in venta.Pagos)
             comprobante.AgregarPago(pago.Tipo, pago.FormaPagoNombre, pago.Moneda, pago.MontoAplicado);
 
         contexto.VentasCentral.Add(comprobante);
-        return null;
     }
 
-    /// <returns>El motivo si el número ya pertenece a otra nota de crédito (no se registra en los reportes), o <c>null</c>.</returns>
-    public async Task<string?> RegistrarNotaCreditoAsync(DocumentoNotaCreditoEmitida documento, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
+    public async Task RegistrarNotaCreditoAsync(DocumentoNotaCreditoEmitida nota, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
     {
-        ArgumentNullException.ThrowIfNull(documento);
-        var nota = documento.NotaCredito;
-        if (await contexto.VentasCentral.AnyAsync(c => c.Id == nota.Id, cancelacion))
-            return null;
-        if (await NumeroUsadoAsync(TipoComprobanteVenta.NotaCredito, nota.Numero, nota.Id, cancelacion) is { } duplicado)
-            return duplicado;
+        ArgumentNullException.ThrowIfNull(nota);
+        if (await YaRegistradoAsync(TipoComprobanteVenta.NotaCredito, nota.Numero, cancelacion))
+            return;
 
-        var comprobante = ComprobanteVentaCentral.Registrar(nota.Id, TipoComprobanteVenta.NotaCredito, nota.Numero, sucursalId, cajaId, documento.TurnoId,
+        var comprobante = ComprobanteVentaCentral.Registrar(TipoComprobanteVenta.NotaCredito, nota.Numero.Trim(), sucursalId, cajaId, nota.TurnoNumero,
             nota.UsuarioNombre, nota.CreadaEn, DateOnly.FromDateTime(nota.CreadaEn.LocalDateTime), CgPos.Dominio.Fiscal.TipoComprobante.NotaCredito,
             nota.Comprobante?.Encf, nota.EncfOrigen, nota.ClienteTipoDocumento, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Subtotal, 0m,
             nota.Impuesto, nota.ImpuestoRetenido, nota.Total, nota.Lineas.Count, reloj.GetUtcNow());
 
         contexto.VentasCentral.Add(comprobante);
-        return null;
     }
 
-    /// <summary>El número de factura o de nota de crédito identifica el documento en toda la empresa: no puede llegar de dos transacciones.</summary>
-    private async Task<string?> NumeroUsadoAsync(TipoComprobanteVenta tipo, string numero, Guid id, CancellationToken cancelacion)
+    /// <summary>
+    /// El número de factura o de nota de crédito identifica el documento en toda la empresa: lleva la sucursal, la caja y el tipo, así que solo se
+    /// repite si la caja reenvía el mismo documento.
+    /// </summary>
+    private async Task<bool> YaRegistradoAsync(TipoComprobanteVenta tipo, string numero, CancellationToken cancelacion)
     {
         var buscado = numero.Trim();
-        var anterior = contexto.VentasCentral.Local.FirstOrDefault(c => c.Tipo == tipo && c.Numero == buscado && c.Id != id)
-            ?? await contexto.VentasCentral.AsNoTracking().FirstOrDefaultAsync(c => c.Tipo == tipo && c.Numero == buscado && c.Id != id, cancelacion);
-
-        return anterior is null
-            ? null
-            : $"El número {buscado} ya se recibió de otra transacción ({anterior.Id}, caja {anterior.CajaId}, {anterior.FechaOperacion:dd/MM/yyyy}). " +
-              "El documento se guardó pero no se registró en los reportes; revise la numeración de la caja (parámetros Numeracion.*).";
+        return contexto.VentasCentral.Local.Any(c => c.Tipo == tipo && c.Numero == buscado)
+               || await contexto.VentasCentral.AsNoTracking().AnyAsync(c => c.Tipo == tipo && c.Numero == buscado, cancelacion);
     }
 
-    /// <summary>Un cierre reabierto y vuelto a cerrar llega otra vez: se actualiza con lo último que informó la caja.</summary>
-    public async Task RegistrarCierreAsync(DatosCierre cierre, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
+    /// <summary>Un cierre reabierto y vuelto a cerrar llega otra vez: se actualiza con lo último que informó la caja. Se identifica por la caja y el turno.</summary>
+    public async Task RegistrarCierreAsync(DocumentoCierreTurno cierre, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(cierre);
         var ahora = reloj.GetUtcNow();
-        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago).SingleOrDefaultAsync(c => c.Id == cierre.Id, cancelacion);
+        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago)
+            .SingleOrDefaultAsync(c => c.CajaId == cajaId && c.TurnoNumero == cierre.TurnoNumero, cancelacion);
 
         if (registrado is null)
         {
-            registrado = CierreTurnoCentral.Registrar(cierre.Id, cierre.TurnoId, cierre.TurnoNumero, cierre.Numero, sucursalId, cajaId, cierre.FechaOperacion,
+            registrado = CierreTurnoCentral.Registrar(cierre.TurnoNumero, cierre.Numero, sucursalId, cajaId, cierre.FechaOperacion,
                 cierre.UsuarioNombre, cierre.Moneda, cierre.Ciego, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
                 cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, cierre.AbiertoEn, cierre.CerradoEn, ahora);
             contexto.CierresTurno.Add(registrado);

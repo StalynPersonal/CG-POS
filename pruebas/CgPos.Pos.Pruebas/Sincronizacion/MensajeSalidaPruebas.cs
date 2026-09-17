@@ -8,7 +8,7 @@ public class MensajeSalidaPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 14, 10, 0, 0, TimeSpan.FromHours(-4));
 
     private static MensajeSalida CrearMensaje(string contenido = """{"numero":"E320000000001"}""") =>
-        MensajeSalida.Crear("Factura.Emitida", Guid.CreateVersion7(), contenido, Ahora);
+        MensajeSalida.Crear("Factura.Emitida", "010110000001", contenido, Ahora);
 
     [Fact]
     public void Crear_deja_el_mensaje_pendiente_y_listo_para_enviar()
@@ -104,8 +104,9 @@ public class MensajeSalidaPruebas
     [Fact]
     public void Crear_exige_documento_y_contenido()
     {
-        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear("Factura.Emitida", Guid.Empty, "{}", Ahora));
-        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear("Factura.Emitida", Guid.CreateVersion7(), " ", Ahora));
-        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear(new string('T', MensajeSalida.LargoMaximoTipo + 1), Guid.CreateVersion7(), "{}", Ahora));
+        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear("Factura.Emitida", " ", "{}", Ahora));
+        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear("Factura.Emitida", new string('9', MensajeSalida.LargoMaximoReferencia + 1), "{}", Ahora));
+        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear("Factura.Emitida", "010110000001", " ", Ahora));
+        Assert.Throws<ArgumentException>(() => MensajeSalida.Crear(new string('T', MensajeSalida.LargoMaximoTipo + 1), "010110000001", "{}", Ahora));
     }
 }

@@ -3,6 +3,7 @@ using CgPos.Central.Aplicacion.Entregas;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Sincronizacion;
@@ -57,7 +58,7 @@ internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, Tim
         if (pendiente is null)
             return null;
 
-        var documento = JsonSerializer.Deserialize<DatosPendienteEntrega>(pendiente.Contenido, OpcionesJson.Predeterminadas);
+        var documento = JsonSerializer.Deserialize<DocumentoPendienteEntrega>(pendiente.Contenido, OpcionesJson.Predeterminadas);
         return documento is null ? null : new DetallePendienteCentral((await ResumenesAsync([pendiente], cancelacion))[0], documento);
     }
 
