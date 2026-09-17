@@ -35,11 +35,18 @@
                         <MudSelectItem T="EstadoEnvioDgii?" Value="@estado">@EtiquetasMonitor.Estado(estado)</MudSelectItem>
                     }
                 </MudSelect>
-                <MudSelect T="Guid?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
-                           ToStringFunc="@(id => _cajas.FirstOrDefault(c => c.CajaId == id) is { } caja ? $"{caja.SucursalCodigo}-{caja.CajaCodigo}" : "Todas")" Style="max-width: 200px">
-                    @foreach (var caja in _cajas)
+                <MudSelect T="Guid?" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Dense="true" Clearable="true"
+                           ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : "Todas")" Style="max-width: 240px">
+                    @foreach (var sucursal in _sucursales)
                     {
-                        <MudSelectItem T="Guid?" Value="@caja.CajaId">@caja.SucursalCodigo-@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
+                           ToStringFunc="@(id => CajasDeLaSucursal.FirstOrDefault(c => c.CajaId == id) is { } caja ? $"{caja.CajaCodigo} · {caja.CajaNombre}" : "Todas")" Style="max-width: 220px">
+                    @foreach (var caja in CajasDeLaSucursal)
+                    {
+                        <MudSelectItem T="Guid?" Value="@caja.CajaId">@(_sucursalId is null ? $"{caja.SucursalCodigo}-" : string.Empty)@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSwitch T="bool" Value="_soloConFallo" ValueChanged="@(v => FiltrarAsync(() => _soloConFallo = v))" Label="Solo envíos con fallo" Color="Color.Secondary" />
@@ -47,6 +54,7 @@
         </ToolBarContent>
         <HeaderContent>
             <MudTh>e-NCF</MudTh>
+            <MudTh>Sucursal</MudTh>
             <MudTh>Caja</MudTh>
             <MudTh>Recibido</MudTh>
             <MudTh>Estado DGII</MudTh>
@@ -55,7 +63,8 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="e-NCF"><strong>@context.Encf</strong><div class="cg-central__detalle">Firmado @context.FechaFirma.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div></MudTd>
-            <MudTd DataLabel="Caja">@context.SucursalCodigo-@context.CajaCodigo</MudTd>
+            <MudTd DataLabel="Sucursal">@context.SucursalCodigo<div class="cg-central__detalle">@context.SucursalNombre</div></MudTd>
+            <MudTd DataLabel="Caja">@context.CajaCodigo<div class="cg-central__detalle">@context.CajaNombre</div></MudTd>
             <MudTd DataLabel="Recibido">@context.RecibidoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
             <MudTd DataLabel="Estado DGII">
                 <MudChip T="string" Size="Size.Small" Color="@EtiquetasMonitor.Color(context.EstadoDgii)" Variant="Variant.Outlined">@EtiquetasMonitor.Estado(context.EstadoDgii)</MudChip>
@@ -104,6 +113,8 @@
     private readonly List<BreadcrumbItem> _migas = [new("Monitor", "monitor"), new("e-CF y DGII", null, disabled: true)];
     private MudTable<DatosComprobanteDgii>? _tabla;
     private IReadOnlyList<DatosEstadoCaja> _cajas = [];
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private Guid? _sucursalId;
     private string? _buscar;
     private EstadoEnvioDgii? _estado;
     private Guid? _cajaId;
@@ -116,11 +127,25 @@
         _cajaId = CajaInicial;
         _soloConFallo = SoloConFalloInicial ?? false;
         _cajas = (await Cliente.ObtenerMonitorAsync())?.Cajas.OrderBy(c => c.SucursalCodigo).ThenBy(c => c.CajaCodigo).ToList() ?? [];
+        _sucursales = (await Cliente.ListarSucursalesAsync())?.OrderBy(s => s.Codigo).ToList() ?? [];
     }
+
+    /// <summary>Con una sucursal elegida, el filtro de caja solo ofrece sus cajas.</summary>
+    private IEnumerable<DatosEstadoCaja> CajasDeLaSucursal =>
+        _sucursales.FirstOrDefault(s => s.Id == _sucursalId) is { } sucursal ? _cajas.Where(c => c.SucursalCodigo == sucursal.Codigo) : _cajas;
+
+    private Task CambiarSucursalAsync(Guid? sucursalId) => FiltrarAsync(() =>
+    {
+        _sucursalId = sucursalId;
+
+        // La caja elegida se descarta si no es de la nueva sucursal.
+        if (_cajaId is { } cajaId && CajasDeLaSucursal.All(c => c.CajaId != cajaId))
+            _cajaId = null;
+    });
 
     private async Task<TableData<DatosComprobanteDgii>> CargarAsync(TableState estado, CancellationToken cancelacion)
     {
-        var pagina = await Cliente.BuscarComprobantesDgiiAsync(_estado, _cajaId, _buscar, _soloConFallo, estado.Page, estado.PageSize, cancelacion);
+        var pagina = await Cliente.BuscarComprobantesDgiiAsync(_estado, _sucursalId, _cajaId, _buscar, _soloConFallo, estado.Page, estado.PageSize, cancelacion);
         _error = pagina is null;
         return new TableData<DatosComprobanteDgii> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
     }

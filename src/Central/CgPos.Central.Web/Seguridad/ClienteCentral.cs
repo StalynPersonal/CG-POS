@@ -235,11 +235,12 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public async Task<PaginaComprobantesDgii?> BuscarComprobantesDgiiAsync(CgPos.Dominio.Sincronizacion.EstadoEnvioDgii? estado, Guid? cajaId, string? buscar,
+    public async Task<PaginaComprobantesDgii?> BuscarComprobantesDgiiAsync(CgPos.Dominio.Sincronizacion.EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar,
         bool soloConFallo, int pagina, int tamano, CancellationToken cancelacion = default)
     {
         var ruta = $"api/monitor/comprobantes?pagina={pagina}&tamano={tamano}&soloConFallo={(soloConFallo ? "true" : "false")}"
                    + (estado is { } e ? $"&estado={e}" : string.Empty)
+                   + (sucursalId is { } s ? $"&sucursalId={s}" : string.Empty)
                    + (cajaId is { } c ? $"&cajaId={c}" : string.Empty)
                    + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
         try

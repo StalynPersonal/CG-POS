@@ -15,7 +15,8 @@ public interface IServicioMonitorCentral
 
     /// <param name="buscar">Parte del e-NCF o el trackId exacto.</param>
     /// <param name="soloConFallo">Solo pendientes cuyo envío ya falló.</param>
-    Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
+    /// <param name="sucursalId">Solo los comprobantes de las cajas de esa sucursal.</param>
+    Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
         CancellationToken cancelacion = default);
 
     /// <returns>El XML firmado; nulo si el comprobante no existe.</returns>

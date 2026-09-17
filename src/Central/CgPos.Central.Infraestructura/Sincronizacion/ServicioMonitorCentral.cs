@@ -96,7 +96,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             porEstado, conFallo, pendienteMasAntiguo, datosCajas, contingencias.Values.Sum());
     }
 
-    public async Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
+    public async Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
         CancellationToken cancelacion = default)
     {
         tamano = Math.Clamp(tamano, 1, IServicioMonitorCentral.TamanoMaximoPagina);
@@ -105,6 +105,8 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
         var consulta = contexto.ComprobantesRecibidos.AsNoTracking();
         if (estado is { } filtroEstado)
             consulta = consulta.Where(c => c.EstadoDgii == filtroEstado);
+        if (sucursalId is { } filtroSucursal)
+            consulta = consulta.Where(c => c.SucursalId == filtroSucursal);
         if (cajaId is { } filtroCaja)
             consulta = consulta.Where(c => c.CajaId == filtroCaja);
         if (!string.IsNullOrWhiteSpace(buscar))
@@ -129,12 +131,13 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             .ToListAsync(cancelacion);
 
         var idsCajas = filas.Select(f => f.CajaId).Distinct().ToList();
-        var cajas = await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
+        var cajas = await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, cancelacion);
 
         return new PaginaComprobantesDgii(
-            filas.Select(f => new DatosComprobanteDgii(f.Id, f.Encf, f.TipoComprobante, f.CajaId, cajas.GetValueOrDefault(f.CajaId) ?? string.Empty,
-                sucursales.GetValueOrDefault(f.SucursalId) ?? string.Empty, f.FechaFirma, f.RecibidoEn, f.EstadoDgii, f.EstadoDgiiEn, f.MensajeDgii, f.TrackId,
+            filas.Select(f => new DatosComprobanteDgii(f.Id, f.Encf, f.TipoComprobante, f.CajaId, cajas.GetValueOrDefault(f.CajaId)?.Codigo ?? string.Empty,
+                cajas.GetValueOrDefault(f.CajaId)?.Nombre ?? string.Empty, sucursales.GetValueOrDefault(f.SucursalId)?.Codigo ?? string.Empty,
+                sucursales.GetValueOrDefault(f.SucursalId)?.Nombre ?? string.Empty, f.FechaFirma, f.RecibidoEn, f.EstadoDgii, f.EstadoDgiiEn, f.MensajeDgii, f.TrackId,
                 f.IntentosEnvio, f.ProximoIntentoEn)).ToList(),
             total);
     }

@@ -36,6 +36,14 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         var pagina = await ObtenerAsync<PaginaComprobantesDgii>(cliente, admin, $"/api/monitor/comprobantes?estado=Rechazado&buscar={encf[3..]}");
         var encontrado = Assert.Single(pagina.Elementos);
         Assert.Equal((rechazadoId, "Firma inválida", "01"), (encontrado.Id, encontrado.MensajeDgii, encontrado.CajaCodigo));
+        Assert.False(string.IsNullOrEmpty(encontrado.CajaNombre));
+        Assert.False(string.IsNullOrEmpty(encontrado.SucursalNombre));
+
+        // Filtrado por sucursal: la suya lo trae, otra sucursal no.
+        Assert.Single((await ObtenerAsync<PaginaComprobantesDgii>(cliente, admin,
+            $"/api/monitor/comprobantes?buscar={encf[3..]}&sucursalId={CentralEnPruebas.Sucursal}")).Elementos);
+        Assert.Empty((await ObtenerAsync<PaginaComprobantesDgii>(cliente, admin,
+            $"/api/monitor/comprobantes?buscar={encf[3..]}&sucursalId={Guid.CreateVersion7()}")).Elementos);
 
         using (var xml = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, $"/api/monitor/comprobantes/{rechazadoId}/xml", admin)))
             Assert.Contains("<RNCEmisor>", await xml.Content.ReadAsStringAsync());

@@ -4,7 +4,8 @@
 <MudDialog>
     <DialogContent>
         <MudGrid Spacing="2">
-            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Caja</div>@Comprobante.SucursalCodigo-@Comprobante.CajaCodigo</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Sucursal</div>@Comprobante.SucursalCodigo · @Comprobante.SucursalNombre</MudItem>
+            <MudItem xs="6" sm="3"><div class="cg-central__detalle">Caja</div>@Comprobante.CajaCodigo · @Comprobante.CajaNombre</MudItem>
             <MudItem xs="6" sm="3"><div class="cg-central__detalle">Tipo</div>E@((int)Comprobante.TipoComprobante)</MudItem>
             <MudItem xs="6" sm="3"><div class="cg-central__detalle">Firmado</div>@Comprobante.FechaFirma.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudItem>
             <MudItem xs="6" sm="3"><div class="cg-central__detalle">Recibido</div>@Comprobante.RecibidoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudItem>

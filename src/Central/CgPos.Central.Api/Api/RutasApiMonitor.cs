@@ -18,9 +18,9 @@ public static class RutasApiMonitor
 
         grupo.MapGet("/", async (IServicioMonitorCentral servicio, CancellationToken cancelacion) => Results.Ok(await servicio.ObtenerAsync(cancelacion)));
 
-        grupo.MapGet("/comprobantes", async (EstadoEnvioDgii? estado, Guid? cajaId, string? buscar, bool? soloConFallo, int? pagina, int? tamano,
+        grupo.MapGet("/comprobantes", async (EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar, bool? soloConFallo, int? pagina, int? tamano,
                 IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
-            Results.Ok(await servicio.BuscarComprobantesAsync(estado, cajaId, buscar, soloConFallo ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
+            Results.Ok(await servicio.BuscarComprobantesAsync(estado, sucursalId, cajaId, buscar, soloConFallo ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
 
         grupo.MapGet("/comprobantes/{comprobanteId:guid}/xml", async (Guid comprobanteId, IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             await servicio.ObtenerXmlAsync(comprobanteId, cancelacion) is { } xml ? Results.Text(xml, "application/xml", Encoding.UTF8) : Results.NotFound());
