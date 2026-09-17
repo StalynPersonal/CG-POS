@@ -105,7 +105,7 @@ public class ApiConfiguracionCajasPruebas(CentralEnPruebas central)
         });
 
     [SkippableFact]
-    public async Task Usuarios_y_roles_de_caja_bajan_con_el_pin_como_hash_y_se_validan_antes_de_publicar()
+    public async Task Usuarios_y_roles_de_caja_bajan_con_la_clave_como_hash_y_se_validan_antes_de_publicar()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
@@ -126,30 +126,30 @@ public class ApiConfiguracionCajasPruebas(CentralEnPruebas central)
         var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
         var codigo = $"U{sufijo}";
         var usuario = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/usuarios-caja/usuarios",
-            new SolicitudUsuarioCaja(codigo, "Cajero Prueba", rolId, [CentralEnPruebas.CajaUno], Pin: "4321", Carne: $"CARNE-{sufijo}"));
+            new SolicitudUsuarioCaja(codigo, "Cajero Prueba", rolId, [CentralEnPruebas.CajaUno], Clave: "Cajero.4321"));
         Assert.True(usuario.Cuerpo!.Exitosa, usuario.Cuerpo.Mensaje);
         var usuarioId = usuario.Cuerpo.Id!.Value;
 
         var listado = Assert.Single(await ListarAsync<DatosUsuarioCaja>(cliente, admin, "/api/usuarios-caja/usuarios"), u => u.Id == usuarioId);
-        Assert.Equal((true, true, "Cajero de prueba"), (listado.TienePin, listado.TieneCarne, listado.RolNombre));
+        Assert.Equal((true, "Cajero de prueba"), (listado.TieneClave, listado.RolNombre));
 
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
         var publicado = Assert.Single(bajada.Organizacion!.Usuarios!, u => u.Id == usuarioId);
-        Assert.Null(publicado.Pin);
-        Assert.True(new HashCredenciales().VerificarPin("4321", publicado.PinHash!));
+        Assert.Null(publicado.Clave);
+        Assert.True(new HashCredenciales().VerificarClave("Cajero.4321", publicado.ClaveHash!));
 
-        // Editar sin PIN nuevo conserva el hash; el código no cambia.
+        // Editar sin clave nueva conserva el hash; el código no cambia.
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/usuarios-caja/usuarios/{usuarioId}",
             new SolicitudUsuarioCaja(codigo, "Cajero Renombrado", rolId, [CentralEnPruebas.CajaUno]))).Cuerpo!.Exitosa);
         var editado = Assert.Single((await BajarAsync(cliente, tokenCaja, bajada.Hasta)).Organizacion!.Usuarios!, u => u.Id == usuarioId);
-        Assert.Equal(("Cajero Renombrado", publicado.PinHash, publicado.CredencialBarrasHash), (editado.Nombre, editado.PinHash, editado.CredencialBarrasHash));
+        Assert.Equal(("Cajero Renombrado", publicado.ClaveHash), (editado.Nombre, editado.ClaveHash));
 
         Assert.Contains("no se puede cambiar", (await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/usuarios-caja/usuarios/{usuarioId}",
             new SolicitudUsuarioCaja($"X{sufijo}", "Otro", rolId, []))).Cuerpo!.Mensaje);
-        Assert.Contains("no tiene PIN", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/usuarios-caja/usuarios",
-            new SolicitudUsuarioCaja($"S{sufijo}", "Sin PIN", rolId, []))).Cuerpo!.Mensaje);
-        Assert.Contains("carné", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/usuarios-caja/usuarios",
-            new SolicitudUsuarioCaja($"C{sufijo}", "Mismo carné", rolId, [], Pin: "1234", Carne: $"CARNE-{sufijo}"))).Cuerpo!.Mensaje);
+        Assert.Contains("no tiene clave", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/usuarios-caja/usuarios",
+            new SolicitudUsuarioCaja($"S{sufijo}", "Sin clave", rolId, []))).Cuerpo!.Mensaje);
+        Assert.Contains("al menos", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/usuarios-caja/usuarios",
+            new SolicitudUsuarioCaja($"C{sufijo}", "Clave corta", rolId, [], Clave: "1234"))).Cuerpo!.Mensaje);
     }
 
     [SkippableFact]

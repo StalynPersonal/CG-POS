@@ -77,18 +77,14 @@ public class UsuarioPruebas
     }
 
     [Fact]
-    public void Credencial_de_barras_solo_acepta_hash_sha256_hex()
+    public void Hash_de_la_clave_es_obligatorio_y_con_largo_maximo()
     {
         var usuario = CrearUsuario();
-        var hash = new string('a', Usuario.LargoHashCredencialBarras);
 
-        usuario.EstablecerCredencialBarrasHash(hash);
-        Assert.Equal(hash.ToUpperInvariant(), usuario.CredencialBarrasHash);
+        usuario.EstablecerClaveHash("PBKDF2-SHA256$100000$sal$hash");
+        Assert.Equal("PBKDF2-SHA256$100000$sal$hash", usuario.ClaveHash);
 
-        usuario.EstablecerCredencialBarrasHash(null);
-        Assert.Null(usuario.CredencialBarrasHash);
-
-        Assert.Throws<ArgumentException>(() => usuario.EstablecerCredencialBarrasHash("123456"));
-        Assert.Throws<ArgumentException>(() => usuario.EstablecerCredencialBarrasHash(new string('Z', Usuario.LargoHashCredencialBarras)));
+        Assert.Throws<ArgumentException>(() => usuario.EstablecerClaveHash(" "));
+        Assert.Throws<ArgumentException>(() => usuario.EstablecerClaveHash(new string('a', Usuario.LargoMaximoHashClave + 1)));
     }
 }

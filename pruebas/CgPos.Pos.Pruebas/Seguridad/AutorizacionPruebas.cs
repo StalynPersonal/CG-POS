@@ -22,14 +22,14 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor,
-            new SolicitudAutorizacionSupervisor(cajero, CatalogoPermisos.RegistrarVenta, string.Empty, new CredencialUsuario.Pin(string.Empty, string.Empty)));
+            new SolicitudAutorizacionSupervisor(cajero, CatalogoPermisos.RegistrarVenta, string.Empty, new CredencialUsuario(string.Empty, string.Empty)));
 
         Assert.True(resultado.Concedida);
         Assert.False(resultado.RequirioSupervisor);
     }
 
     [SkippableFact]
-    public async Task Supervisor_autoriza_con_pin_o_carne_y_queda_auditado_con_el_motivo()
+    public async Task Supervisor_autoriza_con_su_clave_y_queda_auditado_con_el_motivo()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
@@ -38,14 +38,11 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
 
         var conPin = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
             cajero, CatalogoPermisos.EliminarLinea, "Artículo mal escaneado",
-            new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor), "Factura", "FAC-0001"));
-        var conCarne = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            cajero, CatalogoPermisos.AnularVenta, "Cliente desistió", new CredencialUsuario.Carne(escenario.CarneSupervisor)));
+            new CredencialUsuario(escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor), "Factura", "FAC-0001"));
 
         Assert.True(conPin.Concedida, conPin.Motivo?.ToString());
         Assert.True(conPin.RequirioSupervisor);
         Assert.Equal(escenario.Supervisor, conPin.SupervisorId);
-        Assert.True(conCarne.Concedida, conCarne.Motivo?.ToString());
 
         await using var ambito = proveedor.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
@@ -66,7 +63,7 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            cajero, CatalogoPermisos.EliminarLinea, "Prueba", new CredencialUsuario.Pin(escenario.CodigoCajeroDos, EscenarioSeguridad.PinCajeroDos)));
+            cajero, CatalogoPermisos.EliminarLinea, "Prueba", new CredencialUsuario(escenario.CodigoCajeroDos, EscenarioSeguridad.ClaveCajeroDos)));
 
         Assert.False(resultado.Concedida);
         Assert.Equal(MotivoRechazoAutorizacion.SinPermisoParaAutorizar, resultado.Motivo);
@@ -81,7 +78,7 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            cajero, CatalogoPermisos.VenderBajoPrecioMinimo, "Venta bajo el mínimo", new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+            cajero, CatalogoPermisos.VenderBajoPrecioMinimo, "Venta bajo el mínimo", new CredencialUsuario(escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor)));
 
         Assert.Equal(MotivoRechazoAutorizacion.SinPermisoParaAutorizar, resultado.Motivo);
     }
@@ -95,7 +92,7 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            cajero, CatalogoPermisos.EliminarLinea, "   ", new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+            cajero, CatalogoPermisos.EliminarLinea, "   ", new CredencialUsuario(escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor)));
 
         Assert.Equal(MotivoRechazoAutorizacion.MotivoRequerido, resultado.Motivo);
     }
@@ -109,20 +106,20 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var solicitanteNivelTres = (await SesionCajeroAsync(proveedor, escenario)) with { Nivel = 3 };
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            solicitanteNivelTres, CatalogoPermisos.EliminarLinea, "Prueba de nivel", new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+            solicitanteNivelTres, CatalogoPermisos.EliminarLinea, "Prueba de nivel", new CredencialUsuario(escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor)));
 
         Assert.Equal(MotivoRechazoAutorizacion.NivelInsuficiente, resultado.Motivo);
     }
 
     [SkippableFact]
-    public async Task Pin_de_supervisor_incorrecto_cuenta_intentos_y_bloquea()
+    public async Task Clave_de_supervisor_incorrecta_cuenta_intentos_y_bloquea()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
         var cajero = await SesionCajeroAsync(proveedor, escenario);
         var solicitud = new SolicitudAutorizacionSupervisor(
-            cajero, CatalogoPermisos.EliminarLinea, "Prueba", new CredencialUsuario.Pin(escenario.CodigoSupervisor, "9999"));
+            cajero, CatalogoPermisos.EliminarLinea, "Prueba", new CredencialUsuario(escenario.CodigoSupervisor, "9999"));
 
         Assert.Equal(MotivoRechazoAutorizacion.CredencialesInvalidas, (await EscenarioSeguridad.AutorizarAsync(proveedor, solicitud)).Motivo);
         Assert.Equal(MotivoRechazoAutorizacion.CredencialesInvalidas, (await EscenarioSeguridad.AutorizarAsync(proveedor, solicitud)).Motivo);
@@ -138,14 +135,14 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
-            cajero, "Ventas.HacerMagia", "Prueba", new CredencialUsuario.Pin(escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+            cajero, "Ventas.HacerMagia", "Prueba", new CredencialUsuario(escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor)));
 
         Assert.Equal(MotivoRechazoAutorizacion.PermisoInexistente, resultado.Motivo);
     }
 
     private static async Task<SesionUsuario> SesionCajeroAsync(IServiceProvider proveedor, EscenarioSeguridad escenario)
     {
-        var ingreso = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoCajero, EscenarioSeguridad.PinCajero));
+        var ingreso = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero));
         Assert.True(ingreso.Exitoso, ingreso.Motivo?.ToString());
         return ingreso.Sesion!;
     }

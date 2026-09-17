@@ -22,7 +22,7 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
         using (var sinSesion = await cliente.GetAsync("/api/ventas/actual"))
             Assert.Equal(HttpStatusCode.Unauthorized, sinSesion.StatusCode);
 
-        await IniciarSesionAsync(cliente, "C001", "1111");
+        await IniciarSesionAsync(cliente, "C001", "Cajero.2026");
 
         // Turno: se abre si no hay (la base del Agente es compartida por la colección) y una segunda apertura choca.
         var estado = await cliente.GetFromJsonAsync<DatosEstadoTurno>("/api/turnos/actual", OpcionesJson.Predeterminadas);
@@ -72,7 +72,7 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
         }
 
         using var autorizacion = await cliente.PostAsJsonAsync("/api/autorizaciones",
-            new SolicitudAutorizacion(CatalogoPermisos.EliminarLinea, "Cliente no lo quiere", "S001", "2222", TipoEntidad: "Venta", EntidadId: venta.NumeroTransaccion),
+            new SolicitudAutorizacion(CatalogoPermisos.EliminarLinea, "Cliente no lo quiere", "S001", "Supervisor.2026", TipoEntidad: "Venta", EntidadId: venta.NumeroTransaccion),
             OpcionesJson.Predeterminadas);
         var concedida = await Leer<RespuestaAutorizacion>(autorizacion);
         Assert.True(concedida.Concedida, concedida.Mensaje);
@@ -92,9 +92,9 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
     private static async Task<T> Leer<T>(HttpResponseMessage respuesta) =>
         (await respuesta.Content.ReadFromJsonAsync<T>(OpcionesJson.Predeterminadas))!;
 
-    private static async Task IniciarSesionAsync(HttpClient cliente, string codigo, string pin)
+    private static async Task IniciarSesionAsync(HttpClient cliente, string codigo, string clave)
     {
-        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/pin", new SolicitudIngresoPin(codigo, pin), OpcionesJson.Predeterminadas);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/ingreso", new SolicitudIngreso(codigo, clave), OpcionesJson.Predeterminadas);
         var ingreso = await respuesta.Content.ReadFromJsonAsync<RespuestaIngreso>(OpcionesJson.Predeterminadas);
         Assert.True(ingreso!.Exitoso, ingreso.Mensaje);
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ingreso.Token);

@@ -22,11 +22,16 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                 name: "PinHash",
                 table: "Usuarios",
                 newName: "ClaveHash");
+
+            // La caja entra solo con usuario y clave: el parámetro de intentos pasa a llamarse por la clave.
+            migrationBuilder.Sql("UPDATE Parametros SET Clave = 'Seguridad.IntentosMaximosClave' WHERE Clave = 'Seguridad.IntentosMaximosPin';");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("UPDATE Parametros SET Clave = 'Seguridad.IntentosMaximosPin' WHERE Clave = 'Seguridad.IntentosMaximosClave';");
+
             migrationBuilder.RenameColumn(
                 name: "ClaveHash",
                 table: "Usuarios",

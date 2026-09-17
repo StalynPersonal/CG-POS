@@ -38,12 +38,10 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         Assert.Contains(organizacion.Parametros!, p => p.Clave == "General.MonedaLocal");
         Assert.DoesNotContain(organizacion.Parametros!, p => p.Clave.StartsWith("Central.", StringComparison.Ordinal));
 
-        // El PIN baja solo como hash, con el formato que verifica la caja.
+        // La clave baja solo como hash, con el formato que verifica la caja.
         var cajero = Assert.Single(organizacion.Usuarios!, u => u.Codigo == "C001");
-        Assert.Null(cajero.Pin);
-        Assert.Null(cajero.CredencialBarras);
-        Assert.True(new HashCredenciales().VerificarPin("1111", cajero.PinHash!));
-        Assert.Equal(new HashCredenciales().HashCredencialBarras("CGP-C001"), cajero.CredencialBarrasHash);
+        Assert.Null(cajero.Clave);
+        Assert.True(new HashCredenciales().VerificarClave("Cajero.2026", cajero.ClaveHash!));
 
         Assert.NotEmpty(paquete.Maestros!.Articulos!);
         Assert.NotEmpty(paquete.Maestros.SecuenciasEcf!);

@@ -60,6 +60,6 @@ public class ParametrosPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseD
         var invalido = await Assert.ThrowsAsync<ParametroNoConfiguradoExcepcion>(() => parametros.ObtenerEnteroAsync(claveTexto, escenario.CajaUno));
         Assert.Contains("no es un número entero", invalido.Message);
         Assert.Null(await parametros.ObtenerDecimalOpcionalAsync($"Prueba.NoExiste{escenario.Sufijo}", escenario.CajaUno));
-        Assert.Equal(3, await parametros.ObtenerEnteroAsync(ClavesParametros.IntentosMaximosPin, escenario.CajaUno));
+        Assert.Equal(3, await parametros.ObtenerEnteroAsync(ClavesParametros.IntentosMaximosClave, escenario.CajaUno));
     }
 }

@@ -33,7 +33,7 @@ public class ApiPantallasPruebas(AgenteEnPruebas agente)
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
 
-        using var ingreso = await cliente.PostAsJsonAsync("/api/sesion/pin", new SolicitudIngresoPin("C001", "1111"), OpcionesJson.Predeterminadas);
+        using var ingreso = await cliente.PostAsJsonAsync("/api/sesion/ingreso", new SolicitudIngreso("C001", "Cajero.2026"), OpcionesJson.Predeterminadas);
         var sesion = await ingreso.Content.ReadFromJsonAsync<RespuestaIngreso>(OpcionesJson.Predeterminadas);
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sesion!.Token);
 

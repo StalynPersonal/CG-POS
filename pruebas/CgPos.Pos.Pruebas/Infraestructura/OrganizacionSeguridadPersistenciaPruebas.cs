@@ -23,14 +23,14 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         rol.AsignarPermiso(CatalogoPermisos.EliminarLinea);
         var usuario = Usuario.Crear($"U{sufijo}", "Supervisor Prueba", rol.Id);
         usuario.AsignarCaja(caja.Id);
-        usuario.EstablecerCredencialBarrasHash(new string('B', Usuario.LargoHashCredencialBarras - 6) + sufijo.ToUpperInvariant());
+        usuario.EstablecerClaveHash($"PBKDF2-SHA256$100000$sal{sufijo}$hash");
 
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
         {
             var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
             await AsegurarCatalogoPermisosAsync(contexto);
             contexto.AddRange(empresa, sucursal, caja, rol, usuario);
-            contexto.Parametros.Add(Parametro.Crear("Seguridad.IntentosMaximosPin", "3", cajaId: caja.Id));
+            contexto.Parametros.Add(Parametro.Crear("Seguridad.IntentosMaximosClave", "3", cajaId: caja.Id));
             await contexto.SaveChangesAsync();
         }
 
@@ -45,7 +45,7 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
 
             var usuarioLeido = await contexto.Usuarios.Include(u => u.CajasAsignadas).SingleAsync(u => u.Id == usuario.Id);
             Assert.True(usuarioLeido.PuedeOperarCaja(caja.Id));
-            Assert.Equal(usuario.CredencialBarrasHash, usuarioLeido.CredencialBarrasHash);
+            Assert.Equal(usuario.ClaveHash, usuarioLeido.ClaveHash);
 
             var cajaLeida = await contexto.Cajas.SingleAsync(c => c.Id == caja.Id);
             Assert.True(cajaLeida.Habilitada);

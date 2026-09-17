@@ -18,11 +18,6 @@ public sealed class ContextoCajaFijo(Guid? cajaId) : IContextoCaja
     public Guid? CajaId { get; } = cajaId;
 }
 
-public sealed class LectorHuellaFijo(Guid? usuarioId) : ILectorHuella
-{
-    public Task<Guid?> IdentificarUsuarioAsync(CancellationToken cancelacion = default) => Task.FromResult(usuarioId);
-}
-
 public static class RutasPrueba
 {
     public static string RaizRepositorio()

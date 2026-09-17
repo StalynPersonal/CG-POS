@@ -46,25 +46,25 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
     }
 
     [SkippableFact]
-    public async Task Pin_se_guarda_como_hash_verificable_y_no_se_recalcula_si_no_cambia()
+    public async Task Clave_se_guarda_como_hash_verificable_y_no_se_recalcula_si_no_cambia()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var datos = new DatosPrueba();
 
         await AplicarAsync(datos.Paquete());
-        var hashInicial = await LeerPinHashAsync(datos.UsuarioCajero);
+        var hashInicial = await LeerClaveHashAsync(datos.UsuarioCajero);
 
         await AplicarAsync(datos.Paquete());
-        Assert.Equal(hashInicial, await LeerPinHashAsync(datos.UsuarioCajero));
+        Assert.Equal(hashInicial, await LeerClaveHashAsync(datos.UsuarioCajero));
 
-        await AplicarAsync(datos.Paquete(pinCajero: "9876"));
-        var hashNuevo = await LeerPinHashAsync(datos.UsuarioCajero);
+        await AplicarAsync(datos.Paquete(claveCajero: "Nueva.9876"));
+        var hashNuevo = await LeerClaveHashAsync(datos.UsuarioCajero);
         Assert.NotEqual(hashInicial, hashNuevo);
 
         var hash = baseDatos.Servicios!.GetRequiredService<IHashCredenciales>();
-        Assert.True(hash.VerificarPin("9876", hashNuevo!));
-        Assert.False(hash.VerificarPin("1111", hashNuevo!));
-        Assert.DoesNotContain("9876", hashNuevo);
+        Assert.True(hash.VerificarClave("Nueva.9876", hashNuevo!));
+        Assert.False(hash.VerificarClave("Cajero.1111", hashNuevo!));
+        Assert.DoesNotContain("Nueva.9876", hashNuevo);
     }
 
     [SkippableFact]
@@ -93,7 +93,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
             Usuarios =
             [
                 .. paquete.Usuarios!,
-                new UsuarioCarga(Guid.CreateVersion7(), $"X{datos.Sufijo}", "Sin rol", rolInexistente, Pin: "12"),
+                new UsuarioCarga(Guid.CreateVersion7(), $"X{datos.Sufijo}", "Sin rol", rolInexistente, Clave: ""),
             ],
             Roles = [.. paquete.Roles!, new RolCarga(Guid.CreateVersion7(), $"MAL{datos.Sufijo}", "Rol malo", 1, ["Ventas.HacerMagia"])],
         };
@@ -101,7 +101,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var error = await Assert.ThrowsAsync<CargaInicialInvalidaExcepcion>(() => AplicarAsync(conErrores));
 
         Assert.Contains(error.Errores, e => e.Contains("rol inexistente"));
-        Assert.Contains(error.Errores, e => e.Contains("PIN inválido"));
+        Assert.Contains(error.Errores, e => e.Contains("clave vacía"));
         Assert.Contains(error.Errores, e => e.Contains("Ventas.HacerMagia"));
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
@@ -143,11 +143,11 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         return await ambito.ServiceProvider.GetRequiredService<ICargaInicial>().AplicarAsync(paquete);
     }
 
-    private async Task<string?> LeerPinHashAsync(Guid usuarioId)
+    private async Task<string?> LeerClaveHashAsync(Guid usuarioId)
     {
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
-        return await contexto.Usuarios.Where(u => u.Id == usuarioId).Select(u => u.PinHash).SingleAsync();
+        return await contexto.Usuarios.Where(u => u.Id == usuarioId).Select(u => u.ClaveHash).SingleAsync();
     }
 
     private static string BuscarRaizRepositorio()
@@ -184,7 +184,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
             IReadOnlyList<string>? permisosCajero = null,
             IReadOnlyList<Guid>? cajasCajero = null,
             string intentosMaximos = "3",
-            string pinCajero = "1111") =>
+            string claveCajero = "Cajero.1111") =>
             new(
                 new EmpresaCarga(Empresa, "999000002", "Empresa de Pruebas SRL"),
                 Sucursales: [new SucursalCarga(Sucursal, $"S{Sufijo}", "Sucursal de prueba")],
@@ -200,8 +200,8 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
                 ],
                 Usuarios:
                 [
-                    new UsuarioCarga(UsuarioCajero, $"C{Sufijo}", "Cajero Prueba", RolCajero, cajasCajero ?? [CajaUno, CajaDos], Pin: pinCajero, CredencialBarras: $"CGP-C{Sufijo}"),
-                    new UsuarioCarga(UsuarioGerente, $"G{Sufijo}", "Gerente Prueba", RolGerente, [CajaUno], Pin: "3333"),
+                    new UsuarioCarga(UsuarioCajero, $"C{Sufijo}", "Cajero Prueba", RolCajero, cajasCajero ?? [CajaUno, CajaDos], Clave: claveCajero),
+                    new UsuarioCarga(UsuarioGerente, $"G{Sufijo}", "Gerente Prueba", RolGerente, [CajaUno], Clave: "Gerente.3333"),
                 ],
                 Parametros: [new ParametroCarga(Parametro, $"Prueba.IntentosMaximos{Sufijo}", intentosMaximos, CajaId: CajaUno)]);
     }

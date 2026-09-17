@@ -5,19 +5,19 @@ using CgPos.Pos.Pruebas.Soporte;
 
 namespace CgPos.Pos.Pruebas.Seguridad;
 
-/// <summary>Ingreso a la caja contra SQL Server real (PIN, carné, huella, bloqueo y estado de caja/usuario).</summary>
+/// <summary>Ingreso a la caja contra SQL Server real (usuario y clave, bloqueo y estado de caja/usuario).</summary>
 public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
     private static readonly Guid Empresa = Guid.CreateVersion7();
 
     [SkippableFact]
-    public async Task Pin_correcto_inicia_sesion_con_los_permisos_del_rol_y_queda_auditado()
+    public async Task Clave_correcta_inicia_sesion_con_los_permisos_del_rol_y_queda_auditado()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
 
-        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoCajero, EscenarioSeguridad.PinCajero));
+        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero));
 
         Assert.True(resultado.Exitoso, resultado.Motivo?.ToString());
         Assert.Equal(escenario.Cajero, resultado.Sesion!.UsuarioId);
@@ -29,14 +29,14 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
     }
 
     [SkippableFact]
-    public async Task Tres_pines_incorrectos_bloquean_y_el_bloqueo_vence_con_el_tiempo()
+    public async Task Tres_claves_incorrectas_bloquean_y_el_bloqueo_vence_con_el_tiempo()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         var (proveedor, reloj) = escenario.CrearProveedor(escenario.CajaUno);
         await using var proveedorUsado = proveedor;
-        var pinIncorrecto = new CredencialUsuario.Pin(escenario.CodigoCajero, "9999");
-        var pinCorrecto = new CredencialUsuario.Pin(escenario.CodigoCajero, EscenarioSeguridad.PinCajero);
+        var pinIncorrecto = new CredencialUsuario(escenario.CodigoCajero, "9999");
+        var pinCorrecto = new CredencialUsuario(escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero);
 
         Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, (await EscenarioSeguridad.IngresarAsync(proveedor, pinIncorrecto)).Motivo);
         Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, (await EscenarioSeguridad.IngresarAsync(proveedor, pinIncorrecto)).Motivo);
@@ -45,7 +45,7 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
         Assert.Equal(MotivoRechazoIngreso.UsuarioBloqueado, tercero.Motivo);
         Assert.Equal(EscenarioSeguridad.Inicio.AddMinutes(5), tercero.BloqueadoHasta);
 
-        // Bloqueado: ni con el PIN correcto entra.
+        // Bloqueado: ni con la clave correcta entra.
         Assert.Equal(MotivoRechazoIngreso.UsuarioBloqueado, (await EscenarioSeguridad.IngresarAsync(proveedor, pinCorrecto)).Motivo);
 
         reloj.Avanzar(TimeSpan.FromMinutes(5));
@@ -54,14 +54,14 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
     }
 
     [SkippableFact]
-    public async Task Usuario_inexistente_recibe_el_mismo_mensaje_que_un_pin_incorrecto()
+    public async Task Usuario_inexistente_recibe_el_mismo_mensaje_que_una_clave_incorrecta()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
 
-        var inexistente = new CredencialUsuario.Pin($"NOEXISTE{escenario.Sufijo}", EscenarioSeguridad.PinCajero);
-        var incorrecto = new CredencialUsuario.Pin(escenario.CodigoCajero, "0000");
+        var inexistente = new CredencialUsuario($"NOEXISTE{escenario.Sufijo}", EscenarioSeguridad.ClaveCajero);
+        var incorrecto = new CredencialUsuario(escenario.CodigoCajero, "0000");
 
         var resultadoInexistente = await EscenarioSeguridad.IngresarAsync(proveedor, inexistente);
         var resultadoIncorrecto = await EscenarioSeguridad.IngresarAsync(proveedor, incorrecto);
@@ -69,35 +69,24 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
         Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, resultadoInexistente.Motivo);
         Assert.Equal(resultadoIncorrecto.Motivo, resultadoInexistente.Motivo);
         Assert.Equal(
-            MensajesSeguridad.Para(resultadoIncorrecto.Motivo!.Value, incorrecto),
-            MensajesSeguridad.Para(resultadoInexistente.Motivo!.Value, inexistente));
+            MensajesSeguridad.Para(resultadoIncorrecto.Motivo!.Value),
+            MensajesSeguridad.Para(resultadoInexistente.Motivo!.Value));
     }
 
     [SkippableFact]
-    public async Task Carne_reconocido_inicia_sesion_y_desconocido_se_rechaza()
+    public async Task Clave_distingue_mayusculas_y_el_codigo_admite_espacios_alrededor()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
 
-        var conCarne = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Carne($"  {escenario.CarneCajero} "));
-        var desconocido = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Carne("CARNE-QUE-NO-EXISTE"));
+        var conEspacios = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario($"  {escenario.CodigoCajero} ", EscenarioSeguridad.ClaveCajero));
+        var otraCaja = await EscenarioSeguridad.IngresarAsync(proveedor,
+            new CredencialUsuario(escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero.ToUpperInvariant()));
 
-        Assert.True(conCarne.Exitoso, conCarne.Motivo?.ToString());
-        Assert.Equal(escenario.Cajero, conCarne.Sesion!.UsuarioId);
-        Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, desconocido.Motivo);
-    }
-
-    [SkippableFact]
-    public async Task Huella_identificada_por_el_lector_inicia_sesion()
-    {
-        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
-        await using var conHuella = escenario.CrearProveedor(escenario.CajaUno, usuarioHuella: escenario.Cajero).Proveedor;
-        await using var sinHuella = escenario.CrearProveedor(escenario.CajaUno, usuarioHuella: null).Proveedor;
-
-        Assert.True((await EscenarioSeguridad.IngresarAsync(conHuella, new CredencialUsuario.Huella())).Exitoso);
-        Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, (await EscenarioSeguridad.IngresarAsync(sinHuella, new CredencialUsuario.Huella())).Motivo);
+        Assert.True(conEspacios.Exitoso, conEspacios.Motivo?.ToString());
+        Assert.Equal(escenario.Cajero, conEspacios.Sesion!.UsuarioId);
+        Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, otraCaja.Motivo);
     }
 
     [SkippableFact]
@@ -107,7 +96,7 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaDos).Proveedor;
 
-        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoCajero, EscenarioSeguridad.PinCajero));
+        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero));
 
         Assert.Equal(MotivoRechazoIngreso.CajaDeshabilitada, resultado.Motivo);
     }
@@ -119,7 +108,7 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
 
-        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoSinCaja, EscenarioSeguridad.PinSinCaja));
+        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoSinCaja, EscenarioSeguridad.ClaveSinCaja));
 
         Assert.Equal(MotivoRechazoIngreso.CajaNoAsignada, resultado.Motivo);
     }
@@ -131,8 +120,8 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
 
-        var correcto = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoInactivo, EscenarioSeguridad.PinInactivo));
-        var incorrecto = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoInactivo, "0000"));
+        var correcto = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoInactivo, EscenarioSeguridad.ClaveInactivo));
+        var incorrecto = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoInactivo, "0000"));
 
         Assert.Equal(MotivoRechazoIngreso.UsuarioInactivo, correcto.Motivo);
         Assert.Equal(MotivoRechazoIngreso.CredencialesInvalidas, incorrecto.Motivo);
@@ -145,7 +134,7 @@ public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Ba
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(cajaId: null).Proveedor;
 
-        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario.Pin(escenario.CodigoCajero, EscenarioSeguridad.PinCajero));
+        var resultado = await EscenarioSeguridad.IngresarAsync(proveedor, new CredencialUsuario(escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero));
 
         Assert.Equal(MotivoRechazoIngreso.CajaNoConfigurada, resultado.Motivo);
     }

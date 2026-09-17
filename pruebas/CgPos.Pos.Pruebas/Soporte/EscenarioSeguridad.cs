@@ -16,11 +16,11 @@ namespace CgPos.Pos.Pruebas.Soporte;
 /// </summary>
 public sealed class EscenarioSeguridad
 {
-    public const string PinCajero = "1111";
-    public const string PinCajeroDos = "4444";
-    public const string PinSupervisor = "2222";
-    public const string PinInactivo = "5555";
-    public const string PinSinCaja = "6666";
+    public const string ClaveCajero = "Cajero.1111";
+    public const string ClaveCajeroDos = "Cajero.4444";
+    public const string ClaveSupervisor = "Supervisor.2222";
+    public const string ClaveInactivo = "Inactivo.5555";
+    public const string ClaveSinCaja = "SinCaja.6666";
 
     public static readonly DateTimeOffset Inicio = new(2026, 9, 15, 12, 0, 0, TimeSpan.Zero);
 
@@ -46,8 +46,6 @@ public sealed class EscenarioSeguridad
     public string CodigoSupervisor => $"S{Sufijo}";
     public string CodigoInactivo => $"I{Sufijo}";
     public string CodigoSinCaja => $"N{Sufijo}";
-    public string CarneCajero => $"CARNE-C{Sufijo}";
-    public string CarneSupervisor => $"CARNE-S{Sufijo}";
 
     public static async Task<EscenarioSeguridad> CrearAsync(BaseDatosPruebas baseDatos, Guid empresaId)
     {
@@ -59,15 +57,14 @@ public sealed class EscenarioSeguridad
         return escenario;
     }
 
-    /// <summary>Proveedor con reloj controlable, la caja indicada como caja actual y un lector de huella fijo.</summary>
-    public (ServiceProvider Proveedor, RelojPrueba Reloj) CrearProveedor(Guid? cajaId, Guid? usuarioHuella = null, Action<IServiceCollection>? extras = null)
+    /// <summary>Proveedor con reloj controlable y la caja indicada como caja actual.</summary>
+    public (ServiceProvider Proveedor, RelojPrueba Reloj) CrearProveedor(Guid? cajaId, Action<IServiceCollection>? extras = null)
     {
         var reloj = new RelojPrueba(Inicio);
         var proveedor = _baseDatos.CrearProveedor(servicios =>
         {
             servicios.AddSingleton<TimeProvider>(reloj);
             servicios.AddSingleton<IContextoCaja>(new ContextoCajaFijo(cajaId));
-            servicios.AddScoped<ILectorHuella>(_ => new LectorHuellaFijo(usuarioHuella));
             extras?.Invoke(servicios);
         });
 
@@ -118,11 +115,11 @@ public sealed class EscenarioSeguridad
             ],
             Usuarios:
             [
-                new UsuarioCarga(Cajero, CodigoCajero, "Cajero Seguridad", RolCajero, [CajaUno, CajaDos], Pin: PinCajero, CredencialBarras: CarneCajero),
-                new UsuarioCarga(CajeroDos, CodigoCajeroDos, "Cajero Dos", RolCajero, [CajaUno], Pin: PinCajeroDos),
-                new UsuarioCarga(Supervisor, CodigoSupervisor, "Supervisor Seguridad", RolSupervisor, [], Pin: PinSupervisor, CredencialBarras: CarneSupervisor),
-                new UsuarioCarga(Inactivo, CodigoInactivo, "Usuario Inactivo", RolCajero, [CajaUno], Pin: PinInactivo, Activo: false),
-                new UsuarioCarga(SinCaja, CodigoSinCaja, "Usuario Sin Caja", RolCajero, [], Pin: PinSinCaja),
+                new UsuarioCarga(Cajero, CodigoCajero, "Cajero Seguridad", RolCajero, [CajaUno, CajaDos], Clave: ClaveCajero),
+                new UsuarioCarga(CajeroDos, CodigoCajeroDos, "Cajero Dos", RolCajero, [CajaUno], Clave: ClaveCajeroDos),
+                new UsuarioCarga(Supervisor, CodigoSupervisor, "Supervisor Seguridad", RolSupervisor, [], Clave: ClaveSupervisor),
+                new UsuarioCarga(Inactivo, CodigoInactivo, "Usuario Inactivo", RolCajero, [CajaUno], Clave: ClaveInactivo, Activo: false),
+                new UsuarioCarga(SinCaja, CodigoSinCaja, "Usuario Sin Caja", RolCajero, [], Clave: ClaveSinCaja),
             ],
             Parametros:
             [
@@ -135,7 +132,7 @@ public sealed class EscenarioSeguridad
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.ToleranciaRelojSegundos, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MesesVigenciaPuntos, "12", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MaximoPuntosCanjeSinConexion, "5000", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosPin, "3", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosClave, "3", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosBloqueo, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosVigenciaAutorizacion, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasSesion, "12", CajaId: CajaUno),

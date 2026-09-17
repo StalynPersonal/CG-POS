@@ -74,7 +74,7 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 
 | Parámetro | Uso | Obligatorio |
 | --- | --- | --- |
-| `Seguridad.IntentosMaximosPin`, `Seguridad.MinutosBloqueo` | Bloqueo por PIN incorrecto | Sí |
+| `Seguridad.IntentosMaximosClave`, `Seguridad.MinutosBloqueo` | Bloqueo por clave incorrecta | Sí |
 | `Seguridad.MinutosVigenciaAutorizacion` | Tiempo para usar una autorización de supervisor | Sí |
 | `Seguridad.HorasSesion` | Duración de la sesión del usuario | Sí |
 | `Fiscal.MontoIdentificacionConsumo` | Total desde el cual la factura de consumo exige cédula o RNC | Sí |
@@ -112,13 +112,13 @@ dotnet run --project src/POS/CgPos.Pos.Agente
 
 En desarrollo, el Agente aplica al arrancar `datos/carga-inicial.desarrollo.json` y opera como la Caja 01. Los archivos de datos se aplican **solo si cambiaron** desde la última vez (su huella SHA-256 queda en la base). En el Central, además, solo crean lo que no existe: lo que se editó en el Manager nunca se pisa. La caja conectada al Central (`Central:Url`) no aplica los archivos de carga inicial ni de maestros: todo le llega del Central. Usuarios de prueba:
 
-| Usuario | PIN | Carné | Rol |
-|---|---|---|---|
-| C001 | 1111 | CGP-C001 | Cajero (nivel 1) |
-| S001 | 2222 | CGP-S001 | Supervisor (nivel 2, autoriza operaciones) |
-| G001 | 3333 | — | Gerente (nivel 3, todos los permisos) |
+| Usuario | Clave | Rol |
+|---|---|---|
+| C001 | Cajero.2026 | Cajero (nivel 1) |
+| S001 | Supervisor.2026 | Supervisor (nivel 2, autoriza operaciones) |
+| G001 | Gerente.2026 | Gerente (nivel 3, todos los permisos) |
 
-La huella está simulada: identifica siempre al usuario de `Perifericos:HuellaSimulada:CodigoUsuario` (C001 en desarrollo).
+En la caja se entra solo con usuario y clave; las autorizaciones de supervisor también se dan con usuario y clave.
 
 ### Maestros y padrón DGII
 
@@ -158,7 +158,7 @@ En la pantalla de venta:
 - **Escanear o digitar** el código y Enter. Acepta `cantidad*código` (ej. `12*CEM-425`, que activa el precio mayor).
 - **Tocar la cantidad** de una línea (o F4) para cambiarla; **tocar el código** alterna entre el código leído y el interno.
 - **F2** busca por descripción, **F11** consulta el precio sin vender.
-- **Eliminar línea** (botón ✕ de la línea), **eliminar por escaneo** y **limpiar pantalla** requieren permiso; al cajero se le pide autorización de supervisor (S001/2222). La autorización es de un solo uso y vence en 5 minutos. La línea eliminada queda tachada y su reverso en rojo debajo.
+- **Eliminar línea** (botón ✕ de la línea), **eliminar por escaneo** y **limpiar pantalla** requieren permiso; al cajero se le pide autorización de supervisor (S001 / Supervisor.2026). La autorización es de un solo uso y vence en 5 minutos. La línea eliminada queda tachada y su reverso en rojo debajo.
 - La venta se guarda en cada operación: si la caja se apaga, al volver a ingresar se recupera tal como estaba.
 
 | Ruta | Uso |
@@ -178,7 +178,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Identificación obligatoria:** una factura de consumo desde `Fiscal.MontoIdentificacionConsumo` (RD$250,000 por defecto) muestra el aviso hasta asignar cédula o RNC.
 - **Límite de compra (F3):** avisa cuando el total supera el monto que pidió el cliente.
 - **Facturas en espera (F7):** quedan ligadas al cajero y al turno; al retomar una, la actual pasa a espera.
-- **Anular** (con motivo) y **Suspender** (bloquea la pantalla hasta digitar el PIN) están en la segunda página de teclas y requieren permiso o autorización de supervisor.
+- **Anular** (con motivo) y **Suspender** (bloquea la pantalla hasta digitar la clave) están en la segunda página de teclas y requieren permiso o autorización de supervisor.
 - **Serializados:** al escanearlos se pide el serial; no se repite en la misma venta.
 - **Balanza (F5):** un pesado sin etiqueta toma el peso estable de la balanza menos el peso del empaque configurado en el artículo. En desarrollo está simulada (`Perifericos:BalanzaSimulada:Peso`); en una caja real se conecta por puerto serie (ver *Periféricos configurables*).
 - **Catálogo en mosaicos:** botón junto al campo de escaneo; muestra los artículos con `mostrarEnCatalogo`.
@@ -347,7 +347,7 @@ dotnet run --project src/Central/CgPos.Central.Api
 - *Credenciales de las cajas* (permiso `Central.Dispositivos.Administrar`): desde Cajas se emite una credencial nueva (reemplaza la anterior y su secreto se muestra una sola vez, con `Caja:Id` y `Central:Secreto` para configurar la caja) o se revoca con motivo.
 - **API de organización:** `GET|PUT /api/organizacion/empresa`; `GET|POST /api/organizacion/sucursales`, `PUT /api/organizacion/sucursales/{id}`, `POST /api/organizacion/sucursales/{id}/activar|desactivar`; `GET|POST /api/organizacion/cajas`, `PUT /api/organizacion/cajas/{id}`, `POST /api/organizacion/cajas/{id}/habilitar|deshabilitar`; `GET /api/organizacion/parametros/catalogo`, `GET|POST /api/organizacion/parametros`, `PUT /api/organizacion/parametros/{id}`.
 - *Rangos de e-CF* (permiso `Central.Fiscal.Administrar`): se asignan por caja y tipo (E31, E32, E34, E44 y E45) con inicio, fin y vencimiento. Los rangos del mismo tipo no se solapan entre cajas de la empresa; un rango ya asignado no cambia de caja, tipo ni inicio y solo se amplía, se prorroga o se desactiva, porque la caja pudo haber emitido hasta su final. La lista muestra el último e-NCF recibido de cada rango y cuánto queda.
-- *Usuarios y roles de caja* (permiso `Central.UsuariosCaja.Administrar`): roles con nivel (1 a 9) y permisos del catálogo de la caja; usuarios con rol, cajas que operan, PIN (4 a 8 dígitos, obligatorio al crear) y carné opcional. El PIN y el carné se publican solo como hash en el formato de la caja; editar sin PIN o carné nuevo conserva los actuales. Los códigos no cambian y un carné no puede repetirse entre usuarios.
+- *Usuarios y roles de caja* (permiso `Central.UsuariosCaja.Administrar`): roles con nivel (1 a 9) y permisos del catálogo de la caja; usuarios con rol, cajas que operan y clave (obligatoria al crear, con el largo mínimo de `Central.Seguridad.LargoMinimoContrasena`). La clave se publica solo como hash en el formato de la caja; editar sin clave nueva conserva la actual. Los códigos no cambian.
 - Los rangos, roles y usuarios pasan por las mismas validaciones que la publicación de maestros y bajan a las cajas en su próxima sincronización.
 - *Catálogos de maestros* (permiso `Central.Maestros.Administrar`): monedas, tasas de cambio, departamentos, categorías (cada una de un departamento), marcas, unidades de medida, impuestos, formas de pago, denominaciones, bancos, tipos de tarjeta, motivos de descuento y de devolución, almacenes, **niveles de fidelidad**, **reglas de acumulación de puntos** y **descuentos por tarjeta** (RF-98). Cada registro se guarda en el formato de carga de la caja y pasa por las reglas de su dominio y por las referencias ya publicadas (una forma de pago usa una moneda publicada, un almacén una sucursal existente). Lo que la caja no deja cambiar tampoco se deja en el Central: el código de artículos, monedas, promociones, niveles y reglas de fidelidad y almacenes; el tipo de una forma de pago; la moneda, el valor y el tipo de una denominación. No se borran: se desactivan.
 - **Maestros en tablas:** el Central pasa sus maestros de la tabla JSON `MaestrosCentral` a una tabla por maestro, por grupos. Ya tienen tabla (con llaves, índices únicos, versión de fila y quién y cuándo los cambió): **departamentos, categorías, marcas, unidades de medida e impuestos**. Al arrancar, lo que quede de esos tipos en JSON se pasa solo a su tabla. Las cajas no cambian: siguen bajando lo cambiado por versión, con el mismo formato. El código de estos catálogos no se puede cambiar después de creado.
@@ -489,7 +489,7 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 ### Maestros para las cajas
 
-- **Publicación:** el Central guarda los maestros en el mismo formato de carga que aplica la caja (artículos, precios, clientes, formas de pago, promociones, fidelidad, almacenes, rangos de e-CF, roles y usuarios de caja). Antes de publicar valida cada registro con las reglas del dominio, las referencias (departamento, unidad e impuesto del artículo, moneda, caja, sucursal, nivel) y que los códigos y códigos de barras no se repitan: un maestro inválido no llega a detener a las cajas. Los PIN y carnés se publican solo como hash, con el formato que verifica la caja.
+- **Publicación:** el Central guarda los maestros en el mismo formato de carga que aplica la caja (artículos, precios, clientes, formas de pago, promociones, fidelidad, almacenes, rangos de e-CF, roles y usuarios de caja). Antes de publicar valida cada registro con las reglas del dominio, las referencias (departamento, unidad e impuesto del artículo, moneda, caja, sucursal, nivel) y que los códigos y códigos de barras no se repitan: un maestro inválido no llega a detener a las cajas. Las claves de los usuarios de caja se publican solo como hash, con el formato que verifica la caja.
 - **Bajada incremental:** `GET /api/sincronizacion/maestros?desde={versión}` (token de dispositivo) entrega lo cambiado por versión de fila (rowversion) hasta la última versión confirmada; publicar lo mismo no genera versión nueva. Desde 0 es el aprovisionamiento completo de una caja nueva. La respuesta se comprime.
 - **Alcance por caja:** baja la organización completa, los parámetros generales, los de su sucursal y los suyos (nunca los `Central.*`) y solo sus rangos de e-CF. El estado de cada caja guarda su última descarga y la versión confirmada y entregada.
 - **Inscripciones de fidelidad hechas en caja:** se publican como miembros para todas las cajas con el Id de la caja; si la cédula ya estaba en el Central con otro Id se conserva la del Central y queda un conflicto *MiembroDuplicado*.

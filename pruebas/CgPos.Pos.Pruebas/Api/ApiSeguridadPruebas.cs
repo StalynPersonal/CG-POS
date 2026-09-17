@@ -91,12 +91,12 @@ public class ApiSeguridadPruebas(AgenteEnPruebas agente)
     }
 
     [SkippableFact]
-    public async Task Ingreso_con_pin_entrega_un_token_valido_para_consultar_la_sesion()
+    public async Task Ingreso_con_clave_entrega_un_token_valido_para_consultar_la_sesion()
     {
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
 
-        var ingreso = await IngresarAsync(cliente, "C001", "1111");
+        var ingreso = await IngresarAsync(cliente, "C001", "Cajero.2026");
         Assert.True(ingreso.Exitoso, ingreso.Mensaje);
         Assert.False(string.IsNullOrEmpty(ingreso.Token));
 
@@ -114,21 +114,21 @@ public class ApiSeguridadPruebas(AgenteEnPruebas agente)
     }
 
     [SkippableFact]
-    public async Task Pin_incorrecto_responde_401_con_mensaje_generico()
+    public async Task Clave_incorrecta_responde_401_con_mensaje_generico()
     {
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
 
-        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/pin", new SolicitudIngresoPin("G001", "0000"), OpcionesJson.Predeterminadas);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/ingreso", new SolicitudIngreso("G001", "0000"), OpcionesJson.Predeterminadas);
         var cuerpo = await respuesta.Content.ReadFromJsonAsync<RespuestaIngreso>(OpcionesJson.Predeterminadas);
 
         Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
         Assert.False(cuerpo!.Exitoso);
-        Assert.Equal("Usuario o PIN incorrecto.", cuerpo.Mensaje);
+        Assert.Equal("Usuario o clave incorrectos.", cuerpo.Mensaje);
         Assert.Null(cuerpo.Token);
 
         // Un ingreso correcto reinicia el contador de intentos.
-        Assert.True((await IngresarAsync(cliente, "G001", "3333")).Exitoso);
+        Assert.True((await IngresarAsync(cliente, "G001", "Gerente.2026")).Exitoso);
     }
 
     [SkippableFact]
@@ -136,8 +136,8 @@ public class ApiSeguridadPruebas(AgenteEnPruebas agente)
     {
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
-        var cajero = await IngresarAsync(cliente, "C001", "1111");
-        var solicitud = new SolicitudAutorizacion(CatalogoPermisos.EliminarLinea, "Artículo duplicado", "S001", "2222");
+        var cajero = await IngresarAsync(cliente, "C001", "Cajero.2026");
+        var solicitud = new SolicitudAutorizacion(CatalogoPermisos.EliminarLinea, "Artículo duplicado", "S001", "Supervisor.2026");
 
         using var sinToken = await cliente.PostAsJsonAsync("/api/autorizaciones", solicitud, OpcionesJson.Predeterminadas);
         Assert.Equal(HttpStatusCode.Unauthorized, sinToken.StatusCode);
@@ -161,7 +161,7 @@ public class ApiSeguridadPruebas(AgenteEnPruebas agente)
     {
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
-        var cajero = await IngresarAsync(cliente, "C001", "1111");
+        var cajero = await IngresarAsync(cliente, "C001", "Cajero.2026");
 
         var emisor = agente.Fabrica.Services.GetRequiredService<EmisorTokens>();
         var validacion = await new JsonWebTokenHandler().ValidateTokenAsync(cajero.Token, emisor.ParametrosValidacion());
@@ -174,9 +174,9 @@ public class ApiSeguridadPruebas(AgenteEnPruebas agente)
         Assert.False((await autorizacion.AuthorizeAsync(usuario, CatalogoPermisos.EliminarLinea)).Succeeded);
     }
 
-    private static async Task<RespuestaIngreso> IngresarAsync(HttpClient cliente, string codigo, string pin)
+    private static async Task<RespuestaIngreso> IngresarAsync(HttpClient cliente, string codigo, string clave)
     {
-        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/pin", new SolicitudIngresoPin(codigo, pin), OpcionesJson.Predeterminadas);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/ingreso", new SolicitudIngreso(codigo, clave), OpcionesJson.Predeterminadas);
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaIngreso>(OpcionesJson.Predeterminadas))!;
     }
 }

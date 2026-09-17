@@ -50,15 +50,15 @@ public class OrganizacionPruebas
     [Fact]
     public void Parametro_aplica_a_un_solo_ambito()
     {
-        var general = Parametro.Crear("Seguridad.IntentosMaximosPin", "3");
-        var deCaja = Parametro.Crear("Seguridad.IntentosMaximosPin", "5", cajaId: Guid.CreateVersion7());
+        var general = Parametro.Crear("Seguridad.IntentosMaximosClave", "3");
+        var deCaja = Parametro.Crear("Seguridad.IntentosMaximosClave", "5", cajaId: Guid.CreateVersion7());
 
         Assert.Null(general.SucursalId);
         Assert.Null(general.CajaId);
         Assert.NotNull(deCaja.CajaId);
 
         Assert.Throws<ArgumentException>(() =>
-            Parametro.Crear("Seguridad.IntentosMaximosPin", "3", sucursalId: Guid.CreateVersion7(), cajaId: Guid.CreateVersion7()));
-        Assert.Throws<ArgumentException>(() => Parametro.Crear("Seguridad.IntentosMaximosPin", "3", cajaId: Guid.Empty));
+            Parametro.Crear("Seguridad.IntentosMaximosClave", "3", sucursalId: Guid.CreateVersion7(), cajaId: Guid.CreateVersion7()));
+        Assert.Throws<ArgumentException>(() => Parametro.Crear("Seguridad.IntentosMaximosClave", "3", cajaId: Guid.Empty));
     }
 }

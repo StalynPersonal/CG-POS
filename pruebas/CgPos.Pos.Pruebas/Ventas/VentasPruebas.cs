@@ -1650,8 +1650,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.NotaCredito, desde, desde + 999, vence),
             ]), "Pruebas"));
 
-            caja.Cajero = await caja.IngresarAsync(caja.Escenario.CodigoCajero, EscenarioSeguridad.PinCajero);
-            caja.CajeroDos = await caja.IngresarAsync(caja.Escenario.CodigoCajeroDos, EscenarioSeguridad.PinCajeroDos);
+            caja.Cajero = await caja.IngresarAsync(caja.Escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero);
+            caja.CajeroDos = await caja.IngresarAsync(caja.Escenario.CodigoCajeroDos, EscenarioSeguridad.ClaveCajeroDos);
 
             if (abrirTurno)
             {
@@ -1705,7 +1705,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         public async Task<Guid> AutorizarAsync(string permiso, string motivo, SesionUsuario? solicitante = null)
         {
             var resultado = await EscenarioSeguridad.AutorizarAsync(_proveedor, new SolicitudAutorizacionSupervisor(
-                solicitante ?? Cajero, permiso, motivo, new CredencialUsuario.Pin(Escenario.CodigoSupervisor, EscenarioSeguridad.PinSupervisor)));
+                solicitante ?? Cajero, permiso, motivo, new CredencialUsuario(Escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor)));
             Assert.True(resultado.Concedida, resultado.Motivo?.ToString());
             return resultado.AutorizacionId!.Value;
         }
@@ -1733,9 +1733,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 Assert.Null(_proveedor.GetRequiredService<CgPos.Pos.Aplicacion.Ecf.ICertificadoCaja>().Cargar(BaseDatosPruebas.PinCertificado));
         }
 
-        private async Task<SesionUsuario> IngresarAsync(string codigo, string pin)
+        private async Task<SesionUsuario> IngresarAsync(string codigo, string clave)
         {
-            var resultado = await EscenarioSeguridad.IngresarAsync(_proveedor, new CredencialUsuario.Pin(codigo, pin));
+            var resultado = await EscenarioSeguridad.IngresarAsync(_proveedor, new CredencialUsuario(codigo, clave));
             Assert.True(resultado.Exitoso, resultado.Motivo?.ToString());
             return resultado.Sesion!;
         }

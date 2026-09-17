@@ -26,7 +26,7 @@ public class ApiCatalogoPruebas(AgenteEnPruebas agente)
         using var sinSesion = await cliente.GetAsync("/api/articulos/codigo/7891114119695");
         Assert.Equal(HttpStatusCode.Unauthorized, sinSesion.StatusCode);
 
-        await IniciarSesionAsync(cliente, "C001", "1111");
+        await IniciarSesionAsync(cliente, "C001", "Cajero.2026");
         var articulo = await cliente.GetFromJsonAsync<DatosArticuloVenta>("/api/articulos/codigo/7891114119695", OpcionesJson.Predeterminadas);
 
         Assert.Contains("Cincel", articulo!.Descripcion);
@@ -42,7 +42,7 @@ public class ApiCatalogoPruebas(AgenteEnPruebas agente)
     {
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
-        await IniciarSesionAsync(cliente, "C001", "1111");
+        await IniciarSesionAsync(cliente, "C001", "Cajero.2026");
 
         var busqueda = await cliente.GetFromJsonAsync<List<DatosArticuloResumen>>("/api/articulos?texto=cemento%20gris", OpcionesJson.Predeterminadas);
         Assert.Contains(busqueda!, a => a.Codigo == "CEM-425");
@@ -62,7 +62,7 @@ public class ApiCatalogoPruebas(AgenteEnPruebas agente)
     {
         Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
         using var cliente = agente.Fabrica!.CreateClient();
-        await IniciarSesionAsync(cliente, "C001", "1111");
+        await IniciarSesionAsync(cliente, "C001", "Cajero.2026");
 
         using var contenido = new StringContent("131246796|CONSTRUCTORA EJEMPLO SRL||||||||ACTIVO|NORMAL");
         using var respuesta = await cliente.PostAsync("/api/maestros/padron-dgii", contenido);
@@ -70,9 +70,9 @@ public class ApiCatalogoPruebas(AgenteEnPruebas agente)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    private static async Task IniciarSesionAsync(HttpClient cliente, string codigo, string pin)
+    private static async Task IniciarSesionAsync(HttpClient cliente, string codigo, string clave)
     {
-        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/pin", new SolicitudIngresoPin(codigo, pin), OpcionesJson.Predeterminadas);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/sesion/ingreso", new SolicitudIngreso(codigo, clave), OpcionesJson.Predeterminadas);
         var ingreso = await respuesta.Content.ReadFromJsonAsync<RespuestaIngreso>(OpcionesJson.Predeterminadas);
         Assert.True(ingreso!.Exitoso, ingreso.Mensaje);
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ingreso.Token);
