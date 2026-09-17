@@ -190,6 +190,9 @@ public static class CatalogoParametros
         new("Central.Monitor.MinutosAlertaDgii", "Monitor de sincronización", "Minutos sin resultado de la DGII tras los que un e-CF es alerta", Entero, true, Central, Minimo: 1),
 
         new("Central.NotasCredito.MinutosReserva", "Notas de crédito", "Minutos que se retiene el saldo de una nota de crédito mientras una caja cobra", Entero, true, Central, Minimo: 1),
+        new("Central.Chequeador.Habilitado", "Chequeador de precios",
+            "Enciende la página de consulta de precios de la tienda; su consulta no pide sesión, por eso se activa a propósito",
+            Booleano, false, Central),
         new("Central.ListasBoda.DescontarCompras", "Listas de boda",
             "Lo que se compra contra una lista de boda se descuenta de las cantidades pedidas; apagado, la compra solo queda en su historial",
             Booleano, false, Central),

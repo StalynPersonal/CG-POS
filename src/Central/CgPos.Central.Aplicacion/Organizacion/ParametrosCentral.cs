@@ -112,6 +112,12 @@ public static class ClavesParametrosCentral
     /// </summary>
     public const string ListasBodaDescontarCompras = "Central.ListasBoda.DescontarCompras";
 
+    /// <summary>
+    /// Enciende el chequeador de precios de la tienda (RF-95). Su consulta no pide sesión, así que se activa a propósito; apagado,
+    /// la página no consulta nada.
+    /// </summary>
+    public const string ChequeadorHabilitado = "Central.Chequeador.Habilitado";
+
 
     /// <summary>Minutos entre revisiones de los puntos de fidelidad que ya vencieron (RF-242).</summary>
     public const string FidelidadMinutosCicloVencimiento = "Central.Fidelidad.MinutosCicloVencimiento";

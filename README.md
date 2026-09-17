@@ -406,6 +406,16 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 - **API:** `GET /api/monitor`; `GET /api/monitor/comprobantes?estado=&cajaId=&buscar=&soloConFallo=&pagina=&tamano=`, `GET /api/monitor/comprobantes/{id}/xml`, `POST /api/monitor/comprobantes/{id}/reenviar`; `GET /api/monitor/conflictos?abiertos=`, `POST /api/monitor/conflictos/{id}/resolver`.
 
+### Chequeador de precios (RF-95)
+
+- **Página `/chequeador` del Central**, pensada para la pantalla que se pone en la tienda: el cliente pasa el código por el lector y ve la descripción, el precio grande, el precio por cantidad (desde cuántas unidades) y las **ofertas vigentes** con hasta cuándo duran. La consulta se borra sola a los 20 segundos y el campo queda enfocado para el siguiente cliente.
+- **Busca por código interno, de barras, de proveedor o referencia**, y consulta siempre al Central, así que muestra el precio y la oferta del momento sin depender de una caja. Si hay varias sucursales, se elige la del equipo para las ofertas que son de una sola sucursal.
+- **Sin sesión, y por eso apagado por defecto:** la consulta (`GET /api/chequeador/articulos/{codigo}`) no pide usuario porque el equipo está a la vista del público, así que solo responde con `Central.Chequeador.Habilitado` encendido y **solo entrega descripción, precio y ofertas** (nunca costo, existencia ni datos internos). Apagado, la página lo avisa y no consulta nada. Las ofertas de fidelidad no se anuncian, porque no son para todo el mundo.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.Chequeador.Habilitado` | Enciende la página de consulta de precios de la tienda | No (apagado por defecto) |
+
 ### Facturas de las cajas (M16)
 
 - **Pantalla `/facturas`** (permiso `Central.Reportes.Consultar`): todas las facturas y notas de crédito que las cajas subieron al Central, con filtros por rango de días, sucursal, tipo de documento y búsqueda por número, e-NCF, documento o nombre del cliente; muestra el total de lo filtrado y el estado del e-CF en la DGII de cada una.
