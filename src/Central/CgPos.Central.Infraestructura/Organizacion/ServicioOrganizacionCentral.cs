@@ -21,6 +21,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         var empresa = await contexto.Empresas.FirstOrDefaultAsync(cancelacion);
         if (empresa is null)
             return ResultadoAdministracion.Inexistente("La empresa no está configurada; aplique la carga inicial del Central.");
+        if (DatosObligatoriosOrganizacion.Empresa(solicitud.RazonSocial, solicitud.NombreComercial, solicitud.Direccion, solicitud.Telefono) is { } faltanEmpresa)
+            return ResultadoAdministracion.Error(faltanEmpresa);
 
         try
         {
@@ -56,6 +58,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         var codigo = solicitud.Codigo?.Trim() ?? string.Empty;
         if (codigo.Length > 0 && await contexto.Sucursales.AnyAsync(s => s.Codigo == codigo, cancelacion))
             return ResultadoAdministracion.Error($"Ya existe la sucursal con código '{codigo}'.");
+        if (DatosObligatoriosOrganizacion.Sucursal(codigo, solicitud.Nombre, solicitud.Direccion, solicitud.Telefono) is { } faltanSucursal)
+            return ResultadoAdministracion.Error(faltanSucursal);
 
         Sucursal sucursal;
         try
@@ -78,6 +82,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
             return ResultadoAdministracion.Inexistente("La sucursal no existe.");
         if (!string.Equals(sucursal.Codigo, solicitud.Codigo?.Trim(), StringComparison.OrdinalIgnoreCase))
             return ResultadoAdministracion.Error("El código de la sucursal no se puede cambiar.");
+        if (DatosObligatoriosOrganizacion.Sucursal(sucursal.Codigo, solicitud.Nombre, solicitud.Direccion, solicitud.Telefono) is { } faltanSucursal)
+            return ResultadoAdministracion.Error(faltanSucursal);
 
         try
         {

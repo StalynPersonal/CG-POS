@@ -2,7 +2,10 @@ using CgPos.Contratos.Central;
 
 namespace CgPos.Central.Aplicacion.CargaInicial;
 
-/// <summary>Aplica un <see cref="PaqueteCargaCentral"/> de forma idempotente, todo en una sola transacción.</summary>
+/// <summary>
+/// Aplica un <see cref="PaqueteCargaCentral"/> en una sola transacción. Solo crea lo que falta: lo que ya existe se conserva tal cual, porque desde
+/// entonces se administra en el Manager y volver a aplicar el archivo no debe deshacer esos cambios.
+/// </summary>
 public interface ICargaInicialCentral
 {
     /// <exception cref="CargaCentralInvalidaExcepcion">El paquete tiene errores; no se guarda nada.</exception>
@@ -13,7 +16,7 @@ public interface ICargaInicialCentral
     Task<ResultadoCargaCentral> AplicarDesdeArchivoAsync(string ruta, CancellationToken cancelacion = default);
 }
 
-public sealed record ResultadoCargaCentral(int Sucursales, int Cajas, int Parametros, int Roles, int Usuarios, int Creados, int Actualizados);
+public sealed record ResultadoCargaCentral(int Sucursales, int Cajas, int Parametros, int Roles, int Usuarios, int Creados, int Existentes);
 
 public sealed class CargaCentralInvalidaExcepcion(IReadOnlyList<string> errores)
     : Exception("La carga inicial del Central no es válida:" + Environment.NewLine + string.Join(Environment.NewLine, errores.Select(e => "- " + e)))

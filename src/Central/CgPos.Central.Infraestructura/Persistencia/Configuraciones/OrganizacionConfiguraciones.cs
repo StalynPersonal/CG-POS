@@ -13,11 +13,12 @@ internal sealed class EmpresaConfiguracion : IEntityTypeConfiguration<Empresa>
         constructor.HasKey(e => e.Id);
         constructor.Property(e => e.Id).ValueGeneratedNever();
 
+        // En el Central todos los datos de la empresa y de las sucursales son obligatorios (salen en e-CF, tickets y reportes).
         constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoRnc).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(e => e.RazonSocial).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
-        constructor.Property(e => e.NombreComercial).HasMaxLength(Empresa.LargoMaximoNombre);
-        constructor.Property(e => e.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion);
-        constructor.Property(e => e.Telefono).HasMaxLength(Empresa.LargoMaximoTelefono);
+        constructor.Property(e => e.NombreComercial).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
+        constructor.Property(e => e.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion).IsRequired();
+        constructor.Property(e => e.Telefono).HasMaxLength(Empresa.LargoMaximoTelefono).IsRequired();
 
         constructor.HasIndex(e => e.Rnc).IsUnique();
     }
@@ -33,8 +34,8 @@ internal sealed class SucursalConfiguracion : IEntityTypeConfiguration<Sucursal>
 
         constructor.Property(s => s.Codigo).HasMaxLength(Sucursal.LargoMaximoCodigo).IsRequired();
         constructor.Property(s => s.Nombre).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
-        constructor.Property(s => s.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion);
-        constructor.Property(s => s.Telefono).HasMaxLength(Empresa.LargoMaximoTelefono);
+        constructor.Property(s => s.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion).IsRequired();
+        constructor.Property(s => s.Telefono).HasMaxLength(Empresa.LargoMaximoTelefono).IsRequired();
 
         constructor.HasOne<Empresa>().WithMany().HasForeignKey(s => s.EmpresaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasIndex(s => new { s.EmpresaId, s.Codigo }).IsUnique();

@@ -11,7 +11,9 @@
     {
       "id": "01990000-0000-7000-8000-000000000101",
       "codigo": "01",
-      "nombre": "Sucursal Principal (desarrollo)"
+      "nombre": "Sucursal Principal (desarrollo)",
+      "direccion": "Dirección ficticia de la sucursal de desarrollo",
+      "telefono": "809-000-0001"
     }
   ],
   "cajas": [

@@ -4,11 +4,11 @@
 <MudDialog>
     <DialogContent>
         <div class="cg-central__dialogo">
-            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Sucursal is not null)"
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Disabled="@(Sucursal is not null)"
                           HelperText="Corto y único; forma parte del número de las transacciones (ej. 01)." />
-            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
-            <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Lines="2" />
-            <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
+            <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Lines="2" />
+            <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
             @if (_mensaje is not null)
             {
                 <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>

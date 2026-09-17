@@ -17,13 +17,12 @@ internal sealed class ServicioCargaInicialCentral(
     ContextoDatosCentral contexto,
     IHashContrasenas hashContrasenas,
     IAuditoriaCentral auditoria,
-    TimeProvider reloj,
     ILogger<ServicioCargaInicialCentral> logger) : ICargaInicialCentral
 {
     private const string TodosLosPermisos = "*";
 
     private int _creados;
-    private int _actualizados;
+    private int _existentes;
 
     public async Task<ResultadoCargaCentral> AplicarDesdeArchivoAsync(string ruta, CancellationToken cancelacion = default)
     {
@@ -48,7 +47,7 @@ internal sealed class ServicioCargaInicialCentral(
     {
         ArgumentNullException.ThrowIfNull(paquete);
         _creados = 0;
-        _actualizados = 0;
+        _existentes = 0;
 
         var sucursales = paquete.Sucursales ?? [];
         var cajas = paquete.Cajas ?? [];
@@ -72,13 +71,13 @@ internal sealed class ServicioCargaInicialCentral(
             foreach (var usuario in usuarios)
                 await AplicarUsuarioAsync(usuario, cancelacion);
 
-            var resultado = new ResultadoCargaCentral(sucursales.Count, cajas.Count, parametros.Count, roles.Count, usuarios.Count, _creados, _actualizados);
+            var resultado = new ResultadoCargaCentral(sucursales.Count, cajas.Count, parametros.Count, roles.Count, usuarios.Count, _creados, _existentes);
             auditoria.Registrar(new EntradaAuditoria("CargaInicial.Aplicada", "CargaInicial", paquete.Empresa.Id.ToString(), resultado));
             await contexto.SaveChangesAsync(cancelacion);
 
             logger.LogInformation(
-                "Carga inicial del Central aplicada: {Creados} creados, {Actualizados} actualizados ({Sucursales} sucursales, {Cajas} cajas, {Parametros} parámetros, {Roles} roles, {Usuarios} usuarios)",
-                resultado.Creados, resultado.Actualizados, resultado.Sucursales, resultado.Cajas, resultado.Parametros, resultado.Roles, resultado.Usuarios);
+                "Carga inicial del Central aplicada: {Creados} creados, {Existentes} ya existían y se conservaron ({Sucursales} sucursales, {Cajas} cajas, {Parametros} parámetros, {Roles} roles, {Usuarios} usuarios)",
+                resultado.Creados, resultado.Existentes, resultado.Sucursales, resultado.Cajas, resultado.Parametros, resultado.Roles, resultado.Usuarios);
             return resultado;
         }
         catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException or DbUpdateException)
@@ -99,6 +98,17 @@ internal sealed class ServicioCargaInicialCentral(
         var otraEmpresa = await contexto.Empresas.Where(e => e.Id != paquete.Empresa.Id).Select(e => e.RazonSocial).FirstOrDefaultAsync(cancelacion);
         if (otraEmpresa is not null)
             errores.Add($"El Central ya pertenece a otra empresa ({otraEmpresa}).");
+
+        // Los datos obligatorios se exigen a lo que se va a crear; lo existente se conserva y se completa en el Manager.
+        if (!await contexto.Empresas.AnyAsync(e => e.Id == paquete.Empresa.Id, cancelacion)
+            && Organizacion.DatosObligatoriosOrganizacion.Empresa(paquete.Empresa.RazonSocial, paquete.Empresa.NombreComercial, paquete.Empresa.Direccion,
+                paquete.Empresa.Telefono) is { } faltanEmpresa)
+            errores.Add(faltanEmpresa);
+
+        var sucursalesExistentes = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
+        foreach (var sucursal in sucursales.Where(s => !sucursalesExistentes.Contains(s.Id)))
+            if (Organizacion.DatosObligatoriosOrganizacion.Sucursal(sucursal.Codigo, sucursal.Nombre, sucursal.Direccion, sucursal.Telefono) is { } faltanSucursal)
+                errores.Add($"{faltanSucursal} ({sucursal.Codigo})");
 
         Duplicados(sucursales.Select(s => s.Id), "Id de sucursal", errores);
         Duplicados(sucursales.Select(s => s.Codigo.Trim()), "Código de sucursal", errores);
@@ -186,48 +196,41 @@ internal sealed class ServicioCargaInicialCentral(
         if (empresa.Rnc != dato.Rnc.Trim())
             throw new InvalidOperationException($"No se puede cambiar el RNC de la empresa ({empresa.Rnc} → {dato.Rnc}).");
 
-        empresa.ActualizarDatos(dato.RazonSocial, dato.NombreComercial, dato.Direccion, dato.Telefono);
-        _actualizados++;
+        _existentes++;
     }
 
     private async Task AplicarSucursalAsync(SucursalCarga dato, Guid empresaId, CancellationToken cancelacion)
     {
         var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Id == dato.Id, cancelacion);
-        if (sucursal is null)
-        {
-            sucursal = Sucursal.Crear(empresaId, dato.Codigo, dato.Nombre, dato.Direccion, dato.Telefono, dato.Id);
-            contexto.Sucursales.Add(sucursal);
-            _creados++;
-        }
-        else
+        if (sucursal is not null)
         {
             ExigirMismoCodigo(sucursal.Codigo, dato.Codigo, "sucursal");
-            sucursal.ActualizarDatos(dato.Nombre, dato.Direccion, dato.Telefono);
-            _actualizados++;
+            _existentes++;
+            return;
         }
 
+        sucursal = Sucursal.Crear(empresaId, dato.Codigo, dato.Nombre, dato.Direccion, dato.Telefono, dato.Id);
         if (dato.Activa) sucursal.Activar(); else sucursal.Desactivar();
+        contexto.Sucursales.Add(sucursal);
+        _creados++;
     }
 
     private async Task AplicarCajaAsync(CajaCarga dato, CancellationToken cancelacion)
     {
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.Id == dato.Id, cancelacion);
-        if (caja is null)
-        {
-            caja = Caja.Crear(dato.SucursalId, dato.Codigo, dato.Nombre, dato.Id);
-            contexto.Cajas.Add(caja);
-            _creados++;
-        }
-        else
+        if (caja is not null)
         {
             ExigirMismoCodigo(caja.Codigo, dato.Codigo, "caja");
             if (caja.SucursalId != dato.SucursalId)
                 throw new InvalidOperationException($"La caja '{caja.Codigo}' no se puede mover a otra sucursal.");
-            caja.CambiarNombre(dato.Nombre);
-            _actualizados++;
+            _existentes++;
+            return;
         }
 
+        caja = Caja.Crear(dato.SucursalId, dato.Codigo, dato.Nombre, dato.Id);
         if (dato.Habilitada) caja.Habilitar(); else caja.Deshabilitar();
+        contexto.Cajas.Add(caja);
+        _creados++;
     }
 
     private async Task AplicarParametroAsync(ParametroCarga dato, CancellationToken cancelacion)
@@ -243,34 +246,28 @@ internal sealed class ServicioCargaInicialCentral(
         if (parametro.Clave != dato.Clave.Trim() || parametro.SucursalId != dato.SucursalId || parametro.CajaId != dato.CajaId)
             throw new InvalidOperationException($"El parámetro '{parametro.Clave}' no puede cambiar de clave ni de ámbito.");
 
-        parametro.CambiarValor(dato.Valor);
-        _actualizados++;
+        _existentes++;
     }
 
     private async Task AplicarRolAsync(RolCentralCarga dato, CancellationToken cancelacion)
     {
         var rol = await contexto.RolesCentral.Include(r => r.PermisosAsignados).SingleOrDefaultAsync(r => r.Id == dato.Id, cancelacion);
-        if (rol is null)
-        {
-            rol = RolCentral.Crear(dato.Codigo, dato.Nombre, dato.Id);
-            contexto.RolesCentral.Add(rol);
-            _creados++;
-        }
-        else
+        if (rol is not null)
         {
             ExigirMismoCodigo(rol.Codigo, dato.Codigo, "rol");
-            rol.CambiarNombre(dato.Nombre);
-            _actualizados++;
+            _existentes++;
+            return;
         }
+
+        rol = RolCentral.Crear(dato.Codigo, dato.Nombre, dato.Id);
+        contexto.RolesCentral.Add(rol);
+        _creados++;
 
         var permisos = dato.Permisos ?? [];
         var deseados = permisos.Contains(TodosLosPermisos)
-            ? CatalogoPermisosCentral.Todos.Select(p => p.Codigo).ToHashSet()
-            : permisos.ToHashSet();
-
-        foreach (var sobrante in rol.PermisosAsignados.Select(p => p.PermisoCodigo).Where(c => !deseados.Contains(c)).ToList())
-            rol.QuitarPermiso(sobrante);
-        foreach (var codigo in deseados)
+            ? CatalogoPermisosCentral.Todos.Select(p => p.Codigo)
+            : permisos;
+        foreach (var codigo in deseados.Distinct())
             rol.AsignarPermiso(codigo);
 
         if (dato.Activo) rol.Activar(); else rol.Desactivar();
@@ -279,25 +276,17 @@ internal sealed class ServicioCargaInicialCentral(
     private async Task AplicarUsuarioAsync(UsuarioCentralCarga dato, CancellationToken cancelacion)
     {
         var usuario = await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Id == dato.Id, cancelacion);
-        if (usuario is null)
-        {
-            var hash = dato.ContrasenaHash ?? hashContrasenas.Hash(dato.Contrasena!);
-            usuario = UsuarioCentral.Crear(dato.Codigo, dato.Nombre, dato.Correo, dato.RolId, hash, dato.DebeCambiarContrasena, dato.Id);
-            contexto.UsuariosCentral.Add(usuario);
-            _creados++;
-        }
-        else
+        if (usuario is not null)
         {
             ExigirMismoCodigo(usuario.Codigo, dato.Codigo, "usuario");
-            usuario.ActualizarDatos(dato.Nombre, dato.Correo);
-            usuario.CambiarRol(dato.RolId);
-
-            // Una contraseña en texto solo se usa al crear el usuario: volver a aplicar la carga no deshace el cambio que hizo el usuario.
-            if (dato.ContrasenaHash is not null && dato.ContrasenaHash != usuario.ContrasenaHash)
-                usuario.CambiarContrasena(dato.ContrasenaHash, dato.DebeCambiarContrasena, reloj.GetUtcNow());
-
-            _actualizados++;
+            _existentes++;
+            return;
         }
+
+        var hash = dato.ContrasenaHash ?? hashContrasenas.Hash(dato.Contrasena!);
+        usuario = UsuarioCentral.Crear(dato.Codigo, dato.Nombre, dato.Correo, dato.RolId, hash, dato.DebeCambiarContrasena, dato.Id);
+        contexto.UsuariosCentral.Add(usuario);
+        _creados++;
 
         if (dato.Activo) usuario.Activar(); else usuario.Desactivar();
     }

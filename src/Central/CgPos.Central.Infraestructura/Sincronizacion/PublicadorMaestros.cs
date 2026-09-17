@@ -447,21 +447,59 @@ internal sealed class PublicadorMaestros(
 
 public static class ExtensionesPublicacionMaestros
 {
-    /// <summary>Publica un archivo de maestros (formato de la carga de la caja). Es idempotente: lo que no cambió no baja otra vez.</summary>
+    /// <summary>
+    /// Publica un archivo de maestros (formato de la carga de la caja) al arrancar. Solo publica lo que no existe en el Central: lo ya publicado
+    /// se administra en el Manager y volver a aplicar el archivo no debe deshacer esos cambios.
+    /// </summary>
     public static async Task PublicarMaestrosDesdeArchivoAsync(this IServiceProvider servicios, string ruta, CancellationToken cancelacion = default)
     {
         var paquete = await LeerAsync<PaqueteMaestros>(ruta, cancelacion);
         await using var ambito = servicios.CreateAsyncScope();
-        await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarAsync(paquete, "Carga inicial", cancelacion);
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>();
+        var publicados = (await contexto.MaestrosCentral.Select(m => m.Id).ToListAsync(cancelacion)).ToHashSet();
+
+        await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarAsync(SoloNuevos(paquete, publicados), "Carga inicial", cancelacion);
     }
 
-    /// <summary>Publica roles, usuarios y parámetros de un archivo de carga inicial de caja.</summary>
+    /// <summary>Publica roles, usuarios y parámetros de un archivo de carga inicial de caja; como los maestros, solo lo que no existe.</summary>
     public static async Task PublicarSeguridadCajasDesdeArchivoAsync(this IServiceProvider servicios, string ruta, CancellationToken cancelacion = default)
     {
         var paquete = await LeerAsync<PaqueteCargaInicial>(ruta, cancelacion);
         await using var ambito = servicios.CreateAsyncScope();
-        await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>()
-            .PublicarSeguridadCajasAsync(paquete.Roles ?? [], paquete.Usuarios ?? [], paquete.Parametros ?? [], "Carga inicial", cancelacion);
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>();
+        var existentes = (await contexto.MaestrosCentral.Where(m => m.Tipo == TipoMaestro.RolCaja || m.Tipo == TipoMaestro.UsuarioCaja).Select(m => m.Id)
+            .ToListAsync(cancelacion)).ToHashSet();
+        existentes.UnionWith(await contexto.Parametros.Select(p => p.Id).ToListAsync(cancelacion));
+
+        await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarSeguridadCajasAsync(
+            (paquete.Roles ?? []).Where(r => !existentes.Contains(r.Id)).ToList(),
+            (paquete.Usuarios ?? []).Where(u => !existentes.Contains(u.Id)).ToList(),
+            (paquete.Parametros ?? []).Where(p => !existentes.Contains(p.Id)).ToList(),
+            "Carga inicial", cancelacion);
+    }
+
+    /// <summary>Copia del paquete sin los maestros cuyo Id ya está publicado.</summary>
+    internal static PaqueteMaestros SoloNuevos(PaqueteMaestros paquete, IReadOnlySet<Guid> publicados)
+    {
+        var copia = paquete with { };
+        foreach (var propiedad in typeof(PaqueteMaestros).GetProperties().Where(p => p.CanWrite && p.PropertyType.IsGenericType
+                     && p.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)))
+        {
+            if (propiedad.GetValue(copia) is not System.Collections.IEnumerable lista)
+                continue;
+
+            var tipo = propiedad.PropertyType.GetGenericArguments()[0];
+            var id = tipo.GetProperty("Id");
+            if (id?.PropertyType != typeof(Guid))
+                continue;
+
+            var filtrados = lista.Cast<object>().Where(elemento => !publicados.Contains((Guid)id.GetValue(elemento)!)).ToArray();
+            var arreglo = Array.CreateInstance(tipo, filtrados.Length);
+            Array.Copy(filtrados, arreglo, filtrados.Length);
+            propiedad.SetValue(copia, arreglo);
+        }
+
+        return copia;
     }
 
     private static async Task<T> LeerAsync<T>(string ruta, CancellationToken cancelacion)

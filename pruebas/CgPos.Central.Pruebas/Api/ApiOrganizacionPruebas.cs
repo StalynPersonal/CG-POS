@@ -52,7 +52,12 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.BadRequest,
             (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Repetida"))).Estado);
 
-        var cambioCodigo = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}", new SolicitudSucursal("OTRO", "Sucursal", null, null));
+        // Todos los datos de la sucursal son obligatorios en el Central.
+        var incompleta = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}",
+            new SolicitudSucursal(codigoSucursal, "Sucursal", " ", null));
+        Assert.Equal("Complete los datos de la sucursal: dirección, teléfono.", incompleta.Cuerpo!.Mensaje);
+
+        var cambioCodigo = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}", new SolicitudSucursal("OTRO", "Sucursal", "Calle 1", "809-555-0000"));
         Assert.Equal("El código de la sucursal no se puede cambiar.", cambioCodigo.Cuerpo!.Mensaje);
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/cajas/{cajaId}", new SolicitudActualizarCaja("Caja renombrada"))).Cuerpo!.Exitosa);
 
@@ -113,7 +118,7 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
         var sucursalId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/sucursales",
-            new SolicitudSucursal(CodigoSucursal(), "Sucursal para deshabilitar", null, null))).Cuerpo!.Id!.Value;
+            new SolicitudSucursal(CodigoSucursal(), "Sucursal para deshabilitar", "Calle 2, Santiago", "809-555-0001"))).Cuerpo!.Id!.Value;
         var cajaId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja"))).Cuerpo!.Id!.Value;
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(cliente, cajaId);
 
@@ -149,6 +154,11 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal("Nombre comercial de prueba", (await ObtenerEmpresaAsync(cliente, admin)).NombreComercial);
         await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
             new SolicitudEmpresa(empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono));
+
+        // Todos los datos de la empresa son obligatorios en el Central.
+        var incompleta = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
+            new SolicitudEmpresa(empresa.RazonSocial, "", empresa.Direccion, empresa.Telefono));
+        Assert.Equal("Complete el dato de la empresa: nombre comercial.", incompleta.Cuerpo!.Mensaje);
 
         var codigo = $"ORG{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
         await central.CrearUsuarioAsync(codigo, "Sin.Organizacion#2026", false, CatalogoPermisosCentral.ConsultarReportes);

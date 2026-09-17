@@ -113,11 +113,16 @@ try
     string? RutaConfigurada(string clave) =>
         aplicacion.Configuration[clave] is { Length: > 0 } ruta ? Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath) : null;
 
-    if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCargaInicial)
+    // Conectada al Central, la organización y los maestros vienen de él: los archivos no se aplican para no pisar lo que publicó.
+    var conCentral = aplicacion.Configuration["Central:Url"] is { Length: > 0 };
+    if (conCentral && (RutaConfigurada("CargaInicial:Archivo") ?? RutaConfigurada("Maestros:Archivo")) is not null)
+        Log.Information("La caja está conectada al Central: se omiten los archivos de carga inicial y de maestros");
+
+    if (!conCentral && RutaConfigurada("CargaInicial:Archivo") is { } archivoCargaInicial)
         await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicial:Archivo", archivoCargaInicial,
             (servicios, ruta, cancelacion) => servicios.AplicarCargaInicialAsync(ruta, cancelacion));
 
-    if (RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
+    if (!conCentral && RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
         await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:Archivo", archivoMaestros,
             (servicios, ruta, cancelacion) => CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.AplicarMaestrosAsync(servicios, ruta, cancelacion));
 
