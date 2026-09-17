@@ -20,7 +20,7 @@ public class FidelidadPruebas
         var reglas = new[]
         {
             General(),
-            ReglaAcumulacion.Crear("FER", "Ferretería doble", TipoReglaAcumulacion.Familia, 100m, 2m, Ferreteria, null, null, null),
+            ReglaAcumulacion.Crear("FER", "Ferretería doble", TipoReglaAcumulacion.Departamento, 100m, 2m, Ferreteria, null, null, null),
             ReglaAcumulacion.Crear("MAR", "Martes triple", TipoReglaAcumulacion.DiaSemana, 100m, 3m, null, DayOfWeek.Tuesday, null, null),
         };
         var lineas = new[]
@@ -51,7 +51,7 @@ public class FidelidadPruebas
 
         Assert.Equal(4, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Cincel, Ferreteria, promocion, 200m)], reglas, 1m, 1m, Martes));
         Assert.Equal(0, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Cincel, Ferreteria, null, 200m)], reglas, 1m, 1m, Martes));
-        Assert.Throws<ArgumentException>(() => ReglaAcumulacion.Crear("FAM", "Sin familia", TipoReglaAcumulacion.Familia, 100m, 1m, null, null, null, null));
+        Assert.Throws<ArgumentException>(() => ReglaAcumulacion.Crear("FAM", "Sin departamento", TipoReglaAcumulacion.Departamento, 100m, 1m, null, null, null, null));
         Assert.Throws<ArgumentOutOfRangeException>(() => ReglaAcumulacion.Crear("CER", "Base cero", TipoReglaAcumulacion.Monto, 0m, 1m, null, null, null, null));
     }
 

@@ -51,7 +51,7 @@ internal sealed class ServicioCargaMaestros(
         _actualizados = 0;
         _precios = 0;
 
-        var familias = paquete.Familias ?? [];
+        var departamentos = paquete.Departamentos ?? [];
         var unidades = paquete.UnidadesMedida ?? [];
         var impuestos = paquete.Impuestos ?? [];
         var articulos = paquete.Articulos ?? [];
@@ -72,8 +72,10 @@ internal sealed class ServicioCargaMaestros(
         var miembrosFidelidad = paquete.MiembrosFidelidad ?? [];
         var almacenes = paquete.Almacenes ?? [];
         var descuentosTarjeta = paquete.DescuentosTarjeta ?? [];
+        var categorias = paquete.Categorias ?? [];
+        var marcas = paquete.Marcas ?? [];
 
-        await ValidarAsync(familias, unidades, impuestos, articulos, cancelacion);
+        await ValidarAsync(departamentos, unidades, impuestos, articulos, categorias, marcas, cancelacion);
         if (promociones.GroupBy(p => p.Codigo.Trim().ToUpperInvariant()).FirstOrDefault(g => g.Count() > 1) is { } repetida)
             throw new CargaMaestrosInvalidaExcepcion([$"Código de promoción repetido en el paquete: {repetida.Key}."]);
 
@@ -84,8 +86,12 @@ internal sealed class ServicioCargaMaestros(
             // Las monedas primero: formas de pago, denominaciones y tasas las referencian.
             foreach (var dato in monedas)
                 await AplicarMonedaAsync(dato, cancelacion);
-            foreach (var dato in familias)
-                await AplicarFamiliaAsync(dato, cancelacion);
+            foreach (var dato in departamentos)
+                await AplicarDepartamentoAsync(dato, cancelacion);
+            foreach (var dato in categorias)
+                await AplicarCategoriaAsync(dato, cancelacion);
+            foreach (var dato in marcas)
+                await AplicarMarcaAsync(dato, cancelacion);
             foreach (var dato in unidades)
                 await AplicarUnidadAsync(dato, cancelacion);
             foreach (var dato in impuestos)
@@ -142,10 +148,12 @@ internal sealed class ServicioCargaMaestros(
     }
 
     private async Task ValidarAsync(
-        IReadOnlyList<FamiliaCarga> familias,
+        IReadOnlyList<DepartamentoCarga> departamentos,
         IReadOnlyList<UnidadMedidaCarga> unidades,
         IReadOnlyList<ImpuestoCarga> impuestos,
         IReadOnlyList<ArticuloCarga> articulos,
+        IReadOnlyList<CategoriaCarga> categorias,
+        IReadOnlyList<MarcaCarga> marcas,
         CancellationToken cancelacion)
     {
         var errores = new List<string>();
@@ -153,23 +161,43 @@ internal sealed class ServicioCargaMaestros(
         Repetidos(articulos.Select(a => a.Id), "Id de artículo", errores);
         Repetidos(articulos.Select(a => a.Codigo.Trim()), "Código de artículo", errores);
 
-        var idsFamilias = familias.Select(f => f.Id).ToHashSet();
-        idsFamilias.UnionWith(await contexto.Familias.Select(f => f.Id).ToListAsync(cancelacion));
+        var idsDepartamentos = departamentos.Select(f => f.Id).ToHashSet();
+        idsDepartamentos.UnionWith(await contexto.Departamentos.Select(f => f.Id).ToListAsync(cancelacion));
         var idsUnidades = unidades.Select(u => u.Id).ToHashSet();
         idsUnidades.UnionWith(await contexto.UnidadesMedida.Select(u => u.Id).ToListAsync(cancelacion));
         var idsImpuestos = impuestos.Select(i => i.Id).ToHashSet();
         idsImpuestos.UnionWith(await contexto.Impuestos.Select(i => i.Id).ToListAsync(cancelacion));
+        var idsMarcas = marcas.Select(m => m.Id).ToHashSet();
+        idsMarcas.UnionWith(await contexto.Marcas.Select(m => m.Id).ToListAsync(cancelacion));
+
+        // Departamento de cada categoría: la del paquete manda sobre la guardada.
+        var departamentoDeCategoria = await contexto.Categorias.ToDictionaryAsync(c => c.Id, c => c.DepartamentoId, cancelacion);
+        foreach (var categoria in categorias)
+        {
+            departamentoDeCategoria[categoria.Id] = categoria.DepartamentoId;
+            if (!idsDepartamentos.Contains(categoria.DepartamentoId))
+                errores.Add($"La categoría '{categoria.Codigo}' referencia un departamento inexistente ({categoria.DepartamentoId}).");
+        }
 
         var codigosPorArticulo = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var articulo in articulos)
         {
             var etiqueta = $"El artículo '{articulo.Codigo}'";
-            if (!idsFamilias.Contains(articulo.FamiliaId))
-                errores.Add($"{etiqueta} referencia una familia inexistente ({articulo.FamiliaId}).");
+            if (!idsDepartamentos.Contains(articulo.DepartamentoId))
+                errores.Add($"{etiqueta} referencia un departamento inexistente ({articulo.DepartamentoId}).");
             if (!idsUnidades.Contains(articulo.UnidadMedidaId))
                 errores.Add($"{etiqueta} referencia una unidad de medida inexistente ({articulo.UnidadMedidaId}).");
             if (!idsImpuestos.Contains(articulo.ImpuestoId))
                 errores.Add($"{etiqueta} referencia un impuesto inexistente ({articulo.ImpuestoId}).");
+            if (articulo.CategoriaId is { } categoriaId)
+            {
+                if (!departamentoDeCategoria.TryGetValue(categoriaId, out var departamentoCategoria))
+                    errores.Add($"{etiqueta} referencia una categoría inexistente ({categoriaId}).");
+                else if (departamentoCategoria != articulo.DepartamentoId)
+                    errores.Add($"{etiqueta} tiene una categoría que no es de su departamento.");
+            }
+            if (articulo.MarcaId is { } marcaId && !idsMarcas.Contains(marcaId))
+                errores.Add($"{etiqueta} referencia una marca inexistente ({marcaId}).");
             if (articulo.PrecioDetalle <= 0)
                 errores.Add($"{etiqueta} debe tener precio detalle mayor que cero.");
             if (articulo.PrecioMayor <= 0)
@@ -206,22 +234,58 @@ internal sealed class ServicioCargaMaestros(
             errores.Add($"{campo} repetido en el paquete: {repetido}.");
     }
 
-    private async Task AplicarFamiliaAsync(FamiliaCarga dato, CancellationToken cancelacion)
+    private async Task AplicarDepartamentoAsync(DepartamentoCarga dato, CancellationToken cancelacion)
     {
-        var familia = await contexto.Familias.SingleOrDefaultAsync(f => f.Id == dato.Id, cancelacion);
-        if (familia is null)
+        var departamento = await contexto.Departamentos.SingleOrDefaultAsync(f => f.Id == dato.Id, cancelacion);
+        if (departamento is null)
         {
-            familia = Familia.Crear(dato.Codigo, dato.Nombre, dato.PermiteDescuentoManual, dato.EsNoCodificada, dato.Id);
-            contexto.Familias.Add(familia);
+            departamento = Departamento.Crear(dato.Codigo, dato.Nombre, dato.PermiteDescuentoManual, dato.EsNoCodificada, dato.Id);
+            contexto.Departamentos.Add(departamento);
             _creados++;
         }
         else
         {
-            familia.Actualizar(dato.Nombre, dato.PermiteDescuentoManual, dato.EsNoCodificada);
+            departamento.Actualizar(dato.Nombre, dato.PermiteDescuentoManual, dato.EsNoCodificada);
             _actualizados++;
         }
 
-        if (dato.Activa) familia.Activar(); else familia.Desactivar();
+        if (dato.Activa) departamento.Activar(); else departamento.Desactivar();
+    }
+
+    private async Task AplicarCategoriaAsync(CategoriaCarga dato, CancellationToken cancelacion)
+    {
+        var categoria = await contexto.Categorias.SingleOrDefaultAsync(c => c.Id == dato.Id, cancelacion);
+        if (categoria is null)
+        {
+            categoria = Categoria.Crear(dato.Codigo, dato.Nombre, dato.DepartamentoId, dato.Id);
+            contexto.Categorias.Add(categoria);
+            _creados++;
+        }
+        else
+        {
+            categoria.Actualizar(dato.Nombre, dato.DepartamentoId);
+            _actualizados++;
+        }
+
+        if (dato.Activa) categoria.Activar(); else categoria.Desactivar();
+    }
+
+    private async Task AplicarMarcaAsync(MarcaCarga dato, CancellationToken cancelacion)
+    {
+        var marca = await contexto.Marcas.SingleOrDefaultAsync(m => m.Id == dato.Id, cancelacion);
+        if (marca is null)
+        {
+            marca = Marca.Crear(dato.Codigo, dato.Nombre, dato.Id);
+            contexto.Marcas.Add(marca);
+            _creados++;
+        }
+        else
+        {
+            marca.CambiarNombre(dato.Nombre);
+            _actualizados++;
+        }
+
+        if (dato.Activa) marca.Activar(); else marca.Desactivar();
     }
 
     private async Task AplicarUnidadAsync(UnidadMedidaCarga dato, CancellationToken cancelacion)
@@ -261,7 +325,7 @@ internal sealed class ServicioCargaMaestros(
         var articulo = await contexto.Articulos.Include(a => a.Codigos).SingleOrDefaultAsync(a => a.Id == dato.Id, cancelacion);
         if (articulo is null)
         {
-            articulo = Articulo.Crear(dato.Codigo, dato.Descripcion, dato.FamiliaId, dato.UnidadMedidaId, dato.ImpuestoId, dato.Tipo, dato.Id);
+            articulo = Articulo.Crear(dato.Codigo, dato.Descripcion, dato.DepartamentoId, dato.UnidadMedidaId, dato.ImpuestoId, dato.Tipo, dato.Id);
             contexto.Articulos.Add(articulo);
             _creados++;
         }
@@ -272,9 +336,10 @@ internal sealed class ServicioCargaMaestros(
             _actualizados++;
         }
 
-        articulo.ActualizarDatos(dato.Descripcion, dato.Referencia, dato.FamiliaId, dato.UnidadMedidaId, dato.ImpuestoId, dato.Tipo);
+        articulo.ActualizarDatos(dato.Descripcion, dato.Referencia, dato.DepartamentoId, dato.UnidadMedidaId, dato.ImpuestoId, dato.Tipo);
         articulo.ConfigurarPrecios(dato.Costo, dato.PrecioMinimo, dato.CantidadMinimaMayor);
         articulo.ConfigurarTara(dato.Tara);
+        articulo.Clasificar(dato.CategoriaId, dato.MarcaId);
         articulo.ConfigurarNaturaleza(dato.EsServicio);
         articulo.ConfigurarPresentacion(dato.RutaImagen, dato.MostrarEnCatalogo, dato.VentaEnPos);
         articulo.ReemplazarCodigos(
@@ -460,7 +525,7 @@ internal sealed class ServicioCargaMaestros(
 
         promocion.ConfigurarCantidades(dato.CantidadLleva, dato.CantidadPaga, dato.CantidadMinima, dato.LimitePorCliente);
         promocion.Programar(dato.Dias, dato.HoraDesde, dato.HoraHasta);
-        promocion.AsignarAlcance(dato.Articulos, dato.Familias, dato.Sucursales);
+        promocion.AsignarAlcance(dato.Articulos, dato.Departamentos, dato.Sucursales, dato.Categorias, dato.Marcas);
         promocion.ConfigurarFidelidad(dato.SoloFidelidad);
         if (dato.Activa) promocion.Activar(); else promocion.Desactivar();
     }
@@ -615,12 +680,13 @@ internal sealed class ServicioCargaMaestros(
         var tope = await contexto.TopesDescuento.SingleOrDefaultAsync(t => t.Id == dato.Id, cancelacion);
         if (tope is null)
         {
-            contexto.TopesDescuento.Add(TopeDescuento.Crear(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.FamiliaId, dato.ArticuloId, dato.Id));
+            contexto.TopesDescuento.Add(TopeDescuento.Crear(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.DepartamentoId, dato.ArticuloId, dato.Id,
+                dato.CategoriaId, dato.MarcaId));
             _creados++;
             return;
         }
 
-        tope.Actualizar(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.FamiliaId, dato.ArticuloId);
+        tope.Actualizar(dato.Nivel, dato.PorcentajeMaximo, dato.MontoMaximo, dato.DepartamentoId, dato.ArticuloId, dato.CategoriaId, dato.MarcaId);
         _actualizados++;
     }
 

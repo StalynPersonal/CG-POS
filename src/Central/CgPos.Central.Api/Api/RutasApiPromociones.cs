@@ -38,8 +38,12 @@ public static class RutasApiPromociones
             Results.Ok(await maestros.BuscarAsync<ArticuloCarga>(TipoMaestro.Articulo, buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
         grupo.MapPost("/articulos/por-id", async (Guid[] ids, IServicioPromocionesCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ArticulosPorIdAsync(ids, cancelacion)));
-        grupo.MapGet("/familias", async (IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
-            Results.Ok(await maestros.ListarAsync<FamiliaCarga>(TipoMaestro.Familia, cancelacion)));
+        grupo.MapGet("/departamentos", async (IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
+            Results.Ok(await maestros.ListarAsync<DepartamentoCarga>(TipoMaestro.Departamento, cancelacion)));
+        grupo.MapGet("/categorias", async (IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
+            Results.Ok(await maestros.ListarAsync<CategoriaCarga>(TipoMaestro.Categoria, cancelacion)));
+        grupo.MapGet("/marcas", async (IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
+            Results.Ok(await maestros.ListarAsync<MarcaCarga>(TipoMaestro.Marca, cancelacion)));
         grupo.MapGet("/sucursales", async (IServicioOrganizacion organizacion, CancellationToken cancelacion) =>
             Results.Ok(await organizacion.ListarSucursalesAsync(cancelacion)));
 

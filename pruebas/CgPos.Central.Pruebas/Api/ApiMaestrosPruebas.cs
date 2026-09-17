@@ -123,16 +123,61 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var error = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Articulos:
         [
             articulo with { Id = Guid.CreateVersion7(), CodigosBarras = null, CodigosProveedor = null },
-            articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-SIN-FAMILIA", FamiliaId = Guid.CreateVersion7(), CodigosBarras = null, CodigosProveedor = null },
+            articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-SIN-DEPARTAMENTO", DepartamentoId = Guid.CreateVersion7(), CodigosBarras = null, CodigosProveedor = null },
             articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-PRECIO", PrecioDetalle = -1, CodigosBarras = null, CodigosProveedor = null },
             articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-BARRAS", CodigosProveedor = null },
+            articulo with { Id = Guid.CreateVersion7(), Codigo = articulo.CodigosBarras![0], CodigosBarras = null, CodigosProveedor = null },
         ])));
 
         Assert.Contains(error.Errores, e => e.Contains("ya existe con otro Id", StringComparison.Ordinal));
-        Assert.Contains(error.Errores, e => e.Contains("familia inexistente", StringComparison.Ordinal));
+        Assert.Contains(error.Errores, e => e.Contains("departamento inexistente", StringComparison.Ordinal));
         Assert.Contains(error.Errores, e => e.Contains("precio detalle", StringComparison.Ordinal));
-        Assert.Contains(error.Errores, e => e.Contains("está en los artículos", StringComparison.Ordinal));
-        Assert.False(await central.UsarContextoAsync(contexto => contexto.MaestrosCentral.AnyAsync(m => m.Codigo == "NUEVO-SIN-FAMILIA" || m.Codigo == "NUEVO-BARRAS")));
+        Assert.Contains(error.Errores, e => e.Contains($"El código '{articulo.CodigosBarras![0]}' ya lo usa el artículo", StringComparison.Ordinal));
+
+        // El código interno de un artículo tampoco puede ser el código de barras de otro: la caja busca por cualquiera de los dos.
+        Assert.Contains(error.Errores, e => e.Contains($"no puede estar también en '{articulo.CodigosBarras![0]}'", StringComparison.Ordinal));
+        Assert.DoesNotContain(error.Errores, e => e.Contains($"El código '{articulo.Codigo}' ya lo usa", StringComparison.Ordinal));
+        Assert.False(await central.UsarContextoAsync(contexto => contexto.MaestrosCentral.AnyAsync(m => m.Codigo == "NUEVO-SIN-DEPARTAMENTO" || m.Codigo == "NUEVO-BARRAS")));
+    }
+
+    [SkippableFact]
+    public async Task Categorias_y_marcas_se_publican_y_el_articulo_solo_admite_una_categoria_de_su_departamento()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var inicial = await BajarAsync(cliente, tokenCaja, 0);
+        var articulo = inicial.Maestros!.Articulos!.First();
+        var otroDepartamento = inicial.Maestros.Departamentos!.First(d => d.Id != articulo.DepartamentoId);
+        var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+        var suya = new CategoriaCarga(Guid.CreateVersion7(), $"C{sufijo}", "Categoría del departamento", articulo.DepartamentoId);
+        var ajena = new CategoriaCarga(Guid.CreateVersion7(), $"X{sufijo}", "Categoría de otro departamento", otroDepartamento.Id);
+        var marca = new MarcaCarga(Guid.CreateVersion7(), $"M{sufijo}", "Marca de prueba");
+
+        var sinDepartamento = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() =>
+            PublicarAsync(new PaqueteMaestros(Categorias: [suya with { Id = Guid.CreateVersion7(), Codigo = $"S{sufijo}", DepartamentoId = Guid.CreateVersion7() }])));
+        Assert.Contains(sinDepartamento.Errores, e => e.Contains("departamento inexistente", StringComparison.Ordinal));
+
+        await PublicarAsync(new PaqueteMaestros(Categorias: [suya, ajena], Marcas: [marca]));
+
+        var conAjena = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Articulos: [articulo with { CategoriaId = ajena.Id }])));
+        Assert.Contains(conAjena.Errores, e => e.Contains("no es de su departamento", StringComparison.Ordinal));
+
+        await PublicarAsync(new PaqueteMaestros(Articulos: [articulo with { CategoriaId = suya.Id, MarcaId = marca.Id }]));
+
+        // Todo baja a la caja: los catálogos nuevos y el artículo con su clasificación.
+        var bajada = await BajarAsync(cliente, tokenCaja, inicial.Hasta);
+        Assert.Contains(bajada.Maestros!.Categorias!, c => c.Id == suya.Id);
+        Assert.Contains(bajada.Maestros.Marcas!, m => m.Id == marca.Id);
+        var clasificado = Assert.Single(bajada.Maestros.Articulos!, a => a.Id == articulo.Id);
+        Assert.Equal((suya.Id, marca.Id), (clasificado.CategoriaId, clasificado.MarcaId));
+
+        // Mover la categoría a otro departamento dejaría al artículo inconsistente.
+        var mover = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Categorias: [suya with { DepartamentoId = otroDepartamento.Id }])));
+        Assert.Contains(mover.Errores, e => e.Contains("antes de mover la categoría", StringComparison.Ordinal));
+
+        await PublicarAsync(new PaqueteMaestros(Articulos: [articulo]));
     }
 
     [SkippableFact]

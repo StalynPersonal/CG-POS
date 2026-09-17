@@ -4,11 +4,11 @@
 <MudDialog>
     <DialogContent>
         <div class="cg-catalogo">
-            <div class="cg-catalogo__familias">
-                <button type="button" class="cg-catalogo__familia @(_familia is null ? "cg-catalogo__familia--activa" : null)" @onclick="() => _familia = null">Todos</button>
-                @foreach (var familia in _familias)
+            <div class="cg-catalogo__departamentos">
+                <button type="button" class="cg-catalogo__departamento @(_departamento is null ? "cg-catalogo__departamento--activa" : null)" @onclick="() => _departamento = null">Todos</button>
+                @foreach (var departamento in _departamentos)
                 {
-                    <button type="button" class="cg-catalogo__familia @(familia == _familia ? "cg-catalogo__familia--activa" : null)" @onclick="() => _familia = familia">@familia</button>
+                    <button type="button" class="cg-catalogo__departamento @(departamento == _departamento ? "cg-catalogo__departamento--activa" : null)" @onclick="() => _departamento = departamento">@departamento</button>
                 }
             </div>
 
@@ -53,16 +53,16 @@
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
     private IReadOnlyList<DatosArticuloResumen> _articulos = [];
-    private IReadOnlyList<string> _familias = [];
-    private string? _familia;
+    private IReadOnlyList<string> _departamentos = [];
+    private string? _departamento;
     private bool _cargando = true;
 
-    private IEnumerable<DatosArticuloResumen> Visibles => _familia is null ? _articulos : _articulos.Where(a => a.FamiliaNombre == _familia);
+    private IEnumerable<DatosArticuloResumen> Visibles => _departamento is null ? _articulos : _articulos.Where(a => a.DepartamentoNombre == _departamento);
 
     protected override async Task OnInitializedAsync()
     {
         _articulos = await Cliente.ListarCatalogoAsync();
-        _familias = _articulos.Select(a => a.FamiliaNombre).Distinct().Order(StringComparer.CurrentCulture).ToList();
+        _departamentos = _articulos.Select(a => a.DepartamentoNombre).Distinct().Order(StringComparer.CurrentCulture).ToList();
         _cargando = false;
     }
 

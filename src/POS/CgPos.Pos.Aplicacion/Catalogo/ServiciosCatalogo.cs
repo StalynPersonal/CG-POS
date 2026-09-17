@@ -23,7 +23,7 @@ public sealed class CargaMaestrosInvalidaExcepcion(IReadOnlyList<string> errores
 }
 
 /// <summary>
-/// Importa artículos desde CSV (separador ; o ,). Columnas obligatorias: codigo, descripcion, familia, unidad, impuesto,
+/// Importa artículos desde CSV (separador ; o ,). Columnas obligatorias: codigo, descripcion, departamento, unidad, impuesto,
 /// precio_detalle. Opcionales: precio_mayor, cantidad_minima_mayor, precio_minimo, costo, tipo, referencia,
 /// codigos_barras y codigos_proveedor (separados por |), ruta_imagen, mostrar_en_catalogo, activo.
 /// Las líneas con errores se informan y se omiten; las demás se guardan.
@@ -57,18 +57,18 @@ public interface IConsultaArticulos
     Task<DatosArticuloVenta?> BuscarPorCodigoAsync(string codigo, CancellationToken cancelacion = default);
 
     /// <summary>Búsqueda por descripción, referencia o código; todas las palabras deben coincidir (RF-132).</summary>
-    Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? familiaId = null, int maximo = 50, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default);
 
     /// <summary>Artículos marcados para el catálogo visual de la caja (mosaicos), en orden alfabético.</summary>
-    Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? familiaId = null, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? departamentoId = null, CancellationToken cancelacion = default);
 
-    /// <summary>Artículos de familias no codificadas en orden alfabético (RF-134).</summary>
-    Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? familiaId = null, CancellationToken cancelacion = default);
+    /// <summary>Artículos de departamentos no codificadas en orden alfabético (RF-134).</summary>
+    Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? departamentoId = null, CancellationToken cancelacion = default);
 
     /// <summary>Histórico de precios del artículo, del más reciente al más antiguo (RF-190).</summary>
     Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(Guid articuloId, CancellationToken cancelacion = default);
 
-    Task<IReadOnlyList<DatosFamilia>> ListarFamiliasAsync(CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosDepartamento>> ListarDepartamentosAsync(CancellationToken cancelacion = default);
 }
 
 public interface IConsultaDocumentos

@@ -50,7 +50,7 @@ public enum TipoReglaAcumulacion
 {
     /// <summary>Todo lo comprado.</summary>
     Monto,
-    Familia,
+    Departamento,
     Articulo,
 
     /// <summary>Todo lo comprado en un día de la semana.</summary>
@@ -58,14 +58,17 @@ public enum TipoReglaAcumulacion
 
     /// <summary>Lo vendido con una promoción.</summary>
     Promocion,
+
+    Categoria,
+    Marca,
 }
 
 /// <summary>Línea cobrada con lo necesario para acumular puntos.</summary>
-public sealed record LineaPuntuable(Guid ArticuloId, Guid FamiliaId, Guid? PromocionId, decimal Importe);
+public sealed record LineaPuntuable(Guid ArticuloId, Guid DepartamentoId, Guid? PromocionId, decimal Importe, Guid? CategoriaId = null, Guid? MarcaId = null);
 
 /// <summary>
 /// Regla de acumulación configurable (RF-238): otorga <see cref="Puntos"/> por cada <see cref="MontoBase"/> comprado de lo que
-/// abarca (todo, una familia, un artículo, un día o una promoción) dentro de su vigencia.
+/// abarca (todo, un departamento, una categoría, una marca, un artículo, un día o una promoción) dentro de su vigencia.
 /// </summary>
 public sealed class ReglaAcumulacion : Entidad
 {
@@ -80,7 +83,7 @@ public sealed class ReglaAcumulacion : Entidad
     public string Nombre { get; private set; } = string.Empty;
     public TipoReglaAcumulacion Tipo { get; private set; }
 
-    /// <summary>Familia, artículo o promoción según el tipo.</summary>
+    /// <summary>Departamento, categoría, marca, artículo o promoción según el tipo.</summary>
     public Guid? ReferenciaId { get; private set; }
 
     public DayOfWeek? DiaSemana { get; private set; }
@@ -109,7 +112,8 @@ public sealed class ReglaAcumulacion : Entidad
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de regla de acumulación no válido.");
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(montoBase);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(puntos);
-        if (tipo is TipoReglaAcumulacion.Familia or TipoReglaAcumulacion.Articulo or TipoReglaAcumulacion.Promocion && referenciaId is null)
+        if (tipo is TipoReglaAcumulacion.Departamento or TipoReglaAcumulacion.Categoria or TipoReglaAcumulacion.Marca or TipoReglaAcumulacion.Articulo
+                or TipoReglaAcumulacion.Promocion && referenciaId is null)
             throw new ArgumentException($"La regla de tipo {tipo} debe indicar a qué se aplica.", nameof(referenciaId));
         if (tipo == TipoReglaAcumulacion.DiaSemana && diaSemana is null)
             throw new ArgumentException("La regla por día debe indicar el día de la semana.", nameof(diaSemana));
@@ -138,7 +142,9 @@ public sealed class ReglaAcumulacion : Entidad
         && Tipo switch
         {
             TipoReglaAcumulacion.Monto => true,
-            TipoReglaAcumulacion.Familia => linea.FamiliaId == ReferenciaId,
+            TipoReglaAcumulacion.Departamento => linea.DepartamentoId == ReferenciaId,
+            TipoReglaAcumulacion.Categoria => linea.CategoriaId is not null && linea.CategoriaId == ReferenciaId,
+            TipoReglaAcumulacion.Marca => linea.MarcaId is not null && linea.MarcaId == ReferenciaId,
             TipoReglaAcumulacion.Articulo => linea.ArticuloId == ReferenciaId,
             TipoReglaAcumulacion.DiaSemana => ahoraLocal.DayOfWeek == DiaSemana,
             TipoReglaAcumulacion.Promocion => linea.PromocionId is not null && linea.PromocionId == ReferenciaId,

@@ -17,7 +17,7 @@
                 <MudPaper Elevation="0" Class="pa-4" Style="background: var(--cg-superficie)">
                     <MudText Typo="Typo.h5" Style="font-weight: 700">@articulo.Descripcion</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        @articulo.Codigo · @articulo.FamiliaNombre · @articulo.UnidadMedidaCodigo · ITBIS @articulo.PorcentajeImpuesto.ToString("0.##")%
+                        @articulo.Codigo · @articulo.DepartamentoNombre@(articulo.CategoriaNombre is { } categoria ? $" / {categoria}" : null)@(articulo.MarcaNombre is { } marca ? $" · {marca}" : null) · @articulo.UnidadMedidaCodigo · ITBIS @articulo.PorcentajeImpuesto.ToString("0.##")%
                     </MudText>
                     <div style="display: flex; gap: 32px; margin-top: 12px; flex-wrap: wrap">
                         <div>

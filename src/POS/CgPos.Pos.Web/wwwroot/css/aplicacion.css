@@ -241,9 +241,9 @@
 
 /* ---------- Catálogo en mosaicos ---------- */
 .cg-catalogo { display: flex; flex-direction: column; gap: 12px; }
-.cg-catalogo__familias { display: flex; flex-wrap: wrap; gap: 8px; }
+.cg-catalogo__departamentos { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.cg-catalogo__familia {
+.cg-catalogo__departamento {
     min-height: 52px;
     padding: 0 20px;
     border: 2px solid var(--cg-linea);
@@ -253,7 +253,7 @@
     cursor: pointer;
 }
 
-.cg-catalogo__familia--activa { border-color: var(--cg-accion); background: var(--cg-accion); color: #fff; }
+.cg-catalogo__departamento--activa { border-color: var(--cg-accion); background: var(--cg-accion); color: #fff; }
 
 .cg-catalogo__mosaicos {
     display: grid;

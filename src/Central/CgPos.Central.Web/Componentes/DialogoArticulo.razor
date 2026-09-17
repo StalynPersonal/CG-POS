@@ -24,11 +24,30 @@
                 <MudTextField T="string" @bind-Value="_referencia" Label="Referencia (opcional)" Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudSelect T="Guid?" @bind-Value="_familiaId" Label="Familia" Placeholder="Seleccione" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Referencias.Familias.FirstOrDefault(f => f.Id == id)?.Nombre)">
-                    @foreach (var familia in Referencias.Familias.Where(f => f.Activa || f.Id == Articulo?.FamiliaId))
+                <MudSelect T="Guid?" Value="_departamentoId" ValueChanged="CambiarDepartamento" Label="Departamento" Placeholder="Seleccione" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Referencias.Departamentos.FirstOrDefault(f => f.Id == id)?.Nombre)">
+                    @foreach (var departamento in Referencias.Departamentos.Where(f => f.Activa || f.Id == Articulo?.DepartamentoId))
                     {
-                        <MudSelectItem T="Guid?" Value="@familia.Id">@familia.Nombre</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@departamento.Id">@departamento.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="Guid?" @bind-Value="_categoriaId" Label="Categoría (opcional)" Placeholder="Sin categoría" Variant="Variant.Outlined" Clearable="true"
+                           Disabled="@(_departamentoId is null)" HelperText="@(_departamentoId is null ? "Elija primero el departamento." : null)"
+                           ToStringFunc="@(id => Referencias.Categorias.FirstOrDefault(c => c.Id == id)?.Nombre)">
+                    @foreach (var categoria in Referencias.Categorias.Where(c => c.DepartamentoId == _departamentoId && (c.Activa || c.Id == Articulo?.CategoriaId)))
+                    {
+                        <MudSelectItem T="Guid?" Value="@categoria.Id">@categoria.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="Guid?" @bind-Value="_marcaId" Label="Marca (opcional)" Placeholder="Sin marca" Variant="Variant.Outlined" Clearable="true"
+                           ToStringFunc="@(id => Referencias.Marcas.FirstOrDefault(m => m.Id == id)?.Nombre)">
+                    @foreach (var marca in Referencias.Marcas.Where(m => m.Activa || m.Id == Articulo?.MarcaId))
+                    {
+                        <MudSelectItem T="Guid?" Value="@marca.Id">@marca.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -129,7 +148,9 @@
     private string? _descripcion;
     private string? _referencia;
     private TipoArticulo _tipo = TipoArticulo.Normal;
-    private Guid? _familiaId;
+    private Guid? _departamentoId;
+    private Guid? _categoriaId;
+    private Guid? _marcaId;
     private Guid? _unidadId;
     private Guid? _impuestoId;
     private string? _codigosBarras;
@@ -154,10 +175,19 @@
             return;
 
         (_codigo, _descripcion, _referencia, _tipo) = (a.Codigo, a.Descripcion, a.Referencia, a.Tipo);
-        (_familiaId, _unidadId, _impuestoId) = (a.FamiliaId, a.UnidadMedidaId, a.ImpuestoId);
+        (_departamentoId, _unidadId, _impuestoId) = (a.DepartamentoId, a.UnidadMedidaId, a.ImpuestoId);
+        (_categoriaId, _marcaId) = (a.CategoriaId, a.MarcaId);
         _codigosBarras = string.Join(Environment.NewLine, a.CodigosBarras ?? []);
         _codigosProveedor = string.Join(Environment.NewLine, a.CodigosProveedor ?? []);
         (_tara, _rutaImagen, _mostrarEnCatalogo, _ventaEnPos, _esServicio, _activo) = (a.Tara, a.RutaImagen, a.MostrarEnCatalogo, a.VentaEnPos, a.EsServicio, a.Activo);
+    }
+
+    /// <summary>La categoría es del departamento: al cambiarlo se quita si ya no corresponde.</summary>
+    private void CambiarDepartamento(Guid? departamentoId)
+    {
+        _departamentoId = departamentoId;
+        if (_categoriaId is { } categoriaId && Referencias.Categorias.FirstOrDefault(c => c.Id == categoriaId)?.DepartamentoId != departamentoId)
+            _categoriaId = null;
     }
 
     private static List<string> Lineas(string? texto) =>
@@ -165,9 +195,9 @@
 
     private async Task GuardarAsync()
     {
-        _mensaje = (_familiaId, _unidadId, _impuestoId) switch
+        _mensaje = (_departamentoId, _unidadId, _impuestoId) switch
         {
-            (null, _, _) => "Seleccione la familia.",
+            (null, _, _) => "Seleccione el departamento.",
             (_, null, _) => "Seleccione la unidad de medida.",
             (_, _, null) => "Seleccione el impuesto.",
             _ when Articulo is null && _precioDetalle is null => "Indique el precio detalle.",
@@ -180,7 +210,7 @@
             Articulo?.Id ?? Guid.CreateVersion7(),
             _codigo ?? string.Empty,
             _descripcion ?? string.Empty,
-            _familiaId!.Value,
+            _departamentoId!.Value,
             _unidadId!.Value,
             _impuestoId!.Value,
             Articulo?.PrecioDetalle ?? _precioDetalle!.Value,
@@ -198,7 +228,9 @@
             _activo,
             Articulo?.PreciosVigentesDesde,
             _tara,
-            _esServicio);
+            _esServicio,
+            _categoriaId,
+            _marcaId);
 
         _procesando = true;
         var respuesta = await Cliente.GuardarArticuloAsync(articulo);

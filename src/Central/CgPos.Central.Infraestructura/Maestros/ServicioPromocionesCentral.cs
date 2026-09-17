@@ -80,7 +80,9 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             columnas.TryGetValue(columna, out var indice) && indice < campos.Length && !string.IsNullOrWhiteSpace(campos[indice]) ? campos[indice].Trim() : null;
 
         var articulos = await IdsPorCodigoAsync(TipoMaestro.Articulo, filas.SelectMany(f => Lista(Valor(f.Campos, "articulos"))), cancelacion);
-        var familias = await IdsPorCodigoAsync(TipoMaestro.Familia, filas.SelectMany(f => Lista(Valor(f.Campos, "familias"))), cancelacion);
+        var departamentos = await IdsPorCodigoAsync(TipoMaestro.Departamento, filas.SelectMany(f => Lista(Valor(f.Campos, "departamentos"))), cancelacion);
+        var categorias = await IdsPorCodigoAsync(TipoMaestro.Categoria, filas.SelectMany(f => Lista(Valor(f.Campos, "categorias"))), cancelacion);
+        var marcas = await IdsPorCodigoAsync(TipoMaestro.Marca, filas.SelectMany(f => Lista(Valor(f.Campos, "marcas"))), cancelacion);
         var existentes = await IdsPorCodigoAsync(TipoMaestro.Promocion, filas.Select(f => Valor(f.Campos, "codigo")).OfType<string>(), cancelacion);
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Codigo, s => s.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
 
@@ -102,10 +104,12 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
                 var tipo = LeerTipo(V("tipo"));
                 var valor = LeerDecimal(V("valor"), "valor") ?? (tipo == TipoPromocion.LlevaPaga ? 0m : throw new FormatException("Falta el valor."));
                 var articulosLinea = Lista(V("articulos")).Select(c => articulos.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe el artículo '{c}'.")).ToList();
-                var familiasLinea = Lista(V("familias")).Select(c => familias.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la familia '{c}'.")).ToList();
+                var departamentosLinea = Lista(V("departamentos")).Select(c => departamentos.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe el departamento '{c}'.")).ToList();
                 var sucursalesLinea = Lista(V("sucursales")).Select(c => sucursales.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la sucursal '{c}'.")).ToList();
-                if (articulosLinea.Count == 0 && familiasLinea.Count == 0)
-                    throw new FormatException("La promoción no aplica a ningún artículo ni familia.");
+                var categoriasLinea = Lista(V("categorias")).Select(c => categorias.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la categoría '{c}'.")).ToList();
+                var marcasLinea = Lista(V("marcas")).Select(c => marcas.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la marca '{c}'.")).ToList();
+                if (articulosLinea.Count == 0 && departamentosLinea.Count == 0 && categoriasLinea.Count == 0 && marcasLinea.Count == 0)
+                    throw new FormatException("La promoción no aplica a ningún artículo, departamento, categoría ni marca.");
 
                 var promocion = new PromocionCarga(
                     existentes.TryGetValue(codigo, out var idExistente) ? idExistente : Guid.CreateVersion7(),
@@ -116,7 +120,7 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
                     LeerFecha(V("desde"), "desde", desplazamiento, finDelDia: false),
                     LeerFecha(V("hasta"), "hasta", desplazamiento, finDelDia: true),
                     articulosLinea,
-                    familiasLinea,
+                    departamentosLinea,
                     sucursalesLinea,
                     LeerEntero(V("lleva"), "lleva"),
                     LeerEntero(V("paga"), "paga"),
@@ -126,7 +130,9 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
                     LeerHora(V("hora_desde"), "hora_desde"),
                     LeerHora(V("hora_hasta"), "hora_hasta"),
                     LeerBooleano(V("solo_fidelidad"), "solo_fidelidad") ?? false,
-                    LeerBooleano(V("activa"), "activa") ?? true);
+                    LeerBooleano(V("activa"), "activa") ?? true,
+                    categoriasLinea,
+                    marcasLinea);
 
                 ConversionMaestros.ConstruirPromocion(promocion);
                 promociones.Add(promocion);
@@ -173,7 +179,7 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             .Select(FormatoMaestros.Leer<PromocionCarga>)
             .Select(ConstruirSiEsValida)
             .OfType<Promocion>()
-            .Where(p => p.AplicaA(articulo.Id, articulo.FamiliaId))
+            .Where(p => p.AplicaA(articulo.Id, articulo.DepartamentoId, articulo.CategoriaId, articulo.MarcaId))
             .ToList();
 
         var candidatas = promociones
@@ -199,7 +205,9 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
         if (mejor is null)
         {
             total = brutoSinOferta;
-            explicacion = candidatas.Count == 0 ? "Ninguna promoción incluye este artículo o su familia." : "Ninguna promoción aplica en esas condiciones.";
+            explicacion = candidatas.Count == 0
+                ? "Ninguna promoción incluye este artículo, su departamento, su categoría ni su marca."
+                : "Ninguna promoción aplica en esas condiciones.";
         }
         else if (brutoDetalle - mejor.Descuento >= brutoSinOferta)
         {

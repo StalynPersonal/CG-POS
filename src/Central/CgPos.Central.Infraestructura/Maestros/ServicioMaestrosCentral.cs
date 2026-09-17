@@ -99,24 +99,28 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     public async Task<IReadOnlyList<DatosTopeDescuentoCentral>> ListarTopesAsync(CancellationToken cancelacion = default)
     {
         var topes = await ListarAsync<TopeDescuentoCarga>(TipoMaestro.TopeDescuento, cancelacion);
-        var idsFamilias = topes.Select(t => t.Dato.FamiliaId).OfType<Guid>().Distinct().ToList();
+        var idsDepartamentos = topes.Select(t => t.Dato.DepartamentoId).OfType<Guid>().Distinct().ToList();
         var idsArticulos = topes.Select(t => t.Dato.ArticuloId).OfType<Guid>().Distinct().ToList();
+        var categorias = (await ListarAsync<CategoriaCarga>(TipoMaestro.Categoria, cancelacion)).ToDictionary(c => c.Dato.Id, c => c.Dato);
+        var marcas = (await ListarAsync<MarcaCarga>(TipoMaestro.Marca, cancelacion)).ToDictionary(m => m.Dato.Id, m => m.Dato);
 
-        var familias = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Familia && idsFamilias.Contains(m.Id)).ToListAsync(cancelacion))
-            .Select(FormatoMaestros.Leer<FamiliaCarga>).ToDictionary(f => f.Id);
+        var departamentos = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Departamento && idsDepartamentos.Contains(m.Id)).ToListAsync(cancelacion))
+            .Select(FormatoMaestros.Leer<DepartamentoCarga>).ToDictionary(f => f.Id);
         var articulos = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && idsArticulos.Contains(m.Id)).ToListAsync(cancelacion))
             .Select(FormatoMaestros.Leer<ArticuloCarga>).ToDictionary(a => a.Id);
 
-        string Alcance(TopeDescuentoCarga tope) => (tope.ArticuloId, tope.FamiliaId) switch
+        string Alcance(TopeDescuentoCarga tope) => tope switch
         {
-            ({ } articuloId, _) => articulos.TryGetValue(articuloId, out var articulo) ? $"Artículo {articulo.Codigo} · {articulo.Descripcion}" : $"Artículo {articuloId}",
-            (_, { } familiaId) => familias.TryGetValue(familiaId, out var familia) ? $"Familia {familia.Codigo} · {familia.Nombre}" : $"Familia {familiaId}",
+            { ArticuloId: { } articuloId } => articulos.TryGetValue(articuloId, out var articulo) ? $"Artículo {articulo.Codigo} · {articulo.Descripcion}" : $"Artículo {articuloId}",
+            { CategoriaId: { } categoriaId } => categorias.TryGetValue(categoriaId, out var categoria) ? $"Categoría {categoria.Codigo} · {categoria.Nombre}" : $"Categoría {categoriaId}",
+            { MarcaId: { } marcaId } => marcas.TryGetValue(marcaId, out var marca) ? $"Marca {marca.Codigo} · {marca.Nombre}" : $"Marca {marcaId}",
+            { DepartamentoId: { } departamentoId } => departamentos.TryGetValue(departamentoId, out var departamento) ? $"Departamento {departamento.Codigo} · {departamento.Nombre}" : $"Departamento {departamentoId}",
             _ => "General",
         };
 
         return topes
             .Select(t => new DatosTopeDescuentoCentral(t.Dato, Alcance(t.Dato), t.ModificadoEn, t.ModificadoPor))
-            .OrderBy(t => t.Tope.ArticuloId is not null ? 2 : t.Tope.FamiliaId is not null ? 1 : 0)
+            .OrderBy(t => t.Tope.ArticuloId is not null ? 4 : t.Tope.CategoriaId is not null ? 3 : t.Tope.MarcaId is not null ? 2 : t.Tope.DepartamentoId is not null ? 1 : 0)
             .ThenBy(t => t.Alcance, StringComparer.CurrentCulture)
             .ThenBy(t => t.Tope.Nivel)
             .ToList();

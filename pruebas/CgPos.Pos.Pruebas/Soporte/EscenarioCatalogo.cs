@@ -10,8 +10,8 @@ public sealed class EscenarioCatalogo
 {
     public string Sufijo { get; } = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
-    public Guid FamiliaFerreteria { get; } = Guid.CreateVersion7();
-    public Guid FamiliaVegetales { get; } = Guid.CreateVersion7();
+    public Guid DepartamentoFerreteria { get; } = Guid.CreateVersion7();
+    public Guid DepartamentoVegetales { get; } = Guid.CreateVersion7();
     public Guid UnidadUnidad { get; } = Guid.CreateVersion7();
     public Guid UnidadLibra { get; } = Guid.CreateVersion7();
     public Guid ImpuestoItbis18 { get; } = Guid.CreateVersion7();
@@ -77,10 +77,10 @@ public sealed class EscenarioCatalogo
                 new MonedaCarga(MonedaPesos, "DOP", "Peso dominicano", "RD$"),
                 new MonedaCarga(MonedaDolares, "USD", "Dólar estadounidense", "US$"),
             ],
-            Familias:
+            Departamentos:
             [
-                new FamiliaCarga(FamiliaFerreteria, CodigoFerreteria, $"Ferretería {Sufijo}"),
-                new FamiliaCarga(FamiliaVegetales, $"VEG{Sufijo}", $"Vegetales {Sufijo}", PermiteDescuentoManual: false, EsNoCodificada: true),
+                new DepartamentoCarga(DepartamentoFerreteria, CodigoFerreteria, $"Ferretería {Sufijo}"),
+                new DepartamentoCarga(DepartamentoVegetales, $"VEG{Sufijo}", $"Vegetales {Sufijo}", PermiteDescuentoManual: false, EsNoCodificada: true),
             ],
             UnidadesMedida:
             [
@@ -94,21 +94,21 @@ public sealed class EscenarioCatalogo
             ],
             Articulos:
             [
-                new ArticuloCarga(ArticuloCincel, CodigoCincel, $"Cincel de punta SDS {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 850m,
+                new ArticuloCarga(ArticuloCincel, CodigoCincel, $"Cincel de punta SDS {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 850m,
                     Costo: 540m, CodigosBarras: [BarrasCincel], CodigosProveedor: [ProveedorCincel], PreciosVigentesDesde: vigenciaPrecios),
-                new ArticuloCarga(ArticuloCemento, CodigoCemento, $"Cemento gris 42.5 kg {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, precioCemento,
+                new ArticuloCarga(ArticuloCemento, CodigoCemento, $"Cemento gris 42.5 kg {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, precioCemento,
                     PrecioMayor: 450m, CantidadMinimaMayor: 12m, Costo: 350m, PrecioMinimo: 440m, CodigosBarras: [BarrasCemento], PreciosVigentesDesde: vigenciaPrecios),
-                new ArticuloCarga(ArticuloCombo, CodigoCombo, $"Combo herramientas {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 2500m,
+                new ArticuloCarga(ArticuloCombo, CodigoCombo, $"Combo herramientas {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 2500m,
                     PrecioMayor: 2300m, Tipo: TipoArticulo.ComboKit, PreciosVigentesDesde: vigenciaPrecios),
-                new ArticuloCarga(ArticuloTomate, PluTomate, $"Tomate {Sufijo}", FamiliaVegetales, UnidadLibra, ImpuestoExento, 45m,
+                new ArticuloCarga(ArticuloTomate, PluTomate, $"Tomate {Sufijo}", DepartamentoVegetales, UnidadLibra, ImpuestoExento, 45m,
                     Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios),
-                new ArticuloCarga(ArticuloCebolla, PluCebolla, $"Cebolla {Sufijo}", FamiliaVegetales, UnidadLibra, ImpuestoExento, 55m,
+                new ArticuloCarga(ArticuloCebolla, PluCebolla, $"Cebolla {Sufijo}", DepartamentoVegetales, UnidadLibra, ImpuestoExento, 55m,
                     Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, Tara: TaraCebolla),
-                new ArticuloCarga(ArticuloTaladro, CodigoTaladro, $"Taladro inalámbrico {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 6950m,
+                new ArticuloCarga(ArticuloTaladro, CodigoTaladro, $"Taladro inalámbrico {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 6950m,
                     Tipo: TipoArticulo.Serializado, PreciosVigentesDesde: vigenciaPrecios),
-                new ArticuloCarga(ArticuloInactivo, CodigoInactivo, $"Artículo descontinuado {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
+                new ArticuloCarga(ArticuloInactivo, CodigoInactivo, $"Artículo descontinuado {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
                     Activo: false, PreciosVigentesDesde: vigenciaPrecios),
-                new ArticuloCarga(ArticuloFueraDePos, CodigoFueraDePos, $"Artículo solo almacén {Sufijo}", FamiliaFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
+                new ArticuloCarga(ArticuloFueraDePos, CodigoFueraDePos, $"Artículo solo almacén {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
                     VentaEnPos: false, PreciosVigentesDesde: vigenciaPrecios),
             ],
             Clientes:
@@ -133,8 +133,8 @@ public sealed class EscenarioCatalogo
             ReglasAcumulacion:
             [
                 new ReglaAcumulacionCarga(ReglaGeneral, $"GEN{Sufijo}", "Compras en general", CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Monto, 100m, 1m),
-                new ReglaAcumulacionCarga(ReglaFerreteria, $"FER{Sufijo}", "Ferretería doble", CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Familia, 100m, 2m,
-                    FamiliaFerreteria),
+                new ReglaAcumulacionCarga(ReglaFerreteria, $"FER{Sufijo}", "Ferretería doble", CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Departamento, 100m, 2m,
+                    DepartamentoFerreteria),
             ],
             MiembrosFidelidad:
             [

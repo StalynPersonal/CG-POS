@@ -50,13 +50,13 @@ internal sealed class ConsultaArticulos(
             : null;
     }
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? familiaId = null, int maximo = 50, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default)
     {
         maximo = Math.Clamp(maximo, 1, 200);
         var consulta = Vendibles();
 
-        if (familiaId is { } familia)
-            consulta = consulta.Where(a => a.FamiliaId == familia);
+        if (departamentoId is { } departamento)
+            consulta = consulta.Where(a => a.DepartamentoId == departamento);
 
         foreach (var palabra in (texto ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(6))
         {
@@ -72,22 +72,22 @@ internal sealed class ConsultaArticulos(
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? familiaId = null, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? departamentoId = null, CancellationToken cancelacion = default)
     {
         var consulta = Vendibles().Where(a => a.MostrarEnCatalogo);
-        if (familiaId is { } familia)
-            consulta = consulta.Where(a => a.FamiliaId == familia);
+        if (departamentoId is { } departamento)
+            consulta = consulta.Where(a => a.DepartamentoId == departamento);
 
         var articulos = await consulta.OrderBy(a => a.Descripcion).Take(500).ToListAsync(cancelacion);
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? familiaId = null, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? departamentoId = null, CancellationToken cancelacion = default)
     {
-        var familiasNoCodificadas = contexto.Familias.Where(f => f.Activa && f.EsNoCodificada).Select(f => f.Id);
-        var consulta = Vendibles().Where(a => familiasNoCodificadas.Contains(a.FamiliaId));
-        if (familiaId is { } familia)
-            consulta = consulta.Where(a => a.FamiliaId == familia);
+        var departamentosNoCodificadas = contexto.Departamentos.Where(f => f.Activa && f.EsNoCodificada).Select(f => f.Id);
+        var consulta = Vendibles().Where(a => departamentosNoCodificadas.Contains(a.DepartamentoId));
+        if (departamentoId is { } departamento)
+            consulta = consulta.Where(a => a.DepartamentoId == departamento);
 
         var articulos = await consulta.OrderBy(a => a.Descripcion).ToListAsync(cancelacion);
         return await ArmarResumenesAsync(articulos, cancelacion);
@@ -102,12 +102,12 @@ internal sealed class ConsultaArticulos(
             .Select(p => new DatosPrecioHistorico(p.Lista, p.Precio, p.VigenteDesde, p.RegistradoEn, p.Origen, p.UsuarioNombre))
             .ToListAsync(cancelacion);
 
-    public async Task<IReadOnlyList<DatosFamilia>> ListarFamiliasAsync(CancellationToken cancelacion = default) =>
-        await contexto.Familias
+    public async Task<IReadOnlyList<DatosDepartamento>> ListarDepartamentosAsync(CancellationToken cancelacion = default) =>
+        await contexto.Departamentos
             .AsNoTracking()
             .Where(f => f.Activa)
             .OrderBy(f => f.Nombre)
-            .Select(f => new DatosFamilia(f.Id, f.Codigo, f.Nombre, f.EsNoCodificada))
+            .Select(f => new DatosDepartamento(f.Id, f.Codigo, f.Nombre, f.EsNoCodificada))
             .ToListAsync(cancelacion);
 
     private IQueryable<Articulo> Vendibles() => contexto.Articulos.AsNoTracking().Where(a => a.Activo && a.VentaEnPos);
@@ -116,11 +116,11 @@ internal sealed class ConsultaArticulos(
     {
         var datos = await (
                 from articulo in Vendibles()
-                join familia in contexto.Familias on articulo.FamiliaId equals familia.Id
+                join departamento in contexto.Departamentos on articulo.DepartamentoId equals departamento.Id
                 join unidad in contexto.UnidadesMedida on articulo.UnidadMedidaId equals unidad.Id
                 join impuesto in contexto.Impuestos on articulo.ImpuestoId equals impuesto.Id
                 where articulo.Id == articuloId
-                select new { articulo, familia, unidad, impuesto })
+                select new { articulo, departamento, unidad, impuesto })
             .SingleOrDefaultAsync(cancelacion);
 
         if (datos is null)
@@ -137,9 +137,9 @@ internal sealed class ConsultaArticulos(
             codigoLeido,
             origen,
             datos.articulo.Tipo,
-            datos.familia.Id,
-            datos.familia.Nombre,
-            datos.familia.PermiteDescuentoManual,
+            datos.departamento.Id,
+            datos.departamento.Nombre,
+            datos.departamento.PermiteDescuentoManual,
             datos.unidad.Codigo,
             datos.unidad.PermiteDecimales,
             datos.unidad.Decimales,
@@ -155,7 +155,15 @@ internal sealed class ConsultaArticulos(
             lectura is { Tipo: TipoValorBalanza.Precio } ? lectura.Valor : null,
             datos.articulo.RutaImagen,
             datos.articulo.Tara,
-            datos.articulo.EsServicio);
+            datos.articulo.EsServicio,
+            datos.articulo.CategoriaId,
+            datos.articulo.CategoriaId is { } categoriaId
+                ? await contexto.Categorias.Where(c => c.Id == categoriaId).Select(c => c.Nombre).FirstOrDefaultAsync(cancelacion)
+                : null,
+            datos.articulo.MarcaId,
+            datos.articulo.MarcaId is { } marcaId
+                ? await contexto.Marcas.Where(m => m.Id == marcaId).Select(m => m.Nombre).FirstOrDefaultAsync(cancelacion)
+                : null);
     }
 
     private async Task<IReadOnlyList<DatosArticuloResumen>> ArmarResumenesAsync(List<Articulo> articulos, CancellationToken cancelacion)
@@ -164,10 +172,10 @@ internal sealed class ConsultaArticulos(
             return [];
 
         var ids = articulos.Select(a => a.Id).ToList();
-        var familiasIds = articulos.Select(a => a.FamiliaId).Distinct().ToList();
+        var departamentosIds = articulos.Select(a => a.DepartamentoId).Distinct().ToList();
         var unidadesIds = articulos.Select(a => a.UnidadMedidaId).Distinct().ToList();
 
-        var familias = await contexto.Familias.Where(f => familiasIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Nombre, cancelacion);
+        var departamentos = await contexto.Departamentos.Where(f => departamentosIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Nombre, cancelacion);
         var unidades = await contexto.UnidadesMedida.Where(u => unidadesIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Codigo, cancelacion);
         var precios = await PreciosVigentesAsync(ids, cancelacion);
 
@@ -175,7 +183,7 @@ internal sealed class ConsultaArticulos(
             .Select(a =>
             {
                 var vigentes = precios.GetValueOrDefault(a.Id);
-                return new DatosArticuloResumen(a.Id, a.Codigo, a.Descripcion, a.Referencia, familias[a.FamiliaId], unidades[a.UnidadMedidaId], vigentes?.Detalle, vigentes?.Mayor, a.RutaImagen);
+                return new DatosArticuloResumen(a.Id, a.Codigo, a.Descripcion, a.Referencia, departamentos[a.DepartamentoId], unidades[a.UnidadMedidaId], vigentes?.Detalle, vigentes?.Mayor, a.RutaImagen);
             })
             .ToList();
     }

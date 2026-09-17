@@ -91,6 +91,7 @@
     private IReadOnlyList<DatosMaestroCentral<JsonObject>> _registros = [];
     private IReadOnlyList<OpcionCatalogo> _monedas = [];
     private IReadOnlyList<OpcionCatalogo> _sucursales = [];
+    private IReadOnlyList<OpcionCatalogo> _departamentos = [];
     private List<BreadcrumbItem> _migas = [];
     private string? _filtro;
     private bool _cargando = true;
@@ -125,6 +126,11 @@
                 .Select(m => new OpcionCatalogo(m.Dato["codigo"]!.GetValue<string>(), $"{m.Dato["codigo"]} · {m.Dato["nombre"]}"))
                 .ToList();
 
+        if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Departamento))
+            _departamentos = (await Cliente.ListarCatalogoAsync("departamentos") ?? [])
+                .Select(d => new OpcionCatalogo(d.Dato["id"]!.GetValue<string>(), $"{d.Dato["codigo"]} · {d.Dato["nombre"]}"))
+                .ToList();
+
         if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Sucursal))
             _sucursales = (await Cliente.ListarSucursalesMaestrosAsync() ?? []).Select(s => new OpcionCatalogo(s.Id.ToString(), $"{s.Codigo} · {s.Nombre}")).ToList();
 
@@ -142,6 +148,7 @@
             TipoCampoCatalogo.SiNoSegunTipo => valor switch { "true" => "Sí", "false" => "No", _ => "Según el tipo" },
             TipoCampoCatalogo.Opciones => campo.Opciones.FirstOrDefault(o => o.Valor == (string)valor)?.Etiqueta ?? (string)valor,
             TipoCampoCatalogo.Sucursal => _sucursales.FirstOrDefault(o => o.Valor == (string)valor)?.Etiqueta ?? (string)valor,
+            TipoCampoCatalogo.Departamento => _departamentos.FirstOrDefault(o => string.Equals(o.Valor, (string)valor, StringComparison.OrdinalIgnoreCase))?.Etiqueta ?? (string)valor,
             TipoCampoCatalogo.FechaHora => ((DateTimeOffset)valor).ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
             _ => Convert.ToString(valor, CultureInfo.CurrentCulture) ?? string.Empty,
         };
@@ -155,6 +162,7 @@
             { d => d.Dato, dato },
             { d => d.Monedas, _monedas },
             { d => d.Sucursales, _sucursales },
+            { d => d.Departamentos, _departamentos },
         };
         var titulo = dato is null ? _definicion!.TextoNuevo : $"Editar {Mostrar(dato, _definicion!.Campos[0])}";
         var referencia = await Dialogos.ShowAsync<DialogoCatalogo>(titulo, parametros);

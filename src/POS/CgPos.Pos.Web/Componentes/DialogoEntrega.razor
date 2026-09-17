@@ -48,7 +48,7 @@
                 <div class="cg-descuento__motivos">
                     @foreach (var almacen in _almacenes)
                     {
-                        <button type="button" class="cg-catalogo__familia @(almacen.Id == _almacenId ? "cg-catalogo__familia--activa" : null)"
+                        <button type="button" class="cg-catalogo__departamento @(almacen.Id == _almacenId ? "cg-catalogo__departamento--activa" : null)"
                                 @onclick="() => _almacenId = almacen.Id">@almacen.Nombre</button>
                     }
                 </div>

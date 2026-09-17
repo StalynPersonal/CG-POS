@@ -41,7 +41,13 @@ public sealed class Articulo : Entidad
 
     public string Descripcion { get; private set; } = string.Empty;
     public string? Referencia { get; private set; }
-    public Guid FamiliaId { get; private set; }
+    public Guid DepartamentoId { get; private set; }
+
+    /// <summary>Categoría dentro del departamento; opcional.</summary>
+    public Guid? CategoriaId { get; private set; }
+
+    /// <summary>Marca; opcional (hay artículos genéricos sin marca).</summary>
+    public Guid? MarcaId { get; private set; }
     public Guid UnidadMedidaId { get; private set; }
     public Guid ImpuestoId { get; private set; }
     public TipoArticulo Tipo { get; private set; }
@@ -76,7 +82,7 @@ public sealed class Articulo : Entidad
     /// <summary>Los combos y kits no aplican lista por mayor (RN-04).</summary>
     public bool AplicaPrecioMayor => Tipo != TipoArticulo.ComboKit;
 
-    public static Articulo Crear(string codigo, string descripcion, Guid familiaId, Guid unidadMedidaId, Guid impuestoId,
+    public static Articulo Crear(string codigo, string descripcion, Guid departamentoId, Guid unidadMedidaId, Guid impuestoId,
         TipoArticulo tipo = TipoArticulo.Normal, Guid? id = null)
     {
         var articulo = new Articulo
@@ -84,18 +90,18 @@ public sealed class Articulo : Entidad
             Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de artículo", LargoMaximoCodigo),
         };
-        articulo.ActualizarDatos(descripcion, null, familiaId, unidadMedidaId, impuestoId, tipo);
+        articulo.ActualizarDatos(descripcion, null, departamentoId, unidadMedidaId, impuestoId, tipo);
         return articulo;
     }
 
-    public void ActualizarDatos(string descripcion, string? referencia, Guid familiaId, Guid unidadMedidaId, Guid impuestoId, TipoArticulo tipo)
+    public void ActualizarDatos(string descripcion, string? referencia, Guid departamentoId, Guid unidadMedidaId, Guid impuestoId, TipoArticulo tipo)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de artículo no válido.");
 
         Descripcion = Validar.Texto(descripcion, "Descripción", LargoMaximoDescripcion);
         Referencia = Validar.TextoOpcional(referencia, "Referencia", LargoMaximoReferencia);
-        FamiliaId = Validar.Id(familiaId, "Familia");
+        DepartamentoId = Validar.Id(departamentoId, "Departamento");
         UnidadMedidaId = Validar.Id(unidadMedidaId, "Unidad de medida");
         ImpuestoId = Validar.Id(impuestoId, "Impuesto");
         Tipo = tipo;
@@ -121,6 +127,13 @@ public sealed class Articulo : Entidad
             throw new ArgumentOutOfRangeException(nameof(tara), tara, "El peso del empaque no puede ser negativo.");
 
         Tara = tara is 0m ? null : tara;
+    }
+
+    /// <summary>La categoría debe ser del departamento del artículo: lo valida quien conoce las categorías (el Central al publicar).</summary>
+    public void Clasificar(Guid? categoriaId, Guid? marcaId)
+    {
+        CategoriaId = categoriaId == Guid.Empty ? null : categoriaId;
+        MarcaId = marcaId == Guid.Empty ? null : marcaId;
     }
 
     public void ConfigurarNaturaleza(bool esServicio) => EsServicio = esServicio;

@@ -73,6 +73,7 @@
 
     [Parameter] public IReadOnlyList<OpcionCatalogo> Monedas { get; set; } = [];
     [Parameter] public IReadOnlyList<OpcionCatalogo> Sucursales { get; set; } = [];
+    [Parameter] public IReadOnlyList<OpcionCatalogo> Departamentos { get; set; } = [];
 
     private static readonly IReadOnlyList<OpcionCatalogo> OpcionesSiNo =
         [new(ValoresCatalogo.SegunTipo, "Según el tipo"), new("true", "Sí"), new("false", "No")];
@@ -87,6 +88,7 @@
     {
         TipoCampoCatalogo.Moneda => Monedas,
         TipoCampoCatalogo.Sucursal => Sucursales,
+        TipoCampoCatalogo.Departamento => Departamentos,
         TipoCampoCatalogo.SiNoSegunTipo => OpcionesSiNo,
         _ => campo.Opciones,
     };

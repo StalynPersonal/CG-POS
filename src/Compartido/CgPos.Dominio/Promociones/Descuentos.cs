@@ -35,7 +35,7 @@ public sealed class MotivoDescuento : Entidad
 }
 
 /// <summary>
-/// Tope de descuento manual por nivel de usuario, general o para una familia o un artículo (RF-202, RN-10).
+/// Tope de descuento manual por nivel de usuario, general o para un departamento, una categoría, una marca o un artículo (RF-202, RN-10).
 /// A mayor nivel del autorizador, mayor el descuento permitido.
 /// </summary>
 public sealed class TopeDescuento : Entidad
@@ -45,23 +45,30 @@ public sealed class TopeDescuento : Entidad
     }
 
     public int Nivel { get; private set; }
-    public Guid? FamiliaId { get; private set; }
+    public Guid? DepartamentoId { get; private set; }
+    public Guid? CategoriaId { get; private set; }
+    public Guid? MarcaId { get; private set; }
     public Guid? ArticuloId { get; private set; }
+
+    /// <summary>Sin departamento, categoría, marca ni artículo: aplica a todo.</summary>
+    public bool EsGeneral => DepartamentoId is null && CategoriaId is null && MarcaId is null && ArticuloId is null;
     public decimal? PorcentajeMaximo { get; private set; }
     public decimal? MontoMaximo { get; private set; }
 
-    public static TopeDescuento Crear(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? familiaId = null, Guid? articuloId = null, Guid? id = null)
+    public static TopeDescuento Crear(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? departamentoId = null, Guid? articuloId = null, Guid? id = null,
+        Guid? categoriaId = null, Guid? marcaId = null)
     {
         var tope = new TopeDescuento { Id = id ?? Guid.CreateVersion7() };
-        tope.Actualizar(nivel, porcentajeMaximo, montoMaximo, familiaId, articuloId);
+        tope.Actualizar(nivel, porcentajeMaximo, montoMaximo, departamentoId, articuloId, categoriaId, marcaId);
         return tope;
     }
 
-    public void Actualizar(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? familiaId, Guid? articuloId)
+    public void Actualizar(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? departamentoId, Guid? articuloId, Guid? categoriaId = null,
+        Guid? marcaId = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(nivel, 1);
-        if (familiaId is not null && articuloId is not null)
-            throw new ArgumentException("Un tope es para una familia o para un artículo, no para ambos.");
+        if (new[] { departamentoId, categoriaId, marcaId, articuloId }.Count(id => id is not null) > 1)
+            throw new ArgumentException("Un tope es para un departamento, una categoría, una marca o un artículo, no para varios a la vez.");
         if (porcentajeMaximo is null && montoMaximo is null)
             throw new ArgumentException("Indique el porcentaje o el monto máximo del tope.");
         if (porcentajeMaximo is < 0 or > 100)
@@ -70,7 +77,9 @@ public sealed class TopeDescuento : Entidad
             throw new ArgumentOutOfRangeException(nameof(montoMaximo), montoMaximo, "El monto máximo no puede ser negativo.");
 
         Nivel = nivel;
-        FamiliaId = familiaId;
+        DepartamentoId = departamentoId;
+        CategoriaId = categoriaId;
+        MarcaId = marcaId;
         ArticuloId = articuloId;
         PorcentajeMaximo = porcentajeMaximo;
         MontoMaximo = montoMaximo;
@@ -78,27 +87,29 @@ public sealed class TopeDescuento : Entidad
 }
 
 /// <param name="NivelTope">Nivel del tope que se aplicó; nulo si no hay topes para ese alcance.</param>
-/// <param name="SinConfiguracion">No hay ningún tope que aplique (ni del artículo, ni de su familia, ni general).</param>
+/// <param name="SinConfiguracion">No hay ningún tope que aplique (ni del artículo, ni de su categoría, marca o departamento, ni general).</param>
 public sealed record EvaluacionTope(bool Permitido, int? NivelTope, decimal? PorcentajeMaximo, decimal? MontoMaximo, bool SinConfiguracion = false);
 
 public static class ReglasTopeDescuento
 {
     /// <summary>
-    /// Toma el alcance más específico que tenga topes (artículo, luego familia, luego general) y, dentro de él, el tope del
+    /// Toma el alcance más específico que tenga topes (artículo, categoría, marca, departamento y por último general) y, dentro de él, el tope del
     /// nivel más alto que no supere el del autorizador. Si ese alcance solo tiene topes de niveles superiores, el descuento
     /// exige a alguien de mayor nivel. Sin ningún tope configurado el descuento manual no se permite: el límite lo define el negocio.
     /// </summary>
     /// <param name="articuloId">Nulo para el descuento a la factura, que solo usa topes generales.</param>
-    public static EvaluacionTope Evaluar(IReadOnlyCollection<TopeDescuento> topes, int nivelAutorizador, Guid? articuloId, Guid? familiaId,
-        decimal porcentaje, decimal monto)
+    public static EvaluacionTope Evaluar(IReadOnlyCollection<TopeDescuento> topes, int nivelAutorizador, Guid? articuloId, Guid? departamentoId,
+        decimal porcentaje, decimal monto, Guid? categoriaId = null, Guid? marcaId = null)
     {
         ArgumentNullException.ThrowIfNull(topes);
 
         var alcance = new[]
             {
                 articuloId is null ? [] : topes.Where(t => t.ArticuloId == articuloId).ToList(),
-                familiaId is null ? [] : topes.Where(t => t.ArticuloId is null && t.FamiliaId == familiaId).ToList(),
-                topes.Where(t => t.ArticuloId is null && t.FamiliaId is null).ToList(),
+                categoriaId is null ? [] : topes.Where(t => t.CategoriaId == categoriaId).ToList(),
+                marcaId is null ? [] : topes.Where(t => t.MarcaId == marcaId).ToList(),
+                departamentoId is null ? [] : topes.Where(t => t.DepartamentoId == departamentoId).ToList(),
+                topes.Where(t => t.EsGeneral).ToList(),
             }
             .FirstOrDefault(grupo => grupo.Count > 0);
 

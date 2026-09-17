@@ -31,9 +31,9 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
                 WITH numeros AS (
                     SELECT TOP ({CantidadArticulos}) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
                     FROM sys.all_objects a CROSS JOIN sys.all_objects b)
-                INSERT INTO Articulos (Id, Codigo, Descripcion, FamiliaId, UnidadMedidaId, ImpuestoId, Tipo, MostrarEnCatalogo, VentaEnPos, Activo)
+                INSERT INTO Articulos (Id, Codigo, Descripcion, DepartamentoId, UnidadMedidaId, ImpuestoId, Tipo, MostrarEnCatalogo, VentaEnPos, Activo)
                 SELECT NEWID(), CONCAT('R', {escenario.Sufijo}, '-', n), CONCAT('Tornillo acero inoxidable ', n, ' mm'),
-                       {escenario.FamiliaFerreteria}, {escenario.UnidadUnidad}, {escenario.ImpuestoItbis18}, 0, 0, 1, 1
+                       {escenario.DepartamentoFerreteria}, {escenario.UnidadUnidad}, {escenario.ImpuestoItbis18}, 0, 0, 1, 1
                 FROM numeros;
 
                 INSERT INTO CodigosArticulo (ArticuloId, Codigo, Tipo)

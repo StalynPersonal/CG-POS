@@ -11,7 +11,7 @@ public class TopesDescuentoPruebas
     [
         TopeDescuento.Crear(2, 10m, null),                        // supervisor: 10 % general
         TopeDescuento.Crear(3, 30m, 5000m),                       // gerente: 30 % y hasta RD$5,000
-        TopeDescuento.Crear(2, 5m, null, familiaId: Ferreteria),  // ferretería más estricta para supervisor
+        TopeDescuento.Crear(2, 5m, null, departamentoId: Ferreteria),  // ferretería más estricta para supervisor
         TopeDescuento.Crear(3, 3m, null, articuloId: Taladro),    // el taladro solo lo descuenta un gerente, hasta 3 %
     ];
 
@@ -27,11 +27,11 @@ public class TopesDescuentoPruebas
     [Fact]
     public void Se_usa_el_alcance_mas_especifico_con_topes()
     {
-        var familia = ReglasTopeDescuento.Evaluar(Topes, 2, Guid.CreateVersion7(), Ferreteria, 8m, 50m);
-        Assert.False(familia.Permitido);
-        Assert.Equal(5m, familia.PorcentajeMaximo);
+        var departamento = ReglasTopeDescuento.Evaluar(Topes, 2, Guid.CreateVersion7(), Ferreteria, 8m, 50m);
+        Assert.False(departamento.Permitido);
+        Assert.Equal(5m, departamento.PorcentajeMaximo);
 
-        // La familia solo tiene tope de nivel 2: un gerente usa ese mismo tope de familia (el más alto que no supera su nivel).
+        // El departamento solo tiene tope de nivel 2: un gerente usa ese mismo tope de departamento (el más alto que no supera su nivel).
         Assert.False(ReglasTopeDescuento.Evaluar(Topes, 3, Guid.CreateVersion7(), Ferreteria, 8m, 50m).Permitido);
 
         // El taladro solo tiene tope de nivel 3: un supervisor no puede descontarlo.

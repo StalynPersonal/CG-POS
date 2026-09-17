@@ -12,7 +12,7 @@ namespace CgPos.Contratos.Catalogo;
 /// <summary>
 /// Valida un paquete de maestros con las mismas reglas del dominio que aplica la caja al cargarlo, construyendo cada registro en memoria.
 /// El Central lo usa antes de publicar: un maestro inválido detendría la sincronización de todas las cajas.
-/// Las referencias entre maestros (familia del artículo, moneda de la forma de pago…) las valida quien conoce lo ya publicado.
+/// Las referencias entre maestros (departamento del artículo, moneda de la forma de pago…) las valida quien conoce lo ya publicado.
 /// </summary>
 public static class ValidacionMaestros
 {
@@ -36,8 +36,14 @@ public static class ValidacionMaestros
         foreach (var d in paquete.Monedas ?? [])
             Probar($"Moneda '{d.Codigo}'", () => Moneda.Crear(d.Codigo, d.Nombre, d.Simbolo, d.Id));
 
-        foreach (var d in paquete.Familias ?? [])
-            Probar($"Familia '{d.Codigo}'", () => Familia.Crear(d.Codigo, d.Nombre, d.PermiteDescuentoManual, d.EsNoCodificada, d.Id));
+        foreach (var d in paquete.Departamentos ?? [])
+            Probar($"Departamento '{d.Codigo}'", () => Departamento.Crear(d.Codigo, d.Nombre, d.PermiteDescuentoManual, d.EsNoCodificada, d.Id));
+
+        foreach (var d in paquete.Categorias ?? [])
+            Probar($"Categoría '{d.Codigo}'", () => Categoria.Crear(d.Codigo, d.Nombre, d.DepartamentoId, d.Id));
+
+        foreach (var d in paquete.Marcas ?? [])
+            Probar($"Marca '{d.Codigo}'", () => Marca.Crear(d.Codigo, d.Nombre, d.Id));
 
         foreach (var d in paquete.UnidadesMedida ?? [])
             Probar($"Unidad de medida '{d.Codigo}'", () => UnidadMedida.Crear(d.Codigo, d.Nombre, d.PermiteDecimales, d.Decimales, d.Id));
@@ -53,10 +59,11 @@ public static class ValidacionMaestros
                 if (d.PrecioMayor <= 0)
                     throw new ArgumentException("El precio por mayor debe ser mayor que cero.");
 
-                var articulo = Articulo.Crear(d.Codigo, d.Descripcion, d.FamiliaId, d.UnidadMedidaId, d.ImpuestoId, d.Tipo, d.Id);
-                articulo.ActualizarDatos(d.Descripcion, d.Referencia, d.FamiliaId, d.UnidadMedidaId, d.ImpuestoId, d.Tipo);
+                var articulo = Articulo.Crear(d.Codigo, d.Descripcion, d.DepartamentoId, d.UnidadMedidaId, d.ImpuestoId, d.Tipo, d.Id);
+                articulo.ActualizarDatos(d.Descripcion, d.Referencia, d.DepartamentoId, d.UnidadMedidaId, d.ImpuestoId, d.Tipo);
                 articulo.ConfigurarPrecios(d.Costo, d.PrecioMinimo, d.CantidadMinimaMayor);
                 articulo.ConfigurarTara(d.Tara);
+                articulo.Clasificar(d.CategoriaId, d.MarcaId);
                 articulo.ConfigurarNaturaleza(d.EsServicio);
                 articulo.ConfigurarPresentacion(d.RutaImagen, d.MostrarEnCatalogo, d.VentaEnPos);
                 articulo.ReemplazarCodigos(
@@ -101,7 +108,7 @@ public static class ValidacionMaestros
             Probar($"Motivo de descuento '{d.Codigo}'", () => MotivoDescuento.Crear(d.Codigo, d.Nombre, d.Id));
 
         foreach (var d in paquete.TopesDescuento ?? [])
-            Probar($"Tope de descuento {d.Id}", () => TopeDescuento.Crear(d.Nivel, d.PorcentajeMaximo, d.MontoMaximo, d.FamiliaId, d.ArticuloId, d.Id));
+            Probar($"Tope de descuento {d.Id}", () => TopeDescuento.Crear(d.Nivel, d.PorcentajeMaximo, d.MontoMaximo, d.DepartamentoId, d.ArticuloId, d.Id, d.CategoriaId, d.MarcaId));
 
         foreach (var d in paquete.TasasCambio ?? [])
             Probar($"Tasa de cambio {d.Moneda}", () => TasaCambio.Registrar(d.Moneda, d.Tasa, d.VigenteDesde, d.Id));

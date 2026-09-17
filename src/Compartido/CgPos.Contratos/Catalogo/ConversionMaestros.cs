@@ -12,7 +12,7 @@ public static class ConversionMaestros
         var promocion = Promocion.Crear(dato.Codigo, dato.Nombre, dato.Tipo, dato.Valor, dato.VigenteDesde, dato.VigenteHasta, dato.Id);
         promocion.ConfigurarCantidades(dato.CantidadLleva, dato.CantidadPaga, dato.CantidadMinima, dato.LimitePorCliente);
         promocion.Programar(dato.Dias, dato.HoraDesde, dato.HoraHasta);
-        promocion.AsignarAlcance(dato.Articulos, dato.Familias, dato.Sucursales);
+        promocion.AsignarAlcance(dato.Articulos, dato.Departamentos, dato.Sucursales, dato.Categorias, dato.Marcas);
         promocion.ConfigurarFidelidad(dato.SoloFidelidad);
         if (!dato.Activa)
             promocion.Desactivar();

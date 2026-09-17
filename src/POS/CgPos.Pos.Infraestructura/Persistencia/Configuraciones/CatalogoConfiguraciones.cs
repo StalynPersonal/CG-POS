@@ -7,16 +7,43 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CgPos.Pos.Infraestructura.Persistencia.Configuraciones;
 
-internal sealed class FamiliaConfiguracion : IEntityTypeConfiguration<Familia>
+internal sealed class DepartamentoConfiguracion : IEntityTypeConfiguration<Departamento>
 {
-    public void Configure(EntityTypeBuilder<Familia> constructor)
+    public void Configure(EntityTypeBuilder<Departamento> constructor)
     {
-        constructor.ToTable("Familias");
+        constructor.ToTable("Departamentos");
         constructor.HasKey(f => f.Id);
         constructor.Property(f => f.Id).ValueGeneratedNever();
-        constructor.Property(f => f.Codigo).HasMaxLength(Familia.LargoMaximoCodigo).IsRequired();
-        constructor.Property(f => f.Nombre).HasMaxLength(Familia.LargoMaximoNombre).IsRequired();
+        constructor.Property(f => f.Codigo).HasMaxLength(Departamento.LargoMaximoCodigo).IsRequired();
+        constructor.Property(f => f.Nombre).HasMaxLength(Departamento.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(f => f.Codigo).IsUnique();
+    }
+}
+
+internal sealed class CategoriaConfiguracion : IEntityTypeConfiguration<Categoria>
+{
+    public void Configure(EntityTypeBuilder<Categoria> constructor)
+    {
+        constructor.ToTable("Categorias");
+        constructor.HasKey(c => c.Id);
+        constructor.Property(c => c.Id).ValueGeneratedNever();
+        constructor.Property(c => c.Codigo).HasMaxLength(Categoria.LargoMaximoCodigo).IsRequired();
+        constructor.Property(c => c.Nombre).HasMaxLength(Categoria.LargoMaximoNombre).IsRequired();
+        constructor.HasIndex(c => c.Codigo).IsUnique();
+        constructor.HasOne<Departamento>().WithMany().HasForeignKey(c => c.DepartamentoId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class MarcaConfiguracion : IEntityTypeConfiguration<Marca>
+{
+    public void Configure(EntityTypeBuilder<Marca> constructor)
+    {
+        constructor.ToTable("Marcas");
+        constructor.HasKey(m => m.Id);
+        constructor.Property(m => m.Id).ValueGeneratedNever();
+        constructor.Property(m => m.Codigo).HasMaxLength(Marca.LargoMaximoCodigo).IsRequired();
+        constructor.Property(m => m.Nombre).HasMaxLength(Marca.LargoMaximoNombre).IsRequired();
+        constructor.HasIndex(m => m.Codigo).IsUnique();
     }
 }
 
@@ -62,9 +89,11 @@ internal sealed class ArticuloConfiguracion : IEntityTypeConfiguration<Articulo>
 
         constructor.HasIndex(a => a.Codigo).IsUnique();
         constructor.HasIndex(a => a.Descripcion);
-        constructor.HasIndex(a => a.FamiliaId);
+        constructor.HasIndex(a => a.DepartamentoId);
 
-        constructor.HasOne<Familia>().WithMany().HasForeignKey(a => a.FamiliaId).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasOne<Departamento>().WithMany().HasForeignKey(a => a.DepartamentoId).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasOne<Categoria>().WithMany().HasForeignKey(a => a.CategoriaId).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasOne<Marca>().WithMany().HasForeignKey(a => a.MarcaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<UnidadMedida>().WithMany().HasForeignKey(a => a.UnidadMedidaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Impuesto>().WithMany().HasForeignKey(a => a.ImpuestoId).OnDelete(DeleteBehavior.Restrict);
 

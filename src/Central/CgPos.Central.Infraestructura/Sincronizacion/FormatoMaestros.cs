@@ -32,7 +32,9 @@ internal static class FormatoMaestros
     public static IEnumerable<FilaMaestro> Desglosar(PaqueteMaestros paquete)
     {
         foreach (var d in paquete.Monedas ?? []) yield return new(TipoMaestro.Moneda, d.Id, d.Codigo, null, d);
-        foreach (var d in paquete.Familias ?? []) yield return new(TipoMaestro.Familia, d.Id, d.Codigo, null, d);
+        foreach (var d in paquete.Departamentos ?? []) yield return new(TipoMaestro.Departamento, d.Id, d.Codigo, null, d);
+        foreach (var d in paquete.Categorias ?? []) yield return new(TipoMaestro.Categoria, d.Id, d.Codigo, null, d);
+        foreach (var d in paquete.Marcas ?? []) yield return new(TipoMaestro.Marca, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.UnidadesMedida ?? []) yield return new(TipoMaestro.UnidadMedida, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.Impuestos ?? []) yield return new(TipoMaestro.Impuesto, d.Id, d.Codigo, null, d);
         foreach (var d in paquete.Articulos ?? []) yield return new(TipoMaestro.Articulo, d.Id, d.Codigo, null, d);
@@ -64,7 +66,7 @@ internal static class FormatoMaestros
         List<T>? Lista<T>(TipoMaestro tipo) => porTipo.Contains(tipo) ? porTipo[tipo].Select(Leer<T>).ToList() : null;
 
         return new PaqueteMaestros(
-            Familias: Lista<FamiliaCarga>(TipoMaestro.Familia),
+            Departamentos: Lista<DepartamentoCarga>(TipoMaestro.Departamento),
             UnidadesMedida: Lista<UnidadMedidaCarga>(TipoMaestro.UnidadMedida),
             Impuestos: Lista<ImpuestoCarga>(TipoMaestro.Impuesto),
             Articulos: Lista<ArticuloCarga>(TipoMaestro.Articulo),
@@ -84,7 +86,9 @@ internal static class FormatoMaestros
             ReglasAcumulacion: Lista<ReglaAcumulacionCarga>(TipoMaestro.ReglaAcumulacion),
             MiembrosFidelidad: Lista<MiembroFidelidadCarga>(TipoMaestro.MiembroFidelidad),
             DescuentosTarjeta: Lista<DescuentoTarjetaCarga>(TipoMaestro.DescuentoTarjeta),
-            Almacenes: Lista<AlmacenCarga>(TipoMaestro.Almacen));
+            Almacenes: Lista<AlmacenCarga>(TipoMaestro.Almacen),
+            Categorias: Lista<CategoriaCarga>(TipoMaestro.Categoria),
+            Marcas: Lista<MarcaCarga>(TipoMaestro.Marca));
     }
 
     public static List<T> Filtrar<T>(IEnumerable<MaestroCentral> filas, TipoMaestro tipo) => filas.Where(f => f.Tipo == tipo).Select(Leer<T>).ToList();

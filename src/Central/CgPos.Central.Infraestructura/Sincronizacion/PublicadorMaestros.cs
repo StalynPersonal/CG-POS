@@ -310,32 +310,80 @@ internal sealed class PublicadorMaestros(
             return ids;
         }
 
+        // Departamento de cada categoría, con las del paquete sobre las publicadas.
+        async Task<Dictionary<Guid, Guid>> DepartamentoDeCategoriaAsync()
+        {
+            var filas = publicados.Any(m => m.Tipo == TipoMaestro.Categoria)
+                ? publicados.Where(m => m.Tipo == TipoMaestro.Categoria).ToList()
+                : await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Categoria).ToListAsync(cancelacion);
+            var mapa = filas.Select(FormatoMaestros.Leer<CategoriaCarga>).ToDictionary(c => c.Id, c => c.DepartamentoId);
+            foreach (var categoria in paquete.Categorias ?? [])
+                mapa[categoria.Id] = categoria.DepartamentoId;
+            return mapa;
+        }
+
+        if (paquete.Categorias is { Count: > 0 } categorias)
+        {
+            var departamentos = await IdsAsync(TipoMaestro.Departamento, (paquete.Departamentos ?? []).Select(d => d.Id));
+            foreach (var categoria in categorias.Where(c => !departamentos.Contains(c.DepartamentoId)))
+                errores.Add($"La categoría '{categoria.Codigo}' referencia un departamento inexistente ({categoria.DepartamentoId}).");
+
+            // Cambiar una categoría de departamento dejaría artículos con una categoría de otro departamento.
+            var idsCategorias = categorias.Select(c => c.Id).ToHashSet();
+            var nuevoDepartamento = categorias.ToDictionary(c => c.Id, c => c.DepartamentoId);
+            var articulosPublicados = await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo).ToListAsync(cancelacion);
+            var idsArticulosPaquete = (paquete.Articulos ?? []).Select(a => a.Id).ToHashSet();
+            foreach (var articulo in articulosPublicados.Where(m => !idsArticulosPaquete.Contains(m.Id)).Select(FormatoMaestros.Leer<ArticuloCarga>)
+                         .Where(a => a.CategoriaId is { } id && idsCategorias.Contains(id) && nuevoDepartamento[id] != a.DepartamentoId))
+                errores.Add($"El artículo '{articulo.Codigo}' tiene esa categoría en otro departamento; cámbielo antes de mover la categoría.");
+        }
+
         if (paquete.Articulos is { Count: > 0 } articulos)
         {
-            var familias = await IdsAsync(TipoMaestro.Familia, (paquete.Familias ?? []).Select(f => f.Id));
+            var departamentos = await IdsAsync(TipoMaestro.Departamento, (paquete.Departamentos ?? []).Select(f => f.Id));
             var unidades = await IdsAsync(TipoMaestro.UnidadMedida, (paquete.UnidadesMedida ?? []).Select(u => u.Id));
             var impuestos = await IdsAsync(TipoMaestro.Impuesto, (paquete.Impuestos ?? []).Select(i => i.Id));
+            var marcas = await IdsAsync(TipoMaestro.Marca, (paquete.Marcas ?? []).Select(m => m.Id));
+            var departamentoDeCategoria = await DepartamentoDeCategoriaAsync();
 
             foreach (var articulo in articulos)
             {
                 var etiqueta = $"El artículo '{articulo.Codigo}'";
-                if (!familias.Contains(articulo.FamiliaId)) errores.Add($"{etiqueta} referencia una familia inexistente ({articulo.FamiliaId}).");
+                if (!departamentos.Contains(articulo.DepartamentoId)) errores.Add($"{etiqueta} referencia un departamento inexistente ({articulo.DepartamentoId}).");
                 if (!unidades.Contains(articulo.UnidadMedidaId)) errores.Add($"{etiqueta} referencia una unidad de medida inexistente ({articulo.UnidadMedidaId}).");
                 if (!impuestos.Contains(articulo.ImpuestoId)) errores.Add($"{etiqueta} referencia un impuesto inexistente ({articulo.ImpuestoId}).");
+                if (articulo.MarcaId is { } marcaId && !marcas.Contains(marcaId)) errores.Add($"{etiqueta} referencia una marca inexistente ({marcaId}).");
+                if (articulo.CategoriaId is { } categoriaId)
+                {
+                    if (!departamentoDeCategoria.TryGetValue(categoriaId, out var departamentoCategoria))
+                        errores.Add($"{etiqueta} referencia una categoría inexistente ({categoriaId}).");
+                    else if (departamentoCategoria != articulo.DepartamentoId)
+                        errores.Add($"{etiqueta} tiene una categoría que no es de su departamento.");
+                }
             }
 
-            // Un código de barras o de proveedor identifica a un solo artículo en toda la empresa.
+            // El código interno, los de barras y los de proveedor identifican a un solo artículo en toda la empresa: la caja busca por cualquiera de ellos.
             var idsDelPaquete = articulos.Select(a => a.Id).ToHashSet();
             var duenoPorCodigo = new Dictionary<string, (Guid Id, string Articulo)>(StringComparer.OrdinalIgnoreCase);
-            foreach (var publicado in publicados.Where(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id)).Select(FormatoMaestros.Leer<ArticuloCarga>))
-                foreach (var codigo in (publicado.CodigosBarras ?? []).Concat(publicado.CodigosProveedor ?? []))
-                    duenoPorCodigo[codigo.Trim()] = (publicado.Id, publicado.Codigo);
+            IEnumerable<string> Codigos(ArticuloCarga articulo) =>
+                new[] { articulo.Codigo }.Concat(articulo.CodigosBarras ?? []).Concat(articulo.CodigosProveedor ?? []).Select(c => c.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
+
+            var articulosPublicados = publicados.Any(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id))
+                ? publicados.Where(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id)).ToList()
+                : await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id)).ToListAsync(cancelacion);
+            foreach (var publicado in articulosPublicados.Select(FormatoMaestros.Leer<ArticuloCarga>))
+                foreach (var codigo in Codigos(publicado))
+                    duenoPorCodigo[codigo] = (publicado.Id, publicado.Codigo);
 
             foreach (var articulo in articulos)
-                foreach (var codigo in (articulo.CodigosBarras ?? []).Concat(articulo.CodigosProveedor ?? []).Select(c => c.Trim()))
+                foreach (var codigo in Codigos(articulo))
                 {
-                    if (duenoPorCodigo.TryGetValue(codigo, out var dueno) && dueno.Id != articulo.Id)
-                        errores.Add($"El código '{codigo}' está en los artículos '{dueno.Articulo}' y '{articulo.Codigo}'.");
+                    // Dos artículos con el mismo código interno ya se informan como código repetido con otro Id.
+                    var mismoInterno = string.Equals(codigo, articulo.Codigo.Trim(), StringComparison.OrdinalIgnoreCase)
+                                       && duenoPorCodigo.TryGetValue(codigo, out var otroInterno)
+                                       && string.Equals(codigo, otroInterno.Articulo, StringComparison.OrdinalIgnoreCase);
+                    if (!mismoInterno && duenoPorCodigo.TryGetValue(codigo, out var dueno) && dueno.Id != articulo.Id)
+                        errores.Add($"El código '{codigo}' ya lo usa el artículo '{dueno.Articulo}' (como código interno, de barras o de proveedor); no puede estar también en '{articulo.Codigo}'.");
                     duenoPorCodigo[codigo] = (articulo.Id, articulo.Codigo);
                 }
         }
@@ -389,7 +437,9 @@ internal sealed class PublicadorMaestros(
 
         if (paquete.Promociones is { Count: > 0 } promociones)
         {
-            var familiasPromocion = await IdsExistentesAsync(TipoMaestro.Familia, promociones.SelectMany(p => p.Familias ?? []), (paquete.Familias ?? []).Select(f => f.Id), cancelacion);
+            var departamentosPromocion = await IdsExistentesAsync(TipoMaestro.Departamento, promociones.SelectMany(p => p.Departamentos ?? []), (paquete.Departamentos ?? []).Select(f => f.Id), cancelacion);
+            var categoriasPromocion = await IdsExistentesAsync(TipoMaestro.Categoria, promociones.SelectMany(p => p.Categorias ?? []), (paquete.Categorias ?? []).Select(c => c.Id), cancelacion);
+            var marcasPromocion = await IdsExistentesAsync(TipoMaestro.Marca, promociones.SelectMany(p => p.Marcas ?? []), (paquete.Marcas ?? []).Select(m => m.Id), cancelacion);
             var articulosPromocion = await IdsExistentesAsync(TipoMaestro.Articulo, promociones.SelectMany(p => p.Articulos ?? []), (paquete.Articulos ?? []).Select(a => a.Id), cancelacion);
             var sucursalesExistentes = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
             foreach (var promocion in promociones)
@@ -397,8 +447,12 @@ internal sealed class PublicadorMaestros(
                 var etiqueta = $"La promoción '{promocion.Codigo}'";
                 if ((promocion.Articulos ?? []).Count(id => id != Guid.Empty && !articulosPromocion.Contains(id)) is var sinArticulo and > 0)
                     errores.Add($"{etiqueta} referencia {sinArticulo} artículo(s) inexistente(s).");
-                if ((promocion.Familias ?? []).Count(id => id != Guid.Empty && !familiasPromocion.Contains(id)) is var sinFamilia and > 0)
-                    errores.Add($"{etiqueta} referencia {sinFamilia} familia(s) inexistente(s).");
+                if ((promocion.Departamentos ?? []).Count(id => id != Guid.Empty && !departamentosPromocion.Contains(id)) is var sinDepartamento and > 0)
+                    errores.Add($"{etiqueta} referencia {sinDepartamento} departamento(s) inexistente(s).");
+                if ((promocion.Categorias ?? []).Count(id => id != Guid.Empty && !categoriasPromocion.Contains(id)) is var sinCategoria and > 0)
+                    errores.Add($"{etiqueta} referencia {sinCategoria} categoría(s) inexistente(s).");
+                if ((promocion.Marcas ?? []).Count(id => id != Guid.Empty && !marcasPromocion.Contains(id)) is var sinMarca and > 0)
+                    errores.Add($"{etiqueta} referencia {sinMarca} marca(s) inexistente(s).");
                 if ((promocion.Sucursales ?? []).Count(id => id != Guid.Empty && !sucursalesExistentes.Contains(id)) is var sinSucursal and > 0)
                     errores.Add($"{etiqueta} referencia {sinSucursal} sucursal(es) inexistente(s).");
             }
@@ -406,14 +460,20 @@ internal sealed class PublicadorMaestros(
 
         if (paquete.TopesDescuento is { Count: > 0 } topes)
         {
-            var familias = await IdsExistentesAsync(TipoMaestro.Familia, topes.Select(t => t.FamiliaId).OfType<Guid>(), (paquete.Familias ?? []).Select(f => f.Id), cancelacion);
+            var departamentos = await IdsExistentesAsync(TipoMaestro.Departamento, topes.Select(t => t.DepartamentoId).OfType<Guid>(), (paquete.Departamentos ?? []).Select(f => f.Id), cancelacion);
             var articulosTope = await IdsExistentesAsync(TipoMaestro.Articulo, topes.Select(t => t.ArticuloId).OfType<Guid>(), (paquete.Articulos ?? []).Select(a => a.Id), cancelacion);
+            var categoriasTope = await IdsExistentesAsync(TipoMaestro.Categoria, topes.Select(t => t.CategoriaId).OfType<Guid>(), (paquete.Categorias ?? []).Select(c => c.Id), cancelacion);
+            var marcasTope = await IdsExistentesAsync(TipoMaestro.Marca, topes.Select(t => t.MarcaId).OfType<Guid>(), (paquete.Marcas ?? []).Select(m => m.Id), cancelacion);
             foreach (var tope in topes)
             {
-                if (tope.FamiliaId is { } familiaId && !familias.Contains(familiaId))
-                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia una familia inexistente ({familiaId}).");
+                if (tope.DepartamentoId is { } departamentoId && !departamentos.Contains(departamentoId))
+                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia un departamento inexistente ({departamentoId}).");
                 if (tope.ArticuloId is { } articuloId && !articulosTope.Contains(articuloId))
                     errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia un artículo inexistente ({articuloId}).");
+                if (tope.CategoriaId is { } categoriaId && !categoriasTope.Contains(categoriaId))
+                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia una categoría inexistente ({categoriaId}).");
+                if (tope.MarcaId is { } marcaId && !marcasTope.Contains(marcaId))
+                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia una marca inexistente ({marcaId}).");
             }
 
             // Dentro de un alcance, la caja toma el tope del nivel del autorizador: dos topes del mismo nivel y alcance serían ambiguos.
@@ -421,10 +481,14 @@ internal sealed class PublicadorMaestros(
             foreach (var repetido in publicados.Where(m => m.Tipo == TipoMaestro.TopeDescuento && !idsTopes.Contains(m.Id))
                          .Select(FormatoMaestros.Leer<TopeDescuentoCarga>)
                          .Concat(topes)
-                         .GroupBy(t => (t.Nivel, t.FamiliaId, t.ArticuloId))
+                         .GroupBy(t => (t.Nivel, t.DepartamentoId, t.ArticuloId, t.CategoriaId, t.MarcaId))
                          .Where(g => g.Count() > 1))
             {
-                var alcance = repetido.Key.ArticuloId is not null ? "ese artículo" : repetido.Key.FamiliaId is not null ? "esa familia" : "el alcance general";
+                var alcance = repetido.Key.ArticuloId is not null ? "ese artículo"
+                    : repetido.Key.CategoriaId is not null ? "esa categoría"
+                    : repetido.Key.MarcaId is not null ? "esa marca"
+                    : repetido.Key.DepartamentoId is not null ? "ese departamento"
+                    : "el alcance general";
                 errores.Add($"Ya hay un tope de descuento de nivel {repetido.Key.Nivel} para {alcance}; cambie ese tope.");
             }
         }

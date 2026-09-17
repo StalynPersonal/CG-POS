@@ -22,7 +22,7 @@ internal sealed class DescuentoTarjetaConfiguracion : IEntityTypeConfiguration<D
 
 internal sealed class PromocionConfiguracion : IEntityTypeConfiguration<Promocion>
 {
-    // Las listas de artículos, familias y sucursales se guardan como Ids separados por coma: la caja filtra en memoria
+    // Las listas de artículos, departamentos y sucursales se guardan como Ids separados por coma: la caja filtra en memoria
     // las pocas ofertas vigentes, así no depende de funciones JSON (SQL Server 2014 en desarrollo).
     private static readonly ValueConverter<List<Guid>, string> ConversorIds = new(
         lista => string.Join(",", lista),
@@ -47,11 +47,15 @@ internal sealed class PromocionConfiguracion : IEntityTypeConfiguration<Promocio
         constructor.Property(p => p.LimitePorCliente).HasPrecision(18, 3);
         constructor.Ignore(p => p.DescripcionCorta);
         constructor.Ignore(p => p.Articulos);
-        constructor.Ignore(p => p.Familias);
+        constructor.Ignore(p => p.Departamentos);
+        constructor.Ignore(p => p.Categorias);
+        constructor.Ignore(p => p.Marcas);
         constructor.Ignore(p => p.Sucursales);
 
         ListaIds(constructor, "_articulos", "Articulos");
-        ListaIds(constructor, "_familias", "Familias");
+        ListaIds(constructor, "_departamentos", "Departamentos");
+        ListaIds(constructor, "_categorias", "Categorias");
+        ListaIds(constructor, "_marcas", "Marcas");
         ListaIds(constructor, "_sucursales", "Sucursales");
 
         constructor.HasIndex(p => p.Codigo).IsUnique();
@@ -91,6 +95,7 @@ internal sealed class TopeDescuentoConfiguracion : IEntityTypeConfiguration<Tope
         constructor.Property(t => t.Id).ValueGeneratedNever();
         constructor.Property(t => t.PorcentajeMaximo).HasPrecision(5, 2);
         constructor.Property(t => t.MontoMaximo).HasPrecision(18, 2);
-        constructor.HasIndex(t => new { t.Nivel, t.FamiliaId, t.ArticuloId });
+        constructor.Ignore(t => t.EsGeneral);
+        constructor.HasIndex(t => new { t.Nivel, t.DepartamentoId, t.ArticuloId });
     }
 }

@@ -51,7 +51,7 @@ public sealed record ArticuloParaVenta(
     string CodigoLeido,
     string Descripcion,
     TipoArticulo Tipo,
-    Guid FamiliaId,
+    Guid DepartamentoId,
     bool PermiteDescuentoManual,
     string UnidadMedidaCodigo,
     bool PermiteDecimales,
@@ -65,7 +65,9 @@ public sealed record ArticuloParaVenta(
     decimal? PrecioMinimo,
     decimal? PesoLeido,
     decimal? PrecioLeido,
-    bool EsServicio = false);
+    bool EsServicio = false,
+    Guid? CategoriaId = null,
+    Guid? MarcaId = null);
 
 public sealed record DesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
@@ -87,7 +89,7 @@ public enum TipoDescuento
 /// <param name="Base">Importe sobre el que se calcula el descuento.</param>
 public sealed record VistaPreviaDescuento(decimal Monto, decimal Porcentaje, decimal Base);
 
-/// <param name="LineasExcluidas">Líneas elegidas que no toman el descuento (en oferta o de familias sin descuento manual, RF-204).</param>
+/// <param name="LineasExcluidas">Líneas elegidas que no toman el descuento (en oferta o de departamentos sin descuento manual, RF-204).</param>
 public sealed record ResultadoDescuentoFactura(decimal Monto, decimal Porcentaje, IReadOnlyList<int> LineasExcluidas);
 
 /// <summary>Cliente asignado a la venta: registrado, del padrón DGII o solo con documento.</summary>
@@ -648,7 +650,7 @@ public sealed class Venta : Entidad
             if (desactivada || lineas.Any(l => l.DescuentoManual > 0))
                 continue;
 
-            var candidatas = vigentes.Where(p => p.AplicaA(primera.ArticuloId, primera.FamiliaId)).ToList();
+            var candidatas = vigentes.Where(p => p.AplicaA(primera.ArticuloId, primera.DepartamentoId, primera.CategoriaId, primera.MarcaId)).ToList();
             if (candidatas.Count == 0)
                 continue;
 
@@ -706,7 +708,7 @@ public sealed class Venta : Entidad
         var linea = LineaActiva(numeroLinea);
 
         if (!linea.PermiteDescuentoManual)
-            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoNoPermitido, $"{linea.Descripcion} es de una familia que no admite descuento manual; solo ofertas.");
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoNoPermitido, $"{linea.Descripcion} es de un departamento que no admite descuento manual; solo ofertas.");
         if (linea.TienePromocionActiva)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.ArticuloEnOferta,
                 $"{linea.Descripcion} tiene la oferta {linea.PromocionCodigo}. Desactívela para aplicar un descuento manual.");
@@ -743,7 +745,7 @@ public sealed class Venta : Entidad
 
     /// <summary>
     /// Descuento a la factura por monto o porcentaje (RF-200), a todas las líneas o a las elegidas (RF-201). Se prorratea por
-    /// línea al centavo; las líneas en oferta o de familias sin descuento manual quedan fuera y se informan (RF-204).
+    /// línea al centavo; las líneas en oferta o de departamentos sin descuento manual quedan fuera y se informan (RF-204).
     /// </summary>
     public ResultadoDescuentoFactura AplicarDescuentoFactura(TipoDescuento tipo, decimal valor, IReadOnlyCollection<int>? lineas, string motivo,
         Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
@@ -756,7 +758,7 @@ public sealed class Venta : Entidad
         var (elegibles, excluidas) = ClasificarParaDescuentoFactura(seleccion);
         if (elegibles.Count == 0)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido,
-                "Ninguna línea admite el descuento: están en oferta o su familia no admite descuento manual.");
+                "Ninguna línea admite el descuento: están en oferta o su departamento no admite descuento manual.");
 
         var baseTotal = elegibles.Sum(BaseDescuentoFactura);
         var monto = CalcularMontoDescuento(tipo, valor, baseTotal);
@@ -781,7 +783,7 @@ public sealed class Venta : Entidad
         var (elegibles, _) = ClasificarParaDescuentoFactura(seleccion);
         if (elegibles.Count == 0)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido,
-                "Ninguna línea admite el descuento: están en oferta o su familia no admite descuento manual.");
+                "Ninguna línea admite el descuento: están en oferta o su departamento no admite descuento manual.");
 
         var baseTotal = elegibles.Sum(BaseDescuentoFactura);
         var monto = CalcularMontoDescuento(tipo, valor, baseTotal);
@@ -1086,7 +1088,9 @@ public sealed class LineaVenta : Entidad
 
     public string Descripcion { get; private set; } = string.Empty;
     public TipoArticulo TipoArticulo { get; private set; }
-    public Guid FamiliaId { get; private set; }
+    public Guid DepartamentoId { get; private set; }
+    public Guid? CategoriaId { get; private set; }
+    public Guid? MarcaId { get; private set; }
     public bool PermiteDescuentoManual { get; private set; }
     public string UnidadMedidaCodigo { get; private set; } = string.Empty;
     public bool PermiteDecimales { get; private set; }
@@ -1145,7 +1149,9 @@ public sealed class LineaVenta : Entidad
             CodigoLeido = articulo.CodigoLeido,
             Descripcion = articulo.Descripcion,
             TipoArticulo = articulo.Tipo,
-            FamiliaId = articulo.FamiliaId,
+            DepartamentoId = articulo.DepartamentoId,
+            CategoriaId = articulo.CategoriaId,
+            MarcaId = articulo.MarcaId,
             PermiteDescuentoManual = articulo.PermiteDescuentoManual,
             UnidadMedidaCodigo = articulo.UnidadMedidaCodigo,
             PermiteDecimales = articulo.PermiteDecimales,
@@ -1178,7 +1184,9 @@ public sealed class LineaVenta : Entidad
             CodigoLeido = original.CodigoLeido,
             Descripcion = original.Descripcion,
             TipoArticulo = original.TipoArticulo,
-            FamiliaId = original.FamiliaId,
+            DepartamentoId = original.DepartamentoId,
+            CategoriaId = original.CategoriaId,
+            MarcaId = original.MarcaId,
             PermiteDescuentoManual = original.PermiteDescuentoManual,
             UnidadMedidaCodigo = original.UnidadMedidaCodigo,
             PermiteDecimales = original.PermiteDecimales,

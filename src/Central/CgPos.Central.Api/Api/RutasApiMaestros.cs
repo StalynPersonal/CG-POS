@@ -24,7 +24,9 @@ public static class RutasApiMaestros
             Results.Ok(await servicio.ListarSucursalesAsync(cancelacion)));
 
         Catalogo<MonedaCarga>(maestros, "monedas", TipoMaestro.Moneda, d => d.Id, d => new PaqueteMaestros(Monedas: [d]));
-        Catalogo<FamiliaCarga>(maestros, "familias", TipoMaestro.Familia, d => d.Id, d => new PaqueteMaestros(Familias: [d]));
+        Catalogo<DepartamentoCarga>(maestros, "departamentos", TipoMaestro.Departamento, d => d.Id, d => new PaqueteMaestros(Departamentos: [d]));
+        Catalogo<CategoriaCarga>(maestros, "categorias", TipoMaestro.Categoria, d => d.Id, d => new PaqueteMaestros(Categorias: [d]));
+        Catalogo<MarcaCarga>(maestros, "marcas", TipoMaestro.Marca, d => d.Id, d => new PaqueteMaestros(Marcas: [d]));
         Catalogo<UnidadMedidaCarga>(maestros, "unidades-medida", TipoMaestro.UnidadMedida, d => d.Id, d => new PaqueteMaestros(UnidadesMedida: [d]));
         Catalogo<ImpuestoCarga>(maestros, "impuestos", TipoMaestro.Impuesto, d => d.Id, d => new PaqueteMaestros(Impuestos: [d]));
         Catalogo<FormaPagoCarga>(maestros, "formas-pago", TipoMaestro.FormaPago, d => d.Id, d => new PaqueteMaestros(FormasPago: [d]));
@@ -55,9 +57,13 @@ public static class RutasApiMaestros
                 IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarPreciosAsync(articuloId, solicitud, Actor(usuario), cancelacion)));
 
-        // Referencia para los topes por familia.
-        precios.MapGet("/familias", async (IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
-            Results.Ok(await servicio.ListarAsync<FamiliaCarga>(TipoMaestro.Familia, cancelacion)));
+        // Referencias para los topes por departamento, categoría o marca.
+        precios.MapGet("/departamentos", async (IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarAsync<DepartamentoCarga>(TipoMaestro.Departamento, cancelacion)));
+        precios.MapGet("/categorias", async (IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarAsync<CategoriaCarga>(TipoMaestro.Categoria, cancelacion)));
+        precios.MapGet("/marcas", async (IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarAsync<MarcaCarga>(TipoMaestro.Marca, cancelacion)));
 
         precios.MapGet("/topes", async (IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarTopesAsync(cancelacion)));

@@ -30,7 +30,7 @@
         <HeaderContent>
             <MudTh>Código</MudTh>
             <MudTh>Descripción</MudTh>
-            <MudTh>Familia</MudTh>
+            <MudTh>Departamento</MudTh>
             <MudTh>Tipo</MudTh>
             <MudTh Style="text-align: right">Detalle</MudTh>
             <MudTh Style="text-align: right">Mayor</MudTh>
@@ -47,7 +47,13 @@
                     <div class="cg-central__detalle">@string.Join(", ", context.Dato.CodigosBarras!)</div>
                 }
             </MudTd>
-            <MudTd DataLabel="Familia">@NombreFamilia(context.Dato.FamiliaId)</MudTd>
+            <MudTd DataLabel="Departamento">
+                @NombreDepartamento(context.Dato.DepartamentoId)
+                @if (Clasificacion(context.Dato) is { Length: > 0 } detalle)
+                {
+                    <div class="cg-central__detalle">@detalle</div>
+                }
+            </MudTd>
             <MudTd DataLabel="Tipo">@EtiquetasArticulo.Tipo(context.Dato.Tipo)</MudTd>
             <MudTd DataLabel="Detalle" Style="text-align: right">@context.Dato.PrecioDetalle.ToString("N2")</MudTd>
             <MudTd DataLabel="Mayor" Style="text-align: right">@context.Dato.PrecioMayor?.ToString("N2")</MudTd>
@@ -86,7 +92,14 @@
 
     protected override async Task OnInitializedAsync() => _referencias = await ReferenciasArticulo.CargarAsync(Cliente);
 
-    private string NombreFamilia(Guid familiaId) => _referencias.Familias.FirstOrDefault(f => f.Id == familiaId)?.Nombre ?? string.Empty;
+    private string NombreDepartamento(Guid departamentoId) => _referencias.Departamentos.FirstOrDefault(f => f.Id == departamentoId)?.Nombre ?? string.Empty;
+
+    /// <summary>Categoría y marca debajo del departamento.</summary>
+    private string Clasificacion(ArticuloCarga articulo) => string.Join(" · ", new[]
+    {
+        _referencias.Categorias.FirstOrDefault(c => c.Id == articulo.CategoriaId)?.Nombre,
+        _referencias.Marcas.FirstOrDefault(m => m.Id == articulo.MarcaId)?.Nombre,
+    }.Where(texto => !string.IsNullOrEmpty(texto)));
 
     private async Task<TableData<DatosMaestroCentral<ArticuloCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)
     {

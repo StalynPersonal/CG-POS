@@ -10,7 +10,7 @@
 <div class="cg-central__encabezado">
     <div>
         <MudText Typo="Typo.h4" Class="cg-central__titulo">Promociones</MudText>
-        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Ofertas por artículo o familia. Bajan a las cajas antes de su inicio y se activan solas.</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Ofertas por artículo, departamento, categoría o marca. Bajan a las cajas antes de su inicio y se activan solas.</MudText>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Calculate" Href="promociones/simular">Simular</MudButton>
@@ -106,7 +106,9 @@
 
 @code {
     private IReadOnlyList<DatosPromocionCentral> _promociones = [];
-    private IReadOnlyList<FamiliaCarga> _familias = [];
+    private IReadOnlyList<DepartamentoCarga> _departamentos = [];
+    private IReadOnlyList<CategoriaCarga> _categorias = [];
+    private IReadOnlyList<MarcaCarga> _marcas = [];
     private IReadOnlyList<DatosSucursal> _sucursales = [];
     private string? _filtro;
     private string _vista = "activas";
@@ -139,8 +141,12 @@
         var partes = new List<string>();
         if (promocion.Articulos is { Count: > 0 } articulos)
             partes.Add(articulos.Count == 1 ? "1 artículo" : $"{articulos.Count} artículos");
-        if (promocion.Familias is { Count: > 0 } familias)
-            partes.Add(string.Join(", ", familias.Select(id => _familias.FirstOrDefault(f => f.Id == id)?.Nombre ?? "familia")));
+        if (promocion.Departamentos is { Count: > 0 } departamentos)
+            partes.Add(string.Join(", ", departamentos.Select(id => _departamentos.FirstOrDefault(f => f.Id == id)?.Nombre ?? "departamento")));
+        if (promocion.Categorias is { Count: > 0 } categorias)
+            partes.Add(string.Join(", ", categorias.Select(id => _categorias.FirstOrDefault(c => c.Id == id)?.Nombre ?? "categoría")));
+        if (promocion.Marcas is { Count: > 0 } marcas)
+            partes.Add(string.Join(", ", marcas.Select(id => _marcas.FirstOrDefault(m => m.Id == id)?.Nombre ?? "marca")));
         return partes.Count == 0 ? "Sin alcance" : string.Join(" · ", partes);
     }
 
@@ -150,7 +156,9 @@
     {
         _cargando = true;
         var promociones = await Cliente.ListarPromocionesAsync();
-        _familias = (await Cliente.ListarFamiliasPromocionesAsync() ?? []).Select(f => f.Dato).OrderBy(f => f.Nombre, StringComparer.CurrentCulture).ToList();
+        _departamentos = (await Cliente.ListarDepartamentosPromocionesAsync() ?? []).Select(f => f.Dato).OrderBy(f => f.Nombre, StringComparer.CurrentCulture).ToList();
+        _categorias = (await Cliente.ListarCategoriasPromocionesAsync() ?? []).Select(c => c.Dato).OrderBy(c => c.Nombre, StringComparer.CurrentCulture).ToList();
+        _marcas = (await Cliente.ListarMarcasPromocionesAsync() ?? []).Select(m => m.Dato).OrderBy(m => m.Nombre, StringComparer.CurrentCulture).ToList();
         _sucursales = await Cliente.ListarSucursalesPromocionesAsync() ?? [];
         _error = promociones is null;
         _promociones = promociones ?? [];
@@ -162,7 +170,9 @@
         var parametros = new DialogParameters<DialogoPromocion>
         {
             { d => d.Promocion, promocion },
-            { d => d.Familias, _familias },
+            { d => d.Departamentos, _departamentos },
+            { d => d.Categorias, _categorias },
+            { d => d.Marcas, _marcas },
             { d => d.Sucursales, _sucursales },
         };
         var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };

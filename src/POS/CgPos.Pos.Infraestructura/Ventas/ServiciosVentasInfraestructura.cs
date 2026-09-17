@@ -111,10 +111,10 @@ internal static class ConversionesVenta
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
         new(
-            datos.ArticuloId, datos.Codigo, datos.CodigoLeido, datos.Descripcion, datos.Tipo, datos.FamiliaId, datos.PermiteDescuentoManual,
+            datos.ArticuloId, datos.Codigo, datos.CodigoLeido, datos.Descripcion, datos.Tipo, datos.DepartamentoId, datos.PermiteDescuentoManual,
             datos.UnidadMedidaCodigo, datos.PermiteDecimales, datos.DecimalesCantidad, datos.ImpuestoId, datos.PorcentajeImpuesto,
             datos.IndicadorFacturacion, datos.PrecioDetalle, datos.PrecioMayor, datos.CantidadMinimaMayor, datos.PrecioMinimo,
-            datos.PesoLeido, datos.PrecioLeido, datos.EsServicio);
+            datos.PesoLeido, datos.PrecioLeido, datos.EsServicio, datos.CategoriaId, datos.MarcaId);
 
     public static CodigoResultadoVenta ACodigoResultado(this CodigoErrorVenta codigo) => codigo switch
     {
@@ -547,7 +547,7 @@ internal sealed class ServicioVentas(
         var proporcion = resultado.TotalCobrado <= 0 ? 0m : 1m - pagadoConPuntos / resultado.TotalCobrado;
         var ahoraLocal = reloj.GetLocalNow();
         var acumulados = ReglasFidelidad.CalcularPuntos(
-            venta.Lineas.Where(l => l.EstaActiva).Select(l => new LineaPuntuable(l.ArticuloId, l.FamiliaId, l.PromocionId, l.ImporteConImpuesto)),
+            venta.Lineas.Where(l => l.EstaActiva).Select(l => new LineaPuntuable(l.ArticuloId, l.DepartamentoId, l.PromocionId, l.ImporteConImpuesto, l.CategoriaId, l.MarcaId)),
             reglas, factor ?? 1m, proporcion, ahoraLocal);
         venta.RegistrarPuntos(acumulados, puntosCanjeados);
 
@@ -1234,7 +1234,8 @@ internal sealed class ServicioVentas(
             return SinPermiso(permiso, CatalogoPermisos.DescuentoLinea, venta);
 
         var linea = venta.Lineas.Single(l => l.NumeroLinea == numeroLinea && l.EstaActiva);
-        if (await RechazoPorTopeAsync(sesion, permiso, CatalogoPermisos.DescuentoLinea, linea.ArticuloId, linea.FamiliaId, vista, venta, cancelacion) is { } excedido)
+        if (await RechazoPorTopeAsync(sesion, permiso, CatalogoPermisos.DescuentoLinea, linea.ArticuloId, linea.DepartamentoId, vista, venta, cancelacion,
+                linea.CategoriaId, linea.MarcaId) is { } excedido)
             return excedido;
 
         return await EjecutarAsync(venta, () =>
@@ -1302,7 +1303,7 @@ internal sealed class ServicioVentas(
 
         return respuesta with
         {
-            Mensaje = $"Las líneas {string.Join(", ", conExcluidas.LineasExcluidas)} no tomaron el descuento: están en oferta o su familia no admite descuento manual.",
+            Mensaje = $"Las líneas {string.Join(", ", conExcluidas.LineasExcluidas)} no tomaron el descuento: están en oferta o su departamento no admite descuento manual.",
             LineasExcluidas = conExcluidas.LineasExcluidas,
         };
     }
@@ -1395,13 +1396,16 @@ internal sealed class ServicioVentas(
 
     public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(SesionUsuario sesion, Guid articuloId, CancellationToken cancelacion = default)
     {
-        var familiaId = await contexto.Articulos.Where(a => a.Id == articuloId).Select(a => (Guid?)a.FamiliaId).SingleOrDefaultAsync(cancelacion);
-        if (familiaId is null)
+        var clasificacion = await contexto.Articulos.Where(a => a.Id == articuloId)
+            .Select(a => new { a.DepartamentoId, a.CategoriaId, a.MarcaId })
+            .SingleOrDefaultAsync(cancelacion);
+        if (clasificacion is null)
             return [];
 
         var ahoraLocal = reloj.GetLocalNow();
         return (await PromocionesAsync(cancelacion))
-            .Where(p => p.EstaVigente(sesion.SucursalId, ahoraLocal) && p.AplicaA(articuloId, familiaId.Value))
+            .Where(p => p.EstaVigente(sesion.SucursalId, ahoraLocal)
+                && p.AplicaA(articuloId, clasificacion.DepartamentoId, clasificacion.CategoriaId, clasificacion.MarcaId))
             .OrderBy(p => p.VigenteHasta)
             .Select(p => new DatosPromocionVigente(p.Id, p.Codigo, p.Nombre, p.DescripcionCorta, p.Tipo, p.VigenteHasta))
             .ToList();
@@ -1435,8 +1439,8 @@ internal sealed class ServicioVentas(
     }
 
     /// <summary>Compara el descuento con el tope del nivel de quien lo autoriza (RN-10); el nivel es el del supervisor si hubo clave.</summary>
-    private async Task<RespuestaVenta?> RechazoPorTopeAsync(SesionUsuario sesion, ResultadoPermiso permiso, string codigoPermiso, Guid? articuloId, Guid? familiaId,
-        VistaPreviaDescuento vista, Venta venta, CancellationToken cancelacion)
+    private async Task<RespuestaVenta?> RechazoPorTopeAsync(SesionUsuario sesion, ResultadoPermiso permiso, string codigoPermiso, Guid? articuloId, Guid? departamentoId,
+        VistaPreviaDescuento vista, Venta venta, CancellationToken cancelacion, Guid? categoriaId = null, Guid? marcaId = null)
     {
         var nivel = permiso.SupervisorId is { } supervisorId
             ? await (from usuario in contexto.Usuarios
@@ -1446,7 +1450,7 @@ internal sealed class ServicioVentas(
             : sesion.Nivel;
 
         var topes = await contexto.TopesDescuento.AsNoTracking().ToListAsync(cancelacion);
-        var evaluacion = ReglasTopeDescuento.Evaluar(topes, nivel, articuloId, familiaId, vista.Porcentaje, vista.Monto);
+        var evaluacion = ReglasTopeDescuento.Evaluar(topes, nivel, articuloId, departamentoId, vista.Porcentaje, vista.Monto, categoriaId, marcaId);
         if (evaluacion.Permitido)
             return null;
 
@@ -1456,7 +1460,7 @@ internal sealed class ServicioVentas(
         {
             var sinTopes = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
             return new RespuestaVenta(CodigoResultadoVenta.DescuentoNoPermitido,
-                "No hay topes de descuento configurados (del artículo, su familia ni generales): el descuento manual no se permite hasta configurarlos en el Central.",
+                "No hay topes de descuento configurados (del artículo, su departamento ni generales): el descuento manual no se permite hasta configurarlos en el Central.",
                 Datos(sinTopes));
         }
 

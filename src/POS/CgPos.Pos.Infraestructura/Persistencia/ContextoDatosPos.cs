@@ -33,7 +33,9 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     // Maestros y catálogos (M03)
-    public DbSet<Familia> Familias => Set<Familia>();
+    public DbSet<Departamento> Departamentos => Set<Departamento>();
+    public DbSet<Categoria> Categorias => Set<Categoria>();
+    public DbSet<Marca> Marcas => Set<Marca>();
     public DbSet<UnidadMedida> UnidadesMedida => Set<UnidadMedida>();
     public DbSet<Impuesto> Impuestos => Set<Impuesto>();
     public DbSet<Articulo> Articulos => Set<Articulo>();

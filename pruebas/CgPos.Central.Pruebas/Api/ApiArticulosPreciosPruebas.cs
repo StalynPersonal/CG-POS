@@ -19,13 +19,13 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
-        var familia = (await ListarAsync<DatosMaestroCentral<FamiliaCarga>>(cliente, admin, "/api/maestros/familias")).First(f => f.Dato.Activa).Dato;
+        var departamento = (await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/maestros/departamentos")).First(f => f.Dato.Activa).Dato;
         var unidad = (await ListarAsync<DatosMaestroCentral<UnidadMedidaCarga>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
         var impuesto = (await ListarAsync<DatosMaestroCentral<ImpuestoCarga>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
         var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var barras = $"99{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}";
 
-        var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"A{sufijo}", $"Jabón de prueba {sufijo}", familia.Id, unidad.Id, impuesto.Id, 150m,
+        var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"A{sufijo}", $"Jabón de prueba {sufijo}", departamento.Id, unidad.Id, impuesto.Id, 150m,
             PrecioMayor: 140m, CantidadMinimaMayor: 12m, CodigosBarras: [barras]);
         var creado = await EnviarAsync(cliente, admin, $"/api/maestros/articulos/{articulo.Id}", articulo);
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
@@ -45,7 +45,7 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
         Assert.Contains("No se puede cambiar el código del artículo",
             (await EnviarAsync(cliente, admin, $"/api/maestros/articulos/{articulo.Id}", articulo with { Codigo = $"B{sufijo}" })).Cuerpo!.Mensaje);
         var otro = articulo with { Id = Guid.CreateVersion7(), Codigo = $"C{sufijo}" };
-        Assert.Contains("está en los artículos", (await EnviarAsync(cliente, admin, $"/api/maestros/articulos/{otro.Id}", otro)).Cuerpo!.Mensaje);
+        Assert.Contains("ya lo usa el artículo", (await EnviarAsync(cliente, admin, $"/api/maestros/articulos/{otro.Id}", otro)).Cuerpo!.Mensaje);
 
         var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
         var vigencia = new DateTimeOffset(2026, 10, 1, 6, 0, 0, TimeSpan.FromHours(-4));
@@ -69,24 +69,24 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var sufijo = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
-        var familia = new FamiliaCarga(Guid.CreateVersion7(), $"T{sufijo}", $"Familia topes {sufijo}");
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/familias/{familia.Id}", familia)).Cuerpo!.Exitosa);
+        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"T{sufijo}", $"Departamento topes {sufijo}");
+        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{departamento.Id}", departamento)).Cuerpo!.Exitosa);
 
-        var tope = new TopeDescuentoCarga(Guid.CreateVersion7(), 2, 15m, null, FamiliaId: familia.Id);
+        var tope = new TopeDescuentoCarga(Guid.CreateVersion7(), 2, 15m, null, DepartamentoId: departamento.Id);
         var guardado = await EnviarAsync(cliente, admin, $"/api/precios/topes/{tope.Id}", tope);
         Assert.True(guardado.Cuerpo!.Exitosa, guardado.Cuerpo.Mensaje);
         Assert.True((await EnviarAsync(cliente, admin, $"/api/precios/topes/{tope.Id}", tope with { PorcentajeMaximo = 20m })).Cuerpo!.Exitosa);
 
         var repetido = tope with { Id = Guid.CreateVersion7(), PorcentajeMaximo = 5m };
-        Assert.Contains("Ya hay un tope de descuento de nivel 2 para esa familia", (await EnviarAsync(cliente, admin, $"/api/precios/topes/{repetido.Id}", repetido)).Cuerpo!.Mensaje);
-        var sinFamilia = tope with { Id = Guid.CreateVersion7(), FamiliaId = Guid.CreateVersion7() };
-        Assert.Contains("familia inexistente", (await EnviarAsync(cliente, admin, $"/api/precios/topes/{sinFamilia.Id}", sinFamilia)).Cuerpo!.Mensaje);
+        Assert.Contains("Ya hay un tope de descuento de nivel 2 para ese departamento", (await EnviarAsync(cliente, admin, $"/api/precios/topes/{repetido.Id}", repetido)).Cuerpo!.Mensaje);
+        var sinDepartamento = tope with { Id = Guid.CreateVersion7(), DepartamentoId = Guid.CreateVersion7() };
+        Assert.Contains("departamento inexistente", (await EnviarAsync(cliente, admin, $"/api/precios/topes/{sinDepartamento.Id}", sinDepartamento)).Cuerpo!.Mensaje);
         var ambos = tope with { Id = Guid.CreateVersion7(), Nivel = 3, ArticuloId = Guid.CreateVersion7() };
         Assert.Equal(HttpStatusCode.BadRequest, (await EnviarAsync(cliente, admin, $"/api/precios/topes/{ambos.Id}", ambos)).Estado);
 
         var listado = Assert.Single(await ListarAsync<DatosTopeDescuentoCentral>(cliente, admin, "/api/precios/topes"), t => t.Tope.Id == tope.Id);
-        Assert.Equal((20m, $"Familia T{sufijo} · Familia topes {sufijo}"), (listado.Tope.PorcentajeMaximo!.Value, listado.Alcance));
-        Assert.Contains(await ListarAsync<DatosMaestroCentral<FamiliaCarga>>(cliente, admin, "/api/precios/familias"), f => f.Dato.Id == familia.Id);
+        Assert.Equal((20m, $"Departamento T{sufijo} · Departamento topes {sufijo}"), (listado.Tope.PorcentajeMaximo!.Value, listado.Alcance));
+        Assert.Contains(await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/precios/departamentos"), f => f.Dato.Id == departamento.Id);
     }
 
     [SkippableFact]

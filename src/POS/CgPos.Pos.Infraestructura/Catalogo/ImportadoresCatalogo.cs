@@ -15,7 +15,7 @@ namespace CgPos.Pos.Infraestructura.Catalogo;
 
 internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditoria auditoria, TimeProvider reloj) : IImportadorArticulos
 {
-    private static readonly string[] ColumnasObligatorias = ["codigo", "descripcion", "familia", "unidad", "impuesto", "precio_detalle"];
+    private static readonly string[] ColumnasObligatorias = ["codigo", "descripcion", "departamento", "unidad", "impuesto", "precio_detalle"];
 
     public async Task<ResultadoImportacionArticulos> ImportarCsvAsync(Stream contenido, string origen, CancellationToken cancelacion = default)
     {
@@ -36,9 +36,11 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
         if (faltantes.Count > 0)
             throw new CargaMaestrosInvalidaExcepcion([$"Faltan columnas obligatorias: {string.Join(", ", faltantes)}."]);
 
-        var familias = await contexto.Familias.ToDictionaryAsync(f => f.Codigo, f => f.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
+        var departamentos = await contexto.Departamentos.ToDictionaryAsync(f => f.Codigo, f => f.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
         var unidades = await contexto.UnidadesMedida.ToDictionaryAsync(u => u.Codigo, u => u.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
         var impuestos = await contexto.Impuestos.ToDictionaryAsync(i => i.Codigo, i => i.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
+        var categorias = await contexto.Categorias.ToDictionaryAsync(c => c.Codigo, c => (c.Id, c.DepartamentoId), StringComparer.OrdinalIgnoreCase, cancelacion);
+        var marcas = await contexto.Marcas.ToDictionaryAsync(m => m.Codigo, m => m.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
 
         var ahora = reloj.GetUtcNow();
         var errores = new List<ErrorImportacion>();
@@ -64,9 +66,20 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
                     throw new FormatException($"El código '{codigo}' está repetido en el archivo.");
 
                 var descripcion = Valor("descripcion") ?? throw new FormatException("Falta la descripción.");
-                var familiaId = BuscarId(familias, Valor("familia"), "familia");
-                var unidadId = BuscarId(unidades, Valor("unidad"), "unidad de medida");
-                var impuestoId = BuscarId(impuestos, Valor("impuesto"), "impuesto");
+                var departamentoId = BuscarId(departamentos, Valor("departamento"), "el departamento");
+                var unidadId = BuscarId(unidades, Valor("unidad"), "la unidad de medida");
+                var impuestoId = BuscarId(impuestos, Valor("impuesto"), "el impuesto");
+                Guid? categoriaId = null;
+                if (Valor("categoria") is { } codigoCategoria)
+                {
+                    if (!categorias.TryGetValue(codigoCategoria, out var categoria))
+                        throw new FormatException($"No existe la categoría '{codigoCategoria}'.");
+                    if (categoria.DepartamentoId != departamentoId)
+                        throw new FormatException($"La categoría '{codigoCategoria}' no es del departamento del artículo.");
+                    categoriaId = categoria.Id;
+                }
+
+                Guid? marcaId = Valor("marca") is { } codigoMarca ? BuscarId(marcas, codigoMarca, "la marca") : null;
                 var precioDetalle = LeerDecimal(Valor("precio_detalle"), "precio_detalle") ?? throw new FormatException("Falta el precio detalle.");
                 var precioMayor = LeerDecimal(Valor("precio_mayor"), "precio_mayor");
                 var tipo = Valor("tipo") is { } textoTipo
@@ -87,9 +100,10 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
                     throw new FormatException("Los precios deben ser mayores que cero.");
 
                 // Se valida todo contra un artículo de prueba antes de tocar el real: una línea con error no deja cambios a medias.
-                var prueba = Articulo.Crear(codigo, descripcion, familiaId, unidadId, impuestoId, tipo);
-                prueba.ActualizarDatos(descripcion, Valor("referencia"), familiaId, unidadId, impuestoId, tipo);
+                var prueba = Articulo.Crear(codigo, descripcion, departamentoId, unidadId, impuestoId, tipo);
+                prueba.ActualizarDatos(descripcion, Valor("referencia"), departamentoId, unidadId, impuestoId, tipo);
                 prueba.ConfigurarPrecios(costo, precioMinimo, cantidadMinimaMayor);
+                prueba.Clasificar(categoriaId, marcaId);
                 prueba.ConfigurarPresentacion(Valor("ruta_imagen"), mostrarEnCatalogo, ventaEnPos: true);
                 prueba.ReemplazarCodigos(codigos);
 
@@ -112,8 +126,9 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
                 }
                 else
                 {
-                    articulo.ActualizarDatos(descripcion, Valor("referencia"), familiaId, unidadId, impuestoId, tipo);
+                    articulo.ActualizarDatos(descripcion, Valor("referencia"), departamentoId, unidadId, impuestoId, tipo);
                     articulo.ConfigurarPrecios(costo, precioMinimo, cantidadMinimaMayor);
+                    articulo.Clasificar(categoriaId, marcaId);
                     articulo.ConfigurarPresentacion(Valor("ruta_imagen"), mostrarEnCatalogo, articulo.VentaEnPos);
                     articulo.ReemplazarCodigos(codigos);
                     actualizados++;
@@ -143,7 +158,7 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
     private static Guid BuscarId(Dictionary<string, Guid> ids, string? codigo, string nombre) =>
         codigo is not null && ids.TryGetValue(codigo, out var id)
             ? id
-            : throw new FormatException(codigo is null ? $"Falta la {nombre}." : $"No existe la {nombre} '{codigo}'.");
+            : throw new FormatException(codigo is null ? $"Falta {nombre}." : $"No existe {nombre} '{codigo}'.");
 
     private static decimal? LeerDecimal(string? valor, string columna) =>
         valor is null

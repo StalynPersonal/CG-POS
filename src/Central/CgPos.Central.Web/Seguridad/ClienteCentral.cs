@@ -146,7 +146,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     // ---------- Catálogos de maestros ----------
 
-    /// <param name="ruta">Ruta del catálogo (ej. "familias"); los registros llegan en su formato de carga.</param>
+    /// <param name="ruta">Ruta del catálogo (ej. "departamentos"); los registros llegan en su formato de carga.</param>
     public Task<IReadOnlyList<DatosMaestroCentral<System.Text.Json.Nodes.JsonObject>>?> ListarCatalogoAsync(string ruta) =>
         ListarAsync<DatosMaestroCentral<System.Text.Json.Nodes.JsonObject>>($"api/maestros/{ruta}");
 
@@ -156,7 +156,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesMaestrosAsync() => ListarAsync<DatosSucursal>("api/maestros/sucursales");
 
-    /// <summary>Catálogo tipado (familias, unidades…) para referencias.</summary>
+    /// <summary>Catálogo tipado (departamentos, unidades…) para referencias.</summary>
     public Task<IReadOnlyList<DatosMaestroCentral<T>>?> ListarMaestroAsync<T>(string ruta) => ListarAsync<DatosMaestroCentral<T>>($"api/maestros/{ruta}");
 
     // ---------- Clientes, artículos y precios ----------
@@ -192,8 +192,14 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud) =>
         EnviarAsync(HttpMethod.Put, $"api/precios/articulos/{articuloId}", solicitud);
 
-    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>?> ListarFamiliasPreciosAsync() =>
-        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>("api/precios/familias");
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>?> ListarDepartamentosPreciosAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>("api/precios/departamentos");
+
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.CategoriaCarga>>?> ListarCategoriasPreciosAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.CategoriaCarga>>("api/precios/categorias");
+
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.MarcaCarga>>?> ListarMarcasPreciosAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.MarcaCarga>>("api/precios/marcas");
 
     public Task<IReadOnlyList<DatosTopeDescuentoCentral>?> ListarTopesAsync() => ListarAsync<DatosTopeDescuentoCentral>("api/precios/topes");
 
@@ -216,8 +222,14 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public async Task<IReadOnlyList<CgPos.Contratos.Catalogo.ArticuloCarga>> ArticulosPromocionAsync(IReadOnlyList<Guid> ids) =>
         ids.Count == 0 ? [] : (await PostearAsync<List<CgPos.Contratos.Catalogo.ArticuloCarga>>("api/promociones/articulos/por-id", ids)).Datos ?? [];
 
-    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>?> ListarFamiliasPromocionesAsync() =>
-        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.FamiliaCarga>>("api/promociones/familias");
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>?> ListarDepartamentosPromocionesAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>("api/promociones/departamentos");
+
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.CategoriaCarga>>?> ListarCategoriasPromocionesAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.CategoriaCarga>>("api/promociones/categorias");
+
+    public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.MarcaCarga>>?> ListarMarcasPromocionesAsync() =>
+        ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.MarcaCarga>>("api/promociones/marcas");
 
     public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesPromocionesAsync() => ListarAsync<DatosSucursal>("api/promociones/sucursales");
 

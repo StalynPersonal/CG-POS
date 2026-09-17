@@ -2,41 +2,41 @@ using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Catalogo;
 
-/// <summary>Familia o departamento de artículos.</summary>
-public sealed class Familia : Entidad
+/// <summary>Departamento de artículos, el primer nivel de su clasificación (departamento → categoría; la marca va aparte).</summary>
+public sealed class Departamento : Entidad
 {
     public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
-    private Familia()
+    private Departamento()
     {
     }
 
     public string Codigo { get; private set; } = string.Empty;
     public string Nombre { get; private set; } = string.Empty;
 
-    /// <summary>Falso para familias que solo admiten ofertas (supermercado, panadería, repostería; RN-09).</summary>
+    /// <summary>Falso para departamentos que solo admiten ofertas (supermercado, panadería, repostería; RN-09).</summary>
     public bool PermiteDescuentoManual { get; private set; } = true;
 
-    /// <summary>Familia de productos no codificados (vegetales, especias) que se eligen de un listado alfabético (RF-134).</summary>
+    /// <summary>Departamento de productos no codificados (vegetales, especias) que se eligen de un listado alfabético (RF-134).</summary>
     public bool EsNoCodificada { get; private set; }
 
     public bool Activa { get; private set; } = true;
 
-    public static Familia Crear(string codigo, string nombre, bool permiteDescuentoManual = true, bool esNoCodificada = false, Guid? id = null)
+    public static Departamento Crear(string codigo, string nombre, bool permiteDescuentoManual = true, bool esNoCodificada = false, Guid? id = null)
     {
-        var familia = new Familia
+        var departamento = new Departamento
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de familia", LargoMaximoCodigo),
+            Codigo = Validar.Texto(codigo, "Código de departamento", LargoMaximoCodigo),
         };
-        familia.Actualizar(nombre, permiteDescuentoManual, esNoCodificada);
-        return familia;
+        departamento.Actualizar(nombre, permiteDescuentoManual, esNoCodificada);
+        return departamento;
     }
 
     public void Actualizar(string nombre, bool permiteDescuentoManual, bool esNoCodificada)
     {
-        Nombre = Validar.Texto(nombre, "Nombre de familia", LargoMaximoNombre);
+        Nombre = Validar.Texto(nombre, "Nombre de departamento", LargoMaximoNombre);
         PermiteDescuentoManual = permiteDescuentoManual;
         EsNoCodificada = esNoCodificada;
     }

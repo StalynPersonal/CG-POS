@@ -54,7 +54,7 @@
                         <div class="cg-descuento__motivos">
                             @foreach (var motivo in _motivos)
                             {
-                                <button type="button" class="cg-catalogo__familia @(string.Equals(_motivo, motivo.Nombre, StringComparison.OrdinalIgnoreCase) ? "cg-catalogo__familia--activa" : null)"
+                                <button type="button" class="cg-catalogo__departamento @(string.Equals(_motivo, motivo.Nombre, StringComparison.OrdinalIgnoreCase) ? "cg-catalogo__departamento--activa" : null)"
                                         @onclick="() => _motivo = motivo.Nombre">@motivo.Nombre</button>
                             }
                         </div>

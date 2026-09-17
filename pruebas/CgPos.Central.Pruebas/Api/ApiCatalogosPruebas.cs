@@ -23,20 +23,20 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
         var sufijo = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
 
-        var familia = new FamiliaCarga(Guid.CreateVersion7(), $"F{sufijo}", "Familia de prueba", PermiteDescuentoManual: false);
-        var guardada = await EnviarAsync(cliente, admin, $"/api/maestros/familias/{familia.Id}", familia);
+        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"F{sufijo}", "Departamento de prueba", PermiteDescuentoManual: false);
+        var guardada = await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{departamento.Id}", departamento);
         Assert.True(guardada.Cuerpo!.Exitosa, guardada.Cuerpo.Mensaje);
-        Assert.Equal(familia.Id, guardada.Cuerpo.Id);
+        Assert.Equal(departamento.Id, guardada.Cuerpo.Id);
 
-        var listado = Assert.Single(await ListarAsync<DatosMaestroCentral<FamiliaCarga>>(cliente, admin, "/api/maestros/familias"), f => f.Dato.Id == familia.Id);
-        Assert.Equal(familia, listado.Dato);
+        var listado = Assert.Single(await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/maestros/departamentos"), f => f.Dato.Id == departamento.Id);
+        Assert.Equal(departamento, listado.Dato);
         Assert.False(string.IsNullOrWhiteSpace(listado.ModificadoPor));
 
         // Las reglas del dominio y el Id de la ruta se validan antes de publicar.
-        var sinNombre = await EnviarAsync(cliente, admin, $"/api/maestros/familias/{familia.Id}", familia with { Nombre = " " });
+        var sinNombre = await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{departamento.Id}", departamento with { Nombre = " " });
         Assert.Equal(HttpStatusCode.BadRequest, sinNombre.Estado);
-        Assert.Contains($"Familia 'F{sufijo}'", sinNombre.Cuerpo!.Mensaje);
-        Assert.Equal(HttpStatusCode.BadRequest, (await EnviarAsync(cliente, admin, $"/api/maestros/familias/{Guid.CreateVersion7()}", familia)).Estado);
+        Assert.Contains($"Departamento 'F{sufijo}'", sinNombre.Cuerpo!.Mensaje);
+        Assert.Equal(HttpStatusCode.BadRequest, (await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{Guid.CreateVersion7()}", departamento)).Estado);
 
         // Moneda: el código no cambia. Forma de pago: el tipo no cambia y su moneda debe estar publicada.
         var codigoMoneda = $"X{(char)('A' + Random.Shared.Next(26))}{(char)('A' + Random.Shared.Next(26))}";
@@ -53,7 +53,7 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         Assert.Contains("no está publicada", (await EnviarAsync(cliente, admin, $"/api/maestros/formas-pago/{otraForma.Id}", otraForma)).Cuerpo!.Mensaje);
 
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        Assert.Contains(bajada.Maestros!.Familias!, f => f.Id == familia.Id && !f.PermiteDescuentoManual);
+        Assert.Contains(bajada.Maestros!.Departamentos!, f => f.Id == departamento.Id && !f.PermiteDescuentoManual);
         Assert.Contains(bajada.Maestros.FormasPago!, f => f.Id == forma.Id && f.Moneda == codigoMoneda);
         Assert.DoesNotContain(bajada.Maestros.FormasPago!, f => f.Id == otraForma.Id);
     }
@@ -102,7 +102,7 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         await central.CrearUsuarioAsync(codigo, "Sin.Permisos#2026", false, CatalogoPermisosCentral.AdministrarPrecios);
         var token = (await CentralEnPruebas.IngresarAsync(cliente, codigo, "Sin.Permisos#2026")).Cuerpo!.TokenAcceso;
 
-        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/maestros/familias", token));
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/maestros/departamentos", token));
 
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }

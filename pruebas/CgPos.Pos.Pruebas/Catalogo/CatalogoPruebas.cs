@@ -132,7 +132,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     }
 
     [SkippableFact]
-    public async Task Busqueda_por_varias_palabras_familia_y_listado_de_no_codificados()
+    public async Task Busqueda_por_varias_palabras_departamento_y_listado_de_no_codificados()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
@@ -145,10 +145,10 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Assert.Equal(escenario.ArticuloCemento, Assert.Single(cemento).ArticuloId);
         Assert.Equal(485m, cemento[0].PrecioDetalle);
 
-        var porFamilia = await consulta.BuscarAsync(escenario.Sufijo, escenario.FamiliaVegetales);
-        Assert.Equal(2, porFamilia.Count);
+        var porDepartamento = await consulta.BuscarAsync(escenario.Sufijo, escenario.DepartamentoVegetales);
+        Assert.Equal(2, porDepartamento.Count);
 
-        var noCodificados = await consulta.ListarNoCodificadosAsync(escenario.FamiliaVegetales);
+        var noCodificados = await consulta.ListarNoCodificadosAsync(escenario.DepartamentoVegetales);
         Assert.Equal(new[] { $"Cebolla {escenario.Sufijo}", $"Tomate {escenario.Sufijo}" }, noCodificados.Select(a => a.Descripcion));
     }
 
@@ -175,21 +175,21 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
         var paquete = escenario.Paquete();
-        var familiaInexistente = Guid.CreateVersion7();
+        var departamentoInexistente = Guid.CreateVersion7();
         var conErrores = paquete with
         {
             Articulos =
             [
                 .. paquete.Articulos!,
-                new ArticuloCarga(Guid.CreateVersion7(), $"MAL-{escenario.Sufijo}", "Sin familia", familiaInexistente, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m),
-                new ArticuloCarga(Guid.CreateVersion7(), $"DUP-{escenario.Sufijo}", "Código repetido", escenario.FamiliaFerreteria, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m,
+                new ArticuloCarga(Guid.CreateVersion7(), $"MAL-{escenario.Sufijo}", "Sin departamento", departamentoInexistente, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m),
+                new ArticuloCarga(Guid.CreateVersion7(), $"DUP-{escenario.Sufijo}", "Código repetido", escenario.DepartamentoFerreteria, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m,
                     CodigosBarras: [escenario.BarrasCincel]),
             ],
         };
 
         var error = await Assert.ThrowsAsync<CargaMaestrosInvalidaExcepcion>(() => AplicarAsync(conErrores));
 
-        Assert.Contains(error.Errores, e => e.Contains("familia inexistente"));
+        Assert.Contains(error.Errores, e => e.Contains("departamento inexistente"));
         Assert.Contains(error.Errores, e => e.Contains(escenario.BarrasCincel));
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
@@ -288,10 +288,10 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var barrasNuevo = "8" + Random.Shared.NextInt64(100_000_000_000, 999_999_999_999);
 
         var csv = string.Join("\n",
-            "codigo;descripcion;familia;unidad;impuesto;precio_detalle;precio_mayor;cantidad_minima_mayor;codigos_barras;tipo",
+            "codigo;descripcion;departamento;unidad;impuesto;precio_detalle;precio_mayor;cantidad_minima_mayor;codigos_barras;tipo",
             $"{codigoNuevo};\"Martillo; mango de fibra\";{escenario.CodigoFerreteria};{escenario.CodigoLibra};{escenario.CodigoItbis18};325.50;300;6;{barrasNuevo};Normal",
             $"{escenario.CodigoCemento};Cemento gris 42.5 kg {escenario.Sufijo};{escenario.CodigoFerreteria};{escenario.CodigoLibra};{escenario.CodigoItbis18};510;450;12;{escenario.BarrasCemento};Normal",
-            $"MALA-{escenario.Sufijo};Familia que no existe;NOEXISTE;{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal",
+            $"MALA-{escenario.Sufijo};Departamento que no existe;NOEXISTE;{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal",
             $"MALB-{escenario.Sufijo};Precio mal escrito;{escenario.CodigoFerreteria};{escenario.CodigoLibra};{escenario.CodigoItbis18};10,50;;;;Normal");
 
         ResultadoImportacionArticulos resultado;

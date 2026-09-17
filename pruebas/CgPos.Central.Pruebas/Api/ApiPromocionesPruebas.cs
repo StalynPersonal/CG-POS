@@ -22,7 +22,7 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
-        var (familia, articulo) = await CrearArticuloAsync(cliente, admin);
+        var (departamento, articulo) = await CrearArticuloAsync(cliente, admin);
         var sufijo = articulo.Codigo[1..];
 
         var promocion = new PromocionCarga(Guid.CreateVersion7(), $"P{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin,
@@ -48,7 +48,7 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
 
         var distribuida = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Id == promocion.Id);
         Assert.InRange(distribuida.CajasConPromocion, 1, distribuida.CajasDestino);
-        Assert.Equal(familia.Id, articulo.FamiliaId);
+        Assert.Equal(departamento.Id, articulo.DepartamentoId);
     }
 
     [SkippableFact]
@@ -63,7 +63,7 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var existente = new PromocionCarga(Guid.CreateVersion7(), $"E{sufijo}", "Existente", TipoPromocion.Porcentaje, 5m, Inicio, Fin, Articulos: [articulo.Id]);
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{existente.Id}", existente)).Cuerpo!.Exitosa);
 
-        const string encabezado = "codigo;nombre;tipo;valor;desde;hasta;articulos;familias;sucursales;lleva;paga;cantidad_minima;limite_cliente;dias;hora_desde;hora_hasta;solo_fidelidad;activa";
+        const string encabezado = "codigo;nombre;tipo;valor;desde;hasta;articulos;departamentos;sucursales;lleva;paga;cantidad_minima;limite_cliente;dias;hora_desde;hora_hasta;solo_fidelidad;activa";
         var valida = $"I{sufijo};2x1 importado;lleva_paga;;2026-01-01;2030-12-31;{articulo.Codigo};;;2;1;;;lun|mié|vie;08:00;12:00;no;si";
         var actualiza = $"E{sufijo};Existente 15%;porcentaje;15;01/01/2026;31/12/2030;{articulo.Codigo};;;;;;;todos;;;no;si";
         var tipoMalo = $"M{sufijo};Mala;regalo;5;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;;;;;";
@@ -97,12 +97,12 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
-        var (familia, articulo) = await CrearArticuloAsync(cliente, admin);
+        var (departamento, articulo) = await CrearArticuloAsync(cliente, admin);
         var sufijo = articulo.Codigo[1..];
 
         var diez = new PromocionCarga(Guid.CreateVersion7(), $"A{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin, Articulos: [articulo.Id]);
         var fidelidad = new PromocionCarga(Guid.CreateVersion7(), $"B{sufijo}", "Especial fidelidad", TipoPromocion.PrecioEspecial, 85m, Inicio, Fin,
-            Familias: [familia.Id], SoloFidelidad: true);
+            Departamentos: [departamento.Id], SoloFidelidad: true);
         var inactiva = new PromocionCarga(Guid.CreateVersion7(), $"C{sufijo}", "Mitad inactiva", TipoPromocion.Porcentaje, 50m, Inicio, Fin, Articulos: [articulo.Id], Activa: false);
         foreach (var promocion in new[] { diez, fidelidad, inactiva })
             Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{promocion.Id}", promocion)).Cuerpo!.Exitosa);
@@ -140,20 +140,20 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    /// <summary>Familia propia para que ninguna promoción de otras pruebas o de desarrollo alcance al artículo.</summary>
-    private static async Task<(FamiliaCarga Familia, ArticuloCarga Articulo)> CrearArticuloAsync(HttpClient cliente, string admin)
+    /// <summary>Departamento propio para que ninguna promoción de otras pruebas o de desarrollo alcance al artículo.</summary>
+    private static async Task<(DepartamentoCarga Departamento, ArticuloCarga Articulo)> CrearArticuloAsync(HttpClient cliente, string admin)
     {
         var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        var familia = new FamiliaCarga(Guid.CreateVersion7(), $"F{sufijo}", $"Familia promociones {sufijo}");
-        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/familias/{familia.Id}", familia)).Cuerpo!.Exitosa);
+        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"F{sufijo}", $"Departamento promociones {sufijo}");
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/departamentos/{departamento.Id}", departamento)).Cuerpo!.Exitosa);
 
         var unidad = (await ObtenerAsync<List<DatosMaestroCentral<UnidadMedidaCarga>>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
         var impuesto = (await ObtenerAsync<List<DatosMaestroCentral<ImpuestoCarga>>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
-        var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"S{sufijo}", $"Simulado {sufijo}", familia.Id, unidad.Id, impuesto.Id, 100m,
+        var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"S{sufijo}", $"Simulado {sufijo}", departamento.Id, unidad.Id, impuesto.Id, 100m,
             PrecioMayor: 90m, CantidadMinimaMayor: 10m);
         var creado = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/articulos/{articulo.Id}", articulo);
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
-        return (familia, articulo);
+        return (departamento, articulo);
     }
 
     private static async Task<ResultadoImportacionPromociones> ImportarAsync(HttpClient cliente, string token, string contenido, bool soloValidar)

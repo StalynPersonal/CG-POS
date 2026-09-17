@@ -5,7 +5,7 @@ namespace CgPos.Dominio.Sincronizacion;
 public enum TipoMaestro
 {
     Moneda,
-    Familia,
+    Departamento,
     UnidadMedida,
     Impuesto,
     Articulo,
@@ -33,6 +33,11 @@ public enum TipoMaestro
 
     /// <summary>Usuario de caja con el hash de su PIN y carné y las cajas que opera.</summary>
     UsuarioCaja,
+
+    /// <summary>Categoría de artículos dentro de un departamento.</summary>
+    Categoria,
+
+    Marca,
 }
 
 /// <summary>

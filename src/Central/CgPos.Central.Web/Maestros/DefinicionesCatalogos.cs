@@ -21,6 +21,9 @@ public enum TipoCampoCatalogo
     /// <summary>Id de una sucursal.</summary>
     Sucursal,
 
+    /// <summary>Id de un departamento publicado.</summary>
+    Departamento,
+
     FechaHora,
 }
 
@@ -75,7 +78,9 @@ public static class DefinicionesCatalogos
     public static IReadOnlyList<OpcionCatalogo> TiposReglaAcumulacion { get; } =
     [
         new("Monto", "Todo lo comprado"),
-        new("Familia", "Una familia"),
+        new("Departamento", "Un departamento"),
+        new("Categoria", "Una categoría"),
+        new("Marca", "Una marca"),
         new("Articulo", "Un artículo"),
         new("DiaSemana", "Un día de la semana"),
         new("Promocion", "Lo vendido con una promoción"),
@@ -112,12 +117,27 @@ public static class DefinicionesCatalogos
                 new("vigenteDesde", "Vigente desde", TipoCampoCatalogo.FechaHora) { Obligatorio = true },
             ]),
 
-        new("familias", "Familias", "Nueva familia", "Agrupan los artículos para el catálogo, las ofertas y los topes de descuento.",
+        new("departamentos", "Departamentos", "Nuevo departamento", "Agrupan los artículos para el catálogo, las ofertas y los topes de descuento.",
             Icons.Material.Filled.Category,
             [
                 Codigo(), Nombre,
                 new("permiteDescuentoManual", "Permite descuento manual", TipoCampoCatalogo.Booleano) { Predeterminado = true },
-                new("esNoCodificada", "No codificada", TipoCampoCatalogo.Booleano) { Predeterminado = false, Ayuda = "Artículos que se venden sin código, digitando el precio." },
+                new("esNoCodificada", "No codificado", TipoCampoCatalogo.Booleano) { Predeterminado = false, Ayuda = "Artículos que se venden sin código, digitando el precio." },
+                Estado("activa"),
+            ]),
+
+        new("categorias", "Categorías", "Nueva categoría", "Segundo nivel de la clasificación: cada categoría pertenece a un departamento.",
+            Icons.Material.Filled.AccountTree,
+            [
+                Codigo(), Nombre,
+                new("departamentoId", "Departamento", TipoCampoCatalogo.Departamento) { Obligatorio = true },
+                Estado("activa"),
+            ]),
+
+        new("marcas", "Marcas", "Nueva marca", "Marca de los artículos; no depende del departamento.",
+            Icons.Material.Filled.Sell,
+            [
+                Codigo(), Nombre,
                 Estado("activa"),
             ]),
 
@@ -210,7 +230,7 @@ public static class DefinicionesCatalogos
                 new("tipo", "Aplica a", TipoCampoCatalogo.Opciones) { Obligatorio = true, Opciones = TiposReglaAcumulacion },
                 new("montoBase", "Por cada", TipoCampoCatalogo.Decimal) { Obligatorio = true, Ayuda = "Monto comprado que otorga los puntos, ej. 100." },
                 new("puntos", "Puntos", TipoCampoCatalogo.Decimal) { Obligatorio = true },
-                new("referenciaId", "Familia, artículo o promoción", TipoCampoCatalogo.Texto)
+                new("referenciaId", "Departamento, categoría, marca, artículo o promoción", TipoCampoCatalogo.Texto)
                 {
                     EnTabla = false,
                     Ayuda = "Id de lo que abarca la regla; se deja vacío si aplica a todo o a un día.",

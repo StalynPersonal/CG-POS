@@ -10,7 +10,7 @@ namespace CgPos.Contratos.Catalogo;
 /// Todo es idempotente por Id.
 /// </summary>
 public sealed record PaqueteMaestros(
-    IReadOnlyList<FamiliaCarga>? Familias = null,
+    IReadOnlyList<DepartamentoCarga>? Departamentos = null,
     IReadOnlyList<UnidadMedidaCarga>? UnidadesMedida = null,
     IReadOnlyList<ImpuestoCarga>? Impuestos = null,
     IReadOnlyList<ArticuloCarga>? Articulos = null,
@@ -30,7 +30,9 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<ReglaAcumulacionCarga>? ReglasAcumulacion = null,
     IReadOnlyList<MiembroFidelidadCarga>? MiembrosFidelidad = null,
     IReadOnlyList<AlmacenCarga>? Almacenes = null,
-    IReadOnlyList<DescuentoTarjetaCarga>? DescuentosTarjeta = null);
+    IReadOnlyList<DescuentoTarjetaCarga>? DescuentosTarjeta = null,
+    IReadOnlyList<CategoriaCarga>? Categorias = null,
+    IReadOnlyList<MarcaCarga>? Marcas = null);
 
 /// <summary>Descuento del banco al pagar con ciertas tarjetas, identificadas por su BIN (RF-98).</summary>
 public sealed record DescuentoTarjetaCarga(
@@ -55,7 +57,7 @@ public sealed record AlmacenCarga(Guid Id, string Codigo, string Nombre, Guid Su
 public sealed record NivelFidelidadCarga(Guid Id, string Codigo, string Nombre, int Orden, decimal FactorAcumulacion, bool Activo = true);
 
 /// <summary>Regla de acumulación (RF-238): <paramref name="Puntos"/> por cada <paramref name="MontoBase"/> comprado de lo que abarca.</summary>
-/// <param name="ReferenciaId">Familia, artículo o promoción según el tipo.</param>
+/// <param name="ReferenciaId">Departamento, artículo o promoción según el tipo.</param>
 public sealed record ReglaAcumulacionCarga(
     Guid Id,
     string Codigo,
@@ -111,7 +113,7 @@ public sealed record PromocionCarga(
     DateTimeOffset VigenteDesde,
     DateTimeOffset VigenteHasta,
     IReadOnlyList<Guid>? Articulos = null,
-    IReadOnlyList<Guid>? Familias = null,
+    IReadOnlyList<Guid>? Departamentos = null,
     IReadOnlyList<Guid>? Sucursales = null,
     int? CantidadLleva = null,
     int? CantidadPaga = null,
@@ -121,19 +123,27 @@ public sealed record PromocionCarga(
     TimeOnly? HoraDesde = null,
     TimeOnly? HoraHasta = null,
     bool SoloFidelidad = false,
-    bool Activa = true);
+    bool Activa = true,
+    IReadOnlyList<Guid>? Categorias = null,
+    IReadOnlyList<Guid>? Marcas = null);
 
 public sealed record MotivoDescuentoCarga(Guid Id, string Codigo, string Nombre, bool Activo = true);
 
-/// <summary>Tope de descuento por nivel: general, o para una familia o un artículo (RF-202).</summary>
-public sealed record TopeDescuentoCarga(Guid Id, int Nivel, decimal? PorcentajeMaximo, decimal? MontoMaximo, Guid? FamiliaId = null, Guid? ArticuloId = null);
+/// <summary>Tope de descuento por nivel: general, o para un departamento, una categoría, una marca o un artículo (RF-202).</summary>
+public sealed record TopeDescuentoCarga(Guid Id, int Nivel, decimal? PorcentajeMaximo, decimal? MontoMaximo, Guid? DepartamentoId = null, Guid? ArticuloId = null,
+    Guid? CategoriaId = null, Guid? MarcaId = null);
 
 public sealed record DatosMotivoDescuento(string Codigo, string Nombre);
 
 /// <summary>Oferta vigente de un artículo, para la consulta de precio (RF-24) y la columna Promo (RF-141).</summary>
 public sealed record DatosPromocionVigente(Guid Id, string Codigo, string Nombre, string Descripcion, TipoPromocion Tipo, DateTimeOffset VigenteHasta);
 
-public sealed record FamiliaCarga(Guid Id, string Codigo, string Nombre, bool PermiteDescuentoManual = true, bool EsNoCodificada = false, bool Activa = true);
+public sealed record DepartamentoCarga(Guid Id, string Codigo, string Nombre, bool PermiteDescuentoManual = true, bool EsNoCodificada = false, bool Activa = true);
+
+/// <summary>Categoría dentro de un departamento.</summary>
+public sealed record CategoriaCarga(Guid Id, string Codigo, string Nombre, Guid DepartamentoId, bool Activa = true);
+
+public sealed record MarcaCarga(Guid Id, string Codigo, string Nombre, bool Activa = true);
 
 public sealed record UnidadMedidaCarga(Guid Id, string Codigo, string Nombre, bool PermiteDecimales = false, int Decimales = 0);
 
@@ -146,7 +156,7 @@ public sealed record ArticuloCarga(
     Guid Id,
     string Codigo,
     string Descripcion,
-    Guid FamiliaId,
+    Guid DepartamentoId,
     Guid UnidadMedidaId,
     Guid ImpuestoId,
     decimal PrecioDetalle,
@@ -164,7 +174,9 @@ public sealed record ArticuloCarga(
     bool Activo = true,
     DateTimeOffset? PreciosVigentesDesde = null,
     decimal? Tara = null,
-    bool EsServicio = false);
+    bool EsServicio = false,
+    Guid? CategoriaId = null,
+    Guid? MarcaId = null);
 
 public sealed record ClienteCarga(
     Guid Id,
@@ -230,8 +242,8 @@ public sealed record DatosArticuloVenta(
     string CodigoLeido,
     OrigenCodigoLeido OrigenCodigo,
     TipoArticulo Tipo,
-    Guid FamiliaId,
-    string FamiliaNombre,
+    Guid DepartamentoId,
+    string DepartamentoNombre,
     bool PermiteDescuentoManual,
     string UnidadMedidaCodigo,
     bool PermiteDecimales,
@@ -248,14 +260,18 @@ public sealed record DatosArticuloVenta(
     decimal? PrecioLeido,
     string? RutaImagen,
     decimal? Tara = null,
-    bool EsServicio = false);
+    bool EsServicio = false,
+    Guid? CategoriaId = null,
+    string? CategoriaNombre = null,
+    Guid? MarcaId = null,
+    string? MarcaNombre = null);
 
 public sealed record DatosArticuloResumen(
     Guid ArticuloId,
     string Codigo,
     string Descripcion,
     string? Referencia,
-    string FamiliaNombre,
+    string DepartamentoNombre,
     string UnidadMedidaCodigo,
     decimal? PrecioDetalle,
     decimal? PrecioMayor,
@@ -332,4 +348,4 @@ public sealed record DatosCatalogoCobro(
     IReadOnlyList<DatosDenominacion> Denominaciones,
     IReadOnlyList<DatosTasaCambio>? Tasas = null);
 
-public sealed record DatosFamilia(Guid Id, string Codigo, string Nombre, bool EsNoCodificada);
+public sealed record DatosDepartamento(Guid Id, string Codigo, string Nombre, bool EsNoCodificada);

@@ -18,5 +18,5 @@ public sealed record SolicitudPreciosArticulo(
     decimal? Costo = null,
     DateTimeOffset? VigenteDesde = null);
 
-/// <param name="Alcance">"General", o la familia o el artículo con su código y nombre.</param>
+/// <param name="Alcance">"General", o el departamento o el artículo con su código y nombre.</param>
 public sealed record DatosTopeDescuentoCentral(TopeDescuentoCarga Tope, string Alcance, DateTimeOffset ModificadoEn, string ModificadoPor);

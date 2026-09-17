@@ -87,10 +87,10 @@
                         @if (seleccionada.PermiteDevuelta)
                         {
                             <div class="cg-descuento__motivos">
-                                <button type="button" class="cg-catalogo__familia cg-catalogo__familia--activa" @onclick="MontoExacto">Exacto</button>
+                                <button type="button" class="cg-catalogo__departamento cg-catalogo__departamento--activa" @onclick="MontoExacto">Exacto</button>
                                 @foreach (var denominacion in Billetes(seleccionada.Moneda))
                                 {
-                                    <button type="button" class="cg-catalogo__familia" @onclick="() => SumarBillete(denominacion.Valor)">+@denominacion.Valor.ToString("N0")</button>
+                                    <button type="button" class="cg-catalogo__departamento" @onclick="() => SumarBillete(denominacion.Valor)">+@denominacion.Valor.ToString("N0")</button>
                                 }
                             </div>
                         }
@@ -100,7 +100,7 @@
                             <div class="cg-descuento__motivos">
                                 @foreach (var tipo in _catalogo.TiposTarjeta)
                                 {
-                                    <button type="button" class="cg-catalogo__familia @(tipo.Id == _tipoTarjeta ? "cg-catalogo__familia--activa" : null)"
+                                    <button type="button" class="cg-catalogo__departamento @(tipo.Id == _tipoTarjeta ? "cg-catalogo__departamento--activa" : null)"
                                             @onclick="() => _tipoTarjeta = tipo.Id">@tipo.Nombre</button>
                                 }
                             </div>
@@ -122,7 +122,7 @@
                             <div class="cg-descuento__motivos">
                                 @foreach (var banco in _catalogo.Bancos)
                                 {
-                                    <button type="button" class="cg-catalogo__familia @(banco.Id == _banco ? "cg-catalogo__familia--activa" : null)"
+                                    <button type="button" class="cg-catalogo__departamento @(banco.Id == _banco ? "cg-catalogo__departamento--activa" : null)"
                                             @onclick="() => _banco = banco.Id">@banco.Nombre</button>
                                 }
                             </div>

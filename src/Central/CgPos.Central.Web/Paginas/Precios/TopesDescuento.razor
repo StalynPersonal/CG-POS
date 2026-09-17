@@ -11,7 +11,7 @@
     <div>
         <MudText Typo="Typo.h4" Class="cg-central__titulo">Topes de descuento</MudText>
         <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
-            Descuento manual máximo por nivel. Rige el alcance más específico: artículo, familia o general.
+            Descuento manual máximo por nivel. Rige el alcance más específico: artículo, categoría, marca, departamento y por último el general.
         </MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => AbrirDialogoAsync(null)">Nuevo tope</MudButton>
@@ -60,11 +60,20 @@
     {
         Indentation = false,
         Expandable = false,
-        Selector = t => t.Tope.ArticuloId is not null ? "Por artículo" : t.Tope.FamiliaId is not null ? "Por familia" : "Generales",
+        Selector = t => t.Tope switch
+        {
+            { ArticuloId: not null } => "Por artículo",
+            { CategoriaId: not null } => "Por categoría",
+            { MarcaId: not null } => "Por marca",
+            { DepartamentoId: not null } => "Por departamento",
+            _ => "Generales",
+        },
     };
 
     private IReadOnlyList<DatosTopeDescuentoCentral> _topes = [];
-    private IReadOnlyList<FamiliaCarga> _familias = [];
+    private IReadOnlyList<DepartamentoCarga> _departamentos = [];
+    private IReadOnlyList<CategoriaCarga> _categorias = [];
+    private IReadOnlyList<MarcaCarga> _marcas = [];
     private bool _cargando = true;
     private bool _error;
 
@@ -74,7 +83,9 @@
     {
         _cargando = true;
         var topes = await Cliente.ListarTopesAsync();
-        _familias = (await Cliente.ListarFamiliasPreciosAsync() ?? []).Select(f => f.Dato).OrderBy(f => f.Nombre, StringComparer.CurrentCulture).ToList();
+        _departamentos = (await Cliente.ListarDepartamentosPreciosAsync() ?? []).Select(f => f.Dato).OrderBy(f => f.Nombre, StringComparer.CurrentCulture).ToList();
+        _categorias = (await Cliente.ListarCategoriasPreciosAsync() ?? []).Select(c => c.Dato).OrderBy(c => c.Nombre, StringComparer.CurrentCulture).ToList();
+        _marcas = (await Cliente.ListarMarcasPreciosAsync() ?? []).Select(m => m.Dato).OrderBy(m => m.Nombre, StringComparer.CurrentCulture).ToList();
         _error = topes is null;
         _topes = topes ?? [];
         _cargando = false;
@@ -82,7 +93,13 @@
 
     private async Task AbrirDialogoAsync(DatosTopeDescuentoCentral? tope)
     {
-        var parametros = new DialogParameters<DialogoTope> { { d => d.Tope, tope }, { d => d.Familias, _familias } };
+        var parametros = new DialogParameters<DialogoTope>
+        {
+            { d => d.Tope, tope },
+            { d => d.Departamentos, _departamentos },
+            { d => d.Categorias, _categorias },
+            { d => d.Marcas, _marcas },
+        };
         var referencia = await Dialogos.ShowAsync<DialogoTope>(tope is null ? "Nuevo tope de descuento" : "Editar tope de descuento", parametros);
         if (await referencia.Result is not { Canceled: false })
             return;

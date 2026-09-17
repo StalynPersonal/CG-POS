@@ -10,7 +10,7 @@ public interface IServicioPromocionesCentral
     Task<IReadOnlyList<DatosPromocionCentral>> ListarAsync(CancellationToken cancelacion = default);
 
     /// <summary>
-    /// Columnas obligatorias: codigo, nombre, tipo, desde, hasta. Opcionales: valor, articulos, familias y sucursales (códigos separados por |),
+    /// Columnas obligatorias: codigo, nombre, tipo, desde, hasta. Opcionales: valor, articulos, departamentos y sucursales (códigos separados por |),
     /// lleva, paga, cantidad_minima, limite_cliente, dias (todos o lun|mar…), hora_desde, hora_hasta, solo_fidelidad, activa.
     /// Un código ya publicado actualiza esa promoción. Con cualquier error no se publica nada.
     /// </summary>

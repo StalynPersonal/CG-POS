@@ -1274,24 +1274,24 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 await contexto.MarcasSincronizacion.Where(m => m.Clave == MarcaSincronizacion.VersionMaestros).Select(m => (long?)m.Valor).SingleOrDefaultAsync() ?? 0);
 
         var desde = await MarcaAsync();
-        var familia = new FamiliaCarga(Guid.CreateVersion7(), $"DESC{escenario.Sufijo}", "Familia bajada del Central");
+        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"DESC{escenario.Sufijo}", "Departamento bajada del Central");
         var clave = $"Pruebas.Descarga{escenario.Sufijo}";
         var organizacion = new CgPos.Contratos.CargaInicial.PaqueteCargaInicial(
             new CgPos.Contratos.CargaInicial.EmpresaCarga(Empresa, "999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
             Parametros: [new CgPos.Contratos.CargaInicial.ParametroCarga(Guid.CreateVersion7(), clave, "valor del Central", CajaId: escenario.CajaUno)]);
 
-        var aplicada = await DescargarAsync(new PaqueteBajadaMaestros(desde, desde + 500, organizacion, new PaqueteMaestros(Familias: [familia])));
+        var aplicada = await DescargarAsync(new PaqueteBajadaMaestros(desde, desde + 500, organizacion, new PaqueteMaestros(Departamentos: [departamento])));
         Assert.True(aplicada.Descargado, aplicada.Error);
         Assert.Equal(desde + 500, await MarcaAsync());
-        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Familias.AnyAsync(f => f.Id == familia.Id)));
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Departamentos.AnyAsync(f => f.Id == departamento.Id)));
         Assert.Equal("valor del Central", await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Organizacion.IParametros, string?>(p => p.ObtenerAsync(clave, escenario.CajaUno)));
 
         // Un paquete que la caja no puede aplicar no mueve la marca: el próximo ciclo lo vuelve a pedir.
-        var articuloSinFamilia = new ArticuloCarga(Guid.CreateVersion7(), $"SINFAM{escenario.Sufijo}", "Artículo sin familia", Guid.CreateVersion7(), Guid.CreateVersion7(),
+        var articuloSinDepartamento = new ArticuloCarga(Guid.CreateVersion7(), $"SINFAM{escenario.Sufijo}", "Artículo sin departamento", Guid.CreateVersion7(), Guid.CreateVersion7(),
             Guid.CreateVersion7(), 100m);
-        var rechazada = await DescargarAsync(new PaqueteBajadaMaestros(desde + 500, desde + 900, null, new PaqueteMaestros(Articulos: [articuloSinFamilia])));
+        var rechazada = await DescargarAsync(new PaqueteBajadaMaestros(desde + 500, desde + 900, null, new PaqueteMaestros(Articulos: [articuloSinDepartamento])));
         Assert.False(rechazada.Descargado);
-        Assert.Contains("familia inexistente", rechazada.Error);
+        Assert.Contains("departamento inexistente", rechazada.Error);
         Assert.Equal(desde + 500, await MarcaAsync());
 
         // Sin cambios, la marca llega a la versión que informó el Central.

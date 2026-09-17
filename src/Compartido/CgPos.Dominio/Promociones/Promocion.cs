@@ -35,7 +35,7 @@ public enum DiasSemana
 }
 
 /// <summary>
-/// Oferta creada en el Central (RF-59) para artículos o familias (RF-58), con vigencia por fechas, días, horas y sucursales
+/// Oferta creada en el Central (RF-59) para artículos o departamentos (RF-58), con vigencia por fechas, días, horas y sucursales
 /// (RF-62, RF-65, RF-206). Baja a la caja antes de su inicio y se activa sola aunque no haya red (RF-208).
 /// </summary>
 public sealed class Promocion : Entidad
@@ -45,7 +45,9 @@ public sealed class Promocion : Entidad
 
     // No son readonly: se reemplazan completas para que EF detecte el cambio al guardarlas como texto.
     private List<Guid> _articulos = [];
-    private List<Guid> _familias = [];
+    private List<Guid> _departamentos = [];
+    private List<Guid> _categorias = [];
+    private List<Guid> _marcas = [];
     private List<Guid> _sucursales = [];
 
     private Promocion()
@@ -77,10 +79,14 @@ public sealed class Promocion : Entidad
 
     public bool Activa { get; private set; } = true;
 
-    /// <summary>Artículos incluidos. Vacío junto con familias vacías significa que no aplica a nada.</summary>
+    /// <summary>Artículos incluidos. Si artículos, departamentos, categorías y marcas están vacíos, no aplica a nada.</summary>
     public IReadOnlyCollection<Guid> Articulos => _articulos;
 
-    public IReadOnlyCollection<Guid> Familias => _familias;
+    public IReadOnlyCollection<Guid> Departamentos => _departamentos;
+
+    public IReadOnlyCollection<Guid> Categorias => _categorias;
+
+    public IReadOnlyCollection<Guid> Marcas => _marcas;
 
     /// <summary>Sucursales donde aplica; vacío = todas (RF-60).</summary>
     public IReadOnlyCollection<Guid> Sucursales => _sucursales;
@@ -149,10 +155,13 @@ public sealed class Promocion : Entidad
         HoraHasta = horaHasta;
     }
 
-    public void AsignarAlcance(IEnumerable<Guid>? articulos, IEnumerable<Guid>? familias, IEnumerable<Guid>? sucursales)
+    public void AsignarAlcance(IEnumerable<Guid>? articulos, IEnumerable<Guid>? departamentos, IEnumerable<Guid>? sucursales,
+        IEnumerable<Guid>? categorias = null, IEnumerable<Guid>? marcas = null)
     {
         _articulos = Limpiar(articulos);
-        _familias = Limpiar(familias);
+        _departamentos = Limpiar(departamentos);
+        _categorias = Limpiar(categorias);
+        _marcas = Limpiar(marcas);
         _sucursales = Limpiar(sucursales);
     }
 
@@ -181,7 +190,11 @@ public sealed class Promocion : Entidad
         return _sucursales.Count == 0 || _sucursales.Contains(sucursalId);
     }
 
-    public bool AplicaA(Guid articuloId, Guid familiaId) => _articulos.Contains(articuloId) || _familias.Contains(familiaId);
+    /// <summary>La oferta alcanza al artículo si lo incluye directamente o por su departamento, su categoría o su marca.</summary>
+    public bool AplicaA(Guid articuloId, Guid departamentoId, Guid? categoriaId = null, Guid? marcaId = null) =>
+        _articulos.Contains(articuloId) || _departamentos.Contains(departamentoId)
+        || (categoriaId is { } categoria && _categorias.Contains(categoria))
+        || (marcaId is { } marca && _marcas.Contains(marca));
 
     /// <summary>Texto corto para la columna Promo (RF-143).</summary>
     public string DescripcionCorta => Tipo switch

@@ -1,4 +1,4 @@
-@* Alta o edición de un tope de descuento: alcance (general, familia o artículo), nivel y máximos. *@
+@* Alta o edición de un tope de descuento: alcance (general, departamento, categoría, marca o artículo), nivel y máximos. *@
 @using CgPos.Contratos.Catalogo
 @inject ClienteCentral Cliente
 
@@ -7,17 +7,39 @@
         <div class="cg-central__dialogo">
             <MudRadioGroup T="string" @bind-Value="_alcance">
                 <MudRadio T="string" Value="@General" Color="Color.Secondary">General</MudRadio>
-                <MudRadio T="string" Value="@PorFamilia" Color="Color.Secondary">Familia</MudRadio>
+                <MudRadio T="string" Value="@PorDepartamento" Color="Color.Secondary">Departamento</MudRadio>
+                <MudRadio T="string" Value="@PorCategoria" Color="Color.Secondary">Categoría</MudRadio>
+                <MudRadio T="string" Value="@PorMarca" Color="Color.Secondary">Marca</MudRadio>
                 <MudRadio T="string" Value="@PorArticulo" Color="Color.Secondary">Artículo</MudRadio>
             </MudRadioGroup>
 
-            @if (_alcance == PorFamilia)
+            @if (_alcance == PorDepartamento)
             {
-                <MudSelect T="Guid?" @bind-Value="_familiaId" Label="Familia" Placeholder="Seleccione la familia" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Familias.FirstOrDefault(f => f.Id == id) is { } f ? $"{f.Codigo} · {f.Nombre}" : null)">
-                    @foreach (var familia in Familias)
+                <MudSelect T="Guid?" @bind-Value="_departamentoId" Label="Departamento" Placeholder="Seleccione el departamento" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Departamentos.FirstOrDefault(f => f.Id == id) is { } f ? $"{f.Codigo} · {f.Nombre}" : null)">
+                    @foreach (var departamento in Departamentos)
                     {
-                        <MudSelectItem T="Guid?" Value="@familia.Id">@familia.Codigo · @familia.Nombre</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@departamento.Id">@departamento.Codigo · @departamento.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else if (_alcance == PorCategoria)
+            {
+                <MudSelect T="Guid?" @bind-Value="_categoriaId" Label="Categoría" Placeholder="Seleccione la categoría" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Categorias.FirstOrDefault(c => c.Id == id) is { } c ? $"{c.Codigo} · {c.Nombre}" : null)">
+                    @foreach (var categoria in Categorias)
+                    {
+                        <MudSelectItem T="Guid?" Value="@categoria.Id">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else if (_alcance == PorMarca)
+            {
+                <MudSelect T="Guid?" @bind-Value="_marcaId" Label="Marca" Placeholder="Seleccione la marca" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Marcas.FirstOrDefault(m => m.Id == id) is { } m ? $"{m.Codigo} · {m.Nombre}" : null)">
+                    @foreach (var marca in Marcas)
+                    {
+                        <MudSelectItem T="Guid?" Value="@marca.Id">@marca.Codigo · @marca.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             }
@@ -50,16 +72,22 @@
 
 @code {
     private const string General = "general";
-    private const string PorFamilia = "familia";
+    private const string PorDepartamento = "departamento";
+    private const string PorCategoria = "categoria";
+    private const string PorMarca = "marca";
     private const string PorArticulo = "articulo";
 
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
     [Parameter] public DatosTopeDescuentoCentral? Tope { get; set; }
-    [Parameter] public IReadOnlyList<FamiliaCarga> Familias { get; set; } = [];
+    [Parameter] public IReadOnlyList<DepartamentoCarga> Departamentos { get; set; } = [];
+    [Parameter] public IReadOnlyList<CategoriaCarga> Categorias { get; set; } = [];
+    [Parameter] public IReadOnlyList<MarcaCarga> Marcas { get; set; } = [];
 
     private string _alcance = General;
-    private Guid? _familiaId;
+    private Guid? _departamentoId;
+    private Guid? _categoriaId;
+    private Guid? _marcaId;
     private ArticuloCarga? _articulo;
     private Guid? _articuloIdOriginal;
     private int _nivel = 1;
@@ -73,8 +101,16 @@
         if (Tope?.Tope is not { } tope)
             return;
 
-        _alcance = tope.ArticuloId is not null ? PorArticulo : tope.FamiliaId is not null ? PorFamilia : General;
-        (_familiaId, _articuloIdOriginal, _nivel, _porcentaje, _monto) = (tope.FamiliaId, tope.ArticuloId, tope.Nivel, tope.PorcentajeMaximo, tope.MontoMaximo);
+        _alcance = tope switch
+        {
+            { ArticuloId: not null } => PorArticulo,
+            { CategoriaId: not null } => PorCategoria,
+            { MarcaId: not null } => PorMarca,
+            { DepartamentoId: not null } => PorDepartamento,
+            _ => General,
+        };
+        (_departamentoId, _articuloIdOriginal, _nivel, _porcentaje, _monto) = (tope.DepartamentoId, tope.ArticuloId, tope.Nivel, tope.PorcentajeMaximo, tope.MontoMaximo);
+        (_categoriaId, _marcaId) = (tope.CategoriaId, tope.MarcaId);
     }
 
     private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
@@ -82,13 +118,17 @@
 
     private async Task GuardarAsync()
     {
-        Guid? familiaId = _alcance == PorFamilia ? _familiaId : null;
+        Guid? departamentoId = _alcance == PorDepartamento ? _departamentoId : null;
+        Guid? categoriaId = _alcance == PorCategoria ? _categoriaId : null;
+        Guid? marcaId = _alcance == PorMarca ? _marcaId : null;
         Guid? articuloId = _alcance == PorArticulo ? _articulo?.Id ?? _articuloIdOriginal : null;
 
-        _mensaje = (_alcance, familiaId, articuloId) switch
+        _mensaje = (_alcance, departamentoId, articuloId) switch
         {
-            (PorFamilia, null, _) => "Seleccione la familia.",
+            (PorDepartamento, null, _) => "Seleccione el departamento.",
             (PorArticulo, _, null) => "Busque y seleccione el artículo.",
+            (PorCategoria, _, _) when categoriaId is null => "Seleccione la categoría.",
+            (PorMarca, _, _) when marcaId is null => "Seleccione la marca.",
             _ when _porcentaje is null && _monto is null => "Indique el porcentaje o el monto máximo.",
             _ => null,
         };
@@ -96,7 +136,8 @@
             return;
 
         _procesando = true;
-        var respuesta = await Cliente.GuardarTopeAsync(new TopeDescuentoCarga(Tope?.Tope.Id ?? Guid.CreateVersion7(), _nivel, _porcentaje, _monto, familiaId, articuloId));
+        var respuesta = await Cliente.GuardarTopeAsync(new TopeDescuentoCarga(Tope?.Tope.Id ?? Guid.CreateVersion7(), _nivel, _porcentaje, _monto, departamentoId, articuloId,
+            categoriaId, marcaId));
         _procesando = false;
 
         if (respuesta.Exitosa)

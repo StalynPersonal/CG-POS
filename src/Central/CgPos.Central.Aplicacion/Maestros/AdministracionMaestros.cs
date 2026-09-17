@@ -30,6 +30,6 @@ public interface IServicioMaestrosCentral
 
     Task<ResultadoAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    /// <summary>Topes de descuento con su alcance legible: generales, luego por familia y por artículo.</summary>
+    /// <summary>Topes de descuento con su alcance legible: generales, luego por departamento y por artículo.</summary>
     Task<IReadOnlyList<DatosTopeDescuentoCentral>> ListarTopesAsync(CancellationToken cancelacion = default);
 }

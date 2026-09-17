@@ -101,7 +101,7 @@
         ("tipo *", "porcentaje, monto_por_unidad, precio_especial, lleva_paga o precio_por_cantidad"),
         ("valor", "%, monto o precio (no aplica en lleva_paga)"),
         ("desde * / hasta *", "Vigencia; hasta sin hora incluye todo el día"),
-        ("articulos / familias", "Códigos separados por |; al menos uno de los dos"),
+        ("articulos / departamentos", "Códigos separados por |; al menos uno de los dos"),
         ("sucursales", "Códigos separados por |; vacío = todas"),
         ("lleva / paga", "Para lleva_paga (ej. 3 y 2)"),
         ("cantidad_minima", "Para precio_por_cantidad"),
@@ -112,7 +112,7 @@
     ];
 
     private const string Ejemplo =
-        "codigo;nombre;tipo;valor;desde;hasta;articulos;familias;sucursales;lleva;paga;dias;hora_desde;hora_hasta;solo_fidelidad\n" +
+        "codigo;nombre;tipo;valor;desde;hasta;articulos;departamentos;sucursales;lleva;paga;dias;hora_desde;hora_hasta;solo_fidelidad\n" +
         "FERR10;Ferretería 10%;porcentaje;10;2026-10-01;2026-10-31;;FERR;;;;todos;;;no\n" +
         "CEM2X1;Cemento 3x2;lleva_paga;;2026-10-01 08:00;2026-10-15;CEM-425;;01;3;2;sab|dom;08:00;12:00;si";
 

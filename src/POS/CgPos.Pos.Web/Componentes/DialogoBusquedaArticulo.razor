@@ -21,7 +21,7 @@
                     <MudTd>@articulo.Codigo</MudTd>
                     <MudTd>
                         @articulo.Descripcion
-                        <div class="cg-venta__nota">@articulo.FamiliaNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</div>
+                        <div class="cg-venta__nota">@articulo.DepartamentoNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</div>
                     </MudTd>
                     <MudTd>@articulo.UnidadMedidaCodigo</MudTd>
                     <MudTd Class="cg-numero">@(articulo.PrecioDetalle?.ToString("N2") ?? "—")</MudTd>

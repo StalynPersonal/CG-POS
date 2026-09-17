@@ -10,24 +10,24 @@ public class PromocionesDescuentosPruebas
     private static readonly DateTimeOffset Martes10 = new(2026, 9, 15, 10, 0, 0, TimeSpan.FromHours(-4));
 
     private static readonly Guid Sucursal = Guid.CreateVersion7();
-    private static readonly Guid FamiliaFerreteria = Guid.CreateVersion7();
-    private static readonly Guid FamiliaPanaderia = Guid.CreateVersion7();
+    private static readonly Guid DepartamentoFerreteria = Guid.CreateVersion7();
+    private static readonly Guid DepartamentoPanaderia = Guid.CreateVersion7();
 
     private static readonly ArticuloParaVenta Cincel = new(
-        Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, FamiliaFerreteria, true,
+        Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, DepartamentoFerreteria, true,
         "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 850m, null, null, null, null, null);
 
     private static readonly ArticuloParaVenta Cemento = new(
-        Guid.CreateVersion7(), "CEM-425", "7460001000017", "Cemento gris", TipoArticulo.Normal, FamiliaFerreteria, true,
+        Guid.CreateVersion7(), "CEM-425", "7460001000017", "Cemento gris", TipoArticulo.Normal, DepartamentoFerreteria, true,
         "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 485m, 450m, 12m, null, null, null);
 
     private static readonly ArticuloParaVenta Martillo = new(
-        Guid.CreateVersion7(), "MAR-16", "7460001000093", "Martillo 16 oz", TipoArticulo.Normal, FamiliaFerreteria, true,
+        Guid.CreateVersion7(), "MAR-16", "7460001000093", "Martillo 16 oz", TipoArticulo.Normal, DepartamentoFerreteria, true,
         "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 600m, null, null, null, null, null);
 
     /// <summary>Panadería: no admite descuento manual, solo ofertas (RN-09).</summary>
     private static readonly ArticuloParaVenta Pan = new(
-        Guid.CreateVersion7(), "PAN-AGUA", "PAN-AGUA", "Pan de agua", TipoArticulo.Normal, FamiliaPanaderia, false,
+        Guid.CreateVersion7(), "PAN-AGUA", "PAN-AGUA", "Pan de agua", TipoArticulo.Normal, DepartamentoPanaderia, false,
         "UND", false, 0, Guid.CreateVersion7(), 0m, 4, 10m, null, null, null, null, null);
 
     private static Venta NuevaVenta() =>
@@ -153,7 +153,7 @@ public class PromocionesDescuentosPruebas
     }
 
     [Fact]
-    public void Descuento_manual_respeta_familias_sin_descuento_y_articulos_en_oferta()
+    public void Descuento_manual_respeta_departamentos_sin_descuento_y_articulos_en_oferta()
     {
         var venta = NuevaVenta();
         var pan = venta.AgregarArticulo(Pan, null, Martes10);
@@ -190,7 +190,7 @@ public class PromocionesDescuentosPruebas
     }
 
     [Fact]
-    public void Descuento_a_la_factura_por_monto_se_prorratea_exacto_y_excluye_ofertas_y_familias_sin_descuento()
+    public void Descuento_a_la_factura_por_monto_se_prorratea_exacto_y_excluye_ofertas_y_departamentos_sin_descuento()
     {
         var venta = NuevaVenta();
         var cincel = venta.AgregarArticulo(Cincel, null, Martes10);

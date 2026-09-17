@@ -1,4 +1,4 @@
-@* Alta o edición de una promoción: tipo y valores, vigencia con días y horas, alcance (artículos, familias, sucursales) y fidelidad. *@
+@* Alta o edición de una promoción: tipo y valores, vigencia con días y horas, alcance (artículos, departamentos, categorías, marcas, sucursales) y fidelidad. *@
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Promociones
 @inject ClienteCentral Central
@@ -81,11 +81,29 @@
 
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">Alcance</MudText></MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="Guid" @bind-SelectedValues="_familias" MultiSelection="true" Label="Familias" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Familias.FirstOrDefault(f => f.Id == id)?.Nombre ?? string.Empty)">
-                    @foreach (var familia in Familias)
+                <MudSelect T="Guid" @bind-SelectedValues="_departamentos" MultiSelection="true" Label="Departamentos" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Departamentos.FirstOrDefault(f => f.Id == id)?.Nombre ?? string.Empty)">
+                    @foreach (var departamento in Departamentos)
                     {
-                        <MudSelectItem T="Guid" Value="@familia.Id">@familia.Codigo · @familia.Nombre</MudSelectItem>
+                        <MudSelectItem T="Guid" Value="@departamento.Id">@departamento.Codigo · @departamento.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="Guid" @bind-SelectedValues="_categorias" MultiSelection="true" Label="Categorías" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Categorias.FirstOrDefault(c => c.Id == id)?.Nombre ?? string.Empty)">
+                    @foreach (var categoria in Categorias)
+                    {
+                        <MudSelectItem T="Guid" Value="@categoria.Id">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="Guid" @bind-SelectedValues="_marcas" MultiSelection="true" Label="Marcas" Variant="Variant.Outlined"
+                           ToStringFunc="@(id => Marcas.FirstOrDefault(m => m.Id == id)?.Nombre ?? string.Empty)">
+                    @foreach (var marca in Marcas)
+                    {
+                        <MudSelectItem T="Guid" Value="@marca.Id">@marca.Codigo · @marca.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -138,7 +156,9 @@
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
     [Parameter] public PromocionCarga? Promocion { get; set; }
-    [Parameter] public IReadOnlyList<FamiliaCarga> Familias { get; set; } = [];
+    [Parameter] public IReadOnlyList<DepartamentoCarga> Departamentos { get; set; } = [];
+    [Parameter] public IReadOnlyList<CategoriaCarga> Categorias { get; set; } = [];
+    [Parameter] public IReadOnlyList<MarcaCarga> Marcas { get; set; } = [];
     [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
 
     private readonly List<ArticuloElegido> _articulos = [];
@@ -158,7 +178,9 @@
     private bool _conHorario;
     private TimeSpan? _horaDesde = new TimeSpan(8, 0, 0);
     private TimeSpan? _horaHasta = new TimeSpan(12, 0, 0);
-    private IReadOnlyCollection<Guid> _familias = [];
+    private IReadOnlyCollection<Guid> _departamentos = [];
+    private IReadOnlyCollection<Guid> _categorias = [];
+    private IReadOnlyCollection<Guid> _marcas = [];
     private IReadOnlyCollection<Guid> _sucursales = [];
     private ArticuloCarga? _articuloBuscado;
     private bool _soloFidelidad;
@@ -180,7 +202,9 @@
         _conHorario = p.HoraDesde is not null;
         if (p is { HoraDesde: { } horaDesde, HoraHasta: { } horaHasta })
             (_horaDesde, _horaHasta) = (horaDesde.ToTimeSpan(), horaHasta.ToTimeSpan());
-        _familias = (p.Familias ?? []).ToHashSet();
+        _departamentos = (p.Departamentos ?? []).ToHashSet();
+        _categorias = (p.Categorias ?? []).ToHashSet();
+        _marcas = (p.Marcas ?? []).ToHashSet();
         _sucursales = (p.Sucursales ?? []).ToHashSet();
         (_soloFidelidad, _activa) = (p.SoloFidelidad, p.Activa);
 
@@ -209,7 +233,8 @@
             : EtiquetasPromocion.EtiquetaValor(_tipo) is not null && _valor is null ? "Indique el valor de la oferta."
             : desde is null || hasta is null ? "Indique desde y hasta cuándo rige."
             : _dias == DiasSemana.Ninguno ? "Elija al menos un día."
-            : _articulos.Count == 0 && _familias.Count == 0 ? "Agregue al menos un artículo o una familia."
+            : _articulos.Count == 0 && _departamentos.Count == 0 && _categorias.Count == 0 && _marcas.Count == 0
+                ? "Agregue al menos un artículo, un departamento, una categoría o una marca."
             : null;
         if (_mensaje is not null)
             return;
@@ -223,7 +248,7 @@
             desde!.Value,
             hasta!.Value,
             _articulos.Select(a => a.Id).ToList(),
-            _familias.ToList(),
+            _departamentos.ToList(),
             _sucursales.ToList(),
             _tipo == TipoPromocion.LlevaPaga ? _lleva : null,
             _tipo == TipoPromocion.LlevaPaga ? _paga : null,
@@ -233,7 +258,9 @@
             _conHorario && _horaDesde is { } horaDesde ? TimeOnly.FromTimeSpan(horaDesde) : null,
             _conHorario && _horaHasta is { } horaHasta ? TimeOnly.FromTimeSpan(horaHasta) : null,
             _soloFidelidad,
-            _activa);
+            _activa,
+            _categorias.ToList(),
+            _marcas.ToList());
 
         _procesando = true;
         var respuesta = await Central.GuardarPromocionAsync(promocion);

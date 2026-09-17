@@ -13,12 +13,12 @@
   ],
   "reglasAcumulacion": [
     { "id": "01990000-0000-7000-8001-000000001201", "codigo": "GENERAL", "nombre": "Un punto por cada RD$100", "tipo": "Monto", "montoBase": 100, "puntos": 1 },
-    { "id": "01990000-0000-7000-8001-000000001202", "codigo": "FER-DOBLE", "nombre": "Ferretería doble", "tipo": "Familia", "montoBase": 100, "puntos": 2, "referenciaId": "01990000-0000-7000-8001-000000000101" }
+    { "id": "01990000-0000-7000-8001-000000001202", "codigo": "FER-DOBLE", "nombre": "Ferretería doble", "tipo": "Departamento", "montoBase": 100, "puntos": 2, "referenciaId": "01990000-0000-7000-8001-000000000101" }
   ],
   "miembrosFidelidad": [
     { "id": "01990000-0000-7000-8001-000000001301", "cedula": "00113918205", "nombre": "Cliente Ejemplo Pérez", "telefono": "809-555-0103", "nivelId": "01990000-0000-7000-8001-000000001102", "saldoPuntos": 1200, "saldoAl": "2026-09-14T00:00:00-04:00", "puntosPorVencer": 150, "proximoVencimiento": "2026-12-31" }
   ],
-  "familias": [
+  "departamentos": [
     { "id": "01990000-0000-7000-8001-000000000101", "codigo": "FER", "nombre": "Ferretería" },
     { "id": "01990000-0000-7000-8001-000000000102", "codigo": "CON", "nombre": "Materiales de construcción" },
     { "id": "01990000-0000-7000-8001-000000000103", "codigo": "ELE", "nombre": "Eléctricos" },
@@ -26,6 +26,18 @@
     { "id": "01990000-0000-7000-8001-000000000105", "codigo": "VEG", "nombre": "Vegetales y especias", "permiteDescuentoManual": false, "esNoCodificada": true },
     { "id": "01990000-0000-7000-8001-000000000106", "codigo": "PAN", "nombre": "Panadería", "permiteDescuentoManual": false },
     { "id": "01990000-0000-7000-8001-000000000107", "codigo": "SER", "nombre": "Servicios" }
+  ],
+  "categorias": [
+    { "id": "01990000-0000-7000-8001-000000001601", "codigo": "HER-MAN", "nombre": "Herramientas manuales", "departamentoId": "01990000-0000-7000-8001-000000000101" },
+    { "id": "01990000-0000-7000-8001-000000001602", "codigo": "HER-ELE", "nombre": "Herramientas eléctricas", "departamentoId": "01990000-0000-7000-8001-000000000101" },
+    { "id": "01990000-0000-7000-8001-000000001603", "codigo": "CEM", "nombre": "Cementos y morteros", "departamentoId": "01990000-0000-7000-8001-000000000102" },
+    { "id": "01990000-0000-7000-8001-000000001604", "codigo": "CAB", "nombre": "Cables", "departamentoId": "01990000-0000-7000-8001-000000000103" },
+    { "id": "01990000-0000-7000-8001-000000001605", "codigo": "TUB", "nombre": "Tuberías y conexiones", "departamentoId": "01990000-0000-7000-8001-000000000104" }
+  ],
+  "marcas": [
+    { "id": "01990000-0000-7000-8001-000000001701", "codigo": "TRUPER", "nombre": "Truper" },
+    { "id": "01990000-0000-7000-8001-000000001702", "codigo": "STANLEY", "nombre": "Stanley" },
+    { "id": "01990000-0000-7000-8001-000000001703", "codigo": "PHELPS", "nombre": "Phelps Dodge" }
   ],
   "unidadesMedida": [
     { "id": "01990000-0000-7000-8001-000000000201", "codigo": "UND", "nombre": "Unidad" },
@@ -43,77 +55,77 @@
   "articulos": [
     {
       "id": "01990000-0000-7000-8001-000000000401", "codigo": "43138", "descripcion": "Cincel de Punta SDS MAX 5/8\"x11\" Tramon",
-      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 850.00, "costo": 540.00, "referencia": "43138/111", "codigosBarras": [ "7891114119695" ], "codigosProveedor": [ "TRA-43138-111" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000402", "codigo": "CEM-425", "descripcion": "Cemento gris 42.5 kg",
-      "familiaId": "01990000-0000-7000-8001-000000000102", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000102", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 485.00, "precioMayor": 450.00, "cantidadMinimaMayor": 12, "costo": 350.00, "precioMinimo": 440.00, "codigosBarras": [ "7460001000017" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000403", "codigo": "VAR-38", "descripcion": "Varilla corrugada 3/8\" x 20 pies",
-      "familiaId": "01990000-0000-7000-8001-000000000102", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000102", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 395.00, "precioMayor": 370.00, "cantidadMinimaMayor": 20, "costo": 300.00, "codigosBarras": [ "7460001000024" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000404", "codigo": "PVC-12", "descripcion": "Tubo PVC 1/2\" x 19 pies",
-      "familiaId": "01990000-0000-7000-8001-000000000104", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000104", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 260.00, "codigosBarras": [ "7460001000031" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000405", "codigo": "CAB-12", "descripcion": "Cable eléctrico THHN #12 (por pie)",
-      "familiaId": "01990000-0000-7000-8001-000000000103", "unidadMedidaId": "01990000-0000-7000-8001-000000000203", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000103", "unidadMedidaId": "01990000-0000-7000-8001-000000000203", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 18.50, "precioMayor": 16.00, "cantidadMinimaMayor": 500, "codigosBarras": [ "7460001000048" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000406", "codigo": "PIN-BLA-GAL", "descripcion": "Pintura acrílica blanca galón",
-      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000205", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000205", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 1150.00, "precioMayor": 1050.00, "cantidadMinimaMayor": 10, "codigosBarras": [ "7460001000055" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000407", "codigo": "COMBO-HER", "descripcion": "Combo de herramientas básicas (kit)",
-      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "tipo": "ComboKit", "precioDetalle": 2500.00, "precioMayor": 2300.00, "codigosBarras": [ "7460001000062" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000408", "codigo": "TAL-DW-20", "descripcion": "Taladro percutor inalámbrico 20V",
-      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "tipo": "Serializado", "precioDetalle": 6950.00, "costo": 5200.00, "precioMinimo": 6300.00, "codigosBarras": [ "7460001000079" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000409", "codigo": "12345", "descripcion": "Tomate de ensalada",
-      "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "departamentoId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
       "tipo": "Pesado", "precioDetalle": 45.00, "mostrarEnCatalogo": true, "tara": 0.020
     },
     {
       "id": "01990000-0000-7000-8001-000000000410", "codigo": "54321", "descripcion": "Cebolla roja",
-      "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "departamentoId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
       "tipo": "Pesado", "precioDetalle": 55.00, "mostrarEnCatalogo": true
     },
     {
       "id": "01990000-0000-7000-8001-000000000411", "codigo": "11111", "descripcion": "Ají cubanela",
-      "familiaId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "departamentoId": "01990000-0000-7000-8001-000000000105", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000304",
       "tipo": "Pesado", "precioDetalle": 60.00, "mostrarEnCatalogo": true
     },
     {
       "id": "01990000-0000-7000-8001-000000000412", "codigo": "PAN-AGUA", "descripcion": "Pan de agua",
-      "familiaId": "01990000-0000-7000-8001-000000000106", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000304",
+      "departamentoId": "01990000-0000-7000-8001-000000000106", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000304",
       "precioDetalle": 10.00, "mostrarEnCatalogo": true
     },
     {
       "id": "01990000-0000-7000-8001-000000000413", "codigo": "SER-CORTE", "descripcion": "Servicio de corte de madera",
-      "familiaId": "01990000-0000-7000-8001-000000000107", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000107", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 150.00
     },
     {
       "id": "01990000-0000-7000-8001-000000000414", "codigo": "CLA-2", "descripcion": "Clavos de acero 2\" (por libra)",
-      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000202", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 75.00, "precioMayor": 68.00, "cantidadMinimaMayor": 25, "codigosBarras": [ "7460001000086" ]
     },
     {
       "id": "01990000-0000-7000-8001-000000000415", "codigo": "GUA-TRAB", "descripcion": "Guantes de trabajo de cuero",
-      "familiaId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
+      "departamentoId": "01990000-0000-7000-8001-000000000101", "unidadMedidaId": "01990000-0000-7000-8001-000000000201", "impuestoId": "01990000-0000-7000-8001-000000000301",
       "precioDetalle": 180.00, "codigosBarras": [ "7460001000093" ]
     }
   ],
@@ -200,7 +212,7 @@
       "id": "01990000-0000-7000-8001-000000001004", "codigo": "FER-MANANA", "nombre": "Ferretería 5 % de 8 a 10 de la mañana",
       "tipo": "Porcentaje", "valor": 5, "horaDesde": "08:00:00", "horaHasta": "10:00:00",
       "vigenteDesde": "2026-01-01T00:00:00-04:00", "vigenteHasta": "2027-12-31T23:59:59-04:00",
-      "familias": [ "01990000-0000-7000-8001-000000000101" ]
+      "departamentos": [ "01990000-0000-7000-8001-000000000101" ]
     }
   ],
   "motivosDescuento": [
