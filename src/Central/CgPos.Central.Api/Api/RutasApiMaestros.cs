@@ -44,6 +44,10 @@ public static class RutasApiMaestros
         maestros.MapGet("/clientes", async (string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.BuscarAsync<ClienteCarga>(TipoMaestro.Cliente, buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
         Catalogo<ClienteCarga>(maestros, "clientes", TipoMaestro.Cliente, d => d.Id, d => new PaqueteMaestros(Clientes: [d]), listar: false);
+        maestros.MapPost("/clientes/{clienteId:guid}/documento", async (Guid clienteId, SolicitudCorreccionDocumentoCliente solicitud, ClaimsPrincipal usuario,
+                IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
+            Responder(await servicio.CorregirDocumentoClienteAsync(clienteId, solicitud, Actor(usuario), cancelacion)))
+            .RequireAuthorization(CatalogoPermisosCentral.CorregirDocumentoCliente);
 
         maestros.MapGet("/articulos", BuscarArticulosAsync);
         maestros.MapPut("/articulos/{articuloId:guid}", async (Guid articuloId, ArticuloCarga articulo, ClaimsPrincipal usuario, IServicioMaestrosCentral servicio,

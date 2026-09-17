@@ -19,14 +19,15 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
-        var departamento = (await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/maestros/departamentos")).First(f => f.Dato.Activa).Dato;
+        var categoria = (await ListarAsync<DatosMaestroCentral<CategoriaCarga>>(cliente, admin, "/api/maestros/categorias")).First(c => c.Dato.Activa).Dato;
+        var departamento = (await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/maestros/departamentos")).First(f => f.Dato.Id == categoria.DepartamentoId).Dato;
         var unidad = (await ListarAsync<DatosMaestroCentral<UnidadMedidaCarga>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
         var impuesto = (await ListarAsync<DatosMaestroCentral<ImpuestoCarga>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
         var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var barras = $"99{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}";
 
         var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"A{sufijo}", $"Jabón de prueba {sufijo}", departamento.Id, unidad.Id, impuesto.Id, 150m,
-            PrecioMayor: 140m, CantidadMinimaMayor: 12m, CodigosBarras: [barras]);
+            PrecioMayor: 140m, CantidadMinimaMayor: 12m, CodigosBarras: [barras], CategoriaId: categoria.Id);
         var creado = await EnviarAsync(cliente, admin, $"/api/maestros/articulos/{articulo.Id}", articulo);
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
 

@@ -189,7 +189,9 @@ internal sealed class ServicioCargaMaestros(
                 errores.Add($"{etiqueta} referencia una unidad de medida inexistente ({articulo.UnidadMedidaId}).");
             if (!idsImpuestos.Contains(articulo.ImpuestoId))
                 errores.Add($"{etiqueta} referencia un impuesto inexistente ({articulo.ImpuestoId}).");
-            if (articulo.CategoriaId is { } categoriaId)
+            if (articulo.CategoriaId is not { } categoriaId || categoriaId == Guid.Empty)
+                errores.Add($"{etiqueta} no tiene categoría.");
+            else
             {
                 if (!departamentoDeCategoria.TryGetValue(categoriaId, out var departamentoCategoria))
                     errores.Add($"{etiqueta} referencia una categoría inexistente ({categoriaId}).");
@@ -366,6 +368,9 @@ internal sealed class ServicioCargaMaestros(
         }
         else
         {
+            // Documento corregido en el Central: el cliente es el mismo (mismo Id); sus ventas anteriores conservan el documento con que se emitieron.
+            if (cliente.TipoDocumento != dato.TipoDocumento || cliente.Documento != DocumentoIdentidad.Normalizar(dato.Documento))
+                cliente.CorregirDocumento(dato.TipoDocumento, dato.Documento);
             _actualizados++;
         }
 

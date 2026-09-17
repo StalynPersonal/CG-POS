@@ -11,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
-internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, TimeProvider reloj) : IServicioMaestrosCentral
+internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, IAuditoriaCentral auditoria, TimeProvider reloj)
+    : IServicioMaestrosCentral
 {
     public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(TipoMaestro tipo, CancellationToken cancelacion = default) =>
         (await contexto.MaestrosCentral.AsNoTracking()
@@ -74,6 +75,43 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             };
 
         return await PublicarAsync(new PaqueteMaestros(Articulos: [publicar]), articuloId, actor, cancelacion);
+    }
+
+    public async Task<ResultadoAdministracion> CorregirDocumentoClienteAsync(Guid clienteId, SolicitudCorreccionDocumentoCliente solicitud, UsuarioAuditoria actor,
+        CancellationToken cancelacion = default)
+    {
+        ArgumentNullException.ThrowIfNull(solicitud);
+        if (await LeerAsync<ClienteCarga>(TipoMaestro.Cliente, clienteId, cancelacion) is not { } actual)
+            return ResultadoAdministracion.Inexistente("El cliente no existe.");
+        if (string.IsNullOrWhiteSpace(solicitud.Motivo))
+            return ResultadoAdministracion.Error("Indique el motivo de la corrección.");
+
+        var documento = CgPos.Dominio.Fiscal.DocumentoIdentidad.Normalizar(solicitud.Documento);
+        if (solicitud.TipoDocumento == actual.TipoDocumento && documento == CgPos.Dominio.Fiscal.DocumentoIdentidad.Normalizar(actual.Documento))
+            return ResultadoAdministracion.Error("El documento es el mismo que ya tiene el cliente.");
+
+        // RNC y cédula deben tener formato y dígito verificador válidos; el pasaporte solo se valida por formato (en el dominio).
+        if (solicitud.TipoDocumento != CgPos.Dominio.Fiscal.TipoDocumentoIdentidad.Pasaporte)
+        {
+            var validacion = CgPos.Dominio.Fiscal.DocumentoIdentidad.Validar(documento);
+            if (validacion.Tipo != solicitud.TipoDocumento || !validacion.EsValido)
+                return ResultadoAdministracion.Error($"El documento '{solicitud.Documento}' no es {(solicitud.TipoDocumento == CgPos.Dominio.Fiscal.TipoDocumentoIdentidad.Rnc ? "un RNC válido" : "una cédula válida")}.");
+        }
+
+        try
+        {
+            await publicador.PublicarAsync(new PaqueteMaestros(Clientes: [actual with { TipoDocumento = solicitud.TipoDocumento, Documento = documento }]), actor.Nombre,
+                cancelacion, corregirDocumentoCliente: true);
+        }
+        catch (PublicacionInvalidaExcepcion excepcion)
+        {
+            return ResultadoAdministracion.Error(string.Join(" ", excepcion.Errores));
+        }
+
+        auditoria.Registrar(new EntradaAuditoria("Maestros.ClienteDocumentoCorregido", "Cliente", clienteId.ToString(),
+            new { Anterior = new { actual.TipoDocumento, actual.Documento }, Nuevo = new { solicitud.TipoDocumento, Documento = documento } }, solicitud.Motivo.Trim(), actor));
+        await contexto.SaveChangesAsync(cancelacion);
+        return ResultadoAdministracion.Correcto(clienteId);
     }
 
     public async Task<ResultadoAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor,

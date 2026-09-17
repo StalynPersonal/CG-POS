@@ -19,7 +19,8 @@ public interface IPublicadorMaestros
 {
     /// <summary>Valida cada registro con las reglas del dominio, las referencias y los códigos únicos contra lo ya publicado.</summary>
     /// <exception cref="PublicacionInvalidaExcepcion">Algún registro no es válido.</exception>
-    Task<ResultadoPublicacion> PublicarAsync(PaqueteMaestros paquete, string usuario, CancellationToken cancelacion = default);
+    /// <param name="corregirDocumentoCliente">Admite el cambio de documento de un cliente ya publicado (solo desde la corrección auditada).</param>
+    Task<ResultadoPublicacion> PublicarAsync(PaqueteMaestros paquete, string usuario, CancellationToken cancelacion = default, bool corregirDocumentoCliente = false);
 
     /// <summary>
     /// Roles, usuarios y parámetros de las cajas en el formato de la carga inicial de la caja. Un PIN o carné en claro se publica solo como hash,

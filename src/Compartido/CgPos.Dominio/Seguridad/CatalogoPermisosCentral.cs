@@ -14,6 +14,7 @@ public static class CatalogoPermisosCentral
     public const string AdministrarDispositivos = "Central.Dispositivos.Administrar";
     public const string AdministrarUsuariosCaja = "Central.UsuariosCaja.Administrar";
     public const string AdministrarMaestros = "Central.Maestros.Administrar";
+    public const string CorregirDocumentoCliente = "Central.Clientes.CorregirDocumento";
     public const string AdministrarPrecios = "Central.Precios.Administrar";
     public const string AdministrarPromociones = "Central.Promociones.Administrar";
     public const string AdministrarFiscal = "Central.Fiscal.Administrar";
@@ -31,6 +32,7 @@ public static class CatalogoPermisosCentral
         new(AdministrarDispositivos, "Organización", "Emitir y revocar las credenciales con las que las cajas se conectan"),
         new(AdministrarUsuariosCaja, "Seguridad", "Administrar usuarios y roles de las cajas"),
         new(AdministrarMaestros, "Maestros", "Administrar artículos, clientes y catálogos"),
+        new(CorregirDocumentoCliente, "Maestros", "Corregir el tipo y el número de documento de un cliente (queda auditado con motivo)"),
         new(AdministrarPrecios, "Precios", "Administrar precios y topes de descuento"),
         new(AdministrarPromociones, "Promociones", "Crear, importar y distribuir promociones"),
         new(AdministrarFiscal, "Fiscal", "Administrar secuencias de e-CF y el envío a la DGII"),

@@ -43,7 +43,7 @@ public sealed class Articulo : Entidad
     public string? Referencia { get; private set; }
     public Guid DepartamentoId { get; private set; }
 
-    /// <summary>Categoría dentro del departamento; opcional.</summary>
+    /// <summary>Categoría dentro del departamento. El Central la exige al publicar; es nula solo en artículos cargados antes de existir las categorías.</summary>
     public Guid? CategoriaId { get; private set; }
 
     /// <summary>Marca; opcional (hay artículos genéricos sin marca).</summary>

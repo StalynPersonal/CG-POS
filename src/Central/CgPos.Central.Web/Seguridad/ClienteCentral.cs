@@ -167,6 +167,9 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> GuardarClienteAsync(CgPos.Contratos.Catalogo.ClienteCarga cliente) =>
         EnviarAsync(HttpMethod.Put, $"api/maestros/clientes/{cliente.Id}", cliente);
 
+    public Task<RespuestaAdministracion> CorregirDocumentoClienteAsync(Guid clienteId, SolicitudCorreccionDocumentoCliente solicitud) =>
+        EnviarAsync(HttpMethod.Post, $"api/maestros/clientes/{clienteId}/documento", solicitud);
+
     /// <param name="modulo">"maestros" o "precios", según el permiso con el que se consulta.</param>
     public Task<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>?> BuscarArticulosAsync(string modulo, string? texto, int pagina, int tamano,
         CancellationToken cancelacion = default) =>

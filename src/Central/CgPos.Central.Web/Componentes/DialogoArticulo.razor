@@ -33,7 +33,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudSelect T="Guid?" @bind-Value="_categoriaId" Label="Categoría (opcional)" Placeholder="Sin categoría" Variant="Variant.Outlined" Clearable="true"
+                <MudSelect T="Guid?" @bind-Value="_categoriaId" Label="Categoría" Placeholder="Seleccione" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio"
                            Disabled="@(_departamentoId is null)" HelperText="@(_departamentoId is null ? "Elija primero el departamento." : null)"
                            ToStringFunc="@(id => Referencias.Categorias.FirstOrDefault(c => c.Id == id)?.Nombre)">
                     @foreach (var categoria in Referencias.Categorias.Where(c => c.DepartamentoId == _departamentoId && (c.Activa || c.Id == Articulo?.CategoriaId)))
@@ -198,6 +198,7 @@
         _mensaje = (_departamentoId, _unidadId, _impuestoId) switch
         {
             (null, _, _) => "Seleccione el departamento.",
+            _ when _categoriaId is null => "Seleccione la categoría.",
             (_, null, _) => "Seleccione la unidad de medida.",
             (_, _, null) => "Seleccione el impuesto.",
             _ when Articulo is null && _precioDetalle is null => "Indique el precio detalle.",

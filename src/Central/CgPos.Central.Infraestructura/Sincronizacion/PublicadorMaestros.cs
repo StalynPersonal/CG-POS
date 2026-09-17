@@ -25,7 +25,7 @@ internal sealed class PublicadorMaestros(
 
     private const string TodosLosPermisos = "*";
 
-    public async Task<ResultadoPublicacion> PublicarAsync(PaqueteMaestros paquete, string usuario, CancellationToken cancelacion = default)
+    public async Task<ResultadoPublicacion> PublicarAsync(PaqueteMaestros paquete, string usuario, CancellationToken cancelacion = default, bool corregirDocumentoCliente = false)
     {
         ArgumentNullException.ThrowIfNull(paquete);
         ArgumentException.ThrowIfNullOrWhiteSpace(usuario);
@@ -35,7 +35,7 @@ internal sealed class PublicadorMaestros(
         var existentes = await CargarExistentesAsync(filas.Select(f => f.Tipo), cancelacion);
 
         ValidarUnicos(filas, existentes.Values, errores);
-        ValidarInmutables(filas, existentes, errores);
+        ValidarInmutables(filas, existentes, errores, corregirDocumentoCliente);
         await ValidarReferenciasAsync(paquete, existentes.Values, errores, cancelacion);
         if (errores.Count > 0)
             throw new PublicacionInvalidaExcepcion(errores);
@@ -242,7 +242,8 @@ internal sealed class PublicadorMaestros(
     };
 
     /// <summary>Lo que la caja rechaza cambiar se valida antes de publicar: un maestro así detendría su sincronización.</summary>
-    private static void ValidarInmutables(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, List<string> errores)
+    private static void ValidarInmutables(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, List<string> errores,
+        bool corregirDocumentoCliente)
     {
         foreach (var fila in filas)
         {
@@ -260,9 +261,9 @@ internal sealed class PublicadorMaestros(
                 errores.Add($"La denominación {publicado.Codigo} no puede cambiar de moneda, valor ni tipo; cree una nueva.");
             else if (fila.Tipo == TipoMaestro.FormaPago && FormatoMaestros.Leer<FormaPagoCarga>(publicado).Tipo != ((FormaPagoCarga)fila.Dato).Tipo)
                 errores.Add($"No se puede cambiar el tipo de la forma de pago '{publicado.Codigo}'; cree una nueva.");
-            // La caja no aplica un cambio de documento: el cliente quedaría con documentos distintos en el Central y en las cajas.
-            else if (fila.Tipo == TipoMaestro.Cliente && cambiaCodigo)
-                errores.Add($"No se puede cambiar el documento del cliente '{FormatoMaestros.Leer<ClienteCarga>(publicado).Documento}'; cree otro cliente.");
+            // El documento solo cambia con la corrección auditada (con motivo), no al guardar los datos del cliente.
+            else if (fila.Tipo == TipoMaestro.Cliente && cambiaCodigo && !corregirDocumentoCliente)
+                errores.Add($"El documento del cliente '{FormatoMaestros.Leer<ClienteCarga>(publicado).Documento}' se cambia con «Corregir documento».");
         }
     }
 

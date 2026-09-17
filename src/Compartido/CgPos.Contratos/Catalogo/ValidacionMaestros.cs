@@ -58,6 +58,8 @@ public static class ValidacionMaestros
                     throw new ArgumentException("El precio detalle debe ser mayor que cero.");
                 if (d.PrecioMayor <= 0)
                     throw new ArgumentException("El precio por mayor debe ser mayor que cero.");
+                if (d.CategoriaId is null || d.CategoriaId == Guid.Empty)
+                    throw new ArgumentException("Indique la categoría del artículo.");
 
                 var articulo = Articulo.Crear(d.Codigo, d.Descripcion, d.DepartamentoId, d.UnidadMedidaId, d.ImpuestoId, d.Tipo, d.Id);
                 articulo.ActualizarDatos(d.Descripcion, d.Referencia, d.DepartamentoId, d.UnidadMedidaId, d.ImpuestoId, d.Tipo);

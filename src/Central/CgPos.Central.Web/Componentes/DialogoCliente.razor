@@ -1,4 +1,4 @@
-@* Alta o edición de un cliente con sus direcciones de envío. El tipo y el número de documento no cambian después de crearlo. *@
+@* Alta o edición de un cliente con sus direcciones de envío. Cambiar el documento de un cliente existente es una corrección auditada: pide motivo. *@
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Catalogo
 @using CgPos.Dominio.Fiscal
@@ -8,7 +8,7 @@
     <DialogContent>
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="4">
-                <MudSelect T="TipoDocumentoIdentidad" @bind-Value="_tipoDocumento" Label="Tipo de documento" Variant="Variant.Outlined" Disabled="@(Cliente is not null)"
+                <MudSelect T="TipoDocumentoIdentidad" @bind-Value="_tipoDocumento" Label="Tipo de documento" Variant="Variant.Outlined"
                            ToStringFunc="EtiquetasCliente.Documento">
                     @foreach (var tipo in EtiquetasCliente.Documentos)
                     {
@@ -17,9 +17,21 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="8">
-                <MudTextField T="string" @bind-Value="_documento" Label="Documento" Variant="Variant.Outlined" Disabled="@(Cliente is not null)"
-                              HelperText="@(Cliente is null ? "Cédula de 11 dígitos o RNC de 9, con o sin guiones. No cambia después de crearlo." : "No cambia: para otro documento cree otro cliente.")" />
+                <MudTextField T="string" @bind-Value="_documento" Label="Documento" Variant="Variant.Outlined" Immediate="true"
+                              HelperText="Cédula de 11 dígitos o RNC de 9, con o sin guiones." />
             </MudItem>
+            @if (CorrigeDocumento)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Warning" Dense="true">
+                        Se corregirá el documento del cliente. Las facturas y documentos ya emitidos conservan los datos con que se emitieron.
+                    </MudAlert>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="_motivoCorreccion" Label="Motivo de la corrección" Variant="Variant.Outlined" Required="true"
+                                  RequiredError="Obligatorio" HelperText="Queda en la auditoría con el documento anterior y el nuevo." />
+                </MudItem>
+            }
             <MudItem xs="12">
                 <MudTextField T="string" @bind-Value="_nombre" Label="Nombre o razón social" Variant="Variant.Outlined" />
             </MudItem>
@@ -131,6 +143,11 @@
     private readonly List<DireccionEditable> _direcciones = [];
     private TipoDocumentoIdentidad _tipoDocumento = TipoDocumentoIdentidad.Cedula;
     private string? _documento;
+    private string? _motivoCorreccion;
+
+    /// <summary>Cliente existente al que se le cambió el tipo o el número de documento.</summary>
+    private bool CorrigeDocumento => Cliente is not null
+        && (_tipoDocumento != Cliente.TipoDocumento || DocumentoIdentidad.Normalizar(_documento) != DocumentoIdentidad.Normalizar(Cliente.Documento));
     private string? _nombre;
     private string? _telefono;
     private string? _correo;
@@ -176,6 +193,7 @@
         _mensaje = string.IsNullOrWhiteSpace(_documento) ? $"Indique el número de {EtiquetasCliente.Documento(_tipoDocumento).ToLowerInvariant()}."
             : string.IsNullOrWhiteSpace(_nombre) ? "Indique el nombre o la razón social."
             : _direcciones.Any(d => string.IsNullOrWhiteSpace(d.Alias) || string.IsNullOrWhiteSpace(d.Direccion)) ? "Cada dirección necesita alias y dirección."
+            : CorrigeDocumento && string.IsNullOrWhiteSpace(_motivoCorreccion) ? "Indique el motivo de la corrección del documento."
             : null;
         if (_mensaje is not null)
             return;
@@ -189,7 +207,23 @@
 
         _procesando = true;
         _mensaje = null;
-        var respuesta = await Central.GuardarClienteAsync(cliente);
+
+        // Primero la corrección auditada del documento; después los demás datos, ya con el documento nuevo.
+        if (CorrigeDocumento)
+        {
+            var correccion = await Central.CorregirDocumentoClienteAsync(Cliente!.Id,
+                new SolicitudCorreccionDocumentoCliente(_tipoDocumento, _documento?.Trim() ?? string.Empty, _motivoCorreccion!.Trim()));
+            if (!correccion.Exitosa)
+            {
+                _procesando = false;
+                _mensaje = correccion.Mensaje ?? "No se pudo corregir el documento.";
+                return;
+            }
+
+            Cliente = Cliente with { TipoDocumento = _tipoDocumento, Documento = DocumentoIdentidad.Normalizar(_documento) };
+        }
+
+        var respuesta = await Central.GuardarClienteAsync(cliente with { Documento = DocumentoIdentidad.Normalizar(cliente.Documento) });
         _procesando = false;
 
         if (respuesta.Exitosa)

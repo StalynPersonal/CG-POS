@@ -12,6 +12,9 @@ public sealed class EscenarioCatalogo
 
     public Guid DepartamentoFerreteria { get; } = Guid.CreateVersion7();
     public Guid DepartamentoVegetales { get; } = Guid.CreateVersion7();
+    public Guid CategoriaHerramientas { get; } = Guid.CreateVersion7();
+    public Guid CategoriaVegetales { get; } = Guid.CreateVersion7();
+    public string CodigoCategoriaHerramientas => $"HER{Sufijo}";
     public Guid UnidadUnidad { get; } = Guid.CreateVersion7();
     public Guid UnidadLibra { get; } = Guid.CreateVersion7();
     public Guid ImpuestoItbis18 { get; } = Guid.CreateVersion7();
@@ -82,6 +85,11 @@ public sealed class EscenarioCatalogo
                 new DepartamentoCarga(DepartamentoFerreteria, CodigoFerreteria, $"Ferretería {Sufijo}"),
                 new DepartamentoCarga(DepartamentoVegetales, $"VEG{Sufijo}", $"Vegetales {Sufijo}", PermiteDescuentoManual: false, EsNoCodificada: true),
             ],
+            Categorias:
+            [
+                new CategoriaCarga(CategoriaHerramientas, CodigoCategoriaHerramientas, $"Herramientas {Sufijo}", DepartamentoFerreteria),
+                new CategoriaCarga(CategoriaVegetales, $"VEGC{Sufijo}", $"Vegetales {Sufijo}", DepartamentoVegetales),
+            ],
             UnidadesMedida:
             [
                 new UnidadMedidaCarga(UnidadUnidad, $"UN{Sufijo}", "Unidad"),
@@ -95,21 +103,22 @@ public sealed class EscenarioCatalogo
             Articulos:
             [
                 new ArticuloCarga(ArticuloCincel, CodigoCincel, $"Cincel de punta SDS {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 850m,
-                    Costo: 540m, CodigosBarras: [BarrasCincel], CodigosProveedor: [ProveedorCincel], PreciosVigentesDesde: vigenciaPrecios),
+                    Costo: 540m, CodigosBarras: [BarrasCincel], CodigosProveedor: [ProveedorCincel], PreciosVigentesDesde: vigenciaPrecios, CategoriaId: CategoriaHerramientas),
                 new ArticuloCarga(ArticuloCemento, CodigoCemento, $"Cemento gris 42.5 kg {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, precioCemento,
-                    PrecioMayor: 450m, CantidadMinimaMayor: 12m, Costo: 350m, PrecioMinimo: 440m, CodigosBarras: [BarrasCemento], PreciosVigentesDesde: vigenciaPrecios),
+                    PrecioMayor: 450m, CantidadMinimaMayor: 12m, Costo: 350m, PrecioMinimo: 440m, CodigosBarras: [BarrasCemento], PreciosVigentesDesde: vigenciaPrecios,
+                    CategoriaId: CategoriaHerramientas),
                 new ArticuloCarga(ArticuloCombo, CodigoCombo, $"Combo herramientas {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 2500m,
-                    PrecioMayor: 2300m, Tipo: TipoArticulo.ComboKit, PreciosVigentesDesde: vigenciaPrecios),
+                    PrecioMayor: 2300m, Tipo: TipoArticulo.ComboKit, PreciosVigentesDesde: vigenciaPrecios, CategoriaId: CategoriaHerramientas),
                 new ArticuloCarga(ArticuloTomate, PluTomate, $"Tomate {Sufijo}", DepartamentoVegetales, UnidadLibra, ImpuestoExento, 45m,
-                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios),
+                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, CategoriaId: CategoriaVegetales),
                 new ArticuloCarga(ArticuloCebolla, PluCebolla, $"Cebolla {Sufijo}", DepartamentoVegetales, UnidadLibra, ImpuestoExento, 55m,
-                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, Tara: TaraCebolla),
+                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, Tara: TaraCebolla, CategoriaId: CategoriaVegetales),
                 new ArticuloCarga(ArticuloTaladro, CodigoTaladro, $"Taladro inalámbrico {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 6950m,
-                    Tipo: TipoArticulo.Serializado, PreciosVigentesDesde: vigenciaPrecios),
+                    Tipo: TipoArticulo.Serializado, PreciosVigentesDesde: vigenciaPrecios, CategoriaId: CategoriaHerramientas),
                 new ArticuloCarga(ArticuloInactivo, CodigoInactivo, $"Artículo descontinuado {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
-                    Activo: false, PreciosVigentesDesde: vigenciaPrecios),
+                    Activo: false, PreciosVigentesDesde: vigenciaPrecios, CategoriaId: CategoriaHerramientas),
                 new ArticuloCarga(ArticuloFueraDePos, CodigoFueraDePos, $"Artículo solo almacén {Sufijo}", DepartamentoFerreteria, UnidadUnidad, ImpuestoItbis18, 100m,
-                    VentaEnPos: false, PreciosVigentesDesde: vigenciaPrecios),
+                    VentaEnPos: false, PreciosVigentesDesde: vigenciaPrecios, CategoriaId: CategoriaHerramientas),
             ],
             Clientes:
             [

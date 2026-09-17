@@ -15,7 +15,7 @@ namespace CgPos.Pos.Infraestructura.Catalogo;
 
 internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditoria auditoria, TimeProvider reloj) : IImportadorArticulos
 {
-    private static readonly string[] ColumnasObligatorias = ["codigo", "descripcion", "departamento", "unidad", "impuesto", "precio_detalle"];
+    private static readonly string[] ColumnasObligatorias = ["codigo", "descripcion", "departamento", "categoria", "unidad", "impuesto", "precio_detalle"];
 
     public async Task<ResultadoImportacionArticulos> ImportarCsvAsync(Stream contenido, string origen, CancellationToken cancelacion = default)
     {
@@ -69,15 +69,12 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
                 var departamentoId = BuscarId(departamentos, Valor("departamento"), "el departamento");
                 var unidadId = BuscarId(unidades, Valor("unidad"), "la unidad de medida");
                 var impuestoId = BuscarId(impuestos, Valor("impuesto"), "el impuesto");
-                Guid? categoriaId = null;
-                if (Valor("categoria") is { } codigoCategoria)
-                {
-                    if (!categorias.TryGetValue(codigoCategoria, out var categoria))
-                        throw new FormatException($"No existe la categoría '{codigoCategoria}'.");
-                    if (categoria.DepartamentoId != departamentoId)
-                        throw new FormatException($"La categoría '{codigoCategoria}' no es del departamento del artículo.");
-                    categoriaId = categoria.Id;
-                }
+                var codigoCategoria = Valor("categoria") ?? throw new FormatException("Falta la categoría.");
+                if (!categorias.TryGetValue(codigoCategoria, out var categoria))
+                    throw new FormatException($"No existe la categoría '{codigoCategoria}'.");
+                if (categoria.DepartamentoId != departamentoId)
+                    throw new FormatException($"La categoría '{codigoCategoria}' no es del departamento del artículo.");
+                Guid? categoriaId = categoria.Id;
 
                 Guid? marcaId = Valor("marca") is { } codigoMarca ? BuscarId(marcas, codigoMarca, "la marca") : null;
                 var precioDetalle = LeerDecimal(Valor("precio_detalle"), "precio_detalle") ?? throw new FormatException("Falta el precio detalle.");

@@ -8,6 +8,9 @@ public sealed record DatosMaestroCentral<T>(T Dato, DateTimeOffset ModificadoEn,
 /// <param name="Total">Registros que coinciden con la búsqueda, sumando todas las páginas.</param>
 public sealed record PaginaMaestros<T>(IReadOnlyList<DatosMaestroCentral<T>> Elementos, int Total);
 
+/// <summary>Corrección del documento de un cliente mal digitado; el motivo queda en la auditoría.</summary>
+public sealed record SolicitudCorreccionDocumentoCliente(CgPos.Dominio.Fiscal.TipoDocumentoIdentidad TipoDocumento, string Documento, string Motivo);
+
 /// <summary>Precios de un artículo (RF-190): detalle, mayor y mínimo con impuesto incluido; el costo sin impuesto.</summary>
 /// <param name="VigenteDesde">Desde cuándo rigen el detalle y el mayor; nulo = desde ahora.</param>
 public sealed record SolicitudPreciosArticulo(

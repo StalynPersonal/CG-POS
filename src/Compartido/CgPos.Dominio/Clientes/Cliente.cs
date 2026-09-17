@@ -51,6 +51,16 @@ public sealed class Cliente : Entidad
         return cliente;
     }
 
+    /// <summary>
+    /// Corrige el tipo y el número de documento (por ejemplo, uno mal digitado). Las facturas y demás documentos ya emitidos no cambian: guardan los datos
+    /// del cliente con que se emitieron.
+    /// </summary>
+    public void CorregirDocumento(TipoDocumentoIdentidad tipoDocumento, string documento)
+    {
+        Documento = ValidarDocumento(tipoDocumento, documento);
+        TipoDocumento = tipoDocumento;
+    }
+
     public void ActualizarContacto(string nombre, string? telefono, string? correo)
     {
         Nombre = Validar.Texto(nombre, "Nombre del cliente", LargoMaximoNombre);

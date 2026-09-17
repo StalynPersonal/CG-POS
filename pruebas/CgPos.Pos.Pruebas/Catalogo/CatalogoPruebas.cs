@@ -183,13 +183,17 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
                 .. paquete.Articulos!,
                 new ArticuloCarga(Guid.CreateVersion7(), $"MAL-{escenario.Sufijo}", "Sin departamento", departamentoInexistente, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m),
                 new ArticuloCarga(Guid.CreateVersion7(), $"DUP-{escenario.Sufijo}", "Código repetido", escenario.DepartamentoFerreteria, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m,
-                    CodigosBarras: [escenario.BarrasCincel]),
+                    CodigosBarras: [escenario.BarrasCincel], CategoriaId: escenario.CategoriaHerramientas),
+                new ArticuloCarga(Guid.CreateVersion7(), $"CATV-{escenario.Sufijo}", "Categoría de otro departamento", escenario.DepartamentoFerreteria, escenario.UnidadUnidad,
+                    escenario.ImpuestoItbis18, 10m, CategoriaId: escenario.CategoriaVegetales),
             ],
         };
 
         var error = await Assert.ThrowsAsync<CargaMaestrosInvalidaExcepcion>(() => AplicarAsync(conErrores));
 
         Assert.Contains(error.Errores, e => e.Contains("departamento inexistente"));
+        Assert.Contains(error.Errores, e => e.Contains($"'MAL-{escenario.Sufijo}' no tiene categoría"));
+        Assert.Contains(error.Errores, e => e.Contains("no es de su departamento"));
         Assert.Contains(error.Errores, e => e.Contains(escenario.BarrasCincel));
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
@@ -288,11 +292,12 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var barrasNuevo = "8" + Random.Shared.NextInt64(100_000_000_000, 999_999_999_999);
 
         var csv = string.Join("\n",
-            "codigo;descripcion;departamento;unidad;impuesto;precio_detalle;precio_mayor;cantidad_minima_mayor;codigos_barras;tipo",
-            $"{codigoNuevo};\"Martillo; mango de fibra\";{escenario.CodigoFerreteria};{escenario.CodigoLibra};{escenario.CodigoItbis18};325.50;300;6;{barrasNuevo};Normal",
-            $"{escenario.CodigoCemento};Cemento gris 42.5 kg {escenario.Sufijo};{escenario.CodigoFerreteria};{escenario.CodigoLibra};{escenario.CodigoItbis18};510;450;12;{escenario.BarrasCemento};Normal",
-            $"MALA-{escenario.Sufijo};Departamento que no existe;NOEXISTE;{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal",
-            $"MALB-{escenario.Sufijo};Precio mal escrito;{escenario.CodigoFerreteria};{escenario.CodigoLibra};{escenario.CodigoItbis18};10,50;;;;Normal");
+            "codigo;descripcion;departamento;categoria;unidad;impuesto;precio_detalle;precio_mayor;cantidad_minima_mayor;codigos_barras;tipo",
+            $"{codigoNuevo};\"Martillo; mango de fibra\";{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};325.50;300;6;{barrasNuevo};Normal",
+            $"{escenario.CodigoCemento};Cemento gris 42.5 kg {escenario.Sufijo};{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};510;450;12;{escenario.BarrasCemento};Normal",
+            $"MALA-{escenario.Sufijo};Departamento que no existe;NOEXISTE;{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal",
+            $"MALB-{escenario.Sufijo};Precio mal escrito;{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};10,50;;;;Normal",
+            $"MALC-{escenario.Sufijo};Sin categoría;{escenario.CodigoFerreteria};;{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal");
 
         ResultadoImportacionArticulos resultado;
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
@@ -304,7 +309,8 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Assert.Equal(1, resultado.Creados);
         Assert.Equal(1, resultado.Actualizados);
         Assert.Equal(3, resultado.PreciosRegistrados); // nuevo: detalle + mayor; cemento: detalle 510
-        Assert.Equal(2, resultado.Errores.Count);
+        Assert.Equal(3, resultado.Errores.Count);
+        Assert.Contains(resultado.Errores, e => e.Linea == 6 && e.Mensaje.Contains("categoría"));
         Assert.Contains(resultado.Errores, e => e.Linea == 4 && e.Mensaje.Contains("NOEXISTE"));
         Assert.Contains(resultado.Errores, e => e.Linea == 5 && e.Mensaje.Contains("precio_detalle"));
 
@@ -332,6 +338,25 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Assert.Contains(cobro.Bancos, b => b.Id == escenario.Banco);
         Assert.Contains(cobro.TiposTarjeta, t => t.Id == escenario.TipoTarjeta);
         Assert.Contains(cobro.Denominaciones, d => d.Id == escenario.BilleteMil);
+    }
+
+    [SkippableFact]
+    public async Task El_documento_corregido_en_el_Central_actualiza_al_mismo_cliente_en_la_caja()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        var escenario = new EscenarioCatalogo();
+        var paquete = escenario.Paquete();
+        await AplicarAsync(paquete);
+
+        var corregido = EscenarioCatalogo.RncAleatorioValido();
+        var cliente = paquete.Clientes!.Single(c => c.Id == escenario.Cliente);
+        await AplicarAsync(new PaqueteMaestros(Clientes: [cliente with { Documento = corregido }]));
+
+        await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
+        var enCaja = await contexto.Clientes.AsNoTracking().SingleAsync(c => c.Id == escenario.Cliente);
+        Assert.Equal((TipoDocumentoIdentidad.Rnc, corregido), (enCaja.TipoDocumento, enCaja.Documento));
+        Assert.False(await contexto.Clientes.AnyAsync(c => c.Documento == escenario.RncCliente));
     }
 
     private Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete) => AplicarAsync(paquete, baseDatos.Servicios!);

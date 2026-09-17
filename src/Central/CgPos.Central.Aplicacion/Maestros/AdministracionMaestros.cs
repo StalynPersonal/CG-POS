@@ -28,6 +28,13 @@ public interface IServicioMaestrosCentral
     /// <summary>Crea o cambia los datos de un artículo. Un artículo ya publicado conserva sus precios: se cambian con <see cref="CambiarPreciosAsync"/>.</summary>
     Task<ResultadoAdministracion> GuardarArticuloAsync(Guid articuloId, ArticuloCarga articulo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
+    /// <summary>
+    /// Corrige el tipo y el número de documento de un cliente: valida el formato y el dígito verificador, que no lo tenga otro cliente y que haya motivo.
+    /// Queda en la auditoría con el documento anterior y el nuevo. Las facturas ya emitidas conservan los datos con que se emitieron.
+    /// </summary>
+    Task<ResultadoAdministracion> CorregirDocumentoClienteAsync(Guid clienteId, SolicitudCorreccionDocumentoCliente solicitud, UsuarioAuditoria actor,
+        CancellationToken cancelacion = default);
+
     Task<ResultadoAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Topes de descuento con su alcance legible: generales, luego por departamento y por artículo.</summary>

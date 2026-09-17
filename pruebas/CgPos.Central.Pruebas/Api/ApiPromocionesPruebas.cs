@@ -146,11 +146,13 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"F{sufijo}", $"Departamento promociones {sufijo}");
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/departamentos/{departamento.Id}", departamento)).Cuerpo!.Exitosa);
+        var categoria = new CategoriaCarga(Guid.CreateVersion7(), $"C{sufijo}", $"Categoría promociones {sufijo}", departamento.Id);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/categorias/{categoria.Id}", categoria)).Cuerpo!.Exitosa);
 
         var unidad = (await ObtenerAsync<List<DatosMaestroCentral<UnidadMedidaCarga>>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
         var impuesto = (await ObtenerAsync<List<DatosMaestroCentral<ImpuestoCarga>>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
         var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"S{sufijo}", $"Simulado {sufijo}", departamento.Id, unidad.Id, impuesto.Id, 100m,
-            PrecioMayor: 90m, CantidadMinimaMayor: 10m);
+            PrecioMayor: 90m, CantidadMinimaMayor: 10m, CategoriaId: categoria.Id);
         var creado = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/articulos/{articulo.Id}", articulo);
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
         return (departamento, articulo);
