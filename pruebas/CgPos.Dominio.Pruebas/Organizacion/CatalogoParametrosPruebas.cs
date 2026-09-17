@@ -19,7 +19,7 @@ public class CatalogoParametrosPruebas
     [InlineData("Seguridad.IntentosMaximosPin", "3", null)]
     [InlineData("Seguridad.IntentosMaximosPin", "tres", "El valor debe ser un número entero.")]
     [InlineData("Seguridad.IntentosMaximosPin", "0", "El valor no puede ser menor que 1.")]
-    [InlineData("Seguridad.IntentosMaximosPin", "", "El parámetro «Seguridad.IntentosMaximosPin» es obligatorio.")]
+    [InlineData("Seguridad.IntentosMaximosPin", "", "El parámetro «Intentos de PIN fallidos seguidos que bloquean al usuario de la caja» (Seguridad.IntentosMaximosPin) es obligatorio.")]
     [InlineData("Fiscal.TipoIngresos", "7", "El valor no puede ser mayor que 6.")]
     [InlineData("Fiscal.MontoIdentificacionConsumo", "250000.50", null)]
     [InlineData("Fiscal.MontoIdentificacionConsumo", "250 mil", "El valor debe ser un número (use punto decimal).")]

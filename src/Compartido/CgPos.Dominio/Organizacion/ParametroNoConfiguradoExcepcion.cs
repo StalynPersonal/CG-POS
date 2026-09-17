@@ -6,8 +6,12 @@ namespace CgPos.Dominio.Organizacion;
 /// </summary>
 public sealed class ParametroNoConfiguradoExcepcion(string clave, string? detalle = null)
     : Exception(detalle is null
-        ? $"Falta configurar el parámetro «{clave}». Configúrelo en el Central."
-        : $"El parámetro «{clave}» {detalle}. Corríjalo en el Central.")
+        ? $"Falta configurar el parámetro {Nombre(clave)}. Configúrelo en el Central."
+        : $"El parámetro {Nombre(clave)} {detalle}. Corríjalo en el Central.")
 {
     public string Clave { get; } = clave;
+
+    /// <summary>Lo que ve el usuario: la descripción del catálogo y, entre paréntesis, la clave técnica para buscarla o darla a soporte.</summary>
+    internal static string Nombre(string clave) =>
+        CatalogoParametros.Buscar(clave) is { } definicion ? $"«{definicion.Descripcion}» ({definicion.Clave})" : $"«{clave}»";
 }

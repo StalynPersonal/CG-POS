@@ -102,7 +102,8 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         var cierreCiego = Assert.Single(parametros, p => p.Clave == "Caja.CierreCiego" && p.SucursalId is null && p.CajaId is null);
         var moneda = Assert.Single(parametros, p => p.Clave == "General.MonedaLocal" && p.SucursalId is null && p.CajaId is null);
         Assert.Equal("El valor debe ser true o false.", (await CambiarAsync(cierreCiego.Id, "quizás")).Cuerpo!.Mensaje);
-        Assert.Equal("El parámetro «General.MonedaLocal» es obligatorio.", (await CambiarAsync(moneda.Id, "")).Cuerpo!.Mensaje);
+        Assert.Equal($"El parámetro «{CatalogoParametros.Buscar("General.MonedaLocal")!.Descripcion}» (General.MonedaLocal) es obligatorio.",
+            (await CambiarAsync(moneda.Id, "")).Cuerpo!.Mensaje);
         Assert.True((await CambiarAsync(cierreCiego.Id, "false")).Cuerpo!.Exitosa);
         Assert.True((await CambiarAsync(cierreCiego.Id, "true")).Cuerpo!.Exitosa);
 

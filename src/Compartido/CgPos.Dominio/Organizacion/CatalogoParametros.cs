@@ -36,7 +36,7 @@ public sealed record DefinicionParametro(
     {
         var texto = valor?.Trim() ?? string.Empty;
         if (texto.Length == 0)
-            return Obligatorio ? $"El parámetro «{Clave}» es obligatorio." : null;
+            return Obligatorio ? $"El parámetro «{Descripcion}» ({Clave}) es obligatorio." : null;
         if (texto.Length > Parametro.LargoMaximoValor)
             return $"El valor no puede exceder {Parametro.LargoMaximoValor} caracteres.";
 

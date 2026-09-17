@@ -26,14 +26,14 @@
 else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } faltantes)
 {
     <MudAlert Severity="Severity.Warning" Class="mb-4">
-        Faltan parámetros obligatorios generales: @string.Join(", ", faltantes.Select(d => d.Clave)). Las operaciones que los usan se rechazan hasta configurarlos.
+        Faltan parámetros obligatorios generales: @string.Join("; ", faltantes.Select(d => d.Descripcion)). Las operaciones que los usan se rechazan hasta configurarlos.
     </MudAlert>
 }
 
 <MudPaper Elevation="1">
-    <MudTable T="DatosParametro" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+    <MudTable T="DatosParametro" Items="Filtrados" GroupBy="_porModulo" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
-            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por clave, descripción, ámbito o valor" Adornment="Adornment.Start"
+            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por descripción, módulo, ámbito o valor" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Clearable="true" />
         </ToolBarContent>
         <HeaderContent>
@@ -42,11 +42,11 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
             <MudTh>Valor</MudTh>
             <MudTh Style="width: 56px"></MudTh>
         </HeaderContent>
+        <GroupHeaderTemplate>
+            <MudTh colspan="4"><strong>@context.Key</strong></MudTh>
+        </GroupHeaderTemplate>
         <RowTemplate>
-            <MudTd DataLabel="Parámetro">
-                <strong>@context.Clave</strong>
-                <div class="cg-central__detalle">@(Definicion(context.Clave)?.Descripcion ?? context.Descripcion)</div>
-            </MudTd>
+            <MudTd DataLabel="Parámetro">@Descripcion(context)</MudTd>
             <MudTd DataLabel="Ámbito">@context.Ambito</MudTd>
             <MudTd DataLabel="Valor">
                 @if (string.IsNullOrEmpty(context.Valor))
@@ -79,12 +79,22 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
 
     private DefinicionParametro? Definicion(string clave) => _catalogo.FirstOrDefault(d => d.Clave == clave);
 
+    private string Descripcion(DatosParametro parametro) => Definicion(parametro.Clave)?.Descripcion ?? parametro.Descripcion ?? parametro.Clave;
+
+    private string Modulo(DatosParametro parametro) => Definicion(parametro.Clave)?.Modulo ?? "Otros";
+
+    // Agrupados por módulo; la clave técnica no se muestra, pero la búsqueda la encuentra (es la que citan los mensajes de error).
+    private TableGroupDefinition<DatosParametro> _porModulo = null!;
+
+    protected override void OnInitialized() => _porModulo = new() { Selector = p => Modulo(p) };
+
     private IEnumerable<DefinicionParametro> ObligatoriosSinConfigurar =>
         _catalogo.Where(d => d.Obligatorio && !_parametros.Any(p => p.Clave == d.Clave && p.SucursalId is null && p.CajaId is null && p.Valor.Length > 0));
 
-    private IEnumerable<DatosParametro> Filtrados => string.IsNullOrWhiteSpace(_filtro)
-        ? _parametros
-        : _parametros.Where(p => Contiene(p.Clave) || Contiene(p.Ambito) || Contiene(p.Valor) || Contiene(Definicion(p.Clave)?.Descripcion));
+    private IEnumerable<DatosParametro> Filtrados => (string.IsNullOrWhiteSpace(_filtro)
+            ? _parametros
+            : _parametros.Where(p => Contiene(p.Clave) || Contiene(p.Ambito) || Contiene(p.Valor) || Contiene(Descripcion(p)) || Contiene(Modulo(p))))
+        .OrderBy(Modulo).ThenBy(Descripcion).ThenBy(p => p.Ambito);
 
     private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
 
@@ -115,7 +125,7 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
             { d => d.Cajas, _cajas },
         };
         var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var referencia = await Dialogos.ShowAsync<DialogoParametro>(parametro is null ? "Nuevo parámetro" : $"Editar {parametro.Clave}", parametros, opciones);
+        var referencia = await Dialogos.ShowAsync<DialogoParametro>(parametro is null ? "Nuevo parámetro" : "Editar parámetro", parametros, opciones);
         if (await referencia.Result is not { Canceled: false })
             return;
 
