@@ -153,11 +153,6 @@
       "descripcion": "Minutos que se retiene el saldo de una nota mientras la caja cobra"
     },
     {
-      "clave": "Central.NotasCredito.MesesMaximoProrroga",
-      "valor": "12",
-      "descripcion": "Meses desde la emisión hasta los que se habilita una nota vencida"
-    },
-    {
       "clave": "Central.Fidelidad.MinutosCicloVencimiento",
       "valor": "60",
       "descripcion": "Minutos entre revisiones de los puntos de fidelidad que ya vencieron"

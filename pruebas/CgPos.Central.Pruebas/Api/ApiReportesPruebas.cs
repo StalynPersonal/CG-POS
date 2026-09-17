@@ -65,7 +65,7 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var dia = new DateOnly(2026, 5, 20);
 
-        // La misma factura en otro mensaje (la regularización de una contingencia la reenvía): no se duplica en los reportes.
+        // La misma factura en otro mensaje (un reenvío): no se duplica en los reportes.
         var (primera, _) = Venta(dia, 100m, 18m);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, primera.Numero, primera)));
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, primera.Numero, primera with { TotalCobrado = 1m })));

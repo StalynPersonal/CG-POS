@@ -9,6 +9,7 @@ using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 
 namespace CgPos.Central.Pruebas.Api;
@@ -23,7 +24,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         using var cliente = central.CrearCliente();
         var tokenUno = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var tokenDos = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaDos);
-        var (mensaje, numeroNota, encf) = MensajeEmision(CentralEnPruebas.CajaUno, 1000m, DateOnly.FromDateTime(DateTime.Today).AddMonths(6));
+        var (mensaje, numeroNota, encf) = MensajeEmision(CentralEnPruebas.CajaUno, 1000m, DateOnly.FromDateTime(DateTime.Today));
         Assert.Equal(EstadoRecepcion.Recibido, (await EnviarAsync(cliente, tokenUno, mensaje)).Estado);
 
         // Otra caja ve el saldo, por e-NCF o por número, sin Id del Central, y reserva parte para una factura suya.
@@ -68,7 +69,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         using var cliente = central.CrearCliente();
         var tokenUno = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var tokenDos = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaDos);
-        var (emision, numeroNota, encf) = MensajeEmision(CentralEnPruebas.CajaUno, 500m, DateOnly.FromDateTime(DateTime.Today).AddMonths(3));
+        var (emision, numeroNota, encf) = MensajeEmision(CentralEnPruebas.CajaUno, 500m, DateOnly.FromDateTime(DateTime.Today));
 
         var consumo = MensajeConsumo(CentralEnPruebas.CajaDos, numeroNota, encf, CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaDos, TipoDocumentoNumerado.Factura),
             200m);
@@ -80,38 +81,37 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
-    public async Task Una_nota_vencida_no_se_reserva_y_el_central_puede_habilitarla_dentro_del_maximo()
+    public async Task La_vigencia_se_cuenta_desde_la_emision_con_los_dias_configurados_hoy_y_subirlos_habilita_la_nota()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var tokenUno = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
-        var (mensaje, numeroNota, encf) = MensajeEmision(CentralEnPruebas.CajaUno, 750m, DateOnly.FromDateTime(DateTime.Today).AddMonths(-2));
+        var emitida = DateOnly.FromDateTime(DateTime.Today).AddDays(-70);
+        var (mensaje, numeroNota, encf) = MensajeEmision(CentralEnPruebas.CajaUno, 750m, emitida);
         Assert.Equal(EstadoRecepcion.Recibido, (await EnviarAsync(cliente, tokenUno, mensaje)).Estado);
         var factura = CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, TipoDocumentoNumerado.Factura);
-        var notaId = Assert.Single((await ObtenerAsync<PaginaNotasCreditoCentral>(cliente, admin, $"/api/manager/notas-credito?buscar={encf}")).Elementos).Id;
 
-        var vencida = await ReservarAsync(cliente, tokenUno, numeroNota, factura, 100m);
-        Assert.False(vencida.Exitosa);
-        Assert.Contains("venció", vencida.Mensaje);
+        var anterior = await central.CambiarParametroAsync(CatalogoParametros.DiasVigenciaNotaCredito, "60");
+        try
+        {
+            // Con 60 días de vigencia, una nota de 70 días venció.
+            var vencida = await ReservarAsync(cliente, tokenUno, numeroNota, factura, 100m);
+            Assert.False(vencida.Exitosa);
+            Assert.Contains($"venció el {emitida.AddDays(60):dd/MM/yyyy}", vencida.Mensaje);
+            Assert.Contains((await ObtenerAsync<PaginaNotasCreditoCentral>(cliente, admin, "/api/manager/notas-credito?estado=Vencida&tamano=100")).Elementos,
+                n => n.Numero == numeroNota);
 
-        // En desarrollo el máximo son 12 meses desde la emisión.
-        var excesiva = await ProrrogarAsync(cliente, admin, notaId, DateOnly.FromDateTime(DateTime.Today).AddYears(3), "Cliente reclamó tarde");
-        Assert.Equal(HttpStatusCode.BadRequest, excesiva.Estado);
-        Assert.Contains("no puede pasar", excesiva.Cuerpo!.Mensaje);
-
-        var nuevaFecha = DateOnly.FromDateTime(DateTime.Today).AddMonths(1);
-        Assert.True((await ProrrogarAsync(cliente, admin, notaId, nuevaFecha, "Autorizado por gerencia")).Cuerpo!.Exitosa);
-
-        var habilitada = await ObtenerAsync<DatosNotaCreditoParaCaja>(cliente, tokenUno, $"/api/notas-credito/{encf}");
-        Assert.Equal((EstadoNotaCreditoCentral.Vigente, nuevaFecha), (habilitada.Estado, habilitada.VenceEn));
-        Assert.True((await ReservarAsync(cliente, tokenUno, numeroNota, factura, 100m)).Exitosa);
-
-        var pagina = await ObtenerAsync<PaginaNotasCreditoCentral>(cliente, admin, $"/api/manager/notas-credito?buscar={encf}");
-        Assert.Equal("Autorizado por gerencia", Assert.Single(pagina.Elementos).MotivoProrroga);
-        var movimientos = await ObtenerAsync<List<DatosMovimientoNotaCredito>>(cliente, admin, $"/api/manager/notas-credito/{notaId}/movimientos");
-        Assert.Contains(movimientos, m => m.Tipo == "Reserva");
-        Assert.Contains(movimientos, m => m.Tipo == "Prórroga");
+            // Si el negocio sube los días, la misma nota vuelve a poder usarse.
+            await central.CambiarParametroAsync(CatalogoParametros.DiasVigenciaNotaCredito, "90");
+            var habilitada = await ObtenerAsync<DatosNotaCreditoParaCaja>(cliente, tokenUno, $"/api/notas-credito/{encf}");
+            Assert.Equal((EstadoNotaCreditoCentral.Vigente, emitida.AddDays(90)), (habilitada.Estado, habilitada.VenceEn));
+            Assert.True((await ReservarAsync(cliente, tokenUno, numeroNota, factura, 100m)).Exitosa);
+        }
+        finally
+        {
+            await central.CambiarParametroAsync(CatalogoParametros.DiasVigenciaNotaCredito, anterior);
+        }
     }
 
     [SkippableFact]
@@ -129,7 +129,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         Assert.Equal((HttpStatusCode.Forbidden, HttpStatusCode.Forbidden), (manager.StatusCode, caja.StatusCode));
     }
 
-    private static (MensajeSincronizacion Mensaje, string Numero, string Encf) MensajeEmision(int cajaId, decimal total, DateOnly venceEn)
+    private static (MensajeSincronizacion Mensaje, string Numero, string Encf) MensajeEmision(int cajaId, decimal total, DateOnly fechaEmision)
     {
         var numero = CentralEnPruebas.NumeroDocumento(cajaId, TipoDocumentoNumerado.NotaCredito);
         var encf = $"E34{Random.Shared.NextInt64(1, 9_999_999_999):D10}";
@@ -139,7 +139,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         var ecf = new DocumentoElectronicoParaCentral(encf, TipoComprobante.NotaCredito, xml, HashSincronizacion.Calcular(xml), DateTimeOffset.UtcNow);
         var nota = new DocumentoNotaCreditoEmitida(numero, CentralEnPruebas.NumeroDocumento(cajaId, TipoDocumentoNumerado.Factura), "E320000000001",
             DateTimeOffset.UtcNow.AddDays(-1), null, TipoDocumentoIdentidad.Cedula, "00113918205", "Cliente de prueba", 1, "Devolucion", null, "Cajero Prueba", null,
-            false, true, total / 1.18m, total - (total / 1.18m), 0m, total, "DOP", venceEn, DateTimeOffset.UtcNow, [], comprobante, 0, TipoReembolso.SaldoNotaCredito,
+            false, true, total / 1.18m, total - (total / 1.18m), 0m, total, "DOP", fechaEmision, DateTimeOffset.UtcNow, [], comprobante, 0, TipoReembolso.SaldoNotaCredito,
             null, null, ecf);
         var contenido = JsonSerializer.Serialize(nota, OpcionesJson.Predeterminadas);
 
@@ -167,17 +167,6 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
             new SolicitudReservaNotaCredito(ventaNumero, monto)));
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaReservaNotaCredito>(OpcionesJson.Predeterminadas))!;
-    }
-
-    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> ProrrogarAsync(HttpClient cliente, string token, int notaId, DateOnly venceEn,
-        string motivo)
-    {
-        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/manager/notas-credito/{notaId}/prorrogar", token,
-            new SolicitudProrrogaNotaCredito(venceEn, motivo)));
-        var cuerpo = respuesta.Content.Headers.ContentType?.MediaType == "application/json"
-            ? await respuesta.Content.ReadFromJsonAsync<RespuestaAdministracion>(OpcionesJson.Predeterminadas)
-            : null;
-        return (respuesta.StatusCode, cuerpo);
     }
 
     private static async Task<T> ObtenerAsync<T>(HttpClient cliente, string token, string ruta)

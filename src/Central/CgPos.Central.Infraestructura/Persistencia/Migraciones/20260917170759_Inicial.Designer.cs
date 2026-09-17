@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260917143909_Inicial")]
+    [Migration("20260917170759_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -747,6 +747,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("char(13)")
                         .IsFixedLength();
 
+                    b.Property<DateOnly>("FechaEmision")
+                        .HasColumnType("date");
+
                     b.Property<string>("Moneda")
                         .IsRequired()
                         .HasMaxLength(3)
@@ -754,22 +757,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("char(3)")
                         .IsFixedLength();
 
-                    b.Property<string>("MotivoProrroga")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<string>("Numero")
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
-
-                    b.Property<DateTimeOffset?>("ProrrogadaEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<string>("ProrrogadaPor")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTimeOffset>("RegistradaEn")
                         .HasPrecision(3)
@@ -782,9 +773,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<DateOnly>("VenceEn")
-                        .HasColumnType("date");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CajaId");
@@ -795,12 +783,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnique()
                         .HasFilter("[Encf] IS NOT NULL");
 
+                    b.HasIndex("FechaEmision");
+
                     b.HasIndex("Numero")
                         .IsUnique();
 
                     b.HasIndex("SucursalId");
-
-                    b.HasIndex("VenceEn");
 
                     b.ToTable("NotasCredito", (string)null);
                 });

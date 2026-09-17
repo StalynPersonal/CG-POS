@@ -31,6 +31,4 @@ public interface IServicioNotasCreditoCentral
 
     Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(int notaCreditoId, CancellationToken cancelacion = default);
 
-    /// <summary>Habilita una nota vencida hasta una fecha nueva, dentro del máximo configurado (RF-40).</summary>
-    Task<ResultadoAdministracion> ProrrogarAsync(int notaCreditoId, DateOnly venceEn, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

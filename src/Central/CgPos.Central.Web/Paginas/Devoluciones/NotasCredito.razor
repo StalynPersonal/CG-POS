@@ -67,10 +67,6 @@
             </MudTd>
             <MudTd DataLabel="Vence">
                 @context.VenceEn.ToString("dd/MM/yyyy")
-                @if (context.ProrrogadaEn is not null)
-                {
-                    <div class="cg-central__detalle">Habilitada</div>
-                }
             </MudTd>
             <MudTd DataLabel="Estado">
                 <MudChip T="string" Size="Size.Small" Color="@ColorEstado(context.Estado)" Variant="Variant.Outlined">@Etiqueta(context.Estado)</MudChip>

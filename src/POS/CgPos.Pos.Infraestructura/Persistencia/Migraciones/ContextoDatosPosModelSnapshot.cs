@@ -609,6 +609,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("EsTotal")
                         .HasColumnType("bit");
 
+                    b.Property<DateOnly>("FechaEmision")
+                        .HasColumnType("date");
+
                     b.Property<decimal>("Impuesto")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -695,9 +698,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
-
-                    b.Property<DateOnly>("VenceEn")
-                        .HasColumnType("date");
 
                     b.Property<DateTimeOffset>("VentaOrigenCobradaEn")
                         .HasPrecision(3)
@@ -1433,75 +1433,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("ReglasAcumulacion", (string)null);
-                });
-
-            modelBuilder.Entity("CgPos.Dominio.Fiscal.ComprobanteContingencia", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
-
-                    b.Property<int>("CajaId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset>("CreadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<string>("Encf")
-                        .HasMaxLength(13)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(13)");
-
-                    b.Property<int>("Intentos")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Motivo")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTimeOffset?>("RegularizadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<int>("TipoComprobante")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Total")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int?>("TurnoId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UltimoError")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("VentaId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("VentaNumero")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VentaId")
-                        .IsUnique();
-
-                    b.HasIndex("CajaId", "RegularizadoEn");
-
-                    b.ToTable("ComprobantesContingencia", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Fiscal.ContribuyenteDgii", b =>

@@ -154,7 +154,9 @@ public sealed class Devolucion : Entidad
     /// <summary>Puntos de fidelidad reversados de la compra original (RF-244, RN-21).</summary>
     public int PuntosReversados { get; private set; }
 
-    public DateOnly VenceEn { get; private set; }
+    /// <summary>Día de emisión en la zona horaria de la caja: la vigencia se cuenta desde aquí.</summary>
+    public DateOnly FechaEmision { get; private set; }
+
     public DateTimeOffset CreadaEn { get; private set; }
 
     /// <summary>e-NCF de la nota de crédito (E34); también es el código para consumirla en caja (RF-57).</summary>
@@ -177,7 +179,7 @@ public sealed class Devolucion : Entidad
     public static Devolucion Registrar(Venta venta, string? encfOrigen, IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
         IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, int? motivoCodigo, string? motivoNombre, string? observacion,
         string numero, int? turnoId, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
-        int diasRetencionImpuesto, int mesesVigencia, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria)
+        int diasRetencionImpuesto, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria)
     {
         ArgumentNullException.ThrowIfNull(zonaHoraria);
         ArgumentNullException.ThrowIfNull(venta);
@@ -223,7 +225,7 @@ public sealed class Devolucion : Entidad
             AutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoNombre),
             RetieneImpuesto = hoy.DayNumber - fechaVenta.DayNumber > diasRetencionImpuesto,
             CreadaEn = ahora,
-            VenceEn = hoy.AddMonths(mesesVigencia),
+            FechaEmision = hoy,
         };
 
         foreach (var pedida in pedidas)
@@ -295,8 +297,14 @@ public sealed class Devolucion : Entidad
         Saldo = 0m;
     }
 
-    public EstadoNotaCredito EstadoSaldo(DateOnly hoy) =>
-        Saldo <= 0m ? EstadoNotaCredito.Consumida : hoy > VenceEn ? EstadoNotaCredito.Vencida : EstadoNotaCredito.Vigente;
+    /// <summary>
+    /// Último día en que se puede consumir con la vigencia configurada hoy (días desde la emisión). La vigencia no se guarda en la nota:
+    /// si el negocio sube los días, una nota ya vencida vuelve a poder usarse.
+    /// </summary>
+    public DateOnly VenceEn(int diasVigencia) => VigenciaNotaCredito.VenceEn(FechaEmision, diasVigencia);
+
+    public EstadoNotaCredito EstadoSaldo(DateOnly hoy, int diasVigencia) =>
+        Saldo <= 0m ? EstadoNotaCredito.Consumida : hoy > VenceEn(diasVigencia) ? EstadoNotaCredito.Vencida : EstadoNotaCredito.Vigente;
 
     public void RegistrarReversoPuntos(int puntos)
     {
@@ -305,18 +313,18 @@ public sealed class Devolucion : Entidad
     }
 
     /// <summary>Consume saldo de la nota como forma de pago de otra venta (RF-36, RF-38). Devuelve el saldo que queda (RF-43).</summary>
-    public decimal Consumir(int ventaId, string ventaNumero, int cajaId, decimal monto, DateOnly hoy, DateTimeOffset ahora)
+    public decimal Consumir(int ventaId, string ventaNumero, int cajaId, decimal monto, DateOnly hoy, int diasVigencia, DateTimeOffset ahora)
     {
         var redondeado = Redondear(monto);
         if (redondeado <= 0m)
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MontoInvalido, "El monto a consumir de la nota de crédito debe ser mayor que cero.");
 
-        switch (EstadoSaldo(hoy))
+        switch (EstadoSaldo(hoy, diasVigencia))
         {
             case EstadoNotaCredito.Consumida:
                 throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.NotaCreditoConsumida, $"La nota de crédito {Encf ?? Numero} ya fue consumida.");
             case EstadoNotaCredito.Vencida:
-                throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.NotaCreditoVencida, $"La nota de crédito {Encf ?? Numero} venció el {VenceEn:dd/MM/yyyy}.");
+                throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.NotaCreditoVencida, $"La nota de crédito {Encf ?? Numero} venció el {VenceEn(diasVigencia):dd/MM/yyyy}.");
         }
 
         if (redondeado > Saldo)
@@ -421,4 +429,14 @@ public sealed class ConsumoNotaCredito : Entidad
             SaldoRestante = saldoRestante,
             Fecha = fecha,
         };
+}
+
+/// <summary>Vigencia de una nota de crédito: días desde su emisión, según lo configurado en el Central en el momento de usarla.</summary>
+public static class VigenciaNotaCredito
+{
+    public static DateOnly VenceEn(DateOnly fechaEmision, int diasVigencia)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(diasVigencia, 1);
+        return fechaEmision.AddDays(diasVigencia);
+    }
 }

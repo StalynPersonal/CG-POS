@@ -119,8 +119,8 @@ public static class ClavesParametros
     /// <summary>Días desde la factura tras los cuales la devolución retiene el ITBIS (RF-44). Por defecto 30.</summary>
     public const string DiasRetencionImpuestoDevolucion = "Devoluciones.DiasRetencionImpuesto";
 
-    /// <summary>Meses de vigencia de una nota de crédito para consumirla (RF-39). Por defecto 6.</summary>
-    public const string MesesVigenciaNotaCredito = "Devoluciones.MesesVigenciaNotaCredito";
+    /// <summary>Días desde la emisión en que se puede consumir una nota de crédito (RF-39, RF-40); se evalúa al usarla.</summary>
+    public const string DiasVigenciaNotaCredito = CatalogoParametros.DiasVigenciaNotaCredito;
 
     /// <summary>Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6, ej. 1 = ingresos por operaciones).</summary>
     public const string TipoIngresos = "Fiscal.TipoIngresos";
@@ -143,11 +143,6 @@ public static class ClavesParametros
     /// <summary>Texto impreso en la copia de contabilidad de la nota de crédito (RF-163).</summary>
     public const string PoliticaNotaCreditoContabilidad = "Devoluciones.PoliticaNotaCreditoContabilidad";
 
-    /// <summary>
-    /// Permite cobrar sin e-CF cuando la caja no puede firmarlo (certificado sin cargar o vencido, secuencia agotada): se entrega un
-    /// comprobante provisional y el e-CF se emite al restablecerse. Opcional: sin él, el cobro se rechaza.
-    /// </summary>
-    public const string ContingenciaEcf = "Ecf.ContingenciaHabilitada";
 
     /// <summary>Consulta completa del timbre en la DGII (código QR del ticket); su dirección define el ambiente.</summary>
     public const string UrlConsultaTimbre = "Ecf.UrlConsultaTimbre";
@@ -155,8 +150,6 @@ public static class ClavesParametros
     /// <summary>Consulta simplificada del timbre de las facturas de consumo menores (servicio de facturas de consumo de la DGII).</summary>
     public const string UrlConsultaTimbreConsumo = "Ecf.UrlConsultaTimbreConsumo";
 
-    /// <summary>Permite cerrar el turno con ventas en contingencia pendientes de e-CF; sin él, el cierre las exige regularizadas.</summary>
-    public const string ContingenciaPermiteCerrar = "Ecf.ContingenciaPermiteCerrarTurno";
 
     /// <summary>Permite devolver el dinero en efectivo de la gaveta (RF-123). Opcional: sin él solo queda saldo en la nota.</summary>
     public const string ReembolsoEfectivo = "Devoluciones.ReembolsoEfectivo";

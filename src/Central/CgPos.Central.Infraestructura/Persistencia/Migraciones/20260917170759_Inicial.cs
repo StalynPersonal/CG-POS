@@ -1130,12 +1130,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
                     Total = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     Consumido = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    VenceEn = table.Column<DateOnly>(type: "date", nullable: false),
+                    FechaEmision = table.Column<DateOnly>(type: "date", nullable: false),
                     EmitidaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
-                    RegistradaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
-                    ProrrogadaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: true),
-                    ProrrogadaPor = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    MotivoProrroga = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    RegistradaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1890,6 +1887,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 filter: "[Encf] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_NotasCredito_FechaEmision",
+                table: "NotasCredito",
+                column: "FechaEmision");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_NotasCredito_Numero",
                 table: "NotasCredito",
                 column: "Numero",
@@ -1899,11 +1901,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "IX_NotasCredito_SucursalId",
                 table: "NotasCredito",
                 column: "SucursalId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_NotasCredito_VenceEn",
-                table: "NotasCredito",
-                column: "VenceEn");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PagosVenta_ComprobanteId",

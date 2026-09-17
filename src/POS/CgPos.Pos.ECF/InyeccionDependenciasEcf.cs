@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace CgPos.Pos.ECF;
 
 /// <summary>
-/// Facturación electrónica de la caja (M09): certificado, emisión y firma del e-CF, estado de las secuencias y regularización de
-/// las ventas cobradas en contingencia. Va en su propio ensamblado para poder actualizarla o certificarla sin tocar el resto de la caja.
+/// Facturación electrónica de la caja (M09): certificado, emisión y firma del e-CF y estado de las secuencias. Va en su propio ensamblado
+/// para poder actualizarla o certificarla sin tocar el resto de la caja.
 /// </summary>
 public static class InyeccionDependenciasEcf
 {
@@ -24,7 +24,6 @@ public static class InyeccionDependenciasEcf
             proveedor.GetRequiredService<ICertificadoCaja>(), proveedor.GetRequiredService<IParametros>(), configuracion,
             proveedor.GetRequiredService<TimeProvider>()));
         servicios.AddScoped<IServicioEcf, ServicioEcf>();
-        servicios.AddScoped<IRegularizacionContingencia, RegularizacionContingencia>();
 
         return servicios;
     }

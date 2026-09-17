@@ -11,7 +11,7 @@ namespace CgPos.Central.Infraestructura.Reportes;
 /// </summary>
 internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeProvider reloj)
 {
-    /// <summary>La factura se identifica por su número: si ya se registró (un reenvío, o la regularización de una contingencia), no se repite.</summary>
+    /// <summary>La factura se identifica por su número: si ya se registró (un reenvío), no se repite.</summary>
     public async Task RegistrarVentaAsync(DocumentoVentaCobrada venta, int sucursalId, int cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(venta);

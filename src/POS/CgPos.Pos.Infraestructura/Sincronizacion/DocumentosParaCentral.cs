@@ -69,7 +69,7 @@ internal static class DocumentosParaCentral
     public static DocumentoNotaCreditoEmitida NotaCreditoEmitida(DatosNotaCredito nota, long? turnoNumero, DocumentoElectronicoParaCentral ecf) =>
         new(nota.Numero, nota.VentaOrigenNumero, nota.EncfOrigen, nota.VentaOrigenCobradaEn, turnoNumero, nota.ClienteTipoDocumento, nota.ClienteDocumento,
             nota.ClienteNombre, nota.MotivoCodigo, nota.MotivoNombre, nota.Observacion, nota.UsuarioNombre, nota.AutorizadoPorNombre, nota.RetieneImpuesto,
-            nota.EsTotal, nota.Subtotal, nota.Impuesto, nota.ImpuestoRetenido, nota.Total, nota.Moneda, nota.VenceEn, nota.CreadaEn, nota.Lineas,
+            nota.EsTotal, nota.Subtotal, nota.Impuesto, nota.ImpuestoRetenido, nota.Total, nota.Moneda, nota.FechaEmision, nota.CreadaEn, nota.Lineas,
             nota.Comprobante, nota.PuntosReversados, nota.Reembolso, nota.ReembolsoReferencia, nota.ReembolsoDetalle, ecf);
 
     public static DocumentoMovimientoTurno MovimientoTurno(DatosMovimientoCaja movimiento) =>

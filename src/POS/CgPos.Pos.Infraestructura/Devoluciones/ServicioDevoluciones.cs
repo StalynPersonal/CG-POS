@@ -28,12 +28,12 @@ namespace CgPos.Pos.Infraestructura.Devoluciones;
 
 internal static class ConversionesDevolucion
 {
-    public static DatosNotaCredito ADatos(this Devolucion devolucion, DocumentoElectronico? documento, DateOnly hoy) =>
+    public static DatosNotaCredito ADatos(this Devolucion devolucion, DocumentoElectronico? documento, DateOnly hoy, int diasVigencia) =>
         new(devolucion.Id, devolucion.Numero, devolucion.VentaOrigenId, devolucion.VentaOrigenNumero, devolucion.EncfOrigen, devolucion.VentaOrigenCobradaEn,
             devolucion.ClienteTipoDocumento, devolucion.ClienteDocumento, devolucion.ClienteNombre, devolucion.MotivoCodigo, devolucion.MotivoNombre,
             devolucion.Observacion, devolucion.UsuarioNombre, devolucion.AutorizadoPorNombre, devolucion.RetieneImpuesto, devolucion.EsTotal,
-            devolucion.Subtotal, devolucion.Impuesto, devolucion.ImpuestoRetenido, devolucion.Total, devolucion.Saldo, devolucion.Moneda, devolucion.VenceEn,
-            devolucion.EstadoSaldo(hoy), devolucion.CreadaEn,
+            devolucion.Subtotal, devolucion.Impuesto, devolucion.ImpuestoRetenido, devolucion.Total, devolucion.Saldo, devolucion.Moneda,
+            devolucion.VenceEn(diasVigencia), devolucion.EstadoSaldo(hoy, diasVigencia), devolucion.CreadaEn, devolucion.FechaEmision,
             devolucion.Lineas.OrderBy(l => l.NumeroLineaOrigen)
                 .Select(l => new DatosLineaNotaCredito(l.NumeroLineaOrigen, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.UnidadMedidaCodigo,
                     l.DecimalesCantidad, l.Cantidad, l.PrecioUnitario, l.PorcentajeImpuesto, l.Base, l.Impuesto, l.ImpuestoRetenido, l.Importe, l.Serial))
@@ -66,6 +66,10 @@ internal sealed class ServicioDevoluciones(
     private const string TipoEntidadDevolucion = "Devolucion";
 
     private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+
+    /// <summary>Días de vigencia de las notas de crédito configurados hoy: se aplican al usarlas, no al emitirlas.</summary>
+    private Task<int> DiasVigenciaAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
+        parametros.ObtenerEnteroAsync(ClavesParametros.DiasVigenciaNotaCredito, sesion.CajaId, cancelacion);
 
     public async Task<RespuestaFacturaDevolucion> BuscarFacturaAsync(SesionUsuario sesion, string numero, CancellationToken cancelacion = default)
     {
@@ -100,7 +104,7 @@ internal sealed class ServicioDevoluciones(
         var cliente = await ClienteAsync(venta, solicitud, cancelacion);
 
         var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
-        var mesesVigencia = await parametros.ObtenerEnteroAsync(ClavesParametros.MesesVigenciaNotaCredito, sesion.CajaId, cancelacion);
+        var diasVigencia = await DiasVigenciaAsync(sesion, cancelacion);
         var encfOrigen = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.Encf).FirstOrDefaultAsync(cancelacion);
         var lineas = solicitud.Lineas.Select(l => new LineaSolicitadaDevolucion(l.NumeroLinea, l.Cantidad, l.Serial)).ToList();
         var ahora = reloj.GetUtcNow();
@@ -125,7 +129,7 @@ internal sealed class ServicioDevoluciones(
         Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, int? turnoId, ResultadoPermiso? permiso) =>
             Devolucion.Registrar(venta, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero, turnoId,
                 sesion.UsuarioId, sesion.Nombre, permiso?.SupervisorId ?? sesion.UsuarioId, permiso?.SupervisorNombre ?? sesion.Nombre,
-                diasRetencion, mesesVigencia, Hoy, ahora, reloj.LocalTimeZone);
+                diasRetencion, Hoy, ahora, reloj.LocalTimeZone);
 
         // Se validan las reglas antes de pedir la clave del encargado.
         try
@@ -212,7 +216,7 @@ internal sealed class ServicioDevoluciones(
             }, excepcion.Message);
         }
 
-        var datos = devolucion.ADatos(emision.Documento, Hoy);
+        var datos = devolucion.ADatos(emision.Documento, Hoy, diasVigencia);
         var turnoNumero = devolucion.TurnoId is { } turnoDevolucion
             ? await contexto.Turnos.AsNoTracking().Where(t => t.Id == turnoDevolucion).Select(t => (long?)t.Numero).SingleOrDefaultAsync(cancelacion)
             : null;
@@ -259,14 +263,15 @@ internal sealed class ServicioDevoluciones(
             return new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoNoEncontrada,
                 $"La nota de crédito {buscado} no existe en esta caja. Verifique el número; las de otra sucursal se validan con el Central.", null);
 
-        var estado = nota.EstadoSaldo(Hoy);
-        var datos = new DatosSaldoNotaCredito(nota.Id, nota.Numero, nota.Encf, nota.ClienteNombre, nota.Total, nota.Saldo, nota.VenceEn, estado);
+        var diasVigencia = await DiasVigenciaAsync(sesion, cancelacion);
+        var estado = nota.EstadoSaldo(Hoy, diasVigencia);
+        var datos = new DatosSaldoNotaCredito(nota.Id, nota.Numero, nota.Encf, nota.ClienteNombre, nota.Total, nota.Saldo, nota.VenceEn(diasVigencia), estado);
         return estado switch
         {
             EstadoNotaCredito.Consumida => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoConsumida,
                 $"La nota de crédito {nota.Encf ?? nota.Numero} ya fue consumida.", datos),
             EstadoNotaCredito.Vencida => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoVencida,
-                $"La nota de crédito {nota.Encf ?? nota.Numero} venció el {nota.VenceEn:dd/MM/yyyy}.", datos),
+                $"La nota de crédito {nota.Encf ?? nota.Numero} venció el {nota.VenceEn(diasVigencia):dd/MM/yyyy}.", datos),
             _ => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.Correcto, $"Saldo disponible: {nota.SimboloMoneda}{nota.Saldo:N2}.", datos),
         };
     }
@@ -279,7 +284,7 @@ internal sealed class ServicioDevoluciones(
             return Rechazo(CodigoResultadoDevolucion.NotaCreditoNoEncontrada, "La nota de crédito no existe en esta caja.");
 
         var documento = await contexto.DocumentosElectronicos.AsNoTracking().SingleOrDefaultAsync(d => d.VentaId == devolucion.Id, cancelacion);
-        var datos = devolucion.ADatos(documento, Hoy);
+        var datos = devolucion.ADatos(documento, Hoy, await DiasVigenciaAsync(sesion, cancelacion));
         var aviso = await ImprimirAsync(sesion, datos, esCopia: true, cancelacion);
 
         auditoria.Registrar(new EntradaAuditoria("Devoluciones.NotaCreditoReimpresa", TipoEntidadDevolucion, devolucion.Numero,

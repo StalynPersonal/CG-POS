@@ -106,8 +106,6 @@ public static class ClavesParametrosCentral
     /// <summary>Minutos que el Central retiene el saldo de una nota de crédito mientras una caja termina de cobrar.</summary>
     public const string NotasCreditoMinutosReserva = "Central.NotasCredito.MinutosReserva";
 
-    /// <summary>Meses desde la emisión hasta los que se puede habilitar una nota de crédito vencida (RF-40).</summary>
-    public const string NotasCreditoMesesMaximoProrroga = "Central.NotasCredito.MesesMaximoProrroga";
 
     /// <summary>Minutos entre revisiones de los puntos de fidelidad que ya vencieron (RF-242).</summary>
     public const string FidelidadMinutosCicloVencimiento = "Central.Fidelidad.MinutosCicloVencimiento";

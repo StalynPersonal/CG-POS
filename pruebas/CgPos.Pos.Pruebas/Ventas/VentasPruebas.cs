@@ -695,61 +695,6 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task En_contingencia_la_venta_se_cobra_con_comprobante_provisional_y_el_ecf_sale_al_cargar_el_certificado()
-    {
-        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, cargarCertificado: false);
-
-        await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
-        {
-            contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.ContingenciaEcf, "true",
-                cajaId: caja.Escenario.CajaUno));
-            contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.ContingenciaPermiteCerrar, "true",
-                cajaId: caja.Escenario.CajaUno));
-            return await contexto.SaveChangesAsync();
-        });
-
-        // Sin certificado, con contingencia habilitada la venta se cobra igual y se entrega un comprobante provisional.
-        var cobro = await caja.CobrarCincelEnEfectivoAsync();
-        Assert.True(cobro.Exitosa, cobro.Mensaje);
-        Assert.Null(cobro.Venta!.Comprobante);
-
-        var contingencia = await caja.EjecutarAsync<ContextoDatosPos, CgPos.Dominio.Fiscal.ComprobanteContingencia>(contexto =>
-            contexto.ComprobantesContingencia.AsNoTracking().SingleAsync(c => c.VentaId == cobro.Venta.Id));
-        Assert.StartsWith("CTG-", contingencia.Numero);
-        Assert.True(contingencia.EstaPendiente);
-        Assert.Contains("certificado", contingencia.Motivo);
-        Assert.NotEmpty(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{cobro.Venta.NumeroTransaccion}*.txt"));
-
-        var estado = await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero));
-        Assert.Equal(1, estado.ContingenciasPendientes);
-        Assert.Contains(estado.Alertas, a => a.Contains("contingencia"));
-
-        // El turno se puede cerrar porque el negocio lo permitió para las ventas en contingencia.
-        var resumen = await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Ventas.IServicioCaja, RespuestaCaja>(s => s.ObtenerResumenAsync(caja.Cajero));
-        Assert.DoesNotContain(resumen.Resumen!.Bloqueos, b => b.Contains("sin e-CF"));
-
-        // Al cargar el certificado, el e-CF se emite solo con la fecha real del cobro y vuelve a salir al Central.
-        var certificado = await caja.EjecutarAsync<IServicioEcf, RespuestaCertificado>(s => s.CargarCertificadoAsync(caja.Cajero, BaseDatosPruebas.PinCertificado));
-        Assert.True(certificado.Correcto, certificado.Mensaje);
-        Assert.Contains("contingencia", certificado.Mensaje);
-
-        var regularizada = await caja.EjecutarAsync<ContextoDatosPos, CgPos.Dominio.Fiscal.ComprobanteContingencia>(contexto =>
-            contexto.ComprobantesContingencia.AsNoTracking().SingleAsync(c => c.VentaId == cobro.Venta.Id));
-        Assert.False(regularizada.EstaPendiente);
-        Assert.StartsWith("E32", regularizada.Encf);
-
-        var documento = await caja.EjecutarAsync<ContextoDatosPos, DocumentoElectronico>(contexto =>
-            contexto.DocumentosElectronicos.AsNoTracking().SingleAsync(d => d.VentaId == cobro.Venta.Id));
-        Assert.Equal(regularizada.Encf, documento.Encf);
-
-        var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.BandejaSalida.AsNoTracking().Where(m => m.Referencia == cobro.Venta.NumeroTransaccion && m.TipoMensaje == "Venta.Cobrada").CountAsync());
-        Assert.Equal(2, mensajes);
-        Assert.Equal(0, (await caja.EjecutarAsync<IServicioEcf, DatosEstadoEcf>(s => s.ObtenerEstadoAsync(caja.Cajero))).ContingenciasPendientes);
-    }
-
-    [SkippableFact]
     public async Task Secuencia_agotada_bloquea_el_cobro_y_el_estado_lo_alerta()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

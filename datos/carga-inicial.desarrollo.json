@@ -169,9 +169,9 @@
       "descripcion": "Días desde la factura tras los cuales la devolución retiene el ITBIS"
     },
     {
-      "clave": "Devoluciones.MesesVigenciaNotaCredito",
-      "valor": "6",
-      "descripcion": "Meses de vigencia de la nota de crédito para consumirla"
+      "clave": "Devoluciones.DiasVigenciaNotaCredito",
+      "valor": "180",
+      "descripcion": "Días desde la emisión en que se puede consumir una nota de crédito"
     },
     {
       "clave": "Devoluciones.PoliticaNotaCredito",

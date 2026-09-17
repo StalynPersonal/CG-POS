@@ -114,41 +114,6 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
-    public async Task El_monitor_cuenta_las_ventas_que_las_cajas_cobraron_en_contingencia()
-    {
-        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
-        using var cliente = central.CrearCliente();
-        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
-        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
-
-        var antes = Assert.Single((await ObtenerAsync<DatosMonitorCentral>(cliente, admin, "/api/monitor")).Cajas, c => c.CajaId == CentralEnPruebas.CajaUno)
-            .VentasEnContingencia;
-
-        // Una venta cobrada sin poder firmar su e-CF llega al Central sin comprobante.
-        var venta = VentaSinEcf();
-        var contenido = JsonSerializer.Serialize(venta, OpcionesJson.Predeterminadas);
-        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.VentaCobrada, venta.Numero, contenido,
-            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
-        using (var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", tokenCaja, mensaje)))
-            respuesta.EnsureSuccessStatusCode();
-
-        var monitor = await ObtenerAsync<DatosMonitorCentral>(cliente, admin, "/api/monitor");
-        var caja = Assert.Single(monitor.Cajas, c => c.CajaId == CentralEnPruebas.CajaUno);
-        Assert.Equal(antes + 1, caja.VentasEnContingencia);
-        Assert.True(monitor.VentasEnContingencia >= caja.VentasEnContingencia);
-        Assert.Contains(caja.Alertas, a => a.Contains("contingencia"));
-    }
-
-    /// <summary>Venta cobrada que la caja no pudo firmar: viaja sin e-CF y el Central la cuenta como contingencia.</summary>
-    private static DocumentoVentaCobrada VentaSinEcf()
-    {
-        var cobrada = DateTimeOffset.UtcNow;
-        return new DocumentoVentaCobrada(CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura), 1, "C001",
-            "Cajero Desarrollo", cobrada.AddMinutes(-3), cobrada, TipoComprobante.FacturaConsumo, null, "DOP", [],
-            new DatosTotalesVenta(1000m, 180m, 1180m, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, 1000m, 180m, 1180m)]), null, [], 1180m, 0m, 0m, null, null, []);
-    }
-
-    [SkippableFact]
     public async Task Sin_permiso_de_monitoreo_se_responde_403()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);

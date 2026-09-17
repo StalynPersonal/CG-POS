@@ -344,37 +344,27 @@ internal sealed class ServicioVentas(
 
         // El e-CF se emite y firma dentro de la misma transacción del cobro: si algo falla no se consume la secuencia.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
-        EmisionEcf? emision = null;
-        ComprobanteContingencia? contingencia = null;
+        // Sin e-NCF disponible o sin poder firmar no se factura: el cobro se rechaza y no se consume nada.
+        EmisionEcf? emision;
         try
         {
             emision = await emisorEcf.EmitirAsync(venta, cancelacion);
         }
         catch (EmisionEcfExcepcion excepcion)
         {
-            // Contingencia (RF-224): si el negocio la habilitó y lo que falta es el certificado o la secuencia, la venta se cobra con un
-            // comprobante provisional y el e-CF se emite en cuanto se restablezca. Un e-CF inválido nunca entra aquí: eso se corrige antes.
-            var elegible = excepcion.Codigo is CodigoResultadoVenta.CertificadoNoCargado or CodigoResultadoVenta.ComprobanteNoDisponible;
-            if (!elegible || !await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ContingenciaEcf, sesion.CajaId, cancelacion))
-            {
-                await transaccion.RollbackAsync(cancelacion);
-                contexto.ChangeTracker.Clear();
-                await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
-                var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
-                return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
-            }
-
-            var secuenciaContingencia = await secuencias.SiguienteAsync(venta.CajaId, TiposSecuencia.Contingencia, cancelacion);
-            contingencia = ComprobanteContingencia.Registrar(venta.Id, venta.NumeroTransaccion, venta.CajaId, venta.TurnoId,
-                $"CTG-{sesion.CajaCodigo}-{secuenciaContingencia:00000000}", venta.TipoComprobante, resultado.TotalCobrado, excepcion.Message, ahora);
-            contexto.ComprobantesContingencia.Add(contingencia);
+            await transaccion.RollbackAsync(cancelacion);
+            contexto.ChangeTracker.Clear();
+            await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
+            var ventaActual = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta.Id, cancelacion);
+            return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
         }
 
         // Consumo de notas de crédito en la misma transacción del cobro (RF-38).
         var saldosNotas = new List<(Devolucion Nota, decimal Saldo)>();
         foreach (var (nota, monto) in solicitados.NotasCredito)
         {
-            var saldo = nota.Consumir(venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, DateOnly.FromDateTime(reloj.GetLocalNow().DateTime), ahora);
+            var saldo = nota.Consumir(venta.Id, venta.NumeroTransaccion, venta.CajaId, monto, DateOnly.FromDateTime(reloj.GetLocalNow().DateTime),
+                solicitados.DiasVigenciaNotas, ahora);
             saldosNotas.Add((nota, saldo));
             bandejaSalida.Encolar("NotaCredito.Consumida", nota.Numero,
                 new DocumentoConsumoNotaCredito(nota.Numero, nota.Encf, venta.NumeroTransaccion, monto, saldo, ahora));
@@ -445,11 +435,12 @@ internal sealed class ServicioVentas(
 
         // Periféricos después de guardar: un fallo de impresora o gaveta nunca deshace el cobro.
         var encabezado = await EncabezadoTicketAsync(sesion, cancelacion);
-        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(encabezado, datosVenta, esCopia: false, contingencia?.Numero), cancelacion);
+        var impresion = await impresora.ImprimirAsync(GeneradorTicket.Generar(encabezado, datosVenta, esCopia: false), cancelacion);
 
         // Voucher con el saldo que queda de cada nota de crédito usada (RF-43).
         foreach (var (nota, saldo) in saldosNotas.Where(n => n.Saldo > 0))
-            await impresora.ImprimirAsync(GeneradorTicket.GenerarSaldoNotaCredito(encabezado, nota.Encf ?? nota.Numero, nota.ClienteNombre, saldo, nota.Moneda, nota.VenceEn,
+            await impresora.ImprimirAsync(GeneradorTicket.GenerarSaldoNotaCredito(encabezado, nota.Encf ?? nota.Numero, nota.ClienteNombre, saldo, nota.Moneda,
+                nota.VenceEn(solicitados.DiasVigenciaNotas),
                 venta.NumeroTransaccion), cancelacion);
 
         // Voucher de cada pendiente con copia para el cliente y para el despacho (RF-55, RF-88).
@@ -525,7 +516,8 @@ internal sealed class ServicioVentas(
         IReadOnlyList<(Devolucion Nota, decimal Monto)> NotasCredito,
         IReadOnlyList<NotaCreditoExternaUsada> NotasExternas,
         (CodigoResultadoVenta Codigo, string Mensaje)? Rechazo,
-        int PuntosCanjeados = 0)
+        int PuntosCanjeados = 0,
+        int DiasVigenciaNotas = 1)
     {
         public static PagosArmados Rechazado(CodigoResultadoVenta codigo, string mensaje) => new([], [], [], [], (codigo, mensaje));
     }
@@ -598,6 +590,7 @@ internal sealed class ServicioVentas(
         var notas = new List<(Devolucion Nota, decimal Monto)>();
         var puntosCanje = 0;
         var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        int? diasVigenciaNotas = null;
         foreach (var pago in pagos)
         {
             if (!formas.TryGetValue(pago.FormaPagoId, out var forma))
@@ -648,10 +641,11 @@ internal sealed class ServicioVentas(
                 else
                 {
                     var disponible = nota.Saldo - notas.Where(n => n.Nota == nota).Sum(n => n.Monto);
-                    var problema = nota.EstadoSaldo(hoy) switch
+                    diasVigenciaNotas ??= await parametros.ObtenerEnteroAsync(ClavesParametros.DiasVigenciaNotaCredito, venta.CajaId, cancelacion);
+                    var problema = nota.EstadoSaldo(hoy, diasVigenciaNotas.Value) switch
                     {
                         EstadoNotaCredito.Consumida => $"La nota de crédito {codigo} ya fue consumida.",
-                        EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn:dd/MM/yyyy}.",
+                        EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn(diasVigenciaNotas.Value):dd/MM/yyyy}.",
                         _ when monto > disponible => $"La nota de crédito {codigo} solo tiene {venta.SimboloMoneda}{disponible:N2} disponibles.",
                         _ => null,
                     };
@@ -706,7 +700,7 @@ internal sealed class ServicioVentas(
                 operacionId));
         }
 
-        return new PagosArmados(solicitados, usadas, notas, externas, null, puntosCanje);
+        return new PagosArmados(solicitados, usadas, notas, externas, null, puntosCanje, diasVigenciaNotas ?? 1);
     }
 
     /// <summary>

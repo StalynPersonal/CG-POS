@@ -19,24 +19,6 @@ internal sealed class SecuenciaEcfConfiguracion : IEntityTypeConfiguration<Secue
     }
 }
 
-internal sealed class ComprobanteContingenciaConfiguracion : IEntityTypeConfiguration<ComprobanteContingencia>
-{
-    public void Configure(EntityTypeBuilder<ComprobanteContingencia> constructor)
-    {
-        constructor.ToTable("ComprobantesContingencia");
-        constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Numero).HasMaxLength(ComprobanteContingencia.LargoMaximoNumero).IsRequired();
-        constructor.Property(c => c.VentaNumero).HasMaxLength(ComprobanteContingencia.LargoMaximoNumero).IsRequired();
-        constructor.Property(c => c.Motivo).HasMaxLength(ComprobanteContingencia.LargoMaximoMotivo).IsRequired();
-        constructor.Property(c => c.UltimoError).HasMaxLength(ComprobanteContingencia.LargoMaximoMotivo);
-        constructor.Property(c => c.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false);
-
-        // Una venta tiene a lo sumo un comprobante provisional, y las pendientes se buscan por caja.
-        constructor.HasIndex(c => c.VentaId).IsUnique();
-        constructor.HasIndex(c => new { c.CajaId, c.RegularizadoEn });
-    }
-}
-
 internal sealed class DocumentoElectronicoConfiguracion : IEntityTypeConfiguration<DocumentoElectronico>
 {
     public void Configure(EntityTypeBuilder<DocumentoElectronico> constructor)

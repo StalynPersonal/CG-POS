@@ -103,6 +103,7 @@ public sealed record DatosNotaCredito(
     DateOnly VenceEn,
     EstadoNotaCredito Estado,
     DateTimeOffset CreadaEn,
+    DateOnly FechaEmision,
     IReadOnlyList<DatosLineaNotaCredito> Lineas,
     DatosComprobanteElectronico? Comprobante,
     int PuntosReversados = 0,

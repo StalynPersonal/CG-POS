@@ -135,30 +135,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                 });
 
             migrationBuilder.CreateTable(
-                name: "ComprobantesContingencia",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false),
-                    VentaId = table.Column<int>(type: "int", nullable: false),
-                    VentaNumero = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    CajaId = table.Column<int>(type: "int", nullable: false),
-                    TurnoId = table.Column<int>(type: "int", nullable: true),
-                    Numero = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    TipoComprobante = table.Column<int>(type: "int", nullable: false),
-                    Total = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    Motivo = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
-                    CreadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
-                    RegularizadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: true),
-                    Encf = table.Column<string>(type: "varchar(13)", unicode: false, maxLength: 13, nullable: true),
-                    Intentos = table.Column<int>(type: "int", nullable: false),
-                    UltimoError = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ComprobantesContingencia", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ContribuyentesDgii",
                 columns: table => new
                 {
@@ -1348,7 +1324,7 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     Moneda = table.Column<string>(type: "varchar(3)", unicode: false, maxLength: 3, nullable: false),
                     SimboloMoneda = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
                     PuntosReversados = table.Column<int>(type: "int", nullable: false),
-                    VenceEn = table.Column<DateOnly>(type: "date", nullable: false),
+                    FechaEmision = table.Column<DateOnly>(type: "date", nullable: false),
                     CreadaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     Encf = table.Column<string>(type: "varchar(13)", unicode: false, maxLength: 13, nullable: true),
                     Reembolso = table.Column<int>(type: "int", nullable: false),
@@ -1689,17 +1665,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                 name: "IX_CodigosArticulo_Codigo",
                 table: "CodigosArticulo",
                 column: "Codigo",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ComprobantesContingencia_CajaId_RegularizadoEn",
-                table: "ComprobantesContingencia",
-                columns: new[] { "CajaId", "RegularizadoEn" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ComprobantesContingencia_VentaId",
-                table: "ComprobantesContingencia",
-                column: "VentaId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -2098,9 +2063,6 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "CodigosArticulo");
-
-            migrationBuilder.DropTable(
-                name: "ComprobantesContingencia");
 
             migrationBuilder.DropTable(
                 name: "ConsumosNotaCredito");

@@ -87,9 +87,6 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<SecuenciaEcf> SecuenciasEcf => Set<SecuenciaEcf>();
     public DbSet<DocumentoElectronico> DocumentosElectronicos => Set<DocumentoElectronico>();
 
-    /// <summary>Ventas cobradas con comprobante provisional mientras la caja no pudo firmar su e-CF (contingencia).</summary>
-    public DbSet<ComprobanteContingencia> ComprobantesContingencia => Set<ComprobanteContingencia>();
-
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
         // Los Id son enteros de esta base: EF los reserva por bloques de una secuencia (HiLo) al agregar cada entidad, sin ir a la base por cada una.

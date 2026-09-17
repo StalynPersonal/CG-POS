@@ -17,8 +17,6 @@ internal sealed class NotaCreditoCentralConfiguracion : IEntityTypeConfiguration
         constructor.Property(n => n.ClienteDocumento).HasMaxLength(NotaCreditoCentral.LargoMaximoTexto);
         constructor.Property(n => n.ClienteNombre).HasMaxLength(NotaCreditoCentral.LargoMaximoTexto);
         constructor.Property(n => n.Moneda).HasMaxLength(NotaCreditoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
-        constructor.Property(n => n.ProrrogadaPor).HasMaxLength(NotaCreditoCentral.LargoMaximoTexto);
-        constructor.Property(n => n.MotivoProrroga).HasMaxLength(NotaCreditoCentral.LargoMaximoMotivo);
 
         constructor.HasOne<Caja>().WithMany().HasForeignKey(n => n.CajaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(n => n.SucursalId).OnDelete(DeleteBehavior.Restrict);
@@ -27,7 +25,7 @@ internal sealed class NotaCreditoCentralConfiguracion : IEntityTypeConfiguration
         constructor.HasIndex(n => n.Encf).IsUnique().HasFilter("[Encf] IS NOT NULL");
         constructor.HasIndex(n => n.Numero).IsUnique();
         constructor.HasIndex(n => n.ClienteDocumento);
-        constructor.HasIndex(n => n.VenceEn);
+        constructor.HasIndex(n => n.FechaEmision);
     }
 }
 

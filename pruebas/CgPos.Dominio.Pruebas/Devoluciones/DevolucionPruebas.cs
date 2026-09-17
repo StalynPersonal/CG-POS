@@ -30,7 +30,7 @@ public class DevolucionPruebas
         string? serial = null) =>
         Devolucion.Registrar(venta, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
             Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", null, Ids.Siguiente(), "Cajera", Ids.Siguiente(), "Encargado",
-            diasRetencionImpuesto: 30, mesesVigencia: 6, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
+            diasRetencionImpuesto: 30, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
 
     [Fact]
     public void Devolucion_parcial_acredita_la_parte_proporcional_y_la_ultima_toma_el_resto_exacto()
@@ -42,7 +42,8 @@ public class DevolucionPruebas
         Assert.Equal(720.34m, primera.Subtotal);
         Assert.Equal(129.66m, primera.Impuesto);
         Assert.False(primera.EsTotal);
-        Assert.Equal(new DateOnly(2027, 3, 4), primera.VenceEn);
+        Assert.Equal(DiaCobro.AddDays(3), primera.FechaEmision);
+        Assert.Equal(DiaCobro.AddDays(3 + 180), primera.VenceEn(180));
 
         var devuelto = new Dictionary<int, DevueltoLinea> { [1] = new(1m, 850m) };
         var segunda = Devolver(venta, 2, devuelto);
@@ -74,27 +75,34 @@ public class DevolucionPruebas
 
         var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
             new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", null, Ids.Siguiente(), "Cajera",
-            null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
+            null, null, 30, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.ClienteRequerido, sinCliente.Codigo);
 
         var sinMotivo = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Ids.Siguiente(), "Cajera", null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
+            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Ids.Siguiente(), "Cajera", null, null, 30, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.MotivoRequerido, sinMotivo.Codigo);
     }
 
     [Fact]
     public void El_saldo_se_consume_por_partes_hasta_agotarse_y_vence()
     {
+        const int dias = 60;
         var nota = Devolver(VentaCobrada(1), 1);
 
-        Assert.Equal(350m, nota.Consumir(Ids.Siguiente(), "01-01-00000009", Ids.Siguiente(), 500m, DiaCobro.AddDays(5), Cobro.AddDays(5)));
-        Assert.Equal(EstadoNotaCredito.Vigente, nota.EstadoSaldo(DiaCobro.AddDays(5)));
+        Assert.Equal(350m, nota.Consumir(Ids.Siguiente(), "010110000009", Ids.Siguiente(), 500m, DiaCobro.AddDays(5), dias, Cobro.AddDays(5)));
+        Assert.Equal(EstadoNotaCredito.Vigente, nota.EstadoSaldo(DiaCobro.AddDays(5), dias));
         Assert.Equal(CodigoErrorDevolucion.SaldoInsuficiente,
-            Assert.Throws<ReglaDevolucionExcepcion>(() => nota.Consumir(Ids.Siguiente(), "X", Ids.Siguiente(), 351m, DiaCobro.AddDays(5), Cobro)).Codigo);
-        Assert.Equal(EstadoNotaCredito.Vencida, nota.EstadoSaldo(nota.VenceEn.AddDays(1)));
+            Assert.Throws<ReglaDevolucionExcepcion>(() => nota.Consumir(Ids.Siguiente(), "X", Ids.Siguiente(), 351m, DiaCobro.AddDays(5), dias, Cobro)).Codigo);
 
-        Assert.Equal(0m, nota.Consumir(Ids.Siguiente(), "01-01-00000010", Ids.Siguiente(), 350m, DiaCobro.AddDays(6), Cobro.AddDays(6)));
-        Assert.Equal(EstadoNotaCredito.Consumida, nota.EstadoSaldo(DiaCobro.AddDays(6)));
+        // Vence a los días configurados desde su emisión; si el negocio sube los días, vuelve a estar vigente.
+        var vencida = nota.VenceEn(dias).AddDays(1);
+        Assert.Equal(EstadoNotaCredito.Vencida, nota.EstadoSaldo(vencida, dias));
+        Assert.Equal(CodigoErrorDevolucion.NotaCreditoVencida,
+            Assert.Throws<ReglaDevolucionExcepcion>(() => nota.Consumir(Ids.Siguiente(), "X", Ids.Siguiente(), 10m, vencida, dias, Cobro)).Codigo);
+        Assert.Equal(EstadoNotaCredito.Vigente, nota.EstadoSaldo(vencida, dias + 30));
+
+        Assert.Equal(0m, nota.Consumir(Ids.Siguiente(), "010110000010", Ids.Siguiente(), 350m, DiaCobro.AddDays(6), dias, Cobro.AddDays(6)));
+        Assert.Equal(EstadoNotaCredito.Consumida, nota.EstadoSaldo(DiaCobro.AddDays(6), dias));
         Assert.Equal(2, nota.Consumos.Count);
     }
 }

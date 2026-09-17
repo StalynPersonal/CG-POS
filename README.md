@@ -30,7 +30,7 @@ src/Compartido/   CgPos.Dominio        Entidades y reglas comunes (formato RD, a
 src/POS/      CgPos.Pos.Agente     Único servicio de la caja: API local, pantallas y sincronización
               CgPos.Pos.Aplicacion  Casos de uso y abstracciones (BandejaSalida, auditoría)
               CgPos.Pos.Infraestructura  EF Core / SQL Server, migraciones, implementaciones
-              CgPos.Pos.ECF       Facturación electrónica de la caja: certificado, emisión, firma y contingencia
+              CgPos.Pos.ECF       Facturación electrónica de la caja: certificado, emisión y firma
               CgPos.Pos.Web       Pantallas Blazor WebAssembly (cajero, cliente, devoluciones)
 src/Central/  CgPos.Central.Api    Servicio del Central: API para el Central Manager y para las cajas
               CgPos.Central.Aplicacion  Casos de uso y abstracciones del Central
@@ -83,7 +83,7 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Caja.PasoRedondeoEfectivo` | Redondeo del cobro en efectivo (`0` = sin redondeo) | Sí |
 | `Caja.CierreCiego`, `Caja.FondoEnCuadre` | Modalidad del cierre de turno | Sí |
 | `Caja.FondoPredeterminado` | Fondo sugerido al abrir turno | No |
-| `Devoluciones.DiasRetencionImpuesto`, `Devoluciones.MesesVigenciaNotaCredito` | Retención del ITBIS y vigencia de la nota de crédito | Sí |
+| `Devoluciones.DiasRetencionImpuesto`, `Devoluciones.DiasVigenciaNotaCredito` | Retención del ITBIS y días de vigencia de la nota de crédito desde su emisión | Sí |
 | `Devoluciones.PoliticaNotaCredito`, `Devoluciones.PoliticaNotaCreditoContabilidad` | Textos impresos en la nota de crédito | No |
 | `General.MonedaLocal` | Código ISO de la moneda local (debe existir activa en el maestro `monedas`, con su nombre y símbolo). Cobro, cierre, tickets y pantallas la usan; las demás monedas se cobran a la tasa del día. El e-CF solo se emite con moneda local DOP | Sí |
 | `Fidelidad.ValorPunto` | Valor en moneda local de cada punto al canjearlo (sin él no se canjean puntos) | Para canjear |
@@ -227,12 +227,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 - **Al cobrar:** dentro de la misma transacción se toma el siguiente e-NCF, se genera y valida el XML, se firma, se calcula el código de seguridad y la URL del timbre, y el XML firmado se guarda en `{Ecf:CarpetaXml}\Pendientes\yyyy\MM\dd\{RNC}{eNCF}.xml` (en desarrollo `logs/ecf`; en producción `C:\CGPOS\eCF`). El documento queda "Pendiente por sincronizar" y el XML viaja al Central en `Venta.Cobrada`. Si algo falla, no se consume la secuencia.
 - **Ticket:** e-NCF, vencimiento de la secuencia, código de seguridad, fecha de firma y QR del timbre (ESC/POS nativo).
 - **API:** `GET /api/ecf/estado`, `POST /api/ecf/certificado`, `GET /api/ecf/documentos?estado=`.
-- **Contingencia:** si la caja no puede firmar (certificado sin cargar o vencido, secuencia agotada) y `Ecf.ContingenciaHabilitada` está activo, la venta **se cobra igual** con un comprobante provisional numerado (`CTG-caja-secuencia`) impreso en el ticket. El e-CF se emite y firma solo, con la fecha real del cobro, en cuanto se restablece lo que faltaba —al cargar el certificado o en el ciclo de sincronización— y la venta vuelve a salir al Central ya con su e-CF. La barra de estado alerta mientras haya contingencias abiertas, y el cierre de turno las exige regularizadas salvo que `Ecf.ContingenciaPermiteCerrarTurno` lo permita.
-
-| Parámetro | Uso | Obligatorio |
-| --- | --- | --- |
-| `Ecf.ContingenciaHabilitada` | Permite cobrar con comprobante provisional cuando no se puede firmar el e-CF | No (sin él, el cobro se rechaza) |
-| `Ecf.ContingenciaPermiteCerrarTurno` | Permite cerrar el turno con ventas en contingencia pendientes | No |
+- **Sin e-NCF no se factura:** si no hay secuencia disponible (agotada, vencida o sin asignar) o la caja no puede firmar (certificado sin cargar o vencido), el cobro se rechaza con el motivo y no se consume nada. No hay comprobantes provisionales.
 
 - **Validación contra los esquemas de la DGII:** los XSD oficiales están en `datos/xsd` y se configuran con `Ecf:CarpetaXsd`. Cada comprobante se valida contra el esquema de su tipo **después de firmarlo** (el esquema exige la firma); si no cumple, no se emite. Las unidades de medida viajan con el código de la tabla de la DGII (`UND` = 43, `LB` = 23…) y la cantidad con dos decimales, como exige el esquema.
 - **Resumen de consumo (RFCE):** una factura de consumo que no llega a `Fiscal.MontoIdentificacionConsumo` se le informa a la DGII como **resumen**: totales, formas de pago y el código de seguridad del e-CF, sin las líneas. La caja lo firma y lo envía al Central marcado como resumen, y el Central lo entrega en el servicio de facturas de consumo (`Central.Dgii.UrlRecepcionConsumo`), que responde aceptado o rechazado en el mismo envío, sin trackId. El e-CF completo queda en la caja y es el que se le entrega al cliente.
@@ -257,7 +252,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 - **Motivo y autorización:** motivo seleccionable (`motivosDevolucion` en los maestros) y clave del encargado (permiso `Devoluciones.Autorizar`), que sale impreso en la nota.
 - **Plazo:** pasados `Devoluciones.DiasRetencionImpuesto` días (30 por defecto) se retiene el ITBIS y la nota acredita solo la base.
 - **Nota de crédito E34:** se firma en la caja en la misma transacción, con referencia al e-CF de la factura (código 1 si completa la factura, 3 si es parcial), y viaja al Central en `Devolucion.NotaCreditoEmitida`. Se imprimen la copia del cliente (código de barras y política `Devoluciones.PoliticaNotaCredito`) y la de contabilidad.
-- **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente (`Devoluciones.MesesVigenciaNotaCredito`) y tenga saldo. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
+- **Consumo:** en el cobro, la forma de pago *Nota de crédito* pide el e-NCF; valida que exista en la caja, esté vigente y tenga saldo. La vigencia se cuenta **desde la fecha de emisión con los días configurados hoy** (`Devoluciones.DiasVigenciaNotaCredito`): con 60 días, una nota de 70 días no se puede usar; si se suben los días en el Central, vuelve a poder usarse. La nota no guarda su vencimiento. Si queda saldo se imprime un voucher. Cada consumo va al Central (`NotaCredito.Consumida`).
 - **Otra sucursal:** una nota de crédito que no está en la caja se valida y se reserva en el Central al cobrar (ver *Notas de crédito entre sucursales*); las facturas de otra sucursal se siguen informando como no encontradas.
 - **Reembolso (RF-123):** el cliente puede llevarse el dinero en vez del saldo a favor. La nota de crédito E34 se emite igual (la DGII la exige) pero queda sin saldo, y se registra cómo se pagó: **efectivo** de la gaveta (que baja lo esperado del cuadre como un retiro y sale en el reporte del cierre), **a la tarjeta** con la autorización del terminal, o **cheque** con banco y a nombre de quién. Cada forma se habilita por parámetro y el máximo en efectivo se configura; lo que no esté habilitado se rechaza.
 
@@ -391,7 +386,7 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 ### Monitor de sincronización (Central Manager)
 
-- Permiso `Central.Sincronizacion.Monitorear`. **Monitor:** por caja, la última comunicación (mensajes y descargas de maestros), mensajes recibidos, repetidos y rechazados, e-CF sin resultado y rechazados por la DGII, y alertas: nunca se comunicó o lleva más de `Central.Monitor.MinutosSinComunicacion` minutos sin hacerlo, su último mensaje fue rechazado, e-CF sin resultado de la DGII por más de `Central.Monitor.MinutosAlertaDgii` minutos, e-CF rechazados, conflictos abiertos y **ventas cobradas en contingencia** que aún esperan su e-CF. Resumen de e-CF por estado, envíos con fallo, el pendiente más antiguo y el total de ventas en contingencia. La pantalla se actualiza sola cada minuto.
+- Permiso `Central.Sincronizacion.Monitorear`. **Monitor:** por caja, la última comunicación (mensajes y descargas de maestros), mensajes recibidos, repetidos y rechazados, e-CF sin resultado y rechazados por la DGII, y alertas: nunca se comunicó o lleva más de `Central.Monitor.MinutosSinComunicacion` minutos sin hacerlo, su último mensaje fue rechazado, e-CF sin resultado de la DGII por más de `Central.Monitor.MinutosAlertaDgii` minutos, e-CF rechazados, y conflictos abiertos. Resumen de e-CF por estado, envíos con fallo y el pendiente más antiguo. La pantalla se actualiza sola cada minuto.
 - **e-CF y DGII:** búsqueda por e-NCF o trackId, estado, caja y envíos con fallo; detalle con el mensaje de la DGII, los intentos y el XML firmado. **Reenvío dirigido:** un e-CF rechazado o pendiente vuelve a la cola de inmediato (queda en la auditoría); uno aceptado o en proceso no se reenvía.
 - **Conflictos:** abiertos y resueltos; resolver exige escribir la resolución y queda con el usuario y la fecha.
 
@@ -408,13 +403,12 @@ dotnet run --project src/Central/CgPos.Central.Api
 - **Reserva:** antes de cobrar con una nota, la caja pide retener el monto para la factura que cobra; el Central bloquea la fila y entrega lo que haya disponible (o menos, y lo avisa). Reintentar el cobro de la misma factura reemplaza su reserva. La reserva vence sola a los `Central.NotasCredito.MinutosReserva` minutos y la caja puede liberarla si no cobra. Así dos cajas no consumen el mismo saldo.
 - **Consumo:** el mensaje de la caja descuenta el saldo y cierra la reserva de esa factura. Una factura consume una nota una sola vez, aunque el mensaje llegue repetido. Un consumo puede llegar antes que la emisión (son cajas distintas): se guarda igual y el saldo se ajusta al registrarla.
 - **Sobregiro:** si varias cajas sin conexión consumen más que el total, la nota queda marcada como sobregirada para revisarla con las sucursales; el Central no descarta lo que la caja ya cobró.
-- **Central Manager** (permiso `Central.NotasCredito.Administrar`): listado con búsqueda por e-NCF, número, documento o nombre, filtros por estado y sobregiradas, detalle con sus movimientos (consumos, reservas y prórrogas) y **habilitación de una nota vencida** (RF-40) con motivo, hasta `Central.NotasCredito.MesesMaximoProrroga` meses desde la emisión; queda en la auditoría.
+- **Central Manager** (permiso `Central.NotasCredito.Administrar`): listado con búsqueda por e-NCF, número, documento o nombre, filtros por estado y sobregiradas, detalle con sus movimientos (consumos y reservas) y su vencimiento calculado con los días configurados. Una nota vencida (RF-40) se habilita **subiendo los días de vigencia** (`Devoluciones.DiasVigenciaNotaCredito`), que aplica a todas las notas; no hay prórroga por nota.
 - **En la caja:** al cobrar con la forma de pago *Nota de crédito*, si el e-NCF no está en la caja se consulta al Central y se reserva el monto antes de cobrar. Si el Central no responde no se acepta (solo él conoce el saldo de otras sucursales), si el saldo no alcanza se devuelve la reserva y se indica lo disponible, y si el cobro no se completa (pago rechazado, falta de autorización o falla del e-CF) la reserva se libera. Cobrada la venta, el consumo sale en la bandeja de salida como `NotaCredito.Consumida`.
 
 | Parámetro | Uso | Obligatorio |
 | --- | --- | --- |
 | `Central.NotasCredito.MinutosReserva` | Minutos que se retiene el saldo mientras la caja cobra | Sí |
-| `Central.NotasCredito.MesesMaximoProrroga` | Meses desde la emisión hasta los que se habilita una nota vencida | Sí |
 
 - **API de las cajas:** `GET /api/notas-credito/{codigo}` (e-NCF o número, sin Id del Central), `POST /api/notas-credito/{numero}/reservas` (con el número de la factura), `DELETE /api/notas-credito/{numero}/reservas/{factura}`. **API del Manager:** `GET /api/manager/notas-credito?buscar=&estado=&soloSobregiradas=`, `GET /api/manager/notas-credito/{id}/movimientos`, `POST /api/manager/notas-credito/{id}/prorrogar`.
 

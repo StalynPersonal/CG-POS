@@ -6,14 +6,19 @@ using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Devoluciones;
 
-internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto, IParametrosCentral parametros, IAuditoriaCentral auditoria, TimeProvider reloj)
+internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto, IParametrosCentral parametros, TimeProvider reloj)
     : IServicioNotasCreditoCentral
 {
     private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+
+    /// <summary>Días de vigencia configurados hoy: una nota vence a esos días de su emisión, así que subirlos habilita las vencidas (RF-40).</summary>
+    private Task<int> DiasVigenciaAsync(CancellationToken cancelacion) =>
+        parametros.ObtenerEnteroPositivoAsync(CatalogoParametros.DiasVigenciaNotaCredito, cancelacion);
 
     public async Task<DatosNotaCreditoParaCaja?> BuscarParaCajaAsync(string codigo, CancellationToken cancelacion = default)
     {
@@ -47,8 +52,9 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         if (nota is null)
             return new RespuestaReservaNotaCredito(false, "La nota de crédito no existe en el Central.");
 
-        if (nota.Estado(Hoy) == EstadoNotaCreditoCentral.Vencida)
-            return new RespuestaReservaNotaCredito(false, $"La nota de crédito {nota.Encf ?? nota.Numero} venció el {nota.VenceEn:dd/MM/yyyy}.");
+        var diasVigencia = await DiasVigenciaAsync(cancelacion);
+        if (nota.Estado(Hoy, diasVigencia) == EstadoNotaCreditoCentral.Vencida)
+            return new RespuestaReservaNotaCredito(false, $"La nota de crédito {nota.Encf ?? nota.Numero} venció el {nota.VenceEn(diasVigencia):dd/MM/yyyy}.");
 
         var reservas = await contexto.ReservasNotaCredito.Where(r => r.NotaCreditoId == nota.Id && r.CerradaEn == null).ToListAsync(cancelacion);
         foreach (var vencida in reservas.Where(r => !r.EstaVigente(ahora)))
@@ -95,7 +101,8 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
     {
         tamano = Math.Clamp(tamano, 1, IServicioNotasCreditoCentral.TamanoMaximoPagina);
         pagina = Math.Max(pagina, 0);
-        var hoy = Hoy;
+        // Vencida si se emitió antes de este día (su vencimiento, emisión más los días, ya pasó).
+        var emitidaAntesDe = Hoy.AddDays(-await DiasVigenciaAsync(cancelacion));
 
         var consulta = contexto.NotasCredito.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(buscar))
@@ -108,8 +115,8 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         consulta = estado switch
         {
             EstadoNotaCreditoCentral.Consumida => consulta.Where(n => n.Total - n.Consumido <= 0),
-            EstadoNotaCreditoCentral.Vencida => consulta.Where(n => n.Total - n.Consumido > 0 && n.VenceEn < hoy),
-            EstadoNotaCreditoCentral.Vigente => consulta.Where(n => n.Total - n.Consumido > 0 && n.VenceEn >= hoy),
+            EstadoNotaCreditoCentral.Vencida => consulta.Where(n => n.Total - n.Consumido > 0 && n.FechaEmision < emitidaAntesDe),
+            EstadoNotaCreditoCentral.Vigente => consulta.Where(n => n.Total - n.Consumido > 0 && n.FechaEmision >= emitidaAntesDe),
             _ => consulta,
         };
 
@@ -136,39 +143,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
                 $"Venta {r.VentaNumero}: {r.Cierre ?? (r.EstaVigente(ahora) ? "Vigente" : "Vencida")}")))
             .ToList();
 
-        if (nota is { ProrrogadaEn: { } prorrogada })
-            movimientos.Add(new DatosMovimientoNotaCredito(prorrogada, "Prórroga", string.Empty, 0m,
-                $"Hasta {nota.VenceEn:dd/MM/yyyy} por {nota.ProrrogadaPor}: {nota.MotivoProrroga}"));
-
         return movimientos.OrderByDescending(m => m.Fecha).ToList();
-    }
-
-    public async Task<ResultadoAdministracion> ProrrogarAsync(int notaCreditoId, DateOnly venceEn, string motivo, UsuarioAuditoria actor,
-        CancellationToken cancelacion = default)
-    {
-        var meses = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.NotasCreditoMesesMaximoProrroga, cancelacion);
-        if (await contexto.NotasCredito.SingleOrDefaultAsync(n => n.Id == notaCreditoId, cancelacion) is not { } nota)
-            return ResultadoAdministracion.Inexistente("La nota de crédito no existe.");
-
-        var limite = DateOnly.FromDateTime(nota.EmitidaEn.LocalDateTime).AddMonths(meses);
-        if (venceEn > limite)
-            return ResultadoAdministracion.Error($"La nueva fecha no puede pasar del {limite:dd/MM/yyyy}: son {meses} meses desde la emisión.");
-        if (venceEn < Hoy)
-            return ResultadoAdministracion.Error("La nueva fecha ya pasó.");
-
-        try
-        {
-            nota.Prorrogar(venceEn, actor.Nombre, motivo, reloj.GetUtcNow());
-        }
-        catch (ArgumentException excepcion)
-        {
-            return ResultadoAdministracion.Error(ValidacionMaestros.MensajeError(excepcion));
-        }
-
-        auditoria.Registrar(new EntradaAuditoria("NotasCredito.Prorrogada", "NotaCreditoCentral", nota.Id.ToString(),
-            Detalle: new { nota.Numero, nota.Encf, nota.VenceEn, Motivo = motivo, Usuario = actor.Nombre }));
-        await contexto.SaveChangesAsync(cancelacion);
-        return ResultadoAdministracion.Correcto(nota.Id);
     }
 
     private async Task<IReadOnlyList<DatosNotaCreditoCentral>> DatosAsync(IReadOnlyList<NotaCreditoCentral> notas, CancellationToken cancelacion)
@@ -178,6 +153,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
 
         var ahora = reloj.GetUtcNow();
         var hoy = Hoy;
+        var diasVigencia = await DiasVigenciaAsync(cancelacion);
         var ids = notas.Select(n => n.Id).ToList();
         var reservado = (await contexto.ReservasNotaCredito.AsNoTracking()
                 .Where(r => ids.Contains(r.NotaCreditoId) && r.CerradaEn == null && r.VenceEn > ahora)
@@ -194,8 +170,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
             var retenido = reservado.GetValueOrDefault(nota.Id);
             return new DatosNotaCreditoCentral(nota.Id, nota.Numero, nota.Encf, nota.SucursalId, sucursales.GetValueOrDefault(nota.SucursalId) ?? string.Empty,
                 cajas.GetValueOrDefault(nota.CajaId) ?? string.Empty, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Total, nota.Consumido, retenido,
-                Math.Max(0m, nota.Saldo - retenido), nota.VenceEn, nota.Estado(hoy), nota.Sobregirada, nota.EmitidaEn, nota.ProrrogadaEn, nota.ProrrogadaPor,
-                nota.MotivoProrroga);
+                Math.Max(0m, nota.Saldo - retenido), nota.VenceEn(diasVigencia), nota.Estado(hoy, diasVigencia), nota.Sobregirada, nota.EmitidaEn);
         }).ToList();
     }
 

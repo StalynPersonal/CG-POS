@@ -76,6 +76,9 @@ public static class CatalogoParametros
     public const string MonedaLocal = "General.MonedaLocal";
 
     public const string DigitosSecuenciaDocumentos = "Numeracion.DigitosSecuencia";
+
+    /// <summary>Días desde la emisión en que se puede consumir una nota de crédito (RF-39, RF-40); lo leen la caja y el Central al usarla.</summary>
+    public const string DiasVigenciaNotaCredito = "Devoluciones.DiasVigenciaNotaCredito";
     public const string ProximaFactura = "Numeracion.ProximaFactura";
     public const string ProximaNotaCredito = "Numeracion.ProximaNotaCredito";
 
@@ -114,13 +117,13 @@ public static class CatalogoParametros
         new("Caja.FondoPredeterminado", "Caja y cierre", "Fondo sugerido al abrir turno", Decimal, false, Minimo: 0),
 
         new("Devoluciones.DiasRetencionImpuesto", "Devoluciones", "Días desde la factura tras los cuales la devolución retiene el ITBIS", Entero, true, Minimo: 0),
-        new("Devoluciones.MesesVigenciaNotaCredito", "Devoluciones", "Meses de vigencia de la nota de crédito para consumirla", Entero, true, Minimo: 1),
+        new(DiasVigenciaNotaCredito, "Devoluciones",
+            "Días desde la emisión en que se puede consumir una nota de crédito; al subirlos, las notas que habían vencido vuelven a poder usarse", Entero, true,
+            Minimo: 1),
         new("Devoluciones.PoliticaNotaCredito", "Devoluciones", "Política impresa en la copia del cliente de la nota de crédito", Texto, false),
         new("Devoluciones.PoliticaNotaCreditoContabilidad", "Devoluciones", "Texto impreso en la copia de contabilidad de la nota de crédito", Texto, false),
         new("Ecf.UrlConsultaTimbre", "Facturación electrónica", "Dirección de la consulta del timbre de la DGII que va en el código QR (define el ambiente)", Texto, true),
         new("Ecf.UrlConsultaTimbreConsumo", "Facturación electrónica", "Dirección de la consulta del timbre de las facturas de consumo menores (código QR)", Texto, true),
-        new("Ecf.ContingenciaHabilitada", "Facturación electrónica", "Permite cobrar con comprobante provisional cuando la caja no puede firmar el e-CF", Booleano, false),
-        new("Ecf.ContingenciaPermiteCerrarTurno", "Facturación electrónica", "Permite cerrar el turno con ventas en contingencia pendientes de e-CF", Booleano, false),
 
         new("Devoluciones.ReembolsoEfectivo", "Devoluciones", "Permite devolver el dinero en efectivo de la gaveta", Booleano, false),
         new("Devoluciones.MontoMaximoReembolsoEfectivo", "Devoluciones", "Monto máximo que se devuelve en efectivo por devolución", Decimal, false, Minimo: 0),
@@ -181,7 +184,6 @@ public static class CatalogoParametros
         new("Central.Monitor.MinutosAlertaDgii", "Monitor de sincronización", "Minutos sin resultado de la DGII tras los que un e-CF es alerta", Entero, true, Central, Minimo: 1),
 
         new("Central.NotasCredito.MinutosReserva", "Notas de crédito", "Minutos que se retiene el saldo de una nota de crédito mientras una caja cobra", Entero, true, Central, Minimo: 1),
-        new("Central.NotasCredito.MesesMaximoProrroga", "Notas de crédito", "Meses desde la emisión hasta los que se puede habilitar una nota vencida", Entero, true, Central, Minimo: 1, Maximo: 60),
 
         new("Central.Fidelidad.MinutosCicloVencimiento", "Fidelidad", "Minutos entre revisiones de los puntos de fidelidad que ya vencieron", Entero, true, Central, Minimo: 1),
         new("Central.Fidelidad.LoteVencimiento", "Fidelidad", "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo de vencimiento", Entero, true, Central, Minimo: 1, Maximo: 10000),

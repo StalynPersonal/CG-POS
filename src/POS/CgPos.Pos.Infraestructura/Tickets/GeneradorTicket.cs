@@ -48,8 +48,7 @@ internal static class GeneradorTicket
 
     static GeneradorTicket() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    /// <param name="numeroContingencia">Número del comprobante provisional si la venta se cobró sin poder firmar el e-CF.</param>
-    public static DocumentoImpresion Generar(EncabezadoTicket encabezado, DatosVenta venta, bool esCopia, string? numeroContingencia = null)
+    public static DocumentoImpresion Generar(EncabezadoTicket encabezado, DatosVenta venta, bool esCopia)
     {
         var cultura = CulturaRd.Crear();
         var lineas = new List<(string Texto, Estilo Estilo)>();
@@ -75,13 +74,6 @@ internal static class GeneradorTicket
             Agregar($"e-NCF: {encabezadoEcf.Encf}", Estilo.Negrita);
             if (encabezadoEcf.VenceSecuencia is { } vence)
                 Agregar($"Válido hasta: {vence.ToString("dd/MM/yyyy", cultura)}");
-        }
-        else if (numeroContingencia is { Length: > 0 })
-        {
-            // Contingencia: el cliente se lleva un comprobante provisional y el e-CF se emite en cuanto la caja pueda firmarlo.
-            Agregar("COMPROBANTE PROVISIONAL", Estilo.Negrita | Estilo.Centrado);
-            Agregar($"Contingencia: {numeroContingencia}", Estilo.Negrita);
-            Agregar("e-NCF: pendiente de emisión");
         }
         else
         {

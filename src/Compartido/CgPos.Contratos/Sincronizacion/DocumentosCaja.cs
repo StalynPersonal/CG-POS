@@ -126,7 +126,7 @@ public sealed record DocumentoNotaCreditoEmitida(
     decimal ImpuestoRetenido,
     decimal Total,
     string Moneda,
-    DateOnly VenceEn,
+    DateOnly FechaEmision,
     DateTimeOffset CreadaEn,
     IReadOnlyList<DatosLineaNotaCredito> Lineas,
     DatosComprobanteElectronico? Comprobante,

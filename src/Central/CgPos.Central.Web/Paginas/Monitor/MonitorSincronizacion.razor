@@ -54,11 +54,6 @@
             <MudButton Href="monitor/comprobantes?estado=Rechazado" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small">Ver rechazados</MudButton>
         </MudPaper>
         <MudPaper Elevation="1" Class="cg-central__tarjeta">
-            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Ventas en contingencia</MudText>
-            <MudText Typo="Typo.h4" Color="@(monitor.VentasEnContingencia > 0 ? Color.Warning : Color.Default)">@monitor.VentasEnContingencia</MudText>
-            <MudText Typo="Typo.caption">cobradas sin e-CF; la caja lo emite al restablecerse</MudText>
-        </MudPaper>
-        <MudPaper Elevation="1" Class="cg-central__tarjeta">
             <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Conflictos abiertos</MudText>
             <MudText Typo="Typo.h4" Color="@(monitor.ConflictosAbiertos > 0 ? Color.Error : Color.Default)">@monitor.ConflictosAbiertos</MudText>
             <MudText Typo="Typo.caption">esperan revisión</MudText>
@@ -94,10 +89,6 @@
                 <MudTd DataLabel="e-CF">
                     <MudLink Href="@($"monitor/comprobantes?cajaId={context.CajaId}")">@context.ComprobantesPendientes sin resultado</MudLink>
                     <div class="cg-central__detalle">@context.ComprobantesRechazados rechazados</div>
-                    @if (context.VentasEnContingencia > 0)
-                    {
-                        <div class="cg-central__detalle" style="color: var(--mud-palette-warning)">@context.VentasEnContingencia en contingencia</div>
-                    }
                 </MudTd>
                 <MudTd DataLabel="Estado">
                     @if (!context.Habilitada)

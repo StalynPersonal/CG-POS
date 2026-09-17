@@ -322,8 +322,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<IReadOnlyList<DatosMovimientoNotaCredito>?> ListarMovimientosNotaCreditoAsync(int notaCreditoId) =>
         ListarAsync<DatosMovimientoNotaCredito>($"api/manager/notas-credito/{notaCreditoId}/movimientos");
 
-    public Task<RespuestaAdministracion> ProrrogarNotaCreditoAsync(int notaCreditoId, DateOnly venceEn, string motivo) =>
-        EnviarAsync(HttpMethod.Post, $"api/manager/notas-credito/{notaCreditoId}/prorrogar", new SolicitudProrrogaNotaCredito(venceEn, motivo));
+
 
     // ---------- Programa de fidelidad ----------
 

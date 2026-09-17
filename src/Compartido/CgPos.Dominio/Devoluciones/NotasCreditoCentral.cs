@@ -37,25 +37,26 @@ public sealed class NotaCreditoCentral : Entidad
     /// <summary>Suma de los consumos informados por las cajas.</summary>
     public decimal Consumido { get; private set; }
 
-    public DateOnly VenceEn { get; private set; }
+    /// <summary>Día de emisión en la caja: la vigencia se cuenta desde aquí con los días configurados.</summary>
+    public DateOnly FechaEmision { get; private set; }
+
     public DateTimeOffset EmitidaEn { get; private set; }
     public DateTimeOffset RegistradaEn { get; private set; }
-    public DateTimeOffset? ProrrogadaEn { get; private set; }
-    public string? ProrrogadaPor { get; private set; }
-    public string? MotivoProrroga { get; private set; }
 
     public decimal Saldo => Total - Consumido;
 
     /// <summary>Cajas sin conexión consumieron más que el total: hay que revisarlo con la sucursal.</summary>
     public bool Sobregirada => Consumido > Total;
 
-    public EstadoNotaCreditoCentral Estado(DateOnly hoy) =>
+    public DateOnly VenceEn(int diasVigencia) => VigenciaNotaCredito.VenceEn(FechaEmision, diasVigencia);
+
+    public EstadoNotaCreditoCentral Estado(DateOnly hoy, int diasVigencia) =>
         Saldo <= 0 ? EstadoNotaCreditoCentral.Consumida
-        : hoy > VenceEn ? EstadoNotaCreditoCentral.Vencida
+        : hoy > VenceEn(diasVigencia) ? EstadoNotaCreditoCentral.Vencida
         : EstadoNotaCreditoCentral.Vigente;
 
     public static NotaCreditoCentral Registrar(string numero, string? encf, int cajaId, int sucursalId, string? clienteDocumento, string? clienteNombre,
-        string moneda, decimal total, DateOnly venceEn, DateTimeOffset emitidaEn, DateTimeOffset ahora)
+        string moneda, decimal total, DateOnly fechaEmision, DateTimeOffset emitidaEn, DateTimeOffset ahora)
     {
         if (total <= 0)
             throw new ArgumentOutOfRangeException(nameof(total), total, "El total de la nota de crédito debe ser mayor que cero.");
@@ -70,7 +71,7 @@ public sealed class NotaCreditoCentral : Entidad
             ClienteNombre = Validar.TextoOpcional(clienteNombre, "Nombre del cliente", LargoMaximoTexto) ?? string.Empty,
             Moneda = Validar.Texto(moneda, "Moneda", LargoMaximoMoneda).ToUpperInvariant(),
             Total = total,
-            VenceEn = venceEn,
+            FechaEmision = fechaEmision,
             EmitidaEn = emitidaEn,
             RegistradaEn = ahora,
         };
@@ -83,18 +84,6 @@ public sealed class NotaCreditoCentral : Entidad
             throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto consumido debe ser mayor que cero.");
 
         Consumido += monto;
-    }
-
-    /// <summary>Habilita una nota de crédito vencida hasta una fecha nueva, con quién lo autorizó y por qué (RF-40).</summary>
-    public void Prorrogar(DateOnly nuevaFecha, string usuario, string motivo, DateTimeOffset ahora)
-    {
-        if (nuevaFecha <= VenceEn)
-            throw new ArgumentException("La nueva fecha debe ser posterior al vencimiento actual.", nameof(nuevaFecha));
-
-        VenceEn = nuevaFecha;
-        ProrrogadaEn = ahora;
-        ProrrogadaPor = Validar.Texto(usuario, "Usuario", LargoMaximoTexto);
-        MotivoProrroga = Validar.Texto(motivo, "Motivo", LargoMaximoMotivo);
     }
 }
 

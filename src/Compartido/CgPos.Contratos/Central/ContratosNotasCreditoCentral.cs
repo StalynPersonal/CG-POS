@@ -21,10 +21,7 @@ public sealed record DatosNotaCreditoCentral(
     DateOnly VenceEn,
     EstadoNotaCreditoCentral Estado,
     bool Sobregirada,
-    DateTimeOffset EmitidaEn,
-    DateTimeOffset? ProrrogadaEn,
-    string? ProrrogadaPor,
-    string? MotivoProrroga);
+    DateTimeOffset EmitidaEn);
 
 public sealed record PaginaNotasCreditoCentral(IReadOnlyList<DatosNotaCreditoCentral> Elementos, int Total);
 
@@ -56,4 +53,3 @@ public sealed record RespuestaReservaNotaCredito(
 /// <param name="Tipo">Consumo, reserva o prórroga.</param>
 public sealed record DatosMovimientoNotaCredito(DateTimeOffset Fecha, string Tipo, string CajaCodigo, decimal Monto, string? Detalle);
 
-public sealed record SolicitudProrrogaNotaCredito(DateOnly VenceEn, string Motivo);

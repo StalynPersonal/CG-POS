@@ -411,19 +411,7 @@ internal sealed class ServicioCaja(
             : await contexto.DocumentosElectronicos.AsNoTracking().Where(d => idsCobradas.Contains(d.VentaId)).Select(d => d.VentaId).ToListAsync(cancelacion);
         var sinEcf = cobradas.Where(v => !conEcf.Contains(v.Id)).Select(v => v.NumeroTransaccion).ToList();
         if (sinEcf.Count > 0)
-        {
-            // Las cobradas en contingencia no bloquean el cierre si el negocio lo permitió: se emiten al restablecerse el certificado o la secuencia.
-            var enContingencia = await contexto.ComprobantesContingencia.AsNoTracking()
-                .Where(c => c.TurnoId == turno.Id && c.RegularizadoEn == null)
-                .Select(c => c.VentaNumero)
-                .ToListAsync(cancelacion);
-            var permiteCerrar = enContingencia.Count > 0
-                && await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.ContingenciaPermiteCerrar, turno.CajaId, cancelacion);
-
-            var bloquean = permiteCerrar ? sinEcf.Except(enContingencia, StringComparer.Ordinal).ToList() : sinEcf;
-            if (bloquean.Count > 0)
-                bloqueos.Add($"Hay {bloquean.Count} venta(s) sin e-CF firmado: {string.Join(", ", bloquean.Take(5))}.");
-        }
+            bloqueos.Add($"Hay {sinEcf.Count} venta(s) sin e-CF firmado: {string.Join(", ", sinEcf.Take(5))}.");
 
         return new CalculoTurno(ciego, fondoEnCuadre, cobradas.Count, cobradas.Sum(v => v.TotalCobrado ?? 0m), retiros,
             ReglasCuadre.EfectivoLocalEnGaveta(esperados, turno.FondoInicial, fondoEnCuadre, monedaLocal.Codigo), esperados, denominaciones, movimientos, bloqueos,

@@ -355,7 +355,7 @@ internal sealed class ServicioRecepcion(
         try
         {
             var nota = NotaCreditoCentral.Registrar(numero, emitida.Comprobante?.Encf, documento.CajaId, documento.SucursalId, emitida.ClienteDocumento,
-                emitida.ClienteNombre, emitida.Moneda, emitida.Total, emitida.VenceEn, emitida.CreadaEn, ahora);
+                emitida.ClienteNombre, emitida.Moneda, emitida.Total, emitida.FechaEmision, emitida.CreadaEn, ahora);
 
             // Un consumo puede llegar antes que la emisión: los mensajes de una caja llegan en orden, pero los de dos cajas no.
             var consumido = await contexto.ConsumosNotaCredito.Where(c => c.NotaCreditoNumero == numero).SumAsync(c => (decimal?)c.Monto, cancelacion) ?? 0m;
@@ -483,7 +483,7 @@ internal sealed class ServicioRecepcion(
                 return false;
             }
 
-            // Una venta sin e-CF (por ejemplo, sin certificado en contingencia) se guarda sin comprobante.
+            // Un documento sin e-CF (por ejemplo, un cierre) se guarda sin comprobante.
             if (!json.RootElement.TryGetProperty("ecf", out var elemento) || elemento.ValueKind == JsonValueKind.Null)
                 return true;
 
