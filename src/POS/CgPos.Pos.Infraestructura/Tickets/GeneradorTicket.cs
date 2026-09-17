@@ -109,6 +109,13 @@ internal static class GeneradorTicket
         }
         Separador();
 
+        if (venta.ListaBoda is { } listaBoda)
+        {
+            foreach (var parte in Envolver($"Lista {listaBoda.Numero}: {listaBoda.Evento}"))
+                Agregar(parte);
+            Separador();
+        }
+
         Importe("SUBTOTAL (sin ITBIS)", venta.Totales.Subtotal);
         foreach (var tasa in venta.Totales.Desglose.Where(d => d.Impuesto > 0))
             Importe($"ITBIS {tasa.Porcentaje.ToString("0.##", cultura)}%", tasa.Impuesto);

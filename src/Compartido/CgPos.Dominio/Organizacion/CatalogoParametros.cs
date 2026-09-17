@@ -190,6 +190,9 @@ public static class CatalogoParametros
         new("Central.Monitor.MinutosAlertaDgii", "Monitor de sincronización", "Minutos sin resultado de la DGII tras los que un e-CF es alerta", Entero, true, Central, Minimo: 1),
 
         new("Central.NotasCredito.MinutosReserva", "Notas de crédito", "Minutos que se retiene el saldo de una nota de crédito mientras una caja cobra", Entero, true, Central, Minimo: 1),
+        new("Central.ListasBoda.DescontarCompras", "Listas de boda",
+            "Lo que se compra contra una lista de boda se descuenta de las cantidades pedidas; apagado, la compra solo queda en su historial",
+            Booleano, false, Central),
 
         new("Central.Fidelidad.MinutosCicloVencimiento", "Fidelidad", "Minutos entre revisiones de los puntos de fidelidad que ya vencieron", Entero, true, Central, Minimo: 1),
         new("Central.Fidelidad.LoteVencimiento", "Fidelidad", "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo de vencimiento", Entero, true, Central, Minimo: 1, Maximo: 10000),

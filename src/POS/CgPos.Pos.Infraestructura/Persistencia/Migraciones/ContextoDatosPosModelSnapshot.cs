@@ -3210,6 +3210,15 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ListaBodaEvento")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ListaBodaNumero")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<string>("Moneda")
                         .IsRequired()
                         .HasMaxLength(3)

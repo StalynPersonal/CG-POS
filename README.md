@@ -406,6 +406,17 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 - **API:** `GET /api/monitor`; `GET /api/monitor/comprobantes?estado=&cajaId=&buscar=&soloConFallo=&pagina=&tamano=`, `GET /api/monitor/comprobantes/{id}/xml`, `POST /api/monitor/comprobantes/{id}/reenviar`; `GET /api/monitor/conflictos?abiertos=`, `POST /api/monitor/conflictos/{id}/resolver`.
 
+### Listas de boda y de regalos (RF-73)
+
+- **Se crean en el Central** (`/listas-boda`, permiso `Central.ListasBoda.Administrar`): datos del cliente (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad. El Central numera la lista (`LB000001`) y es el número que el cliente da en la tienda. La lista se cierra cuando pasa el evento y se puede reabrir.
+- **En la caja (F6):** se digita el número y la caja **consulta al Central** (las listas no se guardan en la caja, así que esto requiere conexión); si existe y está abierta queda asociada a la venta, se ve en el encabezado y sale en el ticket. Una lista cerrada o inexistente se rechaza con su motivo, y vaciar el número la quita.
+- **Al cobrar**, la factura viaja al Central con el número de la lista: la compra queda en su historial (factura, caja, monto y fecha) y, **si `Central.ListasBoda.DescontarCompras` está activo**, lo comprado baja las cantidades pedidas; con el parámetro apagado la lista solo guía al cliente. Una factura se registra una sola vez aunque el mensaje se repita, y si la lista no existe en el Central queda un conflicto de sincronización.
+- **API:** `GET /api/listas-boda/{numero}` (caja); `GET/POST/PUT /api/manager/listas-boda`, `POST /api/manager/listas-boda/{id}/estado?cerrar=`, `GET /api/manager/listas-boda/configuracion`.
+
+| Parámetro | Uso | Obligatorio |
+| --- | --- | --- |
+| `Central.ListasBoda.DescontarCompras` | Lo comprado baja las cantidades pedidas de la lista | No (apagado, solo guía) |
+
 ### Notas de crédito entre sucursales
 
 - Cada nota de crédito que emite una caja se registra en el Central al sincronizar, con su total, cliente y vencimiento. Cualquier caja puede consultar su saldo por e-NCF o número, aunque se haya emitido en otra sucursal (RF-43).

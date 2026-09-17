@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosPos))]
-    [Migration("20260917185426_Inicial")]
+    [Migration("20260917192057_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -3212,6 +3212,15 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<decimal?>("LimiteCompra")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ListaBodaEvento")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ListaBodaNumero")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Moneda")
                         .IsRequired()

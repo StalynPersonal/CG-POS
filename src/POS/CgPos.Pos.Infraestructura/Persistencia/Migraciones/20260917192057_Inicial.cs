@@ -1176,6 +1176,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     TipoComprobante = table.Column<int>(type: "int", nullable: false),
                     PorcentajeRetencion = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
                     LimiteCompra = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    ListaBodaNumero = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: true),
+                    ListaBodaEvento = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
                     FidelidadMiembroId = table.Column<int>(type: "int", nullable: true),
                     FidelidadCedula = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: true),
                     FidelidadNombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),

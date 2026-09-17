@@ -21,6 +21,7 @@ public static class CatalogoPermisosCentral
     public const string MonitorearSincronizacion = "Central.Sincronizacion.Monitorear";
     public const string AdministrarNotasCredito = "Central.NotasCredito.Administrar";
     public const string AdministrarFidelidad = "Central.Fidelidad.Administrar";
+    public const string AdministrarListasBoda = "Central.ListasBoda.Administrar";
     public const string OperarDespacho = "Central.Despacho.Operar";
     public const string ConsultarReportes = "Central.Reportes.Consultar";
     public const string CerrarSucursal = "Central.CierresSucursal.Operar";
@@ -40,6 +41,7 @@ public static class CatalogoPermisosCentral
         new(MonitorearSincronizacion, "Sincronización", "Monitorear la sincronización de las cajas y reenviar"),
         new(AdministrarNotasCredito, "Devoluciones", "Consultar y habilitar notas de crédito entre sucursales"),
         new(AdministrarFidelidad, "Fidelidad", "Administrar el programa de fidelidad"),
+        new(AdministrarListasBoda, "Listas de boda", "Crear y administrar listas de boda y de regalos"),
         new(OperarDespacho, "Pendientes", "Operar el despacho central de pendientes y envíos"),
         new(ConsultarReportes, "Reportes", "Consultar y exportar reportes"),
         new(CerrarSucursal, "Reportes", "Hacer el cierre consolidado de sucursal y registrar sus depósitos"),

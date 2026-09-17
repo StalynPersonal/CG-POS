@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
+using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Catalogo;
@@ -22,6 +23,7 @@ internal sealed class ServicioRecepcion(
     IAuditoriaCentral auditoria,
     Fidelidad.RecalculadorPuntos recalculadorPuntos,
     Reportes.RegistroVentasCentral registroVentas,
+    IParametrosCentral parametros,
     TimeProvider reloj,
     ILogger<ServicioRecepcion> registro) : IServicioRecepcion
 {
@@ -256,6 +258,31 @@ internal sealed class ServicioRecepcion(
         }
 
         await registroVentas.RegistrarVentaAsync(venta, documento.SucursalId, documento.CajaId, cancelacion);
+        await RegistrarCompraListaBodaAsync(venta, documento, ahora, cancelacion);
+    }
+
+    /// <summary>
+    /// La factura se compró contra una lista de boda (RF-73): queda en su historial y, si el Central tiene activado el descuento,
+    /// baja las cantidades pedidas. Una factura se registra una sola vez aunque la caja reenvíe el mensaje.
+    /// </summary>
+    private async Task RegistrarCompraListaBodaAsync(DocumentoVentaCobrada venta, DocumentoRecibido documento, DateTimeOffset ahora,
+        CancellationToken cancelacion)
+    {
+        if (venta.ListaBodaNumero is not { Length: > 0 } numeroLista)
+            return;
+
+        var numero = numeroLista.Trim().ToUpperInvariant();
+        var lista = await contexto.ListasBoda.Include(l => l.Articulos).Include(l => l.Compras).FirstOrDefaultAsync(l => l.Numero == numero, cancelacion);
+        if (lista is null)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+                $"La factura {venta.Numero} se cobró contra la lista {numero}, que no existe en el Central.", ahora, cancelacion);
+            return;
+        }
+
+        var descontar = await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametrosCentral.ListasBodaDescontarCompras, cancelacion);
+        lista.RegistrarCompra(venta.Numero, documento.CajaId, venta.TotalCobrado,
+            venta.Lineas.Where(l => !l.EsReverso).Select(l => (l.CodigoInterno, l.Cantidad)), descontar, venta.CobradaEn, ahora);
     }
 
     /// <summary>El cierre de turno alimenta el reporte de cuadres (RF-267).</summary>

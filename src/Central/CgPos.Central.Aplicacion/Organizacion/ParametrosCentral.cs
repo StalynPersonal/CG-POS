@@ -106,6 +106,12 @@ public static class ClavesParametrosCentral
     /// <summary>Minutos que el Central retiene el saldo de una nota de crédito mientras una caja termina de cobrar.</summary>
     public const string NotasCreditoMinutosReserva = "Central.NotasCredito.MinutosReserva";
 
+    /// <summary>
+    /// Si lo que se compra contra una lista de boda se descuenta de las cantidades pedidas. Opcional: sin él la lista solo guía al
+    /// cliente y las compras quedan en su historial.
+    /// </summary>
+    public const string ListasBodaDescontarCompras = "Central.ListasBoda.DescontarCompras";
+
 
     /// <summary>Minutos entre revisiones de los puntos de fidelidad que ya vencieron (RF-242).</summary>
     public const string FidelidadMinutosCicloVencimiento = "Central.Fidelidad.MinutosCicloVencimiento";

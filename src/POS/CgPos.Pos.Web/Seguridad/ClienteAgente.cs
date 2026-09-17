@@ -168,6 +168,11 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> CambiarComprobanteAsync(int ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/comprobante", new SolicitudCambiarComprobante(tipo, autorizacionId), ErrorVenta, cancelacion);
 
+    /// <summary>Asocia o quita la lista de boda de la venta; la lista la valida el Central (RF-73).</summary>
+    public Task<RespuestaListaBoda> AsignarListaBodaAsync(int ventaId, string? numero, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/lista-boda", new SolicitudListaBodaVenta(numero),
+            mensaje => new RespuestaListaBoda(CodigoResultadoVenta.SinConexionCentral, mensaje, null, null), cancelacion);
+
     public Task<RespuestaVenta> EstablecerLimiteCompraAsync(int ventaId, decimal? limite, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/limite", new SolicitudLimiteCompra(limite), ErrorVenta, cancelacion);
 

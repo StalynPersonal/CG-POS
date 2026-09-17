@@ -53,7 +53,8 @@ internal static class DocumentosParaCentral
             (datos.DestinosEntrega ?? []).Select(d => new DocumentoDestinoEntrega(d.Numero, d.Metodo, d.AlmacenId is { } id ? almacenes.GetValueOrDefault(id) : null,
                 d.AlmacenNombre, d.Direccion, d.Sector, d.Ciudad, d.Referencia, d.Telefono, d.Transportista, d.CostoEnvio, d.FechaComprometida, d.Comentario,
                 d.AutorizadoPorNombre, d.Lineas)).ToList(),
-            ecf);
+            ecf,
+            datos.ListaBoda?.Numero);
     }
 
     public static async Task<DocumentoPendienteEntrega> PendienteAsync(this ContextoDatosPos contexto, PendienteEntrega pendiente, CancellationToken cancelacion)

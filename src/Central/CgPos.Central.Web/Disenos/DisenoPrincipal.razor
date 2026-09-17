@@ -73,6 +73,11 @@
                     <MudNavLink Href="notas-credito" Icon="@Icons.Material.Filled.ReceiptLong">Notas de crédito</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarListasBoda">
+                <MudNavGroup Title="Listas de boda" Icon="@Icons.Material.Filled.Favorite" Expanded="true">
+                    <MudNavLink Href="listas-boda" Icon="@Icons.Material.Filled.CardGiftcard">Listas de regalos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFidelidad">
                 <MudNavGroup Title="Fidelidad" Icon="@Icons.Material.Filled.Loyalty" Expanded="true">
                     <MudNavLink Href="fidelidad/miembros" Icon="@Icons.Material.Filled.CardMembership">Miembros y puntos</MudNavLink>

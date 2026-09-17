@@ -1,4 +1,5 @@
 ﻿using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Central;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Turnos;
@@ -124,7 +125,20 @@ public sealed record DatosVenta(
     DateTimeOffset? CobradaEn = null,
     DatosComprobanteElectronico? Comprobante = null,
     DatosFidelidadVenta? Fidelidad = null,
-    IReadOnlyList<DatosDestinoEntrega>? DestinosEntrega = null);
+    IReadOnlyList<DatosDestinoEntrega>? DestinosEntrega = null,
+    DatosListaBodaVenta? ListaBoda = null);
+
+/// <summary>Lista de boda del Central contra la que se está comprando (RF-73).</summary>
+public sealed record DatosListaBodaVenta(string Numero, string Evento);
+
+/// <summary>Número de la lista de boda; vacío o nulo la quita de la venta.</summary>
+public sealed record SolicitudListaBodaVenta(string? Numero);
+
+/// <param name="Lista">La lista con lo pedido y lo que falta por comprar, para mostrársela al cliente.</param>
+public sealed record RespuestaListaBoda(CodigoResultadoVenta Resultado, string? Mensaje, DatosVenta? Venta, DatosListaBodaParaCaja? Lista)
+{
+    public bool Exitosa => Resultado == CodigoResultadoVenta.Correcto;
+}
 
 /// <summary>Miembro del programa de fidelidad de la venta y los puntos que acumuló y canjeó al cobrar.</summary>
 public sealed record DatosFidelidadVenta(int MiembroId, string Cedula, string Nombre, string? Nivel, int PuntosAcumulados, int PuntosCanjeados);
@@ -207,6 +221,9 @@ public enum CodigoResultadoVenta
     DevueltaNoPermitida,
     TerminalRechazo,
     TerminalSinConexion,
+
+    /// <summary>La operación necesita al Central y no respondió (listas de boda, notas de crédito de otra sucursal).</summary>
+    SinConexionCentral,
     OperacionTerminalInvalida,
     CertificadoNoCargado,
     ComprobanteNoDisponible,

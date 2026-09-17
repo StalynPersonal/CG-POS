@@ -32,6 +32,7 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
 
     // Notas de crédito de todas las sucursales (M10)
     public DbSet<CgPos.Dominio.Devoluciones.NotaCreditoCentral> NotasCredito => Set<CgPos.Dominio.Devoluciones.NotaCreditoCentral>();
+    public DbSet<CgPos.Dominio.ListasBoda.ListaBoda> ListasBoda => Set<CgPos.Dominio.ListasBoda.ListaBoda>();
     public DbSet<CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral> ConsumosNotaCredito => Set<CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral>();
     public DbSet<CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral> ReservasNotaCredito => Set<CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral>();
 

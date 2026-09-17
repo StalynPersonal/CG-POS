@@ -319,6 +319,45 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    // ---------- Listas de boda (RF-73) ----------
+
+    public async Task<IReadOnlyList<DatosListaBoda>?> ListarListasBodaAsync(string? buscar, CgPos.Dominio.ListasBoda.EstadoListaBoda? estado,
+        CancellationToken cancelacion = default)
+    {
+        var ruta = "api/manager/listas-boda?"
+                   + (estado is { } filtro ? $"estado={filtro}&" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<IReadOnlyList<DatosListaBoda>>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<DatosConfiguracionListasBoda?> ObtenerConfiguracionListasBodaAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosConfiguracionListasBoda>("api/manager/listas-boda/configuracion", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaAdministracion> CrearListaBodaAsync(SolicitudListaBoda solicitud) =>
+        EnviarAsync(HttpMethod.Post, "api/manager/listas-boda", solicitud);
+
+    public Task<RespuestaAdministracion> ActualizarListaBodaAsync(int listaBodaId, SolicitudListaBoda solicitud) =>
+        EnviarAsync(HttpMethod.Put, $"api/manager/listas-boda/{listaBodaId}", solicitud);
+
+    public Task<RespuestaAdministracion> CambiarEstadoListaBodaAsync(int listaBodaId, bool cerrar) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/listas-boda/{listaBodaId}/estado?cerrar={(cerrar ? "true" : "false")}");
+
     public Task<IReadOnlyList<DatosMovimientoNotaCredito>?> ListarMovimientosNotaCreditoAsync(int notaCreditoId) =>
         ListarAsync<DatosMovimientoNotaCredito>($"api/manager/notas-credito/{notaCreditoId}/movimientos");
 

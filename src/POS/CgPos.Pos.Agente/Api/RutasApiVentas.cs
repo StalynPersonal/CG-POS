@@ -86,6 +86,15 @@ public static class RutasApiVentas
         ventas.MapPut("/{ventaId:int}/comprobante", (int ventaId, SolicitudCambiarComprobante solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.CambiarComprobanteAsync(sesion, ventaId, solicitud.TipoComprobante, solicitud.AutorizacionId, cancelacion))));
 
+        // Lista de boda (RF-73): se consulta en el Central, así que esta ruta necesita conexión.
+        ventas.MapPut("/{ventaId:int}/lista-boda", (int ventaId, SolicitudListaBodaVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio,
+                CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion =>
+            {
+                var respuesta = await servicio.AsignarListaBodaAsync(sesion, ventaId, solicitud.Numero, cancelacion);
+                return respuesta.Exitosa ? Results.Ok(respuesta) : Results.BadRequest(respuesta);
+            }));
+
         ventas.MapPut("/{ventaId:int}/limite", (int ventaId, SolicitudLimiteCompra solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.EstablecerLimiteCompraAsync(sesion, ventaId, solicitud.Limite, cancelacion))));
 

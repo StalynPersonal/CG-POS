@@ -807,6 +807,36 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 });
 
             migrationBuilder.CreateTable(
+                name: "ListasBoda",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    Numero = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
+                    Evento = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    FechaEvento = table.Column<DateOnly>(type: "date", nullable: false),
+                    Lugar = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    ClienteDocumento = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    ClienteNombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    ClienteTelefono = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    ClienteCorreo = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    SucursalId = table.Column<int>(type: "int", nullable: true),
+                    Observacion = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Estado = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
+                    CreadaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
+                    ActualizadaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ListasBoda", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ListasBoda_Sucursales_SucursalId",
+                        column: x => x.SucursalId,
+                        principalTable: "Sucursales",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SesionesCentral",
                 columns: table => new
                 {
@@ -1399,6 +1429,57 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 });
 
             migrationBuilder.CreateTable(
+                name: "ArticulosListaBoda",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    ListaBodaId = table.Column<int>(type: "int", nullable: false),
+                    ArticuloCodigo = table.Column<string>(type: "varchar(30)", unicode: false, maxLength: 30, nullable: false),
+                    Descripcion = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    Cantidad = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
+                    Comprado = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ArticulosListaBoda", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ArticulosListaBoda_ListasBoda_ListaBodaId",
+                        column: x => x.ListaBodaId,
+                        principalTable: "ListasBoda",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ComprasListaBoda",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    ListaBodaId = table.Column<int>(type: "int", nullable: false),
+                    VentaNumero = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
+                    Monto = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Fecha = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
+                    RegistradaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ComprasListaBoda", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ComprasListaBoda_Cajas_CajaId",
+                        column: x => x.CajaId,
+                        principalTable: "Cajas",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ComprasListaBoda_ListasBoda_ListaBodaId",
+                        column: x => x.ListaBodaId,
+                        principalTable: "ListasBoda",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CierresFormaPago",
                 columns: table => new
                 {
@@ -1596,6 +1677,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 column: "Version");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ArticulosListaBoda_ListaBodaId_ArticuloCodigo",
+                table: "ArticulosListaBoda",
+                columns: new[] { "ListaBodaId", "ArticuloCodigo" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Auditoria_Accion",
                 table: "Auditoria",
                 column: "Accion");
@@ -1701,6 +1788,17 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "IX_CodigosArticulo_Codigo",
                 table: "CodigosArticulo",
                 column: "Codigo",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ComprasListaBoda_CajaId",
+                table: "ComprasListaBoda",
+                column: "CajaId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ComprasListaBoda_ListaBodaId_VentaNumero",
+                table: "ComprasListaBoda",
+                columns: new[] { "ListaBodaId", "VentaNumero" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1864,6 +1962,27 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "IX_ImpuestosVenta_ComprobanteId",
                 table: "ImpuestosVenta",
                 column: "ComprobanteId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListasBoda_ClienteDocumento",
+                table: "ListasBoda",
+                column: "ClienteDocumento");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListasBoda_FechaEvento",
+                table: "ListasBoda",
+                column: "FechaEvento");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListasBoda_Numero",
+                table: "ListasBoda",
+                column: "Numero",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ListasBoda_SucursalId",
+                table: "ListasBoda",
+                column: "SucursalId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Marcas_Codigo",
@@ -2266,6 +2385,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ArchivosArranqueAplicados");
 
             migrationBuilder.DropTable(
+                name: "ArticulosListaBoda");
+
+            migrationBuilder.DropTable(
                 name: "Auditoria");
 
             migrationBuilder.DropTable(
@@ -2276,6 +2398,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "CodigosArticulo");
+
+            migrationBuilder.DropTable(
+                name: "ComprasListaBoda");
 
             migrationBuilder.DropTable(
                 name: "ComprobantesRecibidos");
@@ -2372,6 +2497,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "CierresTurno");
+
+            migrationBuilder.DropTable(
+                name: "ListasBoda");
 
             migrationBuilder.DropTable(
                 name: "DocumentosRecibidos");

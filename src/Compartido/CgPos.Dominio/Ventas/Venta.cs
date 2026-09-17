@@ -204,6 +204,12 @@ public sealed class Venta : Entidad
     /// <summary>Monto tope que pidió el cliente; se avisa al superarlo (RF-18).</summary>
     public decimal? LimiteCompra { get; private set; }
 
+    /// <summary>Número de la lista de boda contra la que se compra (RF-73); la lista vive en el Central.</summary>
+    public string? ListaBodaNumero { get; private set; }
+
+    /// <summary>Evento de la lista, para mostrarlo en pantalla y en el ticket sin volver a consultar al Central.</summary>
+    public string? ListaBodaEvento { get; private set; }
+
     // Programa de fidelidad (M11): la cédula identifica al miembro (RF-236).
     public int? FidelidadMiembroId { get; private set; }
     public string? FidelidadCedula { get; private set; }
@@ -592,6 +598,15 @@ public sealed class Venta : Entidad
             return;
 
         PorcentajeRetencion = aplicable;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>Asocia la venta a una lista de boda del Central (RF-73), o la quita con número nulo.</summary>
+    public void AsignarListaBoda(string? numero, string? evento, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        ListaBodaNumero = Validar.TextoOpcional(numero, "Número de la lista de boda", ListasBoda.ListaBoda.LargoMaximoNumero)?.ToUpperInvariant();
+        ListaBodaEvento = ListaBodaNumero is null ? null : Validar.TextoOpcional(evento, "Evento", ListasBoda.ListaBoda.LargoMaximoNombre);
         ActualizadaEn = ahora;
     }
 

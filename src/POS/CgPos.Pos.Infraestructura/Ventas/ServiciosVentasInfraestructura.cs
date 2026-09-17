@@ -109,7 +109,8 @@ internal static class ConversionesVenta
                 : new DatosComprobanteElectronico(documento.Encf, documento.TipoComprobante, documento.CodigoSeguridad, documento.FechaFirma, documento.UrlTimbre,
                     documento.Estado, venceSecuencia),
             fidelidad,
-            venta.DestinosEntrega.Count == 0 ? null : venta.DestinosEntrega.OrderBy(d => d.Numero).Select(d => d.ADatos()).ToList());
+            venta.DestinosEntrega.Count == 0 ? null : venta.DestinosEntrega.OrderBy(d => d.Numero).Select(d => d.ADatos()).ToList(),
+            venta.ListaBodaNumero is { } numeroLista ? new DatosListaBodaVenta(numeroLista, venta.ListaBodaEvento ?? string.Empty) : null);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -1116,6 +1117,41 @@ internal sealed class ServicioVentas(
             return rechazo;
 
         return await EjecutarAsync(venta!, () => venta!.EstablecerLimiteCompra(limite, reloj.GetUtcNow()), cancelacion);
+    }
+
+    public async Task<RespuestaListaBoda> AsignarListaBodaAsync(SesionUsuario sesion, int ventaId, string? numero, CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return new RespuestaListaBoda(rechazo.Resultado, rechazo.Mensaje, rechazo.Venta, null);
+
+        // Quitar la lista no necesita Central.
+        if (numero is not { Length: > 0 } buscado || buscado.Trim().Length == 0)
+        {
+            var quitada = await EjecutarAsync(venta!, () => venta!.AsignarListaBoda(null, null, reloj.GetUtcNow()), cancelacion);
+            return new RespuestaListaBoda(quitada.Resultado, quitada.Mensaje, quitada.Venta, null);
+        }
+
+        var consulta = await central.ConsultarListaBodaAsync(buscado.Trim().ToUpperInvariant(), cancelacion);
+        if (!consulta.CentralRespondio)
+            return new RespuestaListaBoda(CodigoResultadoVenta.SinConexionCentral,
+                $"Las listas de boda se consultan en el Central y no respondió: {consulta.Error}", Datos(venta!), null);
+        if (consulta.Lista is not { } lista)
+            return new RespuestaListaBoda(CodigoResultadoVenta.DocumentoInvalido, consulta.Error ?? "La lista no existe.", Datos(venta!), null);
+        if (lista.Estado == CgPos.Dominio.ListasBoda.EstadoListaBoda.Cerrada)
+            return new RespuestaListaBoda(CodigoResultadoVenta.DocumentoInvalido,
+                $"La lista {lista.Numero} ({lista.Evento}) está cerrada.", Datos(venta!), lista);
+
+        var respuesta = await EjecutarAsync(venta!, () =>
+        {
+            venta!.AsignarListaBoda(lista.Numero, lista.Evento, reloj.GetUtcNow());
+            auditoria.Registrar(new EntradaAuditoria("Ventas.ListaBodaAsignada", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: new { lista.Numero, lista.Evento, lista.ClienteNombre },
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        }, cancelacion);
+
+        return new RespuestaListaBoda(respuesta.Resultado,
+            respuesta.Exitosa ? $"Lista {lista.Numero}: {lista.Evento}." : respuesta.Mensaje, respuesta.Venta, lista);
     }
 
     public async Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)

@@ -162,6 +162,14 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
 
     public List<(string NotaCreditoNumero, string VentaNumero)> ReservasLiberadas { get; } = [];
 
+    /// <summary>Listas de boda que el Central de prueba responde, por su número.</summary>
+    public Dictionary<string, DatosListaBodaParaCaja> ListasBoda { get; } = [];
+
+    public Task<ResultadoListaBodaCentral> ConsultarListaBodaAsync(string numero, CancellationToken cancelacion = default) =>
+        Task.FromResult(ListasBoda.TryGetValue(numero, out var lista)
+            ? ResultadoListaBodaCentral.Encontrada(lista)
+            : ResultadoListaBodaCentral.NoExiste($"El Central no tiene la lista {numero}."));
+
     public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
         Task.FromResult(NotasCredito.TryGetValue(codigo, out var nota)
             ? ResultadoNotaCreditoCentral.Encontrada(nota)

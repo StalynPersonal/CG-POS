@@ -16,6 +16,7 @@
 
 @if (_cargando)
 {
+    @* Espera mientras se consulta el turno y la venta en curso del Agente. *@
     <div class="cg-venta__cargando">
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
     </div>
@@ -33,7 +34,9 @@ else if (_suspendida)
 }
 else
 {
+    @* Pantalla completa del cajero: barra superior, encabezado, escaneo, grilla de líneas, teclas F y barra de estado. *@
     <div class="cg-venta">
+        @* Barra superior: marca, nombre de la pantalla, empresa y caja en la que se está trabajando. *@
         <div class="cg-venta__barra-superior">
             <span class="cg-venta__marca-texto">CG-POS</span>
             <NombrePantalla Pantalla="PantallasCaja.Caja" />
@@ -44,48 +47,67 @@ else
 
         <header class="cg-venta__encabezado">
             <section class="cg-venta__bloque cg-venta__marca cg-venta__tocable" title="Cliente y comprobante (F12)" @onclick="AbrirClienteAsync">
+                @* Iniciales de la empresa a modo de logo. *@
                 <div class="cg-venta__logo">@Iniciales(_empresaNombre)</div>
+                @* Tipo de comprobante de la venta; se cambia desde el mismo bloque (F12). *@
                 <div class="cg-venta__ncf">E@((int)_venta.TipoComprobante) · @ReglasComprobante.Nombre(_venta.TipoComprobante)</div>
             </section>
 
             <section class="cg-venta__bloque cg-venta__cliente">
+                @* Datos del cliente de la venta; al tocarlo se abre el diálogo de cliente y comprobante (F12). *@
                 <div class="cg-venta__tocable" title="Cliente y comprobante (F12)" @onclick="AbrirClienteAsync">
+                    @* Documento del cliente: cédula o RNC según el que se haya asignado. *@
                     <div class="cg-venta__etiqueta">@EtiquetaDocumento(_venta.Cliente?.TipoDocumento)</div>
                     <div class="cg-venta__valor">@(_venta.Cliente?.Documento ?? "—")</div>
+                    @* Nombre del cliente; "Cliente contado" mientras no se le asigne uno. *@
                     <div class="cg-venta__etiqueta">Nombre del cliente</div>
                     <div class="cg-venta__cliente-nombre @(_venta.Cliente is null ? null : "cg-venta__cliente-nombre--asignado")">@(_venta.Cliente?.Nombre ?? "Cliente contado")</div>
                     @if (_venta.Fidelidad is { } fidelidad)
                     {
+                        @* Miembro del programa de fidelidad asignado a la venta, con su nivel. *@
                         <div class="cg-venta__promo" title="Programa de fidelidad">★ @fidelidad.Nombre@(fidelidad.Nivel is null ? null : $" · {fidelidad.Nivel}")</div>
                     }
+                    @if (_venta.ListaBoda is { } listaBoda)
+                    {
+                        @* Lista de boda del Central contra la que se está comprando (F6). *@
+                        <div class="cg-venta__promo" title="Lista de boda">♥ @listaBoda.Numero · @listaBoda.Evento</div>
+                    }
                 </div>
+                @* Identificación de la transacción: número, artículos y el límite de compra que pidió el cliente. *@
                 <div class="cg-venta__transaccion">
                     <div class="cg-venta__etiqueta">Transacción Nº</div>
                     <div class="cg-venta__numero">@_venta.NumeroTransaccion</div>
                     <div class="cg-venta__etiqueta">@_venta.Totales.CantidadArticulos.ToString("0.###") artículos</div>
                     @if (_venta.LimiteCompra is { } limite)
                     {
+                        @* Límite de compra (RF-18): se resalta cuando el total ya lo superó. *@
                         <div class="cg-venta__etiqueta @(_venta.LimiteCompraExcedido ? "cg-venta__limite--excedido" : null)">Límite @limite.ToString("C")</div>
                     }
                 </div>
             </section>
 
             <section class="cg-venta__bloque cg-venta__totales">
+                @* Subtotal sin ITBIS de las líneas activas. *@
                 <div class="cg-venta__total-fila"><span>Subtotal</span><span class="cg-numero">@_venta.Totales.Subtotal.ToString("N2")</span></div>
+                @* ITBIS de la venta, sumando todas las tasas. *@
                 <div class="cg-venta__total-fila"><span>ITBIS</span><span class="cg-numero">@_venta.Totales.Impuesto.ToString("N2")</span></div>
                 @if (_venta.Totales.Descuento > 0)
                 {
+                    @* Lo que el cliente se ahorró entre ofertas y descuentos manuales. *@
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Descuentos</span><span class="cg-numero">−@_venta.Totales.Descuento.ToString("N2")</span></div>
                 }
+                @* Total de la factura, el número grande de la pantalla. *@
                 <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
                 @if (_venta.Totales.Retencion > 0)
                 {
+                    @* Régimen especial (E44): la retención de la Ley 32-23 y lo que el cliente paga en caja. *@
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Retención Ley 32-23</span><span class="cg-numero">−@_venta.Totales.Retencion.ToString("N2")</span></div>
                     <div class="cg-venta__total-fila cg-venta__total-final"><span>A pagar (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
                 }
             </section>
         </header>
 
+        @* Campo de escaneo: recibe el lector, admite "cantidad*código" y da acceso al catálogo y al teclado en pantalla. *@
         <div class="cg-venta__escaneo @(_modoEliminar ? "cg-venta__escaneo--eliminar" : null)">
             <MudIcon Icon="@(_modoEliminar ? Icons.Material.Filled.RemoveShoppingCart : Icons.Material.Filled.QrCodeScanner)" Size="Size.Large" />
             <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false"
@@ -101,8 +123,10 @@ else
         }
         @if (_ultimoCobro is { } cobro && _venta.Lineas.Count == 0)
         {
+            @* Resumen de la última venta cobrada, mientras no se escanea el primer artículo de la siguiente. *@
             <div class="cg-venta__cobro-final">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                @* Número de la transacción cobrada, sus pendientes de entrega y el total. *@
                 <div>
                     <span>Transacción @cobro.NumeroTransaccion cobrada</span>
                     @if (cobro.PendientesEntrega is { Count: > 0 } pendientes)
@@ -111,6 +135,7 @@ else
                     }
                     <strong>Total @cobro.TotalCobrado.ToString("C")</strong>
                 </div>
+                @* Devuelta del cobro, visible hasta empezar la próxima venta. *@
                 <div class="cg-venta__devuelta">
                     <span>Devuelta</span>
                     <strong>@cobro.Devuelta.ToString("C")</strong>
@@ -136,6 +161,7 @@ else
             </MudAlert>
         }
 
+        @* Grilla de las líneas de la venta: código, descripción, cantidad, precio, importe y la oferta aplicada. *@
         <div class="cg-venta__lineas">
             <GrillaTactil TElemento="DatosLineaVenta" Elementos="_venta.Lineas" Seleccionado="LineaSeleccionada" SeleccionadoChanged="AlSeleccionarLinea"
                           EsAnulada="linea => linea.EsReverso" Altura="100%" TextoSinRegistros="Escanee un artículo para comenzar la venta">
@@ -151,6 +177,7 @@ else
                 </Encabezado>
                 <Fila Context="linea">
                     <MudTd Class="@ClaseCelda(linea)">
+                        @* Número de línea con el botón para eliminarla (pide autorización si corresponde). *@
                         <div class="cg-venta__ln">
                             @if (EsEditable(linea))
                             {
@@ -172,30 +199,37 @@ else
                         @linea.Descripcion
                         @if (linea.EsReverso)
                         {
+                            @* Línea de reverso: dice a cuál anula. *@
                             <div class="cg-venta__nota">Anula la línea @linea.LineaAnuladaNumero</div>
                         }
                         @if (linea.Serial is not null)
                         {
+                            @* Serial del artículo serializado que se escaneó en caja. *@
                             <div class="cg-venta__nota">Serial @linea.Serial</div>
                         }
                         @if (!linea.EsReverso && linea.SerialPendiente)
                         {
+                            @* Serializado que sale pendiente: el serial se captura en el despacho. *@
                             <div class="cg-venta__nota">Serial al entregar</div>
                         }
                         @if (!linea.EsReverso && linea.CantidadEnEntrega > 0)
                         {
+                            @* Cantidad de la línea marcada para entrega o envío posterior. *@
                             <div class="cg-venta__nota">Entrega posterior: @linea.CantidadEnEntrega.ToString("0.###")</div>
                         }
                         @if (!linea.EsReverso && linea.DescuentoPromocion > 0)
                         {
+                            @* Ahorro de la oferta del maestro aplicada a la línea. *@
                             <div class="cg-venta__nota cg-venta__nota--ahorro">Oferta @linea.PromocionCodigo: −@linea.DescuentoPromocion.ToString("N2")</div>
                         }
                         @if (!linea.EsReverso && linea.DescuentoManual > 0)
                         {
+                            @* Descuento manual de la línea, con el motivo con que se autorizó. *@
                             <div class="cg-venta__nota cg-venta__nota--ahorro">Descuento (@linea.MotivoDescuento): −@linea.DescuentoManual.ToString("N2")</div>
                         }
                         @if (!linea.EsReverso && linea.DescuentoFactura > 0)
                         {
+                            @* Parte del descuento a la factura que le tocó a esta línea al prorratearlo. *@
                             <div class="cg-venta__nota cg-venta__nota--ahorro">Descuento a la factura: −@linea.DescuentoFactura.ToString("N2")</div>
                         }
                     </MudTd>
@@ -254,7 +288,7 @@ else
                 <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" AlPresionar="EstablecerLimiteAsync" />
                 <TeclaFuncion Atajo="F4" Texto="Cantidad" Icono="@Icons.Material.Filled.Numbers" AlPresionar="CambiarCantidadSeleccionadaAsync" />
                 <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" AlPresionar="PesarAsync" />
-                <TeclaFuncion Atajo="F6" Texto="Reintegro" Icono="@Icons.Material.Filled.Autorenew" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F6" Texto="Lista boda" Icono="@Icons.Material.Filled.Favorite" AlPresionar="AsignarListaBodaAsync" />
                 <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="AbrirEsperaAsync" />
                 <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="TotalizarAsync" />
                 <TeclaFuncion Atajo="F9" Texto="Suspender" Icono="@Icons.Material.Filled.DesktopAccessDisabled" Deshabilitada="true" />
@@ -892,6 +926,28 @@ else
 
         decimal? limite = decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var monto) && monto > 0 ? monto : null;
         await EnColaAsync(async () => AplicarRespuesta(await Cliente.EstablecerLimiteCompraAsync(_venta!.Id, limite)));
+    }
+
+    /// <summary>Pide el número de la lista de boda y la valida en el Central (RF-73); vacío la quita de la venta.</summary>
+    private async Task AsignarListaBodaAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var numero = await PedirTextoAsync("Lista de boda", "Número de la lista (vacío para quitarla)",
+            valorInicial: _venta.ListaBoda?.Numero ?? string.Empty);
+        if (numero is null)
+            return;
+
+        await EnColaAsync(async () =>
+        {
+            var respuesta = await Cliente.AsignarListaBodaAsync(_venta!.Id, numero);
+            if (respuesta.Venta is { } actualizada)
+                _venta = actualizada;
+
+            _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+            _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
+        });
     }
 
     private async Task AbrirEsperaAsync()

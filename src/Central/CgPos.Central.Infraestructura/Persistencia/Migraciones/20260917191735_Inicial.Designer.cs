@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260917184534_Inicial")]
+    [Migration("20260917191735_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -1414,6 +1414,165 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("SecuenciasEcf", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.ArticuloListaBoda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<string>("ArticuloCodigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("Comprado")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("ListaBodaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListaBodaId", "ArticuloCodigo")
+                        .IsUnique();
+
+                    b.ToTable("ArticulosListaBoda", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.CompraListaBoda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("Fecha")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<int>("ListaBodaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Monto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("RegistradaEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("VentaNumero")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CajaId");
+
+                    b.HasIndex("ListaBodaId", "VentaNumero")
+                        .IsUnique();
+
+                    b.ToTable("ComprasListaBoda", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.ListaBoda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("ActualizadaEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ClienteCorreo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ClienteDocumento")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ClienteNombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ClienteTelefono")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("CreadaEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Evento")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateOnly>("FechaEvento")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Lugar")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Observacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("SucursalId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteDocumento");
+
+                    b.HasIndex("FechaEvento");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.HasIndex("SucursalId");
+
+                    b.ToTable("ListasBoda", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Caja", b =>
@@ -3518,6 +3677,38 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.ArticuloListaBoda", b =>
+                {
+                    b.HasOne("CgPos.Dominio.ListasBoda.ListaBoda", null)
+                        .WithMany("Articulos")
+                        .HasForeignKey("ListaBodaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.CompraListaBoda", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
+                        .WithMany()
+                        .HasForeignKey("CajaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CgPos.Dominio.ListasBoda.ListaBoda", null)
+                        .WithMany("Compras")
+                        .HasForeignKey("ListaBodaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.ListaBoda", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
+                        .WithMany()
+                        .HasForeignKey("SucursalId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Caja", b =>
                 {
                     b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
@@ -3783,6 +3974,13 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("CgPos.Dominio.Clientes.Cliente", b =>
                 {
                     b.Navigation("Direcciones");
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.ListasBoda.ListaBoda", b =>
+                {
+                    b.Navigation("Articulos");
+
+                    b.Navigation("Compras");
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreSucursal", b =>

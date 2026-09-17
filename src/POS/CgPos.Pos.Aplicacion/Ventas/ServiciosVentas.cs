@@ -68,6 +68,12 @@ public interface IServicioVentas
 
     Task<RespuestaVenta> EstablecerLimiteCompraAsync(SesionUsuario sesion, int ventaId, decimal? limite, CancellationToken cancelacion = default);
 
+    /// <summary>
+    /// Asocia la venta a una lista de boda del Central por su número (RF-73), o la quita con número vacío. Las listas viven en el
+    /// Central: esto requiere conexión.
+    /// </summary>
+    Task<RespuestaListaBoda> AsignarListaBodaAsync(SesionUsuario sesion, int ventaId, string? numero, CancellationToken cancelacion = default);
+
     /// <summary>Pone la venta en espera y empieza otra (RF-22).</summary>
     Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default);
 
