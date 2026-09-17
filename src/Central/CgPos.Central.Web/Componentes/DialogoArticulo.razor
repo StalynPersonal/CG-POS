@@ -90,7 +90,8 @@
             }
 
             <MudItem xs="12" sm="4">
-                <MudNumericField T="decimal?" @bind-Value="_tara" Label="Tara (pesados)" Variant="Variant.Outlined" HideSpinButtons="true" />
+                <MudNumericField T="decimal?" @bind-Value="_tara" Label="Peso del empaque (pesados)" Variant="Variant.Outlined" HideSpinButtons="true"
+                                 HelperText="Se descuenta del peso de la balanza: bandeja, envase o bolsa" />
             </MudItem>
             <MudItem xs="12" sm="8">
                 <MudTextField T="string" @bind-Value="_rutaImagen" Label="Ruta de la imagen (opcional)" Variant="Variant.Outlined" />

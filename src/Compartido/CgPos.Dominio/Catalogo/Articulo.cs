@@ -118,7 +118,7 @@ public sealed class Articulo : Entidad
     public void ConfigurarTara(decimal? tara)
     {
         if (tara < 0)
-            throw new ArgumentOutOfRangeException(nameof(tara), tara, "La tara no puede ser negativa.");
+            throw new ArgumentOutOfRangeException(nameof(tara), tara, "El peso del empaque no puede ser negativo.");
 
         Tara = tara is 0m ? null : tara;
     }

@@ -797,7 +797,7 @@ internal sealed class ServicioVentas(
 
         if (ReglasBalanza.PesoNeto(lectura.Peso, articulo.Tara) is not { } neto)
             return new RespuestaVenta(CodigoResultadoVenta.BalanzaSinLectura,
-                $"La balanza marca {lectura.Peso:0.000} {lectura.Unidad}: no hay peso neto después de la tara ({articulo.Tara ?? 0:0.000}).", Datos(venta!));
+                $"La balanza marca {lectura.Peso:0.000} {lectura.Unidad}: no queda peso del producto después de descontar el empaque ({articulo.Tara ?? 0:0.000}).", Datos(venta!));
 
         var pesado = articulo.AArticuloParaVenta() with { PesoLeido = neto, PrecioLeido = null };
         return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(pesado, null, reloj.GetUtcNow()), cancelacion);
