@@ -189,6 +189,21 @@
 .cg-venta__marca-sub { opacity: .75; border-left: 1px solid rgba(255,255,255,.35); padding-left: 12px; }
 .cg-venta__barra-superior .cg-espaciador { flex: 1; }
 
+/* Nombre de la pantalla: distingue caja, devoluciones y despacho de un vistazo. */
+.cg-nombre-pantalla {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 14px;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--cg-primario-oscuro);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+.cg-nombre-pantalla__icono { font-size: 1.6rem; }
+
 .cg-venta__encabezado {
     display: grid;
     grid-template-columns: 170px minmax(0, 2fr) minmax(300px, 1.3fr);

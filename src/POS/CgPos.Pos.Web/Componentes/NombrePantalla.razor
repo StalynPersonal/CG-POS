@@ -1,0 +1,11 @@
+@* Nombre grande de la pantalla en la barra superior (CAJA, DEVOLUCIONES, DESPACHO) para distinguirlas de un vistazo. *@
+
+<span class="cg-nombre-pantalla">
+    <MudIcon Icon="@Icono" Class="cg-nombre-pantalla__icono" />
+    <span>@Nombre</span>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Nombre { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icono { get; set; } = string.Empty;
+}
