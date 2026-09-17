@@ -5,7 +5,12 @@
 <MudDialog>
     <DialogContent>
         <div class="cg-central__dialogo">
-            @if (Parametro is null)
+            @if (Parametro is null && ClaveGeneral is not null)
+            {
+                <MudTextField T="string" Value="@(Definicion?.Descripcion ?? ClaveGeneral)" Label="Parámetro" Variant="Variant.Outlined" ReadOnly="true" Lines="2" />
+                <MudTextField T="string" Value="@("General")" Label="Ámbito" Variant="Variant.Outlined" ReadOnly="true" />
+            }
+            else if (Parametro is null)
             {
                 <MudSelect T="string" Value="_clave" ValueChanged="CambiarClave" ToStringFunc="NombreParametro" Label="Parámetro" Placeholder="Seleccione el parámetro" Variant="Variant.Outlined">
                     @foreach (var definicion in Catalogo.OrderBy(d => d.Modulo).ThenBy(d => d.Descripcion))
@@ -74,6 +79,9 @@
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
     [Parameter] public DatosParametro? Parametro { get; set; }
+
+    /// <summary>Parámetro sin valor general que se configura desde su fila: la clave y el ámbito general ya están elegidos.</summary>
+    [Parameter] public string? ClaveGeneral { get; set; }
     [Parameter] public IReadOnlyList<DefinicionParametro> Catalogo { get; set; } = [];
     [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
     [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
@@ -89,6 +97,9 @@
 
     protected override void OnInitialized()
     {
+        if (ClaveGeneral is not null)
+            _clave = ClaveGeneral;
+
         if (Parametro is not { } parametro)
             return;
 

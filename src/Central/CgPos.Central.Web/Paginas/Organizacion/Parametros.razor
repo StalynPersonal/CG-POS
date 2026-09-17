@@ -11,11 +11,12 @@
     <div>
         <MudText Typo="Typo.h4" Class="cg-central__titulo">Parámetros</MudText>
         <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
-            Reglas de negocio sin valores fijos en el sistema. El valor de una caja prevalece sobre el de su sucursal, y este sobre el general.
+            Todas las reglas de negocio del sistema, con su valor general. Una sucursal o una caja pueden tener su propio valor: el de la caja prevalece
+            sobre el de su sucursal, y este sobre el general.
         </MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddCircle" OnClick="() => AbrirDialogoAsync(null)">
-        Nuevo parámetro
+        Valor por sucursal o caja
     </MudButton>
 </div>
 
@@ -59,7 +60,10 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
                 }
             </MudTd>
             <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context)" />
+                <MudTooltip Text="@(EsSinConfigurar(context) ? "Configurar" : "Cambiar valor")">
+                    <MudIconButton Icon="@(EsSinConfigurar(context) ? Icons.Material.Filled.AddCircleOutline : Icons.Material.Filled.Edit)" Size="Size.Small"
+                                   OnClick="() => AbrirDialogoAsync(context)" />
+                </MudTooltip>
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
@@ -91,9 +95,19 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
     private IEnumerable<DefinicionParametro> ObligatoriosSinConfigurar =>
         _catalogo.Where(d => d.Obligatorio && !_parametros.Any(p => p.Clave == d.Clave && p.SucursalId is null && p.CajaId is null && p.Valor.Length > 0));
 
+    /// <summary>
+    /// Lo configurado más una fila general "Sin configurar" por cada parámetro del catálogo que no tiene valor general: así se ve todo lo que se
+    /// puede configurar, no solo lo que ya tiene valor.
+    /// </summary>
+    private IEnumerable<DatosParametro> Filas => _parametros.Concat(_catalogo
+        .Where(d => !_parametros.Any(p => p.Clave == d.Clave && p.SucursalId is null && p.CajaId is null))
+        .Select(d => new DatosParametro(Guid.Empty, d.Clave, string.Empty, d.Descripcion, null, null, "General")));
+
+    private static bool EsSinConfigurar(DatosParametro parametro) => parametro.Id == Guid.Empty;
+
     private IEnumerable<DatosParametro> Filtrados => (string.IsNullOrWhiteSpace(_filtro)
-            ? _parametros
-            : _parametros.Where(p => Contiene(p.Clave) || Contiene(p.Ambito) || Contiene(p.Valor) || Contiene(Descripcion(p)) || Contiene(Modulo(p))))
+            ? Filas
+            : Filas.Where(p => Contiene(p.Clave) || Contiene(p.Ambito) || Contiene(p.Valor) || Contiene(Descripcion(p)) || Contiene(Modulo(p))))
         .OrderBy(Modulo).ThenBy(Descripcion).ThenBy(p => p.Ambito);
 
     private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
@@ -119,17 +133,20 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
     {
         var parametros = new DialogParameters<DialogoParametro>
         {
-            { d => d.Parametro, parametro },
+            { d => d.Parametro, parametro is null || EsSinConfigurar(parametro) ? null : parametro },
+            { d => d.ClaveGeneral, parametro is not null && EsSinConfigurar(parametro) ? parametro.Clave : null },
             { d => d.Catalogo, _catalogo },
             { d => d.Sucursales, _sucursales },
             { d => d.Cajas, _cajas },
         };
         var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var referencia = await Dialogos.ShowAsync<DialogoParametro>(parametro is null ? "Nuevo parámetro" : "Editar parámetro", parametros, opciones);
+        var titulo = parametro is null ? "Valor por sucursal o caja" : EsSinConfigurar(parametro) ? "Configurar parámetro" : "Cambiar valor";
+        var referencia = await Dialogos.ShowAsync<DialogoParametro>(titulo, parametros, opciones);
         if (await referencia.Result is not { Canceled: false })
             return;
 
-        Avisos.Add("Parámetro guardado. Baja a las cajas en su próxima sincronización.", Severity.Success);
+        var delCentral = parametro is not null && Definicion(parametro.Clave)?.Alcance == AlcanceParametro.Central;
+        Avisos.Add(delCentral ? "Parámetro guardado." : "Parámetro guardado. Baja a las cajas en su próxima sincronización.", Severity.Success);
         await CargarAsync();
     }
 }
