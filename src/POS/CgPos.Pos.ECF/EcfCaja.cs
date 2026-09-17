@@ -307,7 +307,9 @@ internal static class ConversionEcf
             new TotalesEcf(gravado1, gravado2, gravado3, exento, itbis1, itbis2, itbis3, total,
                 Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 1),
                 Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 2),
-                Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 3)),
+                Tasa(items, lineas.Select(l => l.PorcentajeImpuesto).ToList(), 3),
+                // Régimen especial con retención de la Ley 32-23: el comprobante lleva el total y lo que el cliente paga.
+                venta.CalcularTotales() is { Retencion: > 0m } conRetencion ? conRetencion.TotalAPagar : null),
             (venta.CobradaEn ?? fechaFirma).ToOffset(fechaFirma.Offset),
             fechaFirma,
             TipoIngresos: tipoIngresos,

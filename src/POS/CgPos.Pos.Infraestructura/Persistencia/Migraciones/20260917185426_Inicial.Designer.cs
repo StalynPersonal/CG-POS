@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosPos))]
-    [Migration("20260917180258_Inicial")]
+    [Migration("20260917185426_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -608,6 +608,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(13)
                         .IsUnicode(false)
                         .HasColumnType("varchar(13)");
+
+                    b.Property<bool>("EsInterna")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("EsTotal")
                         .HasColumnType("bit");
@@ -3229,6 +3232,10 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(40)
                         .IsUnicode(false)
                         .HasColumnType("varchar(40)");
+
+                    b.Property<decimal>("PorcentajeRetencion")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
 
                     b.Property<DateTimeOffset?>("PuestaEnEsperaEn")
                         .HasPrecision(3)

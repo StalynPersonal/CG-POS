@@ -606,6 +606,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .IsUnicode(false)
                         .HasColumnType("varchar(13)");
 
+                    b.Property<bool>("EsInterna")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("EsTotal")
                         .HasColumnType("bit");
 
@@ -3226,6 +3229,10 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(40)
                         .IsUnicode(false)
                         .HasColumnType("varchar(40)");
+
+                    b.Property<decimal>("PorcentajeRetencion")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
 
                     b.Property<DateTimeOffset?>("PuestaEnEsperaEn")
                         .HasPrecision(3)

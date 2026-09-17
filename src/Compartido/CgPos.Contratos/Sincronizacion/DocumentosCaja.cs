@@ -104,7 +104,10 @@ public sealed record DocumentoVentaCobrada(
     IReadOnlyList<DocumentoDestinoEntrega> DestinosEntrega,
     DocumentoElectronicoParaCentral? Ecf = null);
 
-/// <summary>Mensaje <c>Devolucion.NotaCreditoEmitida</c>: la nota de crédito con referencia a la factura por su número, y su XML firmado.</summary>
+/// <summary>
+/// Mensaje <c>Devolucion.NotaCreditoEmitida</c>: la nota de crédito con referencia a la factura por su número, y su XML firmado. La nota
+/// interna (<c>EsInterna</c>) es solo un ajuste: viaja sin comprobante ni XML y no va a la DGII.
+/// </summary>
 public sealed record DocumentoNotaCreditoEmitida(
     string Numero,
     string VentaOrigenNumero,
@@ -134,7 +137,8 @@ public sealed record DocumentoNotaCreditoEmitida(
     TipoReembolso Reembolso,
     string? ReembolsoReferencia,
     string? ReembolsoDetalle,
-    DocumentoElectronicoParaCentral Ecf);
+    DocumentoElectronicoParaCentral? Ecf,
+    bool EsInterna = false);
 
 /// <summary>Mensaje <c>NotaCredito.Consumida</c>: una factura consumió saldo de una nota de crédito. La llave es la nota y la factura.</summary>
 public sealed record DocumentoConsumoNotaCredito(string NotaCreditoNumero, string? Encf, string VentaNumero, decimal Monto, decimal SaldoRestante, DateTimeOffset Fecha);

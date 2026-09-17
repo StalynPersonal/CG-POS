@@ -71,6 +71,7 @@ public sealed record ArticuloParaVenta(
 
 public sealed record DesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
+/// <param name="Retencion">Retención de la Ley 32-23 que el cliente de régimen especial (E44) no paga en caja.</param>
 public sealed record TotalesVenta(
     decimal Subtotal,
     decimal Impuesto,
@@ -78,7 +79,12 @@ public sealed record TotalesVenta(
     int CantidadLineas,
     decimal CantidadArticulos,
     IReadOnlyList<DesgloseImpuesto> Desglose,
-    decimal Descuento = 0m);
+    decimal Descuento = 0m,
+    decimal Retencion = 0m)
+{
+    /// <summary>Lo que el cliente paga en caja: el total de la factura menos la retención.</summary>
+    public decimal TotalAPagar => Total - Retencion;
+}
 
 public enum TipoDescuento
 {
@@ -188,6 +194,12 @@ public sealed class Venta : Entidad
     public string? ClienteDocumento { get; private set; }
     public string? ClienteNombre { get; private set; }
     public TipoComprobante TipoComprobante { get; private set; } = TipoComprobante.FacturaConsumo;
+
+    /// <summary>
+    /// Porcentaje de retención de la Ley 32-23 que aplica a esta factura: solo en comprobantes de régimen especial (E44) y con el
+    /// porcentaje configurado en el Central. Se calcula sobre el subtotal con descuentos y se descuenta de lo que el cliente paga.
+    /// </summary>
+    public decimal PorcentajeRetencion { get; private set; }
 
     /// <summary>Monto tope que pidió el cliente; se avisa al superarlo (RF-18).</summary>
     public decimal? LimiteCompra { get; private set; }
@@ -561,6 +573,25 @@ public sealed class Venta : Entidad
         }
 
         TipoComprobante = tipo;
+        if (tipo != TipoComprobante.RegimenesEspeciales)
+            PorcentajeRetencion = 0m;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>
+    /// Aplica la retención de la Ley 32-23 con el porcentaje configurado; solo queda puesta en facturas de régimen especial (E44).
+    /// </summary>
+    public void AplicarRetencionLey(decimal porcentaje, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        if (porcentaje is < 0m or > 100m)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido, "El porcentaje de retención debe estar entre 0 y 100.");
+
+        var aplicable = TipoComprobante == TipoComprobante.RegimenesEspeciales ? porcentaje : 0m;
+        if (aplicable == PorcentajeRetencion)
+            return;
+
+        PorcentajeRetencion = aplicable;
         ActualizadaEn = ahora;
     }
 
@@ -879,7 +910,9 @@ public sealed class Venta : Entidad
             throw new ReglaVentaExcepcion(CodigoErrorVenta.PagoInvalido, "Agregue al menos una forma de pago.");
 
         var aplicados = pagos.Select(ValidarPago).ToList();
-        var total = CalcularTotales().Total;
+
+        // El cliente de régimen especial paga el total menos la retención de la Ley 32-23; la factura conserva su total.
+        var total = CalcularTotales().TotalAPagar;
 
         var hayEfectivo = pagos.Any(p => p.Forma.PermiteDevuelta);
         var totalCobrado = hayEfectivo && pasoRedondeoEfectivo > 0
@@ -977,15 +1010,18 @@ public sealed class Venta : Entidad
             .ToList();
 
         var cantidadArticulos = activas.Sum(l => l.PermiteDecimales ? 1m : l.Cantidad);
+        var subtotal = desglose.Sum(d => d.Base);
 
         return new TotalesVenta(
-            desglose.Sum(d => d.Base),
+            subtotal,
             desglose.Sum(d => d.Impuesto),
             desglose.Sum(d => d.Total),
             activas.Count,
             cantidadArticulos,
             desglose,
-            activas.Sum(l => l.DescuentoTotal));
+            activas.Sum(l => l.DescuentoTotal),
+            // La retención se calcula sobre el subtotal, que ya viene con los descuentos aplicados.
+            PorcentajeRetencion > 0 ? decimal.Round(subtotal * PorcentajeRetencion / 100m, 2, MidpointRounding.AwayFromZero) : 0m);
     }
 
     private void AsegurarEditable()

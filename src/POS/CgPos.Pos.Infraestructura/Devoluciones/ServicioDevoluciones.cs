@@ -42,7 +42,7 @@ internal static class ConversionesDevolucion
                 ? null
                 : new DatosComprobanteElectronico(documento.Encf, documento.TipoComprobante, documento.CodigoSeguridad, documento.FechaFirma,
                     documento.UrlTimbre, documento.Estado),
-            devolucion.PuntosReversados, devolucion.Reembolso, devolucion.ReembolsoReferencia, devolucion.ReembolsoDetalle);
+            devolucion.PuntosReversados, devolucion.Reembolso, devolucion.ReembolsoReferencia, devolucion.ReembolsoDetalle, devolucion.EsInterna);
 
     /// <summary>Cantidad e importe ya devueltos por línea de la factura (RF-42).</summary>
     public static Dictionary<int, DevueltoLinea> Devuelto(this IEnumerable<Devolucion> devoluciones) =>
@@ -129,7 +129,11 @@ internal sealed class ServicioDevoluciones(
         Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, int? turnoId, ResultadoPermiso? permiso) =>
             Devolucion.Registrar(venta, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero, turnoId,
                 sesion.UsuarioId, sesion.Nombre, permiso?.SupervisorId ?? sesion.UsuarioId, permiso?.SupervisorNombre ?? sesion.Nombre,
-                diasRetencion, Hoy, ahora, reloj.LocalTimeZone);
+                diasRetencion, Hoy, ahora, reloj.LocalTimeZone, solicitud.Interna);
+
+        // La nota interna no devuelve dinero: solo ajusta la factura.
+        if (solicitud.Interna && solicitud.Reembolso != TipoReembolso.SaldoNotaCredito)
+            return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, "Una nota de crédito interna no devuelve dinero: solo ajusta la factura.");
 
         // Se validan las reglas antes de pedir la clave del encargado.
         try
@@ -141,17 +145,19 @@ internal sealed class ServicioDevoluciones(
             return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, excepcion.Message);
         }
 
-        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AutorizarDevolucion, solicitud.AutorizacionId, "Venta", venta.NumeroTransaccion,
-            cancelacion);
+        var permisoRequerido = solicitud.Interna ? CatalogoPermisos.AutorizarNotaCreditoInterna : CatalogoPermisos.AutorizarDevolucion;
+        var permiso = await autorizaciones.VerificarAsync(sesion, permisoRequerido, solicitud.AutorizacionId, "Venta", venta.NumeroTransaccion, cancelacion);
         if (!permiso.Permitido)
             return permiso.AutorizacionRechazada
-                ? Rechazo(CodigoResultadoDevolucion.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", CatalogoPermisos.AutorizarDevolucion)
-                : Rechazo(CodigoResultadoDevolucion.RequiereAutorizacion, "La devolución requiere la autorización del encargado.", CatalogoPermisos.AutorizarDevolucion);
+                ? Rechazo(CodigoResultadoDevolucion.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", permisoRequerido)
+                : Rechazo(CodigoResultadoDevolucion.RequiereAutorizacion, solicitud.Interna
+                    ? "La nota de crédito interna requiere la autorización de un supervisor."
+                    : "La devolución requiere la autorización del encargado.", permisoRequerido);
 
         // Número, nota de crédito, e-CF, mensaje para el Central y auditoría en una sola transacción.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
         Devolucion devolucion;
-        EmisionEcf emision;
+        EmisionEcf? emision = null;
         MovimientoPuntos? reversoPuntos = null;
         try
         {
@@ -168,8 +174,12 @@ internal sealed class ServicioDevoluciones(
             devolucion = Armar(await DevueltoAsync(venta.Id, cancelacion), NumeroDocumento.Formatear(codigoSucursal, sesion.CajaCodigo, TipoDocumentoNumerado.NotaCredito, secuencia, digitos), turnoId, permiso);
             contexto.Devoluciones.Add(devolucion);
 
-            emision = await emisorEcf.EmitirNotaCreditoAsync(devolucion, cancelacion);
-            devolucion.AsignarComprobante(emision.Documento.Encf);
+            // La nota interna no es un comprobante fiscal: no consume e-NCF ni se le firma XML (no va al 607).
+            if (!devolucion.EsInterna)
+            {
+                emision = await emisorEcf.EmitirNotaCreditoAsync(devolucion, cancelacion);
+                devolucion.AsignarComprobante(emision.Documento.Encf);
+            }
 
             // El cliente puede llevarse el dinero en vez del saldo a favor (RF-123); la nota de crédito se emite igual.
             if (solicitud.Reembolso != TipoReembolso.SaldoNotaCredito)
@@ -179,7 +189,7 @@ internal sealed class ServicioDevoluciones(
                 {
                     await transaccion.RollbackAsync(cancelacion);
                     contexto.ChangeTracker.Clear();
-                    emisorEcf.DescartarArchivo(emision);
+                    DescartarArchivo(emision);
                     return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, problema);
                 }
             }
@@ -216,18 +226,20 @@ internal sealed class ServicioDevoluciones(
             }, excepcion.Message);
         }
 
-        var datos = devolucion.ADatos(emision.Documento, Hoy, diasVigencia);
+        var datos = devolucion.ADatos(emision?.Documento, Hoy, diasVigencia);
         var turnoNumero = devolucion.TurnoId is { } turnoDevolucion
             ? await contexto.Turnos.AsNoTracking().Where(t => t.Id == turnoDevolucion).Select(t => (long?)t.Numero).SingleOrDefaultAsync(cancelacion)
             : null;
-        bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Numero, DocumentosParaCentral.NotaCreditoEmitida(datos, turnoNumero, emision.ParaCentral));
+        bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Numero, DocumentosParaCentral.NotaCreditoEmitida(datos, turnoNumero, emision?.ParaCentral));
         if (reversoPuntos is not null)
             bandejaSalida.Encolar("Fidelidad.MovimientoPuntos", DocumentosParaCentral.ReferenciaPuntos(reversoPuntos), DocumentosParaCentral.MovimientoPuntos(reversoPuntos));
-        auditoria.Registrar(new EntradaAuditoria("Devoluciones.NotaCreditoEmitida", TipoEntidadDevolucion, devolucion.Numero,
+        auditoria.Registrar(new EntradaAuditoria(devolucion.EsInterna ? "Devoluciones.NotaCreditoInterna" : "Devoluciones.NotaCreditoEmitida",
+            TipoEntidadDevolucion, devolucion.Numero,
             Detalle: new
             {
                 Factura = venta.NumeroTransaccion,
                 devolucion.Encf,
+                devolucion.EsInterna,
                 devolucion.Total,
                 devolucion.RetieneImpuesto,
                 devolucion.EsTotal,
@@ -244,13 +256,22 @@ internal sealed class ServicioDevoluciones(
         }
         catch
         {
-            emisorEcf.DescartarArchivo(emision);
+            DescartarArchivo(emision);
             throw;
         }
 
         var aviso = await ImprimirAsync(sesion, datos, esCopia: false, cancelacion);
-        return new RespuestaDevolucion(CodigoResultadoDevolucion.Correcto,
-            $"Nota de crédito {devolucion.Encf} por {devolucion.SimboloMoneda}{devolucion.Total:N2} emitida.{(aviso is null ? null : $" {aviso}")}", NotaCredito: datos);
+        var titulo = devolucion.EsInterna
+            ? $"Nota de crédito interna {devolucion.Numero} por {devolucion.SimboloMoneda}{devolucion.Total:N2} registrada (sin comprobante fiscal, no se usa como pago)."
+            : $"Nota de crédito {devolucion.Encf} por {devolucion.SimboloMoneda}{devolucion.Total:N2} emitida.";
+        return new RespuestaDevolucion(CodigoResultadoDevolucion.Correcto, $"{titulo}{(aviso is null ? null : $" {aviso}")}", NotaCredito: datos);
+    }
+
+    /// <summary>Borra el XML emitido cuando la devolución no llegó a guardarse; la nota interna no emite nada.</summary>
+    private void DescartarArchivo(EmisionEcf? emision)
+    {
+        if (emision is not null)
+            emisorEcf.DescartarArchivo(emision);
     }
 
     public async Task<RespuestaSaldoNotaCredito> ConsultarNotaCreditoAsync(SesionUsuario sesion, string codigo, CancellationToken cancelacion = default)
@@ -265,7 +286,12 @@ internal sealed class ServicioDevoluciones(
 
         var diasVigencia = await DiasVigenciaAsync(sesion, cancelacion);
         var estado = nota.EstadoSaldo(Hoy, diasVigencia);
-        var datos = new DatosSaldoNotaCredito(nota.Id, nota.Numero, nota.Encf, nota.ClienteNombre, nota.Total, nota.Saldo, nota.VenceEn(diasVigencia), estado);
+        var datos = new DatosSaldoNotaCredito(nota.Id, nota.Numero, nota.Encf, nota.ClienteNombre, nota.Total, nota.Saldo, nota.VenceEn(diasVigencia), estado,
+            nota.EsInterna);
+        if (nota.EsInterna)
+            return new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.DevolucionInvalida,
+                $"La nota de crédito {nota.Numero} es interna: solo ajusta la factura, no se usa como forma de pago.", datos);
+
         return estado switch
         {
             EstadoNotaCredito.Consumida => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoConsumida,

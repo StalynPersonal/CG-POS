@@ -115,9 +115,17 @@ internal static class GeneradorTicket
         if (venta.Totales.Descuento > 0)
             Importe("DESCUENTOS", -venta.Totales.Descuento);
         Importe($"TOTAL {venta.SimboloMoneda}", venta.Totales.Total, Estilo.Titulo);
+
+        // Régimen especial (E44): la retención de la Ley 32-23 se le descuenta al cliente de lo que paga (RN Ley 32-23).
+        if (venta.Totales.Retencion > 0)
+        {
+            Importe("RETENCIÓN LEY 32-23", -venta.Totales.Retencion);
+            Importe($"TOTAL A PAGAR {venta.SimboloMoneda}", venta.Totales.TotalAPagar, Estilo.Titulo);
+        }
+
         if (venta.RedondeoEfectivo != 0)
             Importe("Redondeo efectivo", venta.RedondeoEfectivo);
-        if (venta.TotalCobrado is { } cobrado && cobrado != venta.Totales.Total)
+        if (venta.TotalCobrado is { } cobrado && cobrado != venta.Totales.TotalAPagar)
             Importe("TOTAL COBRADO", cobrado, Estilo.Negrita);
 
         if (venta.Pagos is { Count: > 0 } pagos)
@@ -191,8 +199,10 @@ internal static class GeneradorTicket
         void Importe(string etiqueta, decimal monto, Estilo estilo = Estilo.Normal) => Agregar(Columnas(etiqueta, monto.ToString("N2", cultura)), estilo);
 
         AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia);
-        Agregar("NOTA DE CRÉDITO (E34)", Estilo.Titulo);
+        Agregar(nota.EsInterna ? "NOTA DE CRÉDITO INTERNA" : "NOTA DE CRÉDITO (E34)", Estilo.Titulo);
         Agregar(copiaContabilidad ? "COPIA CONTABILIDAD" : "ORIGINAL CLIENTE", Estilo.Centrado);
+        if (nota.EsInterna)
+            Agregar("SIN VALOR FISCAL - SOLO AJUSTE", Estilo.Negrita);
         if (nota.Comprobante is { } comprobante)
             Agregar($"e-NCF: {comprobante.Encf}", Estilo.Negrita);
         Agregar($"Número: {nota.Numero}");
@@ -231,7 +241,12 @@ internal static class GeneradorTicket
         if (nota.PuntosReversados > 0)
             Agregar(Columnas("Puntos de fidelidad reversados", nota.PuntosReversados.ToString("N0", cultura)));
 
-        if (!copiaContabilidad)
+        if (nota.EsInterna)
+        {
+            Agregar("Ajuste interno: no devuelve dinero ni se usa como forma de pago.", Estilo.Negrita);
+            Agregar(nota.Numero, Estilo.Barras);
+        }
+        else if (!copiaContabilidad)
         {
             Agregar($"Válida para consumo hasta el {nota.VenceEn.ToString("dd/MM/yyyy", cultura)}", Estilo.Negrita);
             Agregar(nota.Comprobante?.Encf ?? nota.Numero, Estilo.Barras);

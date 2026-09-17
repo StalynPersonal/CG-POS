@@ -52,6 +52,9 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         if (nota is null)
             return new RespuestaReservaNotaCredito(false, "La nota de crédito no existe en el Central.");
 
+        if (nota.EsInterna)
+            return new RespuestaReservaNotaCredito(false, $"La nota de crédito {nota.Numero} es interna: solo ajusta la factura, no se usa como forma de pago.");
+
         var diasVigencia = await DiasVigenciaAsync(cancelacion);
         if (nota.Estado(Hoy, diasVigencia) == EstadoNotaCreditoCentral.Vencida)
             return new RespuestaReservaNotaCredito(false, $"La nota de crédito {nota.Encf ?? nota.Numero} venció el {nota.VenceEn(diasVigencia):dd/MM/yyyy}.");
@@ -170,7 +173,8 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
             var retenido = reservado.GetValueOrDefault(nota.Id);
             return new DatosNotaCreditoCentral(nota.Id, nota.Numero, nota.Encf, nota.SucursalId, sucursales.GetValueOrDefault(nota.SucursalId) ?? string.Empty,
                 cajas.GetValueOrDefault(nota.CajaId) ?? string.Empty, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Total, nota.Consumido, retenido,
-                Math.Max(0m, nota.Saldo - retenido), nota.VenceEn(diasVigencia), nota.Estado(hoy, diasVigencia), nota.Sobregirada, nota.EmitidaEn);
+                nota.EsInterna ? 0m : Math.Max(0m, nota.Saldo - retenido), nota.VenceEn(diasVigencia), nota.Estado(hoy, diasVigencia), nota.Sobregirada,
+                nota.EmitidaEn, nota.EsInterna);
         }).ToList();
     }
 

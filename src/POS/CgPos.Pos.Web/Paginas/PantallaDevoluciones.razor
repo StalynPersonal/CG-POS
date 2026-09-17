@@ -148,21 +148,32 @@
                         </div>
                         <MudTextField T="string" @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
 
-                        @* Cómo se le devuelve el dinero (RF-123); lo que no esté habilitado en los parámetros se rechaza al emitir. *@
-                        <div class="cg-devolucion__etiqueta">Se le devuelve</div>
-                        <div class="cg-devolucion__motivos">
-                            @foreach (var reembolso in Reembolsos)
-                            {
-                                <MudButton Variant="@(_reembolso == reembolso.Tipo ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
-                                           Class="cg-devolucion__motivo-boton" OnClick="() => _reembolso = reembolso.Tipo">@reembolso.Etiqueta</MudButton>
-                            }
-                        </div>
-                        @if (_reembolso is TipoReembolso.Tarjeta or TipoReembolso.Cheque)
+                        @* Nota interna: solo ajusta la factura, sin comprobante fiscal, y la autoriza un supervisor. *@
+                        <MudCheckBox T="bool" Value="_interna" ValueChanged="CambiarInterna" Color="Color.Primary" Dense="true"
+                                     Label="Nota de crédito interna (sin comprobante fiscal, solo ajuste)" />
+
+                        @if (_interna)
                         {
-                            <MudTextField T="string" @bind-Value="_reembolsoReferencia" Margin="Margin.Dense" Variant="Variant.Outlined"
-                                          Label="@(_reembolso == TipoReembolso.Tarjeta ? "Autorización del terminal" : "Número del cheque (si ya se emitió)")" />
-                            <MudTextField T="string" @bind-Value="_reembolsoDetalle" Margin="Margin.Dense" Variant="Variant.Outlined"
-                                          Label="@(_reembolso == TipoReembolso.Tarjeta ? "Tarjeta (opcional)" : "Banco y a nombre de quién")" />
+                            <MudText Typo="Typo.caption">No devuelve dinero ni sirve como forma de pago; requiere autorización de un supervisor.</MudText>
+                        }
+                        else
+                        {
+                            @* Cómo se le devuelve el dinero (RF-123); lo que no esté habilitado en los parámetros se rechaza al emitir. *@
+                            <div class="cg-devolucion__etiqueta">Se le devuelve</div>
+                            <div class="cg-devolucion__motivos">
+                                @foreach (var reembolso in Reembolsos)
+                                {
+                                    <MudButton Variant="@(_reembolso == reembolso.Tipo ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
+                                               Class="cg-devolucion__motivo-boton" OnClick="() => _reembolso = reembolso.Tipo">@reembolso.Etiqueta</MudButton>
+                                }
+                            </div>
+                            @if (_reembolso is TipoReembolso.Tarjeta or TipoReembolso.Cheque)
+                            {
+                                <MudTextField T="string" @bind-Value="_reembolsoReferencia" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                              Label="@(_reembolso == TipoReembolso.Tarjeta ? "Autorización del terminal" : "Número del cheque (si ya se emitió)")" />
+                                <MudTextField T="string" @bind-Value="_reembolsoDetalle" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                              Label="@(_reembolso == TipoReembolso.Tarjeta ? "Tarjeta (opcional)" : "Banco y a nombre de quién")" />
+                            }
                         }
                     </div>
                     <div class="cg-devolucion__acciones">
@@ -219,6 +230,7 @@
     private List<LineaEdicion> _lineas = [];
     private int? _motivo;
     private TipoReembolso _reembolso = TipoReembolso.SaldoNotaCredito;
+    private bool _interna;
     private string? _reembolsoReferencia;
     private string? _reembolsoDetalle;
 
@@ -276,6 +288,7 @@
         _lineas = respuesta.Factura?.Lineas.Select(l => new LineaEdicion(l)).ToList() ?? [];
         _motivo = null;
         _reembolso = TipoReembolso.SaldoNotaCredito;
+        _interna = false;
         _reembolsoReferencia = null;
         _reembolsoDetalle = null;
         _observacion = null;
@@ -315,12 +328,16 @@
             null,
             _reembolso,
             _reembolsoReferencia,
-            _reembolsoDetalle);
+            _reembolsoDetalle,
+            _interna);
 
         _procesando = true;
         _mensaje = null;
         var respuesta = await Autorizaciones.EjecutarDevolucionAsync(autorizacion => Cliente.RegistrarDevolucionAsync(solicitud with { AutorizacionId = autorizacion }),
-            $"Devolución de la factura {factura.NumeroTransaccion} por {TotalEstimado:C}", factura.NumeroTransaccion);
+            _interna
+                ? $"Nota de crédito interna de la factura {factura.NumeroTransaccion} por {TotalEstimado:C}"
+                : $"Devolución de la factura {factura.NumeroTransaccion} por {TotalEstimado:C}",
+            factura.NumeroTransaccion);
         _procesando = false;
         if (respuesta is null)
             return;
@@ -335,6 +352,18 @@
         _factura = null;
         _lineas = [];
         _numero = string.Empty;
+    }
+
+    /// <summary>La nota interna no devuelve dinero: al marcarla, el reembolso vuelve al saldo de la nota.</summary>
+    private void CambiarInterna(bool interna)
+    {
+        _interna = interna;
+        if (interna)
+        {
+            _reembolso = TipoReembolso.SaldoNotaCredito;
+            _reembolsoReferencia = null;
+            _reembolsoDetalle = null;
+        }
     }
 
     private async Task ReimprimirAsync()

@@ -22,7 +22,8 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
         var comprobante = ComprobanteVentaCentral.Registrar(TipoComprobanteVenta.Factura, venta.Numero.Trim(), sucursalId, cajaId,
             venta.TurnoNumero, venta.UsuarioNombre, cobrada, DateOnly.FromDateTime(cobrada.LocalDateTime), venta.TipoComprobante, venta.Comprobante?.Encf, null,
             venta.Cliente?.TipoDocumento, venta.Cliente?.Documento, venta.Cliente?.Nombre, venta.Moneda, venta.Totales.Subtotal, venta.Totales.Descuento,
-            venta.Totales.Impuesto, 0m, venta.TotalCobrado, venta.Totales.CantidadLineas, reloj.GetUtcNow());
+            // La retención de la Ley 32-23 se informa como retenido: el cliente pagó el total menos esa retención.
+            venta.Totales.Impuesto, venta.Totales.Retencion, venta.TotalCobrado, venta.Totales.CantidadLineas, reloj.GetUtcNow());
 
         foreach (var impuesto in venta.Totales.Desglose)
             comprobante.AgregarImpuesto(impuesto.Porcentaje, impuesto.Base, impuesto.Impuesto);

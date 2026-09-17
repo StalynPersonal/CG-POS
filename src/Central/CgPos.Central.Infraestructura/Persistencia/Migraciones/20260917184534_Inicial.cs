@@ -1160,7 +1160,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     Consumido = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     FechaEmision = table.Column<DateOnly>(type: "date", nullable: false),
                     EmitidaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
-                    RegistradaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false)
+                    RegistradaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
+                    EsInterna = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {

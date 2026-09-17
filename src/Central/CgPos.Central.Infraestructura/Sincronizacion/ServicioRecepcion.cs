@@ -355,7 +355,7 @@ internal sealed class ServicioRecepcion(
         try
         {
             var nota = NotaCreditoCentral.Registrar(numero, emitida.Comprobante?.Encf, documento.CajaId, documento.SucursalId, emitida.ClienteDocumento,
-                emitida.ClienteNombre, emitida.Moneda, emitida.Total, emitida.FechaEmision, emitida.CreadaEn, ahora);
+                emitida.ClienteNombre, emitida.Moneda, emitida.Total, emitida.FechaEmision, emitida.CreadaEn, ahora, emitida.EsInterna);
 
             // Un consumo puede llegar antes que la emisión: los mensajes de una caja llegan en orden, pero los de dos cajas no.
             var consumido = await contexto.ConsumosNotaCredito.Where(c => c.NotaCreditoNumero == numero).SumAsync(c => (decimal?)c.Monto, cancelacion) ?? 0m;

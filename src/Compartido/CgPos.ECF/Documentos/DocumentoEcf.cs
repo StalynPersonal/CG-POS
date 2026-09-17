@@ -46,6 +46,7 @@ public sealed record ItemEcf(
 
 /// <summary>Totales sin ITBIS por tasa, ITBIS por tasa y monto total.</summary>
 /// <param name="TasaItbis1">Porcentaje de ITBIS de las líneas con indicador 1, tomado del maestro de impuestos; obligatorio si hay monto gravado I1.</param>
+/// <param name="ValorPagar">Lo que el cliente paga si difiere del total, como en el régimen especial con retención de la Ley 32-23.</param>
 public sealed record TotalesEcf(
     decimal MontoGravadoI1,
     decimal MontoGravadoI2,
@@ -57,7 +58,8 @@ public sealed record TotalesEcf(
     decimal MontoTotal,
     decimal? TasaItbis1 = null,
     decimal? TasaItbis2 = null,
-    decimal? TasaItbis3 = null)
+    decimal? TasaItbis3 = null,
+    decimal? ValorPagar = null)
 {
     public decimal MontoGravadoTotal => MontoGravadoI1 + MontoGravadoI2 + MontoGravadoI3;
 

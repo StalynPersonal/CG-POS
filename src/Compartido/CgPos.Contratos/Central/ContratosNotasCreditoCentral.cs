@@ -21,7 +21,8 @@ public sealed record DatosNotaCreditoCentral(
     DateOnly VenceEn,
     EstadoNotaCreditoCentral Estado,
     bool Sobregirada,
-    DateTimeOffset EmitidaEn);
+    DateTimeOffset EmitidaEn,
+    bool EsInterna = false);
 
 public sealed record PaginaNotasCreditoCentral(IReadOnlyList<DatosNotaCreditoCentral> Elementos, int Total);
 

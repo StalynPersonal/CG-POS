@@ -136,8 +136,9 @@ public static partial class ValidadorEcf
         CuadreItbis(3, totales.MontoGravadoI3, totales.TasaItbis3, totales.TotalItbis3);
         Cuadre("MontoTotal", totales.MontoGravadoTotal + totales.TotalItbis + totales.MontoExento, totales.MontoTotal);
 
+        // Con retención (régimen especial, Ley 32-23) el cliente paga el ValorPagar, no el total de la factura.
         if (documento.FormasPago is { Count: > 0 } formas)
-            Cuadre("La suma de las formas de pago", totales.MontoTotal, formas.Sum(f => f.Monto));
+            Cuadre("La suma de las formas de pago", totales.ValorPagar ?? totales.MontoTotal, formas.Sum(f => f.Monto));
 
         if (documento.FechaHoraFirma < documento.FechaEmision.AddMinutes(-1))
             errores.Add("La fecha de firma no puede ser anterior a la fecha de emisión.");

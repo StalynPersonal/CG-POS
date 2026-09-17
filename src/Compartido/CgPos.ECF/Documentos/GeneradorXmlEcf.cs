@@ -106,6 +106,8 @@ public static class GeneradorXmlEcf
             if (totales.MontoGravadoI3 > 0)
                 Monto("TotalITBIS3", totales.TotalItbis3);
             Monto("MontoTotal", totales.MontoTotal);
+            if (totales.ValorPagar is { } valorPagar && valorPagar != totales.MontoTotal)
+                Monto("ValorPagar", valorPagar);
             xml.WriteEndElement(); // Totales
 
             xml.WriteEndElement(); // Encabezado

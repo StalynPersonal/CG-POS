@@ -50,6 +50,7 @@ public enum CodigoErrorDevolucion
     NotaCreditoConsumida,
     NotaCreditoVencida,
     SaldoInsuficiente,
+    DevolucionInterna,
 }
 
 public sealed class ReglaDevolucionExcepcion(CodigoErrorDevolucion codigo, string mensaje) : Exception(mensaje)
@@ -134,6 +135,12 @@ public sealed class Devolucion : Entidad
 
     public bool RetieneImpuesto { get; private set; }
 
+    /// <summary>
+    /// Nota de crédito interna (sin comprobante fiscal): solo corrige un problema en la factura. No devuelve dinero, no sirve como
+    /// forma de pago y no va a la DGII; sale en los reportes de ventas y exige la autorización de un supervisor.
+    /// </summary>
+    public bool EsInterna { get; private set; }
+
     /// <summary>La devolución completa lo que quedaba de la factura.</summary>
     public bool EsTotal { get; private set; }
 
@@ -179,7 +186,7 @@ public sealed class Devolucion : Entidad
     public static Devolucion Registrar(Venta venta, string? encfOrigen, IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
         IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, int? motivoCodigo, string? motivoNombre, string? observacion,
         string numero, int? turnoId, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
-        int diasRetencionImpuesto, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria)
+        int diasRetencionImpuesto, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria, bool esInterna = false)
     {
         ArgumentNullException.ThrowIfNull(zonaHoraria);
         ArgumentNullException.ThrowIfNull(venta);
@@ -193,7 +200,8 @@ public sealed class Devolucion : Entidad
         if (pedidas.GroupBy(p => p.NumeroLinea).Any(grupo => grupo.Count() > 1))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.CantidadInvalida, "Cada línea de la factura se indica una sola vez.");
 
-        if (cliente is null || !DocumentoIdentidad.Validar(cliente.Documento).EsValido || string.IsNullOrWhiteSpace(cliente.Nombre))
+        // La nota interna no es un comprobante fiscal: no exige identificar al cliente, pero se guarda el que traiga la factura.
+        if (!esInterna && (cliente is null || !DocumentoIdentidad.Validar(cliente.Documento).EsValido || string.IsNullOrWhiteSpace(cliente.Nombre)))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.ClienteRequerido, "La nota de crédito requiere la cédula o el RNC válido y el nombre del cliente.");
         if (motivoCodigo is null or < 1 || string.IsNullOrWhiteSpace(motivoNombre))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MotivoRequerido, "Seleccione el motivo de la devolución.");
@@ -215,15 +223,16 @@ public sealed class Devolucion : Entidad
             Moneda = venta.Moneda,
             SimboloMoneda = venta.SimboloMoneda,
             EncfOrigen = encfOrigen,
-            ClienteTipoDocumento = cliente.TipoDocumento,
-            ClienteDocumento = DocumentoIdentidad.Normalizar(cliente.Documento),
-            ClienteNombre = Validar.Texto(cliente.Nombre, "Cliente", LargoMaximoNombre),
+            ClienteTipoDocumento = cliente?.TipoDocumento,
+            ClienteDocumento = DocumentoIdentidad.Normalizar(cliente?.Documento ?? string.Empty),
+            ClienteNombre = Validar.TextoOpcional(cliente?.Nombre, "Cliente", LargoMaximoNombre) ?? string.Empty,
             MotivoCodigo = motivoCodigo.Value,
             MotivoNombre = Validar.Texto(motivoNombre, "Motivo", MotivoDevolucion.LargoMaximoNombre),
             Observacion = Validar.TextoOpcional(observacion, "Observación", LargoMaximoObservacion),
             AutorizadoPorId = autorizadoPorId,
             AutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoNombre),
             RetieneImpuesto = hoy.DayNumber - fechaVenta.DayNumber > diasRetencionImpuesto,
+            EsInterna = esInterna,
             CreadaEn = ahora,
             FechaEmision = hoy,
         };
@@ -269,7 +278,9 @@ public sealed class Devolucion : Entidad
         devolucion.Impuesto = devolucion._lineas.Sum(l => l.Impuesto);
         devolucion.ImpuestoRetenido = devolucion._lineas.Sum(l => l.ImpuestoRetenido);
         devolucion.Total = devolucion._lineas.Sum(l => l.Importe);
-        devolucion.Saldo = devolucion.Total;
+
+        // La interna nace sin saldo: es un ajuste, no dinero a favor del cliente.
+        devolucion.Saldo = esInterna ? 0m : devolucion.Total;
 
         if (devolucion.Total <= 0)
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MontoInvalido, "La devolución no tiene monto.");
@@ -277,7 +288,13 @@ public sealed class Devolucion : Entidad
         return devolucion;
     }
 
-    public void AsignarComprobante(string encf) => Encf = Validar.Texto(encf, "e-NCF", DocumentoElectronico.LargoEncf);
+    public void AsignarComprobante(string encf)
+    {
+        if (EsInterna)
+            throw new InvalidOperationException("Una nota de crédito interna no lleva comprobante fiscal.");
+
+        Encf = Validar.Texto(encf, "e-NCF", DocumentoElectronico.LargoEncf);
+    }
 
     /// <summary>
     /// El cliente se lleva el dinero en vez del saldo a favor (RF-123): la nota de crédito se emite igual, pero queda sin saldo
@@ -287,6 +304,8 @@ public sealed class Devolucion : Entidad
     {
         if (tipo == TipoReembolso.SaldoNotaCredito)
             throw new ArgumentException("El saldo a favor no es un reembolso.", nameof(tipo));
+        if (EsInterna)
+            throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.DevolucionInterna, "Una nota de crédito interna no devuelve dinero: solo ajusta la factura.");
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de reembolso no válido.");
 
@@ -318,6 +337,9 @@ public sealed class Devolucion : Entidad
         var redondeado = Redondear(monto);
         if (redondeado <= 0m)
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MontoInvalido, "El monto a consumir de la nota de crédito debe ser mayor que cero.");
+        if (EsInterna)
+            throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.DevolucionInterna,
+                $"La nota de crédito {Numero} es interna: solo ajusta la factura, no se usa como forma de pago.");
 
         switch (EstadoSaldo(hoy, diasVigencia))
         {

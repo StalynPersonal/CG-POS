@@ -94,6 +94,10 @@
                         <div class="cg-pantalla-cliente__ahorro-total"><span>Usted ahorra</span><span class="cg-numero">@venta.Totales.Descuento.ToString("N2")</span></div>
                     }
                     <div class="cg-pantalla-cliente__total"><span>Total @MonedaPantalla.Simbolo</span><span class="cg-numero">@venta.Totales.Total.ToString("N2")</span></div>
+                    @if (venta.Totales.Retencion > 0)
+                    {
+                        <div class="cg-pantalla-cliente__total"><span>A pagar @MonedaPantalla.Simbolo</span><span class="cg-numero">@venta.Totales.TotalAPagar.ToString("N2")</span></div>
+                    }
                 </div>
             </section>
 

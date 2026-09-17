@@ -142,7 +142,8 @@ public sealed class EscenarioSeguridad
                      CatalogoPermisos.DescuentoLinea, CatalogoPermisos.DescuentoFactura, CatalogoPermisos.DesactivarPromocion,
                      CatalogoPermisos.AprobacionManualTarjeta, CatalogoPermisos.AbrirGaveta, CatalogoPermisos.CerrarTurno,
                      CatalogoPermisos.RetiroEfectivo, CatalogoPermisos.RelevoCajero, CatalogoPermisos.PreCierre, CatalogoPermisos.ReabrirCierre,
-                     CatalogoPermisos.AutorizarDevolucion, CatalogoPermisos.CanjearPuntos, CatalogoPermisos.MarcarPendiente,
+                     CatalogoPermisos.AutorizarDevolucion, CatalogoPermisos.AutorizarNotaCreditoInterna, CatalogoPermisos.CanjearPuntos,
+                     CatalogoPermisos.MarcarPendiente,
                      CatalogoPermisos.DespacharPendiente, CatalogoPermisos.AnularPendiente]),
             ],
             Usuarios:

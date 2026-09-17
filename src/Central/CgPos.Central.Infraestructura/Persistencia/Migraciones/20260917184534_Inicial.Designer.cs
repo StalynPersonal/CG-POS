@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260917172603_Inicial")]
+    [Migration("20260917184534_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -746,6 +746,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnicode(false)
                         .HasColumnType("char(13)")
                         .IsFixedLength();
+
+                    b.Property<bool>("EsInterna")
+                        .HasColumnType("bit");
 
                     b.Property<DateOnly>("FechaEmision")
                         .HasColumnType("date");

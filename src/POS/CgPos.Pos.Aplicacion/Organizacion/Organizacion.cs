@@ -113,6 +113,12 @@ public static class ClavesParametros
     /// <summary>Total desde el cual la factura de consumo exige cédula o RNC (RF-26, RF-171). Por defecto 250000.</summary>
     public const string MontoIdentificacionConsumo = "Fiscal.MontoIdentificacionConsumo";
 
+    /// <summary>
+    /// Porcentaje de retención de la Ley 32-23 que se le descuenta a un cliente de régimen especial (E44) de lo que paga en caja.
+    /// Por defecto 0 = sin retención.
+    /// </summary>
+    public const string PorcentajeRetencionLey3223 = CatalogoParametros.PorcentajeRetencionLey3223;
+
     /// <summary>Múltiplo al que se redondea el total cobrado con efectivo, ej. 1 = al peso (RF-216). Por defecto 0 = sin redondeo.</summary>
     public const string PasoRedondeoEfectivo = "Caja.PasoRedondeoEfectivo";
 

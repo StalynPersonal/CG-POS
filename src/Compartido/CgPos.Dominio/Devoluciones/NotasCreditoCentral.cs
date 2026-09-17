@@ -43,6 +43,9 @@ public sealed class NotaCreditoCentral : Entidad
     public DateTimeOffset EmitidaEn { get; private set; }
     public DateTimeOffset RegistradaEn { get; private set; }
 
+    /// <summary>Nota interna sin comprobante fiscal: solo ajusta la factura, no se consume como pago en ninguna sucursal.</summary>
+    public bool EsInterna { get; private set; }
+
     public decimal Saldo => Total - Consumido;
 
     /// <summary>Cajas sin conexión consumieron más que el total: hay que revisarlo con la sucursal.</summary>
@@ -56,7 +59,7 @@ public sealed class NotaCreditoCentral : Entidad
         : EstadoNotaCreditoCentral.Vigente;
 
     public static NotaCreditoCentral Registrar(string numero, string? encf, int cajaId, int sucursalId, string? clienteDocumento, string? clienteNombre,
-        string moneda, decimal total, DateOnly fechaEmision, DateTimeOffset emitidaEn, DateTimeOffset ahora)
+        string moneda, decimal total, DateOnly fechaEmision, DateTimeOffset emitidaEn, DateTimeOffset ahora, bool esInterna = false)
     {
         if (total <= 0)
             throw new ArgumentOutOfRangeException(nameof(total), total, "El total de la nota de crédito debe ser mayor que cero.");
@@ -74,6 +77,7 @@ public sealed class NotaCreditoCentral : Entidad
             FechaEmision = fechaEmision,
             EmitidaEn = emitidaEn,
             RegistradaEn = ahora,
+            EsInterna = esInterna,
         };
     }
 

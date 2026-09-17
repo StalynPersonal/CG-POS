@@ -76,6 +76,7 @@ public sealed record DatosLineaVenta(
 
 public sealed record DatosDesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
+/// <param name="Retencion">Retención de la Ley 32-23 en facturas de régimen especial (E44): no la paga el cliente en caja.</param>
 public sealed record DatosTotalesVenta(
     decimal Subtotal,
     decimal Impuesto,
@@ -83,7 +84,12 @@ public sealed record DatosTotalesVenta(
     int CantidadLineas,
     decimal CantidadArticulos,
     IReadOnlyList<DatosDesgloseImpuesto> Desglose,
-    decimal Descuento = 0m);
+    decimal Descuento = 0m,
+    decimal Retencion = 0m)
+{
+    /// <summary>Lo que el cliente paga en caja: el total de la factura menos la retención.</summary>
+    public decimal TotalAPagar => Total - Retencion;
+}
 
 /// <param name="Lineas">Líneas a las que se limitó; nulo = todas.</param>
 /// <param name="Monto">Suma prorrateada que se aplicó en las líneas.</param>

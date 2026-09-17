@@ -78,6 +78,11 @@ else
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Descuentos</span><span class="cg-numero">−@_venta.Totales.Descuento.ToString("N2")</span></div>
                 }
                 <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
+                @if (_venta.Totales.Retencion > 0)
+                {
+                    <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Retención Ley 32-23</span><span class="cg-numero">−@_venta.Totales.Retencion.ToString("N2")</span></div>
+                    <div class="cg-venta__total-fila cg-venta__total-final"><span>A pagar (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
+                }
             </section>
         </header>
 

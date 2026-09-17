@@ -79,6 +79,9 @@ public static class CatalogoParametros
 
     /// <summary>Días desde la emisión en que se puede consumir una nota de crédito (RF-39, RF-40); lo leen la caja y el Central al usarla.</summary>
     public const string DiasVigenciaNotaCredito = "Devoluciones.DiasVigenciaNotaCredito";
+    /// <summary>Porcentaje de retención de la Ley 32-23 en facturas de régimen especial (E44); 0 = sin retención.</summary>
+    public const string PorcentajeRetencionLey3223 = "Fiscal.PorcentajeRetencionLey3223";
+
     public const string ProximaFactura = "Numeracion.ProximaFactura";
     public const string ProximaNotaCredito = "Numeracion.ProximaNotaCredito";
 
@@ -101,6 +104,9 @@ public static class CatalogoParametros
         new("Fiscal.PorcentajeAlertaSecuenciaEcf", "Fiscal", "Porcentaje restante de un rango de e-CF desde el cual se alerta", Decimal, true, Minimo: 0, Maximo: 100),
         new("Fiscal.DiasAlertaCertificado", "Fiscal", "Días antes del vencimiento del certificado digital para alertar", Entero, true, Minimo: 0),
         new("Fiscal.TipoIngresos", "Fiscal", "Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6)", Entero, true, Minimo: 1, Maximo: 6),
+        new(PorcentajeRetencionLey3223, "Fiscal",
+            "Porcentaje de retención de la Ley 32-23 que se descuenta de lo que paga un cliente de régimen especial (E44); sin configurar = sin retención",
+            Decimal, false, Minimo: 0, Maximo: 100),
 
         new(DigitosSecuenciaDocumentos, "Numeración de documentos",
             "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente (sucursal + caja + tipo + secuencia); se puede aumentar en cualquier momento",

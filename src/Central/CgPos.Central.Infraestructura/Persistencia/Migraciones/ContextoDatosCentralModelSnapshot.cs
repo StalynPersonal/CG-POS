@@ -744,6 +744,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("char(13)")
                         .IsFixedLength();
 
+                    b.Property<bool>("EsInterna")
+                        .HasColumnType("bit");
+
                     b.Property<DateOnly>("FechaEmision")
                         .HasColumnType("date");
 

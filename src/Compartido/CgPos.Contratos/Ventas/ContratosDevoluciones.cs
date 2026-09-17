@@ -59,7 +59,8 @@ public sealed record SolicitudDevolucion(
     Guid? AutorizacionId,
     TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
     string? ReembolsoReferencia = null,
-    string? ReembolsoDetalle = null);
+    string? ReembolsoDetalle = null,
+    bool Interna = false);
 
 public sealed record DatosLineaNotaCredito(
     int NumeroLineaOrigen,
@@ -109,10 +110,12 @@ public sealed record DatosNotaCredito(
     int PuntosReversados = 0,
     TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
     string? ReembolsoReferencia = null,
-    string? ReembolsoDetalle = null);
+    string? ReembolsoDetalle = null,
+    bool EsInterna = false);
 
 
-public sealed record DatosSaldoNotaCredito(int Id, string Numero, string? Encf, string ClienteNombre, decimal Total, decimal Saldo, DateOnly VenceEn, EstadoNotaCredito Estado);
+public sealed record DatosSaldoNotaCredito(int Id, string Numero, string? Encf, string ClienteNombre, decimal Total, decimal Saldo, DateOnly VenceEn,
+    EstadoNotaCredito Estado, bool EsInterna = false);
 
 public enum CodigoResultadoDevolucion
 {

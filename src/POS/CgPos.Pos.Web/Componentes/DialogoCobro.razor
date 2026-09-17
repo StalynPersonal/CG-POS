@@ -210,7 +210,7 @@
     private string? _estado;
     private Campo _campo = Campo.Monto;
 
-    private decimal Total => Venta.Totales.Total;
+    private decimal Total => Venta.Totales.TotalAPagar;
     private decimal Pagado => _pagos.Sum(p => p.Aplicado);
     private decimal Saldo => Total - Pagado;
 

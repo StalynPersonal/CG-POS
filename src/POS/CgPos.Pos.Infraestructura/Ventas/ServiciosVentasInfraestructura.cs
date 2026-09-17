@@ -75,7 +75,8 @@ internal static class ConversionesVenta
                 totales.CantidadLineas,
                 totales.CantidadArticulos,
                 totales.Desglose.Select(d => new DatosDesgloseImpuesto(d.Porcentaje, d.IndicadorFacturacion, d.Base, d.Impuesto, d.Total)).ToList(),
-                totales.Descuento),
+                totales.Descuento,
+                totales.Retencion),
             venta.TipoComprobante,
             cliente,
             venta.LimiteCompra,
@@ -393,6 +394,9 @@ internal sealed class ServicioVentas(
         ResultadoCobro resultado;
         try
         {
+            // El porcentaje vigente al cobrar es el que manda, por si lo cambiaron después de elegir el comprobante.
+            venta.AplicarRetencionLey(
+                await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.PorcentajeRetencionLey3223, sesion.CajaId, cancelacion) ?? 0m, ahora);
             resultado = venta.Cobrar(solicitados.Pagos, paso, _montoIdentificacion, sesion.UsuarioId, sesion.Nombre, ahora);
         }
         catch (ReglaVentaExcepcion excepcion)
@@ -688,8 +692,9 @@ internal sealed class ServicioVentas(
                 var codigo = pago.Referencia?.Trim().ToUpperInvariant();
                 var nota = string.IsNullOrEmpty(codigo)
                     ? null
-                    : notas.Select(n => n.Nota).FirstOrDefault(n => n.Encf == codigo)
-                        ?? await contexto.Devoluciones.Include(d => d.Consumos).SingleOrDefaultAsync(d => d.Encf == codigo, cancelacion);
+                    : notas.Select(n => n.Nota).FirstOrDefault(n => n.Encf == codigo || n.Numero == codigo)
+                        // También por su número: así una nota interna escaneada se rechaza con su motivo en vez de buscarse en el Central.
+                        ?? await contexto.Devoluciones.Include(d => d.Consumos).FirstOrDefaultAsync(d => d.Encf == codigo || d.Numero == codigo, cancelacion);
                 var monto = decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero);
 
                 if (nota is null)
@@ -708,7 +713,9 @@ internal sealed class ServicioVentas(
                 {
                     var disponible = nota.Saldo - notas.Where(n => n.Nota == nota).Sum(n => n.Monto);
                     diasVigenciaNotas ??= await parametros.ObtenerEnteroAsync(ClavesParametros.DiasVigenciaNotaCredito, venta.CajaId, cancelacion);
-                    var problema = nota.EstadoSaldo(hoy, diasVigenciaNotas.Value) switch
+                    var problema = nota.EsInterna
+                        ? $"La nota de crédito {codigo} es interna: solo ajusta la factura, no se usa como forma de pago."
+                        : nota.EstadoSaldo(hoy, diasVigenciaNotas.Value) switch
                     {
                         EstadoNotaCredito.Consumida => $"La nota de crédito {codigo} ya fue consumida.",
                         EstadoNotaCredito.Vencida => $"La nota de crédito {codigo} venció el {nota.VenceEn(diasVigenciaNotas.Value):dd/MM/yyyy}.",
@@ -1087,9 +1094,13 @@ internal sealed class ServicioVentas(
             return SinPermiso(permiso, CatalogoPermisos.CambiarComprobante, venta);
 
         var anterior = venta.TipoComprobante;
+        var porcentajeRetencion = await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.PorcentajeRetencionLey3223, sesion.CajaId, cancelacion) ?? 0m;
         return await EjecutarAsync(venta, () =>
         {
             venta.CambiarComprobante(tipo, reloj.GetUtcNow());
+
+            // Régimen especial: la retención de la Ley 32-23 se descuenta de lo que paga el cliente (queda en la factura).
+            venta.AplicarRetencionLey(porcentajeRetencion, reloj.GetUtcNow());
             auditoria.Registrar(new EntradaAuditoria("Ventas.ComprobanteCambiado", TipoEntidadVenta, venta.NumeroTransaccion,
                 Detalle: new { Anterior = anterior, Nuevo = tipo, venta.ClienteDocumento },
                 Motivo: permiso.Motivo,

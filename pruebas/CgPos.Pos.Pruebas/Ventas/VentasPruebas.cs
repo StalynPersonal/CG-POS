@@ -283,6 +283,47 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task La_retencion_de_la_ley_32_23_solo_aplica_al_regimen_especial_y_baja_lo_que_paga_el_cliente()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        await caja.CambiarParametroAsync(CgPos.Dominio.Organizacion.CatalogoParametros.PorcentajeRetencionLey3223, "5");
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var conCliente = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, caja.Catalogo.RncCliente, null));
+        Assert.True(conCliente.Exitosa, conCliente.Mensaje);
+
+        // Crédito fiscal: sin retención.
+        Assert.Equal(0m, conCliente.Venta!.Totales.Retencion);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Cliente de régimen especial");
+        var especial = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.RegimenesEspeciales, autorizacion));
+        Assert.True(especial.Exitosa, especial.Mensaje);
+
+        // La retención se calcula sobre el subtotal (ya con descuentos) y se descuenta de lo que paga el cliente.
+        var totales = especial.Venta!.Totales;
+        var esperada = decimal.Round(totales.Subtotal * 0.05m, 2, MidpointRounding.AwayFromZero);
+        Assert.Equal(esperada, totales.Retencion);
+        Assert.Equal(totales.Total - esperada, totales.TotalAPagar);
+
+        // Con el total completo sobra: la devuelta sale de lo que el cliente no tenía que pagar.
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, totales.TotalAPagar)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Equal(totales.TotalAPagar, cobro.Venta!.TotalCobrado);
+        Assert.Equal(esperada, cobro.Venta.Totales.Retencion);
+
+        // El e-CF lleva el total de la factura y, aparte, lo que el cliente pagó.
+        var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.RutaXml).SingleAsync());
+        var xml = await File.ReadAllTextAsync(rutaXml);
+        Assert.Contains($"<MontoTotal>{totales.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}</MontoTotal>", xml, StringComparison.Ordinal);
+        Assert.Contains($"<ValorPagar>{totales.TotalAPagar.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}</ValorPagar>", xml, StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
     public async Task Documento_no_registrado_pide_nombre_y_el_invalido_se_rechaza()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -825,6 +866,60 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var turnoId = reapertura.Turno.Id.ToString();
         Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
             contexto.Auditoria.CountAsync(registro => registro.Accion == "Caja.CierreReabierto" && registro.EntidadId == turnoId)));
+    }
+
+    [SkippableFact]
+    public async Task La_nota_de_credito_interna_ajusta_la_factura_sin_comprobante_y_no_sirve_como_pago()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var factura = cobro.Venta!;
+
+        var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        var linea = Assert.Single(buscada.Factura!.Lineas);
+
+        // No pide cliente, pero sí la autorización de un supervisor, con su propio permiso.
+        var solicitud = new SolicitudDevolucion(factura.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], null, null,
+            caja.Catalogo.CodigoMotivoDevolucion, "Error de digitación", null, Interna: true);
+        var sinAutorizacion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
+        Assert.Equal(CodigoResultadoDevolucion.RequiereAutorizacion, sinAutorizacion.Resultado);
+        Assert.Equal(CatalogoPermisos.AutorizarNotaCreditoInterna, sinAutorizacion.PermisoRequerido);
+
+        // Tampoco devuelve dinero: es solo un ajuste.
+        var conReembolso = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s =>
+            s.RegistrarAsync(caja.Cajero, solicitud with { Reembolso = CgPos.Dominio.Devoluciones.TipoReembolso.Efectivo }));
+        Assert.Contains("no devuelve dinero", conReembolso.Mensaje);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarNotaCreditoInterna, "Se facturó de más");
+        var interna = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s =>
+            s.RegistrarAsync(caja.Cajero, solicitud with { AutorizacionId = autorizacion }));
+        Assert.True(interna.Exitosa, interna.Mensaje);
+
+        var nota = interna.NotaCredito!;
+        Assert.True(nota.EsInterna);
+        Assert.Null(nota.Comprobante); // sin e-NCF: no va a la DGII ni al 607
+        Assert.Equal(0m, nota.Saldo);
+        Assert.Equal("Supervisor Seguridad", nota.AutorizadoPorNombre);
+        Assert.Empty(await caja.EjecutarAsync<ContextoDatosPos, List<int>>(contexto =>
+            contexto.DocumentosElectronicos.Where(d => d.VentaId == nota.Id).Select(d => d.Id).ToListAsync()));
+
+        // No se usa como forma de pago en otra venta.
+        var consulta = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaSaldoNotaCredito>(s => s.ConsultarNotaCreditoAsync(caja.Cajero, nota.Numero));
+        Assert.Contains("no se usa como forma de pago", consulta.Mensaje);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var conNotaInterna = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, 10m, nota.Numero)], null));
+        Assert.Equal(CodigoResultadoVenta.PagoInvalido, conNotaInterna.Resultado);
+        Assert.Contains("es interna", conNotaInterna.Mensaje);
+
+        // La factura queda ajustada: lo devuelto por la nota interna no se puede devolver otra vez.
+        var otraVez = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        Assert.Equal(CodigoResultadoDevolucion.TodoDevuelto, otraVez.Resultado);
     }
 
     [SkippableFact]
@@ -1785,6 +1880,18 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             if (_cargarCertificado)
                 Assert.Null(_proveedor.GetRequiredService<CgPos.Pos.Aplicacion.Ecf.ICertificadoCaja>().Cargar(BaseDatosPruebas.PinCertificado));
         }
+
+        /// <summary>Cambia un parámetro de esta caja, como se haría desde el Central.</summary>
+        public Task<int> CambiarParametroAsync(string clave, string valor) =>
+            EjecutarAsync<ContextoDatosPos, int>(async contexto =>
+            {
+                var existente = await contexto.Parametros.SingleOrDefaultAsync(p => p.Clave == clave && p.CajaId == Escenario.CajaUno);
+                if (existente is null)
+                    contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(clave, valor, cajaId: Escenario.CajaUno));
+                else
+                    existente.CambiarValor(valor);
+                return await contexto.SaveChangesAsync();
+            });
 
         private async Task<SesionUsuario> IngresarAsync(string codigo, string clave)
         {

@@ -61,6 +61,7 @@
         "Promociones.Desactivar",
         "Devoluciones.Registrar",
         "Devoluciones.Autorizar",
+        "Devoluciones.AutorizarNotaCreditoInterna",
         "Pendientes.Marcar",
         "Pendientes.Despachar",
         "Pendientes.Anular",
@@ -147,6 +148,11 @@
       "clave": "Fiscal.MontoIdentificacionConsumo",
       "valor": "250000",
       "descripcion": "Total desde el cual la factura de consumo exige cédula o RNC (RD$)"
+    },
+    {
+      "clave": "Fiscal.PorcentajeRetencionLey3223",
+      "valor": "0",
+      "descripcion": "Retención de la Ley 32-23 en facturas de régimen especial E44 (0 = sin retención)"
     },
     {
       "clave": "Caja.PasoRedondeoEfectivo",
