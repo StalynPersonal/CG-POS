@@ -8,11 +8,23 @@ namespace CgPos.Pos.Infraestructura.Perifericos.Terminales;
 
 /// <summary>
 /// Terminal de pago de desarrollo, configurable en <c>Perifericos:TerminalSimulado</c>: <c>SinConexion</c>, <c>Rechazar</c>,
-/// <c>RetardoMs</c>, <c>Marca</c> y <c>UltimosDigitos</c>. Se reemplaza por el controlador del Verifone o la pasarela elegida.
+/// <c>RetardoMs</c>, <c>Marca</c>, <c>UltimosDigitos</c> y <c>Bin</c> (si se indica, simula la lectura de la tarjeta antes de cobrar).
 /// </summary>
 internal sealed class TerminalPagoSimulado(IConfiguration configuracion) : ITerminalPago
 {
-    public async Task<ResultadoTerminal> CobrarAsync(decimal monto, string referenciaVenta, CancellationToken cancelacion = default)
+    public bool ConsultaTarjeta => configuracion["Perifericos:TerminalSimulado:Bin"] is { Length: > 0 };
+
+    public async Task<ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default)
+    {
+        var seccion = configuracion.GetSection("Perifericos:TerminalSimulado");
+        await EsperarAsync(seccion, cancelacion);
+
+        return EsVerdadero(seccion["SinConexion"])
+            ? new ResultadoConsultaTarjeta(false, true, null, null, "El terminal de pago no responde.")
+            : new ResultadoConsultaTarjeta(true, false, seccion["Bin"], seccion["Marca"] ?? "VISA", null);
+    }
+
+    public async Task<ResultadoTerminal> CobrarAsync(decimal monto, decimal impuesto, string referenciaVenta, CancellationToken cancelacion = default)
     {
         var seccion = configuracion.GetSection("Perifericos:TerminalSimulado");
         await EsperarAsync(seccion, cancelacion);
@@ -25,7 +37,7 @@ internal sealed class TerminalPagoSimulado(IConfiguration configuracion) : ITerm
         return new ResultadoTerminal(true, false, NuevaAprobacion(), seccion["UltimosDigitos"] ?? "4242", seccion["Marca"] ?? "VISA", "Aprobada");
     }
 
-    public async Task<ResultadoTerminal> AnularAsync(string aprobacion, decimal monto, CancellationToken cancelacion = default)
+    public async Task<ResultadoTerminal> AnularAsync(string aprobacion, string? referenciaTerminal, decimal monto, CancellationToken cancelacion = default)
     {
         var seccion = configuracion.GetSection("Perifericos:TerminalSimulado");
         await EsperarAsync(seccion, cancelacion);

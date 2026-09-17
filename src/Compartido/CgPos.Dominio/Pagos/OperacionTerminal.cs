@@ -24,6 +24,7 @@ public sealed class OperacionTerminal : Entidad
     public const int LargoMaximoAprobacion = 20;
     public const int LargoMaximoMarca = 30;
     public const int LargoMaximoMensaje = 200;
+    public const int LargoMaximoReferencia = 40;
 
     private OperacionTerminal()
     {
@@ -40,6 +41,10 @@ public sealed class OperacionTerminal : Entidad
     public string? UltimosDigitos { get; private set; }
     public string? Marca { get; private set; }
     public string? Mensaje { get; private set; }
+
+    /// <summary>Lo que el terminal pide para anular esta transacción (en CardNet, el host y el número de referencia).</summary>
+    public string? ReferenciaTerminal { get; private set; }
+
     public DateTimeOffset Fecha { get; private set; }
 
     /// <summary>En una anulación, la operación de venta que anuló.</summary>
@@ -49,7 +54,8 @@ public sealed class OperacionTerminal : Entidad
     public bool UsadaEnCobro { get; private set; }
 
     public static OperacionTerminal Registrar(int cajaId, int turnoId, int ventaId, int usuarioId, TipoOperacionTerminal tipo, decimal monto, bool aprobada,
-        string? aprobacion, string? ultimosDigitos, string? marca, string? mensaje, DateTimeOffset fecha, int? operacionAnuladaId = null)
+        string? aprobacion, string? ultimosDigitos, string? marca, string? mensaje, DateTimeOffset fecha, int? operacionAnuladaId = null,
+        string? referenciaTerminal = null)
     {
         if (monto <= 0)
             throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto de la operación debe ser mayor que cero.");
@@ -67,6 +73,7 @@ public sealed class OperacionTerminal : Entidad
             UltimosDigitos = Validar.TextoOpcional(ultimosDigitos, "Últimos dígitos", 4),
             Marca = Validar.TextoOpcional(marca, "Marca", LargoMaximoMarca),
             Mensaje = mensaje is null ? null : mensaje.Length > LargoMaximoMensaje ? mensaje[..LargoMaximoMensaje] : mensaje,
+            ReferenciaTerminal = Validar.TextoOpcional(referenciaTerminal, "Referencia del terminal", LargoMaximoReferencia),
             Fecha = fecha,
             OperacionAnuladaId = operacionAnuladaId,
         };

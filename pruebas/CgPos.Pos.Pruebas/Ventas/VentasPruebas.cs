@@ -1351,6 +1351,50 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task El_terminal_lee_la_tarjeta_aplica_el_descuento_del_banco_y_cobra_lo_rebajado()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        var terminal = new TerminalConLectura();
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, terminal: terminal);
+
+        var ahora = caja.Reloj.GetLocalNow();
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(DescuentosTarjeta:
+        [
+            new DescuentoTarjetaCarga($"POS{caja.Escenario.Sufijo}", "10 % con tarjetas del banco", "455123",
+                CgPos.Dominio.Promociones.TipoDescuentoTarjeta.Porcentaje, 10m, ahora.AddDays(-1), ahora.AddMonths(1)),
+        ]), "Pruebas"));
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var total = (await caja.VentaActualAsync()).Totales.Total;
+        var rebajado = decimal.Round(total * 0.9m, 2, MidpointRounding.AwayFromZero);
+
+        // La tarjeta paga todo lo que falta: el terminal la lee, el descuento del banco baja el total y se le cobra menos.
+        var conDescuento = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s =>
+            s.CobrarConTerminalAsync(caja.Cajero, venta.Id, total, pagaSaldo: true));
+        Assert.True(conDescuento.Exitosa, conDescuento.Mensaje);
+        Assert.Contains("descuento por pagar con esa tarjeta", conDescuento.Mensaje);
+        Assert.Equal(rebajado, conDescuento.Operacion!.Monto);
+        Assert.Equal(rebajado, conDescuento.Venta!.Totales.Total);
+        Assert.Equal(rebajado, terminal.UltimoMontoCobrado);
+
+        // Si otra tarjeta no aprueba, su descuento no se queda puesto: la venta vuelve a como estaba.
+        terminal.Aprueba = false;
+        terminal.Bin = "401288";
+        var rechazada = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s =>
+            s.CobrarConTerminalAsync(caja.Cajero, venta.Id, rebajado, pagaSaldo: true));
+        Assert.Equal(CodigoResultadoVenta.TerminalRechazo, rechazada.Resultado);
+        Assert.Equal(rebajado, (await caja.VentaActualAsync()).Totales.Total);
+
+        // El e-CF sale por lo que el cliente realmente pagó.
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, rebajado, TipoTarjetaId: caja.Catalogo.TipoTarjeta,
+                OperacionTerminalId: conDescuento.Operacion!.Id)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Equal(rebajado, cobro.Venta!.TotalCobrado);
+    }
+
+    [SkippableFact]
     public async Task El_cierre_de_lote_cuadra_las_tarjetas_del_turno_con_lo_que_reporta_el_terminal()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -1575,10 +1619,42 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     /// <summary>Caja lista para vender: usuarios y maestros cargados, sesión del cajero y (opcional) turno abierto.</summary>
+    /// <summary>Terminal que lee la tarjeta antes de cobrar, como el Ingenico 7000 de CardNet con la consulta CS00 activa.</summary>
+    private sealed class TerminalConLectura : CgPos.Pos.Aplicacion.Perifericos.ITerminalPago
+    {
+        public string Bin { get; set; } = "4551234567";
+
+        public bool Aprueba { get; set; } = true;
+
+        public decimal UltimoMontoCobrado { get; private set; }
+
+        public bool ConsultaTarjeta => true;
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoConsultaTarjeta(true, false, Bin, "VISA", null));
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal> CobrarAsync(decimal monto, decimal impuesto, string referenciaVenta,
+            CancellationToken cancelacion = default)
+        {
+            UltimoMontoCobrado = monto;
+            return Task.FromResult(Aprueba
+                ? new CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal(true, false, "654321", "4242", "VISA", "Aprobada", "06-001")
+                : new CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal(false, false, null, null, null, "Transacción declinada por el banco emisor."));
+        }
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal> AnularAsync(string aprobacion, string? referenciaTerminal, decimal monto,
+            CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal(true, false, aprobacion, null, null, "Anulada", referenciaTerminal));
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoLoteTerminal> CerrarLoteAsync(CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoLoteTerminal(true, "Lote cerrado."));
+    }
+
     private sealed class CajaEnPruebas : IAsyncDisposable
     {
         private readonly BaseDatosPruebas _baseDatos;
         private ServiceProvider _proveedor = null!;
+        private CgPos.Pos.Aplicacion.Perifericos.ITerminalPago? _terminal;
 
         private CajaEnPruebas(BaseDatosPruebas baseDatos, EscenarioSeguridad escenario)
         {
@@ -1593,9 +1669,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         public SesionUsuario CajeroDos { get; private set; } = null!;
 
         public static async Task<CajaEnPruebas> CrearAsync(BaseDatosPruebas baseDatos, int empresa, bool abrirTurno = true, bool cargarCertificado = true,
-            long hastaSecuenciaConsumo = 1000)
+            long hastaSecuenciaConsumo = 1000, CgPos.Pos.Aplicacion.Perifericos.ITerminalPago? terminal = null)
         {
-            var caja = new CajaEnPruebas(baseDatos, await EscenarioSeguridad.CrearAsync(baseDatos, empresa)) { _cargarCertificado = cargarCertificado };
+            var caja = new CajaEnPruebas(baseDatos, await EscenarioSeguridad.CrearAsync(baseDatos, empresa))
+            {
+                _cargarCertificado = cargarCertificado,
+                _terminal = terminal,
+            };
             caja.PrepararProveedor();
 
             // Los maestros se cargan con el mismo reloj de la prueba, para que los precios ya estén vigentes.
@@ -1693,8 +1773,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         private void PrepararProveedor()
         {
-            (_proveedor, var reloj) = Escenario.CrearProveedor(Escenario.CajaUno,
-                extras: servicios => servicios.AddSingleton<CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral>(Central));
+            (_proveedor, var reloj) = Escenario.CrearProveedor(Escenario.CajaUno, extras: servicios =>
+            {
+                servicios.AddSingleton<CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral>(Central);
+                if (_terminal is not null)
+                    servicios.AddSingleton(_terminal);
+            });
             Reloj = reloj;
 
             // El certificado vive en memoria del proveedor, como en el Agente: se carga con su PIN (RF-217).

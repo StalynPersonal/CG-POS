@@ -27,6 +27,7 @@ internal sealed class OperacionTerminalConfiguracion : IEntityTypeConfiguration<
         constructor.Property(o => o.UltimosDigitos).HasMaxLength(4).IsUnicode(false);
         constructor.Property(o => o.Marca).HasMaxLength(OperacionTerminal.LargoMaximoMarca);
         constructor.Property(o => o.Mensaje).HasMaxLength(OperacionTerminal.LargoMaximoMensaje);
+        constructor.Property(o => o.ReferenciaTerminal).HasMaxLength(OperacionTerminal.LargoMaximoReferencia).IsUnicode(false);
         constructor.Ignore(o => o.DisponibleParaCobro);
         constructor.HasIndex(o => o.VentaId);
         constructor.HasIndex(o => new { o.CajaId, o.TurnoId, o.Fecha });

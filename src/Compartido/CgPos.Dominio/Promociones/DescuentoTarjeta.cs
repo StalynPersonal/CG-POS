@@ -13,6 +13,10 @@ public sealed class DescuentoTarjeta : Entidad
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoBines = 400;
     public const int LargoMinimoBin = 4;
+
+    /// <summary>Con esto empieza el motivo del descuento de factura que pone el banco, para distinguirlo de uno manual.</summary>
+    public const string PrefijoMotivo = "Tarjeta: ";
+
     public const int LargoMaximoBin = 8;
 
     private DescuentoTarjeta()

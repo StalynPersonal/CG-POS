@@ -209,8 +209,8 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(int ventaId, decimal monto, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/terminal", new SolicitudCobroTarjeta(monto),
+    public Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(int ventaId, decimal monto, bool pagaSaldo, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/terminal", new SolicitudCobroTarjeta(monto, pagaSaldo),
             mensaje => new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalSinConexion, mensaje, null), cancelacion);
 
     public Task<RespuestaOperacionTerminal> AnularUltimaTarjetaAsync(int ventaId, CancellationToken cancelacion = default) =>

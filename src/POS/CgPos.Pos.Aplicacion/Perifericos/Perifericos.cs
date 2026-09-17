@@ -15,18 +15,33 @@ public interface IBalanza
 }
 
 /// <param name="SinConexion">El terminal o la pasarela no respondió: habilita la aprobación manual por contingencia (RF-213).</param>
-public sealed record ResultadoTerminal(bool Aprobada, bool SinConexion, string? Aprobacion, string? UltimosDigitos, string? Marca, string? Mensaje);
+/// <param name="ReferenciaTerminal">Lo que el terminal necesita para anular la transacción (en CardNet, el host y el número de referencia).</param>
+public sealed record ResultadoTerminal(bool Aprobada, bool SinConexion, string? Aprobacion, string? UltimosDigitos, string? Marca, string? Mensaje,
+    string? ReferenciaTerminal = null);
+
+/// <param name="Leida">El cliente pasó la tarjeta y el terminal entregó sus primeros dígitos.</param>
+/// <param name="Bin">Primeros dígitos de la tarjeta (CardNet entrega 8), sin datos sensibles.</param>
+public sealed record ResultadoConsultaTarjeta(bool Leida, bool SinConexion, string? Bin, string? Marca, string? Mensaje);
 
 /// <summary>
-/// Terminal de pago con tarjeta (Verifone con pasarela Azul o CardNet, RF-100). El modelo y la pasarela aún no están
-/// definidos; mientras tanto se usa un terminal simulado.
+/// Terminal de pago con tarjeta (CardNet con Ingenico 7000, RF-100). Cambiar de modelo es cambiar la configuración.
 /// </summary>
 public interface ITerminalPago
 {
-    Task<ResultadoTerminal> CobrarAsync(decimal monto, string referenciaVenta, CancellationToken cancelacion = default);
+    /// <summary>
+    /// El terminal lee la tarjeta antes de cobrar y entrega su BIN, para aplicar el descuento del banco (RF-98) y cobrar ya con el monto
+    /// rebajado. Si no lo soporta, el cajero puede digitar los primeros dígitos.
+    /// </summary>
+    bool ConsultaTarjeta { get; }
+
+    /// <summary>Pide al cliente pasar la tarjeta y devuelve su BIN; el terminal la guarda unos segundos para el cobro que sigue.</summary>
+    Task<ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default);
+
+    /// <param name="impuesto">ITBIS incluido en el monto; el terminal lo informa al banco.</param>
+    Task<ResultadoTerminal> CobrarAsync(decimal monto, decimal impuesto, string referenciaVenta, CancellationToken cancelacion = default);
 
     /// <summary>Anula una venta aprobada (RF-214).</summary>
-    Task<ResultadoTerminal> AnularAsync(string aprobacion, decimal monto, CancellationToken cancelacion = default);
+    Task<ResultadoTerminal> AnularAsync(string aprobacion, string? referenciaTerminal, decimal monto, CancellationToken cancelacion = default);
 
     /// <summary>
     /// Cierra el lote del terminal al cerrar el turno y devuelve lo que el terminal contabilizó, para cuadrarlo con lo cobrado en la caja (RF-215).

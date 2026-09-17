@@ -409,6 +409,7 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     UltimosDigitos = table.Column<string>(type: "varchar(4)", unicode: false, maxLength: 4, nullable: true),
                     Marca = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
                     Mensaje = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    ReferenciaTerminal = table.Column<string>(type: "varchar(40)", unicode: false, maxLength: 40, nullable: true),
                     Fecha = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     OperacionAnuladaId = table.Column<int>(type: "int", nullable: true),
                     UsadaEnCobro = table.Column<bool>(type: "bit", nullable: false)

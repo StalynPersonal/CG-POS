@@ -189,7 +189,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 - **Columna Promo:** muestra la oferta (ej. `2x1`, `-15%`). Al tocarla se ve el detalle, las ofertas vigentes y la opción de **desactivarla**, que requiere permiso.
 - **Descuento a la línea** (tocar el precio) y **a la factura** (segunda página): por porcentaje o monto, con motivo de la lista `motivosDescuento`. Requiere permiso o clave de supervisor. No aplica a artículos en oferta ni a departamentos sin descuento manual (panadería, vegetales). El de factura puede limitarse a líneas elegidas y se prorratea al centavo.
 - **Topes** (`topesDescuento`): por nivel de usuario, general, por departamento, categoría, marca o artículo (rige el más específico: artículo, categoría, marca, departamento y por último el general). Si el descuento supera el tope de quien autoriza, se pide la clave de un nivel superior. En desarrollo: supervisor (S001) hasta 10 % o RD$2,000; gerente (G001) hasta 30 % o RD$20,000.
-- **Descuento del banco por tarjeta (RF-98)** (`descuentosTarjeta` en los maestros): el Central define qué BIN participan (los primeros 4 a 8 dígitos de la tarjeta), el porcentaje o monto, la compra mínima, el tope del descuento, la vigencia y los días. En el cobro, al elegir tarjeta se digitan (o los entrega el terminal) los primeros dígitos y el descuento se aplica **a la factura antes de emitir el e-CF**, para que el comprobante fiscal salga con lo realmente cobrado; si varios bancos cubren el mismo BIN, gana el que más descuenta. Queda auditado como `Ventas.DescuentoTarjeta`.
+- **Descuento del banco por tarjeta (RF-98)** (`descuentosTarjeta` en los maestros): el Central define qué BIN participan (los primeros 4 a 8 dígitos de la tarjeta), el porcentaje o monto, la compra mínima, el tope del descuento, la vigencia y los días. En el cobro, el terminal lee la tarjeta y entrega su BIN (o el cajero digita los primeros dígitos) y el descuento se aplica **a la factura antes de emitir el e-CF**, para que el comprobante fiscal salga con lo realmente cobrado; si varios bancos cubren el mismo BIN, gana el que más descuenta. Queda auditado como `Ventas.DescuentoTarjeta`.
 - Cada línea guarda la oferta aplicada y cada descuento queda auditado con motivo y autorizador.
 
 ### Cobro y periféricos
@@ -213,12 +213,18 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 | `Perifericos:Balanza:Puerto`, `Baudios`, `Paridad`, `BitsDatos`, `BitsParada` | Puerto COM y sus parámetros |
 | `Perifericos:Balanza:Comando`, `Patron`, `Terminador`, `Unidad`, `Estables`, `MilisegundosEspera` | Ajustes del protocolo si el equipo difiere del perfil |
 | `Perifericos:Terminal:Tipo` | `Simulado` (desarrollo) o `Conectado` |
-| `Perifericos:Terminal:Modelo` | Perfil: `CardNet Ingenico Lane/7000` o genérico |
-| `Perifericos:Terminal:Transporte` | `Socket` (`Host` y `Puerto`) o `Serie` (`Puerto` y `Baudios`) |
-| `Perifericos:Terminal:PlantillaCobro`, `PlantillaAnulacion`, `PlantillaCierreLote`, `PatronRespuesta`, `Aprobadas`, `SegundosEspera` | Mensajes y lectura de la respuesta del modelo |
+| `Perifericos:Terminal:Modelo` | `CardNet` (Ingenico 7000, protocolo ECRti) o vacío para el terminal genérico |
+| `Perifericos:Terminal:Host`, `Puerto` | Dirección del terminal CardNet en la red; el puerto es 7060 |
+| `Perifericos:Terminal:ConsultaTarjeta` | `false` si el terminal no tiene activa la consulta de tarjeta (CS00) |
+| `Perifericos:Terminal:IdMultiMerchant` | Solo si el terminal trabaja Multi-Merchant |
+| `Perifericos:Terminal:Transporte` | Terminal genérico: `Socket` (`Host` y `Puerto`) o `Serie` (`Puerto` y `Baudios`) |
+| `Perifericos:Terminal:PlantillaCobro`, `PlantillaAnulacion`, `PlantillaCierreLote`, `PatronRespuesta`, `Aprobadas`, `SegundosEspera` | Terminal genérico: mensajes y lectura de su respuesta |
+| `Perifericos:TerminalSimulado:Bin` | Desarrollo: el terminal simulado "lee" esa tarjeta antes de cobrar |
 
 - La **balanza** pide el peso con el comando del perfil y lee peso, unidad y estabilidad de su respuesta; el Datalogic Magellan viene con los valores de su manual (9600 baudios, 7 bits, paridad impar, comando `S`). Si no responde, la caja sigue operando y el cajero digita el peso.
-- El **terminal** arma el mensaje de cobro, anulación o cierre de lote con las plantillas del perfil (`{monto}`, `{montoCentavos}`, `{referencia}`, `{aprobacion}`, `{fecha}`) y lee la respuesta con su expresión regular. Las plantillas del CardNet Lane/7000 son provisionales: **cuando CardNet entregue su documento de integración se ajustan en la configuración, sin recompilar**. Si el terminal no responde, se ofrece la aprobación manual autorizada (RF-213).
+- El **terminal CardNet (Ingenico 7000)** trabaja en *modo caja* (ECRti) por Ethernet: la caja se conecta al puerto 7060 del terminal, saluda con `ENQ`/`ACK`, lo pone a recibir con `SYN` (contesta `EOM` y `ENQ`), envía el mensaje con los campos separados por `FS`, confirma la respuesta con `ACK` (sin ese `ACK` el terminal reversa la transacción) y cierra con `EOT`/`EOM`. Transacciones usadas: `CS00` consulta de tarjeta, `CN00` venta, `CN02` anulación y `CN01` cierre de lote; todo rechazo llega como `99` y una operación apagada en el terminal, como `40`. **La IP de la caja debe estar en la lista blanca del terminal.**
+- **BIN automático (RF-98):** al pasar la tarjeta, la caja envía primero `CS00`; el terminal muestra "deslice o inserte la tarjeta" y devuelve los primeros 8 dígitos sin datos sensibles. Con ese BIN se aplica el descuento del banco a la factura y **enseguida** se envía la venta `CN00` ya por el monto rebajado (el terminal guarda la lectura unos 15 segundos). Si la tarjeta no aprueba, el descuento se retira y la venta queda como estaba. El cajero solo digita los dígitos a mano si el terminal no tiene la consulta activa.
+- El **terminal genérico** arma sus mensajes con las plantillas del perfil (`{monto}`, `{montoCentavos}`, `{referencia}`, `{aprobacion}`, `{fecha}`) y lee la respuesta con su expresión regular, para integrar otro modelo sin recompilar. Si el terminal no responde, se ofrece la aprobación manual autorizada (RF-213).
 
 ### Facturación electrónica (e-CF)
 

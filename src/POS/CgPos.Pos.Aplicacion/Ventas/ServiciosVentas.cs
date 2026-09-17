@@ -116,7 +116,8 @@ public interface IServicioVentas
 public interface IServicioCobro
 {
     /// <summary>Envía el monto al terminal de pago y registra la operación, aprobada o no (RF-100).</summary>
-    Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, int ventaId, decimal monto, CancellationToken cancelacion = default);
+    Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, int ventaId, decimal monto, bool pagaSaldo = false,
+        CancellationToken cancelacion = default);
 
     /// <summary>Anula en el terminal la última tarjeta aprobada de la venta que aún no se aplicó (RF-214).</summary>
     Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default);

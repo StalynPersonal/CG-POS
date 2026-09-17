@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosPos))]
-    [Migration("20260917170747_Inicial")]
+    [Migration("20260917180258_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -1966,6 +1966,11 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
                     b.Property<int?>("OperacionAnuladaId")
                         .HasColumnType("int");
+
+                    b.Property<string>("ReferenciaTerminal")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("int");

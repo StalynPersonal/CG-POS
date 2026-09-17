@@ -130,7 +130,8 @@ public static class RutasApiVentas
 
         // Cobro y periféricos (C6)
         ventas.MapPost("/{ventaId:int}/terminal", (int ventaId, SolicitudCobroTarjeta solicitud, ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => ResultadoTerminal(await servicio.CobrarConTerminalAsync(sesion, ventaId, solicitud.Monto, cancelacion))));
+            ConSesion(usuario, async sesion =>
+                ResultadoTerminal(await servicio.CobrarConTerminalAsync(sesion, ventaId, solicitud.Monto, solicitud.PagaSaldo, cancelacion))));
 
         ventas.MapPost("/{ventaId:int}/terminal/anular-ultima", (int ventaId, ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => ResultadoTerminal(await servicio.AnularUltimaOperacionAsync(sesion, ventaId, cancelacion))));

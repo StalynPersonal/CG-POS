@@ -22,13 +22,18 @@ internal static class FabricaPerifericos
             : new BalanzaSimulada(configuracion);
     }
 
-    /// <param name="tipo"><c>Simulado</c> (predeterminado en desarrollo) o <c>Conectado</c> para un terminal real.</param>
+    /// <summary>
+    /// <c>Perifericos:Terminal:Tipo</c>: <c>Simulado</c> (predeterminado en desarrollo) o <c>Conectado</c> para un terminal real. Conectado,
+    /// un <c>Modelo</c> que diga CardNet usa su protocolo ECR (Ingenico 7000); cualquier otro, el perfil genérico.
+    /// </summary>
     public static ITerminalPago CrearTerminal(IServiceProvider proveedor, IConfiguration configuracion)
     {
-        var tipo = configuracion["Perifericos:Terminal:Tipo"];
-        return string.Equals(tipo, "Conectado", StringComparison.OrdinalIgnoreCase)
-            ? new TerminalPagoConectado(configuracion, proveedor.GetRequiredService<TimeProvider>(),
-                proveedor.GetRequiredService<ILogger<TerminalPagoConectado>>())
-            : new TerminalPagoSimulado(configuracion);
+        if (!string.Equals(configuracion["Perifericos:Terminal:Tipo"], "Conectado", StringComparison.OrdinalIgnoreCase))
+            return new TerminalPagoSimulado(configuracion);
+
+        return (configuracion["Perifericos:Terminal:Modelo"] ?? string.Empty).Contains("CardNet", StringComparison.OrdinalIgnoreCase)
+            ? new TerminalPagoCardNet(configuracion, proveedor.GetRequiredService<ILogger<TerminalPagoCardNet>>())
+            : new TerminalPagoConectado(configuracion, proveedor.GetRequiredService<TimeProvider>(),
+                proveedor.GetRequiredService<ILogger<TerminalPagoConectado>>());
     }
 }

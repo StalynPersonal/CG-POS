@@ -60,9 +60,11 @@ public sealed record RespuestaCobro(
     public bool Exitosa => Resultado == CodigoResultadoVenta.Correcto;
 }
 
-public sealed record SolicitudCobroTarjeta(decimal Monto);
+/// <param name="PagaSaldo">La tarjeta cubre todo lo que falta: si el terminal lee la tarjeta y hay descuento del banco, se cobra menos.</param>
+public sealed record SolicitudCobroTarjeta(decimal Monto, bool PagaSaldo = false);
 
-public sealed record RespuestaOperacionTerminal(CodigoResultadoVenta Resultado, string? Mensaje, DatosOperacionTerminal? Operacion)
+/// <param name="Venta">La venta actualizada cuando el descuento del banco por la tarjeta cambió el total (RF-98).</param>
+public sealed record RespuestaOperacionTerminal(CodigoResultadoVenta Resultado, string? Mensaje, DatosOperacionTerminal? Operacion, DatosVenta? Venta = null)
 {
     public bool Exitosa => Resultado == CodigoResultadoVenta.Correcto;
 }

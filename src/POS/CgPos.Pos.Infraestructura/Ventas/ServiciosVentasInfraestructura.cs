@@ -228,7 +228,13 @@ internal sealed class ServicioVentas(
 {
     // ---------- Cobro y periféricos (M08) ----------
 
-    public async Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, int ventaId, decimal monto, CancellationToken cancelacion = default)
+    /// <summary>
+    /// Cobra con el terminal. Si el terminal lee la tarjeta antes de cobrar (CS00 de CardNet), primero se le pide el BIN, se aplica el
+    /// descuento del banco (RF-98) y se cobra ya con el total rebajado, para que el e-CF salga por lo que el cliente realmente pagó.
+    /// </summary>
+    /// <param name="pagaSaldo">La tarjeta cubre todo lo que falta: si el descuento baja el total, se le cobra menos.</param>
+    public async Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, int ventaId, decimal monto, bool pagaSaldo = false,
+        CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -236,20 +242,80 @@ internal sealed class ServicioVentas(
         if (monto <= 0)
             return new RespuestaOperacionTerminal(CodigoResultadoVenta.PagoInvalido, "El monto a cobrar con tarjeta debe ser mayor que cero.", null);
 
-        var resultado = await terminal.CobrarAsync(decimal.Round(monto, 2, MidpointRounding.AwayFromZero), venta!.NumeroTransaccion, cancelacion);
+        string? aviso = null;
+        DescuentoFacturaGuardado? anterior = null;
+        if (terminal.ConsultaTarjeta)
+        {
+            var lectura = await terminal.ConsultarTarjetaAsync(cancelacion);
+            if (lectura.SinConexion)
+                return new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalSinConexion, lectura.Mensaje ?? "El terminal de pago no responde.", null);
+            if (!lectura.Leida)
+                return new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalRechazo, lectura.Mensaje ?? "No se leyó la tarjeta.", null);
+
+            anterior = DescuentoFacturaGuardado.De(venta!);
+            var totalAntes = venta!.CalcularTotales().Total;
+            if (await AplicarDescuentoPorBinAsync(sesion, venta, lectura.Bin, cancelacion) is { } aplicado)
+            {
+                var rebaja = totalAntes - venta.CalcularTotales().Total;
+                if (pagaSaldo)
+                    monto = decimal.Round(Math.Max(0m, monto - rebaja), 2, MidpointRounding.AwayFromZero);
+                aviso = $"{aplicado.Nombre}: {venta.SimboloMoneda}{rebaja:N2} de descuento por pagar con esa tarjeta.";
+            }
+            else
+            {
+                anterior = null;
+            }
+
+            if (monto <= 0)
+                return new RespuestaOperacionTerminal(CodigoResultadoVenta.PagoInvalido,
+                    "Con el descuento de la tarjeta ya no queda saldo por cobrar.", null, Datos(venta));
+        }
+
+        var totales = venta!.CalcularTotales();
+        var impuesto = totales.Total > 0 ? decimal.Round(totales.Impuesto * monto / totales.Total, 2, MidpointRounding.AwayFromZero) : 0m;
+        var resultado = await terminal.CobrarAsync(decimal.Round(monto, 2, MidpointRounding.AwayFromZero), impuesto, venta.NumeroTransaccion, cancelacion);
         var operacion = OperacionTerminal.Registrar(sesion.CajaId, venta.TurnoId, venta.Id, sesion.UsuarioId, TipoOperacionTerminal.Venta, monto,
-            resultado.Aprobada, resultado.Aprobacion, resultado.UltimosDigitos, resultado.Marca, resultado.Mensaje, reloj.GetUtcNow());
+            resultado.Aprobada, resultado.Aprobacion, resultado.UltimosDigitos, resultado.Marca, resultado.Mensaje, reloj.GetUtcNow(),
+            referenciaTerminal: resultado.ReferenciaTerminal);
         contexto.OperacionesTerminal.Add(operacion);
         auditoria.Registrar(new EntradaAuditoria(resultado.Aprobada ? "Cobro.TarjetaAprobada" : "Cobro.TarjetaNoAprobada", TipoEntidadVenta, venta.NumeroTransaccion,
             Detalle: new { operacion.Id, operacion.Monto, operacion.Aprobacion, operacion.Marca, resultado.SinConexion, resultado.Mensaje },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+
+        // La tarjeta no se aprobó: el descuento de ese banco no se queda puesto, el cliente puede pagar con otra.
+        if (!resultado.Aprobada && anterior is not null)
+        {
+            anterior.Restaurar(venta, reloj.GetUtcNow());
+            aviso = null;
+        }
+
         await contexto.SaveChangesAsync(cancelacion);
 
         var datos = DatosOperacion(operacion, resultado.SinConexion);
         return resultado.Aprobada
-            ? new RespuestaOperacionTerminal(CodigoResultadoVenta.Correcto, null, datos)
+            ? new RespuestaOperacionTerminal(CodigoResultadoVenta.Correcto, aviso, datos, aviso is null ? null : Datos(venta))
             : new RespuestaOperacionTerminal(resultado.SinConexion ? CodigoResultadoVenta.TerminalSinConexion : CodigoResultadoVenta.TerminalRechazo,
-                resultado.Mensaje, datos);
+                resultado.Mensaje, datos, anterior is null ? null : Datos(venta));
+    }
+
+    /// <summary>El descuento de factura tal como estaba, para devolverlo si la tarjeta no aprueba.</summary>
+    private sealed record DescuentoFacturaGuardado(TipoDescuento? Tipo, decimal? Valor, string? Lineas, string? Motivo, int? AutorizadoPorId,
+        string? AutorizadoPorNombre)
+    {
+        public static DescuentoFacturaGuardado De(Venta venta) => new(venta.DescuentoFacturaTipo, venta.DescuentoFacturaValor, venta.DescuentoFacturaLineas,
+            venta.MotivoDescuentoFactura, venta.DescuentoFacturaAutorizadoPorId, venta.DescuentoFacturaAutorizadoPorNombre);
+
+        public void Restaurar(Venta venta, DateTimeOffset ahora)
+        {
+            venta.QuitarDescuentoFactura(ahora);
+            if (Tipo is { } tipo && Valor is { } valor && Motivo is { Length: > 0 } motivo)
+                venta.AplicarDescuentoFactura(tipo, valor, LineasSeleccionadas(), motivo, AutorizadoPorId, AutorizadoPorNombre, ahora);
+        }
+
+        private List<int>? LineasSeleccionadas() =>
+            Lineas is { Length: > 0 } lineas
+                ? lineas.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList()
+                : null;
     }
 
     public async Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
@@ -265,14 +331,14 @@ internal sealed class ServicioVentas(
         if (ultima is null)
             return new RespuestaOperacionTerminal(CodigoResultadoVenta.OperacionTerminalInvalida, "No hay una tarjeta aprobada pendiente de aplicar para anular.", null);
 
-        var resultado = await terminal.AnularAsync(ultima.Aprobacion ?? string.Empty, ultima.Monto, cancelacion);
+        var resultado = await terminal.AnularAsync(ultima.Aprobacion ?? string.Empty, ultima.ReferenciaTerminal, ultima.Monto, cancelacion);
         if (!resultado.Aprobada)
             return new RespuestaOperacionTerminal(resultado.SinConexion ? CodigoResultadoVenta.TerminalSinConexion : CodigoResultadoVenta.TerminalRechazo,
                 resultado.Mensaje ?? "El terminal no anuló la operación.", DatosOperacion(ultima, resultado.SinConexion));
 
         ultima.MarcarAnulada();
         var anulacion = OperacionTerminal.Registrar(sesion.CajaId, ultima.TurnoId, ultima.VentaId, sesion.UsuarioId, TipoOperacionTerminal.Anulacion, ultima.Monto,
-            true, resultado.Aprobacion, ultima.UltimosDigitos, ultima.Marca, resultado.Mensaje, reloj.GetUtcNow(), ultima.Id);
+            true, resultado.Aprobacion, ultima.UltimosDigitos, ultima.Marca, resultado.Mensaje, reloj.GetUtcNow(), ultima.Id, ultima.ReferenciaTerminal);
         contexto.OperacionesTerminal.Add(anulacion);
         auditoria.Registrar(new EntradaAuditoria("Cobro.TarjetaAnulada", TipoEntidadVenta, venta!.NumeroTransaccion,
             Detalle: new { Anulada = ultima.Id, ultima.Monto, ultima.Aprobacion, AprobacionAnulacion = resultado.Aprobacion },
@@ -1308,12 +1374,32 @@ internal sealed class ServicioVentas(
         if (rechazo is not null)
             return rechazo;
 
-        var digitos = DescuentoTarjeta.SoloDigitos(bin);
-        if (digitos.Length < DescuentoTarjeta.LargoMinimoBin)
+        if (DescuentoTarjeta.SoloDigitos(bin).Length < DescuentoTarjeta.LargoMinimoBin)
             return new RespuestaVenta(CodigoResultadoVenta.DocumentoInvalido,
                 $"Digite al menos los primeros {DescuentoTarjeta.LargoMinimoBin} dígitos de la tarjeta.", Datos(venta!));
 
-        var total = venta!.CalcularTotales().Total;
+        var totalAntes = venta!.CalcularTotales().Total;
+        var aplicado = await AplicarDescuentoPorBinAsync(sesion, venta, bin, cancelacion);
+        if (aplicado is null)
+            return new RespuestaVenta(CodigoResultadoVenta.Correcto, MotivoSinDescuento(venta), Datos(venta));
+
+        await contexto.SaveChangesAsync(cancelacion);
+        var rebaja = totalAntes - venta.CalcularTotales().Total;
+        return Correcta(venta) with { Mensaje = $"{aplicado.Nombre}: {venta.SimboloMoneda}{rebaja:N2} de descuento por pagar con esa tarjeta." };
+    }
+
+    /// <summary>
+    /// Aplica a la factura el descuento del banco que cubra ese BIN, sin guardar todavía. Devuelve el descuento aplicado o nulo si
+    /// ninguno aplica; no toca un descuento manual ya puesto, que alguien autorizó y no se acumula con el del banco.
+    /// </summary>
+    private async Task<DescuentoTarjeta?> AplicarDescuentoPorBinAsync(SesionUsuario sesion, Venta venta, string? bin, CancellationToken cancelacion)
+    {
+        var digitos = DescuentoTarjeta.SoloDigitos(bin);
+        if (digitos.Length < DescuentoTarjeta.LargoMinimoBin || EsDescuentoManual(venta))
+            return null;
+
+        // El descuento del banco se calcula sobre el total sin otro descuento de factura, para que pasar dos tarjetas no lo encadene.
+        var total = venta.CalcularTotales().Total + venta.Lineas.Sum(l => l.DescuentoFactura);
         var ahoraLocal = reloj.GetLocalNow();
         var candidatos = await contexto.DescuentosTarjeta.AsNoTracking()
             .Where(d => d.Activo && d.VigenteDesde <= ahoraLocal && d.VigenteHasta >= ahoraLocal)
@@ -1324,27 +1410,24 @@ internal sealed class ServicioVentas(
             .Where(d => d.AplicaA(digitos, total, ahoraLocal))
             .OrderByDescending(d => d.Calcular(total))
             .FirstOrDefault();
+        if (descuento is null || descuento.Calcular(total) is var monto && monto <= 0)
+            return null;
 
-        if (descuento is null)
-            return new RespuestaVenta(CodigoResultadoVenta.Correcto, "Esa tarjeta no tiene descuento vigente.", Datos(venta));
-
-        var monto = descuento.Calcular(total);
-        if (monto <= 0)
-            return new RespuestaVenta(CodigoResultadoVenta.Correcto, "Esa tarjeta no tiene descuento vigente.", Datos(venta));
-
-        var respuesta = await EjecutarAsync(venta, () =>
-        {
-            venta.AplicarDescuentoFactura(TipoDescuento.Monto, monto, null, $"{descuento.Nombre} ({descuento.Codigo})", sesion.UsuarioId, sesion.Nombre,
-                reloj.GetUtcNow());
-            auditoria.Registrar(new EntradaAuditoria("Ventas.DescuentoTarjeta", TipoEntidadVenta, venta.NumeroTransaccion,
-                Detalle: new { descuento.Codigo, descuento.Nombre, Bin = digitos, Monto = monto },
-                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
-        }, cancelacion);
-
-        return respuesta.Exitosa
-            ? respuesta with { Mensaje = $"{descuento.Nombre}: {venta.SimboloMoneda}{monto:N2} de descuento por pagar con esa tarjeta." }
-            : respuesta;
+        venta.AplicarDescuentoFactura(TipoDescuento.Monto, monto, null, $"{DescuentoTarjeta.PrefijoMotivo}{descuento.Nombre} ({descuento.Codigo})",
+            sesion.UsuarioId, sesion.Nombre, reloj.GetUtcNow());
+        auditoria.Registrar(new EntradaAuditoria("Ventas.DescuentoTarjeta", TipoEntidadVenta, venta.NumeroTransaccion,
+            Detalle: new { descuento.Codigo, descuento.Nombre, Bin = digitos, Monto = monto },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        return descuento;
     }
+
+    private static bool EsDescuentoManual(Venta venta) =>
+        venta.MotivoDescuentoFactura is { Length: > 0 } motivo && !motivo.StartsWith(DescuentoTarjeta.PrefijoMotivo, StringComparison.Ordinal);
+
+    private static string MotivoSinDescuento(Venta venta) =>
+        EsDescuentoManual(venta)
+            ? "La factura ya tiene un descuento aplicado: el del banco no se acumula."
+            : "Esa tarjeta no tiene descuento vigente.";
 
     public async Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {

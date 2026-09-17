@@ -110,7 +110,7 @@
                         @if (seleccionada.Tipo == TipoFormaPago.Tarjeta)
                         {
                             <div class="cg-cobro__bin">
-                                <MudTextField T="string" @bind-Value="_bin" Label="Primeros dígitos de la tarjeta (descuento del banco)" Variant="Variant.Outlined"
+                                <MudTextField T="string" @bind-Value="_bin" Label="Primeros dígitos de la tarjeta (si el terminal no la lee)" Variant="Variant.Outlined"
                                               Margin="Margin.Dense" Immediate="true" />
                                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || string.IsNullOrWhiteSpace(_bin))"
                                            OnClick="AplicarDescuentoTarjetaAsync">Aplicar descuento</MudButton>
@@ -411,23 +411,27 @@
     {
         _procesando = true;
         _mensaje = null;
-        _estado = "Siga las instrucciones en el terminal de pago…";
+        _estado = "Pida la tarjeta y siga las instrucciones en el terminal…";
         StateHasChanged();
 
-        var respuesta = await Cliente.CobrarConTerminalAsync(Venta.Id, monto);
+        // Si el terminal lee la tarjeta antes de cobrar, el descuento del banco (RF-98) baja el total y se cobra menos.
+        var respuesta = await Cliente.CobrarConTerminalAsync(Venta.Id, monto, pagaSaldo: monto >= SaldoEn(forma));
         _procesando = false;
         _estado = null;
+        if (respuesta.Venta is { } actualizada)
+            Venta = actualizada;
 
         if (respuesta is { Exitosa: true, Operacion: { } operacion })
         {
             var tipo = _catalogo!.TiposTarjeta.FirstOrDefault(t => t.Id == _tipoTarjeta)?.Nombre ?? operacion.Marca;
             _pagos.Add(new PagoAgregado(
-                new SolicitudPago(forma.Id, monto, TipoTarjetaId: _tipoTarjeta, OperacionTerminalId: operacion.Id),
+                new SolicitudPago(forma.Id, operacion.Monto, TipoTarjetaId: _tipoTarjeta, OperacionTerminalId: operacion.Id),
                 $"{forma.Nombre} {tipo}",
                 $"****{operacion.UltimosDigitos} · Aprob. {operacion.Aprobacion}",
-                monto,
+                operacion.Monto,
                 EsTerminal: true));
             SeleccionarForma(forma);
+            _estado = respuesta.Mensaje;
             return;
         }
 

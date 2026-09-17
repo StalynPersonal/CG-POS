@@ -10,16 +10,22 @@ using Microsoft.Extensions.Logging;
 namespace CgPos.Pos.Infraestructura.Perifericos.Terminales;
 
 /// <summary>
-/// Terminal de pago real, por red o por puerto COM. Lo propio del modelo (mensajes y respuestas) vive en su
-/// <see cref="PerfilTerminal"/>; aquí solo se arma el mensaje, se envía y se interpreta la respuesta. Si el terminal no
-/// responde, se informa sin conexión y la caja ofrece la aprobación manual (RF-213).
+/// Terminal de pago genérico, por red o por puerto COM, para modelos de mensajes de texto. Lo propio del modelo (mensajes y
+/// respuestas) vive en su <see cref="PerfilTerminal"/>; aquí solo se arma el mensaje, se envía y se interpreta la respuesta. Si el
+/// terminal no responde, se informa sin conexión y la caja ofrece la aprobación manual (RF-213). CardNet tiene su propio
+/// protocolo en <see cref="TerminalPagoCardNet"/>.
 /// </summary>
 internal sealed class TerminalPagoConectado(IConfiguration configuracion, TimeProvider reloj, ILogger<TerminalPagoConectado> registro) : ITerminalPago
 {
-    public Task<ResultadoTerminal> CobrarAsync(decimal monto, string referenciaVenta, CancellationToken cancelacion = default) =>
+    public bool ConsultaTarjeta => false;
+
+    public Task<ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default) =>
+        Task.FromResult(new ResultadoConsultaTarjeta(false, false, null, null, "Este terminal no lee la tarjeta antes de cobrar."));
+
+    public Task<ResultadoTerminal> CobrarAsync(decimal monto, decimal impuesto, string referenciaVenta, CancellationToken cancelacion = default) =>
         EjecutarAsync(perfil => Formatear(perfil.PlantillaCobro, monto, referenciaVenta, null), cancelacion);
 
-    public Task<ResultadoTerminal> AnularAsync(string aprobacion, decimal monto, CancellationToken cancelacion = default) =>
+    public Task<ResultadoTerminal> AnularAsync(string aprobacion, string? referenciaTerminal, decimal monto, CancellationToken cancelacion = default) =>
         EjecutarAsync(perfil => Formatear(perfil.PlantillaAnulacion, monto, null, aprobacion), cancelacion);
 
     public async Task<ResultadoLoteTerminal> CerrarLoteAsync(CancellationToken cancelacion = default)

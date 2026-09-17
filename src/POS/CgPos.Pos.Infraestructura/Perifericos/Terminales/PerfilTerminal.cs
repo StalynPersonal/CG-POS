@@ -35,12 +35,9 @@ public sealed record PerfilTerminal(
 
 public static class PerfilesTerminal
 {
-    /// <summary>
-    /// CardNet con Ingenico Lane/7000 (RF-100). El transporte y el formato de los mensajes vienen del documento de integración
-    /// de CardNet, así que se dejan en configuración: cuando lo entreguen se ajustan las plantillas y el patrón sin recompilar.
-    /// </summary>
-    public static PerfilTerminal CardNetLane { get; } = new(
-        "CardNet Ingenico Lane/7000",
+    /// <summary>Terminal genérico por socket con mensajes de texto delimitados; sirve para probar una integración nueva.</summary>
+    public static PerfilTerminal Generico { get; } = new(
+        "Genérico",
         TransporteTerminal.Socket,
         PlantillaCobro: "VENTA|{montoCentavos}|{referencia}",
         PlantillaAnulacion: "ANULACION|{montoCentavos}|{aprobacion}",
@@ -48,20 +45,12 @@ public static class PerfilesTerminal
         PatronRespuesta: @"^(?<aprobada>[^|]*)\|(?<aprobacion>[^|]*)\|(?<digitos>[^|]*)\|(?<marca>[^|]*)\|?(?<mensaje>.*)$",
         Aprobadas: ["00", "APROBADA", "APPROVED"]);
 
-    /// <summary>Terminal genérico por socket con mensajes de texto delimitados; sirve para probar una integración nueva.</summary>
-    public static PerfilTerminal Generico { get; } = CardNetLane with { Nombre = "Genérico" };
-
-    /// <summary>Perfil que se usará, según <c>Perifericos:Terminal:Modelo</c>, con todo sobrescribible por configuración.</summary>
+    /// <summary>Perfil que se usará, con todo sobrescribible en <c>Perifericos:Terminal</c>.</summary>
     public static PerfilTerminal Desde(IConfiguration configuracion)
     {
         ArgumentNullException.ThrowIfNull(configuracion);
         var seccion = configuracion.GetSection("Perifericos:Terminal");
-        var perfil = (seccion["Modelo"] ?? string.Empty).Trim() switch
-        {
-            var modelo when modelo.Contains("CardNet", StringComparison.OrdinalIgnoreCase) => CardNetLane,
-            var modelo when modelo.Contains("Lane", StringComparison.OrdinalIgnoreCase) => CardNetLane,
-            _ => Generico,
-        };
+        var perfil = Generico;
 
         return perfil with
         {
