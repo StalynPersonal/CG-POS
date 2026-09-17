@@ -1593,6 +1593,35 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 });
 
             migrationBuilder.CreateTable(
+                name: "LineasVenta",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    ComprobanteId = table.Column<int>(type: "int", nullable: false),
+                    NumeroLinea = table.Column<int>(type: "int", nullable: false),
+                    Codigo = table.Column<string>(type: "varchar(30)", unicode: false, maxLength: 30, nullable: false),
+                    Descripcion = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    UnidadMedida = table.Column<string>(type: "varchar(10)", unicode: false, maxLength: 10, nullable: true),
+                    Cantidad = table.Column<decimal>(type: "decimal(18,3)", precision: 18, scale: 3, nullable: false),
+                    PrecioUnitario = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    Descuento = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Impuesto = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Importe = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Serial = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    PromocionCodigo = table.Column<string>(type: "varchar(30)", unicode: false, maxLength: 30, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LineasVenta", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LineasVenta_VentasCentral_ComprobanteId",
+                        column: x => x.ComprobanteId,
+                        principalTable: "VentasCentral",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PagosVenta",
                 columns: table => new
                 {
@@ -1961,6 +1990,16 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
             migrationBuilder.CreateIndex(
                 name: "IX_ImpuestosVenta_ComprobanteId",
                 table: "ImpuestosVenta",
+                column: "ComprobanteId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LineasVenta_Codigo",
+                table: "LineasVenta",
+                column: "Codigo");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LineasVenta_ComprobanteId",
+                table: "LineasVenta",
                 column: "ComprobanteId");
 
             migrationBuilder.CreateIndex(
@@ -2434,6 +2473,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "ImpuestosVenta");
+
+            migrationBuilder.DropTable(
+                name: "LineasVenta");
 
             migrationBuilder.DropTable(
                 name: "MiembrosFidelidad");

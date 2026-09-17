@@ -1,5 +1,12 @@
-@page "/not-found"
+@page "/no-encontrada"
 @layout DisenoPrincipal
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+<PageTitle>CG-POS · Página no encontrada</PageTitle>
+
+@* Aviso de ruta inexistente: puede salir si se abre una pantalla con una dirección mal escrita. *@
+<div class="cg-venta__aviso">
+    <MudAlert Severity="Severity.Info" Class="ma-6">
+        La página que busca no existe. Vuelva a la pantalla de venta.
+    </MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/" Class="ma-6">Ir a la venta</MudButton>
+</div>

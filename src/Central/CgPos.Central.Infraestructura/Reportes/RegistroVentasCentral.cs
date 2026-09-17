@@ -31,6 +31,13 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
         foreach (var pago in venta.Pagos)
             comprobante.AgregarPago(pago.Tipo, pago.FormaPagoNombre, pago.Moneda, pago.MontoAplicado);
 
+        // El detalle se guarda para poder abrir la factura en el Central sin depender del XML (M16).
+        foreach (var linea in venta.Lineas.Where(l => !l.Anulada))
+            comprobante.AgregarLinea(linea.NumeroLinea, linea.CodigoInterno, linea.Descripcion, linea.UnidadMedidaCodigo, linea.Cantidad,
+                linea.PrecioUnitario, linea.DescuentoPromocion + linea.DescuentoManual + linea.DescuentoFactura,
+                linea.Importe - decimal.Round(linea.Importe / (1 + (linea.PorcentajeImpuesto / 100m)), 2, MidpointRounding.AwayFromZero),
+                linea.Importe, linea.Serial, linea.PromocionCodigo);
+
         contexto.VentasCentral.Add(comprobante);
     }
 
@@ -44,6 +51,10 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
             nota.UsuarioNombre, nota.CreadaEn, DateOnly.FromDateTime(nota.CreadaEn.LocalDateTime), CgPos.Dominio.Fiscal.TipoComprobante.NotaCredito,
             nota.Comprobante?.Encf, nota.EncfOrigen, nota.ClienteTipoDocumento, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Subtotal, 0m,
             nota.Impuesto, nota.ImpuestoRetenido, nota.Total, nota.Lineas.Count, reloj.GetUtcNow());
+
+        foreach (var linea in nota.Lineas)
+            comprobante.AgregarLinea(linea.NumeroLineaOrigen, linea.CodigoInterno, linea.Descripcion, linea.UnidadMedidaCodigo, linea.Cantidad,
+                linea.PrecioUnitario, 0m, linea.Impuesto, linea.Importe, linea.Serial, null);
 
         contexto.VentasCentral.Add(comprobante);
     }

@@ -1,0 +1,262 @@
+@page "/facturas"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.ConsultarReportes)]
+@using CgPos.Dominio.Reportes
+@using CgPos.Dominio.Sincronizacion
+@inject ClienteCentral Cliente
+
+<PageTitle>Facturas de las cajas · CG-POS Central</PageTitle>
+
+@* Encabezado: qué muestra la pantalla (todo lo que las cajas subieron al Central). *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Facturas de las cajas</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Facturas y notas de crédito que subieron las cajas, con su detalle tal como se cobró y el estado del e-CF en la DGII.
+        </MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las facturas. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosComprobanteRecibido" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+              Elevation="0" RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+        <ToolBarContent>
+            @* Filtros: rango de días, sucursal, caja, tipo de documento y búsqueda por número, e-NCF o cliente. *@
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v ?? _desde))" Label="Desde" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="max-width: 170px" />
+                <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v ?? _hasta))" Label="Hasta" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="max-width: 170px" />
+                <MudSelect T="int?" Value="_sucursalId" ValueChanged="@(v => FiltrarAsync(() => _sucursalId = v))" Label="Sucursal" Dense="true"
+                           Clearable="true" Style="min-width: 180px">
+                    @foreach (var sucursal in _sucursales)
+                    {
+                        <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="TipoComprobanteVenta?" Value="_tipo" ValueChanged="@(v => FiltrarAsync(() => _tipo = v))" Label="Tipo" Dense="true"
+                           Clearable="true" Style="max-width: 190px">
+                    <MudSelectItem T="TipoComprobanteVenta?" Value="@TipoComprobanteVenta.Factura">Facturas</MudSelectItem>
+                    <MudSelectItem T="TipoComprobanteVenta?" Value="@TipoComprobanteVenta.NotaCredito">Notas de crédito</MudSelectItem>
+                </MudSelect>
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                              Placeholder="Número, e-NCF o cliente" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="min-width: 240px" />
+                <MudSpacer />
+                <MudText Typo="Typo.subtitle2">Total: @_suma.ToString("N2")</MudText>
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Documento</MudTh>
+            <MudTh>Origen</MudTh>
+            <MudTh>Fecha</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh Style="text-align: right">Total</MudTh>
+            <MudTh>DGII</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Documento">
+                <strong>@(context.Encf ?? context.Numero)</strong>
+                <div class="cg-central__detalle">@context.Numero · @(context.Tipo == TipoComprobanteVenta.Factura ? "Factura" : "Nota de crédito")</div>
+            </MudTd>
+            <MudTd DataLabel="Origen">
+                @context.SucursalNombre
+                <div class="cg-central__detalle">Caja @context.CajaCodigo · turno @(context.TurnoNumero?.ToString() ?? "—") · @context.UsuarioNombre</div>
+            </MudTd>
+            <MudTd DataLabel="Fecha">
+                @context.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                <div class="cg-central__detalle">Recibida @context.RecibidoEn.ToLocalTime().ToString("dd/MM HH:mm")</div>
+            </MudTd>
+            <MudTd DataLabel="Cliente">
+                @(context.ClienteNombre ?? "Cliente contado")
+                <div class="cg-central__detalle">@context.ClienteDocumento</div>
+            </MudTd>
+            <MudTd DataLabel="Total" Style="text-align: right">
+                <strong>@context.Total.ToString("N2")</strong>
+                <div class="cg-central__detalle">@context.CantidadLineas líneas · ITBIS @context.Impuesto.ToString("N2")</div>
+            </MudTd>
+            <MudTd DataLabel="DGII">
+                @if (context.EstadoDgii is { } estado)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@ColorEstado(estado)">@estado</MudChip>
+                }
+                else
+                {
+                    <span class="cg-central__detalle">Sin e-CF</span>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>No hay facturas en ese rango con esos filtros.</NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@if (_detalle is { } detalle)
+{
+    @* Detalle de la factura: sus líneas, impuestos y formas de pago tal como la cobró la caja. *@
+    <MudDialog Visible="true" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true })"
+               VisibleChanged="@(visible => { if (!visible) _detalle = null; })">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(detalle.Comprobante.Encf ?? detalle.Comprobante.Numero)</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+                @detalle.Comprobante.Numero · @detalle.Comprobante.SucursalNombre · caja @detalle.Comprobante.CajaCodigo ·
+                @detalle.Comprobante.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (detalle.EncfModificado is { } modificado)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">Modifica el comprobante @modificado.</MudAlert>
+            }
+            @if (detalle.MensajeDgii is { } mensajeDgii)
+            {
+                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-3">DGII: @mensajeDgii</MudAlert>
+            }
+
+            @* Líneas del comprobante. *@
+            <MudSimpleTable Dense="true" Elevation="0">
+                <thead>
+                    <tr>
+                        <th>Ln</th>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th style="text-align: right">Cant.</th>
+                        <th style="text-align: right">Precio</th>
+                        <th style="text-align: right">Desc.</th>
+                        <th style="text-align: right">ITBIS</th>
+                        <th style="text-align: right">Importe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var linea in detalle.Lineas)
+                    {
+                        <tr>
+                            <td>@linea.NumeroLinea</td>
+                            <td>@linea.Codigo</td>
+                            <td>
+                                @linea.Descripcion
+                                @if (linea.Serial is { } serial)
+                                {
+                                    <div class="cg-central__detalle">Serial @serial</div>
+                                }
+                                @if (linea.PromocionCodigo is { } promocion)
+                                {
+                                    <div class="cg-central__detalle">Oferta @promocion</div>
+                                }
+                            </td>
+                            <td style="text-align: right">@linea.Cantidad.ToString("0.###") @linea.UnidadMedida</td>
+                            <td style="text-align: right">@linea.PrecioUnitario.ToString("N2")</td>
+                            <td style="text-align: right">@linea.Descuento.ToString("N2")</td>
+                            <td style="text-align: right">@linea.Impuesto.ToString("N2")</td>
+                            <td style="text-align: right">@linea.Importe.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+
+            @* Totales, ITBIS por tasa y cómo pagó el cliente. *@
+            <div class="d-flex gap-4 flex-wrap mt-4">
+                <div style="min-width: 240px">
+                    <MudText Typo="Typo.subtitle1">Totales</MudText>
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <tbody>
+                            <tr><td>Subtotal</td><td style="text-align: right">@detalle.Comprobante.Subtotal.ToString("N2")</td></tr>
+                            <tr><td>Descuentos</td><td style="text-align: right">@detalle.Comprobante.Descuento.ToString("N2")</td></tr>
+                            <tr><td>ITBIS</td><td style="text-align: right">@detalle.Comprobante.Impuesto.ToString("N2")</td></tr>
+                            @if (detalle.ImpuestoRetenido != 0m)
+                            {
+                                <tr><td>Retenido</td><td style="text-align: right">@detalle.ImpuestoRetenido.ToString("N2")</td></tr>
+                            }
+                            <tr><td><strong>Total</strong></td><td style="text-align: right"><strong>@detalle.Comprobante.Total.ToString("N2")</strong></td></tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+                <div style="min-width: 240px">
+                    <MudText Typo="Typo.subtitle1">ITBIS por tasa</MudText>
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <tbody>
+                            @foreach (var impuesto in detalle.Impuestos)
+                            {
+                                <tr>
+                                    <td>@impuesto.Porcentaje.ToString("0.##")%</td>
+                                    <td style="text-align: right">@impuesto.Base.ToString("N2")</td>
+                                    <td style="text-align: right">@impuesto.Impuesto.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+                <div style="min-width: 240px">
+                    <MudText Typo="Typo.subtitle1">Formas de pago</MudText>
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <tbody>
+                            @foreach (var pago in detalle.Pagos)
+                            {
+                                <tr>
+                                    <td>@pago.FormaPagoNombre</td>
+                                    <td>@pago.Moneda</td>
+                                    <td style="text-align: right">@pago.Monto.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+            </div>
+
+            @if (detalle.TieneXml)
+            {
+                <MudText Typo="Typo.caption" Class="mt-3">El e-CF firmado está en el Central: se descarga desde el monitor de comprobantes.</MudText>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _detalle = null">Cerrar</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private MudTable<DatosComprobanteRecibido>? _tabla;
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private DatosComprobanteRecibidoDetalle? _detalle;
+    private DateTime? _desde = DateTime.Today.AddDays(-7);
+    private DateTime? _hasta = DateTime.Today;
+    private int? _sucursalId;
+    private TipoComprobanteVenta? _tipo;
+    private string? _buscar;
+    private decimal _suma;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync() => _sucursales = await Cliente.ListarSucursalesAsync() ?? [];
+
+    private async Task<TableData<DatosComprobanteRecibido>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarComprobantesRecibidosAsync(
+            DateOnly.FromDateTime(_desde ?? DateTime.Today), DateOnly.FromDateTime(_hasta ?? DateTime.Today),
+            _sucursalId, null, _tipo, _buscar, estado.Page, estado.PageSize, cancelacion);
+
+        _error = pagina is null;
+        _suma = pagina?.SumaTotal ?? 0m;
+        return new TableData<DatosComprobanteRecibido> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    private async Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        if (_tabla is not null)
+            await _tabla.ReloadServerData();
+    }
+
+    private async Task AbrirAsync(DatosComprobanteRecibido comprobante) =>
+        _detalle = await Cliente.ObtenerComprobanteRecibidoAsync(comprobante.Id);
+
+    private static Color ColorEstado(EstadoEnvioDgii estado) => estado switch
+    {
+        EstadoEnvioDgii.Aceptado => Color.Success,
+        EstadoEnvioDgii.Rechazado => Color.Error,
+        EstadoEnvioDgii.AceptadoCondicional => Color.Warning,
+        _ => Color.Default,
+    };
+}

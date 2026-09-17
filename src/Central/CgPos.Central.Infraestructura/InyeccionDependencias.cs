@@ -56,6 +56,7 @@ public static class InyeccionDependencias
         // Notas de crédito entre sucursales (M10).
         servicios.AddScoped<Aplicacion.Devoluciones.IServicioNotasCreditoCentral, Devoluciones.ServicioNotasCreditoCentral>();
         servicios.AddScoped<Aplicacion.ListasBoda.IServicioListasBoda, ListasBoda.ServicioListasBoda>();
+        servicios.AddScoped<Aplicacion.Ventas.IServicioComprobantesRecibidos, Ventas.ServicioComprobantesRecibidos>();
 
         // Saldo central de puntos del programa de fidelidad (M11).
         servicios.AddScoped<Fidelidad.RecalculadorPuntos>();

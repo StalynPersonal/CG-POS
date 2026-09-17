@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260917191735_Inicial")]
+    [Migration("20260917193037_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -2891,6 +2891,74 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("ImpuestosVenta", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Reportes.LineaVentaCentral", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Cantidad")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("ComprobanteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Descuento")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Impuesto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("NumeroLinea")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("PromocionCodigo")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Serial")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UnidadMedida")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo");
+
+                    b.HasIndex("ComprobanteId");
+
+                    b.ToTable("LineasVenta", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Reportes.PagoVentaCentral", b =>
                 {
                     b.Property<int>("Id")
@@ -3855,6 +3923,15 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Reportes.LineaVentaCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Reportes.ComprobanteVentaCentral", null)
+                        .WithMany("Lineas")
+                        .HasForeignKey("ComprobanteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Reportes.PagoVentaCentral", b =>
                 {
                     b.HasOne("CgPos.Dominio.Reportes.ComprobanteVentaCentral", null)
@@ -3998,6 +4075,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("CgPos.Dominio.Reportes.ComprobanteVentaCentral", b =>
                 {
                     b.Navigation("Impuestos");
+
+                    b.Navigation("Lineas");
 
                     b.Navigation("Pagos");
                 });

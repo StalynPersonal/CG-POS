@@ -406,6 +406,12 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 - **API:** `GET /api/monitor`; `GET /api/monitor/comprobantes?estado=&cajaId=&buscar=&soloConFallo=&pagina=&tamano=`, `GET /api/monitor/comprobantes/{id}/xml`, `POST /api/monitor/comprobantes/{id}/reenviar`; `GET /api/monitor/conflictos?abiertos=`, `POST /api/monitor/conflictos/{id}/resolver`.
 
+### Facturas de las cajas (M16)
+
+- **Pantalla `/facturas`** (permiso `Central.Reportes.Consultar`): todas las facturas y notas de crédito que las cajas subieron al Central, con filtros por rango de días, sucursal, tipo de documento y búsqueda por número, e-NCF, documento o nombre del cliente; muestra el total de lo filtrado y el estado del e-CF en la DGII de cada una.
+- **Detalle:** al abrir una se ven sus **líneas tal como las cobró la caja** (código, descripción, cantidad, precio, descuento, ITBIS, importe, serial y oferta aplicada), los totales, el ITBIS por tasa y las formas de pago; en una nota de crédito, además, el comprobante que modifica. Las líneas se guardan al recibir el documento, así que no hace falta abrir el XML; el e-CF firmado se descarga desde el monitor de comprobantes.
+- **API:** `GET /api/manager/facturas?desde=&hasta=&sucursalId=&cajaId=&tipo=&buscar=&pagina=&tamano=` y `GET /api/manager/facturas/{id}`.
+
 ### Listas de boda y de regalos (RF-73)
 
 - **Se crean en el Central** (`/listas-boda`, permiso `Central.ListasBoda.Administrar`): datos del cliente (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad. El Central numera la lista (`LB000001`) y es el número que el cliente da en la tienda. La lista se cierra cuando pasa el evento y se puede reabrir.

@@ -22,9 +22,12 @@ public sealed class ComprobanteVentaCentral : Entidad
     public const int LargoMaximoEncf = 13;
     public const int LargoMaximoTexto = 200;
     public const int LargoMaximoMoneda = 3;
+    public const int LargoMaximoCodigoArticulo = 30;
+    public const int LargoMaximoUnidad = 10;
 
     private readonly List<ImpuestoVentaCentral> _impuestos = [];
     private readonly List<PagoVentaCentral> _pagos = [];
+    private readonly List<LineaVentaCentral> _lineas = [];
 
     private ComprobanteVentaCentral()
     {
@@ -71,6 +74,9 @@ public sealed class ComprobanteVentaCentral : Entidad
     public IReadOnlyList<ImpuestoVentaCentral> Impuestos => _impuestos;
     public IReadOnlyList<PagoVentaCentral> Pagos => _pagos;
 
+    /// <summary>Detalle del comprobante tal como lo cobró la caja, para verlo en el Central sin abrir el XML.</summary>
+    public IReadOnlyList<LineaVentaCentral> Lineas => _lineas;
+
     public static ComprobanteVentaCentral Registrar(TipoComprobanteVenta tipo, string numero, int sucursalId, int cajaId, long? turnoNumero,
         string? usuarioNombre, DateTimeOffset fecha, DateOnly fechaOperacion, TipoComprobante tipoFiscal, string? encf, string? encfModificado,
         TipoDocumentoIdentidad? clienteTipoDocumento, string? clienteDocumento, string? clienteNombre, string moneda, decimal subtotal, decimal descuento,
@@ -116,6 +122,28 @@ public sealed class ComprobanteVentaCentral : Entidad
         });
     }
 
+    /// <summary>Línea del comprobante; en una nota de crédito los montos van en negativo, como el resto del comprobante.</summary>
+    public void AgregarLinea(int numeroLinea, string codigo, string? descripcion, string? unidadMedida, decimal cantidad, decimal precioUnitario,
+        decimal descuento, decimal impuesto, decimal importe, string? serial, string? promocionCodigo)
+    {
+        var signo = Tipo == TipoComprobanteVenta.NotaCredito ? -1m : 1m;
+        _lineas.Add(new LineaVentaCentral
+        {
+            ComprobanteId = Id,
+            NumeroLinea = numeroLinea,
+            Codigo = Validar.TextoOpcional(codigo, "Código del artículo", LargoMaximoCodigoArticulo) ?? string.Empty,
+            Descripcion = Validar.TextoOpcional(descripcion, "Descripción", LargoMaximoTexto) ?? string.Empty,
+            UnidadMedida = Validar.TextoOpcional(unidadMedida, "Unidad de medida", LargoMaximoUnidad),
+            Cantidad = signo * cantidad,
+            PrecioUnitario = precioUnitario,
+            Descuento = signo * descuento,
+            Impuesto = signo * impuesto,
+            Importe = signo * importe,
+            Serial = Validar.TextoOpcional(serial, "Serial", LargoMaximoTexto),
+            PromocionCodigo = Validar.TextoOpcional(promocionCodigo, "Promoción", LargoMaximoCodigoArticulo),
+        });
+    }
+
     public void AgregarPago(TipoFormaPago tipo, string? formaPagoNombre, string? moneda, decimal monto)
     {
         var signo = Tipo == TipoComprobanteVenta.NotaCredito ? -1m : 1m;
@@ -137,6 +165,23 @@ public sealed class ImpuestoVentaCentral : Entidad
     public decimal Porcentaje { get; internal set; }
     public decimal Base { get; internal set; }
     public decimal Impuesto { get; internal set; }
+}
+
+/// <summary>Línea del comprobante que informó la caja: lo que se ve al abrir la factura en el Central.</summary>
+public sealed class LineaVentaCentral : Entidad
+{
+    public int ComprobanteId { get; internal set; }
+    public int NumeroLinea { get; internal set; }
+    public string Codigo { get; internal set; } = string.Empty;
+    public string Descripcion { get; internal set; } = string.Empty;
+    public string? UnidadMedida { get; internal set; }
+    public decimal Cantidad { get; internal set; }
+    public decimal PrecioUnitario { get; internal set; }
+    public decimal Descuento { get; internal set; }
+    public decimal Impuesto { get; internal set; }
+    public decimal Importe { get; internal set; }
+    public string? Serial { get; internal set; }
+    public string? PromocionCodigo { get; internal set; }
 }
 
 /// <summary>Lo cobrado por forma de pago, para el cuadre y el reporte de ventas.</summary>

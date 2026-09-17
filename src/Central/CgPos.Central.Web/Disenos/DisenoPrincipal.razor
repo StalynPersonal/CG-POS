@@ -73,6 +73,11 @@
                     <MudNavLink Href="notas-credito" Icon="@Icons.Material.Filled.ReceiptLong">Notas de crédito</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.ConsultarReportes">
+                <MudNavGroup Title="Ventas" Icon="@Icons.Material.Filled.ReceiptLong" Expanded="true">
+                    <MudNavLink Href="facturas" Icon="@Icons.Material.Filled.Receipt">Facturas de las cajas</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarListasBoda">
                 <MudNavGroup Title="Listas de boda" Icon="@Icons.Material.Filled.Favorite" Expanded="true">
                     <MudNavLink Href="listas-boda" Icon="@Icons.Material.Filled.CardGiftcard">Listas de regalos</MudNavLink>

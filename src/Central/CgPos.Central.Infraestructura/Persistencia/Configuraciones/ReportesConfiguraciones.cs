@@ -5,6 +5,26 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CgPos.Central.Infraestructura.Persistencia.Configuraciones;
 
+internal sealed class LineaVentaCentralConfiguracion : IEntityTypeConfiguration<LineaVentaCentral>
+{
+    public void Configure(EntityTypeBuilder<LineaVentaCentral> constructor)
+    {
+        constructor.ToTable("LineasVenta");
+        constructor.HasKey(l => l.Id);
+        constructor.Property(l => l.Codigo).HasMaxLength(ComprobanteVentaCentral.LargoMaximoCodigoArticulo).IsUnicode(false).IsRequired();
+        constructor.Property(l => l.Descripcion).HasMaxLength(ComprobanteVentaCentral.LargoMaximoTexto).IsRequired();
+        constructor.Property(l => l.UnidadMedida).HasMaxLength(ComprobanteVentaCentral.LargoMaximoUnidad).IsUnicode(false);
+        constructor.Property(l => l.Serial).HasMaxLength(ComprobanteVentaCentral.LargoMaximoTexto);
+        constructor.Property(l => l.PromocionCodigo).HasMaxLength(ComprobanteVentaCentral.LargoMaximoCodigoArticulo).IsUnicode(false);
+        constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
+        constructor.Property(l => l.PrecioUnitario).HasPrecision(18, 4);
+        constructor.Property(l => l.Descuento).HasPrecision(18, 2);
+        constructor.Property(l => l.Impuesto).HasPrecision(18, 2);
+        constructor.Property(l => l.Importe).HasPrecision(18, 2);
+        constructor.HasIndex(l => l.Codigo);
+    }
+}
+
 internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfiguration<ComprobanteVentaCentral>
 {
     public void Configure(EntityTypeBuilder<ComprobanteVentaCentral> constructor)
@@ -25,8 +45,10 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
 
         constructor.HasMany(c => c.Impuestos).WithOne().HasForeignKey(i => i.ComprobanteId).OnDelete(DeleteBehavior.Cascade);
         constructor.HasMany(c => c.Pagos).WithOne().HasForeignKey(p => p.ComprobanteId).OnDelete(DeleteBehavior.Cascade);
+        constructor.HasMany(c => c.Lineas).WithOne().HasForeignKey(l => l.ComprobanteId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.Impuestos).AutoInclude(false);
         constructor.Navigation(c => c.Pagos).AutoInclude(false);
+        constructor.Navigation(c => c.Lineas).AutoInclude(false);
 
         // Todos los reportes filtran por día de operación, y varios por sucursal o caja.
         constructor.HasIndex(c => new { c.FechaOperacion, c.SucursalId, c.CajaId });

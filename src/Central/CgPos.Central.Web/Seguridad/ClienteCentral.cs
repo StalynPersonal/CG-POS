@@ -319,6 +319,38 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    // ---------- Facturas recibidas de las cajas (M16) ----------
+
+    public async Task<PaginaComprobantesRecibidos?> BuscarComprobantesRecibidosAsync(DateOnly desde, DateOnly hasta, int? sucursalId, int? cajaId,
+        CgPos.Dominio.Reportes.TipoComprobanteVenta? tipo, string? buscar, int pagina, int tamano, CancellationToken cancelacion = default)
+    {
+        var ruta = $"api/manager/facturas?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}&pagina={pagina}&tamano={tamano}"
+                   + (sucursalId is { } sucursal ? $"&sucursalId={sucursal}" : string.Empty)
+                   + (cajaId is { } caja ? $"&cajaId={caja}" : string.Empty)
+                   + (tipo is { } filtro ? $"&tipo={filtro}" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaComprobantesRecibidos>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<DatosComprobanteRecibidoDetalle?> ObtenerComprobanteRecibidoAsync(int comprobanteId, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosComprobanteRecibidoDetalle>($"api/manager/facturas/{comprobanteId}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
     // ---------- Listas de boda (RF-73) ----------
 
     public async Task<IReadOnlyList<DatosListaBoda>?> ListarListasBodaAsync(string? buscar, CgPos.Dominio.ListasBoda.EstadoListaBoda? estado,
