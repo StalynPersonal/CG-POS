@@ -13,7 +13,7 @@ internal sealed class TasaCambioConfiguracion : IEntityTypeConfiguration<TasaCam
         constructor.Property(t => t.Id).ValueGeneratedNever();
         constructor.Property(t => t.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
         constructor.Property(t => t.Tasa).HasPrecision(18, 4);
-        constructor.HasIndex(t => new { t.Moneda, t.VigenteDesde });
+        constructor.HasIndex(t => new { t.Moneda, t.VigenteDesde }).IsUnique();
     }
 }
 

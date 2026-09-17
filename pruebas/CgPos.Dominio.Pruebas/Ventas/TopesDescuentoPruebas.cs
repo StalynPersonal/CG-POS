@@ -9,10 +9,10 @@ public class TopesDescuentoPruebas
 
     private static readonly TopeDescuento[] Topes =
     [
-        TopeDescuento.Crear(2, 10m, null),                        // supervisor: 10 % general
-        TopeDescuento.Crear(3, 30m, 5000m),                       // gerente: 30 % y hasta RD$5,000
-        TopeDescuento.Crear(2, 5m, null, departamentoId: Ferreteria),  // ferretería más estricta para supervisor
-        TopeDescuento.Crear(3, 3m, null, articuloId: Taladro),    // el taladro solo lo descuenta un gerente, hasta 3 %
+        TopeDescuento.Crear(Codigos.Siguiente(),2, 10m, null),                        // supervisor: 10 % general
+        TopeDescuento.Crear(Codigos.Siguiente(),3, 30m, 5000m),                       // gerente: 30 % y hasta RD$5,000
+        TopeDescuento.Crear(Codigos.Siguiente(),2, 5m, null, departamentoId: Ferreteria),  // ferretería más estricta para supervisor
+        TopeDescuento.Crear(Codigos.Siguiente(),3, 3m, null, articuloId: Taladro),    // el taladro solo lo descuenta un gerente, hasta 3 %
     ];
 
     [Fact]

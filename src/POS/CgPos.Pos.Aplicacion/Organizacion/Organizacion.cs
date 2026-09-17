@@ -4,9 +4,14 @@ using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Pos.Aplicacion.Organizacion;
 
-/// <summary>Identidad de esta terminal: la caja que opera este equipo (configuración <c>Caja:Id</c>).</summary>
+/// <summary>
+/// Identidad de esta terminal: la caja que opera este equipo, configurada por el código de su sucursal y el suyo (<c>Caja:Sucursal</c> y
+/// <c>Caja:Codigo</c>). El Id es el de esta base; nulo mientras la caja no exista en ella (antes de la primera carga del Central).
+/// </summary>
 public interface IContextoCaja
 {
+    int? SucursalCodigo { get; }
+    int? CajaCodigo { get; }
     Guid? CajaId { get; }
 }
 

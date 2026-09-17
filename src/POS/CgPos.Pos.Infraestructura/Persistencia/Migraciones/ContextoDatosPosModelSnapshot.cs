@@ -174,10 +174,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("DepartamentoId")
                         .HasColumnType("uniqueidentifier");
@@ -225,10 +223,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<bool>("EsNoCodificada")
                         .HasColumnType("bit");
@@ -290,10 +286,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -355,10 +349,13 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Codigo")
+                    b.Property<string>("Abreviatura")
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<int>("Decimales")
                         .HasColumnType("int");
@@ -389,6 +386,11 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
                     b.Property<bool>("AplicaRetencion")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Correo")
                         .HasMaxLength(150)
@@ -422,6 +424,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
 
                     b.HasIndex("Documento");
 
@@ -472,7 +477,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClienteId");
+                    b.HasIndex("ClienteId", "Alias")
+                        .IsUnique();
 
                     b.ToTable("DireccionesCliente", (string)null);
                 });
@@ -578,10 +584,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .IsUnicode(false)
                         .HasColumnType("varchar(3)");
 
-                    b.Property<string>("MotivoCodigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("MotivoCodigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("MotivoNombre")
                         .IsRequired()
@@ -777,10 +781,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1283,10 +1285,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("FactorAcumulacion")
                         .HasPrecision(9, 4)
@@ -1316,10 +1316,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<int?>("DiaSemana")
                         .HasColumnType("int");
@@ -1590,6 +1588,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TipoComprobante", "Desde")
+                        .IsUnique();
+
                     b.HasIndex("CajaId", "TipoComprobante", "Activa", "Desde");
 
                     b.ToTable("SecuenciasEcf", (string)null);
@@ -1600,10 +1601,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<bool>("Habilitada")
                         .HasColumnType("bit");
@@ -1709,10 +1708,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("Direccion")
                         .HasMaxLength(250)
@@ -1969,7 +1966,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Moneda", "VigenteDesde");
+                    b.HasIndex("Moneda", "VigenteDesde")
+                        .IsUnique();
 
                     b.ToTable("TasasCambio", (string)null);
                 });
@@ -1982,10 +1980,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -2070,10 +2066,8 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -2198,6 +2192,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid?>("CategoriaId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("DepartamentoId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2216,6 +2213,9 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("decimal(5,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
 
                     b.HasIndex("Nivel", "DepartamentoId", "ArticuloId");
 

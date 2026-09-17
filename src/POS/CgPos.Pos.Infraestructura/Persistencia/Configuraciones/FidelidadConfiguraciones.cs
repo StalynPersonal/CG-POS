@@ -13,8 +13,7 @@ internal sealed class NivelFidelidadConfiguracion : IEntityTypeConfiguration<Niv
         constructor.ToTable("NivelesFidelidad");
         constructor.HasKey(n => n.Id);
         constructor.Property(n => n.Id).ValueGeneratedNever();
-        constructor.Property(n => n.Codigo).HasMaxLength(NivelFidelidad.LargoMaximoCodigo).IsRequired();
-        constructor.Property(n => n.Nombre).HasMaxLength(NivelFidelidad.LargoMaximoNombre).IsRequired();
+                constructor.Property(n => n.Nombre).HasMaxLength(NivelFidelidad.LargoMaximoNombre).IsRequired();
         constructor.Property(n => n.FactorAcumulacion).HasPrecision(9, 4);
         constructor.HasIndex(n => n.Codigo).IsUnique();
     }
@@ -27,8 +26,7 @@ internal sealed class ReglaAcumulacionConfiguracion : IEntityTypeConfiguration<R
         constructor.ToTable("ReglasAcumulacion");
         constructor.HasKey(r => r.Id);
         constructor.Property(r => r.Id).ValueGeneratedNever();
-        constructor.Property(r => r.Codigo).HasMaxLength(ReglaAcumulacion.LargoMaximoCodigo).IsRequired();
-        constructor.Property(r => r.Nombre).HasMaxLength(ReglaAcumulacion.LargoMaximoNombre).IsRequired();
+                constructor.Property(r => r.Nombre).HasMaxLength(ReglaAcumulacion.LargoMaximoNombre).IsRequired();
         constructor.Property(r => r.MontoBase).HasPrecision(18, 2);
         constructor.Property(r => r.Puntos).HasPrecision(18, 4);
         constructor.HasIndex(r => r.Codigo).IsUnique();

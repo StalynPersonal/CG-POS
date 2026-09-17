@@ -4,6 +4,7 @@ using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Seguridad;
+using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Pruebas.Api;
 
@@ -11,8 +12,13 @@ namespace CgPos.Central.Pruebas.Api;
 public class ApiAdministracionSeguridadPruebas(CentralEnPruebas central)
 {
     private const string Temporal = "Temporal.Clave#2026";
-    private static readonly Guid Administrador = Guid.Parse("01990000-0000-7000-8000-000000000b01");
-    private static readonly Guid RolAdministrador = Guid.Parse("01990000-0000-7000-8000-000000000a01");
+
+    /// <summary>Usuario ADMIN y rol ADMINISTRADOR de los datos de desarrollo, con los Id que les dio el Central al cargarlos.</summary>
+    private Guid Administrador => central.UsarContextoAsync(contexto => contexto.UsuariosCentral.Where(u => u.Codigo == "ADMIN").Select(u => u.Id).SingleAsync())
+        .GetAwaiter().GetResult();
+
+    private Guid RolAdministrador => central.UsarContextoAsync(contexto => contexto.RolesCentral.Where(r => r.Codigo == "ADMINISTRADOR").Select(r => r.Id).SingleAsync())
+        .GetAwaiter().GetResult();
 
     [SkippableFact]
     public async Task Administrador_crea_rol_y_usuario_que_ingresa_con_contrasena_temporal()

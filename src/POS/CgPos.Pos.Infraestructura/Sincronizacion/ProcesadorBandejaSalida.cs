@@ -32,7 +32,7 @@ internal sealed class ProcesadorBandejaSalida(
         if (!central.Configurado)
             return new ResultadoProcesoBandeja(0, 0, 0);
 
-        var cajaId = contextoCaja.CajaId ?? Guid.Empty;
+        var (sucursalCodigo, cajaCodigo) = (contextoCaja.SucursalCodigo ?? 0, contextoCaja.CajaCodigo ?? 0);
         var ahora = reloj.GetUtcNow();
 
         // Mensajes que quedaron en proceso por un cierre inesperado de la caja: se vuelven a enviar (el Central no los duplica).
@@ -59,7 +59,7 @@ internal sealed class ProcesadorBandejaSalida(
             try
             {
                 resultado = await central.EnviarAsync(
-                    new MensajeSincronizacion(mensaje.Id, mensaje.TipoMensaje, mensaje.AgregadoId, mensaje.Contenido, mensaje.HashContenido, cajaId, mensaje.CreadoEn),
+                    new MensajeSincronizacion(mensaje.Id, mensaje.TipoMensaje, mensaje.AgregadoId, mensaje.Contenido, mensaje.HashContenido, sucursalCodigo, cajaCodigo, mensaje.CreadoEn),
                     cancelacion);
             }
             catch (Exception excepcion) when (excepcion is not OperationCanceledException)

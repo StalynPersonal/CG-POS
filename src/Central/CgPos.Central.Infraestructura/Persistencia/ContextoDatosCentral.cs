@@ -29,7 +29,6 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Sincronizacion.ComprobanteRecibido> ComprobantesRecibidos => Set<CgPos.Dominio.Sincronizacion.ComprobanteRecibido>();
     public DbSet<CgPos.Dominio.Sincronizacion.ConflictoSincronizacion> ConflictosSincronizacion => Set<CgPos.Dominio.Sincronizacion.ConflictoSincronizacion>();
     public DbSet<CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja> EstadosSincronizacionCaja => Set<CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja>();
-    public DbSet<CgPos.Dominio.Sincronizacion.MaestroCentral> MaestrosCentral => Set<CgPos.Dominio.Sincronizacion.MaestroCentral>();
 
     // Notas de crédito de todas las sucursales (M10)
     public DbSet<CgPos.Dominio.Devoluciones.NotaCreditoCentral> NotasCredito => Set<CgPos.Dominio.Devoluciones.NotaCreditoCentral>();
@@ -49,12 +48,32 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();
 
-    // Maestros con su propia tabla (los demás siguen en MaestrosCentral hasta migrar su grupo)
+    // Maestros que el Central publica para las cajas, cada uno en su tabla (bajan por código)
+    public DbSet<CgPos.Dominio.Pagos.Moneda> Monedas => Set<CgPos.Dominio.Pagos.Moneda>();
     public DbSet<CgPos.Dominio.Catalogo.Departamento> Departamentos => Set<CgPos.Dominio.Catalogo.Departamento>();
     public DbSet<CgPos.Dominio.Catalogo.Categoria> Categorias => Set<CgPos.Dominio.Catalogo.Categoria>();
     public DbSet<CgPos.Dominio.Catalogo.Marca> Marcas => Set<CgPos.Dominio.Catalogo.Marca>();
     public DbSet<CgPos.Dominio.Catalogo.UnidadMedida> UnidadesMedida => Set<CgPos.Dominio.Catalogo.UnidadMedida>();
     public DbSet<CgPos.Dominio.Catalogo.Impuesto> Impuestos => Set<CgPos.Dominio.Catalogo.Impuesto>();
+    public DbSet<CgPos.Dominio.Catalogo.Articulo> Articulos => Set<CgPos.Dominio.Catalogo.Articulo>();
+    public DbSet<CgPos.Dominio.Clientes.Cliente> Clientes => Set<CgPos.Dominio.Clientes.Cliente>();
+    public DbSet<CgPos.Dominio.Pagos.FormaPago> FormasPago => Set<CgPos.Dominio.Pagos.FormaPago>();
+    public DbSet<CgPos.Dominio.Pagos.Banco> Bancos => Set<CgPos.Dominio.Pagos.Banco>();
+    public DbSet<CgPos.Dominio.Pagos.TipoTarjeta> TiposTarjeta => Set<CgPos.Dominio.Pagos.TipoTarjeta>();
+    public DbSet<CgPos.Dominio.Pagos.Denominacion> Denominaciones => Set<CgPos.Dominio.Pagos.Denominacion>();
+    public DbSet<CgPos.Dominio.Pagos.TasaCambio> TasasCambio => Set<CgPos.Dominio.Pagos.TasaCambio>();
+    public DbSet<CgPos.Dominio.Promociones.Promocion> Promociones => Set<CgPos.Dominio.Promociones.Promocion>();
+    public DbSet<CgPos.Dominio.Promociones.DescuentoTarjeta> DescuentosTarjeta => Set<CgPos.Dominio.Promociones.DescuentoTarjeta>();
+    public DbSet<CgPos.Dominio.Promociones.MotivoDescuento> MotivosDescuento => Set<CgPos.Dominio.Promociones.MotivoDescuento>();
+    public DbSet<CgPos.Dominio.Promociones.TopeDescuento> TopesDescuento => Set<CgPos.Dominio.Promociones.TopeDescuento>();
+    public DbSet<CgPos.Dominio.Fiscal.SecuenciaEcf> SecuenciasEcf => Set<CgPos.Dominio.Fiscal.SecuenciaEcf>();
+    public DbSet<CgPos.Dominio.Devoluciones.MotivoDevolucion> MotivosDevolucion => Set<CgPos.Dominio.Devoluciones.MotivoDevolucion>();
+    public DbSet<CgPos.Dominio.Fidelidad.NivelFidelidad> NivelesFidelidad => Set<CgPos.Dominio.Fidelidad.NivelFidelidad>();
+    public DbSet<CgPos.Dominio.Fidelidad.ReglaAcumulacion> ReglasAcumulacion => Set<CgPos.Dominio.Fidelidad.ReglaAcumulacion>();
+    public DbSet<CgPos.Dominio.Fidelidad.MiembroFidelidad> MiembrosFidelidad => Set<CgPos.Dominio.Fidelidad.MiembroFidelidad>();
+    public DbSet<CgPos.Dominio.Entregas.Almacen> Almacenes => Set<CgPos.Dominio.Entregas.Almacen>();
+    public DbSet<Rol> RolesCaja => Set<Rol>();
+    public DbSet<Usuario> UsuariosCaja => Set<Usuario>();
 
     // Anulaciones de e-NCF informadas a la DGII (ANECF)
     public DbSet<CgPos.Dominio.Fiscal.AnulacionEcfCentral> AnulacionesEcf => Set<CgPos.Dominio.Fiscal.AnulacionEcfCentral>();

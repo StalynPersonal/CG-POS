@@ -81,7 +81,7 @@ public class CatalogoPruebas
     [InlineData(0, true, false)]
     public void Unidad_de_medida_valida_decimales(decimal cantidad, bool permiteDecimales, bool valida)
     {
-        var unidad = UnidadMedida.Crear("LB", "Libra", permiteDecimales, permiteDecimales ? 3 : 0);
+        var unidad = UnidadMedida.Crear(1, "LB", "Libra", permiteDecimales, permiteDecimales ? 3 : 0);
 
         Assert.Equal(valida, unidad.EsCantidadValida(cantidad));
     }
@@ -89,7 +89,7 @@ public class CatalogoPruebas
     [Fact]
     public void Cliente_normaliza_documento_y_mantiene_una_sola_direccion_principal()
     {
-        var cliente = Cliente.Crear(TipoDocumentoIdentidad.Rnc, "131-24679-6", "Constructora Ejemplo SRL");
+        var cliente = Cliente.Crear($"CL{Codigos.Siguiente()}", TipoDocumentoIdentidad.Rnc, "131-24679-6", "Constructora Ejemplo SRL");
 
         var casa = cliente.AgregarDireccion("Oficina", "Av. Principal 1");
         var almacen = cliente.AgregarDireccion("Almacén", "Calle 2", esPrincipal: true);
@@ -101,7 +101,7 @@ public class CatalogoPruebas
         cliente.QuitarDireccion(almacen.Id);
         Assert.True(Assert.Single(cliente.Direcciones).EsPrincipal);
 
-        Assert.Throws<ArgumentException>(() => Cliente.Crear(TipoDocumentoIdentidad.Cedula, "12345", "Formato inválido"));
+        Assert.Throws<ArgumentException>(() => Cliente.Crear($"CL{Codigos.Siguiente()}", TipoDocumentoIdentidad.Cedula, "12345", "Formato inválido"));
     }
 
     [Fact]

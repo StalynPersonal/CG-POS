@@ -142,11 +142,11 @@
         if (promocion.Articulos is { Count: > 0 } articulos)
             partes.Add(articulos.Count == 1 ? "1 artículo" : $"{articulos.Count} artículos");
         if (promocion.Departamentos is { Count: > 0 } departamentos)
-            partes.Add(string.Join(", ", departamentos.Select(id => _departamentos.FirstOrDefault(f => f.Id == id)?.Nombre ?? "departamento")));
+            partes.Add(string.Join(", ", departamentos.Select(codigo => _departamentos.FirstOrDefault(f => f.Codigo == codigo)?.Nombre ?? "departamento")));
         if (promocion.Categorias is { Count: > 0 } categorias)
-            partes.Add(string.Join(", ", categorias.Select(id => _categorias.FirstOrDefault(c => c.Id == id)?.Nombre ?? "categoría")));
+            partes.Add(string.Join(", ", categorias.Select(codigo => _categorias.FirstOrDefault(c => c.Codigo == codigo)?.Nombre ?? "categoría")));
         if (promocion.Marcas is { Count: > 0 } marcas)
-            partes.Add(string.Join(", ", marcas.Select(id => _marcas.FirstOrDefault(m => m.Id == id)?.Nombre ?? "marca")));
+            partes.Add(string.Join(", ", marcas.Select(codigo => _marcas.FirstOrDefault(m => m.Codigo == codigo)?.Nombre ?? "marca")));
         return partes.Count == 0 ? "Sin alcance" : string.Join(" · ", partes);
     }
 

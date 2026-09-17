@@ -7,6 +7,7 @@ namespace CgPos.Dominio.Clientes;
 /// <summary>Cliente (RF-181): documento, datos de facturación y direcciones de envío.</summary>
 public sealed class Cliente : Entidad
 {
+    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoDocumento = 20;
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoTelefono = 20;
@@ -17,6 +18,9 @@ public sealed class Cliente : Entidad
     private Cliente()
     {
     }
+
+    /// <summary>Código con que se sincroniza entre el Central y las cajas; lo asigna el Central y no cambia (el documento sí se puede corregir).</summary>
+    public string Codigo { get; private set; } = string.Empty;
 
     public TipoDocumentoIdentidad TipoDocumento { get; private set; }
 
@@ -39,11 +43,12 @@ public sealed class Cliente : Entidad
 
     public IReadOnlyCollection<DireccionCliente> Direcciones => _direcciones;
 
-    public static Cliente Crear(TipoDocumentoIdentidad tipoDocumento, string documento, string nombre, Guid? id = null)
+    public static Cliente Crear(string codigo, TipoDocumentoIdentidad tipoDocumento, string documento, string nombre, Guid? id = null)
     {
         var cliente = new Cliente
         {
             Id = id ?? Guid.CreateVersion7(),
+            Codigo = Validar.Texto(codigo, "Código del cliente", LargoMaximoCodigo).ToUpperInvariant(),
             TipoDocumento = tipoDocumento,
             Documento = ValidarDocumento(tipoDocumento, documento),
         };

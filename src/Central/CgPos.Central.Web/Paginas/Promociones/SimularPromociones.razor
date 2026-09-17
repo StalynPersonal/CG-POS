@@ -128,7 +128,7 @@
 
         _procesando = true;
         var (resultado, error) = await Cliente.SimularPromocionesAsync(
-            new SolicitudSimulacionPromociones(_articulo!.Id, _cantidad, _sucursalId!.Value, EtiquetasPromocion.Momento(_fecha, _hora)!.Value, _conFidelidad));
+            new SolicitudSimulacionPromociones(_articulo!.Codigo, _cantidad, _sucursalId!.Value, EtiquetasPromocion.Momento(_fecha, _hora)!.Value, _conFidelidad));
         _procesando = false;
         (_resultado, _error) = (resultado, error);
     }

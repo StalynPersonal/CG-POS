@@ -5,7 +5,6 @@ namespace CgPos.Dominio.Organizacion;
 /// <summary>Terminal de venta. Solo una caja habilitada desde el Central puede abrir turno (RF-169).</summary>
 public sealed class Caja : Entidad
 {
-    public const int LargoMaximoCodigo = 10;
     public const int LargoMaximoNombre = 100;
 
     private Caja()
@@ -14,8 +13,8 @@ public sealed class Caja : Entidad
 
     public Guid SucursalId { get; private set; }
 
-    /// <summary>Código de la caja, único dentro de la sucursal (ej. "01").</summary>
-    public string Codigo { get; private set; } = string.Empty;
+    /// <summary>Código de la caja (1 a 99), único dentro de su sucursal; en los números de documento va con dos dígitos (ej. 01).</summary>
+    public int Codigo { get; private set; }
 
     public string Nombre { get; private set; } = string.Empty;
     public bool Habilitada { get; private set; } = true;
@@ -25,12 +24,12 @@ public sealed class Caja : Entidad
 
     public DateTimeOffset? VersionReportadaEn { get; private set; }
 
-    public static Caja Crear(Guid sucursalId, string codigo, string nombre, Guid? id = null) =>
+    public static Caja Crear(Guid sucursalId, int codigo, string nombre, Guid? id = null) =>
         new()
         {
             Id = id ?? Guid.CreateVersion7(),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
-            Codigo = Validar.Texto(codigo, "Código de caja", LargoMaximoCodigo),
+            Codigo = Validar.Codigo(codigo, "Código de caja", CodigosCatalogo.MaximoSucursalCaja),
             Nombre = Validar.Texto(nombre, "Nombre de caja", LargoMaximoNombre),
         };
 

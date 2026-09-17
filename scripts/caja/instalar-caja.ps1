@@ -13,12 +13,13 @@
     La base de datos la crea y migra el propio Agente al arrancar.
 
 .EXAMPLE
-    .\instalar-caja.ps1 -Paquete C:\temp\cgpos-agente-1.0.0.zip -CajaId 019a0000-0000-7000-8000-000000000101 `
+    .\instalar-caja.ps1 -Paquete C:\temp\cgpos-agente-1.0.0.zip -Sucursal 1 -Caja 1 `
         -SecretoCaja "(el que emitió el Central)" -UrlCentral https://central.contrerasgroup.com.do -Certificado C:\temp\empresa.p12
 #>
 param(
     [Parameter(Mandatory = $true)][string] $Paquete,
-    [Parameter(Mandatory = $true)][string] $CajaId,
+    [Parameter(Mandatory = $true)][ValidateRange(1, 99)][int] $Sucursal,
+    [Parameter(Mandatory = $true)][ValidateRange(1, 99)][int] $Caja,
     [Parameter(Mandatory = $true)][string] $SecretoCaja,
     [Parameter(Mandatory = $true)][string] $UrlCentral,
     [string] $Certificado,
@@ -62,7 +63,7 @@ $configuracion = [ordered]@{
         Pos = "Server=$InstanciaSql;Database=$BaseDatos;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False"
     }
     Kestrel           = [ordered]@{ Endpoints = [ordered]@{ Http = [ordered]@{ Url = "http://localhost:$Puerto" } } }
-    Caja              = [ordered]@{ Id = $CajaId }
+    Caja              = [ordered]@{ Sucursal = $Sucursal; Codigo = $Caja }
     Central           = [ordered]@{ Url = $UrlCentral; Secreto = $SecretoCaja }
     Ecf               = [ordered]@{ Certificado = (Join-Path $Raiz 'Certificado\empresa.p12'); CarpetaXml = (Join-Path $Raiz 'Xml') }
     Respaldo          = [ordered]@{ Carpeta = (Join-Path $Raiz 'Respaldos') }

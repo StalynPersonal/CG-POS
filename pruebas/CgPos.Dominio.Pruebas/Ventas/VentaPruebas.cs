@@ -10,7 +10,7 @@ public class VentaPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "02", Guid.CreateVersion7(), 123, 7, Guid.CreateVersion7(), "Cajera Prueba", "DOP", "RD$", Ahora);
+        Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 2, Guid.CreateVersion7(), 123, 7, Guid.CreateVersion7(), "Cajera Prueba", "DOP", "RD$", Ahora);
 
     private static ArticuloParaVenta Cincel() => new(
         Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Guid.CreateVersion7(), true,
@@ -40,16 +40,16 @@ public class VentaPruebas
     [Fact]
     public void Numero_de_documento_usa_los_digitos_configurados_y_crece_sin_repetirse()
     {
-        Assert.Equal("010100001", Venta.FormatearNumero("01", "01", 1, 5));
-        Assert.Equal("020100002", Venta.FormatearNumero("02", "01", 2, 5));
-        Assert.Equal("01010000001", Venta.FormatearNumero("01", "01", 1, 7));
-        Assert.Equal("0101000000001", Venta.FormatearNumero("01", "01", 1, 9));
+        Assert.Equal("010100001", Venta.FormatearNumero(1, 1, 1, 5));
+        Assert.Equal("020100002", Venta.FormatearNumero(2, 1, 2, 5));
+        Assert.Equal("01010000001", Venta.FormatearNumero(1, 1, 1, 7));
+        Assert.Equal("0101000000001", Venta.FormatearNumero(1, 1, 1, 9));
 
         // Pasado el máximo de los dígitos configurados el número se alarga en vez de reiniciar.
-        Assert.Equal("0101100000", Venta.FormatearNumero("01", "01", 100_000, 5));
+        Assert.Equal("0101100000", Venta.FormatearNumero(1, 1, 100_000, 5));
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => Venta.FormatearNumero("01", "01", 1, Venta.DigitosMinimosSecuencia - 1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Venta.FormatearNumero("01", "01", 0, 7));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Venta.FormatearNumero(1, 1, 1, Venta.DigitosMinimosSecuencia - 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Venta.FormatearNumero(1, 1, 0, 7));
     }
 
     [Fact]

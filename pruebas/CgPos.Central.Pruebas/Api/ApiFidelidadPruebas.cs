@@ -47,7 +47,7 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         Assert.Equal((150, 70, vencePronto), (miembro.Puntos, miembro.PuntosPorVencer, miembro.ProximoVencimiento));
 
         // El saldo baja a las cajas dentro del maestro del miembro (RF-240).
-        var maestro = Assert.Single((await BajarAsync(cliente, tokenUno, 0)).Maestros!.MiembrosFidelidad!, m => m.Id == miembroId);
+        var maestro = Assert.Single((await BajarAsync(cliente, tokenUno, 0)).Maestros!.MiembrosFidelidad!, m => m.Cedula == cedula);
         Assert.Equal((150, 70, vencePronto), (maestro.SaldoPuntos, maestro.PuntosPorVencer, maestro.ProximoVencimiento));
         Assert.NotNull(maestro.SaldoAl);
 
@@ -71,7 +71,7 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
             Movimiento(CentralEnPruebas.CajaUno, miembroId, cedula, TipoMovimientoPuntos.Acumulacion, 45, null)));
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, inscripcion));
 
-        var maestro = Assert.Single((await BajarAsync(cliente, token, 0)).Maestros!.MiembrosFidelidad!, m => m.Id == miembroId);
+        var maestro = Assert.Single((await BajarAsync(cliente, token, 0)).Maestros!.MiembrosFidelidad!, m => m.Cedula == cedula);
         Assert.Equal(45, maestro.SaldoPuntos);
         Assert.Equal(45, (await BuscarMiembroAsync(cliente, admin, cedula)).Puntos);
     }
@@ -135,7 +135,7 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(miembroId, cedula, "Miembro de Fidelidad", null, null, CentralEnPruebas.CajaUno,
             CentralEnPruebas.Sucursal, "Cajero Desarrollo", DateTimeOffset.UtcNow), OpcionesJson.Predeterminadas);
         return (miembroId, new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, miembroId, contenido,
-            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CajaUno, DateTimeOffset.UtcNow));
+            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow));
     }
 
     private static MensajeSincronizacion Movimiento(Guid cajaId, Guid miembroId, string cedula, TipoMovimientoPuntos tipo, int puntos, DateOnly? venceEn)
@@ -143,7 +143,7 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         var id = Guid.CreateVersion7();
         var contenido = JsonSerializer.Serialize(new DocumentoMovimientoPuntos(id, miembroId, cedula, tipo, puntos, Guid.CreateVersion7(), null, "01-01-00000010",
             cajaId, CentralEnPruebas.Sucursal, DateTimeOffset.UtcNow, venceEn), OpcionesJson.Predeterminadas);
-        return new MensajeSincronizacion(id, TiposMensaje.MovimientoPuntos, id, contenido, HashSincronizacion.Calcular(contenido), cajaId, DateTimeOffset.UtcNow);
+        return new MensajeSincronizacion(id, TiposMensaje.MovimientoPuntos, id, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja, DateTimeOffset.UtcNow);
     }
 
     private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, MensajeSincronizacion mensaje)

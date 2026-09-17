@@ -8,23 +8,22 @@ namespace CgPos.Dominio.Devoluciones;
 /// <summary>Motivo seleccionable de una devolución (RF-232).</summary>
 public sealed class MotivoDevolucion : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
     private MotivoDevolucion()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public bool Activo { get; private set; } = true;
 
-    public static MotivoDevolucion Crear(string codigo, string nombre, Guid? id = null)
+    public static MotivoDevolucion Crear(int codigo, string nombre, Guid? id = null)
     {
         var motivo = new MotivoDevolucion
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de motivo", LargoMaximoCodigo).ToUpperInvariant(),
+            Codigo = Validar.Codigo(codigo, "Código de motivo"),
         };
         motivo.CambiarNombre(nombre);
         return motivo;
@@ -125,7 +124,7 @@ public sealed class Devolucion : Entidad
     public string ClienteDocumento { get; private set; } = string.Empty;
     public string ClienteNombre { get; private set; } = string.Empty;
 
-    public string MotivoCodigo { get; private set; } = string.Empty;
+    public int MotivoCodigo { get; private set; }
     public string MotivoNombre { get; private set; } = string.Empty;
     public string? Observacion { get; private set; }
 
@@ -177,7 +176,7 @@ public sealed class Devolucion : Entidad
     public IReadOnlyList<ConsumoNotaCredito> Consumos => _consumos;
 
     public static Devolucion Registrar(Venta venta, string? encfOrigen, IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
-        IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, string? motivoCodigo, string? motivoNombre, string? observacion,
+        IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, int? motivoCodigo, string? motivoNombre, string? observacion,
         string numero, Guid? turnoId, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre,
         int diasRetencionImpuesto, int mesesVigencia, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria)
     {
@@ -195,7 +194,7 @@ public sealed class Devolucion : Entidad
 
         if (cliente is null || !DocumentoIdentidad.Validar(cliente.Documento).EsValido || string.IsNullOrWhiteSpace(cliente.Nombre))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.ClienteRequerido, "La nota de crédito requiere la cédula o el RNC válido y el nombre del cliente.");
-        if (string.IsNullOrWhiteSpace(motivoCodigo) || string.IsNullOrWhiteSpace(motivoNombre))
+        if (motivoCodigo is null or < 1 || string.IsNullOrWhiteSpace(motivoNombre))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MotivoRequerido, "Seleccione el motivo de la devolución.");
 
         // El plazo se cuenta en días de la zona horaria de la caja.
@@ -219,7 +218,7 @@ public sealed class Devolucion : Entidad
             ClienteTipoDocumento = cliente.TipoDocumento,
             ClienteDocumento = DocumentoIdentidad.Normalizar(cliente.Documento),
             ClienteNombre = Validar.Texto(cliente.Nombre, "Cliente", LargoMaximoNombre),
-            MotivoCodigo = motivoCodigo.Trim().ToUpperInvariant(),
+            MotivoCodigo = motivoCodigo.Value,
             MotivoNombre = Validar.Texto(motivoNombre, "Motivo", MotivoDevolucion.LargoMaximoNombre),
             Observacion = Validar.TextoOpcional(observacion, "Observación", LargoMaximoObservacion),
             AutorizadoPorId = autorizadoPorId,

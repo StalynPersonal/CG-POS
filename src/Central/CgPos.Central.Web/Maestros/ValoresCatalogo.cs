@@ -18,6 +18,7 @@ public static class ValoresCatalogo
         {
             TipoCampoCatalogo.Decimal => nodo.GetValue<decimal>(),
             TipoCampoCatalogo.Entero => nodo.GetValue<int>(),
+            TipoCampoCatalogo.Departamento or TipoCampoCatalogo.Sucursal => nodo.GetValue<int>().ToString(CultureInfo.InvariantCulture),
             TipoCampoCatalogo.Booleano => nodo.GetValue<bool>(),
             TipoCampoCatalogo.SiNoSegunTipo => nodo.GetValue<bool>() ? "true" : "false",
             TipoCampoCatalogo.FechaHora => DateTimeOffset.Parse(nodo.GetValue<string>(), CultureInfo.InvariantCulture),
@@ -33,6 +34,8 @@ public static class ValoresCatalogo
             null => null,
             string texto when string.IsNullOrWhiteSpace(texto) || texto == SegunTipo => null,
             string texto when campo.Tipo == TipoCampoCatalogo.SiNoSegunTipo => JsonValue.Create(texto == "true"),
+            string texto when campo.Tipo is TipoCampoCatalogo.Departamento or TipoCampoCatalogo.Sucursal =>
+                JsonValue.Create(int.Parse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture)),
             string texto => JsonValue.Create(texto.Trim()),
             decimal numero => JsonValue.Create(numero),
             int entero => JsonValue.Create(entero),

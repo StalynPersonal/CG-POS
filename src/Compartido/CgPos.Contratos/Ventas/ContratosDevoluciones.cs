@@ -4,7 +4,7 @@ using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Contratos.Ventas;
 
-public sealed record DatosMotivoDevolucion(string Codigo, string Nombre);
+public sealed record DatosMotivoDevolucion(int Codigo, string Nombre);
 
 /// <param name="ImporteDisponible">Lo que se acreditaría si se devuelve todo lo disponible, antes de retener el ITBIS.</param>
 public sealed record DatosLineaFacturaDevolucion(
@@ -54,7 +54,7 @@ public sealed record SolicitudDevolucion(
     IReadOnlyList<SolicitudLineaDevolucion> Lineas,
     string? ClienteDocumento,
     string? ClienteNombre,
-    string? MotivoCodigo,
+    int? MotivoCodigo,
     string? Observacion,
     Guid? AutorizacionId,
     TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
@@ -87,7 +87,7 @@ public sealed record DatosNotaCredito(
     TipoDocumentoIdentidad? ClienteTipoDocumento,
     string ClienteDocumento,
     string ClienteNombre,
-    string MotivoCodigo,
+    int MotivoCodigo,
     string MotivoNombre,
     string? Observacion,
     string UsuarioNombre,

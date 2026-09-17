@@ -5,24 +5,23 @@ namespace CgPos.Dominio.Catalogo;
 /// <summary>Categoría de artículos dentro de un departamento (ej. Eléctrico → Cables).</summary>
 public sealed class Categoria : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
     private Categoria()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public Guid DepartamentoId { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static Categoria Crear(string codigo, string nombre, Guid departamentoId, Guid? id = null)
+    public static Categoria Crear(int codigo, string nombre, Guid departamentoId, Guid? id = null)
     {
         var categoria = new Categoria
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de categoría", LargoMaximoCodigo),
+            Codigo = Validar.Codigo(codigo, "Código de categoría"),
         };
         categoria.Actualizar(nombre, departamentoId);
         return categoria;
@@ -42,23 +41,22 @@ public sealed class Categoria : Entidad
 /// <summary>Marca del artículo. No depende del departamento: una marca puede tener artículos en varios.</summary>
 public sealed class Marca : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
     private Marca()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public bool Activa { get; private set; } = true;
 
-    public static Marca Crear(string codigo, string nombre, Guid? id = null)
+    public static Marca Crear(int codigo, string nombre, Guid? id = null)
     {
         var marca = new Marca
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de marca", LargoMaximoCodigo),
+            Codigo = Validar.Codigo(codigo, "Código de marca"),
         };
         marca.CambiarNombre(nombre);
         return marca;

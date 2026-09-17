@@ -15,6 +15,8 @@ internal sealed class SecuenciaEcfConfiguracion : IEntityTypeConfiguration<Secue
         constructor.Ignore(s => s.Restantes);
         constructor.Ignore(s => s.PorcentajeRestante);
         constructor.HasIndex(s => new { s.CajaId, s.TipoComprobante, s.Activa, s.Desde });
+        // Un rango se identifica por su tipo y su inicio: los rangos no se solapan en la empresa.
+        constructor.HasIndex(s => new { s.TipoComprobante, s.Desde }).IsUnique();
     }
 }
 

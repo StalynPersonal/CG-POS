@@ -2,11 +2,9 @@ using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Fidelidad;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Infraestructura.Persistencia;
-using CgPos.Central.Infraestructura.Sincronizacion;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Fidelidad;
-using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Fidelidad;
@@ -22,11 +20,12 @@ internal sealed class ServicioFidelidadCentral(
         tamano = Math.Clamp(tamano, 1, IServicioFidelidadCentral.TamanoMaximoPagina);
         pagina = Math.Max(pagina, 0);
 
-        var consulta = contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.MiembroFidelidad);
-        if (MaestroCentral.NormalizarBusqueda(buscar) is { } buscado)
+        var consulta = contexto.MiembrosFidelidad.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(buscar))
         {
-            var patron = $"%{buscado.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]")}%";
-            consulta = consulta.Where(m => m.TextoBusqueda != null && EF.Functions.Like(m.TextoBusqueda, patron));
+            var texto = buscar.Trim();
+            consulta = consulta.Where(m => m.Cedula.Contains(texto) || m.Nombre.Contains(texto) || (m.Telefono != null && m.Telefono.Contains(texto))
+                                           || (m.Correo != null && m.Correo.Contains(texto)));
         }
 
         if (soloConPuntos)
@@ -36,14 +35,13 @@ internal sealed class ServicioFidelidadCentral(
         }
 
         var total = await consulta.CountAsync(cancelacion);
-        var filas = await consulta.OrderBy(m => m.Codigo).Skip(pagina * tamano).Take(tamano).ToListAsync(cancelacion);
+        var filas = await consulta.OrderBy(m => m.Cedula).Skip(pagina * tamano).Take(tamano).ToListAsync(cancelacion);
         return new PaginaMiembrosFidelidadCentral(await DatosAsync(filas, cancelacion), total);
     }
 
     public async Task<DatosMiembroFidelidadCentral?> ObtenerAsync(Guid miembroId, CancellationToken cancelacion = default)
     {
-        var fila = await contexto.MaestrosCentral.AsNoTracking()
-            .SingleOrDefaultAsync(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Id == miembroId, cancelacion);
+        var fila = await contexto.MiembrosFidelidad.AsNoTracking().SingleOrDefaultAsync(m => m.Id == miembroId, cancelacion);
         return fila is null ? null : (await DatosAsync([fila], cancelacion))[0];
     }
 
@@ -57,8 +55,8 @@ internal sealed class ServicioFidelidadCentral(
         var idsCajas = movimientos.Select(m => m.CajaId).OfType<Guid>().Distinct().ToList();
         var cajas = idsCajas.Count == 0
             ? []
-            : await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
+            : await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion);
 
         return movimientos.Select(m => new DatosMovimientoPuntosCentral(m.Id, m.Tipo, m.Origen, m.Puntos, m.Documento,
             m.SucursalId is { } sucursal ? sucursales.GetValueOrDefault(sucursal) : null,
@@ -73,12 +71,9 @@ internal sealed class ServicioFidelidadCentral(
         if (string.IsNullOrWhiteSpace(motivo))
             return new RespuestaAjustePuntos(false, "El ajuste necesita un motivo.");
 
-        var fila = await contexto.MaestrosCentral.AsNoTracking()
-            .SingleOrDefaultAsync(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Id == miembroId, cancelacion);
-        if (fila is null)
+        var miembro = await contexto.MiembrosFidelidad.AsNoTracking().SingleOrDefaultAsync(m => m.Id == miembroId, cancelacion);
+        if (miembro is null)
             return new RespuestaAjustePuntos(false, "El miembro del programa no existe.");
-
-        var miembro = FormatoMaestros.Leer<MiembroFidelidadCarga>(fila);
         var ahora = reloj.GetUtcNow();
         var saldoActual = await contexto.SaldosPuntos.AsNoTracking().Where(s => s.MiembroId == miembroId).Select(s => s.Puntos).FirstOrDefaultAsync(cancelacion);
         if (puntos < 0 && saldoActual + puntos < 0)
@@ -121,17 +116,14 @@ internal sealed class ServicioFidelidadCentral(
         return pendientes.Count;
     }
 
-    private async Task<IReadOnlyList<DatosMiembroFidelidadCentral>> DatosAsync(IReadOnlyList<MaestroCentral> filas, CancellationToken cancelacion)
+    private async Task<IReadOnlyList<DatosMiembroFidelidadCentral>> DatosAsync(IReadOnlyList<MiembroFidelidad> miembros, CancellationToken cancelacion)
     {
-        if (filas.Count == 0)
+        if (miembros.Count == 0)
             return [];
 
-        var miembros = filas.Select(FormatoMaestros.Leer<MiembroFidelidadCarga>).ToList();
         var ids = miembros.Select(m => m.Id).ToList();
         var saldos = await contexto.SaldosPuntos.AsNoTracking().Where(s => ids.Contains(s.MiembroId)).ToDictionaryAsync(s => s.MiembroId, cancelacion);
-        var niveles = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.NivelFidelidad).ToListAsync(cancelacion))
-            .Select(FormatoMaestros.Leer<NivelFidelidadCarga>)
-            .ToDictionary(n => n.Id, n => n.Nombre);
+        var niveles = await contexto.NivelesFidelidad.AsNoTracking().ToDictionaryAsync(n => n.Id, n => n.Nombre, cancelacion);
 
         return miembros.Select(miembro =>
         {

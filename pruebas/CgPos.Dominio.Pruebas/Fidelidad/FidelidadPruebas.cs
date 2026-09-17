@@ -12,7 +12,7 @@ public class FidelidadPruebas
     private const string Cedula = "00113918205";
 
     private static ReglaAcumulacion General() =>
-        ReglaAcumulacion.Crear("GEN", "General", TipoReglaAcumulacion.Monto, 100m, 1m, null, null, null, null);
+        ReglaAcumulacion.Crear(4, "General", TipoReglaAcumulacion.Monto, 100m, 1m, null, null, null, null);
 
     [Fact]
     public void Cada_linea_toma_la_regla_mas_favorable_y_el_nivel_multiplica()
@@ -20,8 +20,8 @@ public class FidelidadPruebas
         var reglas = new[]
         {
             General(),
-            ReglaAcumulacion.Crear("FER", "Ferretería doble", TipoReglaAcumulacion.Departamento, 100m, 2m, Ferreteria, null, null, null),
-            ReglaAcumulacion.Crear("MAR", "Martes triple", TipoReglaAcumulacion.DiaSemana, 100m, 3m, null, DayOfWeek.Tuesday, null, null),
+            ReglaAcumulacion.Crear(6, "Ferretería doble", TipoReglaAcumulacion.Departamento, 100m, 2m, Ferreteria, null, null, null),
+            ReglaAcumulacion.Crear(7, "Martes triple", TipoReglaAcumulacion.DiaSemana, 100m, 3m, null, DayOfWeek.Tuesday, null, null),
         };
         var lineas = new[]
         {
@@ -45,14 +45,14 @@ public class FidelidadPruebas
         var promocion = Guid.CreateVersion7();
         var reglas = new[]
         {
-            ReglaAcumulacion.Crear("PRO", "Oferta con puntos", TipoReglaAcumulacion.Promocion, 50m, 1m, promocion, null, null, null),
-            ReglaAcumulacion.Crear("VEN", "Vencida", TipoReglaAcumulacion.Monto, 1m, 100m, null, null, Martes.AddDays(-10), Martes.AddDays(-1)),
+            ReglaAcumulacion.Crear(8, "Oferta con puntos", TipoReglaAcumulacion.Promocion, 50m, 1m, promocion, null, null, null),
+            ReglaAcumulacion.Crear(9, "Vencida", TipoReglaAcumulacion.Monto, 1m, 100m, null, null, Martes.AddDays(-10), Martes.AddDays(-1)),
         };
 
         Assert.Equal(4, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Cincel, Ferreteria, promocion, 200m)], reglas, 1m, 1m, Martes));
         Assert.Equal(0, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Cincel, Ferreteria, null, 200m)], reglas, 1m, 1m, Martes));
-        Assert.Throws<ArgumentException>(() => ReglaAcumulacion.Crear("FAM", "Sin departamento", TipoReglaAcumulacion.Departamento, 100m, 1m, null, null, null, null));
-        Assert.Throws<ArgumentOutOfRangeException>(() => ReglaAcumulacion.Crear("CER", "Base cero", TipoReglaAcumulacion.Monto, 0m, 1m, null, null, null, null));
+        Assert.Throws<ArgumentException>(() => ReglaAcumulacion.Crear(10, "Sin departamento", TipoReglaAcumulacion.Departamento, 100m, 1m, null, null, null, null));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ReglaAcumulacion.Crear(11, "Base cero", TipoReglaAcumulacion.Monto, 0m, 1m, null, null, null, null));
     }
 
     [Fact]

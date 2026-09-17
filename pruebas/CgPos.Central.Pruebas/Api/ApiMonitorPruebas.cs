@@ -127,7 +127,7 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         // Una venta cobrada sin poder firmar su e-CF llega al Central sin comprobante.
         var contenido = JsonSerializer.Serialize(VentaSinEcf(), OpcionesJson.Predeterminadas);
         var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.VentaCobrada, Guid.CreateVersion7(), contenido,
-            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CajaUno, DateTimeOffset.UtcNow);
+            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
         using (var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", tokenCaja, mensaje)))
             respuesta.EnsureSuccessStatusCode();
 

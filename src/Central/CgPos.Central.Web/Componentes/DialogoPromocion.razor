@@ -81,38 +81,38 @@
 
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">Alcance</MudText></MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="Guid" @bind-SelectedValues="_departamentos" MultiSelection="true" Label="Departamentos" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Departamentos.FirstOrDefault(f => f.Id == id)?.Nombre ?? string.Empty)">
+                <MudSelect T="int" @bind-SelectedValues="_departamentos" MultiSelection="true" Label="Departamentos" Variant="Variant.Outlined"
+                           ToStringFunc="@(codigo => Departamentos.FirstOrDefault(f => f.Codigo == codigo)?.Nombre ?? string.Empty)">
                     @foreach (var departamento in Departamentos)
                     {
-                        <MudSelectItem T="Guid" Value="@departamento.Id">@departamento.Codigo · @departamento.Nombre</MudSelectItem>
+                        <MudSelectItem T="int" Value="@departamento.Codigo">@departamento.Codigo · @departamento.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="Guid" @bind-SelectedValues="_categorias" MultiSelection="true" Label="Categorías" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Categorias.FirstOrDefault(c => c.Id == id)?.Nombre ?? string.Empty)">
+                <MudSelect T="int" @bind-SelectedValues="_categorias" MultiSelection="true" Label="Categorías" Variant="Variant.Outlined"
+                           ToStringFunc="@(codigo => Categorias.FirstOrDefault(c => c.Codigo == codigo)?.Nombre ?? string.Empty)">
                     @foreach (var categoria in Categorias)
                     {
-                        <MudSelectItem T="Guid" Value="@categoria.Id">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
+                        <MudSelectItem T="int" Value="@categoria.Codigo">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="Guid" @bind-SelectedValues="_marcas" MultiSelection="true" Label="Marcas" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Marcas.FirstOrDefault(m => m.Id == id)?.Nombre ?? string.Empty)">
+                <MudSelect T="int" @bind-SelectedValues="_marcas" MultiSelection="true" Label="Marcas" Variant="Variant.Outlined"
+                           ToStringFunc="@(codigo => Marcas.FirstOrDefault(m => m.Codigo == codigo)?.Nombre ?? string.Empty)">
                     @foreach (var marca in Marcas)
                     {
-                        <MudSelectItem T="Guid" Value="@marca.Id">@marca.Codigo · @marca.Nombre</MudSelectItem>
+                        <MudSelectItem T="int" Value="@marca.Codigo">@marca.Codigo · @marca.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="Guid" @bind-SelectedValues="_sucursales" MultiSelection="true" Label="Sucursales" Variant="Variant.Outlined" HelperText="Ninguna = todas."
-                           ToStringFunc="@(id => Sucursales.FirstOrDefault(s => s.Id == id)?.Nombre ?? string.Empty)">
+                <MudSelect T="int" @bind-SelectedValues="_sucursales" MultiSelection="true" Label="Sucursales" Variant="Variant.Outlined" HelperText="Ninguna = todas."
+                           ToStringFunc="@(codigo => Sucursales.FirstOrDefault(s => s.Codigo == codigo)?.Nombre ?? string.Empty)">
                     @foreach (var sucursal in Sucursales)
                     {
-                        <MudSelectItem T="Guid" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                        <MudSelectItem T="int" Value="@sucursal.Codigo">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -151,7 +151,7 @@
 </MudDialog>
 
 @code {
-    private sealed record ArticuloElegido(Guid Id, string Texto);
+    private sealed record ArticuloElegido(string Codigo, string Texto);
 
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
@@ -178,10 +178,10 @@
     private bool _conHorario;
     private TimeSpan? _horaDesde = new TimeSpan(8, 0, 0);
     private TimeSpan? _horaHasta = new TimeSpan(12, 0, 0);
-    private IReadOnlyCollection<Guid> _departamentos = [];
-    private IReadOnlyCollection<Guid> _categorias = [];
-    private IReadOnlyCollection<Guid> _marcas = [];
-    private IReadOnlyCollection<Guid> _sucursales = [];
+    private IReadOnlyCollection<int> _departamentos = [];
+    private IReadOnlyCollection<int> _categorias = [];
+    private IReadOnlyCollection<int> _marcas = [];
+    private IReadOnlyCollection<int> _sucursales = [];
     private ArticuloCarga? _articuloBuscado;
     private bool _soloFidelidad;
     private bool _activa = true;
@@ -208,10 +208,10 @@
         _sucursales = (p.Sucursales ?? []).ToHashSet();
         (_soloFidelidad, _activa) = (p.SoloFidelidad, p.Activa);
 
-        var ids = p.Articulos ?? [];
-        var encontrados = (await Central.ArticulosPromocionAsync(ids)).ToDictionary(a => a.Id);
-        foreach (var id in ids)
-            _articulos.Add(new ArticuloElegido(id, encontrados.TryGetValue(id, out var a) ? $"{a.Codigo} · {a.Descripcion}" : $"Artículo {id}"));
+        var codigos = p.Articulos ?? [];
+        var encontrados = (await Central.ArticulosPromocionAsync(codigos)).ToDictionary(a => a.Codigo);
+        foreach (var codigo in codigos)
+            _articulos.Add(new ArticuloElegido(codigo, encontrados.TryGetValue(codigo, out var a) ? $"{a.Codigo} · {a.Descripcion}" : $"Artículo {codigo}"));
     }
 
     private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
@@ -219,8 +219,8 @@
 
     private void AgregarArticulo(ArticuloCarga? articulo)
     {
-        if (articulo is not null && _articulos.All(a => a.Id != articulo.Id))
-            _articulos.Add(new ArticuloElegido(articulo.Id, $"{articulo.Codigo} · {articulo.Descripcion}"));
+        if (articulo is not null && _articulos.All(a => a.Codigo != articulo.Codigo))
+            _articulos.Add(new ArticuloElegido(articulo.Codigo, $"{articulo.Codigo} · {articulo.Descripcion}"));
         _articuloBuscado = null;
     }
 
@@ -240,14 +240,13 @@
             return;
 
         var promocion = new PromocionCarga(
-            Promocion?.Id ?? Guid.CreateVersion7(),
             _codigo!.Trim(),
             _nombre!.Trim(),
             _tipo,
             _tipo == TipoPromocion.LlevaPaga ? 0m : _valor!.Value,
             desde!.Value,
             hasta!.Value,
-            _articulos.Select(a => a.Id).ToList(),
+            _articulos.Select(a => a.Codigo).ToList(),
             _departamentos.ToList(),
             _sucursales.ToList(),
             _tipo == TipoPromocion.LlevaPaga ? _lleva : null,
@@ -263,7 +262,7 @@
             _marcas.ToList());
 
         _procesando = true;
-        var respuesta = await Central.GuardarPromocionAsync(promocion);
+        var respuesta = await Central.GuardarPromocionAsync(promocion, nueva: Promocion is null);
         _procesando = false;
 
         if (respuesta.Exitosa)

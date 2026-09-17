@@ -5,23 +5,22 @@ namespace CgPos.Dominio.Promociones;
 /// <summary>Motivo seleccionable para los descuentos manuales (RF-203).</summary>
 public sealed class MotivoDescuento : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
     private MotivoDescuento()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public bool Activo { get; private set; } = true;
 
-    public static MotivoDescuento Crear(string codigo, string nombre, Guid? id = null)
+    public static MotivoDescuento Crear(int codigo, string nombre, Guid? id = null)
     {
         var motivo = new MotivoDescuento
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de motivo", LargoMaximoCodigo).ToUpperInvariant(),
+            Codigo = Validar.Codigo(codigo, "Código de motivo"),
         };
         motivo.CambiarNombre(nombre);
         return motivo;
@@ -44,6 +43,9 @@ public sealed class TopeDescuento : Entidad
     {
     }
 
+    /// <summary>Código numérico con que se sincroniza entre el Central y las cajas.</summary>
+    public int Codigo { get; private set; }
+
     public int Nivel { get; private set; }
     public Guid? DepartamentoId { get; private set; }
     public Guid? CategoriaId { get; private set; }
@@ -55,10 +57,10 @@ public sealed class TopeDescuento : Entidad
     public decimal? PorcentajeMaximo { get; private set; }
     public decimal? MontoMaximo { get; private set; }
 
-    public static TopeDescuento Crear(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? departamentoId = null, Guid? articuloId = null, Guid? id = null,
-        Guid? categoriaId = null, Guid? marcaId = null)
+    public static TopeDescuento Crear(int codigo, int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? departamentoId = null, Guid? articuloId = null,
+        Guid? id = null, Guid? categoriaId = null, Guid? marcaId = null)
     {
-        var tope = new TopeDescuento { Id = id ?? Guid.CreateVersion7() };
+        var tope = new TopeDescuento { Id = id ?? Guid.CreateVersion7(), Codigo = Validar.Codigo(codigo, "Código del tope") };
         tope.Actualizar(nivel, porcentajeMaximo, montoMaximo, departamentoId, articuloId, categoriaId, marcaId);
         return tope;
     }

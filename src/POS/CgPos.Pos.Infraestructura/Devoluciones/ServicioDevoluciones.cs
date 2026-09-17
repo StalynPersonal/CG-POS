@@ -93,7 +93,7 @@ internal sealed class ServicioDevoluciones(
             return Rechazo(CodigoResultadoDevolucion.FacturaNoEncontrada, "La factura no existe en esta caja.");
 
         var motivo = await contexto.MotivosDevolucion.AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Codigo == (solicitud.MotivoCodigo ?? string.Empty).ToUpper() && m.Activo, cancelacion);
+            .FirstOrDefaultAsync(m => m.Codigo == solicitud.MotivoCodigo && m.Activo, cancelacion);
         var cliente = await ClienteAsync(venta, solicitud, cancelacion);
 
         var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);

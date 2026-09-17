@@ -177,7 +177,7 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
     private static RespuestaDgii Resultado(RespuestaEstadoDgii datos)
     {
         var mensajes = string.Join(" ", (datos.Mensajes ?? []).Select(m => m.Valor).Where(v => !string.IsNullOrWhiteSpace(v)));
-        var resultado = MaestroCentral.NormalizarBusqueda(datos.Estado)?.Replace(" ", string.Empty) switch
+        var resultado = CgPos.Dominio.Comun.TextoBusqueda.Normalizar(datos.Estado)?.Replace(" ", string.Empty) switch
         {
             "aceptado" => ResultadoRespuestaDgii.Aceptado,
             "aceptadocondicional" => ResultadoRespuestaDgii.AceptadoCondicional,
@@ -188,7 +188,7 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
     }
 
     private static bool EsNoEncontrado(string? estado) =>
-        MaestroCentral.NormalizarBusqueda(estado)?.Replace(" ", string.Empty) is "noencontrado" or "noexiste";
+        CgPos.Dominio.Comun.TextoBusqueda.Normalizar(estado)?.Replace(" ", string.Empty) is "noencontrado" or "noexiste";
 
     /// <param name="clave">Parámetro con la dirección del servicio.</param>
     private async Task<HttpResponseMessage> EnviarAutenticadoAsync(string clave, Func<Uri, HttpRequestMessage> crear, CancellationToken cancelacion)

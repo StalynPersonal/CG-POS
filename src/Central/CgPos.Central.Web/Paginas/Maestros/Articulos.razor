@@ -48,7 +48,7 @@
                 }
             </MudTd>
             <MudTd DataLabel="Departamento">
-                @NombreDepartamento(context.Dato.DepartamentoId)
+                @NombreDepartamento(context.Dato.DepartamentoCodigo)
                 @if (Clasificacion(context.Dato) is { Length: > 0 } detalle)
                 {
                     <div class="cg-central__detalle">@detalle</div>
@@ -92,13 +92,13 @@
 
     protected override async Task OnInitializedAsync() => _referencias = await ReferenciasArticulo.CargarAsync(Cliente);
 
-    private string NombreDepartamento(Guid departamentoId) => _referencias.Departamentos.FirstOrDefault(f => f.Id == departamentoId)?.Nombre ?? string.Empty;
+    private string NombreDepartamento(int departamento) => _referencias.Departamentos.FirstOrDefault(f => f.Codigo == departamento)?.Nombre ?? string.Empty;
 
     /// <summary>Categoría y marca debajo del departamento.</summary>
     private string Clasificacion(ArticuloCarga articulo) => string.Join(" · ", new[]
     {
-        _referencias.Categorias.FirstOrDefault(c => c.Id == articulo.CategoriaId)?.Nombre,
-        _referencias.Marcas.FirstOrDefault(m => m.Id == articulo.MarcaId)?.Nombre,
+        _referencias.Categorias.FirstOrDefault(c => c.Codigo == articulo.CategoriaCodigo)?.Nombre,
+        _referencias.Marcas.FirstOrDefault(m => m.Codigo == articulo.MarcaCodigo)?.Nombre,
     }.Where(texto => !string.IsNullOrEmpty(texto)));
 
     private async Task<TableData<DatosMaestroCentral<ArticuloCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)

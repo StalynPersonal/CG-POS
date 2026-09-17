@@ -150,9 +150,22 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<IReadOnlyList<DatosMaestroCentral<System.Text.Json.Nodes.JsonObject>>?> ListarCatalogoAsync(string ruta) =>
         ListarAsync<DatosMaestroCentral<System.Text.Json.Nodes.JsonObject>>($"api/maestros/{ruta}");
 
-    /// <summary>Crea o cambia el registro con ese Id.</summary>
-    public Task<RespuestaAdministracion> GuardarCatalogoAsync(string ruta, Guid id, System.Text.Json.Nodes.JsonObject dato) =>
-        EnviarAsync(HttpMethod.Put, $"api/maestros/{ruta}/{id}", dato);
+    /// <param name="nuevo">Crea el registro (su código no puede existir); falso cambia el que tiene ese código.</param>
+    public Task<RespuestaAdministracion> GuardarCatalogoAsync(string ruta, bool nuevo, System.Text.Json.Nodes.JsonObject dato) =>
+        EnviarAsync(nuevo ? HttpMethod.Post : HttpMethod.Put, $"api/maestros/{ruta}", dato);
+
+    /// <summary>Código sugerido para un registro nuevo de un catálogo con código numérico.</summary>
+    public async Task<int?> SiguienteCodigoAsync(string modulo, string ruta)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<int>($"api/{modulo}/{ruta}/siguiente-codigo", OpcionesJson.Predeterminadas);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
 
     public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesMaestrosAsync() => ListarAsync<DatosSucursal>("api/maestros/sucursales");
 
@@ -164,11 +177,11 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<PaginaMaestros<CgPos.Contratos.Catalogo.ClienteCarga>?> BuscarClientesAsync(string? texto, int pagina, int tamano, CancellationToken cancelacion = default) =>
         BuscarAsync<CgPos.Contratos.Catalogo.ClienteCarga>("api/maestros/clientes", texto, pagina, tamano, cancelacion);
 
-    public Task<RespuestaAdministracion> GuardarClienteAsync(CgPos.Contratos.Catalogo.ClienteCarga cliente) =>
-        EnviarAsync(HttpMethod.Put, $"api/maestros/clientes/{cliente.Id}", cliente);
+    public Task<RespuestaAdministracion> GuardarClienteAsync(CgPos.Contratos.Catalogo.ClienteCarga cliente, bool nuevo) =>
+        EnviarAsync(nuevo ? HttpMethod.Post : HttpMethod.Put, "api/maestros/clientes", cliente);
 
-    public Task<RespuestaAdministracion> CorregirDocumentoClienteAsync(Guid clienteId, SolicitudCorreccionDocumentoCliente solicitud) =>
-        EnviarAsync(HttpMethod.Post, $"api/maestros/clientes/{clienteId}/documento", solicitud);
+    public Task<RespuestaAdministracion> CorregirDocumentoClienteAsync(string codigoCliente, SolicitudCorreccionDocumentoCliente solicitud) =>
+        EnviarAsync(HttpMethod.Post, $"api/maestros/clientes/{Uri.EscapeDataString(codigoCliente)}/documento", solicitud);
 
     /// <param name="modulo">"maestros" o "precios", según el permiso con el que se consulta.</param>
     public Task<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>?> BuscarArticulosAsync(string modulo, string? texto, int pagina, int tamano,
@@ -189,11 +202,11 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public Task<RespuestaAdministracion> GuardarArticuloAsync(CgPos.Contratos.Catalogo.ArticuloCarga articulo) =>
-        EnviarAsync(HttpMethod.Put, $"api/maestros/articulos/{articulo.Id}", articulo);
+    public Task<RespuestaAdministracion> GuardarArticuloAsync(CgPos.Contratos.Catalogo.ArticuloCarga articulo, bool nuevo) =>
+        EnviarAsync(nuevo ? HttpMethod.Post : HttpMethod.Put, "api/maestros/articulos", articulo);
 
-    public Task<RespuestaAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud) =>
-        EnviarAsync(HttpMethod.Put, $"api/precios/articulos/{articuloId}", solicitud);
+    public Task<RespuestaAdministracion> CambiarPreciosAsync(string codigoArticulo, SolicitudPreciosArticulo solicitud) =>
+        EnviarAsync(HttpMethod.Put, $"api/precios/articulos/{Uri.EscapeDataString(codigoArticulo)}", solicitud);
 
     public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>?> ListarDepartamentosPreciosAsync() =>
         ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>("api/precios/departamentos");
@@ -206,15 +219,15 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<IReadOnlyList<DatosTopeDescuentoCentral>?> ListarTopesAsync() => ListarAsync<DatosTopeDescuentoCentral>("api/precios/topes");
 
-    public Task<RespuestaAdministracion> GuardarTopeAsync(CgPos.Contratos.Catalogo.TopeDescuentoCarga tope) =>
-        EnviarAsync(HttpMethod.Put, $"api/precios/topes/{tope.Id}", tope);
+    public Task<RespuestaAdministracion> GuardarTopeAsync(CgPos.Contratos.Catalogo.TopeDescuentoCarga tope, bool nuevo) =>
+        EnviarAsync(nuevo ? HttpMethod.Post : HttpMethod.Put, "api/precios/topes", tope);
 
     // ---------- Promociones ----------
 
     public Task<IReadOnlyList<DatosPromocionCentral>?> ListarPromocionesAsync() => ListarAsync<DatosPromocionCentral>("api/promociones");
 
-    public Task<RespuestaAdministracion> GuardarPromocionAsync(CgPos.Contratos.Catalogo.PromocionCarga promocion) =>
-        EnviarAsync(HttpMethod.Put, $"api/promociones/{promocion.Id}", promocion);
+    public Task<RespuestaAdministracion> GuardarPromocionAsync(CgPos.Contratos.Catalogo.PromocionCarga promocion, bool nueva) =>
+        EnviarAsync(nueva ? HttpMethod.Post : HttpMethod.Put, "api/promociones", promocion);
 
     public Task<(ResultadoImportacionPromociones? Datos, string? Error)> ImportarPromocionesAsync(SolicitudImportacionPromociones solicitud) =>
         PostearAsync<ResultadoImportacionPromociones>("api/promociones/importar", solicitud);
@@ -222,8 +235,8 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<(ResultadoSimulacionPromociones? Datos, string? Error)> SimularPromocionesAsync(SolicitudSimulacionPromociones solicitud) =>
         PostearAsync<ResultadoSimulacionPromociones>("api/promociones/simular", solicitud);
 
-    public async Task<IReadOnlyList<CgPos.Contratos.Catalogo.ArticuloCarga>> ArticulosPromocionAsync(IReadOnlyList<Guid> ids) =>
-        ids.Count == 0 ? [] : (await PostearAsync<List<CgPos.Contratos.Catalogo.ArticuloCarga>>("api/promociones/articulos/por-id", ids)).Datos ?? [];
+    public async Task<IReadOnlyList<CgPos.Contratos.Catalogo.ArticuloCarga>> ArticulosPromocionAsync(IReadOnlyList<string> codigos) =>
+        codigos.Count == 0 ? [] : (await PostearAsync<List<CgPos.Contratos.Catalogo.ArticuloCarga>>("api/promociones/articulos/por-codigo", codigos)).Datos ?? [];
 
     public Task<IReadOnlyList<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>?> ListarDepartamentosPromocionesAsync() =>
         ListarAsync<DatosMaestroCentral<CgPos.Contratos.Catalogo.DepartamentoCarga>>("api/promociones/departamentos");

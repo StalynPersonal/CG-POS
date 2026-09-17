@@ -29,9 +29,12 @@ namespace CgPos.Central.Pruebas.Soporte;
 public sealed class CentralEnPruebas : IAsyncLifetime
 {
     public const string ContrasenaAdministrador = "Admin.Central2026";
-    public static readonly Guid CajaUno = Guid.Parse("01990000-0000-7000-8000-000000000201");
-    public static readonly Guid CajaDos = Guid.Parse("01990000-0000-7000-8000-000000000202");
-    public static readonly Guid Sucursal = Guid.Parse("01990000-0000-7000-8000-000000000101");
+    /// <summary>Sucursal 01 y sus cajas 01 y 02 de los datos de desarrollo, con los Id que les dio el Central al cargarlos.</summary>
+    public static Guid CajaUno { get; private set; }
+    public static Guid CajaDos { get; private set; }
+    public static Guid Sucursal { get; private set; }
+
+    private static CentralEnPruebas? _instancia;
 
     // Se usa un tipo público del ensamblado de la API como punto de entrada.
     public WebApplicationFactory<EmisorTokensCentral>? Fabrica { get; private set; }
@@ -80,7 +83,14 @@ public sealed class CentralEnPruebas : IAsyncLifetime
 
         // Arranca el Central: aplica migraciones y la carga inicial.
         _ = Fabrica.Server;
-        await Task.CompletedTask;
+        _instancia = this;
+
+        (Sucursal, CajaUno, CajaDos) = await UsarContextoAsync(async contexto =>
+        {
+            var sucursal = await contexto.Sucursales.Where(s => s.Codigo == 1).Select(s => s.Id).SingleAsync();
+            var cajas = await contexto.Cajas.Where(c => c.SucursalId == sucursal).ToDictionaryAsync(c => c.Codigo, c => c.Id);
+            return (sucursal, cajas[1], cajas[2]);
+        });
     }
 
     public async Task DisposeAsync()
@@ -167,10 +177,20 @@ public sealed class CentralEnPruebas : IAsyncLifetime
         return (await respuesta.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!.Secreto;
     }
 
+    /// <summary>Códigos de sucursal y caja con que se identifica una caja del Central (así viajan sus mensajes).</summary>
+    public static (int Sucursal, int Caja) CodigosCaja(Guid cajaId) =>
+        _instancia!.UsarContextoAsync(async contexto =>
+        {
+            var caja = await contexto.Cajas.AsNoTracking().SingleAsync(c => c.Id == cajaId);
+            var sucursal = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId).Select(s => s.Codigo).SingleAsync();
+            return (sucursal, caja.Codigo);
+        }).GetAwaiter().GetResult();
+
     public static async Task<string> TokenCajaAsync(HttpClient cliente, Guid cajaId)
     {
         var secreto = await EmitirCredencialAsync(cliente, cajaId);
-        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(cajaId, secreto), OpcionesJson.Predeterminadas);
+        var (sucursal, caja) = CodigosCaja(cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaTokenDispositivo>(OpcionesJson.Predeterminadas))!.Token!;
     }
 

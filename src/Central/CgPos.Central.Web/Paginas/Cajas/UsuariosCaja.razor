@@ -90,7 +90,7 @@
     private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
 
     private string NombresCajas(IReadOnlyList<Guid> cajas) =>
-        cajas.Count == 0 ? "Ninguna" : string.Join(", ", cajas.Select(id => _cajas.FirstOrDefault(c => c.Id == id) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : "?"));
+        cajas.Count == 0 ? "Ninguna" : string.Join(", ", cajas.Select(id => _cajas.FirstOrDefault(c => c.Id == id) is { } caja ? $"{caja.SucursalCodigo:00}-{caja.Codigo:00}" : "?"));
 
     protected override Task OnInitializedAsync() => CargarAsync();
 

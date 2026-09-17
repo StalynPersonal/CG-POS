@@ -7,12 +7,37 @@ using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CgPos.Pos.Infraestructura.Organizacion;
 
-internal sealed class ContextoCajaConfigurado(IConfiguration configuracion) : IContextoCaja
+internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, IServiceScopeFactory ambitos) : IContextoCaja
 {
-    public Guid? CajaId => Guid.TryParse(configuracion["Caja:Id"], out var id) && id != Guid.Empty ? id : null;
+    private Guid? _cajaId;
+
+    public int? SucursalCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaSucursal);
+
+    public int? CajaCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaCodigo);
+
+    /// <summary>Se busca por los códigos y se recuerda una vez encontrada: la caja no cambia de Id en su base.</summary>
+    public Guid? CajaId
+    {
+        get
+        {
+            if (_cajaId is not null || SucursalCodigo is not { } sucursal || CajaCodigo is not { } caja)
+                return _cajaId;
+
+            using var ambito = ambitos.CreateScope();
+            var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
+            _cajaId = contexto.Cajas.AsNoTracking()
+                .Where(c => c.Codigo == caja && contexto.Sucursales.Any(s => s.Id == c.SucursalId && s.Codigo == sucursal))
+                .Select(c => (Guid?)c.Id)
+                .FirstOrDefault();
+            return _cajaId;
+        }
+    }
+
+    private int? Leer(string clave) => int.TryParse(configuracion[clave], out var valor) && valor > 0 ? valor : null;
 }
 
 internal sealed class ServicioParametros(ContextoDatosPos contexto) : IParametros
@@ -46,7 +71,7 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
     public async Task<DatosEstadoCaja> ObtenerAsync(CancellationToken cancelacion = default)
     {
         if (contextoCaja.CajaId is not { } cajaId)
-            return new DatosEstadoCaja(false, false, Problema: "La caja no está configurada en este equipo (Caja:Id).");
+            return new DatosEstadoCaja(false, false, Problema: "La caja no está configurada en este equipo (Caja:Sucursal y Caja:Codigo) o todavía no llegó del Central.");
 
         var datos = await (
                 from caja in contexto.Cajas
@@ -84,6 +109,6 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
         {
         }
 
-        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
+        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo.ToString("00"), datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
     }
 }

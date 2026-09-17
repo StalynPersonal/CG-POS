@@ -16,11 +16,11 @@ public class ClasificacionPruebas
     [Fact]
     public void La_categoria_pertenece_a_un_departamento_y_la_marca_es_independiente()
     {
-        var categoria = Categoria.Crear("CAB", "Cables", Electrico);
+        var categoria = Categoria.Crear(2, "Cables", Electrico);
         Assert.Equal(Electrico, categoria.DepartamentoId);
-        Assert.Throws<ArgumentException>(() => Categoria.Crear("CAB", "Cables", Guid.Empty));
+        Assert.Throws<ArgumentException>(() => Categoria.Crear(2, "Cables", Guid.Empty));
 
-        var marca = Marca.Crear("TRU", "Truper");
+        var marca = Marca.Crear(3, "Truper");
         marca.Desactivar();
         Assert.False(marca.Activa);
 
@@ -57,10 +57,10 @@ public class ClasificacionPruebas
     {
         var topes = new[]
         {
-            TopeDescuento.Crear(2, 20m, null),
-            TopeDescuento.Crear(2, 15m, null, departamentoId: Electrico),
-            TopeDescuento.Crear(2, 10m, null, marcaId: Truper),
-            TopeDescuento.Crear(2, 5m, null, categoriaId: Cables),
+            TopeDescuento.Crear(Codigos.Siguiente(),2, 20m, null),
+            TopeDescuento.Crear(Codigos.Siguiente(),2, 15m, null, departamentoId: Electrico),
+            TopeDescuento.Crear(Codigos.Siguiente(),2, 10m, null, marcaId: Truper),
+            TopeDescuento.Crear(Codigos.Siguiente(),2, 5m, null, categoriaId: Cables),
         };
 
         decimal? Maximo(Guid? categoria, Guid? marca) =>
@@ -71,7 +71,7 @@ public class ClasificacionPruebas
         Assert.Equal(15m, Maximo(null, null));
         Assert.Equal(20m, ReglasTopeDescuento.Evaluar(topes, 2, Articulo, Guid.CreateVersion7(), 1m, 1m).PorcentajeMaximo);
 
-        Assert.Throws<ArgumentException>(() => TopeDescuento.Crear(2, 5m, null, departamentoId: Electrico, marcaId: Truper));
+        Assert.Throws<ArgumentException>(() => TopeDescuento.Crear(Codigos.Siguiente(),2, 5m, null, departamentoId: Electrico, marcaId: Truper));
     }
 
     [Fact]
@@ -79,14 +79,14 @@ public class ClasificacionPruebas
     {
         var reglas = new[]
         {
-            ReglaAcumulacion.Crear("GEN", "General", TipoReglaAcumulacion.Monto, 100m, 1m, null, null, null, null),
-            ReglaAcumulacion.Crear("TRU", "Truper doble", TipoReglaAcumulacion.Marca, 100m, 2m, Truper, null, null, null),
-            ReglaAcumulacion.Crear("CAB", "Cables triple", TipoReglaAcumulacion.Categoria, 100m, 3m, Cables, null, null, null),
+            ReglaAcumulacion.Crear(4, "General", TipoReglaAcumulacion.Monto, 100m, 1m, null, null, null, null),
+            ReglaAcumulacion.Crear(3, "Truper doble", TipoReglaAcumulacion.Marca, 100m, 2m, Truper, null, null, null),
+            ReglaAcumulacion.Crear(2, "Cables triple", TipoReglaAcumulacion.Categoria, 100m, 3m, Cables, null, null, null),
         };
 
         Assert.Equal(6, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Articulo, Electrico, null, 200m, Cables, Truper)], reglas, 1m, 1m, Martes10));
         Assert.Equal(4, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Articulo, Electrico, null, 200m, null, Truper)], reglas, 1m, 1m, Martes10));
         Assert.Equal(2, ReglasFidelidad.CalcularPuntos([new LineaPuntuable(Articulo, Electrico, null, 200m)], reglas, 1m, 1m, Martes10));
-        Assert.Throws<ArgumentException>(() => ReglaAcumulacion.Crear("X", "Sin marca", TipoReglaAcumulacion.Marca, 100m, 1m, null, null, null, null));
+        Assert.Throws<ArgumentException>(() => ReglaAcumulacion.Crear(5, "Sin marca", TipoReglaAcumulacion.Marca, 100m, 1m, null, null, null, null));
     }
 }

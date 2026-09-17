@@ -1,6 +1,5 @@
 {
   "empresa": {
-    "id": "01990000-0000-7000-8000-000000000001",
     "rnc": "999000001",
     "razonSocial": "CONTRERAS GROUP SRL (DESARROLLO)",
     "nombreComercial": "CG-POS Desarrollo",
@@ -9,8 +8,7 @@
   },
   "sucursales": [
     {
-      "id": "01990000-0000-7000-8000-000000000101",
-      "codigo": "01",
+      "codigo": 1,
       "nombre": "Sucursal Principal (desarrollo)",
       "direccion": "Dirección ficticia de la sucursal de desarrollo",
       "telefono": "809-000-0001"
@@ -18,195 +16,163 @@
   ],
   "cajas": [
     {
-      "id": "01990000-0000-7000-8000-000000000201",
-      "sucursalId": "01990000-0000-7000-8000-000000000101",
-      "codigo": "01",
+      "sucursalCodigo": 1,
+      "codigo": 1,
       "nombre": "Caja 01"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000202",
-      "sucursalId": "01990000-0000-7000-8000-000000000101",
-      "codigo": "02",
+      "sucursalCodigo": 1,
+      "codigo": 2,
       "nombre": "Caja 02"
     }
   ],
   "parametros": [
     {
-      "id": "01990000-0000-7000-8000-000000000901",
       "clave": "Central.Seguridad.IntentosMaximos",
       "valor": "5",
       "descripcion": "Intentos de contraseña fallidos que bloquean al usuario del Central"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000902",
       "clave": "Central.Seguridad.MinutosBloqueo",
       "valor": "15",
       "descripcion": "Minutos de bloqueo por intentos fallidos"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000903",
       "clave": "Central.Seguridad.MinutosToken",
       "valor": "15",
       "descripcion": "Vigencia del token de acceso del Central Manager"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000904",
       "clave": "Central.Seguridad.MinutosInactividad",
       "valor": "60",
       "descripcion": "Minutos sin actividad tras los que vence la sesión"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000905",
       "clave": "Central.Seguridad.HorasSesion",
       "valor": "12",
       "descripcion": "Duración máxima de una sesión del Central Manager"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000906",
       "clave": "Central.Seguridad.LargoMinimoContrasena",
       "valor": "10",
       "descripcion": "Largo mínimo de las contraseñas del Central"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000907",
       "clave": "Central.Seguridad.ContrasenaCompleja",
       "valor": "true",
       "descripcion": "Exige mayúsculas, minúsculas, números y símbolos"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000908",
       "clave": "Central.Dispositivos.MinutosToken",
       "valor": "30",
       "descripcion": "Vigencia del token con el que las cajas se comunican con el Central"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000909",
       "clave": "Central.Dgii.Habilitado",
       "valor": "true",
       "descripcion": "En desarrollo se envía a la DGII simulada (Dgii:Cliente = Simulado)"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000919",
       "clave": "Central.Dgii.UrlSemilla",
       "valor": "https://ecf.dgii.gov.do/testecf/autenticacion/api/Autenticacion/Semilla",
       "descripcion": "Dirección del servicio que entrega la semilla de autenticación (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000091a",
       "clave": "Central.Dgii.UrlValidarSemilla",
       "valor": "https://ecf.dgii.gov.do/testecf/autenticacion/api/Autenticacion/ValidarSemilla",
       "descripcion": "Dirección del servicio que valida la semilla firmada y entrega el token (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000091b",
       "clave": "Central.Dgii.UrlRecepcion",
       "valor": "https://ecf.dgii.gov.do/testecf/recepcion/api/FacturasElectronicas",
       "descripcion": "Dirección del servicio que recibe los e-CF (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000091c",
       "clave": "Central.Dgii.UrlConsultaResultado",
       "valor": "https://ecf.dgii.gov.do/testecf/consultaresultado/api/Consultas/Estado",
       "descripcion": "Dirección del servicio que consulta el resultado de un e-CF por su trackId (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000091d",
       "clave": "Central.Dgii.UrlConsultaTrackIds",
       "valor": "https://ecf.dgii.gov.do/testecf/consultatrackids/api/TrackIds/Consulta",
       "descripcion": "Dirección del servicio que busca los envíos de un e-NCF (recupera el trackId perdido) (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000091e",
       "clave": "Central.Dgii.UrlRecepcionConsumo",
       "valor": "https://fc.dgii.gov.do/testecf/recepcionfc/api/recepcion/ecf",
       "descripcion": "Dirección del servicio que recibe los resúmenes de facturas de consumo (RFCE) (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000091f",
       "clave": "Central.Dgii.UrlConsultaConsumo",
       "valor": "https://fc.dgii.gov.do/testecf/consultarfce/api/Consultas/Consulta",
       "descripcion": "Dirección del servicio que consulta el resultado de un resumen de factura de consumo (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000920",
       "clave": "Central.Dgii.UrlAnulacion",
       "valor": "https://ecf.dgii.gov.do/testecf/anulacionrangos/api/operaciones/anularrango",
       "descripcion": "Dirección del servicio que anula rangos de e-NCF no utilizados (ANECF) (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000090b",
       "clave": "Central.Dgii.SegundosCiclo",
       "valor": "30",
       "descripcion": "Segundos entre ciclos de envío"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000090c",
       "clave": "Central.Dgii.LoteEnvio",
       "valor": "50",
       "descripcion": "e-CF por ciclo"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000090d",
       "clave": "Central.Dgii.MinutosReintento",
       "valor": "5",
       "descripcion": "Espera tras un envío fallido"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000090e",
       "clave": "Central.Dgii.MinutosMaximoReintento",
       "valor": "120",
       "descripcion": "Espera máxima entre reintentos"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000090f",
       "clave": "Central.Dgii.SegundosConsultaEstado",
       "valor": "60",
       "descripcion": "Segundos entre consultas del resultado"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000910",
       "clave": "Central.Monitor.MinutosSinComunicacion",
       "valor": "30",
       "descripcion": "Minutos sin comunicación tras los que una caja es alerta"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000911",
       "clave": "Central.Monitor.MinutosAlertaDgii",
       "valor": "60",
       "descripcion": "Minutos sin resultado de la DGII tras los que un e-CF es alerta"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000912",
       "clave": "Central.NotasCredito.MinutosReserva",
       "valor": "10",
       "descripcion": "Minutos que se retiene el saldo de una nota mientras la caja cobra"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000913",
       "clave": "Central.NotasCredito.MesesMaximoProrroga",
       "valor": "12",
       "descripcion": "Meses desde la emisión hasta los que se habilita una nota vencida"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000914",
       "clave": "Central.Fidelidad.MinutosCicloVencimiento",
       "valor": "60",
       "descripcion": "Minutos entre revisiones de los puntos de fidelidad que ya vencieron"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000915",
       "clave": "Central.Fidelidad.LoteVencimiento",
       "valor": "500",
       "descripcion": "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000916",
       "clave": "Central.Despacho.MinutosCicloAvisos",
       "valor": "15",
       "descripcion": "Minutos entre revisiones de pedidos preparados sin avisar"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000917",
       "clave": "Central.Despacho.LoteAvisos",
       "valor": "50",
       "descripcion": "Máximo de avisos al cliente por ciclo"
@@ -214,33 +180,35 @@
   ],
   "rolesCentral": [
     {
-      "id": "01990000-0000-7000-8000-000000000a01",
       "codigo": "ADMINISTRADOR",
       "nombre": "Administrador del Central",
-      "permisos": [ "*" ]
+      "permisos": [
+        "*"
+      ]
     },
     {
-      "id": "01990000-0000-7000-8000-000000000a02",
       "codigo": "AUDITOR",
       "nombre": "Auditor",
-      "permisos": [ "Central.Auditoria.Consultar", "Central.Reportes.Consultar", "Central.Sincronizacion.Monitorear" ]
+      "permisos": [
+        "Central.Auditoria.Consultar",
+        "Central.Reportes.Consultar",
+        "Central.Sincronizacion.Monitorear"
+      ]
     }
   ],
   "usuariosCentral": [
     {
-      "id": "01990000-0000-7000-8000-000000000b01",
       "codigo": "ADMIN",
       "nombre": "Administrador Desarrollo",
+      "rolCodigo": "ADMINISTRADOR",
       "correo": "admin@desarrollo.local",
-      "rolId": "01990000-0000-7000-8000-000000000a01",
       "contrasena": "Admin.Central2026",
       "debeCambiarContrasena": false
     },
     {
-      "id": "01990000-0000-7000-8000-000000000b02",
       "codigo": "AUDITOR",
       "nombre": "Auditor Desarrollo",
-      "rolId": "01990000-0000-7000-8000-000000000a02",
+      "rolCodigo": "AUDITOR",
       "contrasena": "Auditor.Central2026",
       "debeCambiarContrasena": true
     }

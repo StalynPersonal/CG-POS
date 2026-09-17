@@ -25,19 +25,18 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var (departamento, articulo) = await CrearArticuloAsync(cliente, admin);
         var sufijo = articulo.Codigo[1..];
 
-        var promocion = new PromocionCarga(Guid.CreateVersion7(), $"P{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin,
-            Articulos: [articulo.Id], Sucursales: [CentralEnPruebas.Sucursal]);
-        var guardada = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{promocion.Id}", promocion);
+        var promocion = new PromocionCarga($"P{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin,
+            Articulos: [articulo.Codigo], Sucursales: [1]);
+        var guardada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion);
         Assert.True(guardada.Cuerpo!.Exitosa, guardada.Cuerpo.Mensaje);
 
-        Assert.Contains("artículo(s) inexistente(s)", (await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{promocion.Id}",
-            promocion with { Articulos = [Guid.CreateVersion7()] })).Cuerpo!.Mensaje);
-        Assert.Contains("sucursal(es) inexistente(s)", (await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{promocion.Id}",
-            promocion with { Sucursales = [Guid.CreateVersion7()] })).Cuerpo!.Mensaje);
-        Assert.Contains("No se puede cambiar el código de la promoción", (await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{promocion.Id}",
-            promocion with { Codigo = $"Q{sufijo}" })).Cuerpo!.Mensaje);
+        Assert.Contains("No existe el artículo", (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones",
+            promocion with { Articulos = [$"NOEXISTE{sufijo}"] })).Cuerpo!.Mensaje);
+        Assert.Contains("No existe la sucursal", (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones",
+            promocion with { Sucursales = [99] })).Cuerpo!.Mensaje);
+        Assert.Contains("Ya existe", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion)).Cuerpo!.Mensaje);
 
-        var listada = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Id == promocion.Id);
+        var listada = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
         Assert.Equal("-10%", listada.Oferta);
         Assert.True(listada.CajasDestino >= 1);
 
@@ -46,9 +45,9 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var hasta = (await ObtenerAsync<PaqueteBajadaMaestros>(cliente, tokenCaja, "/api/sincronizacion/maestros?desde=0")).Hasta;
         await ObtenerAsync<PaqueteBajadaMaestros>(cliente, tokenCaja, $"/api/sincronizacion/maestros?desde={hasta}");
 
-        var distribuida = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Id == promocion.Id);
+        var distribuida = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
         Assert.InRange(distribuida.CajasConPromocion, 1, distribuida.CajasDestino);
-        Assert.Equal(departamento.Id, articulo.DepartamentoId);
+        Assert.Equal(departamento.Codigo, articulo.DepartamentoCodigo);
     }
 
     [SkippableFact]
@@ -60,8 +59,8 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var (_, articulo) = await CrearArticuloAsync(cliente, admin);
         var sufijo = articulo.Codigo[1..];
 
-        var existente = new PromocionCarga(Guid.CreateVersion7(), $"E{sufijo}", "Existente", TipoPromocion.Porcentaje, 5m, Inicio, Fin, Articulos: [articulo.Id]);
-        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{existente.Id}", existente)).Cuerpo!.Exitosa);
+        var existente = new PromocionCarga($"E{sufijo}", "Existente", TipoPromocion.Porcentaje, 5m, Inicio, Fin, Articulos: [articulo.Codigo]);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", existente)).Cuerpo!.Exitosa);
 
         const string encabezado = "codigo;nombre;tipo;valor;desde;hasta;articulos;departamentos;sucursales;lleva;paga;cantidad_minima;limite_cliente;dias;hora_desde;hora_hasta;solo_fidelidad;activa";
         var valida = $"I{sufijo};2x1 importado;lleva_paga;;2026-01-01;2030-12-31;{articulo.Codigo};;;2;1;;;lun|mié|vie;08:00;12:00;no;si";
@@ -73,7 +72,7 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Assert.False(validacion.Publicada);
         Assert.Equal([3, 4], validacion.Errores.Select(e => e.Linea));
         Assert.Contains("Tipo de promoción desconocido", validacion.Errores[0].Mensaje);
-        Assert.Contains($"No existe el artículo 'NOEXISTE{sufijo}'", validacion.Errores[1].Mensaje);
+        Assert.Contains($"No existe el artículo con código 'NOEXISTE{sufijo}'", validacion.Errores[1].Mensaje);
         Assert.DoesNotContain(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == $"I{sufijo}");
 
         var soloValidar = await ImportarAsync(cliente, admin, string.Join("\r\n", encabezado, valida, actualiza), soloValidar: true);
@@ -87,7 +86,7 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Assert.Equal((2, 1, DiasSemana.Lunes | DiasSemana.Miercoles | DiasSemana.Viernes, new TimeOnly(8, 0)),
             (importada.CantidadLleva!.Value, importada.CantidadPaga!.Value, importada.Dias, importada.HoraDesde!.Value));
         Assert.Equal(new DateTimeOffset(2030, 12, 31, 23, 59, 59, TimeSpan.FromHours(-4)), importada.VigenteHasta);
-        var actualizada = Assert.Single(promociones, p => p.Promocion.Id == existente.Id).Promocion;
+        var actualizada = Assert.Single(promociones, p => p.Promocion.Codigo == existente.Codigo).Promocion;
         Assert.Equal(15m, actualizada.Valor);
     }
 
@@ -100,29 +99,29 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var (departamento, articulo) = await CrearArticuloAsync(cliente, admin);
         var sufijo = articulo.Codigo[1..];
 
-        var diez = new PromocionCarga(Guid.CreateVersion7(), $"A{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin, Articulos: [articulo.Id]);
-        var fidelidad = new PromocionCarga(Guid.CreateVersion7(), $"B{sufijo}", "Especial fidelidad", TipoPromocion.PrecioEspecial, 85m, Inicio, Fin,
-            Departamentos: [departamento.Id], SoloFidelidad: true);
-        var inactiva = new PromocionCarga(Guid.CreateVersion7(), $"C{sufijo}", "Mitad inactiva", TipoPromocion.Porcentaje, 50m, Inicio, Fin, Articulos: [articulo.Id], Activa: false);
+        var diez = new PromocionCarga($"A{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin, Articulos: [articulo.Codigo]);
+        var fidelidad = new PromocionCarga($"B{sufijo}", "Especial fidelidad", TipoPromocion.PrecioEspecial, 85m, Inicio, Fin,
+            Departamentos: [departamento.Codigo], SoloFidelidad: true);
+        var inactiva = new PromocionCarga($"C{sufijo}", "Mitad inactiva", TipoPromocion.Porcentaje, 50m, Inicio, Fin, Articulos: [articulo.Codigo], Activa: false);
         foreach (var promocion in new[] { diez, fidelidad, inactiva })
-            Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/promociones/{promocion.Id}", promocion)).Cuerpo!.Exitosa);
+            Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion)).Cuerpo!.Exitosa);
 
         var momento = new DateTimeOffset(2026, 6, 15, 10, 0, 0, TimeSpan.FromHours(-4));
-        var dos = await SimularAsync(cliente, admin, new SolicitudSimulacionPromociones(articulo.Id, 2, CentralEnPruebas.Sucursal, momento, ConFidelidad: false));
-        Assert.Equal((diez.Id, 180m, 200m), (dos.GanadoraId!.Value, dos.Total, dos.BrutoDetalle));
+        var dos = await SimularAsync(cliente, admin, new SolicitudSimulacionPromociones(articulo.Codigo, 2, CentralEnPruebas.Sucursal, momento, ConFidelidad: false));
+        Assert.Equal((diez.Codigo, 180m, 200m), (Ganadora(dos), dos.Total, dos.BrutoDetalle));
         Assert.Equal(3, dos.Candidatas.Count);
-        Assert.Contains("fidelidad", Assert.Single(dos.Candidatas, c => c.Id == fidelidad.Id).Motivo);
-        Assert.Contains("inactiva", Assert.Single(dos.Candidatas, c => c.Id == inactiva.Id).Motivo);
+        Assert.Contains("fidelidad", Assert.Single(dos.Candidatas, c => c.Codigo == fidelidad.Codigo).Motivo);
+        Assert.Contains("inactiva", Assert.Single(dos.Candidatas, c => c.Codigo == inactiva.Codigo).Motivo);
 
-        var conFidelidad = await SimularAsync(cliente, admin, new SolicitudSimulacionPromociones(articulo.Id, 2, CentralEnPruebas.Sucursal, momento, ConFidelidad: true));
-        Assert.Equal((fidelidad.Id, 170m), (conFidelidad.GanadoraId!.Value, conFidelidad.Total));
+        var conFidelidad = await SimularAsync(cliente, admin, new SolicitudSimulacionPromociones(articulo.Codigo, 2, CentralEnPruebas.Sucursal, momento, ConFidelidad: true));
+        Assert.Equal((fidelidad.Codigo, 170m), (Ganadora(conFidelidad), conFidelidad.Total));
 
         // Desde 10 unidades el mayor (900) iguala al detalle con 10% (900): la caja cobra por mayor y no aplica la oferta.
-        var mayor = await SimularAsync(cliente, admin, new SolicitudSimulacionPromociones(articulo.Id, 10, CentralEnPruebas.Sucursal, momento, ConFidelidad: false));
-        Assert.Equal(((Guid?)null, 900m, 900m), (mayor.GanadoraId, mayor.Total, mayor.BrutoMayor!.Value));
+        var mayor = await SimularAsync(cliente, admin, new SolicitudSimulacionPromociones(articulo.Codigo, 10, CentralEnPruebas.Sucursal, momento, ConFidelidad: false));
+        Assert.Equal(((string?)null, 900m, 900m), (Ganadora(mayor), mayor.Total, mayor.BrutoMayor!.Value));
 
         using var inexistente = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/promociones/simular", admin,
-            new SolicitudSimulacionPromociones(Guid.CreateVersion7(), 1, CentralEnPruebas.Sucursal, momento, false)));
+            new SolicitudSimulacionPromociones($"NOEXISTE{sufijo}", 1, CentralEnPruebas.Sucursal, momento, false)));
         Assert.Equal(HttpStatusCode.NotFound, inexistente.StatusCode);
     }
 
@@ -144,19 +143,23 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
     private static async Task<(DepartamentoCarga Departamento, ArticuloCarga Articulo)> CrearArticuloAsync(HttpClient cliente, string admin)
     {
         var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"F{sufijo}", $"Departamento promociones {sufijo}");
-        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/departamentos/{departamento.Id}", departamento)).Cuerpo!.Exitosa);
-        var categoria = new CategoriaCarga(Guid.CreateVersion7(), $"C{sufijo}", $"Categoría promociones {sufijo}", departamento.Id);
-        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/categorias/{categoria.Id}", categoria)).Cuerpo!.Exitosa);
+        var departamento = new DepartamentoCarga(Codigos.Siguiente(), $"Departamento promociones {sufijo}");
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/departamentos", departamento)).Cuerpo!.Exitosa);
+        var categoria = new CategoriaCarga(Codigos.Siguiente(), $"Categoría promociones {sufijo}", departamento.Codigo);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/categorias", categoria)).Cuerpo!.Exitosa);
 
         var unidad = (await ObtenerAsync<List<DatosMaestroCentral<UnidadMedidaCarga>>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
         var impuesto = (await ObtenerAsync<List<DatosMaestroCentral<ImpuestoCarga>>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
-        var articulo = new ArticuloCarga(Guid.CreateVersion7(), $"S{sufijo}", $"Simulado {sufijo}", departamento.Id, unidad.Id, impuesto.Id, 100m,
-            PrecioMayor: 90m, CantidadMinimaMayor: 10m, CategoriaId: categoria.Id);
-        var creado = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/maestros/articulos/{articulo.Id}", articulo);
+        var articulo = new ArticuloCarga($"S{sufijo}", $"Simulado {sufijo}", departamento.Codigo, unidad.Codigo, impuesto.Codigo, 100m,
+            PrecioMayor: 90m, CantidadMinimaMayor: 10m, CategoriaCodigo: categoria.Codigo);
+        var creado = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/articulos", articulo);
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
         return (departamento, articulo);
     }
+
+    /// <summary>Código de la oferta que aplicaría la caja; nulo si ninguna.</summary>
+    private static string? Ganadora(ResultadoSimulacionPromociones resultado) =>
+        resultado.Candidatas.SingleOrDefault(c => c.Id == resultado.GanadoraId)?.Codigo;
 
     private static async Task<ResultadoImportacionPromociones> ImportarAsync(HttpClient cliente, string token, string contenido, bool soloValidar)
     {

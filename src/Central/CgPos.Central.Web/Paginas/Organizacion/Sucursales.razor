@@ -32,7 +32,7 @@
             <MudTh Style="width: 56px"></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Código"><strong>@context.Codigo</strong></MudTd>
+            <MudTd DataLabel="Código"><strong>@context.Codigo.ToString("00")</strong></MudTd>
             <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
             <MudTd DataLabel="Dirección">
                 @context.Direccion
@@ -107,7 +107,7 @@
     private async Task AbrirDialogoAsync(DatosSucursal? sucursal)
     {
         var parametros = new DialogParameters<DialogoSucursal> { { d => d.Sucursal, sucursal } };
-        var referencia = await Dialogos.ShowAsync<DialogoSucursal>(sucursal is null ? "Nueva sucursal" : $"Editar sucursal {sucursal.Codigo}", parametros);
+        var referencia = await Dialogos.ShowAsync<DialogoSucursal>(sucursal is null ? "Nueva sucursal" : $"Editar sucursal {sucursal.Codigo:00}", parametros);
         if (await referencia.Result is not { Canceled: false })
             return;
 

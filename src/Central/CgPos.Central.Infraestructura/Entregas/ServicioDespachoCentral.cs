@@ -22,7 +22,7 @@ internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, Tim
         var hoy = Hoy;
 
         var consulta = contexto.PendientesEntrega.AsNoTracking();
-        if (MaestroCentral.NormalizarBusqueda(buscar) is { } buscado)
+        if (CgPos.Dominio.Comun.TextoBusqueda.Normalizar(buscar) is { } buscado)
         {
             var patron = $"%{buscado.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]")}%";
             consulta = consulta.Where(p => EF.Functions.Like(p.TextoBusqueda, patron));
@@ -82,8 +82,8 @@ internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, Tim
 
         var hoy = Hoy;
         var idsCajas = pendientes.Select(p => p.CajaId).Distinct().ToList();
-        var cajas = await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
+        var cajas = await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion);
 
         return pendientes.Select(p => new DatosPendienteCentralResumen(p.Id, p.Numero, p.VentaNumero,
             sucursales.GetValueOrDefault(p.SucursalId) ?? string.Empty, cajas.GetValueOrDefault(p.CajaId) ?? string.Empty, p.Metodo, p.Estado,

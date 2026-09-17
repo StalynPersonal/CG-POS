@@ -1,10 +1,6 @@
-﻿using System.Text.Json;
-using CgPos.Central.Infraestructura.Persistencia;
-using CgPos.Central.Infraestructura.Sincronizacion;
-using CgPos.Contratos.Catalogo;
-using CgPos.Contratos.Serializacion;
+﻿using CgPos.Central.Infraestructura.Persistencia;
+using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
 using CgPos.Dominio.Fidelidad;
-using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Fidelidad;
@@ -48,20 +44,12 @@ internal sealed class RecalculadorPuntos(ContextoDatosCentral contexto, TimeProv
     private async Task PublicarEnMaestroAsync(Guid miembroId, SaldoPuntos saldo, DateTimeOffset ahora, string usuario, CancellationToken cancelacion)
     {
         // El maestro puede acabar de publicarse en esta misma operación (inscripción hecha en caja), así que primero se mira lo pendiente de guardar.
-        var maestro = contexto.MaestrosCentral.Local.FirstOrDefault(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Id == miembroId)
-            ?? await contexto.MaestrosCentral.SingleOrDefaultAsync(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Id == miembroId, cancelacion);
-        if (maestro is null)
+        var miembro = contexto.MiembrosFidelidad.Local.FirstOrDefault(m => m.Id == miembroId)
+            ?? await contexto.MiembrosFidelidad.SingleOrDefaultAsync(m => m.Id == miembroId, cancelacion);
+        if (miembro is null)
             return;
 
-        var miembro = FormatoMaestros.Leer<MiembroFidelidadCarga>(maestro) with
-        {
-            SaldoPuntos = saldo.Puntos,
-            SaldoAl = ahora,
-            PuntosPorVencer = saldo.PuntosPorVencer,
-            ProximoVencimiento = saldo.ProximoVencimiento,
-        };
-
-        maestro.Actualizar(maestro.Codigo, maestro.CajaId, JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, usuario,
-            new FilaMaestro(TipoMaestro.MiembroFidelidad, miembro.Id, maestro.Codigo, null, miembro).TextoBusqueda());
+        miembro.SincronizarSaldo(saldo.Puntos, ahora, saldo.PuntosPorVencer, saldo.ProximoVencimiento);
+        ColumnasMaestro.Marcar(contexto, miembro, ahora, usuario);
     }
 }

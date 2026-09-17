@@ -47,7 +47,7 @@ public class ApiConfiguracionCajasPruebas(CentralEnPruebas central)
         Assert.Equal((desde + 199, "02", (long?)null), (listado.Hasta, listado.CajaCodigo, listado.UltimoRecibido));
 
         var bajada = await BajarAsync(cliente, tokenCajaDos, marca);
-        Assert.Equal(desde + 199, Assert.Single(bajada.Maestros!.SecuenciasEcf!, s => s.Id == secuenciaId).Hasta);
+        Assert.Equal(desde + 199, Assert.Single(bajada.Maestros!.SecuenciasEcf!, s => s.Desde == desde).Hasta);
     }
 
     [SkippableFact]
@@ -134,14 +134,14 @@ public class ApiConfiguracionCajasPruebas(CentralEnPruebas central)
         Assert.Equal((true, "Cajero de prueba"), (listado.TieneClave, listado.RolNombre));
 
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        var publicado = Assert.Single(bajada.Organizacion!.Usuarios!, u => u.Id == usuarioId);
+        var publicado = Assert.Single(bajada.Organizacion!.Usuarios!, u => u.Codigo == codigo);
         Assert.Null(publicado.Clave);
         Assert.True(new HashCredenciales().VerificarClave("Cajero.4321", publicado.ClaveHash!));
 
         // Editar sin clave nueva conserva el hash; el código no cambia.
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/usuarios-caja/usuarios/{usuarioId}",
             new SolicitudUsuarioCaja(codigo, "Cajero Renombrado", rolId, [CentralEnPruebas.CajaUno]))).Cuerpo!.Exitosa);
-        var editado = Assert.Single((await BajarAsync(cliente, tokenCaja, bajada.Hasta)).Organizacion!.Usuarios!, u => u.Id == usuarioId);
+        var editado = Assert.Single((await BajarAsync(cliente, tokenCaja, bajada.Hasta)).Organizacion!.Usuarios!, u => u.Codigo == codigo);
         Assert.Equal(("Cajero Renombrado", publicado.ClaveHash), (editado.Nombre, editado.ClaveHash));
 
         Assert.Contains("no se puede cambiar", (await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/usuarios-caja/usuarios/{usuarioId}",

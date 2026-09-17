@@ -101,7 +101,7 @@ public static class RutasApiSeguridad
             sesion.Nivel,
             sesion.Permisos.Order(StringComparer.Ordinal).ToList(),
             sesion.CajaId,
-            sesion.CajaCodigo,
+            sesion.CajaCodigo.ToString("00"),
             sesion.CajaNombre,
             sesion.SucursalId);
 }

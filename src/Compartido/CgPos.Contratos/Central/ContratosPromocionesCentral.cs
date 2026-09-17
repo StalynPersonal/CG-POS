@@ -25,7 +25,7 @@ public sealed record ErrorImportacionCentral(int Linea, string Mensaje);
 public sealed record ResultadoImportacionPromociones(int Leidas, int Nuevas, int Actualizadas, bool Publicada, IReadOnlyList<ErrorImportacionCentral> Errores);
 
 /// <param name="Momento">Fecha y hora local de la venta simulada: los días y horas de las ofertas son locales.</param>
-public sealed record SolicitudSimulacionPromociones(Guid ArticuloId, decimal Cantidad, Guid SucursalId, DateTimeOffset Momento, bool ConFidelidad);
+public sealed record SolicitudSimulacionPromociones(string ArticuloCodigo, decimal Cantidad, Guid SucursalId, DateTimeOffset Momento, bool ConFidelidad);
 
 /// <param name="Motivo">Por qué no aplica; nulo si aplica.</param>
 public sealed record DatosCandidataPromocion(Guid Id, string Codigo, string Nombre, string Oferta, bool Aplica, string? Motivo, decimal Descuento);

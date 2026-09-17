@@ -3,13 +3,12 @@ using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
-using CgPos.Central.Infraestructura.Sincronizacion;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Importacion;
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Comun;
 using CgPos.Dominio.Promociones;
-using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Maestros;
@@ -18,26 +17,25 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
 {
     private const int LargoMaximoArchivo = 5 * 1024 * 1024;
     private const int MaximoArticulosPorId = 500;
-    private const int TamanoBloqueConsulta = 1000;
     private static readonly string[] ColumnasObligatorias = ["codigo", "nombre", "tipo", "desde", "hasta"];
     private static readonly string[] FormatosFecha = ["yyyy-MM-dd", "yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm", "dd/MM/yyyy", "dd/MM/yyyy HH:mm", "dd/MM/yyyy H:mm"];
 
     public async Task<IReadOnlyList<DatosPromocionCentral>> ListarAsync(CancellationToken cancelacion = default)
     {
-        var filas = await contexto.MaestrosCentral.AsNoTracking()
-            .Where(m => m.Tipo == TipoMaestro.Promocion)
-            .Select(m => new { Maestro = m, Version = EF.Property<long>(m, ContextoDatosCentral.ColumnaVersion) })
-            .ToListAsync(cancelacion);
+        var promociones = await TablasMaestros.Promociones.TodosAsync(contexto, new ResolutorCodigosCentral(contexto), cancelacion);
+        var entidades = await contexto.Promociones.AsNoTracking()
+            .Select(p => new { Promocion = p, Version = EF.Property<long>(p, ContextoDatosCentral.ColumnaVersion) })
+            .ToDictionaryAsync(p => p.Promocion.Codigo, cancelacion);
         var cajas = await contexto.Cajas.AsNoTracking().Where(c => c.Habilitada).Select(c => new { c.Id, c.SucursalId }).ToListAsync(cancelacion);
         var confirmadas = await contexto.EstadosSincronizacionCaja.AsNoTracking().ToDictionaryAsync(e => e.CajaId, e => e.VersionMaestrosConfirmada, cancelacion);
 
-        return filas
+        return promociones
             .Select(fila =>
             {
-                var dato = FormatoMaestros.Leer<PromocionCarga>(fila.Maestro);
-                var destino = cajas.Where(c => dato.Sucursales is not { Count: > 0 } sucursales || sucursales.Contains(c.SucursalId)).ToList();
-                var conPromocion = destino.Count(c => confirmadas.GetValueOrDefault(c.Id) >= fila.Version);
-                return new DatosPromocionCentral(dato, Oferta(dato), destino.Count, conPromocion, fila.Maestro.ModificadoEn, fila.Maestro.ModificadoPor);
+                var entidad = entidades[fila.Dato.Codigo];
+                var destino = cajas.Where(c => entidad.Promocion.Sucursales.Count == 0 || entidad.Promocion.Sucursales.Contains(c.SucursalId)).ToList();
+                var conPromocion = destino.Count(c => confirmadas.GetValueOrDefault(c.Id) >= entidad.Version);
+                return new DatosPromocionCentral(fila.Dato, entidad.Promocion.DescripcionCorta, destino.Count, conPromocion, fila.ModificadoEn, fila.ModificadoPor);
             })
             .OrderByDescending(p => p.Promocion.VigenteDesde)
             .ThenBy(p => p.Promocion.Codigo, StringComparer.Ordinal)
@@ -79,12 +77,13 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
         string? Valor(string[] campos, string columna) =>
             columnas.TryGetValue(columna, out var indice) && indice < campos.Length && !string.IsNullOrWhiteSpace(campos[indice]) ? campos[indice].Trim() : null;
 
-        var articulos = await IdsPorCodigoAsync(TipoMaestro.Articulo, filas.SelectMany(f => Lista(Valor(f.Campos, "articulos"))), cancelacion);
-        var departamentos = await IdsPorCodigoAsync(TipoMaestro.Departamento, filas.SelectMany(f => Lista(Valor(f.Campos, "departamentos"))), cancelacion);
-        var categorias = await IdsPorCodigoAsync(TipoMaestro.Categoria, filas.SelectMany(f => Lista(Valor(f.Campos, "categorias"))), cancelacion);
-        var marcas = await IdsPorCodigoAsync(TipoMaestro.Marca, filas.SelectMany(f => Lista(Valor(f.Campos, "marcas"))), cancelacion);
-        var existentes = await IdsPorCodigoAsync(TipoMaestro.Promocion, filas.Select(f => Valor(f.Campos, "codigo")).OfType<string>(), cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Codigo, s => s.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
+        // Cada línea se construye con las referencias publicadas: un artículo, departamento o sucursal que no exista se informa en su línea.
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        await resolutor.PrepararAsync(cancelacion);
+        await resolutor.CargarArticulosAsync(filas.SelectMany(f => Lista(Valor(f.Campos, "articulos"))), null, cancelacion);
+        var codigosArchivo = filas.Select(f => Valor(f.Campos, "codigo")?.ToUpperInvariant()).OfType<string>().ToList();
+        var existentes = (await contexto.Promociones.AsNoTracking().Where(p => codigosArchivo.Contains(p.Codigo)).Select(p => p.Codigo).ToListAsync(cancelacion))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var desplazamiento = TimeSpan.FromMinutes(solicitud.DesplazamientoMinutos);
         var errores = new List<ErrorImportacionCentral>();
@@ -103,16 +102,15 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
 
                 var tipo = LeerTipo(V("tipo"));
                 var valor = LeerDecimal(V("valor"), "valor") ?? (tipo == TipoPromocion.LlevaPaga ? 0m : throw new FormatException("Falta el valor."));
-                var articulosLinea = Lista(V("articulos")).Select(c => articulos.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe el artículo '{c}'.")).ToList();
-                var departamentosLinea = Lista(V("departamentos")).Select(c => departamentos.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe el departamento '{c}'.")).ToList();
-                var sucursalesLinea = Lista(V("sucursales")).Select(c => sucursales.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la sucursal '{c}'.")).ToList();
-                var categoriasLinea = Lista(V("categorias")).Select(c => categorias.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la categoría '{c}'.")).ToList();
-                var marcasLinea = Lista(V("marcas")).Select(c => marcas.TryGetValue(c, out var id) ? id : throw new FormatException($"No existe la marca '{c}'.")).ToList();
+                var articulosLinea = Lista(V("articulos")).ToList();
+                var departamentosLinea = Numeros(V("departamentos"), "departamentos");
+                var sucursalesLinea = Numeros(V("sucursales"), "sucursales");
+                var categoriasLinea = Numeros(V("categorias"), "categorias");
+                var marcasLinea = Numeros(V("marcas"), "marcas");
                 if (articulosLinea.Count == 0 && departamentosLinea.Count == 0 && categoriasLinea.Count == 0 && marcasLinea.Count == 0)
                     throw new FormatException("La promoción no aplica a ningún artículo, departamento, categoría ni marca.");
 
                 var promocion = new PromocionCarga(
-                    existentes.TryGetValue(codigo, out var idExistente) ? idExistente : Guid.CreateVersion7(),
                     codigo,
                     V("nombre") ?? throw new FormatException("Falta el nombre."),
                     tipo,
@@ -134,9 +132,9 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
                     categoriasLinea,
                     marcasLinea);
 
-                ConversionMaestros.ConstruirPromocion(promocion);
+                MapeoMaestros.Crear(promocion, resolutor);
                 promociones.Add(promocion);
-                if (existentes.ContainsKey(codigo)) actualizadas++; else nuevas++;
+                if (existentes.Contains(codigo)) actualizadas++; else nuevas++;
             }
             catch (Exception excepcion) when (excepcion is FormatException or ArgumentException or InvalidOperationException)
             {
@@ -162,10 +160,10 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
     public async Task<ResultadoSimulacionPromociones?> SimularAsync(SolicitudSimulacionPromociones solicitud, CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
-        if (await contexto.MaestrosCentral.AsNoTracking().SingleOrDefaultAsync(m => m.Tipo == TipoMaestro.Articulo && m.Id == solicitud.ArticuloId, cancelacion) is not { } fila)
+        var codigo = solicitud.ArticuloCodigo?.Trim() ?? string.Empty;
+        var entidad = await contexto.Articulos.AsNoTracking().SingleOrDefaultAsync(a => a.Codigo == codigo, cancelacion);
+        if (entidad is null || (await TablasMaestros.Articulos.PorIdAsync(contexto, new ResolutorCodigosCentral(contexto), entidad.Id, cancelacion))?.Dato is not { } articulo)
             return null;
-
-        var articulo = FormatoMaestros.Leer<ArticuloCarga>(fila);
         var cantidad = Math.Max(solicitud.Cantidad, 0m);
         var brutoDetalle = Redondear(cantidad * articulo.PrecioDetalle);
 
@@ -175,11 +173,8 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             : null;
         var brutoSinOferta = brutoMayor is { } conMayor && conMayor < brutoDetalle ? conMayor : brutoDetalle;
 
-        var promociones = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Promocion).ToListAsync(cancelacion))
-            .Select(FormatoMaestros.Leer<PromocionCarga>)
-            .Select(ConstruirSiEsValida)
-            .OfType<Promocion>()
-            .Where(p => p.AplicaA(articulo.Id, articulo.DepartamentoId, articulo.CategoriaId, articulo.MarcaId))
+        var promociones = (await contexto.Promociones.AsNoTracking().ToListAsync(cancelacion))
+            .Where(p => p.AplicaA(entidad.Id, entidad.DepartamentoId, entidad.CategoriaId, entidad.MarcaId))
             .ToList();
 
         var candidatas = promociones
@@ -225,51 +220,19 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             candidatas, ganadora, total, explicacion);
     }
 
-    public async Task<IReadOnlyList<ArticuloCarga>> ArticulosPorIdAsync(IReadOnlyList<Guid> ids, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<ArticuloCarga>> ArticulosPorCodigoAsync(IReadOnlyList<string> codigos, CancellationToken cancelacion = default)
     {
-        var buscar = ids.Distinct().Take(MaximoArticulosPorId).ToList();
-        return (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && buscar.Contains(m.Id)).ToListAsync(cancelacion))
-            .Select(FormatoMaestros.Leer<ArticuloCarga>)
+        var buscar = codigos.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Distinct().Take(MaximoArticulosPorId).ToList();
+        return (await TablasMaestros.Articulos.ListarAsync(contexto, new ResolutorCodigosCentral(contexto), cancelacion, a => buscar.Contains(a.Codigo)))
+            .Select(a => a.Dato)
             .ToList();
     }
 
-    private async Task<Dictionary<string, Guid>> IdsPorCodigoAsync(TipoMaestro tipo, IEnumerable<string> codigos, CancellationToken cancelacion)
-    {
-        var resultado = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
-        if (TablasMaestros.TieneTabla(tipo))
-        {
-            var buscados = codigos.Select(c => c.Trim().ToUpperInvariant()).ToHashSet();
-            foreach (var fila in (await contexto.MaestrosAsync(tipo, cancelacion)).Where(m => m.Codigo is not null && buscados.Contains(m.Codigo)))
-                resultado[fila.Codigo!] = fila.Id;
-            return resultado;
-        }
-
-        foreach (var bloque in codigos.Select(c => c.Trim().ToUpperInvariant()).Distinct().Chunk(TamanoBloqueConsulta))
-        {
-            var lista = bloque.ToList();
-            foreach (var fila in await contexto.MaestrosCentral.AsNoTracking()
-                         .Where(m => m.Tipo == tipo && m.Codigo != null && lista.Contains(m.Codigo))
-                         .Select(m => new { m.Codigo, m.Id })
-                         .ToListAsync(cancelacion))
-                resultado[fila.Codigo!] = fila.Id;
-        }
-
-        return resultado;
-    }
-
-    private static Promocion? ConstruirSiEsValida(PromocionCarga dato)
-    {
-        try
-        {
-            return ConversionMaestros.ConstruirPromocion(dato);
-        }
-        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
-        {
-            return null;
-        }
-    }
-
-    private static string Oferta(PromocionCarga dato) => ConstruirSiEsValida(dato)?.DescripcionCorta ?? dato.Nombre;
+    /// <summary>Códigos numéricos (departamentos, categorías, marcas, sucursales) separados por |.</summary>
+    private static List<int> Numeros(string? texto, string columna) =>
+        Lista(texto).Select(c => int.TryParse(c, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numero)
+            ? numero
+            : throw new FormatException($"'{c}' no es un código numérico en {columna}.")).ToList();
 
     private static decimal Redondear(decimal valor) => decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
 
@@ -327,7 +290,7 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
         var dias = DiasSemana.Ninguno;
         foreach (var dia in Lista(texto))
         {
-            var clave = MaestroCentral.NormalizarBusqueda(dia) ?? string.Empty;
+            var clave = TextoBusqueda.Normalizar(dia) ?? string.Empty;
             dias |= (clave.Length >= 3 ? clave[..3] : clave) switch
             {
                 "lun" => DiasSemana.Lunes,
@@ -345,7 +308,7 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
     }
 
     private static bool? LeerBooleano(string? texto, string columna) =>
-        MaestroCentral.NormalizarBusqueda(texto) switch
+        TextoBusqueda.Normalizar(texto) switch
         {
             null => null,
             "si" or "s" or "true" or "1" or "x" => true,

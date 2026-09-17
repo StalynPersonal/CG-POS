@@ -36,7 +36,8 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         await contexto.SaveChangesAsync(cancelacion);
         await transaccion.CommitAsync(cancelacion);
 
-        return new CredencialEmitida(caja.Id, caja.Codigo, secreto, ahora);
+        var sucursalCodigo = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
+        return new CredencialEmitida(caja.Id, sucursalCodigo, caja.Codigo, secreto, ahora);
     }
 
     public async Task<bool> RevocarCredencialAsync(Guid cajaId, string motivo, UsuarioAuditoria usuario, CancellationToken cancelacion = default)
@@ -55,8 +56,12 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         return true;
     }
 
-    public async Task<ResultadoDispositivo> AutenticarAsync(Guid cajaId, string secreto, OrigenSolicitud origen, CancellationToken cancelacion = default)
+    public async Task<ResultadoDispositivo> AutenticarAsync(int sucursalCodigo, int cajaCodigo, string secreto, OrigenSolicitud origen, CancellationToken cancelacion = default)
     {
+        var cajaId = await contexto.Cajas.AsNoTracking()
+            .Where(c => c.Codigo == cajaCodigo && contexto.Sucursales.Any(s => s.Id == c.SucursalId && s.Codigo == sucursalCodigo))
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(cancelacion);
         var credencial = cajaId == Guid.Empty || string.IsNullOrWhiteSpace(secreto)
             ? null
             : await contexto.CredencialesDispositivo.SingleOrDefaultAsync(c => c.CajaId == cajaId && c.RevocadaEn == null, cancelacion);

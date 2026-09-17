@@ -74,7 +74,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var inicio = await caja.VentaActualAsync();
 
-        Assert.Matches(@"^S[0-9A-F]{6}01\d{7}$", inicio.NumeroTransaccion);
+        Assert.Matches($@"^{caja.Escenario.CodigoSucursal:00}{caja.Escenario.CodigoCajaUno:00}\d{{7}}$", inicio.NumeroTransaccion);
 
         await caja.AgregarAsync(inicio.Id, caja.Catalogo.BarrasCincel);
         var conMayor = await caja.AgregarAsync(inicio.Id, $"12*{caja.Catalogo.CodigoCemento}");
@@ -431,10 +431,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         await caja.CargarOfertasAsync(
-            new PromocionCarga(Guid.CreateVersion7(), $"P15{caja.Catalogo.Sufijo}", "Cincel 15 %", TipoPromocion.Porcentaje, 15m,
-                EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.ArticuloCincel]),
-            new PromocionCarga(Guid.CreateVersion7(), $"E79{caja.Catalogo.Sufijo}", "Cincel a 799", TipoPromocion.PrecioEspecial, 799m,
-                EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.ArticuloCincel]));
+            new PromocionCarga($"P15{caja.Catalogo.Sufijo}", "Cincel 15 %", TipoPromocion.Porcentaje, 15m,
+                EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.CodigoCincel]),
+            new PromocionCarga($"E79{caja.Catalogo.Sufijo}", "Cincel a 799", TipoPromocion.PrecioEspecial, 799m,
+                EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.CodigoCincel]));
 
         var venta = await caja.VentaActualAsync();
         var conOferta = await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
@@ -455,7 +455,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
-            TopesDescuento: [new TopeDescuentoCarga(Guid.CreateVersion7(), 2, 5m, null, ArticuloId: caja.Catalogo.ArticuloCemento)]), "Pruebas"));
+            TopesDescuento: [new TopeDescuentoCarga(Codigos.Siguiente(), 2, 5m, null, ArticuloCodigo: caja.Catalogo.CodigoCemento)]), "Pruebas"));
 
         var venta = await caja.VentaActualAsync();
         var linea = (await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCemento)).Lineas.Single();
@@ -490,8 +490,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-        await caja.CargarOfertasAsync(new PromocionCarga(Guid.CreateVersion7(), $"F15{caja.Catalogo.Sufijo}", "Cincel 15 %", TipoPromocion.Porcentaje, 15m,
-            EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.ArticuloCincel]));
+        await caja.CargarOfertasAsync(new PromocionCarga($"F15{caja.Catalogo.Sufijo}", "Cincel 15 %", TipoPromocion.Porcentaje, 15m,
+            EscenarioSeguridad.Inicio.AddDays(-1), EscenarioSeguridad.Inicio.AddDays(10), Articulos: [caja.Catalogo.CodigoCincel]));
 
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
@@ -610,10 +610,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-        var formaDolares = Guid.CreateVersion7();
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
-            FormasPago: [new FormaPagoCarga(formaDolares, $"USD{caja.Catalogo.Sufijo}", "Dólares", TipoFormaPago.MonedaExtranjera, 5, "USD")],
-            TasasCambio: [new TasaCambioCarga(Guid.CreateVersion7(), "USD", 60.25m, EscenarioSeguridad.Inicio.AddDays(-1))]), "Pruebas"));
+            FormasPago: [new FormaPagoCarga($"USD{caja.Catalogo.Sufijo}", "Dólares", TipoFormaPago.MonedaExtranjera, 5, "USD")],
+            TasasCambio: [new TasaCambioCarga("USD", 60.25m, EscenarioSeguridad.Inicio.AddDays(-1))]), "Pruebas"));
+        var formaDolares = await caja.EjecutarAsync<ContextoDatosPos, Guid>(contexto =>
+            contexto.FormasPago.Where(f => f.Codigo == $"USD{caja.Catalogo.Sufijo}").Select(f => f.Id).SingleAsync());
 
         var catalogo = await caja.EjecutarAsync<IConsultaCatalogoCobro, DatosCatalogoCobro>(s => s.ObtenerAsync());
         Assert.Contains(catalogo.Tasas!, t => t.Moneda == "USD" && t.Tasa == 60.25m);
@@ -1052,9 +1053,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-        var almacen = Guid.CreateVersion7();
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
-            Almacenes: [new AlmacenCarga(almacen, $"ALM{caja.Catalogo.Sufijo}", $"Almacén Kennedy {caja.Catalogo.Sufijo}", caja.Escenario.Sucursal)]), "Pruebas"));
+            Almacenes: [new AlmacenCarga($"ALM{caja.Catalogo.Sufijo}", $"Almacén Kennedy {caja.Catalogo.Sufijo}", caja.Escenario.CodigoSucursal)]), "Pruebas"));
+        var almacen = await caja.EjecutarAsync<ContextoDatosPos, Guid>(contexto =>
+            contexto.Almacenes.Where(a => a.Codigo == $"ALM{caja.Catalogo.Sufijo}").Select(a => a.Id).SingleAsync());
 
         var almacenes = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosAlmacen>>(s => s.ListarAlmacenesAsync(caja.Cajero));
         Assert.True(almacenes.Single(a => a.Id == almacen).EsDeLaSucursal);
@@ -1127,9 +1129,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-        var almacen = Guid.CreateVersion7();
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
-            Almacenes: [new AlmacenCarga(almacen, $"DSP{caja.Catalogo.Sufijo}", $"Almacén despacho {caja.Catalogo.Sufijo}", caja.Escenario.Sucursal)]), "Pruebas"));
+            Almacenes: [new AlmacenCarga($"DSP{caja.Catalogo.Sufijo}", $"Almacén despacho {caja.Catalogo.Sufijo}", caja.Escenario.CodigoSucursal)]), "Pruebas"));
+        var almacen = await caja.EjecutarAsync<ContextoDatosPos, Guid>(contexto =>
+            contexto.Almacenes.Where(a => a.Codigo == $"DSP{caja.Catalogo.Sufijo}").Select(a => a.Id).SingleAsync());
 
         // Factura con cemento y taladro para retiro y un cincel para envío.
         var venta = await caja.VentaActualAsync();
@@ -1274,24 +1277,24 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 await contexto.MarcasSincronizacion.Where(m => m.Clave == MarcaSincronizacion.VersionMaestros).Select(m => (long?)m.Valor).SingleOrDefaultAsync() ?? 0);
 
         var desde = await MarcaAsync();
-        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"DESC{escenario.Sufijo}", "Departamento bajada del Central");
+        var departamento = new DepartamentoCarga(Codigos.Siguiente(), "Departamento bajada del Central");
         var clave = $"Pruebas.Descarga{escenario.Sufijo}";
         var organizacion = new CgPos.Contratos.CargaInicial.PaqueteCargaInicial(
-            new CgPos.Contratos.CargaInicial.EmpresaCarga(Empresa, "999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
-            Parametros: [new CgPos.Contratos.CargaInicial.ParametroCarga(Guid.CreateVersion7(), clave, "valor del Central", CajaId: escenario.CajaUno)]);
+            new CgPos.Contratos.CargaInicial.EmpresaCarga("999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
+            Parametros: [new CgPos.Contratos.CargaInicial.ParametroCarga(clave, "valor del Central", SucursalCodigo: escenario.CodigoSucursal, CajaCodigo: escenario.CodigoCajaUno)]);
 
         var aplicada = await DescargarAsync(new PaqueteBajadaMaestros(desde, desde + 500, organizacion, new PaqueteMaestros(Departamentos: [departamento])));
         Assert.True(aplicada.Descargado, aplicada.Error);
         Assert.Equal(desde + 500, await MarcaAsync());
-        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Departamentos.AnyAsync(f => f.Id == departamento.Id)));
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Departamentos.AnyAsync(f => f.Codigo == departamento.Codigo)));
         Assert.Equal("valor del Central", await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Organizacion.IParametros, string?>(p => p.ObtenerAsync(clave, escenario.CajaUno)));
 
         // Un paquete que la caja no puede aplicar no mueve la marca: el próximo ciclo lo vuelve a pedir.
-        var articuloSinDepartamento = new ArticuloCarga(Guid.CreateVersion7(), $"SINFAM{escenario.Sufijo}", "Artículo sin departamento", Guid.CreateVersion7(), Guid.CreateVersion7(),
-            Guid.CreateVersion7(), 100m);
+        var articuloSinDepartamento = new ArticuloCarga($"SINFAM{escenario.Sufijo}", "Artículo sin departamento", 999_999, caja.Catalogo.CodigoUnidad,
+            caja.Catalogo.CodigoItbis18, 100m, CategoriaCodigo: caja.Catalogo.CodigoCategoriaHerramientas);
         var rechazada = await DescargarAsync(new PaqueteBajadaMaestros(desde + 500, desde + 900, null, new PaqueteMaestros(Articulos: [articuloSinDepartamento])));
         Assert.False(rechazada.Descargado);
-        Assert.Contains("departamento inexistente", rechazada.Error);
+        Assert.Contains("departamento", rechazada.Error);
         Assert.Equal(desde + 500, await MarcaAsync());
 
         // Sin cambios, la marca llega a la versión que informó el Central.
@@ -1318,8 +1321,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Contains(estadoEcf.Alertas, a => a.Contains("rechazados por la DGII"));
 
         // Un parámetro borrado en el Central se borra en la caja: no viaja en el rango, así que el Central manda los vigentes (RN-24).
-        var vigentes = await caja.EjecutarAsync<ContextoDatosPos, List<Guid>>(contexto =>
-            contexto.Parametros.AsNoTracking().Where(p => p.Clave != clave).Select(p => p.Id).ToListAsync());
+        var vigentes = (await caja.EjecutarAsync<ContextoDatosPos, List<CgPos.Dominio.Organizacion.Parametro>>(contexto =>
+                contexto.Parametros.AsNoTracking().Where(p => p.Clave != clave).ToListAsync()))
+            .Select(p => new CgPos.Contratos.CargaInicial.ParametroReferencia(p.Clave,
+                p.CajaId == escenario.CajaUno || p.SucursalId == escenario.Sucursal ? escenario.CodigoSucursal : null,
+                p.CajaId == escenario.CajaUno ? escenario.CodigoCajaUno : null))
+            .ToList();
         var conBaja = await DescargarAsync(new PaqueteBajadaMaestros(desde + 700, desde + 800, null, null, null, vigentes));
         Assert.True(conBaja.Descargado);
         Assert.Null(await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Organizacion.IParametros, string?>(p => p.ObtenerAsync(clave, escenario.CajaUno)));
@@ -1361,7 +1368,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var ahora = caja.Reloj.GetLocalNow();
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(DescuentosTarjeta:
         [
-            new DescuentoTarjetaCarga(Guid.CreateVersion7(), $"BIN{caja.Escenario.Sufijo}", "10 % con tarjetas del banco", "455123,401288",
+            new DescuentoTarjetaCarga($"BIN{caja.Escenario.Sufijo}", "10 % con tarjetas del banco", "455123,401288",
                 CgPos.Dominio.Promociones.TipoDescuentoTarjeta.Porcentaje, 10m, ahora.AddDays(-1), ahora.AddMonths(1)),
         ]), "Pruebas"));
 
@@ -1636,6 +1643,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
             // Los maestros se cargan con el mismo reloj de la prueba, para que los precios ya estén vigentes.
             await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(caja.Catalogo.Paquete(), "Pruebas"));
+            await caja.EjecutarAsync<ContextoDatosPos, bool>(async contexto =>
+            {
+                await caja.Catalogo.ResolverIdsAsync(contexto);
+                return true;
+            });
 
             // Rangos de e-CF de la caja (los asigna el Central). Como en la realidad, cada caja tiene un rango distinto:
             // las pruebas de la clase comparten base y el e-NCF es único.
@@ -1643,11 +1655,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             var desde = caja.DesdeSecuencia;
             await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(SecuenciasEcf:
             [
-                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.FacturaConsumo, desde, desde + hastaSecuenciaConsumo - 1, vence),
-                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.FacturaCreditoFiscal, desde, desde + 999, vence),
-                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.RegimenesEspeciales, desde, desde + 999, vence),
-                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.Gubernamental, desde, desde + 999, vence),
-                new SecuenciaEcfCarga(Guid.CreateVersion7(), caja.Escenario.CajaUno, TipoComprobante.NotaCredito, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(caja.Escenario.CodigoSucursal, caja.Escenario.CodigoCajaUno, TipoComprobante.FacturaConsumo, desde, desde + hastaSecuenciaConsumo - 1, vence),
+                new SecuenciaEcfCarga(caja.Escenario.CodigoSucursal, caja.Escenario.CodigoCajaUno, TipoComprobante.FacturaCreditoFiscal, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(caja.Escenario.CodigoSucursal, caja.Escenario.CodigoCajaUno, TipoComprobante.RegimenesEspeciales, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(caja.Escenario.CodigoSucursal, caja.Escenario.CodigoCajaUno, TipoComprobante.Gubernamental, desde, desde + 999, vence),
+                new SecuenciaEcfCarga(caja.Escenario.CodigoSucursal, caja.Escenario.CodigoCajaUno, TipoComprobante.NotaCredito, desde, desde + 999, vence),
             ]), "Pruebas"));
 
             caja.Cajero = await caja.IngresarAsync(caja.Escenario.CodigoCajero, EscenarioSeguridad.ClaveCajero);

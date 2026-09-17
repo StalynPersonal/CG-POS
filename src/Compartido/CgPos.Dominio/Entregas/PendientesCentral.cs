@@ -107,7 +107,7 @@ public sealed class PendienteCentral : Entidad
     {
         var texto = string.Join(' ', new[] { datos.Numero, datos.VentaNumero, datos.ClienteNombre, datos.ClienteDocumento, datos.Telefono, datos.AlmacenNombre, datos.Ciudad }
             .Where(t => !string.IsNullOrWhiteSpace(t)));
-        var normalizado = Sincronizacion.MaestroCentral.NormalizarBusqueda(texto) ?? string.Empty;
+        var normalizado = Comun.TextoBusqueda.Normalizar(texto) ?? string.Empty;
         return normalizado.Length > LargoMaximoBusqueda ? normalizado[..LargoMaximoBusqueda] : normalizado;
     }
 }

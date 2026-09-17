@@ -23,7 +23,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         Assert.True(primera.Creados >= 8);
 
         // Segunda carga: caja deshabilitada, rol sin un permiso, usuario sin la caja 02 y parámetro con otro valor.
-        var cambiado = datos.Paquete(cajaDosHabilitada: false, permisosCajero: [CatalogoPermisos.RegistrarVenta], cajasCajero: [datos.CajaUno], intentosMaximos: "5");
+        var cambiado = datos.Paquete(cajaDosHabilitada: false, permisosCajero: [CatalogoPermisos.RegistrarVenta], soloCajaUno: true, intentosMaximos: "5");
         var segunda = await AplicarAsync(cambiado);
         Assert.Equal(0, segunda.Creados);
         Assert.Equal(primera.Creados + primera.Actualizados, segunda.Actualizados);
@@ -31,17 +31,20 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
 
-        Assert.Equal(2, await contexto.Cajas.CountAsync(c => c.SucursalId == datos.Sucursal));
-        Assert.False((await contexto.Cajas.SingleAsync(c => c.Id == datos.CajaDos)).Habilitada);
+        var sucursal = await contexto.Sucursales.SingleAsync(s => s.Codigo == datos.CodigoSucursal);
+        var cajas = await contexto.Cajas.Where(c => c.SucursalId == sucursal.Id).ToDictionaryAsync(c => c.Codigo);
+        Assert.Equal(2, cajas.Count);
+        Assert.False(cajas[datos.CodigoCajaDos].Habilitada);
 
-        var cajero = await contexto.Roles.Include(r => r.PermisosAsignados).SingleAsync(r => r.Id == datos.RolCajero);
+        var cajero = await contexto.Roles.Include(r => r.PermisosAsignados).SingleAsync(r => r.Codigo == datos.CodigoRolCajero);
         Assert.Equal(new[] { CatalogoPermisos.RegistrarVenta }, cajero.PermisosAsignados.Select(p => p.PermisoCodigo));
 
-        var usuario = await contexto.Usuarios.Include(u => u.CajasAsignadas).SingleAsync(u => u.Id == datos.UsuarioCajero);
-        Assert.True(usuario.PuedeOperarCaja(datos.CajaUno));
-        Assert.False(usuario.PuedeOperarCaja(datos.CajaDos));
+        var usuario = await contexto.Usuarios.Include(u => u.CajasAsignadas).SingleAsync(u => u.Codigo == datos.CodigoCajero);
+        Assert.True(usuario.PuedeOperarCaja(cajas[datos.CodigoCajaUno].Id));
+        Assert.False(usuario.PuedeOperarCaja(cajas[datos.CodigoCajaDos].Id));
 
-        Assert.Equal("5", (await contexto.Parametros.SingleAsync(p => p.Id == datos.Parametro)).Valor);
+        // El parámetro de caja se guarda con la caja; su clave y su ámbito lo identifican.
+        Assert.Equal("5", (await contexto.Parametros.SingleAsync(p => p.Clave == datos.ClaveParametro && p.CajaId == cajas[datos.CodigoCajaUno].Id)).Valor);
         Assert.Equal(CatalogoPermisos.Todos.Count, await contexto.Permisos.CountAsync());
     }
 
@@ -52,13 +55,13 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         var datos = new DatosPrueba();
 
         await AplicarAsync(datos.Paquete());
-        var hashInicial = await LeerClaveHashAsync(datos.UsuarioCajero);
+        var hashInicial = await LeerClaveHashAsync(datos.CodigoCajero);
 
         await AplicarAsync(datos.Paquete());
-        Assert.Equal(hashInicial, await LeerClaveHashAsync(datos.UsuarioCajero));
+        Assert.Equal(hashInicial, await LeerClaveHashAsync(datos.CodigoCajero));
 
         await AplicarAsync(datos.Paquete(claveCajero: "Nueva.9876"));
-        var hashNuevo = await LeerClaveHashAsync(datos.UsuarioCajero);
+        var hashNuevo = await LeerClaveHashAsync(datos.CodigoCajero);
         Assert.NotEqual(hashInicial, hashNuevo);
 
         var hash = baseDatos.Servicios!.GetRequiredService<IHashCredenciales>();
@@ -77,7 +80,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
-        var gerente = await contexto.Roles.Include(r => r.PermisosAsignados).SingleAsync(r => r.Id == datos.RolGerente);
+        var gerente = await contexto.Roles.Include(r => r.PermisosAsignados).SingleAsync(r => r.Codigo == datos.CodigoRolGerente);
         Assert.Equal(CatalogoPermisos.Todos.Count, gerente.PermisosAsignados.Count);
     }
 
@@ -87,15 +90,14 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var datos = new DatosPrueba();
         var paquete = datos.Paquete();
-        var rolInexistente = Guid.CreateVersion7();
         var conErrores = paquete with
         {
             Usuarios =
             [
                 .. paquete.Usuarios!,
-                new UsuarioCarga(Guid.CreateVersion7(), $"X{datos.Sufijo}", "Sin rol", rolInexistente, Clave: ""),
+                new UsuarioCarga($"X{datos.Sufijo}", "Sin rol", $"NOEXISTE{datos.Sufijo}", Clave: ""),
             ],
-            Roles = [.. paquete.Roles!, new RolCarga(Guid.CreateVersion7(), $"MAL{datos.Sufijo}", "Rol malo", 1, ["Ventas.HacerMagia"])],
+            Roles = [.. paquete.Roles!, new RolCarga($"MAL{datos.Sufijo}", "Rol malo", 1, ["Ventas.HacerMagia"])],
         };
 
         var error = await Assert.ThrowsAsync<CargaInicialInvalidaExcepcion>(() => AplicarAsync(conErrores));
@@ -106,8 +108,8 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
-        Assert.False(await contexto.Sucursales.AnyAsync(s => s.Id == datos.Sucursal));
-        Assert.False(await contexto.Usuarios.AnyAsync(u => u.Id == datos.UsuarioCajero));
+        Assert.False(await contexto.Sucursales.AnyAsync(s => s.Codigo == datos.CodigoSucursal));
+        Assert.False(await contexto.Usuarios.AnyAsync(u => u.Codigo == datos.CodigoCajero));
     }
 
     [SkippableFact]
@@ -143,11 +145,11 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         return await ambito.ServiceProvider.GetRequiredService<ICargaInicial>().AplicarAsync(paquete);
     }
 
-    private async Task<string?> LeerClaveHashAsync(Guid usuarioId)
+    private async Task<string?> LeerClaveHashAsync(string codigoUsuario)
     {
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
-        return await contexto.Usuarios.Where(u => u.Id == usuarioId).Select(u => u.ClaveHash).SingleAsync();
+        return await contexto.Usuarios.Where(u => u.Codigo == codigoUsuario).Select(u => u.ClaveHash).SingleAsync();
     }
 
     private static string BuscarRaizRepositorio()
@@ -162,47 +164,48 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
     }
 
     /// <summary>
-    /// Ids y códigos únicos por prueba. Todas las pruebas de esta clase comparten la misma base,
+    /// Códigos únicos por prueba. Todas las pruebas de esta clase comparten la misma base,
     /// y una caja solo admite una empresa, por eso la empresa se reutiliza entre pruebas.
     /// </summary>
     private sealed class DatosPrueba
     {
-        public static readonly Guid Empresa = Guid.CreateVersion7();
+        private static int _pruebas;
 
         public string Sufijo { get; } = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        public Guid Sucursal { get; } = Guid.CreateVersion7();
-        public Guid CajaUno { get; } = Guid.CreateVersion7();
-        public Guid CajaDos { get; } = Guid.CreateVersion7();
-        public Guid RolCajero { get; } = Guid.CreateVersion7();
-        public Guid RolGerente { get; } = Guid.CreateVersion7();
-        public Guid UsuarioCajero { get; } = Guid.CreateVersion7();
-        public Guid UsuarioGerente { get; } = Guid.CreateVersion7();
-        public Guid Parametro { get; } = Guid.CreateVersion7();
+        public int CodigoSucursal { get; } = Interlocked.Increment(ref _pruebas);
+        public int CodigoCajaUno => 1;
+        public int CodigoCajaDos => 2;
+        public string CodigoRolCajero => $"CAJ{Sufijo}";
+        public string CodigoRolGerente => $"GER{Sufijo}";
+        public string CodigoCajero => $"C{Sufijo}";
+        public string ClaveParametro => $"Prueba.IntentosMaximos{Sufijo}";
 
         public PaqueteCargaInicial Paquete(
             bool cajaDosHabilitada = true,
             IReadOnlyList<string>? permisosCajero = null,
-            IReadOnlyList<Guid>? cajasCajero = null,
+            bool soloCajaUno = false,
             string intentosMaximos = "3",
             string claveCajero = "Cajero.1111") =>
             new(
-                new EmpresaCarga(Empresa, "999000002", "Empresa de Pruebas SRL"),
-                Sucursales: [new SucursalCarga(Sucursal, $"S{Sufijo}", "Sucursal de prueba")],
+                new EmpresaCarga("999000002", "Empresa de Pruebas SRL"),
+                Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de prueba")],
                 Cajas:
                 [
-                    new CajaCarga(CajaUno, Sucursal, "01", "Caja 01"),
-                    new CajaCarga(CajaDos, Sucursal, "02", "Caja 02", cajaDosHabilitada),
+                    new CajaCarga(CodigoSucursal, CodigoCajaUno, "Caja 01"),
+                    new CajaCarga(CodigoSucursal, CodigoCajaDos, "Caja 02", cajaDosHabilitada),
                 ],
                 Roles:
                 [
-                    new RolCarga(RolCajero, $"CAJ{Sufijo}", "Cajero", 1, permisosCajero ?? [CatalogoPermisos.RegistrarVenta, CatalogoPermisos.AbrirTurno]),
-                    new RolCarga(RolGerente, $"GER{Sufijo}", "Gerente", 3, ["*"]),
+                    new RolCarga(CodigoRolCajero, "Cajero", 1, permisosCajero ?? [CatalogoPermisos.RegistrarVenta, CatalogoPermisos.AbrirTurno]),
+                    new RolCarga(CodigoRolGerente, "Gerente", 3, ["*"]),
                 ],
                 Usuarios:
                 [
-                    new UsuarioCarga(UsuarioCajero, $"C{Sufijo}", "Cajero Prueba", RolCajero, cajasCajero ?? [CajaUno, CajaDos], Clave: claveCajero),
-                    new UsuarioCarga(UsuarioGerente, $"G{Sufijo}", "Gerente Prueba", RolGerente, [CajaUno], Clave: "Gerente.3333"),
+                    new UsuarioCarga(CodigoCajero, "Cajero Prueba", CodigoRolCajero,
+                        soloCajaUno ? [new CajaReferencia(CodigoSucursal, CodigoCajaUno)] : [new CajaReferencia(CodigoSucursal, CodigoCajaUno), new CajaReferencia(CodigoSucursal, CodigoCajaDos)],
+                        Clave: claveCajero),
+                    new UsuarioCarga($"G{Sufijo}", "Gerente Prueba", CodigoRolGerente, [new CajaReferencia(CodigoSucursal, CodigoCajaUno)], Clave: "Gerente.3333"),
                 ],
-                Parametros: [new ParametroCarga(Parametro, $"Prueba.IntentosMaximos{Sufijo}", intentosMaximos, CajaId: CajaUno)]);
+                Parametros: [new ParametroCarga(ClaveParametro, intentosMaximos, SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno)]);
     }
 }

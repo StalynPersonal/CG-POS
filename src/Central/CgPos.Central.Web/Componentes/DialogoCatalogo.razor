@@ -71,6 +71,9 @@
     /// <summary>Registro a editar; nulo para crear uno.</summary>
     [Parameter] public JsonObject? Dato { get; set; }
 
+    /// <summary>Código que se propone al crear un registro de un catálogo con código numérico.</summary>
+    [Parameter] public int? CodigoSugerido { get; set; }
+
     [Parameter] public IReadOnlyList<OpcionCatalogo> Monedas { get; set; } = [];
     [Parameter] public IReadOnlyList<OpcionCatalogo> Sucursales { get; set; } = [];
     [Parameter] public IReadOnlyList<OpcionCatalogo> Departamentos { get; set; } = [];
@@ -101,7 +104,7 @@
             var valor = Dato is null
                 ? campo.Tipo == TipoCampoCatalogo.SiNoSegunTipo ? ValoresCatalogo.SegunTipo : campo.Predeterminado
                 : ValoresCatalogo.Leer(dato, campo);
-            _valores[campo.Nombre] = valor;
+            _valores[campo.Nombre] = Dato is null && campo.Nombre == "codigo" && CodigoSugerido is { } sugerido ? sugerido : valor;
 
             if (campo.Tipo == TipoCampoCatalogo.FechaHora)
             {
@@ -134,13 +137,13 @@
         }
 
         // Se parte del registro publicado para no perder lo que el formulario no muestra.
-        var registro = Dato?.DeepClone().AsObject() ?? new JsonObject { ["id"] = Guid.CreateVersion7().ToString() };
+        var registro = Dato?.DeepClone().AsObject() ?? [];
         foreach (var campo in Definicion.Campos)
             ValoresCatalogo.Escribir(registro, campo, _valores[campo.Nombre]);
 
         _procesando = true;
         _mensaje = null;
-        var respuesta = await Cliente.GuardarCatalogoAsync(Definicion.Ruta, Guid.Parse(registro["id"]!.GetValue<string>()), registro);
+        var respuesta = await Cliente.GuardarCatalogoAsync(Definicion.Ruta, nuevo: Dato is null, registro);
         _procesando = false;
 
         if (respuesta.Exitosa)

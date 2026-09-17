@@ -99,6 +99,124 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("Auditoria", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Catalogo.Articulo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("CantidadMinimaMayor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("CategoriaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("Costo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("DepartamentoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("EsServicio")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("ImpuestoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("MarcaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("MostrarEnCatalogo")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("PrecioDetalle")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PrecioMayor")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PrecioMinimo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTimeOffset?>("PreciosVigentesDesde")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RutaImagen")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<decimal?>("Tara")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UnidadMedidaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("VentaEnPos")
+                        .HasColumnType("bit");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoriaId");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("DepartamentoId");
+
+                    b.HasIndex("Descripcion");
+
+                    b.HasIndex("ImpuestoId");
+
+                    b.HasIndex("MarcaId");
+
+                    b.HasIndex("UnidadMedidaId");
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("Articulos", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Categoria", b =>
                 {
                     b.Property<Guid>("Id")
@@ -107,10 +225,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("DepartamentoId")
                         .HasColumnType("uniqueidentifier");
@@ -147,6 +263,26 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("Categorias", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Catalogo.CodigoArticulo", b =>
+                {
+                    b.Property<Guid>("ArticuloId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Codigo")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.HasKey("ArticuloId", "Codigo");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("CodigosArticulo", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Departamento", b =>
                 {
                     b.Property<Guid>("Id")
@@ -155,10 +291,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<bool>("EsNoCodificada")
                         .HasColumnType("bit");
@@ -254,10 +388,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("ModificadoEn")
                         .HasPrecision(3)
@@ -294,10 +426,13 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Codigo")
+                    b.Property<string>("Abreviatura")
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<int>("Decimales")
                         .HasColumnType("int");
@@ -333,6 +468,128 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("Version");
 
                     b.ToTable("UnidadesMedida", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Clientes.Cliente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AplicaRetencion")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Correo")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Documento")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<bool>("ExoneradoItbis")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ListaPrecioPredeterminada")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("TipoComprobantePredeterminado")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TipoDocumento")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Nombre");
+
+                    b.HasIndex("Version");
+
+                    b.HasIndex("TipoDocumento", "Documento")
+                        .IsUnique();
+
+                    b.ToTable("Clientes", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Clientes.DireccionCliente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Alias")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Ciudad")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Direccion")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<bool>("EsPrincipal")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Sector")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId", "Alias")
+                        .IsUnique();
+
+                    b.ToTable("DireccionesCliente", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral", b =>
@@ -374,6 +631,47 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("ConsumosNotaCredito", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Devoluciones.MotivoDevolucion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("MotivosDevolucion", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Devoluciones.NotaCreditoCentral", b =>
@@ -505,6 +803,58 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("ReservasNotaCredito", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Entregas.Almacen", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Direccion")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("SucursalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("SucursalId");
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("Almacenes", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Entregas.PendienteCentral", b =>
                 {
                     b.Property<Guid>("Id")
@@ -604,6 +954,86 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("PendientesEntrega", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Fidelidad.MiembroFidelidad", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Cedula")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .IsUnicode(false)
+                        .HasColumnType("char(11)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Correo")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTimeOffset>("InscritoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<bool>("InscritoEnCaja")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid?>("NivelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateOnly?>("ProximoVencimiento")
+                        .HasColumnType("date");
+
+                    b.Property<int>("PuntosPorVencer")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SaldoSincronizado")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("SaldoSincronizadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Cedula")
+                        .IsUnique();
+
+                    b.HasIndex("NivelId");
+
+                    b.HasIndex("Nombre");
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("MiembrosFidelidad", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.MovimientoPuntosCentral", b =>
                 {
                     b.Property<Guid>("Id")
@@ -675,6 +1105,120 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("MiembroId", "Fecha");
 
                     b.ToTable("MovimientosPuntos", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Fidelidad.NivelFidelidad", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("FactorAcumulacion")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("NivelesFidelidad", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Fidelidad.ReglaAcumulacion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DiaSemana")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("MontoBase")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Puntos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("ReferenciaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("VigenteDesde")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset?>("VigenteHasta")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("ReglasAcumulacion", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.SaldoPuntosCentral", b =>
@@ -763,15 +1307,66 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("AnulacionesEcf", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Fiscal.SecuenciaEcf", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("CajaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("Desde")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Hasta")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("TipoComprobante")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Ultimo")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("VenceEn")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CajaId");
+
+                    b.HasIndex("Version");
+
+                    b.HasIndex("TipoComprobante", "Desde")
+                        .IsUnique();
+
+                    b.ToTable("SecuenciasEcf", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Caja", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<bool>("Habilitada")
                         .HasColumnType("bit");
@@ -957,10 +1552,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
 
                     b.Property<string>("Direccion")
                         .IsRequired()
@@ -992,6 +1585,606 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("Sucursales", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Pagos.Banco", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RutaLogo")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("Bancos", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Pagos.Denominacion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Version");
+
+                    b.HasIndex("Moneda", "Valor", "Tipo")
+                        .IsUnique();
+
+                    b.ToTable("Denominaciones", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Pagos.FormaPago", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AbreGaveta")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("PermiteComprobanteFiscal")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PermiteDevuelta")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequiereBanco")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequiereReferencia")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("FormasPago", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Pagos.Moneda", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Simbolo")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("Monedas", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Pagos.TasaCambio", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<decimal>("Tasa")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("VigenteDesde")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Version");
+
+                    b.HasIndex("Moneda", "VigenteDesde")
+                        .IsUnique();
+
+                    b.ToTable("TasasCambio", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Pagos.TipoTarjeta", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("TiposTarjeta", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Promociones.DescuentoTarjeta", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("BancoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Bines")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(400)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("Dias")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal?>("MontoMaximo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("MontoMinimo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("VigenteDesde")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset>("VigenteHasta")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BancoId");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("DescuentosTarjeta", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Promociones.MotivoDescuento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("MotivosDescuento", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Promociones.Promocion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("CantidadLleva")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("CantidadMinima")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("CantidadPaga")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Dias")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly?>("HoraDesde")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("HoraHasta")
+                        .HasColumnType("time");
+
+                    b.Property<decimal?>("LimitePorCliente")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("SoloFidelidad")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("VigenteDesde")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<DateTimeOffset>("VigenteHasta")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("_articulos")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("Articulos");
+
+                    b.Property<string>("_categorias")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("Categorias");
+
+                    b.Property<string>("_departamentos")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("Departamentos");
+
+                    b.Property<string>("_marcas")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("Marcas");
+
+                    b.Property<string>("_sucursales")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("Sucursales");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("Promociones", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Promociones.TopeDescuento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ArticuloId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CategoriaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Codigo")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("DepartamentoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("MarcaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal?>("MontoMaximo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Nivel")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("PorcentajeMaximo")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticuloId");
+
+                    b.HasIndex("CategoriaId");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("DepartamentoId");
+
+                    b.HasIndex("MarcaId");
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("TopesDescuento", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreFormaPagoCentral", b =>
@@ -1310,6 +2503,52 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("PagosVenta", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.Rol", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("Nivel")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("RolesCaja", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentral", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1349,6 +2588,21 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasKey("RolId", "PermisoCodigo");
 
                     b.ToTable("RolesCentralPermisos", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.RolPermiso", b =>
+                {
+                    b.Property<Guid>("RolId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PermisoCodigo")
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("RolId", "PermisoCodigo");
+
+                    b.ToTable("RolesCajaPermisos", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.SesionCentral", b =>
@@ -1416,6 +2670,74 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("UsuarioId", "RevocadaEn");
 
                     b.ToTable("SesionesCentral", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.Usuario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ClaveHash")
+                        .HasMaxLength(256)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset>("ModificadoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("ModificadoPor")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid>("RolId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("RolId");
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("UsuariosCaja", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.UsuarioCaja", b =>
+                {
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CajaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("UsuarioId", "CajaId");
+
+                    b.HasIndex("CajaId");
+
+                    b.ToTable("UsuariosCajaCajas", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.UsuarioCentral", b =>
@@ -1737,56 +3059,35 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("EstadosSincronizacionCaja", (string)null);
                 });
 
-            modelBuilder.Entity("CgPos.Dominio.Sincronizacion.MaestroCentral", b =>
+            modelBuilder.Entity("CgPos.Dominio.Catalogo.Articulo", b =>
                 {
-                    b.Property<string>("Tipo")
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                    b.HasOne("CgPos.Dominio.Catalogo.Categoria", null)
+                        .WithMany()
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.HasOne("CgPos.Dominio.Catalogo.Departamento", null)
+                        .WithMany()
+                        .HasForeignKey("DepartamentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Property<Guid?>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.HasOne("CgPos.Dominio.Catalogo.Impuesto", null)
+                        .WithMany()
+                        .HasForeignKey("ImpuestoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.HasOne("CgPos.Dominio.Catalogo.Marca", null)
+                        .WithMany()
+                        .HasForeignKey("MarcaId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Property<string>("Contenido")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("ModificadoEn")
-                        .HasPrecision(3)
-                        .HasColumnType("datetimeoffset(3)");
-
-                    b.Property<string>("ModificadoPor")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("TextoBusqueda")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<byte[]>("Version")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.HasKey("Tipo", "Id");
-
-                    b.HasIndex("CajaId");
-
-                    b.HasIndex("Version");
-
-                    b.HasIndex("Tipo", "Codigo")
-                        .IsUnique()
-                        .HasFilter("[Codigo] IS NOT NULL");
-
-                    b.ToTable("MaestrosCentral", (string)null);
+                    b.HasOne("CgPos.Dominio.Catalogo.UnidadMedida", null)
+                        .WithMany()
+                        .HasForeignKey("UnidadMedidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Categoria", b =>
@@ -1795,6 +3096,24 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .WithMany()
                         .HasForeignKey("DepartamentoId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Catalogo.CodigoArticulo", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Catalogo.Articulo", null)
+                        .WithMany("Codigos")
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Clientes.DireccionCliente", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Clientes.Cliente", null)
+                        .WithMany("Direcciones")
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -1837,6 +3156,15 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Entregas.Almacen", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
+                        .WithMany()
+                        .HasForeignKey("SucursalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Entregas.PendienteCentral", b =>
                 {
                     b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
@@ -1850,6 +3178,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasForeignKey("SucursalId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Fidelidad.MiembroFidelidad", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Fidelidad.NivelFidelidad", null)
+                        .WithMany()
+                        .HasForeignKey("NivelId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.MovimientoPuntosCentral", b =>
@@ -1866,6 +3202,15 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Fiscal.AnulacionEcfCentral", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
+                        .WithMany()
+                        .HasForeignKey("CajaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Fiscal.SecuenciaEcf", b =>
                 {
                     b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
                         .WithMany()
@@ -1912,6 +3257,37 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasForeignKey("EmpresaId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Promociones.DescuentoTarjeta", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Pagos.Banco", null)
+                        .WithMany()
+                        .HasForeignKey("BancoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Promociones.TopeDescuento", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Catalogo.Articulo", null)
+                        .WithMany()
+                        .HasForeignKey("ArticuloId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CgPos.Dominio.Catalogo.Categoria", null)
+                        .WithMany()
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CgPos.Dominio.Catalogo.Departamento", null)
+                        .WithMany()
+                        .HasForeignKey("DepartamentoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CgPos.Dominio.Catalogo.Marca", null)
+                        .WithMany()
+                        .HasForeignKey("MarcaId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreFormaPagoCentral", b =>
@@ -1980,12 +3356,45 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.RolPermiso", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Seguridad.Rol", null)
+                        .WithMany("PermisosAsignados")
+                        .HasForeignKey("RolId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Seguridad.SesionCentral", b =>
                 {
                     b.HasOne("CgPos.Dominio.Seguridad.UsuarioCentral", null)
                         .WithMany()
                         .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.Usuario", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Seguridad.Rol", null)
+                        .WithMany()
+                        .HasForeignKey("RolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.UsuarioCaja", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
+                        .WithMany()
+                        .HasForeignKey("CajaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CgPos.Dominio.Seguridad.Usuario", null)
+                        .WithMany("CajasAsignadas")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -2040,12 +3449,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("CgPos.Dominio.Sincronizacion.MaestroCentral", b =>
+            modelBuilder.Entity("CgPos.Dominio.Catalogo.Articulo", b =>
                 {
-                    b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
-                        .WithMany()
-                        .HasForeignKey("CajaId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                    b.Navigation("Codigos");
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Clientes.Cliente", b =>
+                {
+                    b.Navigation("Direcciones");
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
@@ -2060,9 +3471,19 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Navigation("Pagos");
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.Rol", b =>
+                {
+                    b.Navigation("PermisosAsignados");
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentral", b =>
                 {
                     b.Navigation("PermisosAsignados");
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Seguridad.Usuario", b =>
+                {
+                    b.Navigation("CajasAsignadas");
                 });
 #pragma warning restore 612, 618
         }

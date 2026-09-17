@@ -1,251 +1,548 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using CgPos.Central.Infraestructura.Persistencia;
-using CgPos.Central.Infraestructura.Sincronizacion;
+using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
+using CgPos.Contratos.CargaInicial;
 using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Entregas;
+using CgPos.Dominio.Fidelidad;
+using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Promociones;
+using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
-/// <summary>
-/// Maestro que el Central guarda en su propia tabla (con llaves, índices y tipos) en lugar de la tabla JSON <see cref="MaestroCentral"/>.
-/// Hacia afuera se ve igual que un maestro JSON: el publicador, la bajada a las cajas y el Manager siguen trabajando con el formato de carga,
-/// así cada grupo de maestros pasa a su tabla sin tocar las cajas.
-/// </summary>
+/// <summary>Cómo se aplica una publicación: cuándo, quién y si admite corregir el documento de un cliente.</summary>
+internal sealed record OpcionesPublicacion(DateTimeOffset Ahora, string Usuario, bool CorregirDocumentoCliente = false);
+
+/// <summary>Precios publicados de un artículo (con impuesto) y desde cuándo rigen; se guardan junto al artículo.</summary>
+internal sealed record PreciosPublicados(decimal PrecioDetalle, decimal? PrecioMayor, DateTimeOffset? VigentesDesde);
+
+/// <summary>Maestro guardado en su tabla del Central, visto como las cargas por código que bajan a las cajas.</summary>
 internal abstract class TablaMaestro
 {
-    /// <summary>Cuándo y quién cambió el registro por última vez (columnas sombra de cada tabla de maestros).</summary>
-    public const string ColumnaModificadoEn = "ModificadoEn";
-    public const string ColumnaModificadoPor = "ModificadoPor";
-
     public abstract TipoMaestro Tipo { get; }
 
-    /// <summary>Registros en formato de fila publicada: todos, los de ciertos Ids o los cambiados en un rango de versión.</summary>
-    public abstract Task<List<MaestroCentral>> FilasAsync(ContextoDatosCentral contexto, IReadOnlyCollection<Guid>? ids, (long Desde, long Hasta)? versiones,
+    /// <summary>Crea o actualiza el registro por su código (o llave natural).</summary>
+    /// <returns><c>true</c> si algo cambió: solo entonces recibe una versión nueva y baja otra vez a las cajas.</returns>
+    public abstract Task<bool> AplicarAsync(ContextoDatosCentral contexto, object dato, ResolutorCodigosCentral resolutor, OpcionesPublicacion opciones,
         CancellationToken cancelacion);
 
-    public abstract Task<HashSet<Guid>> IdsAsync(ContextoDatosCentral contexto, CancellationToken cancelacion);
+    /// <summary>Cargas de los registros con versión en el rango (bajada a las cajas).</summary>
+    public abstract Task<IReadOnlyList<object>> CambiosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, long desde, long hasta,
+        CancellationToken cancelacion);
 
-    /// <summary>Crea o actualiza el registro con las reglas del dominio.</summary>
-    /// <returns><c>true</c> si algo cambió: solo entonces recibe una versión nueva y baja otra vez a las cajas.</returns>
-    public abstract Task<bool> AplicarAsync(ContextoDatosCentral contexto, object dato, DateTimeOffset ahora, string usuario, CancellationToken cancelacion);
+    protected static void Marcar(ContextoDatosCentral contexto, object entidad, OpcionesPublicacion opciones) =>
+        ColumnasMaestro.Marcar(contexto, entidad, opciones.Ahora, opciones.Usuario);
 
-    /// <summary>Pasa a la tabla un registro que estaba en la tabla JSON, conservando cuándo y quién lo cambió.</summary>
-    public Task<bool> MigrarAsync(ContextoDatosCentral contexto, MaestroCentral fila, CancellationToken cancelacion) =>
-        AplicarAsync(contexto, Leer(fila), fila.ModificadoEn, fila.ModificadoPor, cancelacion);
-
-    protected abstract object Leer(MaestroCentral fila);
-
-    /// <summary>Los Ids en bloques para no superar el límite de parámetros de SQL Server; un único bloque nulo = sin filtro.</summary>
-    public static IEnumerable<List<Guid>?> Bloques(IReadOnlyCollection<Guid>? ids) =>
-        ids is null ? [(List<Guid>?)null] : ids.Distinct().Chunk(1000).Select(bloque => (List<Guid>?)bloque.ToList());
+    protected static string Serializar(object carga) => JsonSerializer.Serialize(carga, carga.GetType(), OpcionesJson.Predeterminadas);
 }
 
+/// <summary>Operaciones de una tabla de maestros sin conocer su entidad: lo que usan el Manager y los servicios del Central.</summary>
+internal interface ITablaCarga<TCarga> where TCarga : class
+{
+    TipoMaestro Tipo { get; }
+
+    /// <summary>Id en el Central del registro con la llave de la carga; nulo si no existe.</summary>
+    Task<Guid?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion);
+
+    Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, int pagina, int tamano,
+        CancellationToken cancelacion);
+
+    Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> TodosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, CancellationToken cancelacion);
+
+    /// <summary>Carga del registro con ese Id en el Central; nulo si no existe.</summary>
+    Task<DatosMaestroCentral<TCarga>?> PorIdAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, Guid id, CancellationToken cancelacion);
+}
+
+/// <param name="Incluir">Colecciones que forman parte del registro (códigos del artículo, direcciones del cliente…).</param>
+/// <param name="Llave">Registro de la tabla que corresponde a la carga (mismo código o llave natural).</param>
+/// <param name="ACarga">Carga por código; los precios del artículo llegan aparte.</param>
+/// <param name="AlGuardar">Después de crear o actualizar: registra el código en el resolutor y guarda lo que va en columnas propias del Central.</param>
+/// <param name="Orden">Orden de listado en el Manager.</param>
+/// <param name="Filtro">Búsqueda del Manager por texto; nulo si el maestro se lista completo.</param>
+/// <param name="AntesDeLeer">Lo que el resolutor necesita para armar las cargas (ej. los artículos de las promociones).</param>
 internal sealed class TablaMaestro<TEntidad, TCarga>(
     TipoMaestro tipo,
     Func<ContextoDatosCentral, DbSet<TEntidad>> conjunto,
-    Func<TCarga, Guid> id,
-    Func<TEntidad, TCarga> aCarga,
-    Func<TCarga, TEntidad> crear,
-    Action<TEntidad, TCarga> actualizar,
-    Func<TCarga, PaqueteMaestros> envolver) : TablaMaestro
+    Func<TCarga, Expression<Func<TEntidad, bool>>> llave,
+    Func<TCarga, ResolutorCodigosCentral, OpcionesPublicacion, TEntidad> crear,
+    Action<TEntidad, TCarga, ResolutorCodigosCentral, OpcionesPublicacion> actualizar,
+    Func<TEntidad, ResolutorCodigosCentral, PreciosPublicados?, TCarga> aCarga,
+    Func<IQueryable<TEntidad>, IOrderedQueryable<TEntidad>> orden,
+    Func<IQueryable<TEntidad>, IQueryable<TEntidad>>? incluir = null,
+    Action<ContextoDatosCentral, TEntidad, TCarga, ResolutorCodigosCentral, OpcionesPublicacion>? alGuardar = null,
+    Func<string, Expression<Func<TEntidad, bool>>>? filtro = null,
+    Func<ContextoDatosCentral, IReadOnlyList<TEntidad>, ResolutorCodigosCentral, CancellationToken, Task>? antesDeLeer = null) : TablaMaestro, ITablaCarga<TCarga>
     where TEntidad : Entidad
     where TCarga : class
 {
+    private readonly Func<IQueryable<TEntidad>, IQueryable<TEntidad>> _incluir = incluir ?? (consulta => consulta);
+
     public override TipoMaestro Tipo => tipo;
 
-    public override async Task<List<MaestroCentral>> FilasAsync(ContextoDatosCentral contexto, IReadOnlyCollection<Guid>? ids, (long Desde, long Hasta)? versiones,
+    public bool SeBusca => filtro is not null;
+
+    public IQueryable<TEntidad> Consulta(ContextoDatosCentral contexto) => _incluir(conjunto(contexto));
+
+    public override async Task<bool> AplicarAsync(ContextoDatosCentral contexto, object dato, ResolutorCodigosCentral resolutor, OpcionesPublicacion opciones,
         CancellationToken cancelacion)
     {
-        var consulta = conjunto(contexto).AsNoTracking();
-        if (versiones is var (desde, hasta))
-            consulta = consulta.Where(e => EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) > desde
-                && EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) <= hasta);
-
-        var filas = new List<MaestroCentral>();
-        foreach (var bloque in Bloques(ids))
-        {
-            var parcial = bloque is null ? consulta : consulta.Where(e => bloque.Contains(e.Id));
-            var registros = await parcial
-                .Select(e => new
-                {
-                    Entidad = e,
-                    En = EF.Property<DateTimeOffset>(e, ColumnaModificadoEn),
-                    Por = EF.Property<string>(e, ColumnaModificadoPor),
-                })
-                .ToListAsync(cancelacion);
-
-            foreach (var registro in registros)
-            {
-                var fila = FormatoMaestros.Desglosar(envolver(aCarga(registro.Entidad))).Single();
-                filas.Add(MaestroCentral.Publicar(fila.Tipo, fila.Id, fila.Codigo, fila.CajaId, fila.Contenido(), registro.En, registro.Por, fila.TextoBusqueda()));
-            }
-        }
-
-        return filas;
-    }
-
-    public override async Task<HashSet<Guid>> IdsAsync(ContextoDatosCentral contexto, CancellationToken cancelacion) =>
-        (await conjunto(contexto).AsNoTracking().Select(e => e.Id).ToListAsync(cancelacion)).ToHashSet();
-
-    public override async Task<bool> AplicarAsync(ContextoDatosCentral contexto, object dato, DateTimeOffset ahora, string usuario, CancellationToken cancelacion)
-    {
         var carga = (TCarga)dato;
-        var entidad = await conjunto(contexto).FindAsync([id(carga)], cancelacion);
+        var entidad = await BuscarAsync(contexto, carga, cancelacion);
         if (entidad is null)
         {
-            entidad = crear(carga);
+            entidad = crear(carga, resolutor, opciones);
             conjunto(contexto).Add(entidad);
-            Marcar(contexto, entidad, ahora, usuario);
+            alGuardar?.Invoke(contexto, entidad, carga, resolutor, opciones);
+            Marcar(contexto, entidad, opciones);
             return true;
         }
 
-        var antes = Serializar(aCarga(entidad));
-        actualizar(entidad, carga);
-        if (Serializar(aCarga(entidad)) == antes)
+        var antes = Serializar(aCarga(entidad, resolutor, Precios(contexto.Entry(entidad))));
+        actualizar(entidad, carga, resolutor, opciones);
+        alGuardar?.Invoke(contexto, entidad, carga, resolutor, opciones);
+        if (Serializar(aCarga(entidad, resolutor, Precios(contexto.Entry(entidad)))) == antes)
             return false;
 
-        Marcar(contexto, entidad, ahora, usuario);
+        Marcar(contexto, entidad, opciones);
         return true;
     }
 
-    protected override object Leer(MaestroCentral fila) => FormatoMaestros.Leer<TCarga>(fila);
+    public async Task<Guid?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion) =>
+        await Consulta(contexto).AsNoTracking().Where(llave(carga)).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(cancelacion);
 
-    private static void Marcar(ContextoDatosCentral contexto, TEntidad entidad, DateTimeOffset ahora, string usuario)
+    public Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> TodosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, CancellationToken cancelacion) =>
+        ListarAsync(contexto, resolutor, cancelacion);
+
+    public async Task<DatosMaestroCentral<TCarga>?> PorIdAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, Guid id, CancellationToken cancelacion) =>
+        (await ListarAsync(contexto, resolutor, cancelacion, e => e.Id == id)).SingleOrDefault();
+
+    /// <summary>El registro con la llave de la carga: primero lo agregado en esta misma publicación, luego la base.</summary>
+    public async Task<TEntidad?> BuscarAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion)
     {
-        var entrada = contexto.Entry(entidad);
-        entrada.Property(ColumnaModificadoEn).CurrentValue = ahora;
-        entrada.Property(ColumnaModificadoPor).CurrentValue = usuario.Length > MaestroCentral.LargoMaximoUsuario ? usuario[..MaestroCentral.LargoMaximoUsuario] : usuario;
+        var condicion = llave(carga);
+        return conjunto(contexto).Local.AsQueryable().FirstOrDefault(condicion)
+            ?? await Consulta(contexto).FirstOrDefaultAsync(condicion, cancelacion);
     }
 
-    private static string Serializar(TCarga carga) => JsonSerializer.Serialize(carga, OpcionesJson.Predeterminadas);
-}
-
-/// <summary>Maestros que ya tienen su tabla, en el orden en que se aplican (lo referido antes que lo que lo refiere).</summary>
-internal static class TablasMaestros
-{
-    public static IReadOnlyList<TablaMaestro> Todas { get; } =
-    [
-        new TablaMaestro<Departamento, DepartamentoCarga>(
-            TipoMaestro.Departamento, c => c.Departamentos, d => d.Id,
-            e => new DepartamentoCarga(e.Id, e.Codigo, e.Nombre, e.PermiteDescuentoManual, e.EsNoCodificada, e.Activa),
-            d => Activar(Departamento.Crear(d.Codigo, d.Nombre, d.PermiteDescuentoManual, d.EsNoCodificada, d.Id), d.Activa),
-            (e, d) =>
-            {
-                ExigirMismoCodigo(e.Codigo, d.Codigo, "del departamento");
-                e.Actualizar(d.Nombre, d.PermiteDescuentoManual, d.EsNoCodificada);
-                Activar(e, d.Activa);
-            },
-            d => new PaqueteMaestros(Departamentos: [d])),
-
-        new TablaMaestro<Categoria, CategoriaCarga>(
-            TipoMaestro.Categoria, c => c.Categorias, d => d.Id,
-            e => new CategoriaCarga(e.Id, e.Codigo, e.Nombre, e.DepartamentoId, e.Activa),
-            d => Activar(Categoria.Crear(d.Codigo, d.Nombre, d.DepartamentoId, d.Id), d.Activa),
-            (e, d) =>
-            {
-                ExigirMismoCodigo(e.Codigo, d.Codigo, "de la categoría");
-                e.Actualizar(d.Nombre, d.DepartamentoId);
-                Activar(e, d.Activa);
-            },
-            d => new PaqueteMaestros(Categorias: [d])),
-
-        new TablaMaestro<Marca, MarcaCarga>(
-            TipoMaestro.Marca, c => c.Marcas, d => d.Id,
-            e => new MarcaCarga(e.Id, e.Codigo, e.Nombre, e.Activa),
-            d => Activar(Marca.Crear(d.Codigo, d.Nombre, d.Id), d.Activa),
-            (e, d) =>
-            {
-                ExigirMismoCodigo(e.Codigo, d.Codigo, "de la marca");
-                e.CambiarNombre(d.Nombre);
-                Activar(e, d.Activa);
-            },
-            d => new PaqueteMaestros(Marcas: [d])),
-
-        new TablaMaestro<UnidadMedida, UnidadMedidaCarga>(
-            TipoMaestro.UnidadMedida, c => c.UnidadesMedida, d => d.Id,
-            e => new UnidadMedidaCarga(e.Id, e.Codigo, e.Nombre, e.PermiteDecimales, e.Decimales),
-            d => UnidadMedida.Crear(d.Codigo, d.Nombre, d.PermiteDecimales, d.Decimales, d.Id),
-            (e, d) =>
-            {
-                ExigirMismoCodigo(e.Codigo, d.Codigo, "de la unidad de medida");
-                e.Actualizar(d.Nombre, d.PermiteDecimales, d.Decimales);
-            },
-            d => new PaqueteMaestros(UnidadesMedida: [d])),
-
-        new TablaMaestro<Impuesto, ImpuestoCarga>(
-            TipoMaestro.Impuesto, c => c.Impuestos, d => d.Id,
-            e => new ImpuestoCarga(e.Id, e.Codigo, e.Nombre, e.Porcentaje, e.IndicadorFacturacion, e.Activo),
-            d => Activar(Impuesto.Crear(d.Codigo, d.Nombre, d.Porcentaje, d.IndicadorFacturacion, d.Id), d.Activo),
-            (e, d) =>
-            {
-                ExigirMismoCodigo(e.Codigo, d.Codigo, "del impuesto");
-                e.Actualizar(d.Nombre, d.Porcentaje, d.IndicadorFacturacion);
-                Activar(e, d.Activo);
-            },
-            d => new PaqueteMaestros(Impuestos: [d])),
-    ];
-
-    private static readonly Dictionary<TipoMaestro, TablaMaestro> PorTipo = Todas.ToDictionary(t => t.Tipo);
-
-    public static TablaMaestro? Buscar(TipoMaestro tipo) => PorTipo.GetValueOrDefault(tipo);
-
-    public static bool TieneTabla(TipoMaestro tipo) => PorTipo.ContainsKey(tipo);
-
-    private static void ExigirMismoCodigo(string actual, string nuevo, string entidad)
+    public override async Task<IReadOnlyList<object>> CambiosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, long desde, long hasta,
+        CancellationToken cancelacion)
     {
-        if (!string.Equals(actual, nuevo.Trim(), StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"No se puede cambiar el código {entidad} '{actual}'; cree uno nuevo.");
+        var entidades = await Consulta(contexto).AsNoTracking()
+            .Where(e => EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) > desde && EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) <= hasta)
+            .ToListAsync(cancelacion);
+        return (await CargasAsync(contexto, resolutor, entidades, cancelacion)).Select(d => (object)d.Dato).ToList();
     }
 
-    private static T Activar<T>(T entidad, bool activa) where T : Entidad
+    /// <summary>Página del Manager ordenada por código, con cuándo y quién cambió cada registro.</summary>
+    public async Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, int pagina, int tamano,
+        CancellationToken cancelacion)
     {
-        switch (entidad)
+        var consulta = Consulta(contexto).AsNoTracking();
+        if (filtro is not null && !string.IsNullOrWhiteSpace(texto))
+            consulta = consulta.Where(filtro(texto.Trim()));
+
+        var total = await consulta.CountAsync(cancelacion);
+        var entidades = await orden(consulta).Skip(pagina * tamano).Take(tamano).ToListAsync(cancelacion);
+        return new PaginaMaestros<TCarga>(await CargasAsync(contexto, resolutor, entidades, cancelacion), total);
+    }
+
+    /// <summary>Todos los registros (maestros cortos) o los que cumplan la condición.</summary>
+    public async Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> ListarAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor,
+        CancellationToken cancelacion, Expression<Func<TEntidad, bool>>? condicion = null)
+    {
+        var consulta = Consulta(contexto).AsNoTracking();
+        if (condicion is not null)
+            consulta = consulta.Where(condicion);
+        return await CargasAsync(contexto, resolutor, await orden(consulta).ToListAsync(cancelacion), cancelacion);
+    }
+
+    private async Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> CargasAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor,
+        IReadOnlyList<TEntidad> entidades, CancellationToken cancelacion)
+    {
+        if (entidades.Count == 0)
+            return [];
+
+        await resolutor.PrepararAsync(cancelacion);
+        if (antesDeLeer is not null)
+            await antesDeLeer(contexto, entidades, resolutor, cancelacion);
+
+        // Cuándo y quién (y los precios del artículo) están en columnas del Central, fuera de la entidad del dominio.
+        var modificado = new Dictionary<Guid, (DateTimeOffset En, string Por)>();
+        var precios = new Dictionary<Guid, PreciosPublicados>();
+        foreach (var bloque in entidades.Select(e => e.Id).Chunk(1000))
         {
-            case Departamento d: if (activa) d.Activar(); else d.Desactivar(); break;
-            case Categoria c: if (activa) c.Activar(); else c.Desactivar(); break;
-            case Marca m: if (activa) m.Activar(); else m.Desactivar(); break;
-            case Impuesto i: if (activa) i.Activar(); else i.Desactivar(); break;
+            var ids = bloque.ToList();
+            foreach (var fila in await conjunto(contexto).AsNoTracking().Where(e => ids.Contains(e.Id))
+                         .Select(e => new { e.Id, En = EF.Property<DateTimeOffset>(e, ColumnasMaestro.ModificadoEn), Por = EF.Property<string>(e, ColumnasMaestro.ModificadoPor) })
+                         .ToListAsync(cancelacion))
+                modificado[fila.Id] = (fila.En, fila.Por);
+
+            if (typeof(TEntidad) == typeof(Articulo))
+                foreach (var fila in await contexto.Articulos.AsNoTracking().Where(e => ids.Contains(e.Id))
+                             .Select(e => new
+                             {
+                                 e.Id,
+                                 Detalle = EF.Property<decimal>(e, ArticuloConfiguracion.PrecioDetalle),
+                                 Mayor = EF.Property<decimal?>(e, ArticuloConfiguracion.PrecioMayor),
+                                 Desde = EF.Property<DateTimeOffset?>(e, ArticuloConfiguracion.PreciosVigentesDesde),
+                             })
+                             .ToListAsync(cancelacion))
+                    precios[fila.Id] = new PreciosPublicados(fila.Detalle, fila.Mayor, fila.Desde);
         }
 
-        return entidad;
+        return entidades.Select(e =>
+        {
+            var (en, por) = modificado[e.Id];
+            return new DatosMaestroCentral<TCarga>(aCarga(e, resolutor, precios.GetValueOrDefault(e.Id)), en, por);
+        }).ToList();
     }
+
+    private static PreciosPublicados? Precios(EntityEntry<TEntidad> entrada) =>
+        entrada.Entity is Articulo
+            ? new PreciosPublicados(
+                (decimal?)entrada.Property(ArticuloConfiguracion.PrecioDetalle).CurrentValue ?? 0m,
+                (decimal?)entrada.Property(ArticuloConfiguracion.PrecioMayor).CurrentValue,
+                (DateTimeOffset?)entrada.Property(ArticuloConfiguracion.PreciosVigentesDesde).CurrentValue)
+            : null;
 }
 
-/// <summary>
-/// Lectura de maestros publicados sin importar dónde se guardan: su tabla si ya la tienen, o la tabla JSON mientras llega su grupo.
-/// </summary>
-internal static class LecturaMaestros
+/// <summary>Los maestros del Central, en el orden en que se aplican (lo referido antes que lo que lo refiere).</summary>
+internal static class TablasMaestros
 {
-    /// <param name="ids">Solo esos registros; nulo para todos los del tipo.</param>
-    public static async Task<List<MaestroCentral>> MaestrosAsync(this ContextoDatosCentral contexto, TipoMaestro tipo, CancellationToken cancelacion,
-        IReadOnlyCollection<Guid>? ids = null)
-    {
-        if (TablasMaestros.Buscar(tipo) is { } tabla)
-            return await tabla.FilasAsync(contexto, ids, null, cancelacion);
+    public static TablaMaestro<Moneda, MonedaCarga> Monedas { get; } = new(
+        TipoMaestro.Moneda, c => c.Monedas,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new MonedaCarga(e.Codigo, e.Nombre, e.Simbolo, e.Activa),
+        q => q.OrderBy(e => e.Codigo));
 
-        var filas = new List<MaestroCentral>();
-        foreach (var bloque in TablaMaestro.Bloques(ids))
-            filas.AddRange(await contexto.MaestrosCentral.AsNoTracking()
-                .Where(m => m.Tipo == tipo && (bloque == null || bloque.Contains(m.Id)))
-                .ToListAsync(cancelacion));
-        return filas;
+    public static TablaMaestro<Departamento, DepartamentoCarga> Departamentos { get; } = new(
+        TipoMaestro.Departamento, c => c.Departamentos,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new DepartamentoCarga(e.Codigo, e.Nombre, e.PermiteDescuentoManual, e.EsNoCodificada, e.Activa),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarDepartamento(e.Codigo, e.Id));
+
+    public static TablaMaestro<Categoria, CategoriaCarga> Categorias { get; } = new(
+        TipoMaestro.Categoria, c => c.Categorias,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new CategoriaCarga(e.Codigo, e.Nombre, r.CodigoDepartamento(e.DepartamentoId), e.Activa),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarCategoria(e.Codigo, e.Id));
+
+    public static TablaMaestro<Marca, MarcaCarga> Marcas { get; } = new(
+        TipoMaestro.Marca, c => c.Marcas,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new MarcaCarga(e.Codigo, e.Nombre, e.Activa),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarMarca(e.Codigo, e.Id));
+
+    public static TablaMaestro<UnidadMedida, UnidadMedidaCarga> UnidadesMedida { get; } = new(
+        TipoMaestro.UnidadMedida, c => c.UnidadesMedida,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new UnidadMedidaCarga(e.Codigo, e.Abreviatura, e.Nombre, e.PermiteDecimales, e.Decimales),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarUnidad(e.Codigo, e.Id));
+
+    public static TablaMaestro<Impuesto, ImpuestoCarga> Impuestos { get; } = new(
+        TipoMaestro.Impuesto, c => c.Impuestos,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new ImpuestoCarga(e.Codigo, e.Nombre, e.Porcentaje, e.IndicadorFacturacion, e.Activo),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarImpuesto(e.Codigo, e.Id));
+
+    public static TablaMaestro<Articulo, ArticuloCarga> Articulos { get; } = new(
+        TipoMaestro.Articulo, c => c.Articulos,
+        d => e => e.Codigo == d.Codigo.Trim(),
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new ArticuloCarga(
+            e.Codigo, e.Descripcion, r.CodigoDepartamento(e.DepartamentoId), r.CodigoUnidad(e.UnidadMedidaId), r.CodigoImpuesto(e.ImpuestoId),
+            p?.PrecioDetalle ?? 0m, p?.PrecioMayor, e.Tipo, e.Referencia, e.Costo, e.PrecioMinimo, e.CantidadMinimaMayor,
+            e.Codigos.Where(c => c.Tipo == TipoCodigoArticulo.Barras).Select(c => c.Codigo).OrderBy(c => c, StringComparer.Ordinal).ToList(),
+            e.Codigos.Where(c => c.Tipo == TipoCodigoArticulo.Proveedor).Select(c => c.Codigo).OrderBy(c => c, StringComparer.Ordinal).ToList(),
+            e.RutaImagen, e.MostrarEnCatalogo, e.VentaEnPos, e.Activo, p?.VigentesDesde, e.Tara, e.EsServicio,
+            e.CategoriaId is { } categoria ? r.CodigoCategoria(categoria) : null,
+            e.MarcaId is { } marca ? r.CodigoMarca(marca) : null),
+        q => q.OrderBy(e => e.Codigo),
+        incluir: q => q.Include(e => e.Codigos),
+        alGuardar: (c, e, d, r, o) =>
+        {
+            r.RegistrarArticulo(e.Codigo, e.Id);
+
+            // Un precio nuevo rige desde lo indicado (o desde ahora); si no cambió, conserva su vigencia.
+            var entrada = c.Entry(e);
+            var detalle = (decimal?)entrada.Property(ArticuloConfiguracion.PrecioDetalle).CurrentValue;
+            var mayor = (decimal?)entrada.Property(ArticuloConfiguracion.PrecioMayor).CurrentValue;
+            var desde = (DateTimeOffset?)entrada.Property(ArticuloConfiguracion.PreciosVigentesDesde).CurrentValue;
+            if (entrada.State == EntityState.Added || detalle != d.PrecioDetalle || mayor != d.PrecioMayor || (d.PreciosVigentesDesde is { } pedido && pedido != desde))
+            {
+                entrada.Property(ArticuloConfiguracion.PrecioDetalle).CurrentValue = d.PrecioDetalle;
+                entrada.Property(ArticuloConfiguracion.PrecioMayor).CurrentValue = d.PrecioMayor;
+                entrada.Property(ArticuloConfiguracion.PreciosVigentesDesde).CurrentValue = d.PreciosVigentesDesde ?? o.Ahora;
+            }
+        },
+        filtro: texto => e => e.Codigo.Contains(texto) || e.Descripcion.Contains(texto) || (e.Referencia != null && e.Referencia.Contains(texto))
+                              || e.Codigos.Any(c => c.Codigo.Contains(texto)));
+
+    public static TablaMaestro<Cliente, ClienteCarga> Clientes { get; } = new(
+        TipoMaestro.Cliente, c => c.Clientes,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, o.CorregirDocumentoCliente),
+        (e, r, p) => new ClienteCarga(e.Codigo, e.TipoDocumento, e.Documento, e.Nombre, e.TipoComprobantePredeterminado, e.ExoneradoItbis, e.AplicaRetencion,
+            e.ListaPrecioPredeterminada, e.Telefono, e.Correo,
+            e.Direcciones.OrderBy(x => x.Alias, StringComparer.OrdinalIgnoreCase)
+                .Select(x => new DireccionClienteCarga(x.Alias, x.Direccion, x.Sector, x.Ciudad, x.Referencia, x.Telefono, x.EsPrincipal)).ToList(),
+            e.Activo),
+        q => q.OrderBy(e => e.Codigo),
+        incluir: q => q.Include(e => e.Direcciones),
+        filtro: texto => e => e.Codigo.Contains(texto) || e.Documento.Contains(texto) || e.Nombre.Contains(texto)
+                              || (e.Telefono != null && e.Telefono.Contains(texto)) || (e.Correo != null && e.Correo.Contains(texto)));
+
+    public static TablaMaestro<FormaPago, FormaPagoCarga> FormasPago { get; } = new(
+        TipoMaestro.FormaPago, c => c.FormasPago,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new FormaPagoCarga(e.Codigo, e.Nombre, e.Tipo, e.Orden, e.Moneda, e.AbreGaveta, e.PermiteDevuelta, e.RequiereReferencia, e.RequiereBanco,
+            e.PermiteComprobanteFiscal, e.Activa),
+        q => q.OrderBy(e => e.Orden).ThenBy(e => e.Codigo));
+
+    public static TablaMaestro<Banco, BancoCarga> Bancos { get; } = new(
+        TipoMaestro.Banco, c => c.Bancos,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new BancoCarga(e.Codigo, e.Nombre, e.RutaLogo, e.Activo),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarBanco(e.Codigo, e.Id));
+
+    public static TablaMaestro<TipoTarjeta, TipoTarjetaCarga> TiposTarjeta { get; } = new(
+        TipoMaestro.TipoTarjeta, c => c.TiposTarjeta,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new TipoTarjetaCarga(e.Codigo, e.Nombre, e.Activo),
+        q => q.OrderBy(e => e.Codigo));
+
+    public static TablaMaestro<Denominacion, DenominacionCarga> Denominaciones { get; } = new(
+        TipoMaestro.Denominacion, c => c.Denominaciones,
+        d => e => e.Moneda == d.Moneda.Trim().ToUpper() && e.Valor == d.Valor && e.Tipo == d.Tipo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new DenominacionCarga(e.Moneda, e.Valor, e.Tipo, e.Activa),
+        q => q.OrderBy(e => e.Moneda).ThenByDescending(e => e.Valor));
+
+    public static TablaMaestro<Promocion, PromocionCarga> Promociones { get; } = new(
+        TipoMaestro.Promocion, c => c.Promociones,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new PromocionCarga(e.Codigo, e.Nombre, e.Tipo, e.Valor, e.VigenteDesde, e.VigenteHasta,
+            e.Articulos.Select(r.CodigoArticulo).ToList(), e.Departamentos.Select(r.CodigoDepartamento).ToList(), e.Sucursales.Select(r.CodigoSucursal).ToList(),
+            e.CantidadLleva, e.CantidadPaga, e.CantidadMinima, e.LimitePorCliente, e.Dias, e.HoraDesde, e.HoraHasta, e.SoloFidelidad, e.Activa,
+            e.Categorias.Select(r.CodigoCategoria).ToList(), e.Marcas.Select(r.CodigoMarca).ToList()),
+        q => q.OrderBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarPromocion(e.Codigo, e.Id),
+        filtro: texto => e => e.Codigo.Contains(texto) || e.Nombre.Contains(texto),
+        antesDeLeer: (c, entidades, r, cancelacion) => r.CargarArticulosAsync(null, entidades.SelectMany(e => e.Articulos), cancelacion));
+
+    public static TablaMaestro<MotivoDescuento, MotivoDescuentoCarga> MotivosDescuento { get; } = new(
+        TipoMaestro.MotivoDescuento, c => c.MotivosDescuento,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new MotivoDescuentoCarga(e.Codigo, e.Nombre, e.Activo),
+        q => q.OrderBy(e => e.Codigo));
+
+    public static TablaMaestro<TopeDescuento, TopeDescuentoCarga> TopesDescuento { get; } = new(
+        TipoMaestro.TopeDescuento, c => c.TopesDescuento,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new TopeDescuentoCarga(e.Codigo, e.Nivel, e.PorcentajeMaximo, e.MontoMaximo,
+            e.DepartamentoId is { } departamento ? r.CodigoDepartamento(departamento) : null,
+            e.ArticuloId is { } articulo ? r.CodigoArticulo(articulo) : null,
+            e.CategoriaId is { } categoria ? r.CodigoCategoria(categoria) : null,
+            e.MarcaId is { } marca ? r.CodigoMarca(marca) : null),
+        q => q.OrderBy(e => e.Codigo),
+        antesDeLeer: (c, entidades, r, cancelacion) => r.CargarArticulosAsync(null, entidades.Select(e => e.ArticuloId).OfType<Guid>(), cancelacion));
+
+    public static TablaMaestro<TasaCambio, TasaCambioCarga> TasasCambio { get; } = new(
+        TipoMaestro.TasaCambio, c => c.TasasCambio,
+        d => e => e.Moneda == d.Moneda.Trim().ToUpper() && e.VigenteDesde == d.VigenteDesde,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new TasaCambioCarga(e.Moneda, e.Tasa, e.VigenteDesde),
+        q => q.OrderByDescending(e => e.VigenteDesde).ThenBy(e => e.Moneda));
+
+    public static TablaMaestro<SecuenciaEcf, SecuenciaEcfCarga> SecuenciasEcf { get; } = new(
+        TipoMaestro.SecuenciaEcf, c => c.SecuenciasEcf,
+        d => e => e.TipoComprobante == d.TipoComprobante && e.Desde == d.Desde,
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) =>
+        {
+            var (sucursal, caja) = r.CodigoCaja(e.CajaId);
+            return new SecuenciaEcfCarga(sucursal, caja, e.TipoComprobante, e.Desde, e.Hasta, e.VenceEn, e.Activa);
+        },
+        q => q.OrderBy(e => e.TipoComprobante).ThenBy(e => e.Desde));
+
+    public static TablaMaestro<MotivoDevolucion, MotivoDevolucionCarga> MotivosDevolucion { get; } = new(
+        TipoMaestro.MotivoDevolucion, c => c.MotivosDevolucion,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new MotivoDevolucionCarga(e.Codigo, e.Nombre, e.Activo),
+        q => q.OrderBy(e => e.Codigo));
+
+    public static TablaMaestro<NivelFidelidad, NivelFidelidadCarga> NivelesFidelidad { get; } = new(
+        TipoMaestro.NivelFidelidad, c => c.NivelesFidelidad,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
+        (e, r, p) => new NivelFidelidadCarga(e.Codigo, e.Nombre, e.Orden, e.FactorAcumulacion, e.Activo),
+        q => q.OrderBy(e => e.Orden).ThenBy(e => e.Codigo),
+        alGuardar: (c, e, d, r, o) => r.RegistrarNivel(e.Codigo, e.Id));
+
+    public static TablaMaestro<ReglaAcumulacion, ReglaAcumulacionCarga> ReglasAcumulacion { get; } = new(
+        TipoMaestro.ReglaAcumulacion, c => c.ReglasAcumulacion,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new ReglaAcumulacionCarga(e.Codigo, e.Nombre, e.Tipo, e.MontoBase, e.Puntos, r.ReferenciaRegla(e.Tipo, e.ReferenciaId), e.DiaSemana,
+            e.VigenteDesde, e.VigenteHasta, e.Activa),
+        q => q.OrderBy(e => e.Codigo),
+        antesDeLeer: (c, entidades, r, cancelacion) =>
+            r.CargarArticulosAsync(null, entidades.Where(e => e.Tipo == TipoReglaAcumulacion.Articulo).Select(e => e.ReferenciaId).OfType<Guid>(), cancelacion));
+
+    public static TablaMaestro<MiembroFidelidad, MiembroFidelidadCarga> MiembrosFidelidad { get; } = new(
+        TipoMaestro.MiembroFidelidad, c => c.MiembrosFidelidad,
+        d => e => e.Cedula == d.Cedula.Trim(),
+        (d, r, o) => MapeoMaestros.Crear(d, r, o.Ahora),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new MiembroFidelidadCarga(e.Cedula, e.Nombre, e.Telefono, e.Correo, e.NivelId is { } nivel ? r.CodigoNivel(nivel) : null,
+            e.SaldoSincronizado, e.SaldoSincronizadoEn, e.PuntosPorVencer, e.ProximoVencimiento, e.InscritoEn, e.Activo),
+        q => q.OrderBy(e => e.Cedula),
+        filtro: texto => e => e.Cedula.Contains(texto) || e.Nombre.Contains(texto) || (e.Telefono != null && e.Telefono.Contains(texto))
+                              || (e.Correo != null && e.Correo.Contains(texto)));
+
+    public static TablaMaestro<Almacen, AlmacenCarga> Almacenes { get; } = new(
+        TipoMaestro.Almacen, c => c.Almacenes,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new AlmacenCarga(e.Codigo, e.Nombre, r.CodigoSucursal(e.SucursalId), e.Direccion, e.Activo),
+        q => q.OrderBy(e => e.Codigo));
+
+    public static TablaMaestro<DescuentoTarjeta, DescuentoTarjetaCarga> DescuentosTarjeta { get; } = new(
+        TipoMaestro.DescuentoTarjeta, c => c.DescuentosTarjeta,
+        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
+        (d, r, o) => MapeoMaestros.Crear(d, r),
+        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
+        (e, r, p) => new DescuentoTarjetaCarga(e.Codigo, e.Nombre, e.Bines, e.Tipo, e.Valor, e.VigenteDesde, e.VigenteHasta, e.MontoMinimo, e.MontoMaximo,
+            e.BancoId is { } banco ? r.CodigoBanco(banco) : null, e.Dias, e.Activo),
+        q => q.OrderBy(e => e.Codigo));
+
+    /// <summary>Roles de caja. Los permisos se guardan uno por fila; <c>"*"</c> en la carga asigna todos.</summary>
+    public static TablaMaestro<Rol, RolCarga> RolesCaja { get; } = new(
+        TipoMaestro.RolCaja, c => c.RolesCaja,
+        d => e => e.Codigo == d.Codigo.Trim(),
+        (d, r, o) =>
+        {
+            var rol = Rol.Crear(d.Codigo, d.Nombre, d.Nivel);
+            AsignarPermisos(rol, d);
+            return rol;
+        },
+        (e, d, r, o) =>
+        {
+            e.Actualizar(d.Nombre, d.Nivel);
+            AsignarPermisos(e, d);
+        },
+        (e, r, p) => new RolCarga(e.Codigo, e.Nombre, e.Nivel, e.PermisosAsignados.Select(x => x.PermisoCodigo).OrderBy(x => x, StringComparer.Ordinal).ToList(), e.Activo),
+        q => q.OrderBy(e => e.Nivel).ThenBy(e => e.Codigo),
+        incluir: q => q.Include(e => e.PermisosAsignados),
+        alGuardar: (c, e, d, r, o) => r.RegistrarRol(e.Codigo, e.Id));
+
+    /// <summary>Usuarios de caja: la clave ya llega como hash (la calcula el publicador) y baja así a las cajas.</summary>
+    public static TablaMaestro<Usuario, UsuarioCarga> UsuariosCaja { get; } = new(
+        TipoMaestro.UsuarioCaja, c => c.UsuariosCaja,
+        d => e => e.Codigo == d.Codigo.Trim(),
+        (d, r, o) =>
+        {
+            var usuario = Usuario.Crear(d.Codigo, d.Nombre, r.Rol(d.RolCodigo));
+            ActualizarUsuario(usuario, d, r);
+            return usuario;
+        },
+        (e, d, r, o) =>
+        {
+            e.CambiarNombre(d.Nombre);
+            e.CambiarRol(r.Rol(d.RolCodigo));
+            ActualizarUsuario(e, d, r);
+        },
+        (e, r, p) => new UsuarioCarga(e.Codigo, e.Nombre, r.CodigoRol(e.RolId),
+            e.CajasAsignadas.Select(x => r.CodigoCaja(x.CajaId)).OrderBy(x => x.Sucursal).ThenBy(x => x.Caja).Select(x => new CajaReferencia(x.Sucursal, x.Caja)).ToList(),
+            null, e.ClaveHash, e.Activo),
+        q => q.OrderBy(e => e.Codigo),
+        incluir: q => q.Include(e => e.CajasAsignadas));
+
+    /// <summary>En orden de aplicación.</summary>
+    public static IReadOnlyList<TablaMaestro> Todas { get; } =
+    [
+        Monedas, Departamentos, Categorias, Marcas, UnidadesMedida, Impuestos, Articulos, Clientes, FormasPago, Bancos, TiposTarjeta, Denominaciones,
+        Promociones, MotivosDescuento, TopesDescuento, TasasCambio, SecuenciasEcf, MotivosDevolucion, NivelesFidelidad, ReglasAcumulacion,
+        MiembrosFidelidad, Almacenes, DescuentosTarjeta, RolesCaja, UsuariosCaja,
+    ];
+
+    /// <summary>La tabla de un tipo de carga (ej. <see cref="ArticuloCarga"/>).</summary>
+    public static ITablaCarga<T> De<T>() where T : class =>
+        Todas.OfType<ITablaCarga<T>>().SingleOrDefault() ?? throw new InvalidOperationException($"No hay tabla de maestros para {typeof(T).Name}.");
+
+    private static void AsignarPermisos(Rol rol, RolCarga dato)
+    {
+        var permisos = dato.Permisos ?? [];
+        var deseados = permisos.Contains("*") ? CatalogoPermisos.Todos.Select(p => p.Codigo).ToHashSet() : permisos.ToHashSet();
+        foreach (var sobrante in rol.PermisosAsignados.Select(p => p.PermisoCodigo).Where(c => !deseados.Contains(c)).ToList())
+            rol.QuitarPermiso(sobrante);
+        foreach (var permiso in deseados)
+            rol.AsignarPermiso(permiso);
+        if (dato.Activo) rol.Activar(); else rol.Desactivar();
     }
 
-    public static async Task<HashSet<Guid>> IdsMaestrosAsync(this ContextoDatosCentral contexto, TipoMaestro tipo, CancellationToken cancelacion) =>
-        TablasMaestros.Buscar(tipo) is { } tabla
-            ? await tabla.IdsAsync(contexto, cancelacion)
-            : (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == tipo).Select(m => m.Id).ToListAsync(cancelacion)).ToHashSet();
-
-    /// <summary>Ids de todos los maestros publicados, en su tabla o en la tabla JSON.</summary>
-    public static async Task<HashSet<Guid>> IdsTodosLosMaestrosAsync(this ContextoDatosCentral contexto, CancellationToken cancelacion)
+    private static void ActualizarUsuario(Usuario usuario, UsuarioCarga dato, ResolutorCodigosCentral resolutor)
     {
-        var ids = (await contexto.MaestrosCentral.AsNoTracking().Select(m => m.Id).ToListAsync(cancelacion)).ToHashSet();
-        foreach (var tabla in TablasMaestros.Todas)
-            ids.UnionWith(await tabla.IdsAsync(contexto, cancelacion));
-        return ids;
+        if (dato.ClaveHash is not null && usuario.ClaveHash != dato.ClaveHash)
+            usuario.EstablecerClaveHash(dato.ClaveHash);
+
+        var deseadas = (dato.Cajas ?? []).Select(c => resolutor.Caja(c.SucursalCodigo, c.CajaCodigo)).ToHashSet();
+        foreach (var sobrante in usuario.CajasAsignadas.Select(c => c.CajaId).Where(id => !deseadas.Contains(id)).ToList())
+            usuario.QuitarCaja(sobrante);
+        foreach (var cajaId in deseadas)
+            usuario.AsignarCaja(cajaId);
+        if (dato.Activo) usuario.Activar(); else usuario.Desactivar();
     }
 }

@@ -4,7 +4,6 @@ namespace CgPos.Dominio.Organizacion;
 
 public sealed class Sucursal : Entidad
 {
-    public const int LargoMaximoCodigo = 10;
 
     private Sucursal()
     {
@@ -12,22 +11,22 @@ public sealed class Sucursal : Entidad
 
     public Guid EmpresaId { get; private set; }
 
-    /// <summary>Código corto de la sucursal, único dentro de la empresa (ej. "01").</summary>
-    public string Codigo { get; private set; } = string.Empty;
+    /// <summary>Código de la sucursal (1 a 99), único en la empresa; en los números de documento va con dos dígitos (ej. 01).</summary>
+    public int Codigo { get; private set; }
 
     public string Nombre { get; private set; } = string.Empty;
     public string? Direccion { get; private set; }
     public string? Telefono { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static Sucursal Crear(Guid empresaId, string codigo, string nombre,
+    public static Sucursal Crear(Guid empresaId, int codigo, string nombre,
         string? direccion = null, string? telefono = null, Guid? id = null)
     {
         var sucursal = new Sucursal
         {
             Id = id ?? Guid.CreateVersion7(),
             EmpresaId = Validar.Id(empresaId, "Empresa"),
-            Codigo = Validar.Texto(codigo, "Código de sucursal", LargoMaximoCodigo),
+            Codigo = Validar.Codigo(codigo, "Código de sucursal", CodigosCatalogo.MaximoSucursalCaja),
         };
         sucursal.ActualizarDatos(nombre, direccion, telefono);
         return sucursal;

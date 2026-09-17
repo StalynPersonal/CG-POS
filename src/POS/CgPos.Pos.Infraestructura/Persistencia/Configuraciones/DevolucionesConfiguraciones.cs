@@ -13,8 +13,7 @@ internal sealed class MotivoDevolucionConfiguracion : IEntityTypeConfiguration<M
         constructor.ToTable("MotivosDevolucion");
         constructor.HasKey(m => m.Id);
         constructor.Property(m => m.Id).ValueGeneratedNever();
-        constructor.Property(m => m.Codigo).HasMaxLength(MotivoDevolucion.LargoMaximoCodigo).IsRequired();
-        constructor.Property(m => m.Nombre).HasMaxLength(MotivoDevolucion.LargoMaximoNombre).IsRequired();
+                constructor.Property(m => m.Nombre).HasMaxLength(MotivoDevolucion.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(m => m.Codigo).IsUnique();
     }
 }
@@ -33,8 +32,7 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
         constructor.Property(d => d.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false);
         constructor.Property(d => d.ClienteDocumento).HasMaxLength(20).IsUnicode(false).IsRequired();
         constructor.Property(d => d.ClienteNombre).HasMaxLength(Devolucion.LargoMaximoNombre).IsRequired();
-        constructor.Property(d => d.MotivoCodigo).HasMaxLength(MotivoDevolucion.LargoMaximoCodigo).IsRequired();
-        constructor.Property(d => d.MotivoNombre).HasMaxLength(MotivoDevolucion.LargoMaximoNombre).IsRequired();
+                constructor.Property(d => d.MotivoNombre).HasMaxLength(MotivoDevolucion.LargoMaximoNombre).IsRequired();
         constructor.Property(d => d.Observacion).HasMaxLength(Devolucion.LargoMaximoObservacion);
         constructor.Property(d => d.AutorizadoPorNombre).HasMaxLength(Devolucion.LargoMaximoNombre);
         constructor.Property(d => d.Subtotal).HasPrecision(18, 2);

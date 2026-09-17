@@ -86,17 +86,12 @@ internal sealed class AvisosDespacho(
         if (buscados.Count == 0)
             return [];
 
-        // El maestro de clientes se identifica por "tipo de documento:documento" (ej. "RNC:401007551"): se prueban los tipos posibles.
-        var codigos = buscados
-            .SelectMany(documento => Enum.GetValues<TipoDocumentoIdentidad>().Select(tipo => $"{tipo}:{documento}".ToUpperInvariant()))
-            .ToList();
-
-        var clientes = await contexto.MaestrosCentral.AsNoTracking()
-            .Where(m => m.Tipo == TipoMaestro.Cliente && m.Codigo != null && codigos.Contains(m.Codigo))
+        var documentosBuscados = buscados.ToList();
+        var clientes = await contexto.Clientes.AsNoTracking()
+            .Where(c => documentosBuscados.Contains(c.Documento))
             .ToListAsync(cancelacion);
 
         return clientes
-            .Select(FormatoMaestros.Leer<ClienteCarga>)
             .Where(c => c.Activo && c.Correo is { Length: > 0 } && c.Correo.Contains('@'))
             .GroupBy(c => DocumentoIdentidad.Normalizar(c.Documento) ?? c.Documento, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Correo!, StringComparer.Ordinal);

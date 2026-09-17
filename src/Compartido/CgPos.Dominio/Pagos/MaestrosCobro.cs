@@ -195,22 +195,21 @@ public sealed class Banco : Entidad
 
 public sealed class TipoTarjeta : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 50;
 
     private TipoTarjeta()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public bool Activo { get; private set; } = true;
 
-    public static TipoTarjeta Crear(string codigo, string nombre, Guid? id = null) =>
+    public static TipoTarjeta Crear(int codigo, string nombre, Guid? id = null) =>
         new()
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de tipo de tarjeta", LargoMaximoCodigo).ToUpperInvariant(),
+            Codigo = Validar.Codigo(codigo, "Código de tipo de tarjeta"),
             Nombre = Validar.Texto(nombre, "Nombre de tipo de tarjeta", LargoMaximoNombre),
         };
 

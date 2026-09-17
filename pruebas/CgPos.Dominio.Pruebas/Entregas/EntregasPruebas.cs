@@ -23,7 +23,7 @@ public class EntregasPruebas
 
     private static Venta VentaConCementoYTaladroSinSerial()
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Ahora);
+        var venta = Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Ahora);
         venta.AgregarArticulo(Cemento, 3m, Ahora);
         venta.AgregarArticulo(Taladro, null, Ahora, serialEnDespacho: true);
         return venta;

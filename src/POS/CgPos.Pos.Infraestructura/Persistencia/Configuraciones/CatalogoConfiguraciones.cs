@@ -14,8 +14,7 @@ internal sealed class DepartamentoConfiguracion : IEntityTypeConfiguration<Depar
         constructor.ToTable("Departamentos");
         constructor.HasKey(f => f.Id);
         constructor.Property(f => f.Id).ValueGeneratedNever();
-        constructor.Property(f => f.Codigo).HasMaxLength(Departamento.LargoMaximoCodigo).IsRequired();
-        constructor.Property(f => f.Nombre).HasMaxLength(Departamento.LargoMaximoNombre).IsRequired();
+                constructor.Property(f => f.Nombre).HasMaxLength(Departamento.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(f => f.Codigo).IsUnique();
     }
 }
@@ -27,8 +26,7 @@ internal sealed class CategoriaConfiguracion : IEntityTypeConfiguration<Categori
         constructor.ToTable("Categorias");
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.Id).ValueGeneratedNever();
-        constructor.Property(c => c.Codigo).HasMaxLength(Categoria.LargoMaximoCodigo).IsRequired();
-        constructor.Property(c => c.Nombre).HasMaxLength(Categoria.LargoMaximoNombre).IsRequired();
+                constructor.Property(c => c.Nombre).HasMaxLength(Categoria.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(c => c.Codigo).IsUnique();
         constructor.HasOne<Departamento>().WithMany().HasForeignKey(c => c.DepartamentoId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -41,8 +39,7 @@ internal sealed class MarcaConfiguracion : IEntityTypeConfiguration<Marca>
         constructor.ToTable("Marcas");
         constructor.HasKey(m => m.Id);
         constructor.Property(m => m.Id).ValueGeneratedNever();
-        constructor.Property(m => m.Codigo).HasMaxLength(Marca.LargoMaximoCodigo).IsRequired();
-        constructor.Property(m => m.Nombre).HasMaxLength(Marca.LargoMaximoNombre).IsRequired();
+                constructor.Property(m => m.Nombre).HasMaxLength(Marca.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(m => m.Codigo).IsUnique();
     }
 }
@@ -54,7 +51,7 @@ internal sealed class UnidadMedidaConfiguracion : IEntityTypeConfiguration<Unida
         constructor.ToTable("UnidadesMedida");
         constructor.HasKey(u => u.Id);
         constructor.Property(u => u.Id).ValueGeneratedNever();
-        constructor.Property(u => u.Codigo).HasMaxLength(UnidadMedida.LargoMaximoCodigo).IsRequired();
+        constructor.Property(u => u.Abreviatura).HasMaxLength(UnidadMedida.LargoMaximoAbreviatura).IsRequired();
         constructor.Property(u => u.Nombre).HasMaxLength(UnidadMedida.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(u => u.Codigo).IsUnique();
     }
@@ -138,6 +135,8 @@ internal sealed class ClienteConfiguracion : IEntityTypeConfiguration<Cliente>
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.Id).ValueGeneratedNever();
 
+        constructor.Property(c => c.Codigo).HasMaxLength(Cliente.LargoMaximoCodigo).IsRequired();
+        constructor.HasIndex(c => c.Codigo).IsUnique();
         constructor.Property(c => c.Documento).HasMaxLength(Cliente.LargoMaximoDocumento).IsUnicode(false).IsRequired();
         constructor.Property(c => c.Nombre).HasMaxLength(Cliente.LargoMaximoNombre).IsRequired();
         constructor.Property(c => c.Telefono).HasMaxLength(Cliente.LargoMaximoTelefono);
@@ -165,6 +164,9 @@ internal sealed class DireccionClienteConfiguracion : IEntityTypeConfiguration<D
         constructor.Property(d => d.Ciudad).HasMaxLength(DireccionCliente.LargoMaximoLugar);
         constructor.Property(d => d.Referencia).HasMaxLength(DireccionCliente.LargoMaximoDireccion);
         constructor.Property(d => d.Telefono).HasMaxLength(Cliente.LargoMaximoTelefono);
+
+        // La dirección se sincroniza por su alias dentro del cliente.
+        constructor.HasIndex(d => new { d.ClienteId, d.Alias }).IsUnique();
     }
 }
 
@@ -232,8 +234,7 @@ internal sealed class TipoTarjetaConfiguracion : IEntityTypeConfiguration<TipoTa
         constructor.ToTable("TiposTarjeta");
         constructor.HasKey(t => t.Id);
         constructor.Property(t => t.Id).ValueGeneratedNever();
-        constructor.Property(t => t.Codigo).HasMaxLength(TipoTarjeta.LargoMaximoCodigo).IsRequired();
-        constructor.Property(t => t.Nombre).HasMaxLength(TipoTarjeta.LargoMaximoNombre).IsRequired();
+                constructor.Property(t => t.Nombre).HasMaxLength(TipoTarjeta.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(t => t.Codigo).IsUnique();
     }
 }

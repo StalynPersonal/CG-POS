@@ -36,11 +36,11 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
         if (faltantes.Count > 0)
             throw new CargaMaestrosInvalidaExcepcion([$"Faltan columnas obligatorias: {string.Join(", ", faltantes)}."]);
 
-        var departamentos = await contexto.Departamentos.ToDictionaryAsync(f => f.Codigo, f => f.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
-        var unidades = await contexto.UnidadesMedida.ToDictionaryAsync(u => u.Codigo, u => u.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
+        var departamentos = await contexto.Departamentos.ToDictionaryAsync(f => f.Codigo.ToString(CultureInfo.InvariantCulture), f => f.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
+        var unidades = await contexto.UnidadesMedida.ToDictionaryAsync(u => u.Codigo.ToString(CultureInfo.InvariantCulture), u => u.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
         var impuestos = await contexto.Impuestos.ToDictionaryAsync(i => i.Codigo, i => i.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
-        var categorias = await contexto.Categorias.ToDictionaryAsync(c => c.Codigo, c => (c.Id, c.DepartamentoId), StringComparer.OrdinalIgnoreCase, cancelacion);
-        var marcas = await contexto.Marcas.ToDictionaryAsync(m => m.Codigo, m => m.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
+        var categorias = await contexto.Categorias.ToDictionaryAsync(c => c.Codigo.ToString(CultureInfo.InvariantCulture), c => (c.Id, c.DepartamentoId), StringComparer.OrdinalIgnoreCase, cancelacion);
+        var marcas = await contexto.Marcas.ToDictionaryAsync(m => m.Codigo.ToString(CultureInfo.InvariantCulture), m => m.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
 
         var ahora = reloj.GetUtcNow();
         var errores = new List<ErrorImportacion>();

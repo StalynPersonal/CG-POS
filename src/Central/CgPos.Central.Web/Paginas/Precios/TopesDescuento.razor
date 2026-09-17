@@ -62,10 +62,10 @@
         Expandable = false,
         Selector = t => t.Tope switch
         {
-            { ArticuloId: not null } => "Por artículo",
-            { CategoriaId: not null } => "Por categoría",
-            { MarcaId: not null } => "Por marca",
-            { DepartamentoId: not null } => "Por departamento",
+            { ArticuloCodigo: not null } => "Por artículo",
+            { CategoriaCodigo: not null } => "Por categoría",
+            { MarcaCodigo: not null } => "Por marca",
+            { DepartamentoCodigo: not null } => "Por departamento",
             _ => "Generales",
         },
     };

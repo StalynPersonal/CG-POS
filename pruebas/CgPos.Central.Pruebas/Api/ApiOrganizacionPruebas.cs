@@ -46,18 +46,18 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.BadRequest,
             (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/sucursales", new SolicitudSucursal(codigoSucursal, "Otra", null, null))).Estado);
 
-        var caja = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja 01 de prueba"));
+        var caja = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, 1, "Caja 01 de prueba"));
         Assert.True(caja.Cuerpo!.Exitosa, caja.Cuerpo.Mensaje);
         var cajaId = caja.Cuerpo.Id!.Value;
         Assert.Equal(HttpStatusCode.BadRequest,
-            (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Repetida"))).Estado);
+            (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, 1, "Repetida"))).Estado);
 
         // Todos los datos de la sucursal son obligatorios en el Central.
         var incompleta = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}",
             new SolicitudSucursal(codigoSucursal, "Sucursal", " ", null));
         Assert.Equal("Complete los datos de la sucursal: dirección, teléfono.", incompleta.Cuerpo!.Mensaje);
 
-        var cambioCodigo = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}", new SolicitudSucursal("OTRO", "Sucursal", "Calle 1", "809-555-0000"));
+        var cambioCodigo = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}", new SolicitudSucursal(codigoSucursal + 1, "Sucursal", "Calle 1", "809-555-0000"));
         Assert.Equal("El código de la sucursal no se puede cambiar.", cambioCodigo.Cuerpo!.Mensaje);
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/cajas/{cajaId}", new SolicitudActualizarCaja("Caja renombrada"))).Cuerpo!.Exitosa);
 
@@ -68,8 +68,8 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
         // Los cambios de organización bajan a las cajas en su próxima descarga.
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        Assert.Contains(bajada.Organizacion!.Sucursales!, s => s.Id == sucursalId);
-        Assert.Contains(bajada.Organizacion.Cajas!, c => c.Id == cajaId && c.Nombre == "Caja renombrada");
+        Assert.Contains(bajada.Organizacion!.Sucursales!, s => s.Codigo == codigoSucursal);
+        Assert.Contains(bajada.Organizacion.Cajas!, c => c.SucursalCodigo == codigoSucursal && c.Codigo == 1 && c.Nombre == "Caja renombrada");
     }
 
     [SkippableFact]
@@ -120,7 +120,7 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
         var sucursalId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/sucursales",
             new SolicitudSucursal(CodigoSucursal(), "Sucursal para deshabilitar", "Calle 2, Santiago", "809-555-0001"))).Cuerpo!.Id!.Value;
-        var cajaId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja"))).Cuerpo!.Id!.Value;
+        var cajaId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, 1, "Caja"))).Cuerpo!.Id!.Value;
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(cliente, cajaId);
 
         Assert.Equal(HttpStatusCode.OK, await PedirTokenAsync(cliente, cajaId, secreto));
@@ -168,7 +168,10 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, sinPermiso.StatusCode);
     }
 
-    private static string CodigoSucursal() => $"S{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+    private static int _sucursales = 10;
+
+    /// <summary>Código de sucursal que ninguna otra prueba usa (la 01 es de los datos de desarrollo).</summary>
+    private static int CodigoSucursal() => Interlocked.Add(ref _sucursales, 2);
 
     private static async Task<DatosEmpresa> ObtenerEmpresaAsync(HttpClient cliente, string token)
     {
@@ -179,7 +182,8 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
     private static async Task<HttpStatusCode> PedirTokenAsync(HttpClient cliente, Guid cajaId, string secreto)
     {
-        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(cajaId, secreto), OpcionesJson.Predeterminadas);
+        var (sucursal, caja) = CentralEnPruebas.CodigosCaja(cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);
         return respuesta.StatusCode;
     }
 

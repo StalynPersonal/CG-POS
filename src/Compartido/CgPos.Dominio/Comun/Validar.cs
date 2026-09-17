@@ -27,6 +27,15 @@ internal static class Validar
         return texto;
     }
 
+    /// <summary>Código numérico de un catálogo (lo sugiere el Central y no cambia después de crear el registro).</summary>
+    public static int Codigo(int valor, string campo, int maximo = CodigosCatalogo.Maximo)
+    {
+        if (valor < 1 || valor > maximo)
+            throw new ArgumentException($"{campo} debe ser un número entre 1 y {maximo:N0}.", campo);
+
+        return valor;
+    }
+
     public static Guid Id(Guid valor, string campo)
     {
         if (valor == Guid.Empty)

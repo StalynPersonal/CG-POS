@@ -4,8 +4,8 @@
 <MudDialog>
     <DialogContent>
         <div class="cg-central__dialogo">
-            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Disabled="@(Sucursal is not null)"
-                          HelperText="Corto y único; forma parte del número de las transacciones (ej. 01)." />
+            <MudNumericField T="int?" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Disabled="@(Sucursal is not null)"
+                             Min="1" Max="99" HelperText="De 1 a 99 y único; forma parte del número de los documentos (ej. 01)." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
             <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Lines="2" />
             <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
@@ -26,7 +26,7 @@
 
     [Parameter] public DatosSucursal? Sucursal { get; set; }
 
-    private string? _codigo;
+    private int? _codigo;
     private string? _nombre;
     private string? _direccion;
     private string? _telefono;
@@ -48,7 +48,7 @@
     {
         _procesando = true;
         _mensaje = null;
-        var solicitud = new SolicitudSucursal(_codigo ?? string.Empty, _nombre ?? string.Empty, _direccion, _telefono);
+        var solicitud = new SolicitudSucursal(_codigo ?? 0, _nombre ?? string.Empty, _direccion, _telefono);
         var respuesta = Sucursal is null ? await Cliente.CrearSucursalAsync(solicitud) : await Cliente.ActualizarSucursalAsync(Sucursal.Id, solicitud);
         _procesando = false;
 

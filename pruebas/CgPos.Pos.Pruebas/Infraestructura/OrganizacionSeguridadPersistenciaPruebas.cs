@@ -16,8 +16,8 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         var sufijo = Guid.NewGuid().ToString("N")[..6];
 
         var empresa = Empresa.Crear(RncUnico(), "Contreras Group SRL");
-        var sucursal = Sucursal.Crear(empresa.Id, "01", "Sucursal Principal");
-        var caja = Caja.Crear(sucursal.Id, "01", "Caja 01");
+        var sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Principal");
+        var caja = Caja.Crear(sucursal.Id, 1, "Caja 01");
         var rol = Rol.Crear($"SUP{sufijo}", "Supervisor", nivel: 2);
         rol.AsignarPermiso(CatalogoPermisos.AutorizarOperaciones);
         rol.AsignarPermiso(CatalogoPermisos.EliminarLinea);
@@ -79,8 +79,8 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
 
         // Sucursal y caja reales: así el único motivo posible de rechazo es la restricción de ámbito, no las llaves foráneas.
         var empresa = Empresa.Crear(RncUnico(), "Empresa Ámbito");
-        var sucursal = Sucursal.Crear(empresa.Id, "01", "Sucursal Ámbito");
-        var caja = Caja.Crear(sucursal.Id, "01", "Caja Ámbito");
+        var sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Ámbito");
+        var caja = Caja.Crear(sucursal.Id, 1, "Caja Ámbito");
         contexto.AddRange(empresa, sucursal, caja);
         await contexto.SaveChangesAsync();
 

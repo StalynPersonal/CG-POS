@@ -33,19 +33,21 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var organizacion = paquete.Organizacion!;
         Assert.Equal("999000001", organizacion.Empresa.Rnc);
         // Otras pruebas de la colección crean sucursales y cajas: basta con que estén las de desarrollo.
-        Assert.Contains(organizacion.Cajas!, c => c.Id == CentralEnPruebas.CajaUno);
-        Assert.Contains(organizacion.Cajas!, c => c.Id == CentralEnPruebas.CajaDos);
+        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == 1 && c.Codigo == 1);
+        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == 1 && c.Codigo == 2);
         Assert.Contains(organizacion.Parametros!, p => p.Clave == "General.MonedaLocal");
         Assert.DoesNotContain(organizacion.Parametros!, p => p.Clave.StartsWith("Central.", StringComparison.Ordinal));
 
-        // La clave baja solo como hash, con el formato que verifica la caja.
+        // La clave baja solo como hash, con el formato que verifica la caja; el rol y las cajas, por código.
         var cajero = Assert.Single(organizacion.Usuarios!, u => u.Codigo == "C001");
         Assert.Null(cajero.Clave);
         Assert.True(new HashCredenciales().VerificarClave("Cajero.2026", cajero.ClaveHash!));
+        Assert.Equal("CAJERO", cajero.RolCodigo);
+        Assert.Contains(cajero.Cajas!, c => c == new CgPos.Contratos.CargaInicial.CajaReferencia(1, 1));
 
         Assert.NotEmpty(paquete.Maestros!.Articulos!);
         Assert.NotEmpty(paquete.Maestros.SecuenciasEcf!);
-        Assert.All(paquete.Maestros.SecuenciasEcf!, s => Assert.Equal(CentralEnPruebas.CajaUno, s.CajaId));
+        Assert.All(paquete.Maestros.SecuenciasEcf!, s => Assert.Equal((1, 1), (s.SucursalCodigo, s.CajaCodigo)));
     }
 
     [SkippableFact]
@@ -94,7 +96,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
 
         // Los rangos del mismo tipo no se solapan en la empresa: uno alto y aleatorio no choca con los de desarrollo ni con otras pruebas.
         var desde = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
-        var secuencia = new SecuenciaEcfCarga(Guid.CreateVersion7(), CentralEnPruebas.CajaDos, TipoComprobante.FacturaConsumo, desde, desde + 999, new DateOnly(2027, 12, 31));
+        var secuencia = new SecuenciaEcfCarga(1, 2, TipoComprobante.FacturaConsumo, desde, desde + 999, new DateOnly(2027, 12, 31));
         await PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]));
         var clave = $"Pruebas.SoloCajaDos{Guid.NewGuid():N}";
         await central.UsarContextoAsync(async contexto =>
@@ -106,8 +108,9 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         Assert.True((await BajarAsync(cliente, tokenUno, marcaUno)).SinCambios);
 
         var paraDos = await BajarAsync(cliente, tokenDos, marcaDos);
-        Assert.Equal(secuencia.Id, Assert.Single(paraDos.Maestros!.SecuenciasEcf!).Id);
-        Assert.Equal(clave, Assert.Single(paraDos.Organizacion!.Parametros!).Clave);
+        Assert.Equal(desde, Assert.Single(paraDos.Maestros!.SecuenciasEcf!).Desde);
+        var parametro = Assert.Single(paraDos.Organizacion!.Parametros!);
+        Assert.Equal((clave, 1, 2), (parametro.Clave, parametro.SucursalCodigo, parametro.CajaCodigo));
     }
 
     [SkippableFact]
@@ -120,22 +123,25 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
 
         var error = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Articulos:
         [
-            articulo with { Id = Guid.CreateVersion7(), CodigosBarras = null, CodigosProveedor = null },
-            articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-SIN-DEPARTAMENTO", DepartamentoId = Guid.CreateVersion7(), CodigosBarras = null, CodigosProveedor = null },
-            articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-PRECIO", PrecioDetalle = -1, CodigosBarras = null, CodigosProveedor = null },
-            articulo with { Id = Guid.CreateVersion7(), Codigo = "NUEVO-BARRAS", CodigosProveedor = null },
-            articulo with { Id = Guid.CreateVersion7(), Codigo = articulo.CodigosBarras![0], CodigosBarras = null, CodigosProveedor = null },
+            articulo with { Codigo = "NUEVO-SIN-DEPARTAMENTO", DepartamentoCodigo = 999_999, CodigosBarras = null, CodigosProveedor = null },
+            articulo with { Codigo = "NUEVO-PRECIO", PrecioDetalle = -1, CodigosBarras = null, CodigosProveedor = null },
+            articulo with { Codigo = "NUEVO-BARRAS", CodigosProveedor = null },
+            articulo with { Codigo = articulo.CodigosBarras![0], CodigosBarras = null, CodigosProveedor = null },
         ])));
 
-        Assert.Contains(error.Errores, e => e.Contains("ya existe con otro Id", StringComparison.Ordinal));
-        Assert.Contains(error.Errores, e => e.Contains("departamento inexistente", StringComparison.Ordinal));
         Assert.Contains(error.Errores, e => e.Contains("precio detalle", StringComparison.Ordinal));
         Assert.Contains(error.Errores, e => e.Contains($"El código '{articulo.CodigosBarras![0]}' ya lo usa el artículo", StringComparison.Ordinal));
 
         // El código interno de un artículo tampoco puede ser el código de barras de otro: la caja busca por cualquiera de los dos.
         Assert.Contains(error.Errores, e => e.Contains($"no puede estar también en '{articulo.CodigosBarras![0]}'", StringComparison.Ordinal));
         Assert.DoesNotContain(error.Errores, e => e.Contains($"El código '{articulo.Codigo}' ya lo usa", StringComparison.Ordinal));
-        Assert.False(await central.UsarContextoAsync(contexto => contexto.MaestrosCentral.AnyAsync(m => m.Codigo == "NUEVO-SIN-DEPARTAMENTO" || m.Codigo == "NUEVO-BARRAS")));
+
+        // Una referencia que no existe se informa por su código.
+        var sinDepartamento = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Articulos:
+            [articulo with { Codigo = "NUEVO-SIN-DEPARTAMENTO", DepartamentoCodigo = 999_999, CodigosBarras = null, CodigosProveedor = null }])));
+        Assert.Contains(sinDepartamento.Errores, e => e.Contains("No existe el departamento con código '999999'", StringComparison.Ordinal));
+
+        Assert.False(await central.UsarContextoAsync(contexto => contexto.Articulos.AnyAsync(a => a.Codigo == "NUEVO-SIN-DEPARTAMENTO" || a.Codigo == "NUEVO-BARRAS")));
     }
 
     [SkippableFact]
@@ -147,17 +153,16 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
         var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
-        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"D{sufijo}", "Departamento en tabla");
-        var unidad = new UnidadMedidaCarga(Guid.CreateVersion7(), $"U{sufijo}", "Unidad en tabla", PermiteDecimales: true, Decimales: 2);
+        var departamento = new DepartamentoCarga(Codigos.Siguiente(), "Departamento en tabla");
+        var unidad = new UnidadMedidaCarga(Codigos.Siguiente(), $"U{sufijo}", "Unidad en tabla", PermiteDecimales: true, Decimales: 2);
         await PublicarAsync(new PaqueteMaestros(Departamentos: [departamento], UnidadesMedida: [unidad]));
 
-        // Quedan en su tabla, con quién los publicó, y no en la tabla JSON.
+        // Quedan en su tabla, con quién los publicó.
         await central.UsarContextoAsync(async contexto =>
         {
-            Assert.True(await contexto.Departamentos.AnyAsync(d => d.Id == departamento.Id));
-            Assert.Equal("Pruebas", await contexto.UnidadesMedida.Where(u => u.Id == unidad.Id)
-                .Select(u => EF.Property<string>(u, CgPos.Central.Infraestructura.Maestros.TablaMaestro.ColumnaModificadoPor)).SingleAsync());
-            Assert.False(await contexto.MaestrosCentral.AnyAsync(m => m.Id == departamento.Id || m.Id == unidad.Id));
+            Assert.True(await contexto.Departamentos.AnyAsync(d => d.Codigo == departamento.Codigo));
+            Assert.Equal("Pruebas", await contexto.UnidadesMedida.Where(u => u.Codigo == unidad.Codigo)
+                .Select(u => EF.Property<string>(u, "ModificadoPor")).SingleAsync());
             return 0;
         });
 
@@ -165,51 +170,8 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         Assert.Equal(0, (await PublicarAsync(new PaqueteMaestros(Departamentos: [departamento]))).Publicados);
         await PublicarAsync(new PaqueteMaestros(Departamentos: [departamento with { Nombre = "Departamento renombrado" }]));
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        Assert.Equal("Departamento renombrado", Assert.Single(bajada.Maestros!.Departamentos!, d => d.Id == departamento.Id).Nombre);
-        Assert.Contains(bajada.Maestros.UnidadesMedida!, u => u.Id == unidad.Id && u.Decimales == 2);
-
-        // El código no cambia: la caja identifica el registro por él.
-        var cambioCodigo = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() =>
-            PublicarAsync(new PaqueteMaestros(Departamentos: [departamento with { Codigo = $"X{sufijo}" }])));
-        Assert.Contains(cambioCodigo.Errores, e => e.Contains("No se puede cambiar el código del departamento", StringComparison.Ordinal));
-    }
-
-    [SkippableFact]
-    public async Task Los_maestros_que_estaban_en_json_pasan_a_su_tabla_conservando_quien_los_cambio()
-    {
-        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
-        var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        var marca = new MarcaCarga(Guid.CreateVersion7(), $"J{sufijo}", "Marca que estaba en JSON");
-        var modificadoEn = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero);
-
-        await central.UsarContextoAsync(async contexto =>
-        {
-            contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.Marca, marca.Id, marca.Codigo, null,
-                System.Text.Json.JsonSerializer.Serialize(marca, OpcionesJson.Predeterminadas), modificadoEn, "Usuario anterior"));
-            return await contexto.SaveChangesAsync();
-        });
-
-        await central.UsarContextoAsync(async contexto =>
-        {
-            await CgPos.Central.Infraestructura.Maestros.MigracionMaestrosATablas.EjecutarAsync(contexto, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
-                CancellationToken.None);
-            return 0;
-        });
-
-        await central.UsarContextoAsync(async contexto =>
-        {
-            Assert.False(await contexto.MaestrosCentral.AnyAsync(m => m.Id == marca.Id));
-            var enTabla = await contexto.Marcas.Where(m => m.Id == marca.Id)
-                .Select(m => new
-                {
-                    m.Nombre,
-                    Por = EF.Property<string>(m, CgPos.Central.Infraestructura.Maestros.TablaMaestro.ColumnaModificadoPor),
-                    En = EF.Property<DateTimeOffset>(m, CgPos.Central.Infraestructura.Maestros.TablaMaestro.ColumnaModificadoEn),
-                })
-                .SingleAsync();
-            Assert.Equal((marca.Nombre, "Usuario anterior", modificadoEn), (enTabla.Nombre, enTabla.Por, enTabla.En));
-            return 0;
-        });
+        Assert.Equal("Departamento renombrado", Assert.Single(bajada.Maestros!.Departamentos!, d => d.Codigo == departamento.Codigo).Nombre);
+        Assert.Contains(bajada.Maestros.UnidadesMedida!, u => u.Codigo == unidad.Codigo && u.Abreviatura == $"U{sufijo}" && u.Decimales == 2);
     }
 
     [SkippableFact]
@@ -220,33 +182,34 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var inicial = await BajarAsync(cliente, tokenCaja, 0);
         var articulo = inicial.Maestros!.Articulos!.First();
-        var otroDepartamento = inicial.Maestros.Departamentos!.First(d => d.Id != articulo.DepartamentoId);
-        var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var otroDepartamento = inicial.Maestros.Departamentos!.First(d => d.Codigo != articulo.DepartamentoCodigo);
 
-        var suya = new CategoriaCarga(Guid.CreateVersion7(), $"C{sufijo}", "Categoría del departamento", articulo.DepartamentoId);
-        var ajena = new CategoriaCarga(Guid.CreateVersion7(), $"X{sufijo}", "Categoría de otro departamento", otroDepartamento.Id);
-        var marca = new MarcaCarga(Guid.CreateVersion7(), $"M{sufijo}", "Marca de prueba");
+        var suya = new CategoriaCarga(Codigos.Siguiente(), "Categoría del departamento", articulo.DepartamentoCodigo);
+        var ajena = new CategoriaCarga(Codigos.Siguiente(), "Categoría de otro departamento", otroDepartamento.Codigo);
+        var marca = new MarcaCarga(Codigos.Siguiente(), "Marca de prueba");
 
         var sinDepartamento = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() =>
-            PublicarAsync(new PaqueteMaestros(Categorias: [suya with { Id = Guid.CreateVersion7(), Codigo = $"S{sufijo}", DepartamentoId = Guid.CreateVersion7() }])));
-        Assert.Contains(sinDepartamento.Errores, e => e.Contains("departamento inexistente", StringComparison.Ordinal));
+            PublicarAsync(new PaqueteMaestros(Categorias: [suya with { Codigo = Codigos.Siguiente(), DepartamentoCodigo = 999_999 }])));
+        Assert.Contains(sinDepartamento.Errores, e => e.Contains("No existe el departamento", StringComparison.Ordinal));
 
         await PublicarAsync(new PaqueteMaestros(Categorias: [suya, ajena], Marcas: [marca]));
 
-        var conAjena = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Articulos: [articulo with { CategoriaId = ajena.Id }])));
+        var conAjena = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() =>
+            PublicarAsync(new PaqueteMaestros(Articulos: [articulo with { CategoriaCodigo = ajena.Codigo }])));
         Assert.Contains(conAjena.Errores, e => e.Contains("no es de su departamento", StringComparison.Ordinal));
 
-        await PublicarAsync(new PaqueteMaestros(Articulos: [articulo with { CategoriaId = suya.Id, MarcaId = marca.Id }]));
+        await PublicarAsync(new PaqueteMaestros(Articulos: [articulo with { CategoriaCodigo = suya.Codigo, MarcaCodigo = marca.Codigo }]));
 
         // Todo baja a la caja: los catálogos nuevos y el artículo con su clasificación.
         var bajada = await BajarAsync(cliente, tokenCaja, inicial.Hasta);
-        Assert.Contains(bajada.Maestros!.Categorias!, c => c.Id == suya.Id);
-        Assert.Contains(bajada.Maestros.Marcas!, m => m.Id == marca.Id);
-        var clasificado = Assert.Single(bajada.Maestros.Articulos!, a => a.Id == articulo.Id);
-        Assert.Equal((suya.Id, marca.Id), (clasificado.CategoriaId, clasificado.MarcaId));
+        Assert.Contains(bajada.Maestros!.Categorias!, c => c.Codigo == suya.Codigo);
+        Assert.Contains(bajada.Maestros.Marcas!, m => m.Codigo == marca.Codigo);
+        var clasificado = Assert.Single(bajada.Maestros.Articulos!, a => a.Codigo == articulo.Codigo);
+        Assert.Equal(((int?)suya.Codigo, (int?)marca.Codigo), (clasificado.CategoriaCodigo, clasificado.MarcaCodigo));
 
         // Mover la categoría a otro departamento dejaría al artículo inconsistente.
-        var mover = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() => PublicarAsync(new PaqueteMaestros(Categorias: [suya with { DepartamentoId = otroDepartamento.Id }])));
+        var mover = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() =>
+            PublicarAsync(new PaqueteMaestros(Categorias: [suya with { DepartamentoCodigo = otroDepartamento.Codigo }])));
         Assert.Contains(mover.Errores, e => e.Contains("antes de mover la categoría", StringComparison.Ordinal));
 
         await PublicarAsync(new PaqueteMaestros(Articulos: [articulo]));
@@ -260,13 +223,14 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var marca = (await BajarAsync(cliente, token, 0)).Hasta;
 
-        var nueva = Inscripcion(CedulaValida());
+        var cedula = CedulaValida();
+        var nueva = Inscripcion(cedula);
         var repetida = Inscripcion("00113918205");
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, nueva.Mensaje));
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, repetida.Mensaje));
 
         var bajada = await BajarAsync(cliente, token, marca);
-        Assert.Equal(nueva.MiembroId, Assert.Single(bajada.Maestros!.MiembrosFidelidad!).Id);
+        Assert.Equal(cedula, Assert.Single(bajada.Maestros!.MiembrosFidelidad!).Cedula);
 
         var conflicto = await central.UsarContextoAsync(contexto => contexto.ConflictosSincronizacion.SingleAsync(c => c.MensajeId == repetida.Mensaje.Id));
         Assert.Equal(TipoConflictoSincronizacion.MiembroDuplicado, conflicto.Tipo);
@@ -279,7 +243,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         using var http = central.CrearCliente();
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(http, CentralEnPruebas.CajaUno);
 
-        var resultado = await new ClienteCentralHttp(http, CentralEnPruebas.CajaUno, secreto, TimeProvider.System).DescargarMaestrosAsync(0);
+        var resultado = await new ClienteCentralHttp(http, 1, 1, secreto, TimeProvider.System).DescargarMaestrosAsync(0);
 
         Assert.True(resultado.CentralRespondio, resultado.Error);
         Assert.NotNull(resultado.Paquete!.Organizacion);
@@ -311,7 +275,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(miembroId, cedula, "Miembro de Prueba", null, null, CentralEnPruebas.CajaUno,
             CentralEnPruebas.Sucursal, "Cajero Desarrollo", DateTimeOffset.UtcNow), OpcionesJson.Predeterminadas);
         return (miembroId, new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, miembroId, contenido, HashSincronizacion.Calcular(contenido),
-            CentralEnPruebas.CajaUno, DateTimeOffset.UtcNow));
+            1, 1, DateTimeOffset.UtcNow));
     }
 
     /// <summary>Una cédula nueva que pasa la validación del dominio (dígito verificador incluido).</summary>

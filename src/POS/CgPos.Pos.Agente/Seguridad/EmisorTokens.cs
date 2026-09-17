@@ -67,7 +67,7 @@ public sealed class EmisorTokens
         yield return new Claim(AtributosToken.RolNombre, sesion.RolNombre);
         yield return new Claim(AtributosToken.Nivel, sesion.Nivel.ToString(CultureInfo.InvariantCulture));
         yield return new Claim(AtributosToken.Caja, sesion.CajaId.ToString());
-        yield return new Claim(AtributosToken.CajaCodigo, sesion.CajaCodigo);
+        yield return new Claim(AtributosToken.CajaCodigo, sesion.CajaCodigo.ToString(System.Globalization.CultureInfo.InvariantCulture));
         yield return new Claim(AtributosToken.CajaNombre, sesion.CajaNombre);
         yield return new Claim(AtributosToken.Sucursal, sesion.SucursalId.ToString());
 
@@ -100,7 +100,7 @@ public sealed class EmisorTokens
             nivel,
             usuario.FindAll(AtributosToken.Permiso).Select(c => c.Value).ToFrozenSet(StringComparer.Ordinal),
             cajaId,
-            Valor(AtributosToken.CajaCodigo) ?? string.Empty,
+            int.TryParse(Valor(AtributosToken.CajaCodigo), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var cajaCodigo) ? cajaCodigo : 0,
             Valor(AtributosToken.CajaNombre) ?? string.Empty,
             sucursalId);
     }

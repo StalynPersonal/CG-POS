@@ -14,7 +14,7 @@ public class CentralPruebas : IDisposable
     private readonly string _carpeta = Path.Combine(Path.GetTempPath(), "CgPosPruebas", "central-" + Guid.NewGuid().ToString("N"));
 
     private static MensajeSincronizacion Mensaje(string contenido, Guid? id = null) =>
-        new(id ?? Guid.CreateVersion7(), "Venta.Cobrada", Guid.CreateVersion7(), contenido, MensajeSalida.CalcularHash(contenido), Guid.CreateVersion7(),
+        new(id ?? Guid.CreateVersion7(), "Venta.Cobrada", Guid.CreateVersion7(), contenido, MensajeSalida.CalcularHash(contenido), 1, 1,
             DateTimeOffset.UtcNow);
 
     [Fact]
@@ -42,7 +42,6 @@ public class CentralPruebas : IDisposable
     public async Task Cliente_http_se_autentica_envia_la_clave_de_idempotencia_y_distingue_rechazo_de_falta_de_conexion()
     {
         var mensaje = Mensaje("""{"total":850}""");
-        var cajaId = Guid.CreateVersion7();
         HttpRequestMessage? recibida = null;
         var tokensPedidos = 0;
 
@@ -57,7 +56,7 @@ public class CentralPruebas : IDisposable
 
                 recibida = solicitud;
                 return respuesta();
-            })) { BaseAddress = new Uri("https://central.prueba/") }, cajaId, secreto, TimeProvider.System);
+            })) { BaseAddress = new Uri("https://central.prueba/") }, 1, 1, secreto, TimeProvider.System);
 
         var cliente = Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Duplicado"}"""));
         Assert.True((await cliente.EnviarAsync(mensaje)).Confirmado);
@@ -88,12 +87,12 @@ public class CentralPruebas : IDisposable
 
         var credencialRechazada = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ =>
                 Json(HttpStatusCode.Unauthorized, """{"exitoso":false,"mensaje":"Credencial de caja no válida."}""")))
-            { BaseAddress = new Uri("https://central.prueba/") }, cajaId, "otro", TimeProvider.System).EnviarAsync(mensaje);
+            { BaseAddress = new Uri("https://central.prueba/") }, 1, 1, "otro", TimeProvider.System).EnviarAsync(mensaje);
         Assert.Equal((false, true), (credencialRechazada.Confirmado, credencialRechazada.CentralRespondio));
         Assert.Contains("Credencial de caja no válida.", credencialRechazada.Error);
 
         var sinRed = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ => throw new HttpRequestException("sin red")))
-            { BaseAddress = new Uri("https://central.prueba/") }, cajaId, "secreto", TimeProvider.System).EnviarAsync(mensaje);
+            { BaseAddress = new Uri("https://central.prueba/") }, 1, 1, "secreto", TimeProvider.System).EnviarAsync(mensaje);
         Assert.False(sinRed.CentralRespondio);
     }
 

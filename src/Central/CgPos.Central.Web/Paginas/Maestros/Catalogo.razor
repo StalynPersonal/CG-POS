@@ -128,11 +128,12 @@
 
         if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Departamento))
             _departamentos = (await Cliente.ListarCatalogoAsync("departamentos") ?? [])
-                .Select(d => new OpcionCatalogo(d.Dato["id"]!.GetValue<string>(), $"{d.Dato["codigo"]} · {d.Dato["nombre"]}"))
+                .Select(d => new OpcionCatalogo(d.Dato["codigo"]!.GetValue<int>().ToString(CultureInfo.InvariantCulture), $"{d.Dato["codigo"]} · {d.Dato["nombre"]}"))
                 .ToList();
 
         if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Sucursal))
-            _sucursales = (await Cliente.ListarSucursalesMaestrosAsync() ?? []).Select(s => new OpcionCatalogo(s.Id.ToString(), $"{s.Codigo} · {s.Nombre}")).ToList();
+            _sucursales = (await Cliente.ListarSucursalesMaestrosAsync() ?? [])
+                .Select(s => new OpcionCatalogo(s.Codigo.ToString(CultureInfo.InvariantCulture), $"{s.Codigo:00} · {s.Nombre}")).ToList();
 
         _cargando = false;
     }
@@ -156,10 +157,13 @@
 
     private async Task AbrirDialogoAsync(JsonObject? dato)
     {
+        // Para un registro nuevo de un catálogo numérico se sugiere el siguiente código.
+        var codigoSugerido = dato is null && _definicion!.CodigoNumerico ? await Cliente.SiguienteCodigoAsync("maestros", _definicion.Ruta) : null;
         var parametros = new DialogParameters<DialogoCatalogo>
         {
             { d => d.Definicion, _definicion },
             { d => d.Dato, dato },
+            { d => d.CodigoSugerido, codigoSugerido },
             { d => d.Monedas, _monedas },
             { d => d.Sucursales, _sucursales },
             { d => d.Departamentos, _departamentos },

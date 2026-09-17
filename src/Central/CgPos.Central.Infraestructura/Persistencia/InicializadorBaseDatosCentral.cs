@@ -33,8 +33,6 @@ public static class InicializadorBaseDatosCentral
                     logger.LogInformation("Migraciones aplicadas");
                 }
 
-                // Los maestros que aún estén en la tabla JSON pasan a su tabla.
-                await Maestros.MigracionMaestrosATablas.EjecutarAsync(contexto, logger, cancelacion);
                 return;
             }
             catch (SqlException excepcion) when (intento < IntentosMaximos)

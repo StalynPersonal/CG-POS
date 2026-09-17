@@ -106,7 +106,7 @@ internal sealed class LineaPendienteEntregaConfiguracion : IEntityTypeConfigurat
         constructor.Property(l => l.Id).ValueGeneratedNever();
         constructor.Property(l => l.CodigoInterno).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
-        constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoCodigo).IsRequired();
+        constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoAbreviatura).IsRequired();
         constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
         constructor.Property(l => l.CantidadEntregada).HasPrecision(18, 3);
         constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);

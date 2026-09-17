@@ -1,8 +1,10 @@
-﻿using CgPos.Central.Aplicacion.Sincronizacion;
+using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Maestros;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Sincronizacion;
+using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,41 +22,35 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
             .SqlQueryRaw<long>("SELECT CAST(MIN_ACTIVE_ROWVERSION() AS bigint) - 1 AS [Value]")
             .SingleAsync(cancelacion));
 
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        await resolutor.PrepararAsync(cancelacion);
+
         PaqueteCargaInicial? organizacion = null;
-        Contratos.Catalogo.PaqueteMaestros? maestros = null;
+        PaqueteMaestros? maestros = null;
         List<EstadoDgiiCarga>? estadosDgii = null;
 
         if (hasta > desde)
         {
-            var filas = await EnRango(contexto.MaestrosCentral.AsNoTracking(), desde, hasta)
-                .Where(m => m.CajaId == null || m.CajaId == caja.CajaId)
-                .ToListAsync(cancelacion);
-            foreach (var tabla in Maestros.TablasMaestros.Todas)
-                filas.AddRange(await tabla.FilasAsync(contexto, null, (desde, hasta), cancelacion));
             var sucursales = await EnRango(contexto.Sucursales.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
             var cajas = await EnRango(contexto.Cajas.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
-            var parametros = await EnRango(contexto.Parametros.AsNoTracking(), desde, hasta)
-                .Where(p => !p.Clave.StartsWith(PublicadorMaestros.PrefijoParametrosCentral)
-                    && ((p.SucursalId == null && p.CajaId == null) || p.SucursalId == caja.SucursalId || p.CajaId == caja.CajaId))
-                .ToListAsync(cancelacion);
+            var parametros = await EnRango(ParametrosDeCaja(caja), desde, hasta).ToListAsync(cancelacion);
             var empresaCambio = await EnRango(contexto.Empresas.AsNoTracking(), desde, hasta).AnyAsync(cancelacion);
-
-            var roles = FormatoMaestros.Filtrar<RolCarga>(filas, TipoMaestro.RolCaja);
-            var usuarios = FormatoMaestros.Filtrar<UsuarioCarga>(filas, TipoMaestro.UsuarioCaja);
+            var roles = (await TablasMaestros.RolesCaja.CambiosAsync(contexto, resolutor, desde, hasta, cancelacion)).Cast<RolCarga>().ToList();
+            var usuarios = (await TablasMaestros.UsuariosCaja.CambiosAsync(contexto, resolutor, desde, hasta, cancelacion)).Cast<UsuarioCarga>().ToList();
 
             if ((empresaCambio || sucursales.Count > 0 || cajas.Count > 0 || parametros.Count > 0 || roles.Count > 0 || usuarios.Count > 0)
                 && await contexto.Empresas.AsNoTracking().SingleOrDefaultAsync(cancelacion) is { } empresa)
             {
                 organizacion = new PaqueteCargaInicial(
-                    new EmpresaCarga(empresa.Id, empresa.Rnc, empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono),
-                    sucursales.Select(s => new SucursalCarga(s.Id, s.Codigo, s.Nombre, s.Direccion, s.Telefono, s.Activa)).ToList(),
-                    cajas.Select(c => new CajaCarga(c.Id, c.SucursalId, c.Codigo, c.Nombre, c.Habilitada)).ToList(),
+                    new EmpresaCarga(empresa.Rnc, empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono),
+                    sucursales.Select(s => new SucursalCarga(s.Codigo, s.Nombre, s.Direccion, s.Telefono, s.Activa)).ToList(),
+                    cajas.Select(c => new CajaCarga(resolutor.CodigoSucursal(c.SucursalId), c.Codigo, c.Nombre, c.Habilitada)).ToList(),
                     roles,
                     usuarios,
-                    parametros.Select(p => new ParametroCarga(p.Id, p.Clave, p.Valor, p.Descripcion, p.SucursalId, p.CajaId)).ToList());
+                    parametros.Select(p => Carga(p, resolutor)).ToList());
             }
 
-            maestros = FormatoMaestros.Armar(filas);
+            maestros = await MaestrosAsync(caja, resolutor, desde, hasta, cancelacion);
 
             // Resultados de la DGII de los e-CF de esta caja (RF-223): la caja los aplica a sus documentos.
             estadosDgii = await EnRango(contexto.ComprobantesRecibidos.AsNoTracking(), desde, hasta)
@@ -64,11 +60,10 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         }
 
         // Todos los parámetros vigentes de esta caja: así la caja borra los que se eliminaron en el Central, que por definición no viajan en el rango.
-        var vigentes = await contexto.Parametros.AsNoTracking()
-            .Where(p => !p.Clave.StartsWith(PublicadorMaestros.PrefijoParametrosCentral)
-                && ((p.SucursalId == null && p.CajaId == null) || p.SucursalId == caja.SucursalId || p.CajaId == caja.CajaId))
-            .Select(p => p.Id)
-            .ToListAsync(cancelacion);
+        var vigentes = (await ParametrosDeCaja(caja).ToListAsync(cancelacion))
+            .Select(p => Carga(p, resolutor))
+            .Select(p => new ParametroReferencia(p.Clave, p.SucursalCodigo, p.CajaCodigo))
+            .ToList();
 
         var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == caja.CajaId, cancelacion);
         if (estado is null)
@@ -81,6 +76,63 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         await contexto.SaveChangesAsync(cancelacion);
 
         return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null, vigentes);
+    }
+
+    /// <summary>Catálogo, precios, promociones, fidelidad… cambiados en el rango; los rangos de e-CF solo los de esta caja. Nulo si nada cambió.</summary>
+    private async Task<PaqueteMaestros?> MaestrosAsync(CajaRemitente caja, ResolutorCodigosCentral resolutor, long desde, long hasta, CancellationToken cancelacion)
+    {
+        async Task<List<T>?> Lista<T>(TablaMaestro tabla)
+        {
+            var cambios = (await tabla.CambiosAsync(contexto, resolutor, desde, hasta, cancelacion)).Cast<T>().ToList();
+            return cambios.Count == 0 ? null : cambios;
+        }
+
+        var (sucursal, codigoCaja) = resolutor.CodigoCaja(caja.CajaId);
+        var secuencias = (await Lista<SecuenciaEcfCarga>(TablasMaestros.SecuenciasEcf))?.Where(s => s.SucursalCodigo == sucursal && s.CajaCodigo == codigoCaja).ToList();
+
+        var paquete = new PaqueteMaestros(
+            Departamentos: await Lista<DepartamentoCarga>(TablasMaestros.Departamentos),
+            UnidadesMedida: await Lista<UnidadMedidaCarga>(TablasMaestros.UnidadesMedida),
+            Impuestos: await Lista<ImpuestoCarga>(TablasMaestros.Impuestos),
+            Articulos: await Lista<ArticuloCarga>(TablasMaestros.Articulos),
+            Clientes: await Lista<ClienteCarga>(TablasMaestros.Clientes),
+            FormasPago: await Lista<FormaPagoCarga>(TablasMaestros.FormasPago),
+            Bancos: await Lista<BancoCarga>(TablasMaestros.Bancos),
+            TiposTarjeta: await Lista<TipoTarjetaCarga>(TablasMaestros.TiposTarjeta),
+            Denominaciones: await Lista<DenominacionCarga>(TablasMaestros.Denominaciones),
+            Promociones: await Lista<PromocionCarga>(TablasMaestros.Promociones),
+            MotivosDescuento: await Lista<MotivoDescuentoCarga>(TablasMaestros.MotivosDescuento),
+            TopesDescuento: await Lista<TopeDescuentoCarga>(TablasMaestros.TopesDescuento),
+            TasasCambio: await Lista<TasaCambioCarga>(TablasMaestros.TasasCambio),
+            SecuenciasEcf: secuencias is { Count: > 0 } ? secuencias : null,
+            MotivosDevolucion: await Lista<MotivoDevolucionCarga>(TablasMaestros.MotivosDevolucion),
+            Monedas: await Lista<MonedaCarga>(TablasMaestros.Monedas),
+            NivelesFidelidad: await Lista<NivelFidelidadCarga>(TablasMaestros.NivelesFidelidad),
+            ReglasAcumulacion: await Lista<ReglaAcumulacionCarga>(TablasMaestros.ReglasAcumulacion),
+            MiembrosFidelidad: await Lista<MiembroFidelidadCarga>(TablasMaestros.MiembrosFidelidad),
+            Almacenes: await Lista<AlmacenCarga>(TablasMaestros.Almacenes),
+            DescuentosTarjeta: await Lista<DescuentoTarjetaCarga>(TablasMaestros.DescuentosTarjeta),
+            Categorias: await Lista<CategoriaCarga>(TablasMaestros.Categorias),
+            Marcas: await Lista<MarcaCarga>(TablasMaestros.Marcas));
+
+        return paquete == new PaqueteMaestros() ? null : paquete;
+    }
+
+    /// <summary>Parámetros que rigen a la caja: generales, de su sucursal y de ella (los del Central no bajan).</summary>
+    private IQueryable<Parametro> ParametrosDeCaja(CajaRemitente caja) =>
+        contexto.Parametros.AsNoTracking()
+            .Where(p => !p.Clave.StartsWith(PublicadorMaestros.PrefijoParametrosCentral)
+                && ((p.SucursalId == null && p.CajaId == null) || p.SucursalId == caja.SucursalId || p.CajaId == caja.CajaId));
+
+    private static ParametroCarga Carga(Parametro parametro, ResolutorCodigosCentral resolutor)
+    {
+        if (parametro.CajaId is { } cajaId)
+        {
+            var (sucursal, caja) = resolutor.CodigoCaja(cajaId);
+            return new ParametroCarga(parametro.Clave, parametro.Valor, parametro.Descripcion, sucursal, caja);
+        }
+
+        return new ParametroCarga(parametro.Clave, parametro.Valor, parametro.Descripcion, parametro.SucursalId is { } sucursalId ? resolutor.CodigoSucursal(sucursalId) : null);
     }
 
     private static IQueryable<T> EnRango<T>(IQueryable<T> consulta, long desde, long hasta) where T : class =>

@@ -20,7 +20,7 @@ public class DevolucionPruebas
 
     private static Venta VentaCobrada(decimal cinceles)
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Cobro);
+        var venta = Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Cobro);
         venta.AgregarArticulo(Cincel, cinceles, Cobro);
         venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Cobro);
         return venta;
@@ -29,7 +29,7 @@ public class DevolucionPruebas
     private static Devolucion Devolver(Venta venta, decimal cantidad, IReadOnlyDictionary<int, DevueltoLinea>? devuelto = null, DateOnly? hoy = null,
         string? serial = null) =>
         Devolucion.Registrar(venta, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
-            Cliente, "DEFECTO", "Artículo defectuoso", null, "NC-01-00000001", null, Guid.CreateVersion7(), "Cajera", Guid.CreateVersion7(), "Encargado",
+            Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", null, Guid.CreateVersion7(), "Cajera", Guid.CreateVersion7(), "Encargado",
             diasRetencionImpuesto: 30, mesesVigencia: 6, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
 
     [Fact]
@@ -73,7 +73,7 @@ public class DevolucionPruebas
         var venta = VentaCobrada(1);
 
         var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), "DEFECTO", "Defecto", null, "NC-1", null, Guid.CreateVersion7(), "Cajera",
+            new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", null, Guid.CreateVersion7(), "Cajera",
             null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.ClienteRequerido, sinCliente.Codigo);
 

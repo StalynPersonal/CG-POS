@@ -1,12 +1,11 @@
-﻿using CgPos.Central.Aplicacion.Abstracciones;
+using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
-using CgPos.Central.Infraestructura.Sincronizacion;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
-using CgPos.Dominio.Sincronizacion;
+using CgPos.Dominio.Fiscal;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Maestros;
@@ -14,62 +13,42 @@ namespace CgPos.Central.Infraestructura.Maestros;
 internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, IAuditoriaCentral auditoria, TimeProvider reloj)
     : IServicioMaestrosCentral
 {
-    public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(TipoMaestro tipo, CancellationToken cancelacion = default) =>
-        (await contexto.MaestrosAsync(tipo, cancelacion))
-            .OrderBy(m => m.Codigo, StringComparer.Ordinal)
-            .ThenByDescending(m => m.ModificadoEn)
-            .Select(Datos<T>)
-            .ToList();
+    public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(CancellationToken cancelacion = default) where T : class =>
+        await TablasMaestros.De<T>().TodosAsync(contexto, new ResolutorCodigosCentral(contexto), cancelacion);
 
-    public async Task<PaginaMaestros<T>> BuscarAsync<T>(TipoMaestro tipo, string? texto, int pagina, int tamano, CancellationToken cancelacion = default)
+    public Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, CancellationToken cancelacion = default) where T : class =>
+        TablasMaestros.De<T>().PaginaAsync(contexto, new ResolutorCodigosCentral(contexto), texto,
+            Math.Max(pagina, 0), Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina), cancelacion);
+
+    public async Task<ResultadoAdministracion> GuardarAsync<T>(T dato, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default) where T : class
     {
-        tamano = Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina);
-        pagina = Math.Max(pagina, 0);
-
-        // Los catálogos con tabla propia son cortos: se filtran en memoria por código y nombre.
-        if (TablasMaestros.TieneTabla(tipo))
-        {
-            var filtro = MaestroCentral.NormalizarBusqueda(texto);
-            var todos = (await ListarAsync<T>(tipo, cancelacion))
-                .Where(m => filtro is null || MaestroCentral.NormalizarBusqueda(System.Text.Json.JsonSerializer.Serialize(m.Dato, CgPos.Contratos.Serializacion.OpcionesJson.Predeterminadas))!.Contains(filtro, StringComparison.Ordinal))
-                .ToList();
-            return new PaginaMaestros<T>(todos.Skip(pagina * tamano).Take(tamano).ToList(), todos.Count);
-        }
-
-        var consulta = contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == tipo);
-        if (MaestroCentral.NormalizarBusqueda(texto) is { } buscado)
-        {
-            var patron = Patron(buscado);
-            consulta = consulta.Where(m => m.TextoBusqueda != null && EF.Functions.Like(m.TextoBusqueda, patron));
-        }
-
-        var total = await consulta.CountAsync(cancelacion);
-        var filas = await consulta.OrderBy(m => m.Codigo).ThenBy(m => m.Id).Skip(pagina * tamano).Take(tamano).ToListAsync(cancelacion);
-        return new PaginaMaestros<T>(filas.Select(Datos<T>).ToList(), total);
-    }
-
-    public async Task<ResultadoAdministracion> PublicarAsync(PaqueteMaestros paquete, Guid id, UsuarioAuditoria actor, CancellationToken cancelacion = default)
-    {
-        if (id == Guid.Empty)
-            return ResultadoAdministracion.Error("El registro necesita un Id.");
+        ArgumentNullException.ThrowIfNull(dato);
+        var tabla = TablasMaestros.De<T>();
+        var existente = await tabla.IdAsync(contexto, dato, cancelacion);
+        if (nuevo && existente is not null)
+            return ResultadoAdministracion.Error("Ya existe un registro con ese código; ábralo para cambiarlo.");
+        if (!nuevo && existente is null)
+            return ResultadoAdministracion.Inexistente("El registro no existe.");
 
         try
         {
-            await publicador.PublicarAsync(paquete, actor.Nombre, cancelacion);
-            return ResultadoAdministracion.Correcto(id);
+            await publicador.PublicarAsync(Paquete(dato), actor.Nombre, cancelacion);
         }
         catch (PublicacionInvalidaExcepcion excepcion)
         {
             return ResultadoAdministracion.Error(string.Join(" ", excepcion.Errores));
         }
+
+        return ResultadoAdministracion.Correcto(existente ?? await tabla.IdAsync(contexto, dato, cancelacion));
     }
 
-    public async Task<ResultadoAdministracion> GuardarArticuloAsync(Guid articuloId, ArticuloCarga articulo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> GuardarArticuloAsync(ArticuloCarga articulo, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
-        if (articulo.Id != articuloId)
-            return ResultadoAdministracion.Error("El Id del registro no coincide con el de la ruta.");
+        ArgumentNullException.ThrowIfNull(articulo);
+        var anterior = nuevo ? null : await ArticuloAsync(articulo.Codigo, cancelacion);
+        if (!nuevo && anterior is null)
+            return ResultadoAdministracion.Inexistente("El artículo no existe.");
 
-        var anterior = await LeerAsync<ArticuloCarga>(TipoMaestro.Articulo, articuloId, cancelacion);
         var publicar = anterior is null
             ? articulo with { PreciosVigentesDesde = articulo.PreciosVigentesDesde ?? reloj.GetUtcNow() }
             : articulo with
@@ -82,29 +61,34 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
                 PreciosVigentesDesde = anterior.PreciosVigentesDesde,
             };
 
-        return await PublicarAsync(new PaqueteMaestros(Articulos: [publicar]), articuloId, actor, cancelacion);
+        return await GuardarAsync(publicar, nuevo, actor, cancelacion);
     }
 
-    public async Task<ResultadoAdministracion> CorregirDocumentoClienteAsync(Guid clienteId, SolicitudCorreccionDocumentoCliente solicitud, UsuarioAuditoria actor,
+    public async Task<ResultadoAdministracion> CorregirDocumentoClienteAsync(string codigoCliente, SolicitudCorreccionDocumentoCliente solicitud, UsuarioAuditoria actor,
         CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
-        if (await LeerAsync<ClienteCarga>(TipoMaestro.Cliente, clienteId, cancelacion) is not { } actual)
+        var codigo = codigoCliente?.Trim().ToUpperInvariant() ?? string.Empty;
+        var id = await contexto.Clientes.AsNoTracking().Where(c => c.Codigo == codigo).Select(c => (Guid?)c.Id).SingleOrDefaultAsync(cancelacion);
+        if (id is null || (await TablasMaestros.Clientes.PorIdAsync(contexto, new ResolutorCodigosCentral(contexto), id.Value, cancelacion))?.Dato is not { } actual)
             return ResultadoAdministracion.Inexistente("El cliente no existe.");
         if (string.IsNullOrWhiteSpace(solicitud.Motivo))
             return ResultadoAdministracion.Error("Indique el motivo de la corrección.");
 
-        var documento = CgPos.Dominio.Fiscal.DocumentoIdentidad.Normalizar(solicitud.Documento);
-        if (solicitud.TipoDocumento == actual.TipoDocumento && documento == CgPos.Dominio.Fiscal.DocumentoIdentidad.Normalizar(actual.Documento))
+        var documento = DocumentoIdentidad.Normalizar(solicitud.Documento);
+        if (solicitud.TipoDocumento == actual.TipoDocumento && documento == DocumentoIdentidad.Normalizar(actual.Documento))
             return ResultadoAdministracion.Error("El documento es el mismo que ya tiene el cliente.");
 
         // RNC y cédula deben tener formato y dígito verificador válidos; el pasaporte solo se valida por formato (en el dominio).
-        if (solicitud.TipoDocumento != CgPos.Dominio.Fiscal.TipoDocumentoIdentidad.Pasaporte)
+        if (solicitud.TipoDocumento != TipoDocumentoIdentidad.Pasaporte)
         {
-            var validacion = CgPos.Dominio.Fiscal.DocumentoIdentidad.Validar(documento);
+            var validacion = DocumentoIdentidad.Validar(documento);
             if (validacion.Tipo != solicitud.TipoDocumento || !validacion.EsValido)
-                return ResultadoAdministracion.Error($"El documento '{solicitud.Documento}' no es {(solicitud.TipoDocumento == CgPos.Dominio.Fiscal.TipoDocumentoIdentidad.Rnc ? "un RNC válido" : "una cédula válida")}.");
+                return ResultadoAdministracion.Error($"El documento '{solicitud.Documento}' no es {(solicitud.TipoDocumento == TipoDocumentoIdentidad.Rnc ? "un RNC válido" : "una cédula válida")}.");
         }
+
+        if (await contexto.Clientes.AsNoTracking().AnyAsync(c => c.Id != id && c.TipoDocumento == solicitud.TipoDocumento && c.Documento == documento, cancelacion))
+            return ResultadoAdministracion.Error("Otro cliente ya tiene ese documento.");
 
         try
         {
@@ -116,16 +100,16 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             return ResultadoAdministracion.Error(string.Join(" ", excepcion.Errores));
         }
 
-        auditoria.Registrar(new EntradaAuditoria("Maestros.ClienteDocumentoCorregido", "Cliente", clienteId.ToString(),
+        auditoria.Registrar(new EntradaAuditoria("Maestros.ClienteDocumentoCorregido", "Cliente", actual.Codigo,
             new { Anterior = new { actual.TipoDocumento, actual.Documento }, Nuevo = new { solicitud.TipoDocumento, Documento = documento } }, solicitud.Motivo.Trim(), actor));
         await contexto.SaveChangesAsync(cancelacion);
-        return ResultadoAdministracion.Correcto(clienteId);
+        return ResultadoAdministracion.Correcto(id);
     }
 
-    public async Task<ResultadoAdministracion> CambiarPreciosAsync(Guid articuloId, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor,
+    public async Task<ResultadoAdministracion> CambiarPreciosAsync(string codigoArticulo, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor,
         CancellationToken cancelacion = default)
     {
-        if (await LeerAsync<ArticuloCarga>(TipoMaestro.Articulo, articuloId, cancelacion) is not { } anterior)
+        if (await ArticuloAsync(codigoArticulo, cancelacion) is not { } anterior)
             return ResultadoAdministracion.Inexistente("El artículo no existe.");
 
         // Todas las cajas registran el cambio con la misma vigencia, aunque lo reciban en momentos distintos.
@@ -139,45 +123,89 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             PreciosVigentesDesde = solicitud.VigenteDesde ?? reloj.GetUtcNow(),
         };
 
-        return await PublicarAsync(new PaqueteMaestros(Articulos: [articulo]), articuloId, actor, cancelacion);
+        return await GuardarAsync(articulo, nuevo: false, actor, cancelacion);
     }
 
     public async Task<IReadOnlyList<DatosTopeDescuentoCentral>> ListarTopesAsync(CancellationToken cancelacion = default)
     {
-        var topes = await ListarAsync<TopeDescuentoCarga>(TipoMaestro.TopeDescuento, cancelacion);
-        var idsDepartamentos = topes.Select(t => t.Dato.DepartamentoId).OfType<Guid>().Distinct().ToList();
-        var idsArticulos = topes.Select(t => t.Dato.ArticuloId).OfType<Guid>().Distinct().ToList();
-        var categorias = (await ListarAsync<CategoriaCarga>(TipoMaestro.Categoria, cancelacion)).ToDictionary(c => c.Dato.Id, c => c.Dato);
-        var marcas = (await ListarAsync<MarcaCarga>(TipoMaestro.Marca, cancelacion)).ToDictionary(m => m.Dato.Id, m => m.Dato);
-
-        var departamentos = (await contexto.MaestrosAsync(TipoMaestro.Departamento, cancelacion, idsDepartamentos))
-            .Select(FormatoMaestros.Leer<DepartamentoCarga>).ToDictionary(f => f.Id);
-        var articulos = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && idsArticulos.Contains(m.Id)).ToListAsync(cancelacion))
-            .Select(FormatoMaestros.Leer<ArticuloCarga>).ToDictionary(a => a.Id);
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        var topes = await TablasMaestros.TopesDescuento.TodosAsync(contexto, resolutor, cancelacion);
+        var codigosArticulos = topes.Select(t => t.Dato.ArticuloCodigo).OfType<string>().Distinct().ToList();
+        var articulos = await contexto.Articulos.AsNoTracking().Where(a => codigosArticulos.Contains(a.Codigo)).ToDictionaryAsync(a => a.Codigo, a => a.Descripcion, cancelacion);
+        var departamentos = await contexto.Departamentos.AsNoTracking().ToDictionaryAsync(d => d.Codigo, d => d.Nombre, cancelacion);
+        var categorias = await contexto.Categorias.AsNoTracking().ToDictionaryAsync(c => c.Codigo, c => c.Nombre, cancelacion);
+        var marcas = await contexto.Marcas.AsNoTracking().ToDictionaryAsync(m => m.Codigo, m => m.Nombre, cancelacion);
 
         string Alcance(TopeDescuentoCarga tope) => tope switch
         {
-            { ArticuloId: { } articuloId } => articulos.TryGetValue(articuloId, out var articulo) ? $"Artículo {articulo.Codigo} · {articulo.Descripcion}" : $"Artículo {articuloId}",
-            { CategoriaId: { } categoriaId } => categorias.TryGetValue(categoriaId, out var categoria) ? $"Categoría {categoria.Codigo} · {categoria.Nombre}" : $"Categoría {categoriaId}",
-            { MarcaId: { } marcaId } => marcas.TryGetValue(marcaId, out var marca) ? $"Marca {marca.Codigo} · {marca.Nombre}" : $"Marca {marcaId}",
-            { DepartamentoId: { } departamentoId } => departamentos.TryGetValue(departamentoId, out var departamento) ? $"Departamento {departamento.Codigo} · {departamento.Nombre}" : $"Departamento {departamentoId}",
+            { ArticuloCodigo: { } articulo } => $"Artículo {articulo} · {articulos.GetValueOrDefault(articulo)}",
+            { CategoriaCodigo: { } categoria } => $"Categoría {categoria} · {categorias.GetValueOrDefault(categoria)}",
+            { MarcaCodigo: { } marca } => $"Marca {marca} · {marcas.GetValueOrDefault(marca)}",
+            { DepartamentoCodigo: { } departamento } => $"Departamento {departamento} · {departamentos.GetValueOrDefault(departamento)}",
             _ => "General",
         };
 
         return topes
             .Select(t => new DatosTopeDescuentoCentral(t.Dato, Alcance(t.Dato), t.ModificadoEn, t.ModificadoPor))
-            .OrderBy(t => t.Tope.ArticuloId is not null ? 4 : t.Tope.CategoriaId is not null ? 3 : t.Tope.MarcaId is not null ? 2 : t.Tope.DepartamentoId is not null ? 1 : 0)
+            .OrderBy(t => t.Tope.ArticuloCodigo is not null ? 4 : t.Tope.CategoriaCodigo is not null ? 3 : t.Tope.MarcaCodigo is not null ? 2 : t.Tope.DepartamentoCodigo is not null ? 1 : 0)
             .ThenBy(t => t.Alcance, StringComparer.CurrentCulture)
             .ThenBy(t => t.Tope.Nivel)
             .ToList();
     }
 
-    private async Task<T?> LeerAsync<T>(TipoMaestro tipo, Guid id, CancellationToken cancelacion) where T : class =>
-        (await contexto.MaestrosAsync(tipo, cancelacion, [id])).SingleOrDefault() is { } fila
-            ? FormatoMaestros.Leer<T>(fila)
-            : null;
+    public async Task<int> SiguienteCodigoAsync<T>(CancellationToken cancelacion = default) where T : class
+    {
+        int? mayor = typeof(T).Name switch
+        {
+            nameof(DepartamentoCarga) => await contexto.Departamentos.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(CategoriaCarga) => await contexto.Categorias.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(MarcaCarga) => await contexto.Marcas.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(UnidadMedidaCarga) => await contexto.UnidadesMedida.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(TipoTarjetaCarga) => await contexto.TiposTarjeta.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(MotivoDescuentoCarga) => await contexto.MotivosDescuento.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(MotivoDevolucionCarga) => await contexto.MotivosDevolucion.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(NivelFidelidadCarga) => await contexto.NivelesFidelidad.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(ReglaAcumulacionCarga) => await contexto.ReglasAcumulacion.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            nameof(TopeDescuentoCarga) => await contexto.TopesDescuento.MaxAsync(e => (int?)e.Codigo, cancelacion),
+            _ => throw new InvalidOperationException($"{typeof(T).Name} no tiene código numérico."),
+        };
 
-    private static DatosMaestroCentral<T> Datos<T>(MaestroCentral fila) => new(FormatoMaestros.Leer<T>(fila), fila.ModificadoEn, fila.ModificadoPor);
+        return (mayor ?? 0) + 1;
+    }
 
-    private static string Patron(string texto) => $"%{texto.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]")}%";
+    private async Task<ArticuloCarga?> ArticuloAsync(string codigo, CancellationToken cancelacion)
+    {
+        var limpio = codigo?.Trim() ?? string.Empty;
+        var id = await contexto.Articulos.AsNoTracking().Where(a => a.Codigo == limpio).Select(a => (Guid?)a.Id).SingleOrDefaultAsync(cancelacion);
+        return id is null ? null : (await TablasMaestros.Articulos.PorIdAsync(contexto, new ResolutorCodigosCentral(contexto), id.Value, cancelacion))?.Dato;
+    }
+
+    /// <summary>Paquete con un solo registro, en la lista de su tipo.</summary>
+    private static PaqueteMaestros Paquete<T>(T dato) where T : class => dato switch
+    {
+        MonedaCarga d => new PaqueteMaestros(Monedas: [d]),
+        DepartamentoCarga d => new PaqueteMaestros(Departamentos: [d]),
+        CategoriaCarga d => new PaqueteMaestros(Categorias: [d]),
+        MarcaCarga d => new PaqueteMaestros(Marcas: [d]),
+        UnidadMedidaCarga d => new PaqueteMaestros(UnidadesMedida: [d]),
+        ImpuestoCarga d => new PaqueteMaestros(Impuestos: [d]),
+        ArticuloCarga d => new PaqueteMaestros(Articulos: [d]),
+        ClienteCarga d => new PaqueteMaestros(Clientes: [d]),
+        FormaPagoCarga d => new PaqueteMaestros(FormasPago: [d]),
+        BancoCarga d => new PaqueteMaestros(Bancos: [d]),
+        TipoTarjetaCarga d => new PaqueteMaestros(TiposTarjeta: [d]),
+        DenominacionCarga d => new PaqueteMaestros(Denominaciones: [d]),
+        PromocionCarga d => new PaqueteMaestros(Promociones: [d]),
+        MotivoDescuentoCarga d => new PaqueteMaestros(MotivosDescuento: [d]),
+        TopeDescuentoCarga d => new PaqueteMaestros(TopesDescuento: [d]),
+        TasaCambioCarga d => new PaqueteMaestros(TasasCambio: [d]),
+        SecuenciaEcfCarga d => new PaqueteMaestros(SecuenciasEcf: [d]),
+        MotivoDevolucionCarga d => new PaqueteMaestros(MotivosDevolucion: [d]),
+        NivelFidelidadCarga d => new PaqueteMaestros(NivelesFidelidad: [d]),
+        ReglaAcumulacionCarga d => new PaqueteMaestros(ReglasAcumulacion: [d]),
+        MiembroFidelidadCarga d => new PaqueteMaestros(MiembrosFidelidad: [d]),
+        AlmacenCarga d => new PaqueteMaestros(Almacenes: [d]),
+        DescuentoTarjetaCarga d => new PaqueteMaestros(DescuentosTarjeta: [d]),
+        _ => throw new InvalidOperationException($"{typeof(T).Name} no se publica con el paquete de maestros."),
+    };
 }

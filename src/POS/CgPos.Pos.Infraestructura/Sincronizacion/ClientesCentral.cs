@@ -53,8 +53,9 @@ internal static class FabricaClienteCentral
         if (!Uri.TryCreate(configuracion[ClavesSincronizacion.UrlCentral], UriKind.Absolute, out var url))
             return new CentralNoConfigurado();
 
-        var cajaId = Guid.TryParse(configuracion[ClavesSincronizacion.CajaId], out var id) ? id : Guid.Empty;
-        return new ClienteCentralHttp(url, OpcionesSincronizacion.Leer(configuracion).TiempoEspera, cajaId, configuracion[ClavesSincronizacion.SecretoCaja]);
+        var sucursal = int.TryParse(configuracion[ClavesSincronizacion.CajaSucursal], out var s) ? s : 0;
+        var caja = int.TryParse(configuracion[ClavesSincronizacion.CajaCodigo], out var c) ? c : 0;
+        return new ClienteCentralHttp(url, OpcionesSincronizacion.Leer(configuracion).TiempoEspera, sucursal, caja, configuracion[ClavesSincronizacion.SecretoCaja]);
     }
 }
 
@@ -161,22 +162,24 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     private static readonly TimeSpan MargenRenovacion = TimeSpan.FromMinutes(1);
 
     private readonly HttpClient _http;
-    private readonly Guid _cajaId;
+    private readonly int _sucursalCodigo;
+    private readonly int _cajaCodigo;
     private readonly string? _secreto;
     private readonly TimeProvider _reloj;
     private readonly SemaphoreSlim _bloqueoToken = new(1, 1);
     private string? _token;
     private DateTimeOffset _tokenVence;
 
-    public ClienteCentralHttp(Uri url, TimeSpan tiempoEspera, Guid cajaId, string? secreto)
-        : this(new HttpClient(Manejador, disposeHandler: false) { BaseAddress = url, Timeout = tiempoEspera }, cajaId, secreto, TimeProvider.System)
+    public ClienteCentralHttp(Uri url, TimeSpan tiempoEspera, int sucursalCodigo, int cajaCodigo, string? secreto)
+        : this(new HttpClient(Manejador, disposeHandler: false) { BaseAddress = url, Timeout = tiempoEspera }, sucursalCodigo, cajaCodigo, secreto, TimeProvider.System)
     {
     }
 
-    internal ClienteCentralHttp(HttpClient http, Guid cajaId, string? secreto, TimeProvider reloj)
+    internal ClienteCentralHttp(HttpClient http, int sucursalCodigo, int cajaCodigo, string? secreto, TimeProvider reloj)
     {
         _http = http;
-        _cajaId = cajaId;
+        _sucursalCodigo = sucursalCodigo;
+        _cajaCodigo = cajaCodigo;
         _secreto = string.IsNullOrWhiteSpace(secreto) ? null : secreto.Trim();
         _reloj = reloj;
     }
@@ -356,8 +359,9 @@ internal sealed class ClienteCentralHttp : IClienteCentral
 
     private async Task<(HttpResponseMessage? Respuesta, ResultadoEnvioCentral? Fallo)> SolicitarAsync(Func<HttpRequestMessage> crearSolicitud, CancellationToken cancelacion)
     {
-        if (_cajaId == Guid.Empty || _secreto is null)
-            return (null, ResultadoEnvioCentral.SinConexion($"La caja no tiene credencial del Central ({ClavesSincronizacion.CajaId} y {ClavesSincronizacion.SecretoCaja})."));
+        if (_sucursalCodigo <= 0 || _cajaCodigo <= 0 || _secreto is null)
+            return (null, ResultadoEnvioCentral.SinConexion(
+                $"La caja no tiene credencial del Central ({ClavesSincronizacion.CajaSucursal}, {ClavesSincronizacion.CajaCodigo} y {ClavesSincronizacion.SecretoCaja})."));
 
         try
         {
@@ -398,7 +402,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
                 return (_token, null);
 
             _token = null;
-            using var respuesta = await _http.PostAsJsonAsync(RutaToken, new SolicitudTokenDispositivo(_cajaId, _secreto!), OpcionesJson.Predeterminadas, cancelacion);
+            using var respuesta = await _http.PostAsJsonAsync(RutaToken, new SolicitudTokenDispositivo(_sucursalCodigo, _cajaCodigo, _secreto!), OpcionesJson.Predeterminadas, cancelacion);
             if ((int)respuesta.StatusCode >= 500)
                 return (null, ResultadoEnvioCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al autenticar la caja."));
 

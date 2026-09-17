@@ -142,14 +142,14 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var http = central.CrearCliente();
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(http, CentralEnPruebas.CajaUno);
-        var caja = new ClienteCentralHttp(http, CentralEnPruebas.CajaUno, secreto, TimeProvider.System);
+        var caja = new ClienteCentralHttp(http, 1, 1, secreto, TimeProvider.System);
         var mensaje = MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf());
 
         var enviado = await caja.EnviarAsync(mensaje);
         Assert.True(enviado.Confirmado, enviado.Error);
         Assert.True((await caja.EnviarAsync(mensaje)).Confirmado);
 
-        var conOtroSecreto = await new ClienteCentralHttp(http, CentralEnPruebas.CajaUno, secreto + "x", TimeProvider.System).EnviarAsync(MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf()));
+        var conOtroSecreto = await new ClienteCentralHttp(http, 1, 1, secreto + "x", TimeProvider.System).EnviarAsync(MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf()));
         Assert.Equal((false, true), (conOtroSecreto.Confirmado, conOtroSecreto.CentralRespondio));
         Assert.Contains("no autenticó", conOtroSecreto.Error);
 
@@ -172,7 +172,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         var contenido = JsonSerializer.Serialize(new { venta = new { numeroTransaccion = "01-01-00000001", total = 850.00m }, cajaId, ecf }, OpcionesJson.Predeterminadas);
 
         return new MensajeSincronizacion(id ?? Guid.CreateVersion7(), TiposMensaje.VentaCobrada, agregadoId ?? Guid.CreateVersion7(), contenido,
-            HashSincronizacion.Calcular(contenido), cajaId, DateTimeOffset.UtcNow);
+            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja, DateTimeOffset.UtcNow);
     }
 
     private static async Task<(HttpStatusCode Estado, RespuestaRecepcionCentral? Cuerpo)> EnviarAsync(HttpClient cliente, string? token, MensajeSincronizacion mensaje)

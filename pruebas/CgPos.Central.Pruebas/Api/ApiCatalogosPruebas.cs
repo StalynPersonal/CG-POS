@@ -23,39 +23,46 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
         var sufijo = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
 
-        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"F{sufijo}", "Departamento de prueba", PermiteDescuentoManual: false);
-        var guardada = await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{departamento.Id}", departamento);
-        Assert.True(guardada.Cuerpo!.Exitosa, guardada.Cuerpo.Mensaje);
-        Assert.Equal(departamento.Id, guardada.Cuerpo.Id);
+        // El Central sugiere el siguiente código numérico libre.
+        var sugerido = await LeerAsync<int>(cliente, admin, "/api/maestros/departamentos/siguiente-codigo");
+        Assert.True(sugerido > 0);
 
-        var listado = Assert.Single(await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/maestros/departamentos"), f => f.Dato.Id == departamento.Id);
+        var departamento = new DepartamentoCarga(Codigos.Siguiente(), "Departamento de prueba", PermiteDescuentoManual: false);
+        var guardada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/departamentos", departamento);
+        Assert.True(guardada.Cuerpo!.Exitosa, guardada.Cuerpo.Mensaje);
+
+        var listado = Assert.Single(await ListarAsync<DatosMaestroCentral<DepartamentoCarga>>(cliente, admin, "/api/maestros/departamentos"), f => f.Dato.Codigo == departamento.Codigo);
         Assert.Equal(departamento, listado.Dato);
         Assert.False(string.IsNullOrWhiteSpace(listado.ModificadoPor));
 
-        // Las reglas del dominio y el Id de la ruta se validan antes de publicar.
-        var sinNombre = await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{departamento.Id}", departamento with { Nombre = " " });
+        // Crear con un código que ya existe no pisa el registro; cambiar uno que no existe tampoco lo crea.
+        Assert.Contains("Ya existe", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/departamentos", departamento)).Cuerpo!.Mensaje);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/departamentos", departamento with { Codigo = Codigos.Siguiente() })).Estado);
+
+        // Las reglas del dominio se validan antes de publicar.
+        var sinNombre = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/departamentos", departamento with { Nombre = " " });
         Assert.Equal(HttpStatusCode.BadRequest, sinNombre.Estado);
-        Assert.Contains($"Departamento 'F{sufijo}'", sinNombre.Cuerpo!.Mensaje);
-        Assert.Equal(HttpStatusCode.BadRequest, (await EnviarAsync(cliente, admin, $"/api/maestros/departamentos/{Guid.CreateVersion7()}", departamento)).Estado);
+        Assert.Contains($"Departamento {departamento.Codigo}", sinNombre.Cuerpo!.Mensaje);
 
-        // Moneda: el código no cambia. Forma de pago: el tipo no cambia y su moneda debe estar publicada.
+        // Forma de pago: el tipo no cambia y su moneda debe estar publicada.
         var codigoMoneda = $"X{(char)('A' + Random.Shared.Next(26))}{(char)('A' + Random.Shared.Next(26))}";
-        var moneda = new MonedaCarga(Guid.CreateVersion7(), codigoMoneda, "Moneda de prueba", "¤");
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/monedas/{moneda.Id}", moneda)).Cuerpo!.Exitosa);
-        Assert.Contains("No se puede cambiar el código de la moneda",
-            (await EnviarAsync(cliente, admin, $"/api/maestros/monedas/{moneda.Id}", moneda with { Codigo = "YYY" })).Cuerpo!.Mensaje);
+        var moneda = new MonedaCarga(codigoMoneda, "Moneda de prueba", "¤");
+        var monedaGuardada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/monedas", moneda);
+        if (!monedaGuardada.Cuerpo!.Exitosa)
+            Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/monedas", moneda)).Cuerpo!.Exitosa);
 
-        var forma = new FormaPagoCarga(Guid.CreateVersion7(), $"P{sufijo}", "Pago de prueba", TipoFormaPago.Transferencia, 90, codigoMoneda);
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/formas-pago/{forma.Id}", forma)).Cuerpo!.Exitosa);
+        var forma = new FormaPagoCarga($"P{sufijo}", "Pago de prueba", TipoFormaPago.Transferencia, 90, codigoMoneda);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/formas-pago", forma)).Cuerpo!.Exitosa);
         Assert.Contains("No se puede cambiar el tipo",
-            (await EnviarAsync(cliente, admin, $"/api/maestros/formas-pago/{forma.Id}", forma with { Tipo = TipoFormaPago.Cheque })).Cuerpo!.Mensaje);
-        var otraForma = forma with { Id = Guid.CreateVersion7(), Codigo = $"Q{sufijo}", Moneda = "ZZZ" };
-        Assert.Contains("no está publicada", (await EnviarAsync(cliente, admin, $"/api/maestros/formas-pago/{otraForma.Id}", otraForma)).Cuerpo!.Mensaje);
+            (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/formas-pago", forma with { Tipo = TipoFormaPago.Cheque })).Cuerpo!.Mensaje);
+        var otraForma = forma with { Codigo = $"Q{sufijo}", Moneda = "ZZZ" };
+        Assert.Contains("no está publicada", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/formas-pago", otraForma)).Cuerpo!.Mensaje);
 
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        Assert.Contains(bajada.Maestros!.Departamentos!, f => f.Id == departamento.Id && !f.PermiteDescuentoManual);
-        Assert.Contains(bajada.Maestros.FormasPago!, f => f.Id == forma.Id && f.Moneda == codigoMoneda);
-        Assert.DoesNotContain(bajada.Maestros.FormasPago!, f => f.Id == otraForma.Id);
+        Assert.Contains(bajada.Maestros!.Departamentos!, f => f.Codigo == departamento.Codigo && !f.PermiteDescuentoManual);
+        Assert.Contains(bajada.Maestros.FormasPago!, f => f.Codigo == forma.Codigo && f.Moneda == codigoMoneda);
+        Assert.DoesNotContain(bajada.Maestros.FormasPago!, f => f.Codigo == otraForma.Codigo);
     }
 
     [SkippableFact]
@@ -69,28 +76,27 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         var sufijo = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
         var ahora = DateTimeOffset.UtcNow;
 
-        var nivel = new NivelFidelidadCarga(Guid.CreateVersion7(), $"N{sufijo}", "Nivel oro", 2, 1.5m);
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/niveles-fidelidad/{nivel.Id}", nivel)).Cuerpo!.Exitosa);
+        var nivel = new NivelFidelidadCarga(Codigos.Siguiente(), "Nivel oro", 2, 1.5m);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/niveles-fidelidad", nivel)).Cuerpo!.Exitosa);
 
-        var regla = new ReglaAcumulacionCarga(Guid.CreateVersion7(), $"R{sufijo}", "Un punto por cada 100",
-            CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Monto, 100m, 1m);
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/reglas-acumulacion/{regla.Id}", regla)).Cuerpo!.Exitosa);
+        var regla = new ReglaAcumulacionCarga(Codigos.Siguiente(), "Un punto por cada 100", CgPos.Dominio.Fidelidad.TipoReglaAcumulacion.Monto, 100m, 1m);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/reglas-acumulacion", regla)).Cuerpo!.Exitosa);
 
-        var descuento = new DescuentoTarjetaCarga(Guid.CreateVersion7(), $"T{sufijo}", "10 % con tarjetas del banco", "455123,401288",
+        var descuento = new DescuentoTarjetaCarga($"T{sufijo}", "10 % con tarjetas del banco", "455123,401288",
             CgPos.Dominio.Promociones.TipoDescuentoTarjeta.Porcentaje, 10m, ahora.AddDays(-1), ahora.AddMonths(1), MontoMinimo: 500m, MontoMaximo: 2000m);
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/descuentos-tarjeta/{descuento.Id}", descuento)).Cuerpo!.Exitosa);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/descuentos-tarjeta", descuento)).Cuerpo!.Exitosa);
 
         // Las reglas del dominio se validan antes de publicar: un BIN muy corto no pasa.
-        var invalido = await EnviarAsync(cliente, admin, $"/api/maestros/descuentos-tarjeta/{descuento.Id}", descuento with { Bines = "40" });
+        var invalido = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/descuentos-tarjeta", descuento with { Bines = "40" });
         Assert.Equal(HttpStatusCode.BadRequest, invalido.Estado);
 
         Assert.Single(await ListarAsync<DatosMaestroCentral<DescuentoTarjetaCarga>>(cliente, admin, "/api/maestros/descuentos-tarjeta"),
-            d => d.Dato.Id == descuento.Id);
+            d => d.Dato.Codigo == descuento.Codigo);
 
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        Assert.Contains(bajada.Maestros!.NivelesFidelidad!, n => n.Id == nivel.Id && n.FactorAcumulacion == 1.5m);
-        Assert.Contains(bajada.Maestros.ReglasAcumulacion!, r => r.Id == regla.Id && r.Puntos == 1m);
-        Assert.Contains(bajada.Maestros.DescuentosTarjeta!, d => d.Id == descuento.Id && d.Bines == "455123,401288");
+        Assert.Contains(bajada.Maestros!.NivelesFidelidad!, n => n.Codigo == nivel.Codigo && n.FactorAcumulacion == 1.5m);
+        Assert.Contains(bajada.Maestros.ReglasAcumulacion!, r => r.Codigo == regla.Codigo && r.Puntos == 1m);
+        Assert.Contains(bajada.Maestros.DescuentosTarjeta!, d => d.Codigo == descuento.Codigo && d.Bines == "455123,401288");
     }
 
     [SkippableFact]
@@ -114,19 +120,21 @@ public class ApiCatalogosPruebas(CentralEnPruebas central)
         return (await respuesta.Content.ReadFromJsonAsync<PaqueteBajadaMaestros>(OpcionesJson.Predeterminadas))!;
     }
 
-    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> EnviarAsync(HttpClient cliente, string token, string ruta, object cuerpo)
+    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> EnviarAsync(HttpClient cliente, string token, HttpMethod metodo, string ruta, object cuerpo)
     {
-        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Put, ruta, token, cuerpo));
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(metodo, ruta, token, cuerpo));
         var datos = respuesta.Content.Headers.ContentType?.MediaType == "application/json"
             ? await respuesta.Content.ReadFromJsonAsync<RespuestaAdministracion>(OpcionesJson.Predeterminadas)
             : null;
         return (respuesta.StatusCode, datos);
     }
 
-    private static async Task<List<T>> ListarAsync<T>(HttpClient cliente, string token, string ruta)
+    private static Task<List<T>> ListarAsync<T>(HttpClient cliente, string token, string ruta) => LeerAsync<List<T>>(cliente, token, ruta);
+
+    private static async Task<T> LeerAsync<T>(HttpClient cliente, string token, string ruta)
     {
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, ruta, token));
         respuesta.EnsureSuccessStatusCode();
-        return (await respuesta.Content.ReadFromJsonAsync<List<T>>(OpcionesJson.Predeterminadas))!;
+        return (await respuesta.Content.ReadFromJsonAsync<T>(OpcionesJson.Predeterminadas))!;
     }
 }

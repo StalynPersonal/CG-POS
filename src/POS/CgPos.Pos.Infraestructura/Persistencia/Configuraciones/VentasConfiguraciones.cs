@@ -108,7 +108,7 @@ internal sealed class LineaVentaConfiguracion : IEntityTypeConfiguration<LineaVe
         constructor.Property(l => l.CodigoInterno).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.CodigoLeido).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
-        constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoCodigo).IsRequired();
+        constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoAbreviatura).IsRequired();
         constructor.Property(l => l.PorcentajeImpuesto).HasPrecision(5, 2);
         constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);
         constructor.Property(l => l.PromocionCodigo).HasMaxLength(Promocion.LargoMaximoCodigo);

@@ -32,17 +32,20 @@ public sealed record DatosSesionCentral(
     bool DebeCambiarContrasena,
     Guid SesionId);
 
-/// <summary>La caja cambia su credencial por un token de dispositivo de pocos minutos.</summary>
-public sealed record SolicitudTokenDispositivo(Guid CajaId, string Secreto);
+/// <summary>La caja cambia su credencial (el código de su sucursal, el suyo y el secreto) por un token de dispositivo de pocos minutos.</summary>
+public sealed record SolicitudTokenDispositivo(int SucursalCodigo, int CajaCodigo, string Secreto);
 
 public sealed record RespuestaTokenDispositivo(bool Exitoso, string? Mensaje = null, string? Token = null, DateTimeOffset? ExpiraEn = null);
 
-/// <summary>Credencial recién emitida. El secreto solo se entrega en esta respuesta: el Central guarda su hash.</summary>
-public sealed record DatosCredencialDispositivo(Guid CajaId, string CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
+/// <summary>
+/// Credencial recién emitida. El secreto solo se entrega en esta respuesta: el Central guarda su hash. En la caja se configuran
+/// <c>Caja:Sucursal</c>, <c>Caja:Codigo</c> y <c>Central:Secreto</c>.
+/// </summary>
+public sealed record DatosCredencialDispositivo(Guid CajaId, int SucursalCodigo, int CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
 
 public sealed record SolicitudRevocacionCredencial(string Motivo);
 
-public sealed record DatosDispositivo(Guid CajaId, string CajaCodigo, string CajaNombre, Guid SucursalId, string SucursalCodigo);
+public sealed record DatosDispositivo(Guid CajaId, int CajaCodigo, string CajaNombre, Guid SucursalId, int SucursalCodigo);
 
 /// <summary>Nombres de los atributos de los tokens emitidos por el Central.</summary>
 public static class AtributosTokenCentral
@@ -82,14 +85,13 @@ public sealed record PaqueteCargaCentral(
     IReadOnlyList<UsuarioCentralCarga>? UsuariosCentral);
 
 /// <param name="Permisos">Códigos del catálogo del Central; <c>"*"</c> concede todos.</param>
-public sealed record RolCentralCarga(Guid Id, string Codigo, string Nombre, IReadOnlyList<string>? Permisos, bool Activo = true);
+public sealed record RolCentralCarga(string Codigo, string Nombre, IReadOnlyList<string>? Permisos, bool Activo = true);
 
 /// <param name="Contrasena">Contraseña inicial en texto (solo al crear el usuario); alternativa a <paramref name="ContrasenaHash"/>.</param>
 public sealed record UsuarioCentralCarga(
-    Guid Id,
     string Codigo,
     string Nombre,
-    Guid RolId,
+    string RolCodigo,
     string? Correo = null,
     string? Contrasena = null,
     string? ContrasenaHash = null,

@@ -33,7 +33,8 @@ public static class HashSincronizacion
 
 /// <summary>
 /// Mensaje de la bandeja de salida tal como viaja al Central. <paramref name="Id"/> es la clave de idempotencia (RN-25) y
-/// <paramref name="HashContenido"/> el SHA-256 del contenido, que el Central verifica antes de confirmar.
+/// <paramref name="HashContenido"/> el SHA-256 del contenido, que el Central verifica antes de confirmar. La caja se identifica por el código de su
+/// sucursal y el suyo, que deben ser los de la credencial con que se autenticó.
 /// </summary>
 public sealed record MensajeSincronizacion(
     Guid Id,
@@ -41,7 +42,8 @@ public sealed record MensajeSincronizacion(
     Guid AgregadoId,
     string Contenido,
     string HashContenido,
-    Guid CajaId,
+    int SucursalCodigo,
+    int CajaCodigo,
     DateTimeOffset CreadoEn);
 
 public enum EstadoRecepcion
@@ -68,7 +70,7 @@ public sealed record PaqueteBajadaMaestros(
     CargaInicial.PaqueteCargaInicial? Organizacion,
     Catalogo.PaqueteMaestros? Maestros,
     IReadOnlyList<EstadoDgiiCarga>? EstadosDgii = null,
-    IReadOnlyList<Guid>? ParametrosVigentes = null)
+    IReadOnlyList<CargaInicial.ParametroReferencia>? ParametrosVigentes = null)
 {
     public bool SinCambios => Organizacion is null && Maestros is null && EstadosDgii is not { Count: > 0 };
 }

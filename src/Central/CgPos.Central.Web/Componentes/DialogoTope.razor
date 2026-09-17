@@ -15,31 +15,31 @@
 
             @if (_alcance == PorDepartamento)
             {
-                <MudSelect T="Guid?" @bind-Value="_departamentoId" Label="Departamento" Placeholder="Seleccione el departamento" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Departamentos.FirstOrDefault(f => f.Id == id) is { } f ? $"{f.Codigo} · {f.Nombre}" : null)">
+                <MudSelect T="int?" @bind-Value="_departamento" Label="Departamento" Placeholder="Seleccione el departamento" Variant="Variant.Outlined"
+                           ToStringFunc="@(codigo => Departamentos.FirstOrDefault(f => f.Codigo == codigo) is { } f ? $"{f.Codigo} · {f.Nombre}" : null)">
                     @foreach (var departamento in Departamentos)
                     {
-                        <MudSelectItem T="Guid?" Value="@departamento.Id">@departamento.Codigo · @departamento.Nombre</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@departamento.Codigo">@departamento.Codigo · @departamento.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             }
             else if (_alcance == PorCategoria)
             {
-                <MudSelect T="Guid?" @bind-Value="_categoriaId" Label="Categoría" Placeholder="Seleccione la categoría" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Categorias.FirstOrDefault(c => c.Id == id) is { } c ? $"{c.Codigo} · {c.Nombre}" : null)">
+                <MudSelect T="int?" @bind-Value="_categoria" Label="Categoría" Placeholder="Seleccione la categoría" Variant="Variant.Outlined"
+                           ToStringFunc="@(codigo => Categorias.FirstOrDefault(c => c.Codigo == codigo) is { } c ? $"{c.Codigo} · {c.Nombre}" : null)">
                     @foreach (var categoria in Categorias)
                     {
-                        <MudSelectItem T="Guid?" Value="@categoria.Id">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@categoria.Codigo">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             }
             else if (_alcance == PorMarca)
             {
-                <MudSelect T="Guid?" @bind-Value="_marcaId" Label="Marca" Placeholder="Seleccione la marca" Variant="Variant.Outlined"
-                           ToStringFunc="@(id => Marcas.FirstOrDefault(m => m.Id == id) is { } m ? $"{m.Codigo} · {m.Nombre}" : null)">
+                <MudSelect T="int?" @bind-Value="_marca" Label="Marca" Placeholder="Seleccione la marca" Variant="Variant.Outlined"
+                           ToStringFunc="@(codigo => Marcas.FirstOrDefault(m => m.Codigo == codigo) is { } m ? $"{m.Codigo} · {m.Nombre}" : null)">
                     @foreach (var marca in Marcas)
                     {
-                        <MudSelectItem T="Guid?" Value="@marca.Id">@marca.Codigo · @marca.Nombre</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@marca.Codigo">@marca.Codigo · @marca.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             }
@@ -47,7 +47,7 @@
             {
                 <MudAutocomplete T="ArticuloCarga" @bind-Value="_articulo" SearchFunc="BuscarArticulosAsync" Label="Artículo" Variant="Variant.Outlined"
                                  ToStringFunc="@(a => a is null ? null : $"{a.Codigo} · {a.Descripcion}")" DebounceInterval="350" MinCharacters="2"
-                                 Placeholder="@(_articuloIdOriginal is not null ? Tope!.Alcance : "Busque por código o descripción")" ResetValueOnEmptyText="true" />
+                                 Placeholder="@(_articuloOriginal is not null ? Tope!.Alcance : "Busque por código o descripción")" ResetValueOnEmptyText="true" />
             }
 
             <MudNumericField T="int" @bind-Value="_nivel" Label="Nivel del autorizador" Variant="Variant.Outlined" Min="1" Max="9"
@@ -85,32 +85,37 @@
     [Parameter] public IReadOnlyList<MarcaCarga> Marcas { get; set; } = [];
 
     private string _alcance = General;
-    private Guid? _departamentoId;
-    private Guid? _categoriaId;
-    private Guid? _marcaId;
+    private int? _departamento;
+    private int? _categoria;
+    private int? _marca;
     private ArticuloCarga? _articulo;
-    private Guid? _articuloIdOriginal;
+    private string? _articuloOriginal;
+    private int? _codigo;
     private int _nivel = 1;
     private decimal? _porcentaje;
     private decimal? _monto;
     private string? _mensaje;
     private bool _procesando;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (Tope?.Tope is not { } tope)
+        {
+            // Un tope nuevo recibe el siguiente código; los topes se identifican por él en las cajas.
+            _codigo = await Cliente.SiguienteCodigoAsync("precios", "topes");
             return;
+        }
 
         _alcance = tope switch
         {
-            { ArticuloId: not null } => PorArticulo,
-            { CategoriaId: not null } => PorCategoria,
-            { MarcaId: not null } => PorMarca,
-            { DepartamentoId: not null } => PorDepartamento,
+            { ArticuloCodigo: not null } => PorArticulo,
+            { CategoriaCodigo: not null } => PorCategoria,
+            { MarcaCodigo: not null } => PorMarca,
+            { DepartamentoCodigo: not null } => PorDepartamento,
             _ => General,
         };
-        (_departamentoId, _articuloIdOriginal, _nivel, _porcentaje, _monto) = (tope.DepartamentoId, tope.ArticuloId, tope.Nivel, tope.PorcentajeMaximo, tope.MontoMaximo);
-        (_categoriaId, _marcaId) = (tope.CategoriaId, tope.MarcaId);
+        (_codigo, _departamento, _articuloOriginal, _nivel, _porcentaje, _monto) = (tope.Codigo, tope.DepartamentoCodigo, tope.ArticuloCodigo, tope.Nivel, tope.PorcentajeMaximo, tope.MontoMaximo);
+        (_categoria, _marca) = (tope.CategoriaCodigo, tope.MarcaCodigo);
     }
 
     private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
@@ -118,17 +123,18 @@
 
     private async Task GuardarAsync()
     {
-        Guid? departamentoId = _alcance == PorDepartamento ? _departamentoId : null;
-        Guid? categoriaId = _alcance == PorCategoria ? _categoriaId : null;
-        Guid? marcaId = _alcance == PorMarca ? _marcaId : null;
-        Guid? articuloId = _alcance == PorArticulo ? _articulo?.Id ?? _articuloIdOriginal : null;
+        int? departamento = _alcance == PorDepartamento ? _departamento : null;
+        int? categoria = _alcance == PorCategoria ? _categoria : null;
+        int? marca = _alcance == PorMarca ? _marca : null;
+        var articulo = _alcance == PorArticulo ? _articulo?.Codigo ?? _articuloOriginal : null;
 
-        _mensaje = (_alcance, departamentoId, articuloId) switch
+        _mensaje = (_alcance, departamento, articulo) switch
         {
+            _ when _codigo is null => "No se pudo obtener el código del tope; vuelva a abrir la ventana.",
             (PorDepartamento, null, _) => "Seleccione el departamento.",
             (PorArticulo, _, null) => "Busque y seleccione el artículo.",
-            (PorCategoria, _, _) when categoriaId is null => "Seleccione la categoría.",
-            (PorMarca, _, _) when marcaId is null => "Seleccione la marca.",
+            (PorCategoria, _, _) when categoria is null => "Seleccione la categoría.",
+            (PorMarca, _, _) when marca is null => "Seleccione la marca.",
             _ when _porcentaje is null && _monto is null => "Indique el porcentaje o el monto máximo.",
             _ => null,
         };
@@ -136,8 +142,8 @@
             return;
 
         _procesando = true;
-        var respuesta = await Cliente.GuardarTopeAsync(new TopeDescuentoCarga(Tope?.Tope.Id ?? Guid.CreateVersion7(), _nivel, _porcentaje, _monto, departamentoId, articuloId,
-            categoriaId, marcaId));
+        var respuesta = await Cliente.GuardarTopeAsync(new TopeDescuentoCarga(_codigo!.Value, _nivel, _porcentaje, _monto, departamento, articulo, categoria, marca),
+            nuevo: Tope is null);
         _procesando = false;
 
         if (respuesta.Exitosa)

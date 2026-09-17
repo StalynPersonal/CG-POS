@@ -140,7 +140,7 @@ internal sealed class ConsultaArticulos(
             datos.departamento.Id,
             datos.departamento.Nombre,
             datos.departamento.PermiteDescuentoManual,
-            datos.unidad.Codigo,
+            datos.unidad.Abreviatura,
             datos.unidad.PermiteDecimales,
             datos.unidad.Decimales,
             datos.impuesto.Id,
@@ -176,7 +176,7 @@ internal sealed class ConsultaArticulos(
         var unidadesIds = articulos.Select(a => a.UnidadMedidaId).Distinct().ToList();
 
         var departamentos = await contexto.Departamentos.Where(f => departamentosIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Nombre, cancelacion);
-        var unidades = await contexto.UnidadesMedida.Where(u => unidadesIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Codigo, cancelacion);
+        var unidades = await contexto.UnidadesMedida.Where(u => unidadesIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Abreviatura, cancelacion);
         var precios = await PreciosVigentesAsync(ids, cancelacion);
 
         return articulos

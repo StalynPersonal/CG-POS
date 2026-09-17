@@ -80,8 +80,7 @@ internal sealed class MotivoDescuentoConfiguracion : IEntityTypeConfiguration<Mo
         constructor.ToTable("MotivosDescuento");
         constructor.HasKey(m => m.Id);
         constructor.Property(m => m.Id).ValueGeneratedNever();
-        constructor.Property(m => m.Codigo).HasMaxLength(MotivoDescuento.LargoMaximoCodigo).IsRequired();
-        constructor.Property(m => m.Nombre).HasMaxLength(MotivoDescuento.LargoMaximoNombre).IsRequired();
+                constructor.Property(m => m.Nombre).HasMaxLength(MotivoDescuento.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(m => m.Codigo).IsUnique();
     }
 }
@@ -96,6 +95,7 @@ internal sealed class TopeDescuentoConfiguracion : IEntityTypeConfiguration<Tope
         constructor.Property(t => t.PorcentajeMaximo).HasPrecision(5, 2);
         constructor.Property(t => t.MontoMaximo).HasPrecision(18, 2);
         constructor.Ignore(t => t.EsGeneral);
+        constructor.HasIndex(t => t.Codigo).IsUnique();
         constructor.HasIndex(t => new { t.Nivel, t.DepartamentoId, t.ArticuloId });
     }
 }

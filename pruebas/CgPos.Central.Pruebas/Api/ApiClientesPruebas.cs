@@ -27,33 +27,33 @@ public class ApiClientesPruebas(CentralEnPruebas central)
         var documento = $"{digitos[..3]}-{digitos[3..10]}-{digitos[10..]}";
         var sufijo = digitos[^5..];
 
-        var principal = new DireccionClienteCarga(Guid.CreateVersion7(), "Casa", "Calle Primera 1", Ciudad: "Santo Domingo");
-        var oficina = new DireccionClienteCarga(Guid.CreateVersion7(), "Oficina", "Av. Churchill 100", EsPrincipal: true);
-        var datos = new ClienteCarga(Guid.CreateVersion7(), TipoDocumentoIdentidad.Cedula, documento, $"José Núñez {sufijo}", TipoComprobante.FacturaCreditoFiscal,
+        var principal = new DireccionClienteCarga("Casa", "Calle Primera 1", Ciudad: "Santo Domingo");
+        var oficina = new DireccionClienteCarga("Oficina", "Av. Churchill 100", EsPrincipal: true);
+        var datos = new ClienteCarga($"CL{digitos}", TipoDocumentoIdentidad.Cedula, documento, $"José Núñez {sufijo}", TipoComprobante.FacturaCreditoFiscal,
             ListaPrecio: ListaPrecio.Mayor, Telefono: "809-555-0101", Direcciones: [principal, oficina]);
-        var creado = await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{datos.Id}", datos);
+        var creado = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/clientes", datos);
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
 
-        var porNombre = await ObtenerAsync<PaginaMaestros<ClienteCarga>>(cliente, admin, $"/api/maestros/clientes?buscar={Uri.EscapeDataString($"jose nunez {sufijo}")}");
-        Assert.Equal(datos.Id, Assert.Single(porNombre.Elementos).Dato.Id);
+        var porNombre = await ObtenerAsync<PaginaMaestros<ClienteCarga>>(cliente, admin, $"/api/maestros/clientes?buscar={Uri.EscapeDataString($"núñez {sufijo}")}");
+        Assert.Equal(datos.Codigo, Assert.Single(porNombre.Elementos).Dato.Codigo);
 
         // Mismo documento sin guiones en otro cliente, cambiar el documento o un documento sin formato: se rechazan antes de publicar.
-        var duplicado = datos with { Id = Guid.CreateVersion7(), Documento = digitos, Direcciones = [] };
-        Assert.Contains("ya existe", (await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{duplicado.Id}", duplicado)).Cuerpo!.Mensaje);
+        var duplicado = datos with { Codigo = $"CX{digitos}", Documento = digitos, Direcciones = [] };
+        Assert.Contains("ya existe", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/clientes", duplicado)).Cuerpo!.Mensaje);
         Assert.Contains("se cambia con «Corregir documento»",
-            (await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{datos.Id}", datos with { Documento = $"5{digitos[1..]}" })).Cuerpo!.Mensaje);
-        var sinFormato = datos with { Id = Guid.CreateVersion7(), Documento = "123" };
-        var rechazado = await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{sinFormato.Id}", sinFormato);
+            (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/clientes", datos with { Documento = $"5{digitos[1..]}" })).Cuerpo!.Mensaje);
+        var sinFormato = datos with { Codigo = $"CY{digitos}", Documento = "123" };
+        var rechazado = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/clientes", sinFormato);
         Assert.Equal(HttpStatusCode.BadRequest, rechazado.Estado);
         Assert.Contains("no tiene formato de cédula", rechazado.Cuerpo!.Mensaje);
         Assert.DoesNotContain("(Parameter", rechazado.Cuerpo.Mensaje);
 
         // El mismo documento con guiones o sin ellos es el mismo cliente; quitar una dirección también baja.
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{datos.Id}", datos with { Documento = digitos, Direcciones = [oficina] })).Cuerpo!.Exitosa);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/clientes", datos with { Documento = digitos, Direcciones = [oficina] })).Cuerpo!.Exitosa);
 
-        var bajado = Assert.Single((await BajarAsync(cliente, tokenCaja, marca)).Maestros!.Clientes!, c => c.Id == datos.Id);
+        var bajado = Assert.Single((await BajarAsync(cliente, tokenCaja, marca)).Maestros!.Clientes!, c => c.Codigo == datos.Codigo);
         Assert.Equal((ListaPrecio.Mayor, TipoComprobante.FacturaCreditoFiscal), (bajado.ListaPrecio, bajado.TipoComprobante));
-        Assert.Equal(oficina.Id, Assert.Single(bajado.Direcciones!).Id);
+        Assert.Equal(oficina.Alias, Assert.Single(bajado.Direcciones!).Alias);
     }
 
     [SkippableFact]
@@ -66,28 +66,28 @@ public class ApiClientesPruebas(CentralEnPruebas central)
         var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
 
         var original = CedulaValida();
-        var datos = new ClienteCarga(Guid.CreateVersion7(), TipoDocumentoIdentidad.Cedula, original, $"Cliente corrección {original[^4..]}");
-        var otro = new ClienteCarga(Guid.CreateVersion7(), TipoDocumentoIdentidad.Cedula, CedulaValida(), $"Otro cliente {original[^4..]}");
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{datos.Id}", datos)).Cuerpo!.Exitosa);
-        Assert.True((await EnviarAsync(cliente, admin, $"/api/maestros/clientes/{otro.Id}", otro)).Cuerpo!.Exitosa);
+        var datos = new ClienteCarga($"CC{original}", TipoDocumentoIdentidad.Cedula, original, $"Cliente corrección {original[^4..]}");
+        var otro = new ClienteCarga($"CO{original}", TipoDocumentoIdentidad.Cedula, CedulaValida(), $"Otro cliente {original[^4..]}");
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/clientes", datos)).Cuerpo!.Exitosa);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/clientes", otro)).Cuerpo!.Exitosa);
 
-        var ruta = $"/api/maestros/clientes/{datos.Id}/documento";
+        var ruta = $"/api/maestros/clientes/{datos.Codigo}/documento";
         var correcta = CedulaValida();
         Assert.Equal("Indique el motivo de la corrección.",
             (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, correcta, " "))).Cuerpo!.Mensaje);
         Assert.Contains("no es una cédula válida",
             (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, CedulaInvalida(), "Mal digitado"))).Cuerpo!.Mensaje);
-        Assert.Contains("ya existe",
+        Assert.Contains("ya tiene ese documento",
             (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, otro.Documento, "Mal digitado"))).Cuerpo!.Mensaje);
 
         var corregido = await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, correcta, "Se digitó mal la cédula"));
         Assert.True(corregido.Cuerpo!.Exitosa, corregido.Cuerpo.Mensaje);
 
-        // Es el mismo cliente (mismo Id) con el documento nuevo; la corrección queda auditada con el anterior y el motivo.
-        var bajado = Assert.Single((await BajarAsync(cliente, tokenCaja, marca)).Maestros!.Clientes!, c => c.Id == datos.Id);
+        // Es el mismo cliente (mismo código) con el documento nuevo; la corrección queda auditada con el anterior y el motivo.
+        var bajado = Assert.Single((await BajarAsync(cliente, tokenCaja, marca)).Maestros!.Clientes!, c => c.Codigo == datos.Codigo);
         Assert.Equal(correcta, bajado.Documento);
         var auditado = await central.UsarContextoAsync(contexto => contexto.Auditoria.AsNoTracking()
-            .SingleAsync(a => a.Accion == "Maestros.ClienteDocumentoCorregido" && a.EntidadId == datos.Id.ToString()));
+            .SingleAsync(a => a.Accion == "Maestros.ClienteDocumentoCorregido" && a.EntidadId == datos.Codigo));
         Assert.Equal("Se digitó mal la cédula", auditado.Motivo);
         Assert.Contains(original, auditado.Detalle);
 
@@ -136,9 +136,9 @@ public class ApiClientesPruebas(CentralEnPruebas central)
         return (await respuesta.Content.ReadFromJsonAsync<T>(OpcionesJson.Predeterminadas))!;
     }
 
-    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> EnviarAsync(HttpClient cliente, string token, string ruta, object cuerpo)
+    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> EnviarAsync(HttpClient cliente, string token, HttpMethod metodo, string ruta, object cuerpo)
     {
-        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Put, ruta, token, cuerpo));
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(metodo, ruta, token, cuerpo));
         var datos = respuesta.Content.Headers.ContentType?.MediaType == "application/json"
             ? await respuesta.Content.ReadFromJsonAsync<RespuestaAdministracion>(OpcionesJson.Predeterminadas)
             : null;

@@ -132,7 +132,7 @@
 
     /// <summary>Con una sucursal elegida, el filtro de caja solo ofrece sus cajas.</summary>
     private IEnumerable<DatosEstadoCaja> CajasDeLaSucursal =>
-        _sucursales.FirstOrDefault(s => s.Id == _sucursalId) is { } sucursal ? _cajas.Where(c => c.SucursalCodigo == sucursal.Codigo) : _cajas;
+        _sucursales.FirstOrDefault(s => s.Id == _sucursalId) is { } sucursal ? _cajas.Where(c => c.SucursalCodigo == sucursal.Codigo.ToString("00")) : _cajas;
 
     private Task CambiarSucursalAsync(Guid? sucursalId) => FiltrarAsync(() =>
     {

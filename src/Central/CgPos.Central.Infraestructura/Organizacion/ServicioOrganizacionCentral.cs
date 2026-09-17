@@ -55,9 +55,9 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (empresaId is null)
             return ResultadoAdministracion.Error("Configure la empresa antes de crear sucursales.");
 
-        var codigo = solicitud.Codigo?.Trim() ?? string.Empty;
-        if (codigo.Length > 0 && await contexto.Sucursales.AnyAsync(s => s.Codigo == codigo, cancelacion))
-            return ResultadoAdministracion.Error($"Ya existe la sucursal con código '{codigo}'.");
+        var codigo = solicitud.Codigo;
+        if (codigo > 0 && await contexto.Sucursales.AnyAsync(s => s.Codigo == codigo, cancelacion))
+            return ResultadoAdministracion.Error($"Ya existe la sucursal con código {codigo:00}.");
         if (DatosObligatoriosOrganizacion.Sucursal(codigo, solicitud.Nombre, solicitud.Direccion, solicitud.Telefono) is { } faltanSucursal)
             return ResultadoAdministracion.Error(faltanSucursal);
 
@@ -80,7 +80,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Id == sucursalId, cancelacion);
         if (sucursal is null)
             return ResultadoAdministracion.Inexistente("La sucursal no existe.");
-        if (!string.Equals(sucursal.Codigo, solicitud.Codigo?.Trim(), StringComparison.OrdinalIgnoreCase))
+        if (sucursal.Codigo != solicitud.Codigo)
             return ResultadoAdministracion.Error("El código de la sucursal no se puede cambiar.");
         if (DatosObligatoriosOrganizacion.Sucursal(sucursal.Codigo, solicitud.Nombre, solicitud.Direccion, solicitud.Telefono) is { } faltanSucursal)
             return ResultadoAdministracion.Error(faltanSucursal);
@@ -134,9 +134,9 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (!await contexto.Sucursales.AnyAsync(s => s.Id == solicitud.SucursalId, cancelacion))
             return ResultadoAdministracion.Error("Seleccione una sucursal existente.");
 
-        var codigo = solicitud.Codigo?.Trim() ?? string.Empty;
-        if (codigo.Length > 0 && await contexto.Cajas.AnyAsync(c => c.SucursalId == solicitud.SucursalId && c.Codigo == codigo, cancelacion))
-            return ResultadoAdministracion.Error($"La sucursal ya tiene la caja '{codigo}'.");
+        var codigo = solicitud.Codigo;
+        if (codigo > 0 && await contexto.Cajas.AnyAsync(c => c.SucursalId == solicitud.SucursalId && c.Codigo == codigo, cancelacion))
+            return ResultadoAdministracion.Error($"La sucursal ya tiene la caja {codigo:00}.");
 
         Caja caja;
         try
@@ -189,8 +189,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         string Ambito(Parametro parametro) => parametro switch
         {
             { CajaId: { } cajaId } when cajas.TryGetValue(cajaId, out var caja) =>
-                $"Caja {caja.Codigo} · Sucursal {sucursales.GetValueOrDefault(caja.SucursalId)?.Codigo}",
-            { SucursalId: { } sucursalId } when sucursales.TryGetValue(sucursalId, out var sucursal) => $"Sucursal {sucursal.Codigo} · {sucursal.Nombre}",
+                $"Caja {caja.Codigo:00} · Sucursal {sucursales.GetValueOrDefault(caja.SucursalId)?.Codigo:00}",
+            { SucursalId: { } sucursalId } when sucursales.TryGetValue(sucursalId, out var sucursal) => $"Sucursal {sucursal.Codigo:00} · {sucursal.Nombre}",
             _ => "General",
         };
 
@@ -259,7 +259,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (definicion.Clave == CatalogoParametros.MonedaLocal && valor.Length > 0)
         {
             var codigo = valor.ToUpperInvariant();
-            if (!await contexto.MaestrosCentral.AnyAsync(m => m.Tipo == TipoMaestro.Moneda && m.Codigo == codigo, cancelacion))
+            if (!await contexto.Monedas.AnyAsync(m => m.Codigo == codigo, cancelacion))
                 return $"La moneda «{codigo}» no está publicada en el maestro de monedas.";
         }
 

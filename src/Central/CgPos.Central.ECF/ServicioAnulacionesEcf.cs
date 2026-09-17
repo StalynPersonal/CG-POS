@@ -26,11 +26,11 @@ internal sealed class ServicioAnulacionesEcf(
 {
     public async Task<IReadOnlyList<DatosAnulacionEcf>> ListarAsync(CancellationToken cancelacion = default)
     {
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion);
         var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, cancelacion);
 
         return (await contexto.AnulacionesEcf.AsNoTracking().OrderByDescending(a => a.SolicitadaEn).ToListAsync(cancelacion))
-            .Select(a => new DatosAnulacionEcf(a.Id, a.SecuenciaId, cajas.GetValueOrDefault(a.CajaId)?.Codigo ?? string.Empty,
+            .Select(a => new DatosAnulacionEcf(a.Id, a.SecuenciaId, cajas.GetValueOrDefault(a.CajaId)?.Codigo.ToString("00") ?? string.Empty,
                 cajas.TryGetValue(a.CajaId, out var caja) ? sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty : string.Empty,
                 a.TipoComprobante, a.Desde, a.Hasta, a.Cantidad, a.Motivo, a.UsuarioNombre, a.SolicitadaEn, a.Estado, a.RespuestaDgii))
             .ToList();
@@ -42,8 +42,8 @@ internal sealed class ServicioAnulacionesEcf(
         ArgumentNullException.ThrowIfNull(solicitud);
         ArgumentNullException.ThrowIfNull(actor);
 
-        var fila = await contexto.MaestrosCentral.AsNoTracking().SingleOrDefaultAsync(m => m.Tipo == TipoMaestro.SecuenciaEcf && m.Id == secuenciaId, cancelacion);
-        if (fila is null || JsonSerializer.Deserialize<SecuenciaEcfCarga>(fila.Contenido, OpcionesJson.Predeterminadas) is not { } secuencia)
+        var secuencia = await contexto.SecuenciasEcf.AsNoTracking().SingleOrDefaultAsync(s => s.Id == secuenciaId, cancelacion);
+        if (secuencia is null)
             return ResultadoAdministracion.Inexistente("El rango de e-CF no existe.");
 
         if (await ValidarAsync(secuencia, solicitud, cancelacion) is { } problema)
@@ -85,7 +85,7 @@ internal sealed class ServicioAnulacionesEcf(
         };
     }
 
-    private async Task<string?> ValidarAsync(SecuenciaEcfCarga secuencia, SolicitudAnulacionEcf solicitud, CancellationToken cancelacion)
+    private async Task<string?> ValidarAsync(SecuenciaEcf secuencia, SolicitudAnulacionEcf solicitud, CancellationToken cancelacion)
     {
         if (string.IsNullOrWhiteSpace(solicitud.Motivo))
             return "Indique el motivo de la anulación.";

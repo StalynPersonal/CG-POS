@@ -10,7 +10,7 @@ public interface IServicioPromocionesCentral
     Task<IReadOnlyList<DatosPromocionCentral>> ListarAsync(CancellationToken cancelacion = default);
 
     /// <summary>
-    /// Columnas obligatorias: codigo, nombre, tipo, desde, hasta. Opcionales: valor, articulos, departamentos y sucursales (códigos separados por |),
+    /// Columnas obligatorias: codigo, nombre, tipo, desde, hasta. Opcionales: valor, articulos, departamentos, categorias, marcas y sucursales (códigos separados por |),
     /// lleva, paga, cantidad_minima, limite_cliente, dias (todos o lun|mar…), hora_desde, hora_hasta, solo_fidelidad, activa.
     /// Un código ya publicado actualiza esa promoción. Con cualquier error no se publica nada.
     /// </summary>
@@ -20,5 +20,5 @@ public interface IServicioPromocionesCentral
     Task<ResultadoSimulacionPromociones?> SimularAsync(SolicitudSimulacionPromociones solicitud, CancellationToken cancelacion = default);
 
     /// <summary>Artículos de una promoción, para mostrarlos al editarla.</summary>
-    Task<IReadOnlyList<ArticuloCarga>> ArticulosPorIdAsync(IReadOnlyList<Guid> ids, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<ArticuloCarga>> ArticulosPorCodigoAsync(IReadOnlyList<string> codigos, CancellationToken cancelacion = default);
 }

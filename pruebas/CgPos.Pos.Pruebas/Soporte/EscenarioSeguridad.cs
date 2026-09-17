@@ -11,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CgPos.Pos.Pruebas.Soporte;
 
 /// <summary>
-/// Sucursal con dos cajas (la 02 deshabilitada), roles cajero/supervisor y usuarios para probar ingreso y autorización.
-/// Códigos e Ids únicos por escenario; la empresa la fija cada clase de pruebas (una caja admite una sola empresa).
+/// Sucursal con dos cajas (la segunda deshabilitada), roles cajero/supervisor y usuarios para probar ingreso y autorización.
+/// Códigos únicos por escenario (las pruebas de una clase comparten base); los Id son los que les da la caja al cargarlos.
 /// </summary>
 public sealed class EscenarioSeguridad
 {
@@ -30,16 +30,26 @@ public sealed class EscenarioSeguridad
 
     public string Sufijo { get; } = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
-    public Guid Sucursal { get; } = Guid.CreateVersion7();
-    public Guid CajaUno { get; } = Guid.CreateVersion7();
-    public Guid CajaDos { get; } = Guid.CreateVersion7();
-    public Guid RolCajero { get; } = Guid.CreateVersion7();
-    public Guid RolSupervisor { get; } = Guid.CreateVersion7();
-    public Guid Cajero { get; } = Guid.CreateVersion7();
-    public Guid CajeroDos { get; } = Guid.CreateVersion7();
-    public Guid Supervisor { get; } = Guid.CreateVersion7();
-    public Guid Inactivo { get; } = Guid.CreateVersion7();
-    public Guid SinCaja { get; } = Guid.CreateVersion7();
+    private static int _escenarios;
+    private readonly int _numero = Interlocked.Increment(ref _escenarios) - 1;
+
+    /// <summary>Sucursal y cajas con códigos que no se repiten entre escenarios (hasta 99 sucursales con 49 pares de cajas cada una).</summary>
+    public int CodigoSucursal => _numero % 99 + 1;
+    public int CodigoCajaUno => _numero / 99 * 2 + 1;
+    public int CodigoCajaDos => _numero / 99 * 2 + 2;
+    public string CodigoRolCajero => $"CAJ{Sufijo}";
+    public string CodigoRolSupervisor => $"SUP{Sufijo}";
+
+    public Guid Sucursal { get; private set; }
+    public Guid CajaUno { get; private set; }
+    public Guid CajaDos { get; private set; }
+    public Guid RolCajero { get; private set; }
+    public Guid RolSupervisor { get; private set; }
+    public Guid Cajero { get; private set; }
+    public Guid CajeroDos { get; private set; }
+    public Guid Supervisor { get; private set; }
+    public Guid Inactivo { get; private set; }
+    public Guid SinCaja { get; private set; }
 
     public string CodigoCajero => $"C{Sufijo}";
     public string CodigoCajeroDos => $"K{Sufijo}";
@@ -53,8 +63,25 @@ public sealed class EscenarioSeguridad
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         await ambito.ServiceProvider.GetRequiredService<ICargaInicial>().AplicarAsync(escenario.CrearPaquete(empresaId));
+        await escenario.ResolverIdsAsync(ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>());
 
         return escenario;
+    }
+
+    /// <summary>Los Id que la caja les dio a la sucursal, las cajas, los roles y los usuarios del escenario.</summary>
+    private async Task ResolverIdsAsync(ContextoDatosPos contexto)
+    {
+        Sucursal = await contexto.Sucursales.Where(s => s.Codigo == CodigoSucursal).Select(s => s.Id).SingleAsync();
+        CajaUno = await contexto.Cajas.Where(c => c.SucursalId == Sucursal && c.Codigo == CodigoCajaUno).Select(c => c.Id).SingleAsync();
+        CajaDos = await contexto.Cajas.Where(c => c.SucursalId == Sucursal && c.Codigo == CodigoCajaDos).Select(c => c.Id).SingleAsync();
+
+        var roles = await contexto.Roles.Where(r => r.Codigo == CodigoRolCajero || r.Codigo == CodigoRolSupervisor).ToDictionaryAsync(r => r.Codigo, r => r.Id);
+        (RolCajero, RolSupervisor) = (roles[CodigoRolCajero], roles[CodigoRolSupervisor]);
+
+        var codigos = new[] { CodigoCajero, CodigoCajeroDos, CodigoSupervisor, CodigoInactivo, CodigoSinCaja };
+        var usuarios = await contexto.Usuarios.Where(u => codigos.Contains(u.Codigo)).ToDictionaryAsync(u => u.Codigo, u => u.Id);
+        (Cajero, CajeroDos, Supervisor, Inactivo, SinCaja) =
+            (usuarios[CodigoCajero], usuarios[CodigoCajeroDos], usuarios[CodigoSupervisor], usuarios[CodigoInactivo], usuarios[CodigoSinCaja]);
     }
 
     /// <summary>Proveedor con reloj controlable y la caja indicada como caja actual.</summary>
@@ -64,7 +91,8 @@ public sealed class EscenarioSeguridad
         var proveedor = _baseDatos.CrearProveedor(servicios =>
         {
             servicios.AddSingleton<TimeProvider>(reloj);
-            servicios.AddSingleton<IContextoCaja>(new ContextoCajaFijo(cajaId));
+            var codigos = cajaId == CajaUno ? ((int?)CodigoSucursal, (int?)CodigoCajaUno) : cajaId == CajaDos ? (CodigoSucursal, CodigoCajaDos) : (null, null);
+            servicios.AddSingleton<IContextoCaja>(new ContextoCajaFijo(cajaId, codigos.Item1, codigos.Item2));
             extras?.Invoke(servicios);
         });
 
@@ -91,20 +119,24 @@ public sealed class EscenarioSeguridad
         return await contexto.Auditoria.CountAsync(registro => registro.Accion == accion && (registro.EntidadId == idTexto || registro.UsuarioId == usuarioId));
     }
 
+    private CajaReferencia Uno => new(CodigoSucursal, CodigoCajaUno);
+
+    private CajaReferencia Dos => new(CodigoSucursal, CodigoCajaDos);
+
     private PaqueteCargaInicial CrearPaquete(Guid empresaId) =>
         new(
-            new EmpresaCarga(empresaId, "999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
-            Sucursales: [new SucursalCarga(Sucursal, $"S{Sufijo}", "Sucursal de seguridad")],
+            new EmpresaCarga("999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
+            Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de seguridad")],
             Cajas:
             [
-                new CajaCarga(CajaUno, Sucursal, "01", "Caja 01"),
-                new CajaCarga(CajaDos, Sucursal, "02", "Caja 02", Habilitada: false),
+                new CajaCarga(CodigoSucursal, CodigoCajaUno, $"Caja {CodigoCajaUno:00}"),
+                new CajaCarga(CodigoSucursal, CodigoCajaDos, $"Caja {CodigoCajaDos:00}", Habilitada: false),
             ],
             Roles:
             [
-                new RolCarga(RolCajero, $"CAJ{Sufijo}", "Cajero", 1,
+                new RolCarga(CodigoRolCajero, "Cajero", 1,
                     [CatalogoPermisos.RegistrarVenta, CatalogoPermisos.AbrirTurno, CatalogoPermisos.CerrarTurno, CatalogoPermisos.DespacharPendiente]),
-                new RolCarga(RolSupervisor, $"SUP{Sufijo}", "Supervisor", 2,
+                new RolCarga(CodigoRolSupervisor, "Supervisor", 2,
                     [CatalogoPermisos.AutorizarOperaciones, CatalogoPermisos.EliminarLinea, CatalogoPermisos.LimpiarPantalla, CatalogoPermisos.AnularVenta,
                      CatalogoPermisos.RegistrarVenta, CatalogoPermisos.CambiarComprobante, CatalogoPermisos.SuspenderVenta,
                      CatalogoPermisos.DescuentoLinea, CatalogoPermisos.DescuentoFactura, CatalogoPermisos.DesactivarPromocion,
@@ -115,46 +147,46 @@ public sealed class EscenarioSeguridad
             ],
             Usuarios:
             [
-                new UsuarioCarga(Cajero, CodigoCajero, "Cajero Seguridad", RolCajero, [CajaUno, CajaDos], Clave: ClaveCajero),
-                new UsuarioCarga(CajeroDos, CodigoCajeroDos, "Cajero Dos", RolCajero, [CajaUno], Clave: ClaveCajeroDos),
-                new UsuarioCarga(Supervisor, CodigoSupervisor, "Supervisor Seguridad", RolSupervisor, [], Clave: ClaveSupervisor),
-                new UsuarioCarga(Inactivo, CodigoInactivo, "Usuario Inactivo", RolCajero, [CajaUno], Clave: ClaveInactivo, Activo: false),
-                new UsuarioCarga(SinCaja, CodigoSinCaja, "Usuario Sin Caja", RolCajero, [], Clave: ClaveSinCaja),
+                new UsuarioCarga(CodigoCajero, "Cajero Seguridad", CodigoRolCajero, [Uno, Dos], Clave: ClaveCajero),
+                new UsuarioCarga(CodigoCajeroDos, "Cajero Dos", CodigoRolCajero, [Uno], Clave: ClaveCajeroDos),
+                new UsuarioCarga(CodigoSupervisor, "Supervisor Seguridad", CodigoRolSupervisor, [], Clave: ClaveSupervisor),
+                new UsuarioCarga(CodigoInactivo, "Usuario Inactivo", CodigoRolCajero, [Uno], Clave: ClaveInactivo, Activo: false),
+                new UsuarioCarga(CodigoSinCaja, "Usuario Sin Caja", CodigoRolCajero, [], Clave: ClaveSinCaja),
             ],
             Parametros:
             [
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MonedaLocal, "DOP", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.ValorPuntoFidelidad, "1", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasRetencionXmlEnviados, "30", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasRetencionMensajesConfirmados, "30", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.AlertaTamanoBaseDatosMb, "1", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasAlertaPendientes, "24", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.ToleranciaRelojSegundos, "5", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MesesVigenciaPuntos, "12", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MaximoPuntosCanjeSinConexion, "5000", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.IntentosMaximosClave, "3", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosBloqueo, "5", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosVigenciaAutorizacion, "5", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasSesion, "12", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.TipoIngresos, "1", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), CgPos.Dominio.Organizacion.CatalogoParametros.DigitosSecuenciaDocumentos, "7", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.UrlConsultaTimbre, "https://ecf.dgii.gov.do/testecf/consultatimbre", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.UrlConsultaTimbreConsumo, "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC", CajaId: CajaUno),
+                new ParametroCarga(ClavesParametros.MonedaLocal, "DOP", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.ValorPuntoFidelidad, "1", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.DiasRetencionXmlEnviados, "30", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.DiasRetencionMensajesConfirmados, "30", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.AlertaTamanoBaseDatosMb, "1", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.HorasAlertaPendientes, "24", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.ToleranciaRelojSegundos, "5", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.MesesVigenciaPuntos, "12", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.MaximoPuntosCanjeSinConexion, "5000", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.IntentosMaximosClave, "3", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.MinutosBloqueo, "5", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.MinutosVigenciaAutorizacion, "5", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.HorasSesion, "12", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.TipoIngresos, "1", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(CgPos.Dominio.Organizacion.CatalogoParametros.DigitosSecuenciaDocumentos, "7", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.UrlConsultaTimbre, "https://ecf.dgii.gov.do/testecf/consultatimbre", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.UrlConsultaTimbreConsumo, "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
 
                 // Reglas de negocio de la caja de prueba: en producción las configura un usuario en el Central.
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MontoIdentificacionConsumo, "250000", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.PasoRedondeoEfectivo, "0", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.CierreCiego, "true", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.FondoEnCuadre, "false", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasRetencionImpuestoDevolucion, "30", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MesesVigenciaNotaCredito, "6", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.PorcentajeAlertaSecuenciaEcf, "10", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.DiasAlertaCertificado, "30", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaPrefijoPeso, "21", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaPrefijoPrecio, "22", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDigitosCodigoArticulo, "5", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDigitosValor, "5", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDecimalesPeso, "3", CajaId: CajaUno),
-                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.BalanzaDecimalesPrecio, "2", CajaId: CajaUno),
+                new ParametroCarga(ClavesParametros.MontoIdentificacionConsumo, "250000", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.PasoRedondeoEfectivo, "0", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.CierreCiego, "true", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.FondoEnCuadre, "false", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.DiasRetencionImpuestoDevolucion, "30", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.MesesVigenciaNotaCredito, "6", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.PorcentajeAlertaSecuenciaEcf, "10", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.DiasAlertaCertificado, "30", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BalanzaPrefijoPeso, "21", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BalanzaPrefijoPrecio, "22", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BalanzaDigitosCodigoArticulo, "5", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BalanzaDigitosValor, "5", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BalanzaDecimalesPeso, "3", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BalanzaDecimalesPrecio, "2", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
             ]);
 }

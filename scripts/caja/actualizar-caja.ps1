@@ -31,13 +31,14 @@ if (-not (Test-Path $rutaConfiguracion)) { throw "No se encontró $rutaConfigura
 
 $configuracion = Get-Content $rutaConfiguracion -Raw | ConvertFrom-Json
 $urlCentral = $configuracion.Central.Url.TrimEnd('/')
-$cajaId = $configuracion.Caja.Id
+$sucursal = $configuracion.Caja.Sucursal
+$caja = $configuracion.Caja.Codigo
 $secreto = $configuracion.Central.Secreto
-if (-not $urlCentral -or -not $cajaId -or -not $secreto) { throw 'La configuración no tiene la caja o la credencial del Central.' }
+if (-not $urlCentral -or -not $sucursal -or -not $caja -or -not $secreto) { throw 'La configuración no tiene la caja o la credencial del Central.' }
 
 # Token de dispositivo: la misma credencial con la que la caja sincroniza.
 $token = (Invoke-RestMethod -Method Post -Uri "$urlCentral/api/dispositivos/token" -ContentType 'application/json' `
-    -Body (@{ cajaId = $cajaId; secreto = $secreto } | ConvertTo-Json)).token
+    -Body (@{ sucursalCodigo = $sucursal; cajaCodigo = $caja; secreto = $secreto } | ConvertTo-Json)).token
 $encabezados = @{ Authorization = "Bearer $token" }
 
 $publicada = Invoke-RestMethod -Uri "$urlCentral/api/actualizaciones/caja" -Headers $encabezados

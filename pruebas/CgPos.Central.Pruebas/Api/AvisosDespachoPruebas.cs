@@ -103,7 +103,7 @@ public class AvisosDespachoPruebas(CentralEnPruebas central)
     {
         await using var ambito = central.Fabrica!.Services.CreateAsyncScope();
         await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarAsync(
-            new PaqueteMaestros(Clientes: [new ClienteCarga(Guid.CreateVersion7(), TipoDocumentoIdentidad.Rnc, documento, nombre, Correo: correo)]), "Pruebas");
+            new PaqueteMaestros(Clientes: [new ClienteCarga($"CL{Codigos.Siguiente()}", TipoDocumentoIdentidad.Rnc, documento, nombre, Correo: correo)]), "Pruebas");
     }
 
     private static DatosPendienteEntrega Pendiente(string documento, string nombre, EstadoPendiente estado)
@@ -121,7 +121,7 @@ public class AvisosDespachoPruebas(CentralEnPruebas central)
     {
         var contenido = JsonSerializer.Serialize(pendiente, OpcionesJson.Predeterminadas);
         var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.PendienteCreado, pendiente.Id, contenido,
-            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CajaUno, DateTimeOffset.UtcNow);
+            HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", token, mensaje));
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;
     }

@@ -59,20 +59,30 @@ internal sealed class ServicioCargaInicialCentral(
 
         try
         {
-            await AplicarEmpresaAsync(paquete.Empresa, cancelacion);
+            var empresaId = await AplicarEmpresaAsync(paquete.Empresa, cancelacion);
+
+            // Códigos -> Id del Central, con lo que ya existe y lo que se crea en esta carga.
+            var idsSucursales = await contexto.Sucursales.ToDictionaryAsync(s => s.Codigo, s => s.Id, cancelacion);
             foreach (var sucursal in sucursales)
-                await AplicarSucursalAsync(sucursal, paquete.Empresa.Id, cancelacion);
+                idsSucursales[sucursal.Codigo] = await AplicarSucursalAsync(sucursal, empresaId, cancelacion);
+
+            var idsCajas = (await contexto.Cajas.Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, c.Codigo, c.Id })
+                    .ToListAsync(cancelacion))
+                .ToDictionary(c => (c.Sucursal, c.Codigo), c => c.Id);
             foreach (var caja in cajas)
-                await AplicarCajaAsync(caja, cancelacion);
+                idsCajas[(caja.SucursalCodigo, caja.Codigo)] = await AplicarCajaAsync(caja, idsSucursales[caja.SucursalCodigo], cancelacion);
+
             foreach (var parametro in parametros)
-                await AplicarParametroAsync(parametro, cancelacion);
+                await AplicarParametroAsync(parametro, idsSucursales, idsCajas, cancelacion);
+
+            var idsRoles = await contexto.RolesCentral.ToDictionaryAsync(r => r.Codigo, r => r.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
             foreach (var rol in roles)
-                await AplicarRolAsync(rol, cancelacion);
+                idsRoles[rol.Codigo.Trim()] = await AplicarRolAsync(rol, cancelacion);
             foreach (var usuario in usuarios)
-                await AplicarUsuarioAsync(usuario, cancelacion);
+                await AplicarUsuarioAsync(usuario, idsRoles[usuario.RolCodigo.Trim()], cancelacion);
 
             var resultado = new ResultadoCargaCentral(sucursales.Count, cajas.Count, parametros.Count, roles.Count, usuarios.Count, _creados, _existentes);
-            auditoria.Registrar(new EntradaAuditoria("CargaInicial.Aplicada", "CargaInicial", paquete.Empresa.Id.ToString(), resultado));
+            auditoria.Registrar(new EntradaAuditoria("CargaInicial.Aplicada", "CargaInicial", paquete.Empresa.Rnc, resultado));
             await contexto.SaveChangesAsync(cancelacion);
 
             logger.LogInformation(
@@ -95,41 +105,40 @@ internal sealed class ServicioCargaInicialCentral(
             throw new CargaCentralInvalidaExcepcion(["Falta la empresa."]);
 
         var errores = new List<string>();
-        var otraEmpresa = await contexto.Empresas.Where(e => e.Id != paquete.Empresa.Id).Select(e => e.RazonSocial).FirstOrDefaultAsync(cancelacion);
+        var rnc = paquete.Empresa.Rnc?.Trim();
+        var otraEmpresa = await contexto.Empresas.Where(e => e.Rnc != rnc).Select(e => e.RazonSocial).FirstOrDefaultAsync(cancelacion);
         if (otraEmpresa is not null)
             errores.Add($"El Central ya pertenece a otra empresa ({otraEmpresa}).");
 
         // Los datos obligatorios se exigen a lo que se va a crear; lo existente se conserva y se completa en el Manager.
-        if (!await contexto.Empresas.AnyAsync(e => e.Id == paquete.Empresa.Id, cancelacion)
+        if (!await contexto.Empresas.AnyAsync(cancelacion)
             && Organizacion.DatosObligatoriosOrganizacion.Empresa(paquete.Empresa.RazonSocial, paquete.Empresa.NombreComercial, paquete.Empresa.Direccion,
                 paquete.Empresa.Telefono) is { } faltanEmpresa)
             errores.Add(faltanEmpresa);
 
-        var sucursalesExistentes = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
-        foreach (var sucursal in sucursales.Where(s => !sucursalesExistentes.Contains(s.Id)))
+        var codigosSucursales = (await contexto.Sucursales.Select(s => s.Codigo).ToListAsync(cancelacion)).ToHashSet();
+        foreach (var sucursal in sucursales.Where(s => !codigosSucursales.Contains(s.Codigo)))
             if (Organizacion.DatosObligatoriosOrganizacion.Sucursal(sucursal.Codigo, sucursal.Nombre, sucursal.Direccion, sucursal.Telefono) is { } faltanSucursal)
-                errores.Add($"{faltanSucursal} ({sucursal.Codigo})");
+                errores.Add($"{faltanSucursal} ({sucursal.Codigo:00})");
 
-        Duplicados(sucursales.Select(s => s.Id), "Id de sucursal", errores);
-        Duplicados(sucursales.Select(s => s.Codigo.Trim()), "Código de sucursal", errores);
-        Duplicados(cajas.Select(c => c.Id), "Id de caja", errores);
-        Duplicados(cajas.Select(c => $"{c.SucursalId}/{c.Codigo.Trim()}"), "Código de caja en la sucursal", errores);
-        Duplicados(parametros.Select(p => p.Id), "Id de parámetro", errores);
-        Duplicados(roles.Select(r => r.Id), "Id de rol", errores);
-        Duplicados(roles.Select(r => r.Codigo.Trim()), "Código de rol", errores);
-        Duplicados(usuarios.Select(u => u.Id), "Id de usuario", errores);
-        Duplicados(usuarios.Select(u => u.Codigo.Trim()), "Usuario", errores);
+        Duplicados(sucursales.Select(s => s.Codigo), "Código de sucursal", errores);
+        Duplicados(cajas.Select(c => $"{c.SucursalCodigo:00}-{c.Codigo:00}"), "Caja (sucursal-caja)", errores);
+        Duplicados(parametros.Select(p => $"{p.Clave.Trim()} ({p.SucursalCodigo}/{p.CajaCodigo})"), "Parámetro", errores);
+        Duplicados(roles.Select(r => r.Codigo.Trim().ToUpperInvariant()), "Código de rol", errores);
+        Duplicados(usuarios.Select(u => u.Codigo.Trim().ToUpperInvariant()), "Usuario", errores);
 
-        var idsSucursales = sucursales.Select(s => s.Id).ToHashSet();
-        idsSucursales.UnionWith(await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion));
-        var idsCajas = cajas.Select(c => c.Id).ToHashSet();
-        idsCajas.UnionWith(await contexto.Cajas.Select(c => c.Id).ToListAsync(cancelacion));
-        var idsRoles = roles.Select(r => r.Id).ToHashSet();
-        idsRoles.UnionWith(await contexto.RolesCentral.Select(r => r.Id).ToListAsync(cancelacion));
-        var idsUsuarios = (await contexto.UsuariosCentral.Select(u => u.Id).ToListAsync(cancelacion)).ToHashSet();
+        codigosSucursales.UnionWith(sucursales.Select(s => s.Codigo));
+        var codigosCajas = (await contexto.Cajas.Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, c.Codigo })
+                .ToListAsync(cancelacion))
+            .Select(c => (c.Sucursal, c.Codigo))
+            .ToHashSet();
+        codigosCajas.UnionWith(cajas.Select(c => (c.SucursalCodigo, c.Codigo)));
+        var codigosRoles = (await contexto.RolesCentral.Select(r => r.Codigo).ToListAsync(cancelacion)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        codigosRoles.UnionWith(roles.Select(r => r.Codigo.Trim()));
+        var codigosUsuarios = (await contexto.UsuariosCentral.Select(u => u.Codigo).ToListAsync(cancelacion)).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var caja in cajas.Where(c => !idsSucursales.Contains(c.SucursalId)))
-            errores.Add($"La caja '{caja.Codigo}' referencia una sucursal inexistente ({caja.SucursalId}).");
+        foreach (var caja in cajas.Where(c => !codigosSucursales.Contains(c.SucursalCodigo)))
+            errores.Add($"La caja {caja.Codigo:00} referencia una sucursal inexistente ({caja.SucursalCodigo:00}).");
 
         foreach (var parametro in parametros)
         {
@@ -137,40 +146,32 @@ internal sealed class ServicioCargaInicialCentral(
                 errores.Add($"El parámetro '{parametro.Clave}' no está en el catálogo de parámetros.");
             else if (definicion.ValidarValor(parametro.Valor) is { } problema)
                 errores.Add($"El parámetro '{parametro.Clave}': {problema}");
-            else if (definicion.Alcance == AlcanceParametro.Central && (parametro.SucursalId is not null || parametro.CajaId is not null))
+            else if (definicion.Alcance == AlcanceParametro.Central && (parametro.SucursalCodigo is not null || parametro.CajaCodigo is not null))
                 errores.Add($"El parámetro '{parametro.Clave}' es del Central y solo puede ser general.");
 
-            if (parametro.SucursalId is { } sucursalId && !idsSucursales.Contains(sucursalId))
-                errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursalId}).");
-            if (parametro.CajaId is { } cajaId && !idsCajas.Contains(cajaId))
-                errores.Add($"El parámetro '{parametro.Clave}' referencia una caja inexistente ({cajaId}).");
+            if (parametro.SucursalCodigo is { } sucursal && !codigosSucursales.Contains(sucursal))
+                errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursal:00}).");
+            if (parametro.CajaCodigo is not null && parametro.SucursalCodigo is null)
+                errores.Add($"El parámetro '{parametro.Clave}' de caja debe indicar también la sucursal de la caja.");
+            if (parametro is { SucursalCodigo: { } s, CajaCodigo: { } c } && !codigosCajas.Contains((s, c)))
+                errores.Add($"El parámetro '{parametro.Clave}' referencia una caja inexistente ({s:00}-{c:00}).");
         }
 
         foreach (var rol in roles)
-        {
             foreach (var codigo in (rol.Permisos ?? []).Where(p => p != TodosLosPermisos && !CatalogoPermisosCentral.Existe(p)))
                 errores.Add($"El rol '{rol.Codigo}' tiene un permiso inexistente en el Central: '{codigo}'.");
-
-            var codigoRol = rol.Codigo.Trim();
-            if (await contexto.RolesCentral.AnyAsync(r => r.Codigo == codigoRol && r.Id != rol.Id, cancelacion))
-                errores.Add($"El código de rol '{codigoRol}' ya existe con otro Id.");
-        }
 
         foreach (var usuario in usuarios)
         {
             var etiqueta = $"El usuario '{usuario.Codigo}'";
-            if (!idsRoles.Contains(usuario.RolId))
-                errores.Add($"{etiqueta} referencia un rol inexistente ({usuario.RolId}).");
+            if (!codigosRoles.Contains(usuario.RolCodigo?.Trim() ?? string.Empty))
+                errores.Add($"{etiqueta} referencia un rol inexistente ({usuario.RolCodigo}).");
             if (usuario.Contrasena is not null && usuario.ContrasenaHash is not null)
                 errores.Add($"{etiqueta} trae 'contrasena' y 'contrasenaHash'; use solo uno.");
             if (usuario.ContrasenaHash is not null && !hashContrasenas.EsHashReconocido(usuario.ContrasenaHash))
                 errores.Add($"{etiqueta} tiene un 'contrasenaHash' con formato no reconocido.");
-            if (string.IsNullOrEmpty(usuario.Contrasena) && usuario.ContrasenaHash is null && !idsUsuarios.Contains(usuario.Id))
+            if (string.IsNullOrEmpty(usuario.Contrasena) && usuario.ContrasenaHash is null && !codigosUsuarios.Contains(usuario.Codigo.Trim()))
                 errores.Add($"{etiqueta} es nuevo y no tiene contraseña.");
-
-            var codigoUsuario = usuario.Codigo.Trim();
-            if (await contexto.UsuariosCentral.AnyAsync(u => u.Codigo == codigoUsuario && u.Id != usuario.Id, cancelacion))
-                errores.Add($"El usuario '{codigoUsuario}' ya existe con otro Id.");
         }
 
         if (errores.Count > 0)
@@ -183,83 +184,89 @@ internal sealed class ServicioCargaInicialCentral(
             errores.Add($"{campo} repetido en el paquete: {repetido}.");
     }
 
-    private async Task AplicarEmpresaAsync(EmpresaCarga dato, CancellationToken cancelacion)
+    /// <summary>El Central pertenece a una sola empresa, identificada por su RNC.</summary>
+    private async Task<Guid> AplicarEmpresaAsync(EmpresaCarga dato, CancellationToken cancelacion)
     {
-        var empresa = await contexto.Empresas.SingleOrDefaultAsync(e => e.Id == dato.Id, cancelacion);
+        var empresa = await contexto.Empresas.SingleOrDefaultAsync(cancelacion);
         if (empresa is null)
         {
-            contexto.Empresas.Add(Empresa.Crear(dato.Rnc, dato.RazonSocial, dato.NombreComercial, dato.Direccion, dato.Telefono, dato.Id));
+            empresa = Empresa.Crear(dato.Rnc, dato.RazonSocial, dato.NombreComercial, dato.Direccion, dato.Telefono);
+            contexto.Empresas.Add(empresa);
             _creados++;
-            return;
+            return empresa.Id;
         }
 
         if (empresa.Rnc != dato.Rnc.Trim())
             throw new InvalidOperationException($"No se puede cambiar el RNC de la empresa ({empresa.Rnc} → {dato.Rnc}).");
 
         _existentes++;
+        return empresa.Id;
     }
 
-    private async Task AplicarSucursalAsync(SucursalCarga dato, Guid empresaId, CancellationToken cancelacion)
+    private async Task<Guid> AplicarSucursalAsync(SucursalCarga dato, Guid empresaId, CancellationToken cancelacion)
     {
-        var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Id == dato.Id, cancelacion);
+        var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Codigo == dato.Codigo, cancelacion);
         if (sucursal is not null)
         {
-            ExigirMismoCodigo(sucursal.Codigo, dato.Codigo, "sucursal");
             _existentes++;
-            return;
+            return sucursal.Id;
         }
 
-        sucursal = Sucursal.Crear(empresaId, dato.Codigo, dato.Nombre, dato.Direccion, dato.Telefono, dato.Id);
+        sucursal = Sucursal.Crear(empresaId, dato.Codigo, dato.Nombre, dato.Direccion, dato.Telefono);
         if (dato.Activa) sucursal.Activar(); else sucursal.Desactivar();
         contexto.Sucursales.Add(sucursal);
         _creados++;
+        return sucursal.Id;
     }
 
-    private async Task AplicarCajaAsync(CajaCarga dato, CancellationToken cancelacion)
+    private async Task<Guid> AplicarCajaAsync(CajaCarga dato, Guid sucursalId, CancellationToken cancelacion)
     {
-        var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.Id == dato.Id, cancelacion);
+        var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.SucursalId == sucursalId && c.Codigo == dato.Codigo, cancelacion);
         if (caja is not null)
         {
-            ExigirMismoCodigo(caja.Codigo, dato.Codigo, "caja");
-            if (caja.SucursalId != dato.SucursalId)
-                throw new InvalidOperationException($"La caja '{caja.Codigo}' no se puede mover a otra sucursal.");
             _existentes++;
-            return;
+            return caja.Id;
         }
 
-        caja = Caja.Crear(dato.SucursalId, dato.Codigo, dato.Nombre, dato.Id);
+        caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre);
         if (dato.Habilitada) caja.Habilitar(); else caja.Deshabilitar();
         contexto.Cajas.Add(caja);
         _creados++;
+        return caja.Id;
     }
 
-    private async Task AplicarParametroAsync(ParametroCarga dato, CancellationToken cancelacion)
+    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, Guid> idsSucursales, IReadOnlyDictionary<(int Sucursal, int Caja), Guid> idsCajas,
+        CancellationToken cancelacion)
     {
-        var parametro = await contexto.Parametros.SingleOrDefaultAsync(p => p.Id == dato.Id, cancelacion);
-        if (parametro is null)
+        Guid? sucursalId = null;
+        Guid? cajaId = null;
+        if (dato is { SucursalCodigo: { } s, CajaCodigo: { } c })
+            cajaId = idsCajas[(s, c)];
+        else if (dato.SucursalCodigo is { } sucursal)
+            sucursalId = idsSucursales[sucursal];
+
+        var clave = dato.Clave.Trim();
+        if (await contexto.Parametros.AnyAsync(p => p.Clave == clave && p.SucursalId == sucursalId && p.CajaId == cajaId, cancelacion))
         {
-            contexto.Parametros.Add(Parametro.Crear(dato.Clave, dato.Valor, dato.Descripcion, dato.SucursalId, dato.CajaId, dato.Id));
-            _creados++;
-            return;
-        }
-
-        if (parametro.Clave != dato.Clave.Trim() || parametro.SucursalId != dato.SucursalId || parametro.CajaId != dato.CajaId)
-            throw new InvalidOperationException($"El parámetro '{parametro.Clave}' no puede cambiar de clave ni de ámbito.");
-
-        _existentes++;
-    }
-
-    private async Task AplicarRolAsync(RolCentralCarga dato, CancellationToken cancelacion)
-    {
-        var rol = await contexto.RolesCentral.Include(r => r.PermisosAsignados).SingleOrDefaultAsync(r => r.Id == dato.Id, cancelacion);
-        if (rol is not null)
-        {
-            ExigirMismoCodigo(rol.Codigo, dato.Codigo, "rol");
             _existentes++;
             return;
         }
 
-        rol = RolCentral.Crear(dato.Codigo, dato.Nombre, dato.Id);
+        contexto.Parametros.Add(Parametro.Crear(dato.Clave, dato.Valor, dato.Descripcion, sucursalId, cajaId));
+        _creados++;
+    }
+
+    private async Task<Guid> AplicarRolAsync(RolCentralCarga dato, CancellationToken cancelacion)
+    {
+        var codigo = dato.Codigo.Trim();
+        var rol = await contexto.RolesCentral.Include(r => r.PermisosAsignados).SingleOrDefaultAsync(r => r.Codigo == codigo, cancelacion);
+        if (rol is not null)
+        {
+            _existentes++;
+            return rol.Id;
+        }
+
+        rol = RolCentral.Crear(dato.Codigo, dato.Nombre);
         contexto.RolesCentral.Add(rol);
         _creados++;
 
@@ -267,34 +274,28 @@ internal sealed class ServicioCargaInicialCentral(
         var deseados = permisos.Contains(TodosLosPermisos)
             ? CatalogoPermisosCentral.Todos.Select(p => p.Codigo)
             : permisos;
-        foreach (var codigo in deseados.Distinct())
-            rol.AsignarPermiso(codigo);
+        foreach (var permiso in deseados.Distinct())
+            rol.AsignarPermiso(permiso);
 
         if (dato.Activo) rol.Activar(); else rol.Desactivar();
+        return rol.Id;
     }
 
-    private async Task AplicarUsuarioAsync(UsuarioCentralCarga dato, CancellationToken cancelacion)
+    private async Task AplicarUsuarioAsync(UsuarioCentralCarga dato, Guid rolId, CancellationToken cancelacion)
     {
-        var usuario = await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Id == dato.Id, cancelacion);
-        if (usuario is not null)
+        var codigo = dato.Codigo.Trim();
+        if (await contexto.UsuariosCentral.AnyAsync(u => u.Codigo == codigo, cancelacion))
         {
-            ExigirMismoCodigo(usuario.Codigo, dato.Codigo, "usuario");
             _existentes++;
             return;
         }
 
         var hash = dato.ContrasenaHash ?? hashContrasenas.Hash(dato.Contrasena!);
-        usuario = UsuarioCentral.Crear(dato.Codigo, dato.Nombre, dato.Correo, dato.RolId, hash, dato.DebeCambiarContrasena, dato.Id);
+        var usuario = UsuarioCentral.Crear(dato.Codigo, dato.Nombre, dato.Correo, rolId, hash, dato.DebeCambiarContrasena);
         contexto.UsuariosCentral.Add(usuario);
         _creados++;
 
         if (dato.Activo) usuario.Activar(); else usuario.Desactivar();
-    }
-
-    private static void ExigirMismoCodigo(string actual, string nuevo, string entidad)
-    {
-        if (actual != nuevo.Trim())
-            throw new InvalidOperationException($"No se puede cambiar el código de {entidad} ({actual} → {nuevo.Trim()}).");
     }
 }
 

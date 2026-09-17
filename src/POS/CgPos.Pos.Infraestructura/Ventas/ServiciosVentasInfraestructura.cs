@@ -497,13 +497,13 @@ internal sealed class ServicioVentas(
 
     public async Task<RespuestaVenta> AbrirGavetaAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
-        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AbrirGaveta, autorizacionId, "Caja", sesion.CajaCodigo, cancelacion);
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AbrirGaveta, autorizacionId, "Caja", sesion.CajaCodigo.ToString("00"), cancelacion);
         if (!permiso.Permitido)
             return permiso.AutorizacionRechazada
                 ? new RespuestaVenta(CodigoResultadoVenta.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", null, CatalogoPermisos.AbrirGaveta)
                 : new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "Abrir la gaveta sin venta requiere autorización de un supervisor.", null, CatalogoPermisos.AbrirGaveta);
 
-        auditoria.Registrar(new EntradaAuditoria("Caja.GavetaAbierta", "Caja", sesion.CajaCodigo,
+        auditoria.Registrar(new EntradaAuditoria("Caja.GavetaAbierta", "Caja", sesion.CajaCodigo.ToString("00"),
             Motivo: permiso.Motivo, Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre), AutorizadoPor: Autorizador(permiso)));
         await contexto.SaveChangesAsync(cancelacion);
 
@@ -1117,7 +1117,7 @@ internal sealed class ServicioVentas(
 
     public async Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
-        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.SuspenderVenta, autorizacionId, "Caja", sesion.CajaCodigo, cancelacion);
+        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.SuspenderVenta, autorizacionId, "Caja", sesion.CajaCodigo.ToString("00"), cancelacion);
         if (!permiso.Permitido)
         {
             return permiso.AutorizacionRechazada
@@ -1125,7 +1125,7 @@ internal sealed class ServicioVentas(
                 : new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "Suspender operaciones requiere autorización de un supervisor.", null, CatalogoPermisos.SuspenderVenta);
         }
 
-        auditoria.Registrar(new EntradaAuditoria("Caja.OperacionesSuspendidas", "Caja", sesion.CajaCodigo,
+        auditoria.Registrar(new EntradaAuditoria("Caja.OperacionesSuspendidas", "Caja", sesion.CajaCodigo.ToString("00"),
             Motivo: permiso.Motivo,
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
             AutorizadoPor: Autorizador(permiso)));
@@ -1433,7 +1433,7 @@ internal sealed class ServicioVentas(
         var configurados = await contexto.MotivosDescuento.AsNoTracking().Where(m => m.Activo).Select(m => new { m.Codigo, m.Nombre }).ToListAsync(cancelacion);
         var buscado = motivo.Trim();
         return configurados.Count == 0 || configurados.Any(m => string.Equals(m.Nombre, buscado, StringComparison.OrdinalIgnoreCase)
-                                                                || string.Equals(m.Codigo, buscado, StringComparison.OrdinalIgnoreCase))
+                                                                || m.Codigo.ToString(System.Globalization.CultureInfo.InvariantCulture) == buscado)
             ? null
             : "Seleccione un motivo de la lista.";
     }

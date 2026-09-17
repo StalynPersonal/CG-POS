@@ -512,7 +512,7 @@ internal sealed class ServicioEcf(
         var error = certificado.Cargar(pin);
 
         // Nunca se audita el PIN; solo quién intentó cargar el certificado y el resultado.
-        auditoria.Registrar(new EntradaAuditoria(error is null ? "Ecf.CertificadoCargado" : "Ecf.CertificadoRechazado", "Caja", sesion.CajaCodigo,
+        auditoria.Registrar(new EntradaAuditoria(error is null ? "Ecf.CertificadoCargado" : "Ecf.CertificadoRechazado", "Caja", sesion.CajaCodigo.ToString("00"),
             Detalle: new { certificado.Sujeto, certificado.VenceEn, Error = error },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
         await contexto.SaveChangesAsync(cancelacion);

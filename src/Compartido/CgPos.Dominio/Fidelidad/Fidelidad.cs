@@ -6,14 +6,13 @@ namespace CgPos.Dominio.Fidelidad;
 /// <summary>Nivel o categoría del programa de fidelidad con su beneficio en la acumulación (RF-241). Lo define el Central.</summary>
 public sealed class NivelFidelidad : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 60;
 
     private NivelFidelidad()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public int Orden { get; private set; }
 
@@ -22,12 +21,12 @@ public sealed class NivelFidelidad : Entidad
 
     public bool Activo { get; private set; } = true;
 
-    public static NivelFidelidad Crear(string codigo, string nombre, int orden, decimal factorAcumulacion, Guid? id = null)
+    public static NivelFidelidad Crear(int codigo, string nombre, int orden, decimal factorAcumulacion, Guid? id = null)
     {
         var nivel = new NivelFidelidad
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código del nivel", LargoMaximoCodigo).ToUpperInvariant(),
+            Codigo = Validar.Codigo(codigo, "Código del nivel"),
         };
         nivel.Actualizar(nombre, orden, factorAcumulacion);
         return nivel;
@@ -72,14 +71,13 @@ public sealed record LineaPuntuable(Guid ArticuloId, Guid DepartamentoId, Guid? 
 /// </summary>
 public sealed class ReglaAcumulacion : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
     private ReglaAcumulacion()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
     public TipoReglaAcumulacion Tipo { get; private set; }
 
@@ -93,13 +91,13 @@ public sealed class ReglaAcumulacion : Entidad
     public DateTimeOffset? VigenteHasta { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static ReglaAcumulacion Crear(string codigo, string nombre, TipoReglaAcumulacion tipo, decimal montoBase, decimal puntos, Guid? referenciaId,
+    public static ReglaAcumulacion Crear(int codigo, string nombre, TipoReglaAcumulacion tipo, decimal montoBase, decimal puntos, Guid? referenciaId,
         DayOfWeek? diaSemana, DateTimeOffset? vigenteDesde, DateTimeOffset? vigenteHasta, Guid? id = null)
     {
         var regla = new ReglaAcumulacion
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de la regla", LargoMaximoCodigo).ToUpperInvariant(),
+            Codigo = Validar.Codigo(codigo, "Código de la regla"),
         };
         regla.Actualizar(nombre, tipo, montoBase, puntos, referenciaId, diaSemana, vigenteDesde, vigenteHasta);
         return regla;

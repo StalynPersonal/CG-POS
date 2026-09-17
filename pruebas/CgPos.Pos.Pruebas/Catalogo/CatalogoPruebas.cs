@@ -25,6 +25,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var primera = await AplicarAsync(escenario.Paquete());
         var segunda = await AplicarAsync(escenario.Paquete());
         var tercera = await AplicarAsync(escenario.Paquete(precioCemento: 499m));
+        await ResolverAsync(escenario);
 
         Assert.True(primera.Creados > 0);
         Assert.Equal(10, primera.PreciosRegistrados); // 8 precios detalle + 2 por mayor
@@ -44,7 +45,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var consulta = ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>();
@@ -75,7 +76,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
 
         // El formato de las etiquetas lo configura un usuario; sin él la caja no interpreta etiquetas de balanza.
         await ConfigurarFormatoBalanzaAsync();
@@ -120,7 +121,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var consulta = ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>();
@@ -136,7 +137,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var consulta = ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>();
@@ -175,30 +176,27 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
         var paquete = escenario.Paquete();
-        var departamentoInexistente = Guid.CreateVersion7();
-        var conErrores = paquete with
-        {
-            Articulos =
-            [
-                .. paquete.Articulos!,
-                new ArticuloCarga(Guid.CreateVersion7(), $"MAL-{escenario.Sufijo}", "Sin departamento", departamentoInexistente, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m),
-                new ArticuloCarga(Guid.CreateVersion7(), $"DUP-{escenario.Sufijo}", "Código repetido", escenario.DepartamentoFerreteria, escenario.UnidadUnidad, escenario.ImpuestoItbis18, 10m,
-                    CodigosBarras: [escenario.BarrasCincel], CategoriaId: escenario.CategoriaHerramientas),
-                new ArticuloCarga(Guid.CreateVersion7(), $"CATV-{escenario.Sufijo}", "Categoría de otro departamento", escenario.DepartamentoFerreteria, escenario.UnidadUnidad,
-                    escenario.ImpuestoItbis18, 10m, CategoriaId: escenario.CategoriaVegetales),
-            ],
-        };
 
-        var error = await Assert.ThrowsAsync<CargaMaestrosInvalidaExcepcion>(() => AplicarAsync(conErrores));
+        Task<CargaMaestrosInvalidaExcepcion> RechazoAsync(ArticuloCarga articulo) =>
+            Assert.ThrowsAsync<CargaMaestrosInvalidaExcepcion>(() => AplicarAsync(paquete with { Articulos = [.. paquete.Articulos!, articulo] }));
 
-        Assert.Contains(error.Errores, e => e.Contains("departamento inexistente"));
-        Assert.Contains(error.Errores, e => e.Contains($"'MAL-{escenario.Sufijo}' no tiene categoría"));
-        Assert.Contains(error.Errores, e => e.Contains("no es de su departamento"));
-        Assert.Contains(error.Errores, e => e.Contains(escenario.BarrasCincel));
+        var sinDepartamento = await RechazoAsync(new ArticuloCarga($"MAL-{escenario.Sufijo}", "Sin departamento", 999_999, escenario.CodigoUnidad, escenario.CodigoItbis18, 10m,
+            CategoriaCodigo: escenario.CodigoCategoriaHerramientas));
+        var repetido = await RechazoAsync(new ArticuloCarga($"DUP-{escenario.Sufijo}", "Código repetido", escenario.CodigoFerreteria, escenario.CodigoUnidad, escenario.CodigoItbis18, 10m,
+            CodigosBarras: [escenario.BarrasCincel], CategoriaCodigo: escenario.CodigoCategoriaHerramientas));
+        var otraCategoria = await RechazoAsync(new ArticuloCarga($"CATV-{escenario.Sufijo}", "Categoría de otro departamento", escenario.CodigoFerreteria, escenario.CodigoUnidad,
+            escenario.CodigoItbis18, 10m, CategoriaCodigo: escenario.CodigoCategoriaVegetales));
+        var sinCategoria = await RechazoAsync(new ArticuloCarga($"SINC-{escenario.Sufijo}", "Sin categoría", escenario.CodigoFerreteria, escenario.CodigoUnidad,
+            escenario.CodigoItbis18, 10m));
+
+        Assert.Contains(sinDepartamento.Errores, e => e.Contains("departamento") && e.Contains("999999"));
+        Assert.Contains(repetido.Errores, e => e.Contains(escenario.BarrasCincel));
+        Assert.Contains(otraCategoria.Errores, e => e.Contains("no es de su departamento"));
+        Assert.Contains(sinCategoria.Errores, e => e.Contains("categoría"));
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
-        Assert.False(await contexto.Articulos.AnyAsync(a => a.Id == escenario.ArticuloCincel));
+        Assert.False(await contexto.Articulos.AnyAsync(a => a.Codigo == escenario.CodigoCincel));
     }
 
     [SkippableFact]
@@ -206,10 +204,10 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
 
         var error = await Assert.ThrowsAsync<CargaMaestrosInvalidaExcepcion>(() => AplicarAsync(new PaqueteMaestros(
-            FormasPago: [new FormaPagoCarga(Guid.CreateVersion7(), $"EUR{escenario.Sufijo}", "Euros", CgPos.Dominio.Pagos.TipoFormaPago.MonedaExtranjera, 9, "EUR")])));
+            FormasPago: [new FormaPagoCarga($"EUR{escenario.Sufijo}", "Euros", CgPos.Dominio.Pagos.TipoFormaPago.MonedaExtranjera, 9, "EUR")])));
 
         Assert.Contains(error.Errores, e => e.Contains("EUR") && e.Contains("maestro de monedas"));
     }
@@ -219,7 +217,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
         var rncSinCliente = EscenarioCatalogo.RncAleatorioValido();
         await ImportarPadronAsync(
             $"{escenario.RncCliente}|CONSTRUCTORA {escenario.Sufijo} SRL|CONSTRUCTORA|CONSTRUCCION|||||01/01/2010|ACTIVO|NORMAL",
@@ -287,17 +285,17 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
         var codigoNuevo = $"NUEVO-{escenario.Sufijo}";
         var barrasNuevo = "8" + Random.Shared.NextInt64(100_000_000_000, 999_999_999_999);
 
         var csv = string.Join("\n",
             "codigo;descripcion;departamento;categoria;unidad;impuesto;precio_detalle;precio_mayor;cantidad_minima_mayor;codigos_barras;tipo",
-            $"{codigoNuevo};\"Martillo; mango de fibra\";{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};325.50;300;6;{barrasNuevo};Normal",
-            $"{escenario.CodigoCemento};Cemento gris 42.5 kg {escenario.Sufijo};{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};510;450;12;{escenario.BarrasCemento};Normal",
-            $"MALA-{escenario.Sufijo};Departamento que no existe;NOEXISTE;{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal",
-            $"MALB-{escenario.Sufijo};Precio mal escrito;{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibra};{escenario.CodigoItbis18};10,50;;;;Normal",
-            $"MALC-{escenario.Sufijo};Sin categoría;{escenario.CodigoFerreteria};;{escenario.CodigoLibra};{escenario.CodigoItbis18};10;;;;Normal");
+            $"{codigoNuevo};\"Martillo; mango de fibra\";{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibraNumerico};{escenario.CodigoItbis18};325.50;300;6;{barrasNuevo};Normal",
+            $"{escenario.CodigoCemento};Cemento gris 42.5 kg {escenario.Sufijo};{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibraNumerico};{escenario.CodigoItbis18};510;450;12;{escenario.BarrasCemento};Normal",
+            $"MALA-{escenario.Sufijo};Departamento que no existe;NOEXISTE;{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibraNumerico};{escenario.CodigoItbis18};10;;;;Normal",
+            $"MALB-{escenario.Sufijo};Precio mal escrito;{escenario.CodigoFerreteria};{escenario.CodigoCategoriaHerramientas};{escenario.CodigoLibraNumerico};{escenario.CodigoItbis18};10,50;;;;Normal",
+            $"MALC-{escenario.Sufijo};Sin categoría;{escenario.CodigoFerreteria};;{escenario.CodigoLibraNumerico};{escenario.CodigoItbis18};10;;;;Normal");
 
         ResultadoImportacionArticulos resultado;
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
@@ -327,7 +325,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
-        await AplicarAsync(escenario.Paquete());
+        await AplicarYResolverAsync(escenario);
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var cobro = await ambito.ServiceProvider.GetRequiredService<IConsultaCatalogoCobro>().ObtenerAsync();
@@ -346,10 +344,10 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
         var paquete = escenario.Paquete();
-        await AplicarAsync(paquete);
+        await AplicarYResolverAsync(escenario);
 
         var corregido = EscenarioCatalogo.RncAleatorioValido();
-        var cliente = paquete.Clientes!.Single(c => c.Id == escenario.Cliente);
+        var cliente = paquete.Clientes!.Single(c => c.Codigo == escenario.CodigoCliente);
         await AplicarAsync(new PaqueteMaestros(Clientes: [cliente with { Documento = corregido }]));
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
@@ -360,6 +358,18 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     }
 
     private Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete) => AplicarAsync(paquete, baseDatos.Servicios!);
+
+    private async Task AplicarYResolverAsync(EscenarioCatalogo escenario)
+    {
+        await AplicarAsync(escenario.Paquete());
+        await ResolverAsync(escenario);
+    }
+
+    private async Task ResolverAsync(EscenarioCatalogo escenario)
+    {
+        await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
+        await escenario.ResolverIdsAsync(ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>());
+    }
 
     private static async Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete, IServiceProvider proveedor)
     {

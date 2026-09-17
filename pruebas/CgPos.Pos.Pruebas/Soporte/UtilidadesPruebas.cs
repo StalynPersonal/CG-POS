@@ -13,8 +13,10 @@ public sealed class RelojPrueba(DateTimeOffset inicio) : TimeProvider
     public void Avanzar(TimeSpan tiempo) => Ahora += tiempo;
 }
 
-public sealed class ContextoCajaFijo(Guid? cajaId) : IContextoCaja
+public sealed class ContextoCajaFijo(Guid? cajaId, int? sucursalCodigo = null, int? cajaCodigo = null) : IContextoCaja
 {
+    public int? SucursalCodigo { get; } = sucursalCodigo;
+    public int? CajaCodigo { get; } = cajaCodigo;
     public Guid? CajaId { get; } = cajaId;
 }
 

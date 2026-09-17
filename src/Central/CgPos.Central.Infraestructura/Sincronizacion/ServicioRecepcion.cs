@@ -37,9 +37,10 @@ internal sealed class ServicioRecepcion(
             || mensaje.TipoMensaje.Length > DocumentoRecibido.LargoMaximoTipo || string.IsNullOrEmpty(mensaje.Contenido))
             return await RechazarAsync(mensaje, remitente, estado, TipoConflictoSincronizacion.DocumentoInvalido, "El mensaje está incompleto.", ahora, cancelacion);
 
-        if (mensaje.CajaId != remitente.CajaId)
+        if (mensaje.SucursalCodigo != remitente.SucursalCodigo || mensaje.CajaCodigo != remitente.CajaCodigo)
             return await RechazarAsync(mensaje, remitente, estado, TipoConflictoSincronizacion.CajaNoCoincide,
-                $"El mensaje indica la caja {mensaje.CajaId}, pero lo envió la caja autenticada {remitente.CajaId}.", ahora, cancelacion);
+                $"El mensaje indica la caja {mensaje.SucursalCodigo:00}-{mensaje.CajaCodigo:00}, pero lo envió la caja autenticada {remitente.SucursalCodigo:00}-{remitente.CajaCodigo:00}.",
+                ahora, cancelacion);
 
         if (!HashSincronizacion.Coincide(mensaje.Contenido, mensaje.HashContenido))
             return await RechazarAsync(mensaje, remitente, estado, TipoConflictoSincronizacion.HashInvalido,
@@ -170,11 +171,11 @@ internal sealed class ServicioRecepcion(
             return;
         }
 
-        if (await contexto.MaestrosCentral.AnyAsync(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Id == inscripcion.MiembroId, cancelacion))
+        if (await contexto.MiembrosFidelidad.AnyAsync(m => m.Id == inscripcion.MiembroId, cancelacion))
             return;
 
-        var existente = await contexto.MaestrosCentral
-            .Where(m => m.Tipo == TipoMaestro.MiembroFidelidad && m.Codigo == cedula)
+        var existente = await contexto.MiembrosFidelidad
+            .Where(m => m.Cedula == cedula)
             .Select(m => (Guid?)m.Id)
             .FirstOrDefaultAsync(cancelacion);
 
@@ -186,10 +187,10 @@ internal sealed class ServicioRecepcion(
             return;
         }
 
-        var miembro = new MiembroFidelidadCarga(inscripcion.MiembroId, cedula, inscripcion.Nombre, inscripcion.Telefono, inscripcion.Correo, InscritoEn: inscripcion.InscritoEn);
-        contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null,
-            JsonSerializer.Serialize(miembro, OpcionesJson.Predeterminadas), ahora, $"Inscripción en caja {documento.CajaId}",
-            new FilaMaestro(TipoMaestro.MiembroFidelidad, miembro.Id, cedula, null, miembro).TextoBusqueda()));
+        var miembro = MiembroFidelidad.DesdeCentral(cedula, inscripcion.Nombre, inscripcion.InscritoEn, inscripcion.MiembroId);
+        miembro.ActualizarContacto(inscripcion.Nombre, inscripcion.Telefono, inscripcion.Correo);
+        contexto.MiembrosFidelidad.Add(miembro);
+        Persistencia.Configuraciones.ColumnasMaestro.Marcar(contexto, miembro, ahora, $"Inscripción en caja {documento.CajaId}");
 
         // Sus movimientos pueden haber llegado antes que la inscripción: el maestro sale ya con el saldo que corresponde.
         await recalculadorPuntos.RecalcularAsync(miembro.Id, cedula, "Inscripción en caja", forzarPublicacion: true, cancelacion: cancelacion);

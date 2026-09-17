@@ -63,7 +63,7 @@ internal sealed class ServicioAutenticacion(
             accion,
             "Usuario",
             usuario?.Id.ToString(),
-            Detalle: new { Motivo = resultado.Motivo?.ToString(), Caja = caja.Codigo, CodigoIntentado = codigoIntentado },
+            Detalle: new { Motivo = resultado.Motivo?.ToString(), Caja = caja.Codigo.ToString("00"), CodigoIntentado = codigoIntentado },
             Usuario: usuario is null ? null : new UsuarioAuditoria(usuario.Id, usuario.Nombre)));
     }
 

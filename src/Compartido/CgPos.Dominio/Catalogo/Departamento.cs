@@ -5,14 +5,13 @@ namespace CgPos.Dominio.Catalogo;
 /// <summary>Departamento de artículos, el primer nivel de su clasificación (departamento → categoría; la marca va aparte).</summary>
 public sealed class Departamento : Entidad
 {
-    public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 100;
 
     private Departamento()
     {
     }
 
-    public string Codigo { get; private set; } = string.Empty;
+    public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
 
     /// <summary>Falso para departamentos que solo admiten ofertas (supermercado, panadería, repostería; RN-09).</summary>
@@ -23,12 +22,12 @@ public sealed class Departamento : Entidad
 
     public bool Activa { get; private set; } = true;
 
-    public static Departamento Crear(string codigo, string nombre, bool permiteDescuentoManual = true, bool esNoCodificada = false, Guid? id = null)
+    public static Departamento Crear(int codigo, string nombre, bool permiteDescuentoManual = true, bool esNoCodificada = false, Guid? id = null)
     {
         var departamento = new Departamento
         {
             Id = id ?? Guid.CreateVersion7(),
-            Codigo = Validar.Texto(codigo, "Código de departamento", LargoMaximoCodigo),
+            Codigo = Validar.Codigo(codigo, "Código de departamento"),
         };
         departamento.Actualizar(nombre, permiteDescuentoManual, esNoCodificada);
         return departamento;

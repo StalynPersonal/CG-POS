@@ -97,9 +97,19 @@ internal sealed class DescargaMaestros(
     /// Borra los parámetros que ya no existen en el Central (RN-24): una baja no viaja en el rango de versiones, así que el Central
     /// manda en cada descarga todos los que hoy aplican a esta caja y lo que sobre aquí se elimina.
     /// </summary>
-    private async Task<int> BorrarParametrosEliminadosAsync(IReadOnlyList<Guid> vigentes, CancellationToken cancelacion)
+    private async Task<int> BorrarParametrosEliminadosAsync(IReadOnlyList<Contratos.CargaInicial.ParametroReferencia> vigentes, CancellationToken cancelacion)
     {
-        var sobrantes = await contexto.Parametros.Where(p => !vigentes.Contains(p.Id)).ToListAsync(cancelacion);
+        var idsSucursales = await contexto.Sucursales.ToDictionaryAsync(s => s.Codigo, s => s.Id, cancelacion);
+        var idsCajas = await CargaInicial.ServicioCargaInicial.IdsCajasAsync(contexto, cancelacion);
+        var claves = vigentes
+            .Where(v => (v.SucursalCodigo is null || idsSucursales.ContainsKey(v.SucursalCodigo.Value))
+                        && (v.CajaCodigo is null || (v.SucursalCodigo is { } s && idsCajas.ContainsKey((s, v.CajaCodigo.Value)))))
+            .Select(v => (v.Clave.Trim(), CargaInicial.ServicioCargaInicial.AmbitoLocal(v.SucursalCodigo, v.CajaCodigo, idsSucursales, idsCajas)))
+            .ToHashSet();
+
+        var sobrantes = (await contexto.Parametros.ToListAsync(cancelacion))
+            .Where(p => !claves.Contains((p.Clave, (p.SucursalId, p.CajaId))))
+            .ToList();
         if (sobrantes.Count == 0)
             return 0;
 

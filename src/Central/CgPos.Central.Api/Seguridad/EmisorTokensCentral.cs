@@ -58,10 +58,10 @@ public sealed class EmisorTokensCentral
         [
             new(AtributosTokenCentral.Tipo, AtributosTokenCentral.TipoDispositivo),
             new(AtributosTokenCentral.Caja, dispositivo.CajaId.ToString()),
-            new(AtributosTokenCentral.CajaCodigo, dispositivo.CajaCodigo),
+            new(AtributosTokenCentral.CajaCodigo, dispositivo.CajaCodigo.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new(AtributosTokenCentral.CajaNombre, dispositivo.CajaNombre),
             new(AtributosTokenCentral.Sucursal, dispositivo.SucursalId.ToString()),
-            new(AtributosTokenCentral.SucursalCodigo, dispositivo.SucursalCodigo),
+            new(AtributosTokenCentral.SucursalCodigo, dispositivo.SucursalCodigo.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new(AtributosTokenCentral.Credencial, dispositivo.CredencialId.ToString()),
         ], AudienciaDispositivos, duracion);
 
@@ -107,8 +107,9 @@ public sealed class EmisorTokensCentral
         string? Valor(string tipo) => usuario.FindFirst(tipo)?.Value;
 
         return Guid.TryParse(Valor(AtributosTokenCentral.Caja), out var cajaId) && Guid.TryParse(Valor(AtributosTokenCentral.Sucursal), out var sucursalId)
-            ? new DatosDispositivo(cajaId, Valor(AtributosTokenCentral.CajaCodigo) ?? string.Empty, Valor(AtributosTokenCentral.CajaNombre) ?? string.Empty,
-                sucursalId, Valor(AtributosTokenCentral.SucursalCodigo) ?? string.Empty)
+            ? new DatosDispositivo(cajaId, int.TryParse(Valor(AtributosTokenCentral.CajaCodigo), out var cajaCodigo) ? cajaCodigo : 0,
+                Valor(AtributosTokenCentral.CajaNombre) ?? string.Empty, sucursalId,
+                int.TryParse(Valor(AtributosTokenCentral.SucursalCodigo), out var sucursalCodigo) ? sucursalCodigo : 0)
             : null;
     }
 

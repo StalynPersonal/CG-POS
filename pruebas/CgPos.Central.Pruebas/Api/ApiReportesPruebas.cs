@@ -170,7 +170,7 @@ public class ApiReportesPruebas(CentralEnPruebas central)
     {
         var contenido = JsonSerializer.Serialize(documento, OpcionesJson.Predeterminadas);
         return new MensajeSincronizacion(id ?? Guid.CreateVersion7(), tipo, agregadoId, contenido, HashSincronizacion.Calcular(contenido),
-            CentralEnPruebas.CajaUno, DateTimeOffset.UtcNow);
+            CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Sucursal, CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno).Caja, DateTimeOffset.UtcNow);
     }
 
     private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, MensajeSincronizacion mensaje)

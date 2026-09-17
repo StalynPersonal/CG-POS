@@ -129,12 +129,12 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         var comprobante = new DatosComprobanteElectronico(encf, TipoComprobante.NotaCredito, "ABC123", DateTimeOffset.UtcNow, "https://ecf.dgii.gov.do/consulta",
             EstadoDocumentoElectronico.PendienteSincronizar);
         var nota = new DatosNotaCredito(notaId, $"NC-{encf[3..]}", Guid.CreateVersion7(), "01-01-00000001", "E320000000001", DateTimeOffset.UtcNow.AddDays(-1),
-            TipoDocumentoIdentidad.Cedula, "00113918205", "Cliente de prueba", "DEV", "Devolucion", null, "Cajero Prueba", null, false, true,
+            TipoDocumentoIdentidad.Cedula, "00113918205", "Cliente de prueba", 1, "Devolucion", null, "Cajero Prueba", null, false, true,
             total / 1.18m, total - (total / 1.18m), 0m, total, total, "DOP", venceEn, EstadoNotaCredito.Vigente, DateTimeOffset.UtcNow, [], comprobante);
         var ecf = new DocumentoElectronicoParaCentral(encf, TipoComprobante.NotaCredito, xml, HashSincronizacion.Calcular(xml), DateTimeOffset.UtcNow);
         var contenido = JsonSerializer.Serialize(new DocumentoNotaCreditoEmitida(nota, CentralEnPruebas.Sucursal, cajaId, null, ecf), OpcionesJson.Predeterminadas);
 
-        return (new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.NotaCreditoEmitida, notaId, contenido, HashSincronizacion.Calcular(contenido), cajaId,
+        return (new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.NotaCreditoEmitida, notaId, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja,
             DateTimeOffset.UtcNow), notaId, encf);
     }
 
@@ -142,7 +142,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
     {
         var contenido = JsonSerializer.Serialize(
             new DocumentoConsumoNotaCredito(notaId, encf, ventaId, "02-01-00000005", cajaId, monto, 0m, DateTimeOffset.UtcNow), OpcionesJson.Predeterminadas);
-        return new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.NotaCreditoConsumida, notaId, contenido, HashSincronizacion.Calcular(contenido), cajaId,
+        return new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.NotaCreditoConsumida, notaId, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja,
             DateTimeOffset.UtcNow);
     }
 

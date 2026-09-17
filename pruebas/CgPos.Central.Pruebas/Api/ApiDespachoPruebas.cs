@@ -61,7 +61,8 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         var entregado = creado with
         {
             Estado = EstadoPendiente.Entregado,
-            ActualizadoEn = creado.ActualizadoEn.AddMinutes(30),
+            // Entregado ahora: cuenta como entregado hoy a cualquier hora que corra la prueba.
+            ActualizadoEn = DateTimeOffset.UtcNow,
             Lineas = [creado.Lineas[0] with { CantidadEntregada = 3m }],
         };
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteActualizado, entregado, CentralEnPruebas.CajaUno)));
@@ -110,7 +111,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
     private static MensajeSincronizacion Mensaje(string tipo, DatosPendienteEntrega pendiente, Guid cajaId)
     {
         var contenido = JsonSerializer.Serialize(pendiente, OpcionesJson.Predeterminadas);
-        return new MensajeSincronizacion(Guid.CreateVersion7(), tipo, pendiente.Id, contenido, HashSincronizacion.Calcular(contenido), cajaId,
+        return new MensajeSincronizacion(Guid.CreateVersion7(), tipo, pendiente.Id, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja,
             DateTimeOffset.UtcNow);
     }
 

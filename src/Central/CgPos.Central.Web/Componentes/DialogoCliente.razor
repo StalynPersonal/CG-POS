@@ -8,6 +8,11 @@
     <DialogContent>
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="4">
+                <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Cliente is not null)"
+                              HelperText="Identifica al cliente en las cajas; no cambia después de crearlo." />
+            </MudItem>
+            <MudItem xs="12" sm="8"></MudItem>
+            <MudItem xs="12" sm="4">
                 <MudSelect T="TipoDocumentoIdentidad" @bind-Value="_tipoDocumento" Label="Tipo de documento" Variant="Variant.Outlined"
                            ToStringFunc="EtiquetasCliente.Documento">
                     @foreach (var tipo in EtiquetasCliente.Documentos)
@@ -141,6 +146,7 @@
     [Parameter] public ClienteCarga? Cliente { get; set; }
 
     private readonly List<DireccionEditable> _direcciones = [];
+    private string? _codigo;
     private TipoDocumentoIdentidad _tipoDocumento = TipoDocumentoIdentidad.Cedula;
     private string? _documento;
     private string? _motivoCorreccion;
@@ -165,11 +171,12 @@
         if (Cliente is not { } c)
             return;
 
-        (_tipoDocumento, _documento, _nombre, _telefono, _correo) = (c.TipoDocumento, c.Documento, c.Nombre, c.Telefono, c.Correo);
+        (_codigo, _tipoDocumento, _documento, _nombre, _telefono, _correo) = (c.Codigo, c.TipoDocumento, c.Documento, c.Nombre, c.Telefono, c.Correo);
         (_comprobante, _lista, _exonerado, _retencion, _activo) = (c.TipoComprobante, c.ListaPrecio, c.ExoneradoItbis, c.AplicaRetencion, c.Activo);
         foreach (var d in c.Direcciones ?? [])
-            _direcciones.Add(new DireccionEditable { Id = d.Id, Alias = d.Alias, Direccion = d.Direccion, Sector = d.Sector, Ciudad = d.Ciudad, Referencia = d.Referencia, Telefono = d.Telefono });
-        _principalId = c.Direcciones?.FirstOrDefault(d => d.EsPrincipal)?.Id ?? _direcciones.FirstOrDefault()?.Id;
+            _direcciones.Add(new DireccionEditable { Alias = d.Alias, Direccion = d.Direccion, Sector = d.Sector, Ciudad = d.Ciudad, Referencia = d.Referencia, Telefono = d.Telefono });
+        var principal = c.Direcciones?.FirstOrDefault(d => d.EsPrincipal)?.Alias;
+        _principalId = _direcciones.FirstOrDefault(d => d.Alias == principal)?.Id ?? _direcciones.FirstOrDefault()?.Id;
     }
 
     private void AgregarDireccion()
@@ -190,7 +197,8 @@
 
     private async Task GuardarAsync()
     {
-        _mensaje = string.IsNullOrWhiteSpace(_documento) ? $"Indique el número de {EtiquetasCliente.Documento(_tipoDocumento).ToLowerInvariant()}."
+        _mensaje = string.IsNullOrWhiteSpace(_codigo) ? "Indique el código del cliente."
+            : string.IsNullOrWhiteSpace(_documento) ? $"Indique el número de {EtiquetasCliente.Documento(_tipoDocumento).ToLowerInvariant()}."
             : string.IsNullOrWhiteSpace(_nombre) ? "Indique el nombre o la razón social."
             : _direcciones.Any(d => string.IsNullOrWhiteSpace(d.Alias) || string.IsNullOrWhiteSpace(d.Direccion)) ? "Cada dirección necesita alias y dirección."
             : CorrigeDocumento && string.IsNullOrWhiteSpace(_motivoCorreccion) ? "Indique el motivo de la corrección del documento."
@@ -199,10 +207,10 @@
             return;
 
         var direcciones = _direcciones
-            .Select(d => new DireccionClienteCarga(d.Id, d.Alias?.Trim() ?? string.Empty, d.Direccion?.Trim() ?? string.Empty, Opcional(d.Sector), Opcional(d.Ciudad),
+            .Select(d => new DireccionClienteCarga(d.Alias?.Trim() ?? string.Empty, d.Direccion?.Trim() ?? string.Empty, Opcional(d.Sector), Opcional(d.Ciudad),
                 Opcional(d.Referencia), Opcional(d.Telefono), d.Id == _principalId))
             .ToList();
-        var cliente = new ClienteCarga(Cliente?.Id ?? Guid.CreateVersion7(), _tipoDocumento, _documento?.Trim() ?? string.Empty, _nombre?.Trim() ?? string.Empty,
+        var cliente = new ClienteCarga(_codigo!.Trim(), _tipoDocumento, _documento?.Trim() ?? string.Empty, _nombre?.Trim() ?? string.Empty,
             _comprobante, _exonerado, _retencion, _lista, Opcional(_telefono), Opcional(_correo), direcciones, _activo);
 
         _procesando = true;
@@ -211,7 +219,7 @@
         // Primero la corrección auditada del documento; después los demás datos, ya con el documento nuevo.
         if (CorrigeDocumento)
         {
-            var correccion = await Central.CorregirDocumentoClienteAsync(Cliente!.Id,
+            var correccion = await Central.CorregirDocumentoClienteAsync(Cliente!.Codigo,
                 new SolicitudCorreccionDocumentoCliente(_tipoDocumento, _documento?.Trim() ?? string.Empty, _motivoCorreccion!.Trim()));
             if (!correccion.Exitosa)
             {
@@ -223,7 +231,7 @@
             Cliente = Cliente with { TipoDocumento = _tipoDocumento, Documento = DocumentoIdentidad.Normalizar(_documento) };
         }
 
-        var respuesta = await Central.GuardarClienteAsync(cliente with { Documento = DocumentoIdentidad.Normalizar(cliente.Documento) });
+        var respuesta = await Central.GuardarClienteAsync(cliente with { Documento = DocumentoIdentidad.Normalizar(cliente.Documento) }, nuevo: Cliente is null);
         _procesando = false;
 
         if (respuesta.Exitosa)

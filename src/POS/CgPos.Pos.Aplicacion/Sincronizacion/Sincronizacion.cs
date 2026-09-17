@@ -14,8 +14,11 @@ public static class ClavesSincronizacion
     /// <summary>Secreto de la credencial de dispositivo que el Central emitió para esta caja (se configura al instalarla).</summary>
     public const string SecretoCaja = "Central:Secreto";
 
-    /// <summary>Id de la caja en esta instalación; con el secreto forma la credencial ante el Central.</summary>
-    public const string CajaId = "Caja:Id";
+    /// <summary>Código de la sucursal de esta caja; con el código de la caja y el secreto forma la credencial ante el Central.</summary>
+    public const string CajaSucursal = "Caja:Sucursal";
+
+    /// <summary>Código de esta caja dentro de su sucursal.</summary>
+    public const string CajaCodigo = "Caja:Codigo";
 
     /// <summary>Carpeta donde el Central simulado guarda los mensajes recibidos.</summary>
     public const string CarpetaSimulada = "Central:CarpetaSimulada";

@@ -246,18 +246,21 @@ public sealed class Venta : Entidad
     /// Número de un documento de la caja: código de sucursal + código de caja + secuencia rellena con ceros a los dígitos configurados
     /// (ej. sucursal 01, caja 01, secuencia 1 con 7 dígitos = 01010000001). Si la secuencia supera esos dígitos, el número crece: nunca se repite.
     /// </summary>
-    public static string FormatearNumero(string codigoSucursal, string codigoCaja, long secuencia, int digitos)
+    public static string FormatearNumero(int codigoSucursal, int codigoCaja, long secuencia, int digitos)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(codigoSucursal);
-        ArgumentException.ThrowIfNullOrWhiteSpace(codigoCaja);
+        ArgumentOutOfRangeException.ThrowIfLessThan(codigoSucursal, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(codigoSucursal, Comun.CodigosCatalogo.MaximoSucursalCaja);
+        ArgumentOutOfRangeException.ThrowIfLessThan(codigoCaja, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(codigoCaja, Comun.CodigosCatalogo.MaximoSucursalCaja);
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(digitos, DigitosMinimosSecuencia);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(digitos, DigitosMaximosSecuencia);
 
-        return codigoSucursal.Trim() + codigoCaja.Trim() + secuencia.ToString(new string('0', digitos), CultureInfo.InvariantCulture);
+        return codigoSucursal.ToString("00", CultureInfo.InvariantCulture) + codigoCaja.ToString("00", CultureInfo.InvariantCulture)
+            + secuencia.ToString(new string('0', digitos), CultureInfo.InvariantCulture);
     }
 
-    public static Venta Iniciar(Guid sucursalId, string codigoSucursal, Guid cajaId, string codigoCaja, Guid turnoId, long secuencia, int digitosSecuencia,
+    public static Venta Iniciar(Guid sucursalId, int codigoSucursal, Guid cajaId, int codigoCaja, Guid turnoId, long secuencia, int digitosSecuencia,
         Guid usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);

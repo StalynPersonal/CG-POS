@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Maestros;
@@ -6,15 +6,19 @@ using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Serializacion;
+using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
-using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace CgPos.Central.Infraestructura.Sincronizacion;
 
+/// <summary>
+/// Publica maestros para las cajas: cada registro se guarda en su tabla por su código (o llave natural) con las reglas del dominio. Todo o nada:
+/// con un error no se guarda nada, porque un maestro inválido detendría la sincronización de las cajas.
+/// </summary>
 internal sealed class PublicadorMaestros(
     ContextoDatosCentral contexto,
     IAuditoriaCentral auditoria,
@@ -24,65 +28,62 @@ internal sealed class PublicadorMaestros(
     /// <summary>Los parámetros con este prefijo rigen al propio Central y no bajan a las cajas.</summary>
     public const string PrefijoParametrosCentral = "Central.";
 
-    private const string TodosLosPermisos = "*";
-
     public async Task<ResultadoPublicacion> PublicarAsync(PaqueteMaestros paquete, string usuario, CancellationToken cancelacion = default, bool corregirDocumentoCliente = false)
     {
         ArgumentNullException.ThrowIfNull(paquete);
         ArgumentException.ThrowIfNullOrWhiteSpace(usuario);
 
         var errores = ValidacionMaestros.Validar(paquete).ToList();
-        var filas = FormatoMaestros.Desglosar(paquete).ToList();
-        var existentes = await CargarExistentesAsync(filas.Select(f => f.Tipo), cancelacion);
-
-        ValidarUnicos(filas, existentes.Values, errores);
-        ValidarInmutables(filas, existentes, errores, corregirDocumentoCliente);
-        await ValidarReferenciasAsync(paquete, existentes.Values, errores, cancelacion);
+        ValidarRepetidos(paquete, errores);
+        await ValidarCodigosArticulosAsync(paquete.Articulos ?? [], errores, cancelacion);
+        await ValidarMonedasAsync(paquete, errores, cancelacion);
         if (errores.Count > 0)
             throw new PublicacionInvalidaExcepcion(errores);
 
-        ResultadoPublicacion resultado;
-        try
-        {
-            resultado = await GuardarAsync(filas, existentes, usuario, cancelacion);
-        }
-        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        await resolutor.PrepararAsync(cancelacion);
+        await resolutor.CargarArticulosAsync(
+            (paquete.Promociones ?? []).SelectMany(p => p.Articulos ?? [])
+                .Concat((paquete.TopesDescuento ?? []).Select(t => t.ArticuloCodigo).OfType<string>())
+                .Concat((paquete.ReglasAcumulacion ?? []).Where(r => r.Tipo == Dominio.Fidelidad.TipoReglaAcumulacion.Articulo).Select(r => r.Referencia).OfType<string>()),
+            null, cancelacion);
+
+        var opciones = new OpcionesPublicacion(reloj.GetUtcNow(), usuario, corregirDocumentoCliente);
+        var (publicados, sinCambios) = await AplicarAsync(Registros(paquete), resolutor, opciones, errores, cancelacion);
+
+        if (errores.Count == 0)
+            await ValidarDespuesDeAplicarAsync(paquete, errores, cancelacion);
+        if (errores.Count > 0)
         {
             contexto.ChangeTracker.Clear();
-            throw new PublicacionInvalidaExcepcion([ValidacionMaestros.MensajeError(excepcion)]);
+            throw new PublicacionInvalidaExcepcion(errores);
         }
 
-        auditoria.Registrar(new EntradaAuditoria("Maestros.Publicados", "Maestros", Detalle: new { Usuario = usuario, resultado.Publicados, resultado.SinCambios }));
-        await contexto.SaveChangesAsync(cancelacion);
+        auditoria.Registrar(new EntradaAuditoria("Maestros.Publicados", "Maestros", Detalle: new { Usuario = usuario, Publicados = publicados, SinCambios = sinCambios }));
+        await GuardarAsync(cancelacion);
 
-        registro.LogInformation("Maestros publicados por {Usuario}: {Publicados} nuevos o cambiados, {SinCambios} sin cambios", usuario, resultado.Publicados, resultado.SinCambios);
-        return resultado;
+        registro.LogInformation("Maestros publicados por {Usuario}: {Publicados} nuevos o cambiados, {SinCambios} sin cambios", usuario, publicados, sinCambios);
+        return new ResultadoPublicacion(publicados, sinCambios);
     }
 
-    public async Task<ResultadoPublicacion> PublicarSeguridadCajasAsync(IReadOnlyList<RolCarga> roles, IReadOnlyList<UsuarioCarga> usuarios, IReadOnlyList<ParametroCarga> parametros,
-        string usuario, CancellationToken cancelacion = default)
+    public async Task<ResultadoPublicacion> PublicarSeguridadCajasAsync(IReadOnlyList<RolCarga> roles, IReadOnlyList<UsuarioCarga> usuarios,
+        IReadOnlyList<ParametroCarga> parametros, string usuario, CancellationToken cancelacion = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(usuario);
 
         var errores = new List<string>();
-        var existentes = await CargarExistentesAsync([TipoMaestro.RolCaja, TipoMaestro.UsuarioCaja], cancelacion);
-        var idsCajas = (await contexto.Cajas.Select(c => c.Id).ToListAsync(cancelacion)).ToHashSet();
-        var idsSucursales = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
-        var idsRoles = roles.Select(r => r.Id).Concat(existentes.Keys.Where(k => k.Tipo == TipoMaestro.RolCaja).Select(k => k.Id)).ToHashSet();
-        var filas = new List<FilaMaestro>();
+        foreach (var repetido in roles.GroupBy(r => r.Codigo?.Trim().ToUpperInvariant()).Where(g => g.Count() > 1))
+            errores.Add($"Rol de caja '{repetido.Key}' repetido.");
+        foreach (var repetido in usuarios.GroupBy(u => u.Codigo?.Trim().ToUpperInvariant()).Where(g => g.Count() > 1))
+            errores.Add($"Usuario de caja '{repetido.Key}' repetido.");
 
         foreach (var rol in roles)
         {
             try
             {
-                var entidad = Rol.Crear(rol.Codigo, rol.Nombre, rol.Nivel, rol.Id);
-                foreach (var permiso in (rol.Permisos ?? []).Where(p => p != TodosLosPermisos))
+                var entidad = Rol.Crear(rol.Codigo, rol.Nombre, rol.Nivel);
+                foreach (var permiso in (rol.Permisos ?? []).Where(p => p != "*"))
                     entidad.AsignarPermiso(permiso);
-
-                if (existentes.TryGetValue((TipoMaestro.RolCaja, rol.Id), out var filaRol) && FormatoMaestros.Leer<RolCarga>(filaRol).Codigo != rol.Codigo.Trim())
-                    errores.Add($"Rol de caja '{rol.Codigo}': el código del rol no se puede cambiar.");
-
-                filas.Add(new FilaMaestro(TipoMaestro.RolCaja, rol.Id, rol.Codigo, null, rol));
             }
             catch (ArgumentException excepcion)
             {
@@ -90,12 +91,17 @@ internal sealed class PublicadorMaestros(
             }
         }
 
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        await resolutor.PrepararAsync(cancelacion);
+
+        // La clave solo baja como hash; una clave que no cambió conserva su hash (lleva sal aleatoria).
+        var usuariosConHash = new List<UsuarioCarga>();
         foreach (var dato in usuarios)
         {
             var etiqueta = $"Usuario de caja '{dato.Codigo}'";
             try
             {
-                Usuario.Crear(dato.Codigo, dato.Nombre, dato.RolId, dato.Id);
+                Usuario.Crear(dato.Codigo, dato.Nombre, Guid.CreateVersion7());
             }
             catch (ArgumentException excepcion)
             {
@@ -103,15 +109,7 @@ internal sealed class PublicadorMaestros(
                 continue;
             }
 
-            if (!idsRoles.Contains(dato.RolId))
-                errores.Add($"{etiqueta} referencia un rol inexistente ({dato.RolId}).");
-            foreach (var cajaId in (dato.Cajas ?? []).Where(id => !idsCajas.Contains(id)))
-                errores.Add($"{etiqueta} referencia una caja inexistente ({cajaId}).");
-
-            var anterior = existentes.TryGetValue((TipoMaestro.UsuarioCaja, dato.Id), out var fila) ? FormatoMaestros.Leer<UsuarioCarga>(fila) : null;
-            if (anterior is not null && anterior.Codigo != dato.Codigo.Trim())
-                errores.Add($"{etiqueta}: el código del usuario no se puede cambiar.");
-            // La clave solo baja como hash; una clave que no cambió conserva su hash (lleva sal aleatoria).
+            var anterior = await TablasMaestros.UsuariosCaja.BuscarAsync(contexto, dato, cancelacion);
             var claveHash = dato.ClaveHash;
             if (dato.Clave is not null)
                 claveHash = dato.Clave.Length == 0
@@ -124,7 +122,7 @@ internal sealed class PublicadorMaestros(
             if (claveHash is null)
                 errores.Add($"{etiqueta} no tiene clave.");
 
-            filas.Add(new FilaMaestro(TipoMaestro.UsuarioCaja, dato.Id, dato.Codigo, null, dato with { Clave = null, ClaveHash = claveHash }));
+            usuariosConHash.Add(dato with { Clave = null, ClaveHash = claveHash });
         }
 
         foreach (var parametro in parametros)
@@ -136,393 +134,274 @@ internal sealed class PublicadorMaestros(
                 errores.Add($"El parámetro '{clave}' no está en el catálogo de parámetros de caja.");
             else if (definicion.ValidarValor(parametro.Valor) is { } problema)
                 errores.Add($"El parámetro '{clave}': {problema}");
-            if (parametro.SucursalId is { } sucursalId && !idsSucursales.Contains(sucursalId))
-                errores.Add($"El parámetro '{clave}' referencia una sucursal inexistente ({sucursalId}).");
-            if (parametro.CajaId is { } cajaId && !idsCajas.Contains(cajaId))
-                errores.Add($"El parámetro '{clave}' referencia una caja inexistente ({cajaId}).");
         }
 
-        ValidarUnicos(filas, existentes.Values, errores);
         if (errores.Count > 0)
             throw new PublicacionInvalidaExcepcion(errores);
 
-        try
-        {
-            var resultado = await GuardarAsync(filas, existentes, usuario, cancelacion);
-            var parametrosCambiados = await AplicarParametrosAsync(parametros, cancelacion);
-            resultado = resultado with { Publicados = resultado.Publicados + parametrosCambiados, SinCambios = resultado.SinCambios + parametros.Count - parametrosCambiados };
+        var opciones = new OpcionesPublicacion(reloj.GetUtcNow(), usuario);
+        var registros = roles.Select(r => ((TablaMaestro)TablasMaestros.RolesCaja, (object)r, $"Rol de caja '{r.Codigo}'"))
+            .Concat(usuariosConHash.Select(u => ((TablaMaestro)TablasMaestros.UsuariosCaja, (object)u, $"Usuario de caja '{u.Codigo}'")));
+        var (publicados, sinCambios) = await AplicarAsync(registros, resolutor, opciones, errores, cancelacion);
 
-            auditoria.Registrar(new EntradaAuditoria("Maestros.SeguridadCajasPublicada", "Maestros",
-                Detalle: new { Usuario = usuario, Roles = roles.Count, Usuarios = usuarios.Count, Parametros = parametros.Count, resultado.Publicados }));
-            await contexto.SaveChangesAsync(cancelacion);
-            return resultado;
+        var parametrosCambiados = 0;
+        foreach (var parametro in parametros)
+        {
+            try
+            {
+                if (await AplicarParametroAsync(parametro, resolutor, cancelacion))
+                    parametrosCambiados++;
+            }
+            catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+            {
+                errores.Add($"El parámetro '{parametro.Clave}': {ValidacionMaestros.MensajeError(excepcion)}");
+            }
         }
-        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+
+        if (errores.Count > 0)
         {
             contexto.ChangeTracker.Clear();
-            throw new PublicacionInvalidaExcepcion([ValidacionMaestros.MensajeError(excepcion)]);
+            throw new PublicacionInvalidaExcepcion(errores);
         }
+
+        var resultado = new ResultadoPublicacion(publicados + parametrosCambiados, sinCambios + parametros.Count - parametrosCambiados);
+        auditoria.Registrar(new EntradaAuditoria("Maestros.SeguridadCajasPublicada", "Maestros",
+            Detalle: new { Usuario = usuario, Roles = roles.Count, Usuarios = usuarios.Count, Parametros = parametros.Count, resultado.Publicados }));
+        await GuardarAsync(cancelacion);
+        return resultado;
     }
 
-    private async Task<Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral>> CargarExistentesAsync(IEnumerable<TipoMaestro> tipos, CancellationToken cancelacion)
+    /// <summary>Registros del paquete con su tabla, en el orden en que se aplican.</summary>
+    internal static IEnumerable<(TablaMaestro Tabla, object Dato, string Etiqueta)> Registros(PaqueteMaestros paquete)
     {
-        var lista = tipos.Distinct().ToList();
-        var enJson = lista.Where(t => !Maestros.TablasMaestros.TieneTabla(t)).ToList();
-        var existentes = enJson.Count == 0
-            ? []
-            : await contexto.MaestrosCentral.Where(m => enJson.Contains(m.Tipo)).ToDictionaryAsync(m => (m.Tipo, m.Id), cancelacion);
+        IEnumerable<(TablaMaestro, object, string)> De<T>(TablaMaestro tabla, IReadOnlyList<T>? lista, Func<T, string> etiqueta) where T : class =>
+            (lista ?? []).Select(d => (tabla, (object)d, etiqueta(d)));
 
-        // Los que ya tienen su tabla se leen como filas publicadas solo para validar; se guardan en su tabla.
-        foreach (var tipo in lista.Where(Maestros.TablasMaestros.TieneTabla))
-            foreach (var fila in await contexto.MaestrosAsync(tipo, cancelacion))
-                existentes[(tipo, fila.Id)] = fila;
-
-        return existentes;
+        return De(TablasMaestros.Monedas, paquete.Monedas, d => $"Moneda '{d.Codigo}'")
+            .Concat(De(TablasMaestros.Departamentos, paquete.Departamentos, d => $"Departamento {d.Codigo}"))
+            .Concat(De(TablasMaestros.Categorias, paquete.Categorias, d => $"Categoría {d.Codigo}"))
+            .Concat(De(TablasMaestros.Marcas, paquete.Marcas, d => $"Marca {d.Codigo}"))
+            .Concat(De(TablasMaestros.UnidadesMedida, paquete.UnidadesMedida, d => $"Unidad de medida {d.Codigo}"))
+            .Concat(De(TablasMaestros.Impuestos, paquete.Impuestos, d => $"Impuesto '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.Articulos, paquete.Articulos, d => $"Artículo '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.Clientes, paquete.Clientes, d => $"Cliente '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.FormasPago, paquete.FormasPago, d => $"Forma de pago '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.Bancos, paquete.Bancos, d => $"Banco '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.TiposTarjeta, paquete.TiposTarjeta, d => $"Tipo de tarjeta {d.Codigo}"))
+            .Concat(De(TablasMaestros.Denominaciones, paquete.Denominaciones, d => $"Denominación {d.Moneda} {d.Valor}"))
+            .Concat(De(TablasMaestros.Promociones, paquete.Promociones, d => $"Promoción '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.MotivosDescuento, paquete.MotivosDescuento, d => $"Motivo de descuento {d.Codigo}"))
+            .Concat(De(TablasMaestros.TopesDescuento, paquete.TopesDescuento, d => $"Tope de descuento {d.Codigo}"))
+            .Concat(De(TablasMaestros.TasasCambio, paquete.TasasCambio, d => $"Tasa de cambio {d.Moneda}"))
+            .Concat(De(TablasMaestros.SecuenciasEcf, paquete.SecuenciasEcf, EtiquetaRango))
+            .Concat(De(TablasMaestros.MotivosDevolucion, paquete.MotivosDevolucion, d => $"Motivo de devolución {d.Codigo}"))
+            .Concat(De(TablasMaestros.NivelesFidelidad, paquete.NivelesFidelidad, d => $"Nivel de fidelidad {d.Codigo}"))
+            .Concat(De(TablasMaestros.ReglasAcumulacion, paquete.ReglasAcumulacion, d => $"Regla de acumulación {d.Codigo}"))
+            .Concat(De(TablasMaestros.MiembrosFidelidad, paquete.MiembrosFidelidad, d => $"Miembro de fidelidad '{d.Cedula}'"))
+            .Concat(De(TablasMaestros.Almacenes, paquete.Almacenes, d => $"Almacén '{d.Codigo}'"))
+            .Concat(De(TablasMaestros.DescuentosTarjeta, paquete.DescuentosTarjeta, d => $"Descuento por tarjeta '{d.Codigo}'"));
     }
 
-    private async Task<ResultadoPublicacion> GuardarAsync(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, string usuario,
-        CancellationToken cancelacion)
+    private async Task<(int Publicados, int SinCambios)> AplicarAsync(IEnumerable<(TablaMaestro Tabla, object Dato, string Etiqueta)> registros,
+        ResolutorCodigosCentral resolutor, OpcionesPublicacion opciones, List<string> errores, CancellationToken cancelacion)
     {
-        var ahora = reloj.GetUtcNow();
         var publicados = 0;
         var sinCambios = 0;
-
-        foreach (var fila in filas)
+        foreach (var (tabla, dato, etiqueta) in registros)
         {
-            if (Maestros.TablasMaestros.Buscar(fila.Tipo) is { } tabla)
+            try
             {
-                if (await tabla.AplicarAsync(contexto, fila.Dato, ahora, usuario, cancelacion)) publicados++; else sinCambios++;
-                continue;
+                if (await tabla.AplicarAsync(contexto, dato, resolutor, opciones, cancelacion)) publicados++; else sinCambios++;
+            }
+            catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+            {
+                errores.Add($"{etiqueta}: {ValidacionMaestros.MensajeError(excepcion)}");
+            }
+        }
+
+        return (publicados, sinCambios);
+    }
+
+    private async Task GuardarAsync(CancellationToken cancelacion)
+    {
+        try
+        {
+            await contexto.SaveChangesAsync(cancelacion);
+        }
+        catch (DbUpdateException excepcion)
+        {
+            contexto.ChangeTracker.Clear();
+            throw new PublicacionInvalidaExcepcion([$"No se pudo guardar: {excepcion.InnerException?.Message ?? excepcion.Message}"]);
+        }
+    }
+
+    /// <returns><c>true</c> si el parámetro es nuevo o cambió de valor.</returns>
+    private async Task<bool> AplicarParametroAsync(ParametroCarga dato, ResolutorCodigosCentral resolutor, CancellationToken cancelacion)
+    {
+        Guid? sucursalId = null;
+        Guid? cajaId = null;
+        if (dato is { SucursalCodigo: { } s, CajaCodigo: { } c })
+            cajaId = resolutor.Caja(s, c);
+        else if (dato.CajaCodigo is not null)
+            throw new ArgumentException("Un parámetro de caja debe indicar también la sucursal de la caja.");
+        else if (dato.SucursalCodigo is { } sucursal)
+            sucursalId = resolutor.Sucursal(sucursal);
+
+        var clave = dato.Clave.Trim();
+        var parametro = await contexto.Parametros.SingleOrDefaultAsync(p => p.Clave == clave && p.SucursalId == sucursalId && p.CajaId == cajaId, cancelacion);
+        if (parametro is null)
+        {
+            contexto.Parametros.Add(Parametro.Crear(dato.Clave, dato.Valor, dato.Descripcion, sucursalId, cajaId));
+            return true;
+        }
+
+        if (parametro.Valor == dato.Valor)
+            return false;
+
+        parametro.CambiarValor(dato.Valor);
+        return true;
+    }
+
+    private static string EtiquetaRango(SecuenciaEcfCarga rango) => $"Rango de e-CF E{(int)rango.TipoComprobante} {rango.Desde}–{rango.Hasta}";
+
+    private static void ValidarRepetidos(PaqueteMaestros paquete, List<string> errores)
+    {
+        void Repetidos<T>(IEnumerable<T> llaves, string nombre)
+        {
+            foreach (var repetido in llaves.GroupBy(l => l).Where(g => g.Count() > 1))
+                errores.Add($"{nombre} {repetido.Key} repetido en el paquete.");
+        }
+
+        Repetidos((paquete.Articulos ?? []).Select(a => a.Codigo?.Trim()), "Artículo");
+        Repetidos((paquete.Clientes ?? []).Select(a => a.Codigo?.Trim().ToUpperInvariant()), "Cliente");
+        Repetidos((paquete.Departamentos ?? []).Select(a => a.Codigo), "Departamento");
+        Repetidos((paquete.Categorias ?? []).Select(a => a.Codigo), "Categoría");
+        Repetidos((paquete.Marcas ?? []).Select(a => a.Codigo), "Marca");
+        Repetidos((paquete.UnidadesMedida ?? []).Select(a => a.Codigo), "Unidad de medida");
+        Repetidos((paquete.Promociones ?? []).Select(a => a.Codigo?.Trim().ToUpperInvariant()), "Promoción");
+        Repetidos((paquete.TopesDescuento ?? []).Select(a => a.Codigo), "Tope de descuento");
+        Repetidos((paquete.SecuenciasEcf ?? []).Select(a => $"E{(int)a.TipoComprobante} desde {a.Desde}"), "Rango de e-CF");
+    }
+
+    /// <summary>El código interno, los de barras y los de proveedor identifican a un solo artículo en toda la empresa: la caja busca por cualquiera.</summary>
+    private async Task ValidarCodigosArticulosAsync(IReadOnlyList<ArticuloCarga> articulos, List<string> errores, CancellationToken cancelacion)
+    {
+        if (articulos.Count == 0)
+            return;
+
+        IEnumerable<string> Codigos(ArticuloCarga articulo) =>
+            new[] { articulo.Codigo }.Concat(articulo.CodigosBarras ?? []).Concat(articulo.CodigosProveedor ?? [])
+                .Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var duenoPorCodigo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var articulo in articulos)
+            foreach (var codigo in Codigos(articulo))
+            {
+                if (duenoPorCodigo.TryGetValue(codigo, out var otro) && otro != articulo.Codigo.Trim())
+                    errores.Add($"El código '{codigo}' está en los artículos '{otro}' y '{articulo.Codigo}'.");
+                duenoPorCodigo[codigo] = articulo.Codigo.Trim();
             }
 
-            var contenido = fila.Contenido();
-            if (existentes.TryGetValue((fila.Tipo, fila.Id), out var maestro))
-            {
-                if (maestro.Actualizar(fila.Codigo, fila.CajaId, contenido, ahora, usuario, fila.TextoBusqueda())) publicados++; else sinCambios++;
-                continue;
-            }
-
-            maestro = MaestroCentral.Publicar(fila.Tipo, fila.Id, fila.Codigo, fila.CajaId, contenido, ahora, usuario, fila.TextoBusqueda());
-            contexto.MaestrosCentral.Add(maestro);
-            existentes[(fila.Tipo, fila.Id)] = maestro;
-            publicados++;
-        }
-
-        return new ResultadoPublicacion(publicados, sinCambios);
-    }
-
-    /// <returns>Cantidad de parámetros nuevos o con valor distinto.</returns>
-    private async Task<int> AplicarParametrosAsync(IReadOnlyList<ParametroCarga> parametros, CancellationToken cancelacion)
-    {
-        var cambiados = 0;
-        foreach (var dato in parametros)
+        foreach (var bloque in duenoPorCodigo.Keys.Chunk(500))
         {
-            var parametro = await contexto.Parametros.SingleOrDefaultAsync(p => p.Id == dato.Id, cancelacion);
-            if (parametro is null)
-            {
-                contexto.Parametros.Add(Parametro.Crear(dato.Clave, dato.Valor, dato.Descripcion, dato.SucursalId, dato.CajaId, dato.Id));
-                cambiados++;
-                continue;
-            }
+            var codigos = bloque.ToList();
+            var internos = await contexto.Articulos.AsNoTracking().Where(a => codigos.Contains(a.Codigo)).Select(a => new { Codigo = a.Codigo, Articulo = a.Codigo })
+                .ToListAsync(cancelacion);
+            var secundarios = await contexto.Set<CodigoArticulo>().AsNoTracking().Where(c => codigos.Contains(c.Codigo))
+                .Join(contexto.Articulos, c => c.ArticuloId, a => a.Id, (c, a) => new { c.Codigo, Articulo = a.Codigo })
+                .ToListAsync(cancelacion);
 
-            if (parametro.Clave != dato.Clave.Trim() || parametro.SucursalId != dato.SucursalId || parametro.CajaId != dato.CajaId)
-                throw new InvalidOperationException($"El parámetro '{parametro.Clave}' no puede cambiar de clave ni de ámbito.");
-
-            if (parametro.Valor == dato.Valor)
-                continue;
-
-            parametro.CambiarValor(dato.Valor);
-            cambiados++;
-        }
-
-        return cambiados;
-    }
-
-    /// <summary>Maestros cuyo código la caja no deja cambiar: se identifica con él en sus documentos.</summary>
-    private static readonly Dictionary<TipoMaestro, string> CodigoInmutable = new()
-    {
-        [TipoMaestro.Articulo] = "del artículo",
-        [TipoMaestro.Departamento] = "del departamento",
-        [TipoMaestro.Categoria] = "de la categoría",
-        [TipoMaestro.Marca] = "de la marca",
-        [TipoMaestro.UnidadMedida] = "de la unidad de medida",
-        [TipoMaestro.Impuesto] = "del impuesto",
-        [TipoMaestro.Moneda] = "de la moneda",
-        [TipoMaestro.Promocion] = "de la promoción",
-        [TipoMaestro.NivelFidelidad] = "del nivel de fidelidad",
-        [TipoMaestro.ReglaAcumulacion] = "de la regla de acumulación",
-        [TipoMaestro.Almacen] = "del almacén",
-        [TipoMaestro.MiembroFidelidad] = "(cédula) del miembro de fidelidad",
-        [TipoMaestro.DescuentoTarjeta] = "del descuento por tarjeta",
-    };
-
-    /// <summary>Lo que la caja rechaza cambiar se valida antes de publicar: un maestro así detendría su sincronización.</summary>
-    private static void ValidarInmutables(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, List<string> errores,
-        bool corregirDocumentoCliente)
-    {
-        foreach (var fila in filas)
-        {
-            if (!existentes.TryGetValue((fila.Tipo, fila.Id), out var publicado))
-                continue;
-
-            // El código del artículo se compara exacto, como en la caja; los demás se guardan en mayúsculas.
-            var cambiaCodigo = fila.Tipo == TipoMaestro.Articulo
-                ? FormatoMaestros.Leer<ArticuloCarga>(publicado).Codigo.Trim() != ((ArticuloCarga)fila.Dato).Codigo?.Trim()
-                : !string.Equals(publicado.Codigo, fila.Codigo?.Trim(), StringComparison.OrdinalIgnoreCase);
-
-            if (CodigoInmutable.TryGetValue(fila.Tipo, out var descripcion) && cambiaCodigo)
-                errores.Add($"No se puede cambiar el código {descripcion} '{publicado.Codigo}'; cree uno nuevo.");
-            else if (fila.Tipo == TipoMaestro.Denominacion && cambiaCodigo)
-                errores.Add($"La denominación {publicado.Codigo} no puede cambiar de moneda, valor ni tipo; cree una nueva.");
-            else if (fila.Tipo == TipoMaestro.FormaPago && FormatoMaestros.Leer<FormaPagoCarga>(publicado).Tipo != ((FormaPagoCarga)fila.Dato).Tipo)
-                errores.Add($"No se puede cambiar el tipo de la forma de pago '{publicado.Codigo}'; cree una nueva.");
-            // El documento solo cambia con la corrección auditada (con motivo), no al guardar los datos del cliente.
-            else if (fila.Tipo == TipoMaestro.Cliente && cambiaCodigo && !corregirDocumentoCliente)
-                errores.Add($"El documento del cliente '{FormatoMaestros.Leer<ClienteCarga>(publicado).Documento}' se cambia con «Corregir documento».");
+            foreach (var usado in internos.Concat(secundarios).Where(u => !string.Equals(duenoPorCodigo[u.Codigo], u.Articulo, StringComparison.Ordinal)))
+                errores.Add($"El código '{usado.Codigo}' ya lo usa el artículo '{usado.Articulo}' (como código interno, de barras o de proveedor); no puede estar también en '{duenoPorCodigo[usado.Codigo]}'.");
         }
     }
 
-    /// <summary>Ids que existen entre los referidos: los del paquete y los ya publicados, consultados por bloques.</summary>
-    private async Task<HashSet<Guid>> IdsExistentesAsync(TipoMaestro tipo, IEnumerable<Guid> referidos, IEnumerable<Guid> delPaquete, CancellationToken cancelacion)
+    /// <summary>Formas de pago, denominaciones y tasas solo pueden usar monedas publicadas (las del paquete o las ya guardadas).</summary>
+    private async Task ValidarMonedasAsync(PaqueteMaestros paquete, List<string> errores, CancellationToken cancelacion)
     {
-        var ids = delPaquete.ToHashSet();
-        foreach (var bloque in referidos.Where(id => id != Guid.Empty && !ids.Contains(id)).Distinct().Chunk(1000))
-        {
-            var buscar = bloque.ToList();
-            ids.UnionWith((await contexto.MaestrosAsync(tipo, cancelacion, buscar)).Select(m => m.Id));
-        }
-
-        return ids;
-    }
-
-    private static string EtiquetaRango(SecuenciaEcfCarga rango) => $"E{(int)rango.TipoComprobante} {rango.Desde}–{rango.Hasta}";
-
-    private static void ValidarUnicos(IReadOnlyList<FilaMaestro> filas, IEnumerable<MaestroCentral> existentes, List<string> errores)
-    {
-        foreach (var repetido in filas.GroupBy(f => (f.Tipo, f.Id)).Where(g => g.Count() > 1))
-            errores.Add($"{repetido.Key.Tipo} {repetido.Key.Id} repetido en el paquete.");
-
-        var codigos = existentes.Where(m => m.Codigo is not null).ToDictionary(m => (m.Tipo, m.Codigo!), m => m.Id);
-        foreach (var fila in filas.Where(f => !string.IsNullOrWhiteSpace(f.Codigo)))
-        {
-            var clave = (fila.Tipo, fila.Codigo!.Trim().ToUpperInvariant());
-            if (codigos.TryGetValue(clave, out var otroId) && otroId != fila.Id)
-                errores.Add($"{fila.Tipo} con código '{fila.Codigo!.Trim()}' ya existe con otro Id ({otroId}).");
-            else
-                codigos[clave] = fila.Id;
-        }
-    }
-
-    private async Task ValidarReferenciasAsync(PaqueteMaestros paquete, IEnumerable<MaestroCentral> existentes, List<string> errores, CancellationToken cancelacion)
-    {
-        var publicados = existentes.ToList();
-
-        async Task<HashSet<Guid>> IdsAsync(TipoMaestro tipo, IEnumerable<Guid> delPaquete)
-        {
-            var ids = delPaquete.ToHashSet();
-            ids.UnionWith(publicados.Any(m => m.Tipo == tipo)
-                ? publicados.Where(m => m.Tipo == tipo).Select(m => m.Id)
-                : await contexto.IdsMaestrosAsync(tipo, cancelacion));
-            return ids;
-        }
-
-        // Departamento de cada categoría, con las del paquete sobre las publicadas.
-        async Task<Dictionary<Guid, Guid>> DepartamentoDeCategoriaAsync()
-        {
-            var filas = publicados.Any(m => m.Tipo == TipoMaestro.Categoria)
-                ? publicados.Where(m => m.Tipo == TipoMaestro.Categoria).ToList()
-                : await contexto.MaestrosAsync(TipoMaestro.Categoria, cancelacion);
-            var mapa = filas.Select(FormatoMaestros.Leer<CategoriaCarga>).ToDictionary(c => c.Id, c => c.DepartamentoId);
-            foreach (var categoria in paquete.Categorias ?? [])
-                mapa[categoria.Id] = categoria.DepartamentoId;
-            return mapa;
-        }
-
-        if (paquete.Categorias is { Count: > 0 } categorias)
-        {
-            var departamentos = await IdsAsync(TipoMaestro.Departamento, (paquete.Departamentos ?? []).Select(d => d.Id));
-            foreach (var categoria in categorias.Where(c => !departamentos.Contains(c.DepartamentoId)))
-                errores.Add($"La categoría '{categoria.Codigo}' referencia un departamento inexistente ({categoria.DepartamentoId}).");
-
-            // Cambiar una categoría de departamento dejaría artículos con una categoría de otro departamento.
-            var idsCategorias = categorias.Select(c => c.Id).ToHashSet();
-            var nuevoDepartamento = categorias.ToDictionary(c => c.Id, c => c.DepartamentoId);
-            var articulosPublicados = await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo).ToListAsync(cancelacion);
-            var idsArticulosPaquete = (paquete.Articulos ?? []).Select(a => a.Id).ToHashSet();
-            foreach (var articulo in articulosPublicados.Where(m => !idsArticulosPaquete.Contains(m.Id)).Select(FormatoMaestros.Leer<ArticuloCarga>)
-                         .Where(a => a.CategoriaId is { } id && idsCategorias.Contains(id) && nuevoDepartamento[id] != a.DepartamentoId))
-                errores.Add($"El artículo '{articulo.Codigo}' tiene esa categoría en otro departamento; cámbielo antes de mover la categoría.");
-        }
-
-        if (paquete.Articulos is { Count: > 0 } articulos)
-        {
-            var departamentos = await IdsAsync(TipoMaestro.Departamento, (paquete.Departamentos ?? []).Select(f => f.Id));
-            var unidades = await IdsAsync(TipoMaestro.UnidadMedida, (paquete.UnidadesMedida ?? []).Select(u => u.Id));
-            var impuestos = await IdsAsync(TipoMaestro.Impuesto, (paquete.Impuestos ?? []).Select(i => i.Id));
-            var marcas = await IdsAsync(TipoMaestro.Marca, (paquete.Marcas ?? []).Select(m => m.Id));
-            var departamentoDeCategoria = await DepartamentoDeCategoriaAsync();
-
-            foreach (var articulo in articulos)
-            {
-                var etiqueta = $"El artículo '{articulo.Codigo}'";
-                if (!departamentos.Contains(articulo.DepartamentoId)) errores.Add($"{etiqueta} referencia un departamento inexistente ({articulo.DepartamentoId}).");
-                if (!unidades.Contains(articulo.UnidadMedidaId)) errores.Add($"{etiqueta} referencia una unidad de medida inexistente ({articulo.UnidadMedidaId}).");
-                if (!impuestos.Contains(articulo.ImpuestoId)) errores.Add($"{etiqueta} referencia un impuesto inexistente ({articulo.ImpuestoId}).");
-                if (articulo.MarcaId is { } marcaId && !marcas.Contains(marcaId)) errores.Add($"{etiqueta} referencia una marca inexistente ({marcaId}).");
-                if (articulo.CategoriaId is { } categoriaId)
-                {
-                    if (!departamentoDeCategoria.TryGetValue(categoriaId, out var departamentoCategoria))
-                        errores.Add($"{etiqueta} referencia una categoría inexistente ({categoriaId}).");
-                    else if (departamentoCategoria != articulo.DepartamentoId)
-                        errores.Add($"{etiqueta} tiene una categoría que no es de su departamento.");
-                }
-            }
-
-            // El código interno, los de barras y los de proveedor identifican a un solo artículo en toda la empresa: la caja busca por cualquiera de ellos.
-            var idsDelPaquete = articulos.Select(a => a.Id).ToHashSet();
-            var duenoPorCodigo = new Dictionary<string, (Guid Id, string Articulo)>(StringComparer.OrdinalIgnoreCase);
-            IEnumerable<string> Codigos(ArticuloCarga articulo) =>
-                new[] { articulo.Codigo }.Concat(articulo.CodigosBarras ?? []).Concat(articulo.CodigosProveedor ?? []).Select(c => c.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
-
-            var articulosPublicados = publicados.Any(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id))
-                ? publicados.Where(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id)).ToList()
-                : await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && !idsDelPaquete.Contains(m.Id)).ToListAsync(cancelacion);
-            foreach (var publicado in articulosPublicados.Select(FormatoMaestros.Leer<ArticuloCarga>))
-                foreach (var codigo in Codigos(publicado))
-                    duenoPorCodigo[codigo] = (publicado.Id, publicado.Codigo);
-
-            foreach (var articulo in articulos)
-                foreach (var codigo in Codigos(articulo))
-                {
-                    // Dos artículos con el mismo código interno ya se informan como código repetido con otro Id.
-                    var mismoInterno = string.Equals(codigo, articulo.Codigo.Trim(), StringComparison.OrdinalIgnoreCase)
-                                       && duenoPorCodigo.TryGetValue(codigo, out var otroInterno)
-                                       && string.Equals(codigo, otroInterno.Articulo, StringComparison.OrdinalIgnoreCase);
-                    if (!mismoInterno && duenoPorCodigo.TryGetValue(codigo, out var dueno) && dueno.Id != articulo.Id)
-                        errores.Add($"El código '{codigo}' ya lo usa el artículo '{dueno.Articulo}' (como código interno, de barras o de proveedor); no puede estar también en '{articulo.Codigo}'.");
-                    duenoPorCodigo[codigo] = (articulo.Id, articulo.Codigo);
-                }
-        }
-
         var usanMoneda = (paquete.FormasPago ?? []).Select(f => (f.Moneda, $"La forma de pago '{f.Codigo}'"))
             .Concat((paquete.Denominaciones ?? []).Select(d => (d.Moneda, $"La denominación {d.Valor}")))
             .Concat((paquete.TasasCambio ?? []).Select(t => (t.Moneda, "La tasa de cambio")))
             .ToList();
-        if (usanMoneda.Count > 0)
+        if (usanMoneda.Count == 0)
+            return;
+
+        var monedas = (paquete.Monedas ?? []).Select(m => m.Codigo.Trim().ToUpperInvariant()).ToHashSet();
+        monedas.UnionWith(await contexto.Monedas.AsNoTracking().Select(m => m.Codigo).ToListAsync(cancelacion));
+        foreach (var (moneda, referencia) in usanMoneda.Where(u => !monedas.Contains(u.Moneda?.Trim().ToUpperInvariant() ?? string.Empty)))
+            errores.Add($"{referencia} usa la moneda '{moneda}', que no está publicada.");
+    }
+
+    /// <summary>Reglas entre registros que se validan con todo ya aplicado (lo del paquete junto con lo guardado).</summary>
+    private async Task ValidarDespuesDeAplicarAsync(PaqueteMaestros paquete, List<string> errores, CancellationToken cancelacion)
+    {
+        // La categoría de un artículo es de su departamento (también si se mueve la categoría a otro departamento).
+        if (paquete.Articulos is { Count: > 0 } || paquete.Categorias is { Count: > 0 })
         {
-            var monedas = (paquete.Monedas ?? []).Select(m => m.Codigo.Trim().ToUpperInvariant()).ToHashSet();
-            monedas.UnionWith((await contexto.MaestrosCentral.Where(m => m.Tipo == TipoMaestro.Moneda && m.Codigo != null).Select(m => m.Codigo!).ToListAsync(cancelacion))
-                .Select(c => c.ToUpperInvariant()));
-            foreach (var (moneda, referencia) in usanMoneda.Where(u => !monedas.Contains(u.Moneda?.Trim().ToUpperInvariant() ?? string.Empty)))
-                errores.Add($"{referencia} usa la moneda '{moneda}', que no está publicada.");
+            var categorias = (await contexto.Categorias.AsNoTracking().Select(c => new { c.Id, c.DepartamentoId }).ToListAsync(cancelacion))
+                .ToDictionary(c => c.Id, c => c.DepartamentoId);
+            foreach (var categoria in contexto.Categorias.Local)
+                categorias[categoria.Id] = categoria.DepartamentoId;
+
+            foreach (var articulo in contexto.Articulos.Local.Where(a => a.CategoriaId is { } id && categorias.GetValueOrDefault(id) != a.DepartamentoId))
+                errores.Add($"El artículo '{articulo.Codigo}' tiene una categoría que no es de su departamento.");
+
+            var movidas = contexto.Categorias.Local.Select(c => (c.Id, c.DepartamentoId)).ToList();
+            var locales = contexto.Articulos.Local.Select(a => a.Id).ToHashSet();
+            foreach (var (id, departamentoId) in movidas)
+                foreach (var codigo in await contexto.Articulos.AsNoTracking().Where(a => a.CategoriaId == id && a.DepartamentoId != departamentoId && !locales.Contains(a.Id))
+                             .Select(a => a.Codigo).Take(5).ToListAsync(cancelacion))
+                    errores.Add($"El artículo '{codigo}' tiene esa categoría en otro departamento; cámbielo antes de mover la categoría.");
         }
 
-        if (paquete.SecuenciasEcf is { Count: > 0 } secuencias)
+        // La caja rechaza reducir un rango por debajo de lo que pudo emitir, y un e-NCF es único: los rangos del mismo tipo no se solapan.
+        foreach (var secuencia in contexto.SecuenciasEcf.Local)
         {
-            var cajas = (await contexto.Cajas.Select(c => c.Id).ToListAsync(cancelacion)).ToHashSet();
-            foreach (var secuencia in secuencias.Where(s => !cajas.Contains(s.CajaId)))
-                errores.Add($"El rango de e-CF {secuencia.Id} referencia una caja inexistente ({secuencia.CajaId}).");
+            var entrada = contexto.Entry(secuencia);
+            if (entrada.State == EntityState.Modified && secuencia.Hasta < (long)entrada.Property(nameof(Dominio.Fiscal.SecuenciaEcf.Hasta)).OriginalValue!)
+                errores.Add($"El rango de e-CF E{(int)secuencia.TipoComprobante} {secuencia.Desde} no puede reducirse; la caja pudo haber emitido hasta su final.");
 
-            // La caja rechaza cambiar un rango de caja, tipo o inicio, o dejarlo por debajo de lo emitido: se valida aquí para no detener su sincronización.
-            var actuales = publicados.Where(m => m.Tipo == TipoMaestro.SecuenciaEcf).Select(FormatoMaestros.Leer<SecuenciaEcfCarga>).ToDictionary(s => s.Id);
-            foreach (var secuencia in secuencias)
-            {
-                if (!actuales.TryGetValue(secuencia.Id, out var anterior))
-                    continue;
-
-                if (anterior.CajaId != secuencia.CajaId || anterior.TipoComprobante != secuencia.TipoComprobante || anterior.Desde != secuencia.Desde)
-                    errores.Add($"El rango de e-CF {EtiquetaRango(anterior)} no puede cambiar de caja, tipo ni inicio; asigne un rango nuevo.");
-                if (secuencia.Hasta < anterior.Hasta)
-                    errores.Add($"El rango de e-CF {EtiquetaRango(anterior)} no puede reducirse; la caja pudo haber emitido hasta su final.");
-            }
-
-            // Un e-NCF es único en toda la empresa: los rangos del mismo tipo no se solapan entre cajas.
-            var idsDelPaquete = secuencias.Select(s => s.Id).ToHashSet();
-            foreach (var grupo in actuales.Values.Where(a => !idsDelPaquete.Contains(a.Id)).Concat(secuencias).GroupBy(s => s.TipoComprobante))
-            {
-                SecuenciaEcfCarga? mayor = null;
-                foreach (var rango in grupo.OrderBy(s => s.Desde))
-                {
-                    if (mayor is not null && rango.Desde <= mayor.Hasta)
-                        errores.Add($"Los rangos de e-CF {EtiquetaRango(mayor)} y {EtiquetaRango(rango)} se solapan.");
-                    if (mayor is null || rango.Hasta > mayor.Hasta)
-                        mayor = rango;
-                }
-            }
+            var solapado = await contexto.SecuenciasEcf.AsNoTracking()
+                .Where(s => s.Id != secuencia.Id && s.TipoComprobante == secuencia.TipoComprobante && s.Desde <= secuencia.Hasta && s.Hasta >= secuencia.Desde)
+                .Select(s => new { s.Desde, s.Hasta })
+                .FirstOrDefaultAsync(cancelacion);
+            var solapadoLocal = contexto.SecuenciasEcf.Local.FirstOrDefault(s => s.Id != secuencia.Id && s.TipoComprobante == secuencia.TipoComprobante
+                                                                                  && s.Desde <= secuencia.Hasta && s.Hasta >= secuencia.Desde);
+            if (solapado is not null || solapadoLocal is not null)
+                errores.Add($"Los rangos de e-CF E{(int)secuencia.TipoComprobante} {secuencia.Desde}–{secuencia.Hasta} y {solapado?.Desde ?? solapadoLocal!.Desde}–{solapado?.Hasta ?? solapadoLocal!.Hasta} se solapan.");
         }
 
-        if (paquete.Promociones is { Count: > 0 } promociones)
+        // Un documento de identidad es de un solo cliente: la caja busca al cliente por él.
+        foreach (var cliente in contexto.Clientes.Local)
         {
-            var departamentosPromocion = await IdsExistentesAsync(TipoMaestro.Departamento, promociones.SelectMany(p => p.Departamentos ?? []), (paquete.Departamentos ?? []).Select(f => f.Id), cancelacion);
-            var categoriasPromocion = await IdsExistentesAsync(TipoMaestro.Categoria, promociones.SelectMany(p => p.Categorias ?? []), (paquete.Categorias ?? []).Select(c => c.Id), cancelacion);
-            var marcasPromocion = await IdsExistentesAsync(TipoMaestro.Marca, promociones.SelectMany(p => p.Marcas ?? []), (paquete.Marcas ?? []).Select(m => m.Id), cancelacion);
-            var articulosPromocion = await IdsExistentesAsync(TipoMaestro.Articulo, promociones.SelectMany(p => p.Articulos ?? []), (paquete.Articulos ?? []).Select(a => a.Id), cancelacion);
-            var sucursalesExistentes = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
-            foreach (var promocion in promociones)
-            {
-                var etiqueta = $"La promoción '{promocion.Codigo}'";
-                if ((promocion.Articulos ?? []).Count(id => id != Guid.Empty && !articulosPromocion.Contains(id)) is var sinArticulo and > 0)
-                    errores.Add($"{etiqueta} referencia {sinArticulo} artículo(s) inexistente(s).");
-                if ((promocion.Departamentos ?? []).Count(id => id != Guid.Empty && !departamentosPromocion.Contains(id)) is var sinDepartamento and > 0)
-                    errores.Add($"{etiqueta} referencia {sinDepartamento} departamento(s) inexistente(s).");
-                if ((promocion.Categorias ?? []).Count(id => id != Guid.Empty && !categoriasPromocion.Contains(id)) is var sinCategoria and > 0)
-                    errores.Add($"{etiqueta} referencia {sinCategoria} categoría(s) inexistente(s).");
-                if ((promocion.Marcas ?? []).Count(id => id != Guid.Empty && !marcasPromocion.Contains(id)) is var sinMarca and > 0)
-                    errores.Add($"{etiqueta} referencia {sinMarca} marca(s) inexistente(s).");
-                if ((promocion.Sucursales ?? []).Count(id => id != Guid.Empty && !sucursalesExistentes.Contains(id)) is var sinSucursal and > 0)
-                    errores.Add($"{etiqueta} referencia {sinSucursal} sucursal(es) inexistente(s).");
-            }
+            var otro = contexto.Clientes.Local.FirstOrDefault(c => c.Id != cliente.Id && c.TipoDocumento == cliente.TipoDocumento && c.Documento == cliente.Documento)?.Codigo
+                       ?? await contexto.Clientes.AsNoTracking()
+                           .Where(c => c.Id != cliente.Id && c.TipoDocumento == cliente.TipoDocumento && c.Documento == cliente.Documento)
+                           .Select(c => c.Codigo).FirstOrDefaultAsync(cancelacion);
+            if (otro is not null)
+                errores.Add($"El documento '{cliente.Documento}' del cliente '{cliente.Codigo}' ya existe en el cliente '{otro}'.");
         }
 
-        if (paquete.TopesDescuento is { Count: > 0 } topes)
+        // Dentro de un alcance, la caja toma el tope del nivel del autorizador: dos topes del mismo nivel y alcance serían ambiguos.
+        foreach (var tope in contexto.TopesDescuento.Local)
         {
-            var departamentos = await IdsExistentesAsync(TipoMaestro.Departamento, topes.Select(t => t.DepartamentoId).OfType<Guid>(), (paquete.Departamentos ?? []).Select(f => f.Id), cancelacion);
-            var articulosTope = await IdsExistentesAsync(TipoMaestro.Articulo, topes.Select(t => t.ArticuloId).OfType<Guid>(), (paquete.Articulos ?? []).Select(a => a.Id), cancelacion);
-            var categoriasTope = await IdsExistentesAsync(TipoMaestro.Categoria, topes.Select(t => t.CategoriaId).OfType<Guid>(), (paquete.Categorias ?? []).Select(c => c.Id), cancelacion);
-            var marcasTope = await IdsExistentesAsync(TipoMaestro.Marca, topes.Select(t => t.MarcaId).OfType<Guid>(), (paquete.Marcas ?? []).Select(m => m.Id), cancelacion);
-            foreach (var tope in topes)
+            var repetido = contexto.TopesDescuento.Local.Any(t => t.Id != tope.Id && MismoAlcance(t, tope))
+                           || await contexto.TopesDescuento.AsNoTracking().AnyAsync(t => t.Id != tope.Id && t.Nivel == tope.Nivel && t.DepartamentoId == tope.DepartamentoId
+                               && t.ArticuloId == tope.ArticuloId && t.CategoriaId == tope.CategoriaId && t.MarcaId == tope.MarcaId, cancelacion);
+            if (repetido)
             {
-                if (tope.DepartamentoId is { } departamentoId && !departamentos.Contains(departamentoId))
-                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia un departamento inexistente ({departamentoId}).");
-                if (tope.ArticuloId is { } articuloId && !articulosTope.Contains(articuloId))
-                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia un artículo inexistente ({articuloId}).");
-                if (tope.CategoriaId is { } categoriaId && !categoriasTope.Contains(categoriaId))
-                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia una categoría inexistente ({categoriaId}).");
-                if (tope.MarcaId is { } marcaId && !marcasTope.Contains(marcaId))
-                    errores.Add($"El tope de descuento de nivel {tope.Nivel} referencia una marca inexistente ({marcaId}).");
-            }
-
-            // Dentro de un alcance, la caja toma el tope del nivel del autorizador: dos topes del mismo nivel y alcance serían ambiguos.
-            var idsTopes = topes.Select(t => t.Id).ToHashSet();
-            foreach (var repetido in publicados.Where(m => m.Tipo == TipoMaestro.TopeDescuento && !idsTopes.Contains(m.Id))
-                         .Select(FormatoMaestros.Leer<TopeDescuentoCarga>)
-                         .Concat(topes)
-                         .GroupBy(t => (t.Nivel, t.DepartamentoId, t.ArticuloId, t.CategoriaId, t.MarcaId))
-                         .Where(g => g.Count() > 1))
-            {
-                var alcance = repetido.Key.ArticuloId is not null ? "ese artículo"
-                    : repetido.Key.CategoriaId is not null ? "esa categoría"
-                    : repetido.Key.MarcaId is not null ? "esa marca"
-                    : repetido.Key.DepartamentoId is not null ? "ese departamento"
+                var alcance = tope.ArticuloId is not null ? "ese artículo"
+                    : tope.CategoriaId is not null ? "esa categoría"
+                    : tope.MarcaId is not null ? "esa marca"
+                    : tope.DepartamentoId is not null ? "ese departamento"
                     : "el alcance general";
-                errores.Add($"Ya hay un tope de descuento de nivel {repetido.Key.Nivel} para {alcance}; cambie ese tope.");
+                errores.Add($"Ya hay un tope de descuento de nivel {tope.Nivel} para {alcance}; cambie ese tope.");
             }
-        }
-
-        if (paquete.Almacenes is { Count: > 0 } almacenes)
-        {
-            var sucursales = (await contexto.Sucursales.Select(s => s.Id).ToListAsync(cancelacion)).ToHashSet();
-            foreach (var almacen in almacenes.Where(a => !sucursales.Contains(a.SucursalId)))
-                errores.Add($"El almacén '{almacen.Codigo}' referencia una sucursal inexistente ({almacen.SucursalId}).");
-        }
-
-        if (paquete.MiembrosFidelidad?.Where(m => m.NivelId is not null).ToList() is { Count: > 0 } conNivel)
-        {
-            var niveles = await IdsAsync(TipoMaestro.NivelFidelidad, (paquete.NivelesFidelidad ?? []).Select(n => n.Id));
-            foreach (var miembro in conNivel.Where(m => !niveles.Contains(m.NivelId!.Value)))
-                errores.Add($"El miembro '{miembro.Cedula}' referencia un nivel de fidelidad inexistente ({miembro.NivelId}).");
         }
     }
+
+    private static bool MismoAlcance(Dominio.Promociones.TopeDescuento a, Dominio.Promociones.TopeDescuento b) =>
+        a.Nivel == b.Nivel && a.DepartamentoId == b.DepartamentoId && a.ArticuloId == b.ArticuloId && a.CategoriaId == b.CategoriaId && a.MarcaId == b.MarcaId;
 }
 
 public static class ExtensionesPublicacionMaestros
@@ -536,9 +415,8 @@ public static class ExtensionesPublicacionMaestros
         var paquete = await LeerAsync<PaqueteMaestros>(ruta, cancelacion);
         await using var ambito = servicios.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>();
-        var publicados = await contexto.IdsTodosLosMaestrosAsync(cancelacion);
 
-        await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarAsync(SoloNuevos(paquete, publicados), "Carga inicial", cancelacion);
+        await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarAsync(await SoloNuevosAsync(contexto, paquete, cancelacion), "Carga inicial", cancelacion);
     }
 
     /// <summary>Publica roles, usuarios y parámetros de un archivo de carga inicial de caja; como los maestros, solo lo que no existe.</summary>
@@ -547,39 +425,75 @@ public static class ExtensionesPublicacionMaestros
         var paquete = await LeerAsync<PaqueteCargaInicial>(ruta, cancelacion);
         await using var ambito = servicios.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>();
-        var existentes = (await contexto.MaestrosCentral.Where(m => m.Tipo == TipoMaestro.RolCaja || m.Tipo == TipoMaestro.UsuarioCaja).Select(m => m.Id)
-            .ToListAsync(cancelacion)).ToHashSet();
-        existentes.UnionWith(await contexto.Parametros.Select(p => p.Id).ToListAsync(cancelacion));
+
+        var roles = await contexto.RolesCaja.Select(r => r.Codigo).ToListAsync(cancelacion);
+        var usuarios = await contexto.UsuariosCaja.Select(u => u.Codigo).ToListAsync(cancelacion);
+        var parametros = await contexto.Parametros.Select(p => new { p.Clave, p.SucursalId, p.CajaId }).ToListAsync(cancelacion);
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        await resolutor.PrepararAsync(cancelacion);
+
+        bool ParametroExiste(ParametroCarga dato)
+        {
+            try
+            {
+                var cajaId = dato is { SucursalCodigo: { } s, CajaCodigo: { } c } ? resolutor.Caja(s, c) : (Guid?)null;
+                var sucursalId = cajaId is null && dato.SucursalCodigo is { } sucursal ? resolutor.Sucursal(sucursal) : (Guid?)null;
+                return parametros.Any(p => p.Clave == dato.Clave.Trim() && p.SucursalId == sucursalId && p.CajaId == cajaId);
+            }
+            catch (InvalidOperationException)
+            {
+                // La sucursal o la caja no existen: el publicador informa el error.
+                return false;
+            }
+        }
 
         await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarSeguridadCajasAsync(
-            (paquete.Roles ?? []).Where(r => !existentes.Contains(r.Id)).ToList(),
-            (paquete.Usuarios ?? []).Where(u => !existentes.Contains(u.Id)).ToList(),
-            (paquete.Parametros ?? []).Where(p => !existentes.Contains(p.Id)).ToList(),
+            (paquete.Roles ?? []).Where(r => !roles.Contains(r.Codigo.Trim(), StringComparer.OrdinalIgnoreCase)).ToList(),
+            (paquete.Usuarios ?? []).Where(u => !usuarios.Contains(u.Codigo.Trim(), StringComparer.OrdinalIgnoreCase)).ToList(),
+            (paquete.Parametros ?? []).Where(p => !ParametroExiste(p)).ToList(),
             "Carga inicial", cancelacion);
     }
 
-    /// <summary>Copia del paquete sin los maestros cuyo Id ya está publicado.</summary>
-    internal static PaqueteMaestros SoloNuevos(PaqueteMaestros paquete, IReadOnlySet<Guid> publicados)
+    /// <summary>Copia del paquete sin los registros que ya existen (mismo código o llave natural).</summary>
+    internal static async Task<PaqueteMaestros> SoloNuevosAsync(ContextoDatosCentral contexto, PaqueteMaestros paquete, CancellationToken cancelacion)
     {
-        var copia = paquete with { };
-        foreach (var propiedad in typeof(PaqueteMaestros).GetProperties().Where(p => p.CanWrite && p.PropertyType.IsGenericType
-                     && p.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)))
+        async Task<List<T>?> Nuevos<TEntidad, T>(TablaMaestro<TEntidad, T> tabla, IReadOnlyList<T>? lista)
+            where TEntidad : Dominio.Comun.Entidad where T : class
         {
-            if (propiedad.GetValue(copia) is not System.Collections.IEnumerable lista)
-                continue;
+            if (lista is null)
+                return null;
 
-            var tipo = propiedad.PropertyType.GetGenericArguments()[0];
-            var id = tipo.GetProperty("Id");
-            if (id?.PropertyType != typeof(Guid))
-                continue;
-
-            var filtrados = lista.Cast<object>().Where(elemento => !publicados.Contains((Guid)id.GetValue(elemento)!)).ToArray();
-            var arreglo = Array.CreateInstance(tipo, filtrados.Length);
-            Array.Copy(filtrados, arreglo, filtrados.Length);
-            propiedad.SetValue(copia, arreglo);
+            var nuevos = new List<T>();
+            foreach (var dato in lista)
+                if (await tabla.BuscarAsync(contexto, dato, cancelacion) is null)
+                    nuevos.Add(dato);
+            return nuevos;
         }
 
-        return copia;
+        return new PaqueteMaestros(
+            await Nuevos(TablasMaestros.Departamentos, paquete.Departamentos),
+            await Nuevos(TablasMaestros.UnidadesMedida, paquete.UnidadesMedida),
+            await Nuevos(TablasMaestros.Impuestos, paquete.Impuestos),
+            await Nuevos(TablasMaestros.Articulos, paquete.Articulos),
+            await Nuevos(TablasMaestros.Clientes, paquete.Clientes),
+            await Nuevos(TablasMaestros.FormasPago, paquete.FormasPago),
+            await Nuevos(TablasMaestros.Bancos, paquete.Bancos),
+            await Nuevos(TablasMaestros.TiposTarjeta, paquete.TiposTarjeta),
+            await Nuevos(TablasMaestros.Denominaciones, paquete.Denominaciones),
+            await Nuevos(TablasMaestros.Promociones, paquete.Promociones),
+            await Nuevos(TablasMaestros.MotivosDescuento, paquete.MotivosDescuento),
+            await Nuevos(TablasMaestros.TopesDescuento, paquete.TopesDescuento),
+            await Nuevos(TablasMaestros.TasasCambio, paquete.TasasCambio),
+            await Nuevos(TablasMaestros.SecuenciasEcf, paquete.SecuenciasEcf),
+            await Nuevos(TablasMaestros.MotivosDevolucion, paquete.MotivosDevolucion),
+            await Nuevos(TablasMaestros.Monedas, paquete.Monedas),
+            await Nuevos(TablasMaestros.NivelesFidelidad, paquete.NivelesFidelidad),
+            await Nuevos(TablasMaestros.ReglasAcumulacion, paquete.ReglasAcumulacion),
+            await Nuevos(TablasMaestros.MiembrosFidelidad, paquete.MiembrosFidelidad),
+            await Nuevos(TablasMaestros.Almacenes, paquete.Almacenes),
+            await Nuevos(TablasMaestros.DescuentosTarjeta, paquete.DescuentosTarjeta),
+            await Nuevos(TablasMaestros.Categorias, paquete.Categorias),
+            await Nuevos(TablasMaestros.Marcas, paquete.Marcas));
     }
 
     private static async Task<T> LeerAsync<T>(string ruta, CancellationToken cancelacion)

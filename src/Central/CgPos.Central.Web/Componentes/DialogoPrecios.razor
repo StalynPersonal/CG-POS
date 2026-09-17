@@ -97,7 +97,7 @@
 
         _procesando = true;
         _mensaje = null;
-        var respuesta = await Cliente.CambiarPreciosAsync(Articulo.Id, new SolicitudPreciosArticulo(detalle, _mayor, _cantidadMayor, _minimo, _costo, vigenteDesde));
+        var respuesta = await Cliente.CambiarPreciosAsync(Articulo.Codigo, new SolicitudPreciosArticulo(detalle, _mayor, _cantidadMayor, _minimo, _costo, vigenteDesde));
         _procesando = false;
 
         if (respuesta.Exitosa)

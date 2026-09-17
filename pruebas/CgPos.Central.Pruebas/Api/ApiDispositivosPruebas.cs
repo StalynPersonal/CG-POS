@@ -18,7 +18,7 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
         var administrador = await TokenAdministradorAsync(cliente);
         var credencial = await EmitirAsync(cliente, administrador, CentralEnPruebas.CajaUno);
 
-        Assert.Equal("01", credencial.CajaCodigo);
+        Assert.Equal((1, 1), (credencial.SucursalCodigo, credencial.CajaCodigo));
 
         var (estado, token) = await PedirTokenAsync(cliente, CentralEnPruebas.CajaUno, credencial.Secreto);
         Assert.Equal(HttpStatusCode.OK, estado);
@@ -28,7 +28,7 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
         {
             var dispositivo = await identidad.Content.ReadFromJsonAsync<DatosDispositivo>(OpcionesJson.Predeterminadas);
             Assert.Equal(CentralEnPruebas.CajaUno, dispositivo!.CajaId);
-            Assert.Equal("01", dispositivo.SucursalCodigo);
+            Assert.Equal(1, dispositivo.SucursalCodigo);
         }
 
         using (var cajaComoUsuario = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/sesion/actual", token.Token)))
@@ -131,7 +131,8 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
 
     private static async Task<(HttpStatusCode Estado, RespuestaTokenDispositivo? Cuerpo)> PedirTokenAsync(HttpClient cliente, Guid cajaId, string secreto)
     {
-        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(cajaId, secreto), OpcionesJson.Predeterminadas);
+        var (sucursal, caja) = CentralEnPruebas.CodigosCaja(cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);
         return (respuesta.StatusCode, await respuesta.Content.ReadFromJsonAsync<RespuestaTokenDispositivo>(OpcionesJson.Predeterminadas));
     }
 }

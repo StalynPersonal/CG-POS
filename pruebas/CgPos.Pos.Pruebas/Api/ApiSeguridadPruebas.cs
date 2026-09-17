@@ -23,7 +23,10 @@ namespace CgPos.Pos.Pruebas.Api;
 /// </summary>
 public sealed class AgenteEnPruebas : IAsyncLifetime
 {
-    public const string CajaDesarrollo = "01990000-0000-7000-8000-000000000201";
+    /// <summary>La caja 01 de la sucursal 01 de los datos de desarrollo.</summary>
+    public const int SucursalDesarrollo = 1;
+
+    public const int CajaDesarrollo = 1;
 
     private readonly BaseDatosPruebas _baseDatos = new();
 
@@ -49,7 +52,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(datos, "carga-inicial.desarrollo.json"));
             anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datos, "maestros.desarrollo.json"));
             anfitrion.UseSetting("Maestros:PadronDgii", Path.Combine(datos, "padron-dgii.desarrollo.txt"));
-            anfitrion.UseSetting("Caja:Id", CajaDesarrollo);
+            anfitrion.UseSetting("Caja:Sucursal", SucursalDesarrollo.ToString());
+            anfitrion.UseSetting("Caja:Codigo", CajaDesarrollo.ToString());
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
             anfitrion.UseSetting("Perifericos:Impresora:Carpeta", _baseDatos.CarpetaImpresiones);
             anfitrion.UseSetting("Ecf:CarpetaXml", _baseDatos.CarpetaEcf);

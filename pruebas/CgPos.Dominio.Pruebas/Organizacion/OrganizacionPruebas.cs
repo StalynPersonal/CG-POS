@@ -29,7 +29,7 @@ public class OrganizacionPruebas
     {
         var idCentral = Guid.CreateVersion7();
 
-        var caja = Caja.Crear(Guid.CreateVersion7(), "01", "Caja 01", id: idCentral);
+        var caja = Caja.Crear(Guid.CreateVersion7(), 1, "Caja 01", id: idCentral);
 
         Assert.Equal(idCentral, caja.Id);
     }
@@ -37,7 +37,7 @@ public class OrganizacionPruebas
     [Fact]
     public void Caja_nace_habilitada_y_se_puede_deshabilitar()
     {
-        var caja = Caja.Crear(Guid.CreateVersion7(), "01", "Caja 01");
+        var caja = Caja.Crear(Guid.CreateVersion7(), 1, "Caja 01");
         Assert.True(caja.Habilitada);
 
         caja.Deshabilitar();

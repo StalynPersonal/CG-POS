@@ -25,7 +25,7 @@ public static class RutasApiSincronizacion
                     return Results.Json(new RespuestaRecepcionCentral(EstadoRecepcion.Rechazado, "La clave de idempotencia no coincide con el Id del mensaje."),
                         statusCode: StatusCodes.Status422UnprocessableEntity);
 
-                var respuesta = await servicio.RecibirAsync(mensaje, new CajaRemitente(caja.CajaId, caja.SucursalId), cancelacion);
+                var respuesta = await servicio.RecibirAsync(mensaje, new CajaRemitente(caja.CajaId, caja.SucursalId, caja.SucursalCodigo, caja.CajaCodigo), cancelacion);
                 return respuesta.Estado == EstadoRecepcion.Rechazado
                     ? Results.Json(respuesta, statusCode: StatusCodes.Status422UnprocessableEntity)
                     : Results.Ok(respuesta);
@@ -34,7 +34,7 @@ public static class RutasApiSincronizacion
         // Bajada de maestros (RF-269, RF-273): lo cambiado desde la versión que la caja ya aplicó; desde 0 es el aprovisionamiento (RF-281).
         sincronizacion.MapGet("/maestros", async (long? desde, ClaimsPrincipal usuario, IServicioBajadaMaestros servicio, CancellationToken cancelacion) =>
             EmisorTokensCentral.LeerDispositivo(usuario) is { } caja
-                ? Results.Ok(await servicio.ObtenerAsync(new CajaRemitente(caja.CajaId, caja.SucursalId), desde ?? 0, cancelacion))
+                ? Results.Ok(await servicio.ObtenerAsync(new CajaRemitente(caja.CajaId, caja.SucursalId, caja.SucursalCodigo, caja.CajaCodigo), desde ?? 0, cancelacion))
                 : Results.Unauthorized());
 
         return aplicacion;

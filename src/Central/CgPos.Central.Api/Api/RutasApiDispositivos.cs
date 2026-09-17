@@ -19,7 +19,7 @@ public static class RutasApiDispositivos
                 IParametrosCentral parametros, CancellationToken cancelacion) =>
             {
                 var minutos = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.MinutosTokenDispositivo, cancelacion);
-                var resultado = await servicio.AutenticarAsync(solicitud.CajaId, solicitud.Secreto ?? string.Empty, http.OrigenSolicitud(), cancelacion);
+                var resultado = await servicio.AutenticarAsync(solicitud.SucursalCodigo, solicitud.CajaCodigo, solicitud.Secreto ?? string.Empty, http.OrigenSolicitud(), cancelacion);
                 if (resultado.Dispositivo is not { } dispositivo)
                     return Results.Json(new RespuestaTokenDispositivo(false, MensajesDispositivos.Para(resultado.Motivo!.Value)), statusCode: StatusCodes.Status401Unauthorized);
 
@@ -44,7 +44,7 @@ public static class RutasApiDispositivos
             var emitida = await servicio.EmitirCredencialAsync(cajaId, new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre), cancelacion);
             return emitida is null
                 ? Results.NotFound()
-                : Results.Ok(new DatosCredencialDispositivo(emitida.CajaId, emitida.CajaCodigo, emitida.Secreto, emitida.EmitidaEn));
+                : Results.Ok(new DatosCredencialDispositivo(emitida.CajaId, emitida.SucursalCodigo, emitida.CajaCodigo, emitida.Secreto, emitida.EmitidaEn));
         });
 
         credencial.MapPost("/revocar", async (Guid cajaId, SolicitudRevocacionCredencial solicitud, ClaimsPrincipal usuario, IServicioDispositivos servicio,

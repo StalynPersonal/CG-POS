@@ -32,7 +32,6 @@ internal sealed class SucursalConfiguracion : IEntityTypeConfiguration<Sucursal>
         constructor.HasKey(s => s.Id);
         constructor.Property(s => s.Id).ValueGeneratedNever();
 
-        constructor.Property(s => s.Codigo).HasMaxLength(Sucursal.LargoMaximoCodigo).IsRequired();
         constructor.Property(s => s.Nombre).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
         constructor.Property(s => s.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion).IsRequired();
         constructor.Property(s => s.Telefono).HasMaxLength(Empresa.LargoMaximoTelefono).IsRequired();
@@ -50,7 +49,6 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.Id).ValueGeneratedNever();
 
-        constructor.Property(c => c.Codigo).HasMaxLength(Caja.LargoMaximoCodigo).IsRequired();
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
 
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);

@@ -170,7 +170,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
             .ToDictionary(r => r.NotaCreditoId, r => r.Monto);
 
         var cajas = await CodigosCajasAsync(notas.Select(n => n.CajaId), cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion);
 
         return notas.Select(nota =>
         {
@@ -187,6 +187,6 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         var buscar = ids.Distinct().ToList();
         return buscar.Count == 0
             ? []
-            : await contexto.Cajas.AsNoTracking().Where(c => buscar.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
+            : await contexto.Cajas.AsNoTracking().Where(c => buscar.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
     }
 }
