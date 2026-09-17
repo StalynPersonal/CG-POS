@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
@@ -15,18 +15,26 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     : IServicioMaestrosCentral
 {
     public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(TipoMaestro tipo, CancellationToken cancelacion = default) =>
-        (await contexto.MaestrosCentral.AsNoTracking()
-            .Where(m => m.Tipo == tipo)
-            .OrderBy(m => m.Codigo)
+        (await contexto.MaestrosAsync(tipo, cancelacion))
+            .OrderBy(m => m.Codigo, StringComparer.Ordinal)
             .ThenByDescending(m => m.ModificadoEn)
-            .ToListAsync(cancelacion))
-        .Select(Datos<T>)
-        .ToList();
+            .Select(Datos<T>)
+            .ToList();
 
     public async Task<PaginaMaestros<T>> BuscarAsync<T>(TipoMaestro tipo, string? texto, int pagina, int tamano, CancellationToken cancelacion = default)
     {
         tamano = Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina);
         pagina = Math.Max(pagina, 0);
+
+        // Los catálogos con tabla propia son cortos: se filtran en memoria por código y nombre.
+        if (TablasMaestros.TieneTabla(tipo))
+        {
+            var filtro = MaestroCentral.NormalizarBusqueda(texto);
+            var todos = (await ListarAsync<T>(tipo, cancelacion))
+                .Where(m => filtro is null || MaestroCentral.NormalizarBusqueda(System.Text.Json.JsonSerializer.Serialize(m.Dato, CgPos.Contratos.Serializacion.OpcionesJson.Predeterminadas))!.Contains(filtro, StringComparison.Ordinal))
+                .ToList();
+            return new PaginaMaestros<T>(todos.Skip(pagina * tamano).Take(tamano).ToList(), todos.Count);
+        }
 
         var consulta = contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == tipo);
         if (MaestroCentral.NormalizarBusqueda(texto) is { } buscado)
@@ -142,7 +150,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
         var categorias = (await ListarAsync<CategoriaCarga>(TipoMaestro.Categoria, cancelacion)).ToDictionary(c => c.Dato.Id, c => c.Dato);
         var marcas = (await ListarAsync<MarcaCarga>(TipoMaestro.Marca, cancelacion)).ToDictionary(m => m.Dato.Id, m => m.Dato);
 
-        var departamentos = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Departamento && idsDepartamentos.Contains(m.Id)).ToListAsync(cancelacion))
+        var departamentos = (await contexto.MaestrosAsync(TipoMaestro.Departamento, cancelacion, idsDepartamentos))
             .Select(FormatoMaestros.Leer<DepartamentoCarga>).ToDictionary(f => f.Id);
         var articulos = (await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Articulo && idsArticulos.Contains(m.Id)).ToListAsync(cancelacion))
             .Select(FormatoMaestros.Leer<ArticuloCarga>).ToDictionary(a => a.Id);
@@ -165,7 +173,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     }
 
     private async Task<T?> LeerAsync<T>(TipoMaestro tipo, Guid id, CancellationToken cancelacion) where T : class =>
-        await contexto.MaestrosCentral.AsNoTracking().SingleOrDefaultAsync(m => m.Tipo == tipo && m.Id == id, cancelacion) is { } fila
+        (await contexto.MaestrosAsync(tipo, cancelacion, [id])).SingleOrDefault() is { } fila
             ? FormatoMaestros.Leer<T>(fila)
             : null;
 

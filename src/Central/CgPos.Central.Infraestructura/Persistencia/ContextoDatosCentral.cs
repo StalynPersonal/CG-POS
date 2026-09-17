@@ -49,6 +49,13 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();
 
+    // Maestros con su propia tabla (los demás siguen en MaestrosCentral hasta migrar su grupo)
+    public DbSet<CgPos.Dominio.Catalogo.Departamento> Departamentos => Set<CgPos.Dominio.Catalogo.Departamento>();
+    public DbSet<CgPos.Dominio.Catalogo.Categoria> Categorias => Set<CgPos.Dominio.Catalogo.Categoria>();
+    public DbSet<CgPos.Dominio.Catalogo.Marca> Marcas => Set<CgPos.Dominio.Catalogo.Marca>();
+    public DbSet<CgPos.Dominio.Catalogo.UnidadMedida> UnidadesMedida => Set<CgPos.Dominio.Catalogo.UnidadMedida>();
+    public DbSet<CgPos.Dominio.Catalogo.Impuesto> Impuestos => Set<CgPos.Dominio.Catalogo.Impuesto>();
+
     // Anulaciones de e-NCF informadas a la DGII (ANECF)
     public DbSet<CgPos.Dominio.Fiscal.AnulacionEcfCentral> AnulacionesEcf => Set<CgPos.Dominio.Fiscal.AnulacionEcfCentral>();
 

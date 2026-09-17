@@ -141,6 +141,80 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
+    public async Task Departamentos_categorias_marcas_unidades_e_impuestos_viven_en_sus_tablas_y_bajan_igual_a_las_cajas()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
+        var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+        var departamento = new DepartamentoCarga(Guid.CreateVersion7(), $"D{sufijo}", "Departamento en tabla");
+        var unidad = new UnidadMedidaCarga(Guid.CreateVersion7(), $"U{sufijo}", "Unidad en tabla", PermiteDecimales: true, Decimales: 2);
+        await PublicarAsync(new PaqueteMaestros(Departamentos: [departamento], UnidadesMedida: [unidad]));
+
+        // Quedan en su tabla, con quién los publicó, y no en la tabla JSON.
+        await central.UsarContextoAsync(async contexto =>
+        {
+            Assert.True(await contexto.Departamentos.AnyAsync(d => d.Id == departamento.Id));
+            Assert.Equal("Pruebas", await contexto.UnidadesMedida.Where(u => u.Id == unidad.Id)
+                .Select(u => EF.Property<string>(u, CgPos.Central.Infraestructura.Maestros.TablaMaestro.ColumnaModificadoPor)).SingleAsync());
+            Assert.False(await contexto.MaestrosCentral.AnyAsync(m => m.Id == departamento.Id || m.Id == unidad.Id));
+            return 0;
+        });
+
+        // Publicar lo mismo no cambia nada; cambiar el nombre sí, y baja a la caja con el formato de siempre.
+        Assert.Equal(0, (await PublicarAsync(new PaqueteMaestros(Departamentos: [departamento]))).Publicados);
+        await PublicarAsync(new PaqueteMaestros(Departamentos: [departamento with { Nombre = "Departamento renombrado" }]));
+        var bajada = await BajarAsync(cliente, tokenCaja, marca);
+        Assert.Equal("Departamento renombrado", Assert.Single(bajada.Maestros!.Departamentos!, d => d.Id == departamento.Id).Nombre);
+        Assert.Contains(bajada.Maestros.UnidadesMedida!, u => u.Id == unidad.Id && u.Decimales == 2);
+
+        // El código no cambia: la caja identifica el registro por él.
+        var cambioCodigo = await Assert.ThrowsAsync<PublicacionInvalidaExcepcion>(() =>
+            PublicarAsync(new PaqueteMaestros(Departamentos: [departamento with { Codigo = $"X{sufijo}" }])));
+        Assert.Contains(cambioCodigo.Errores, e => e.Contains("No se puede cambiar el código del departamento", StringComparison.Ordinal));
+    }
+
+    [SkippableFact]
+    public async Task Los_maestros_que_estaban_en_json_pasan_a_su_tabla_conservando_quien_los_cambio()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        var sufijo = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var marca = new MarcaCarga(Guid.CreateVersion7(), $"J{sufijo}", "Marca que estaba en JSON");
+        var modificadoEn = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero);
+
+        await central.UsarContextoAsync(async contexto =>
+        {
+            contexto.MaestrosCentral.Add(MaestroCentral.Publicar(TipoMaestro.Marca, marca.Id, marca.Codigo, null,
+                System.Text.Json.JsonSerializer.Serialize(marca, OpcionesJson.Predeterminadas), modificadoEn, "Usuario anterior"));
+            return await contexto.SaveChangesAsync();
+        });
+
+        await central.UsarContextoAsync(async contexto =>
+        {
+            await CgPos.Central.Infraestructura.Maestros.MigracionMaestrosATablas.EjecutarAsync(contexto, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+                CancellationToken.None);
+            return 0;
+        });
+
+        await central.UsarContextoAsync(async contexto =>
+        {
+            Assert.False(await contexto.MaestrosCentral.AnyAsync(m => m.Id == marca.Id));
+            var enTabla = await contexto.Marcas.Where(m => m.Id == marca.Id)
+                .Select(m => new
+                {
+                    m.Nombre,
+                    Por = EF.Property<string>(m, CgPos.Central.Infraestructura.Maestros.TablaMaestro.ColumnaModificadoPor),
+                    En = EF.Property<DateTimeOffset>(m, CgPos.Central.Infraestructura.Maestros.TablaMaestro.ColumnaModificadoEn),
+                })
+                .SingleAsync();
+            Assert.Equal((marca.Nombre, "Usuario anterior", modificadoEn), (enTabla.Nombre, enTabla.Por, enTabla.En));
+            return 0;
+        });
+    }
+
+    [SkippableFact]
     public async Task Categorias_y_marcas_se_publican_y_el_articulo_solo_admite_una_categoria_de_su_departamento()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);

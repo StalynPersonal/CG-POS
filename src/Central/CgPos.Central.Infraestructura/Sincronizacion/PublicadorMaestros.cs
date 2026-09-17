@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Sincronizacion;
+using CgPos.Central.Infraestructura.Maestros;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
 using CgPos.Contratos.Catalogo;
@@ -40,7 +41,17 @@ internal sealed class PublicadorMaestros(
         if (errores.Count > 0)
             throw new PublicacionInvalidaExcepcion(errores);
 
-        var resultado = Guardar(filas, existentes, usuario);
+        ResultadoPublicacion resultado;
+        try
+        {
+            resultado = await GuardarAsync(filas, existentes, usuario, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+        {
+            contexto.ChangeTracker.Clear();
+            throw new PublicacionInvalidaExcepcion([ValidacionMaestros.MensajeError(excepcion)]);
+        }
+
         auditoria.Registrar(new EntradaAuditoria("Maestros.Publicados", "Maestros", Detalle: new { Usuario = usuario, resultado.Publicados, resultado.SinCambios }));
         await contexto.SaveChangesAsync(cancelacion);
 
@@ -153,7 +164,7 @@ internal sealed class PublicadorMaestros(
 
         try
         {
-            var resultado = Guardar(filas, existentes, usuario);
+            var resultado = await GuardarAsync(filas, existentes, usuario, cancelacion);
             var parametrosCambiados = await AplicarParametrosAsync(parametros, cancelacion);
             resultado = resultado with { Publicados = resultado.Publicados + parametrosCambiados, SinCambios = resultado.SinCambios + parametros.Count - parametrosCambiados };
 
@@ -172,12 +183,21 @@ internal sealed class PublicadorMaestros(
     private async Task<Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral>> CargarExistentesAsync(IEnumerable<TipoMaestro> tipos, CancellationToken cancelacion)
     {
         var lista = tipos.Distinct().ToList();
-        return lista.Count == 0
+        var enJson = lista.Where(t => !Maestros.TablasMaestros.TieneTabla(t)).ToList();
+        var existentes = enJson.Count == 0
             ? []
-            : await contexto.MaestrosCentral.Where(m => lista.Contains(m.Tipo)).ToDictionaryAsync(m => (m.Tipo, m.Id), cancelacion);
+            : await contexto.MaestrosCentral.Where(m => enJson.Contains(m.Tipo)).ToDictionaryAsync(m => (m.Tipo, m.Id), cancelacion);
+
+        // Los que ya tienen su tabla se leen como filas publicadas solo para validar; se guardan en su tabla.
+        foreach (var tipo in lista.Where(Maestros.TablasMaestros.TieneTabla))
+            foreach (var fila in await contexto.MaestrosAsync(tipo, cancelacion))
+                existentes[(tipo, fila.Id)] = fila;
+
+        return existentes;
     }
 
-    private ResultadoPublicacion Guardar(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, string usuario)
+    private async Task<ResultadoPublicacion> GuardarAsync(IEnumerable<FilaMaestro> filas, Dictionary<(TipoMaestro Tipo, Guid Id), MaestroCentral> existentes, string usuario,
+        CancellationToken cancelacion)
     {
         var ahora = reloj.GetUtcNow();
         var publicados = 0;
@@ -185,6 +205,12 @@ internal sealed class PublicadorMaestros(
 
         foreach (var fila in filas)
         {
+            if (Maestros.TablasMaestros.Buscar(fila.Tipo) is { } tabla)
+            {
+                if (await tabla.AplicarAsync(contexto, fila.Dato, ahora, usuario, cancelacion)) publicados++; else sinCambios++;
+                continue;
+            }
+
             var contenido = fila.Contenido();
             if (existentes.TryGetValue((fila.Tipo, fila.Id), out var maestro))
             {
@@ -232,6 +258,11 @@ internal sealed class PublicadorMaestros(
     private static readonly Dictionary<TipoMaestro, string> CodigoInmutable = new()
     {
         [TipoMaestro.Articulo] = "del artículo",
+        [TipoMaestro.Departamento] = "del departamento",
+        [TipoMaestro.Categoria] = "de la categoría",
+        [TipoMaestro.Marca] = "de la marca",
+        [TipoMaestro.UnidadMedida] = "de la unidad de medida",
+        [TipoMaestro.Impuesto] = "del impuesto",
         [TipoMaestro.Moneda] = "de la moneda",
         [TipoMaestro.Promocion] = "de la promoción",
         [TipoMaestro.NivelFidelidad] = "del nivel de fidelidad",
@@ -274,7 +305,7 @@ internal sealed class PublicadorMaestros(
         foreach (var bloque in referidos.Where(id => id != Guid.Empty && !ids.Contains(id)).Distinct().Chunk(1000))
         {
             var buscar = bloque.ToList();
-            ids.UnionWith(await contexto.MaestrosCentral.Where(m => m.Tipo == tipo && buscar.Contains(m.Id)).Select(m => m.Id).ToListAsync(cancelacion));
+            ids.UnionWith((await contexto.MaestrosAsync(tipo, cancelacion, buscar)).Select(m => m.Id));
         }
 
         return ids;
@@ -307,7 +338,7 @@ internal sealed class PublicadorMaestros(
             var ids = delPaquete.ToHashSet();
             ids.UnionWith(publicados.Any(m => m.Tipo == tipo)
                 ? publicados.Where(m => m.Tipo == tipo).Select(m => m.Id)
-                : await contexto.MaestrosCentral.Where(m => m.Tipo == tipo).Select(m => m.Id).ToListAsync(cancelacion));
+                : await contexto.IdsMaestrosAsync(tipo, cancelacion));
             return ids;
         }
 
@@ -316,7 +347,7 @@ internal sealed class PublicadorMaestros(
         {
             var filas = publicados.Any(m => m.Tipo == TipoMaestro.Categoria)
                 ? publicados.Where(m => m.Tipo == TipoMaestro.Categoria).ToList()
-                : await contexto.MaestrosCentral.AsNoTracking().Where(m => m.Tipo == TipoMaestro.Categoria).ToListAsync(cancelacion);
+                : await contexto.MaestrosAsync(TipoMaestro.Categoria, cancelacion);
             var mapa = filas.Select(FormatoMaestros.Leer<CategoriaCarga>).ToDictionary(c => c.Id, c => c.DepartamentoId);
             foreach (var categoria in paquete.Categorias ?? [])
                 mapa[categoria.Id] = categoria.DepartamentoId;
@@ -521,7 +552,7 @@ public static class ExtensionesPublicacionMaestros
         var paquete = await LeerAsync<PaqueteMaestros>(ruta, cancelacion);
         await using var ambito = servicios.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosCentral>();
-        var publicados = (await contexto.MaestrosCentral.Select(m => m.Id).ToListAsync(cancelacion)).ToHashSet();
+        var publicados = await contexto.IdsTodosLosMaestrosAsync(cancelacion);
 
         await ambito.ServiceProvider.GetRequiredService<IPublicadorMaestros>().PublicarAsync(SoloNuevos(paquete, publicados), "Carga inicial", cancelacion);
     }

@@ -236,6 +236,14 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
     private async Task<Dictionary<string, Guid>> IdsPorCodigoAsync(TipoMaestro tipo, IEnumerable<string> codigos, CancellationToken cancelacion)
     {
         var resultado = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        if (TablasMaestros.TieneTabla(tipo))
+        {
+            var buscados = codigos.Select(c => c.Trim().ToUpperInvariant()).ToHashSet();
+            foreach (var fila in (await contexto.MaestrosAsync(tipo, cancelacion)).Where(m => m.Codigo is not null && buscados.Contains(m.Codigo)))
+                resultado[fila.Codigo!] = fila.Id;
+            return resultado;
+        }
+
         foreach (var bloque in codigos.Select(c => c.Trim().ToUpperInvariant()).Distinct().Chunk(TamanoBloqueConsulta))
         {
             var lista = bloque.ToList();

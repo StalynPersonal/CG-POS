@@ -1,4 +1,5 @@
 ﻿using CgPos.Central.Aplicacion.Sincronizacion;
+using CgPos.Central.Infraestructura.Maestros;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
 using CgPos.Contratos.Sincronizacion;
@@ -28,6 +29,8 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
             var filas = await EnRango(contexto.MaestrosCentral.AsNoTracking(), desde, hasta)
                 .Where(m => m.CajaId == null || m.CajaId == caja.CajaId)
                 .ToListAsync(cancelacion);
+            foreach (var tabla in Maestros.TablasMaestros.Todas)
+                filas.AddRange(await tabla.FilasAsync(contexto, null, (desde, hasta), cancelacion));
             var sucursales = await EnRango(contexto.Sucursales.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
             var cajas = await EnRango(contexto.Cajas.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
             var parametros = await EnRango(contexto.Parametros.AsNoTracking(), desde, hasta)

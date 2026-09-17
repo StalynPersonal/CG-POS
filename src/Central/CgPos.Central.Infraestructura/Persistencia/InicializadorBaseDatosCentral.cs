@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,12 +25,16 @@ public static class InicializadorBaseDatosCentral
                 if (pendientes.Count == 0)
                 {
                     logger.LogInformation("Base de datos del Central al día");
-                    return;
+                }
+                else
+                {
+                    logger.LogInformation("Aplicando {Cantidad} migración(es): {Migraciones}", pendientes.Count, string.Join(", ", pendientes));
+                    await contexto.Database.MigrateAsync(cancelacion);
+                    logger.LogInformation("Migraciones aplicadas");
                 }
 
-                logger.LogInformation("Aplicando {Cantidad} migración(es): {Migraciones}", pendientes.Count, string.Join(", ", pendientes));
-                await contexto.Database.MigrateAsync(cancelacion);
-                logger.LogInformation("Migraciones aplicadas");
+                // Los maestros que aún estén en la tabla JSON pasan a su tabla.
+                await Maestros.MigracionMaestrosATablas.EjecutarAsync(contexto, logger, cancelacion);
                 return;
             }
             catch (SqlException excepcion) when (intento < IntentosMaximos)
