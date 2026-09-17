@@ -83,6 +83,54 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
     }
 }
 
+internal sealed class CierreSucursalConfiguracion : IEntityTypeConfiguration<CierreSucursal>
+{
+    public void Configure(EntityTypeBuilder<CierreSucursal> constructor)
+    {
+        constructor.ToTable("CierresSucursal");
+        constructor.HasKey(c => c.Id);
+        constructor.Property(c => c.Observacion).HasMaxLength(CierreSucursal.LargoMaximoObservacion);
+        constructor.Property(c => c.CerradoPor).HasMaxLength(CierreSucursal.LargoMaximoTexto).IsRequired();
+        constructor.Ignore(c => c.EfectivoADepositar);
+        constructor.Ignore(c => c.DiferenciaDeposito);
+
+        constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasMany(c => c.FormasPago).WithOne().HasForeignKey(f => f.CierreSucursalId).OnDelete(DeleteBehavior.Cascade);
+        constructor.HasMany(c => c.Depositos).WithOne().HasForeignKey(d => d.CierreSucursalId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(c => c.FormasPago).AutoInclude(false);
+        constructor.Navigation(c => c.Depositos).AutoInclude(false);
+
+        // Un cierre por sucursal y día de operación.
+        constructor.HasIndex(c => new { c.SucursalId, c.FechaOperacion }).IsUnique();
+    }
+}
+
+internal sealed class CierreSucursalFormaPagoConfiguracion : IEntityTypeConfiguration<CierreSucursalFormaPago>
+{
+    public void Configure(EntityTypeBuilder<CierreSucursalFormaPago> constructor)
+    {
+        constructor.ToTable("CierresSucursalFormaPago");
+        constructor.HasKey(f => f.Id);
+        constructor.Property(f => f.Nombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
+        constructor.Property(f => f.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false);
+        constructor.HasIndex(f => f.CierreSucursalId);
+    }
+}
+
+internal sealed class DepositoCierreSucursalConfiguracion : IEntityTypeConfiguration<DepositoCierreSucursal>
+{
+    public void Configure(EntityTypeBuilder<DepositoCierreSucursal> constructor)
+    {
+        constructor.ToTable("DepositosCierreSucursal");
+        constructor.HasKey(d => d.Id);
+        constructor.Property(d => d.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(d => d.BancoCodigo).HasMaxLength(CgPos.Dominio.Pagos.Banco.LargoMaximoCodigo).IsRequired();
+        constructor.Property(d => d.BancoNombre).HasMaxLength(CgPos.Dominio.Pagos.Banco.LargoMaximoNombre).IsRequired();
+        constructor.Property(d => d.NumeroBoleta).HasMaxLength(DepositoCierreSucursal.LargoMaximoBoleta).IsRequired();
+        constructor.HasIndex(d => d.CierreSucursalId);
+    }
+}
+
 internal sealed class CierreFormaPagoCentralConfiguracion : IEntityTypeConfiguration<CierreFormaPagoCentral>
 {
     public void Configure(EntityTypeBuilder<CierreFormaPagoCentral> constructor)

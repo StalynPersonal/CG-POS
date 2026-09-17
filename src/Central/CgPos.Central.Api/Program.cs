@@ -109,6 +109,7 @@ try
     aplicacion.MapearApiPromociones();
     aplicacion.MapearApiMonitor();
     aplicacion.MapearApiNotasCredito();
+    aplicacion.MapearApiCierresSucursal();
     aplicacion.MapearApiFidelidad();
     aplicacion.MapearApiDespacho();
     aplicacion.MapearApiReportes();

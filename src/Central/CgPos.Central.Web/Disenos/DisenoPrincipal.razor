@@ -99,6 +99,11 @@
                     <MudNavLink Href="reportes" Icon="@Icons.Material.Filled.TableChart">Reportes y exportación</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            <AuthorizeView Policy="@CatalogoPermisosCentral.CerrarSucursal">
+                <MudNavGroup Title="Cierre de sucursal" Icon="@Icons.Material.Filled.AccountBalance" Expanded="true">
+                    <MudNavLink Href="cierres-sucursal" Icon="@Icons.Material.Filled.FactCheck">Cierre y depósitos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
                 <MudNavGroup Title="Seguridad del Central" Icon="@Icons.Material.Filled.Security" Expanded="true">
                     <MudNavLink Href="seguridad/usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>

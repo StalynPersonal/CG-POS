@@ -1,0 +1,282 @@
+@page "/cierres-sucursal"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.CerrarSucursal)]
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+@inject ISnackbar Avisos
+
+<PageTitle>Cierre de sucursal · CG-POS Central</PageTitle>
+
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Cierre de sucursal</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Agrupa los cierres de caja del día, calcula el efectivo a depositar y registra los depósitos. Se hace una vez por sucursal y día.
+        </MudText>
+    </div>
+</div>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <div class="d-flex gap-3 flex-wrap align-center">
+        <MudSelect T="int?" @bind-Value="_sucursalId" Label="Sucursal" Dense="true" Style="min-width: 240px"
+                   ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id) is { } s ? $"{s.Codigo:00} · {s.Nombre}" : string.Empty)">
+            @foreach (var sucursal in _sucursales)
+            {
+                <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+        <MudDatePicker @bind-Date="_fecha" Label="Día de operación" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 190px" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="_cargando || _sucursalId is null"
+                   OnClick="PrepararAsync">Preparar</MudButton>
+    </div>
+</MudPaper>
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+}
+
+@if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+
+@if (_preparacion is { } preparacion)
+{
+    <MudPaper Elevation="1" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6">Sucursal @preparacion.SucursalCodigo · @preparacion.SucursalNombre · @preparacion.FechaOperacion.ToString("dd/MM/yyyy")</MudText>
+
+        @if (preparacion.CierreSucursalId is not null)
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="my-3">Este día ya está cerrado. Su detalle está en la lista de cierres.</MudAlert>
+        }
+        @foreach (var pendiente in preparacion.Pendientes)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="my-2">@pendiente</MudAlert>
+        }
+
+        <MudText Typo="Typo.subtitle1" Class="mt-3">Cierres de caja</MudText>
+        @if (preparacion.Cierres.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">No hay cierres de caja de la sucursal en ese día.</MudAlert>
+        }
+        else
+        {
+            <div style="overflow-x: auto">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                        <tr>
+                            <th>Caja</th><th>Turno</th><th>Cajero</th><th style="text-align: right">Ventas</th><th style="text-align: right">Total ventas</th>
+                            <th style="text-align: right">Esperado</th><th style="text-align: right">Declarado</th><th style="text-align: right">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var cierre in preparacion.Cierres)
+                        {
+                            <tr>
+                                <td>@cierre.CajaCodigo</td>
+                                <td>@cierre.TurnoNumero</td>
+                                <td>@cierre.UsuarioNombre</td>
+                                <td style="text-align: right">@cierre.CantidadVentas</td>
+                                <td style="text-align: right">@cierre.TotalVentas.ToString("N2")</td>
+                                <td style="text-align: right">@cierre.Esperado.ToString("N2")</td>
+                                <td style="text-align: right">@cierre.Declarado.ToString("N2")</td>
+                                <td style="text-align: right; @ColorDiferencia(cierre.Diferencia)">@cierre.Diferencia.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </div>
+
+            <MudText Typo="Typo.subtitle1" Class="mt-4">Formas de pago</MudText>
+            <FormasPagoCierre Formas="preparacion.FormasPago" />
+        }
+
+        @if (preparacion.CierreSucursalId is null && preparacion.Efectivo.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle1" Class="mt-4">Depósitos</MudText>
+            @foreach (var efectivo in preparacion.Efectivo)
+            {
+                var depositado = _depositos.Where(d => d.Moneda == efectivo.Moneda).Sum(d => d.Monto ?? 0m);
+                <div class="cg-central__detalle">
+                    Efectivo en @efectivo.Moneda a depositar: <strong>@efectivo.ADepositar.ToString("N2")</strong> · registrado @depositado.ToString("N2") ·
+                    diferencia <span style="@ColorDiferencia(depositado - efectivo.ADepositar)">@((depositado - efectivo.ADepositar).ToString("N2"))</span>
+                </div>
+            }
+
+            @foreach (var deposito in _depositos)
+            {
+                <div class="d-flex gap-2 flex-wrap align-center mt-2">
+                    <MudSelect T="string" @bind-Value="deposito.Moneda" Label="Moneda" Dense="true" Style="max-width: 110px">
+                        @foreach (var efectivo in preparacion.Efectivo)
+                        {
+                            <MudSelectItem T="string" Value="@efectivo.Moneda">@efectivo.Moneda</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudSelect T="string" @bind-Value="deposito.BancoCodigo" Label="Banco" Dense="true" Style="min-width: 200px"
+                               ToStringFunc="@(codigo => _bancos.FirstOrDefault(b => b.Codigo == codigo)?.Nombre ?? string.Empty)">
+                        @foreach (var banco in _bancos)
+                        {
+                            <MudSelectItem T="string" Value="@banco.Codigo">@banco.Nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudTextField T="string" @bind-Value="deposito.NumeroBoleta" Label="Boleta" Margin="Margin.Dense" Style="max-width: 170px" />
+                    <MudNumericField T="decimal?" @bind-Value="deposito.Monto" Label="Monto" Format="N2" Min="0" Margin="Margin.Dense" Style="max-width: 160px" />
+                    <MudDatePicker @bind-Date="deposito.Fecha" Label="Fecha" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" Style="max-width: 160px" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => _depositos.Remove(deposito)" />
+                </div>
+            }
+
+            <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" Class="mt-2" OnClick="AgregarDeposito">
+                Agregar depósito
+            </MudButton>
+
+            <MudTextField T="string" @bind-Value="_observacion" Label="Observación" Lines="2" Variant="Variant.Outlined" Class="mt-3" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock" Class="mt-3"
+                       Disabled="_procesando || preparacion.Pendientes.Count > 0 || preparacion.Cierres.Count == 0" OnClick="CerrarAsync">
+                Cerrar la sucursal
+            </MudButton>
+        }
+    </MudPaper>
+}
+
+<MudPaper Elevation="1" Class="pa-4">
+    <div class="d-flex gap-3 flex-wrap align-center mb-3">
+        <MudText Typo="Typo.h6">Cierres hechos</MudText>
+        <MudSpacer />
+        <MudDatePicker @bind-Date="_desde" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 170px" />
+        <MudDatePicker @bind-Date="_hasta" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 170px" />
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ListarAsync">Consultar</MudButton>
+    </div>
+
+    @if (_cierres.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true">No hay cierres de sucursal en el período.</MudAlert>
+    }
+    @foreach (var cierre in _cierres)
+    {
+        <MudExpansionPanels Elevation="0" Class="mb-2">
+            <MudExpansionPanel>
+                <TitleContent>
+                    <div class="d-flex gap-3 flex-wrap align-center">
+                        <strong>@cierre.FechaOperacion.ToString("dd/MM/yyyy") · Sucursal @cierre.SucursalCodigo · @cierre.SucursalNombre</strong>
+                        <span>@cierre.CantidadCierres cierres · declarado @cierre.TotalDeclarado.ToString("N2")</span>
+                        <span style="@ColorDiferencia(cierre.Diferencia)">diferencia @cierre.Diferencia.ToString("N2")</span>
+                        @if (cierre.CierresPosteriores > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">@cierre.CierresPosteriores cierre(s) de caja llegaron después</MudChip>
+                        }
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    <FormasPagoCierre Formas="cierre.FormasPago" />
+                    <MudText Typo="Typo.subtitle2" Class="mt-3">Depósitos</MudText>
+                    @foreach (var efectivo in cierre.Efectivo)
+                    {
+                        <div class="cg-central__detalle">
+                            @efectivo.Moneda: a depositar @efectivo.ADepositar.ToString("N2") · depositado @efectivo.Depositado.ToString("N2") ·
+                            diferencia <span style="@ColorDiferencia(efectivo.Diferencia)">@efectivo.Diferencia.ToString("N2")</span>
+                        </div>
+                    }
+                    @foreach (var deposito in cierre.Depositos)
+                    {
+                        <div>@deposito.FechaDeposito.ToString("dd/MM/yyyy") · @deposito.BancoNombre · boleta @deposito.NumeroBoleta · @deposito.Moneda @deposito.Monto.ToString("N2")</div>
+                    }
+                    <div class="cg-central__detalle mt-2">Cerrado por @cierre.CerradoPor el @cierre.CerradoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                    @if (!string.IsNullOrWhiteSpace(cierre.Observacion))
+                    {
+                        <div class="cg-central__detalle">@cierre.Observacion</div>
+                    }
+                </ChildContent>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    }
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private IReadOnlyList<BancoCarga> _bancos = [];
+    private IReadOnlyList<DatosCierreSucursal> _cierres = [];
+    private readonly List<DepositoEditable> _depositos = [];
+    private int? _sucursalId;
+    private DateTime? _fecha = DateTime.Today;
+    private DateTime? _desde = DateTime.Today.AddDays(-30);
+    private DateTime? _hasta = DateTime.Today;
+    private DatosPreparacionCierreSucursal? _preparacion;
+    private string? _observacion;
+    private string? _error;
+    private bool _cargando;
+    private bool _procesando;
+
+    private sealed class DepositoEditable
+    {
+        public string? Moneda { get; set; }
+        public string? BancoCodigo { get; set; }
+        public string? NumeroBoleta { get; set; }
+        public decimal? Monto { get; set; }
+        public DateTime? Fecha { get; set; } = DateTime.Today;
+    }
+
+    private static string ColorDiferencia(decimal diferencia) =>
+        diferencia < 0 ? "color: var(--mud-palette-error)" : diferencia > 0 ? "color: var(--mud-palette-warning)" : string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sucursales = await Cliente.ListarSucursalesCierreAsync() ?? [];
+        _bancos = await Cliente.ListarBancosCierreAsync() ?? [];
+        _sucursalId = _sucursales.FirstOrDefault()?.Id;
+        await ListarAsync();
+    }
+
+    private async Task PrepararAsync()
+    {
+        if (_sucursalId is not { } sucursal || _fecha is not { } fecha)
+            return;
+
+        _cargando = true;
+        _error = null;
+        _depositos.Clear();
+        _observacion = null;
+        _preparacion = await Cliente.PrepararCierreSucursalAsync(sucursal, DateOnly.FromDateTime(fecha));
+        _error = _preparacion is null ? "No se pudo preparar el cierre. Verifique la comunicación con el Central." : null;
+        if (_preparacion is { CierreSucursalId: null } preparacion)
+            foreach (var efectivo in preparacion.Efectivo.Where(e => e.ADepositar > 0))
+                _depositos.Add(new DepositoEditable { Moneda = efectivo.Moneda, Monto = efectivo.ADepositar });
+        _cargando = false;
+    }
+
+    private void AgregarDeposito() =>
+        _depositos.Add(new DepositoEditable { Moneda = _preparacion?.Efectivo.FirstOrDefault()?.Moneda });
+
+    private async Task CerrarAsync()
+    {
+        if (_preparacion is not { } preparacion)
+            return;
+
+        _procesando = true;
+        var solicitud = new SolicitudCierreSucursal(preparacion.SucursalId, preparacion.FechaOperacion,
+            _depositos.Select(d => new SolicitudDepositoCierreSucursal(d.Moneda ?? string.Empty, d.BancoCodigo ?? string.Empty, d.NumeroBoleta ?? string.Empty,
+                d.Monto ?? 0m, DateOnly.FromDateTime(d.Fecha ?? DateTime.Today))).ToList(),
+            _observacion);
+        var respuesta = await Cliente.CerrarSucursalAsync(solicitud);
+        _procesando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            _error = respuesta.Mensaje ?? "No se pudo cerrar la sucursal.";
+            return;
+        }
+
+        Avisos.Add($"Sucursal {preparacion.SucursalCodigo} cerrada del {preparacion.FechaOperacion:dd/MM/yyyy}.", Severity.Success);
+        await PrepararAsync();
+        await ListarAsync();
+    }
+
+    private async Task ListarAsync()
+    {
+        if (_desde is not { } desde || _hasta is not { } hasta)
+            return;
+
+        _cierres = await Cliente.ListarCierresSucursalAsync(null, DateOnly.FromDateTime(desde), DateOnly.FromDateTime(hasta)) ?? [];
+    }
+}

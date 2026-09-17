@@ -23,6 +23,7 @@ public static class CatalogoPermisosCentral
     public const string AdministrarFidelidad = "Central.Fidelidad.Administrar";
     public const string OperarDespacho = "Central.Despacho.Operar";
     public const string ConsultarReportes = "Central.Reportes.Consultar";
+    public const string CerrarSucursal = "Central.CierresSucursal.Operar";
 
     public static IReadOnlyList<DefinicionPermiso> Todos { get; } =
     [
@@ -41,6 +42,7 @@ public static class CatalogoPermisosCentral
         new(AdministrarFidelidad, "Fidelidad", "Administrar el programa de fidelidad"),
         new(OperarDespacho, "Pendientes", "Operar el despacho central de pendientes y envíos"),
         new(ConsultarReportes, "Reportes", "Consultar y exportar reportes"),
+        new(CerrarSucursal, "Reportes", "Hacer el cierre consolidado de sucursal y registrar sus depósitos"),
     ];
 
     private static readonly FrozenSet<string> Codigos = Todos.Select(p => p.Codigo).ToFrozenSet(StringComparer.Ordinal);

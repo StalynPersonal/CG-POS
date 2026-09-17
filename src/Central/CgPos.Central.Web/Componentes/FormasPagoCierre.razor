@@ -1,0 +1,29 @@
+@* Formas de pago sumadas de los cierres de caja: lo esperado, lo declarado y la diferencia. *@
+
+<div style="overflow-x: auto">
+    <MudSimpleTable Dense="true" Hover="true">
+        <thead>
+            <tr>
+                <th>Forma de pago</th><th>Moneda</th><th style="text-align: right">Transacciones</th><th style="text-align: right">Esperado</th>
+                <th style="text-align: right">Declarado</th><th style="text-align: right">Diferencia</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forma in Formas)
+            {
+                <tr>
+                    <td>@forma.Nombre</td>
+                    <td>@forma.Moneda</td>
+                    <td style="text-align: right">@forma.Transacciones</td>
+                    <td style="text-align: right">@forma.Esperado.ToString("N2")</td>
+                    <td style="text-align: right">@forma.Declarado.ToString("N2")</td>
+                    <td style="text-align: right">@forma.Diferencia.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DatosFormaPagoCierreSucursal> Formas { get; set; } = [];
+}

@@ -66,6 +66,7 @@ public static class InyeccionDependencias
         // Reportes y su exportación a Excel, PDF y al formato 607 (M16).
         servicios.AddScoped<Reportes.RegistroVentasCentral>();
         servicios.AddScoped<Aplicacion.Reportes.IServicioReportesCentral, Reportes.ServicioReportesCentral>();
+        servicios.AddScoped<Aplicacion.Reportes.IServicioCierresSucursal, Reportes.ServicioCierresSucursal>();
         servicios.AddSingleton<Aplicacion.Reportes.IExportadorReportes, Reportes.ExportadorReportes>();
 
         // Actualización remota del Agente de las cajas (H7).

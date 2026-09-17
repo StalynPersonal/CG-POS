@@ -364,6 +364,33 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    // ---------- Cierre de sucursal ----------
+
+    public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesCierreAsync() => ListarAsync<DatosSucursal>("api/manager/cierres-sucursal/sucursales");
+
+    public Task<IReadOnlyList<CgPos.Contratos.Catalogo.BancoCarga>?> ListarBancosCierreAsync() =>
+        ListarAsync<CgPos.Contratos.Catalogo.BancoCarga>("api/manager/cierres-sucursal/bancos");
+
+    public Task<IReadOnlyList<DatosCierreSucursal>?> ListarCierresSucursalAsync(int? sucursalId, DateOnly desde, DateOnly hasta) =>
+        ListarAsync<DatosCierreSucursal>(
+            $"api/manager/cierres-sucursal?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}{(sucursalId is { } sucursal ? $"&sucursalId={sucursal}" : string.Empty)}");
+
+    public async Task<DatosPreparacionCierreSucursal?> PrepararCierreSucursalAsync(int sucursalId, DateOnly fecha)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosPreparacionCierreSucursal>($"api/manager/cierres-sucursal/preparar?sucursalId={sucursalId}&fecha={fecha:yyyy-MM-dd}",
+                OpcionesJson.Predeterminadas);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaAdministracion> CerrarSucursalAsync(SolicitudCierreSucursal solicitud) =>
+        EnviarAsync(HttpMethod.Post, "api/manager/cierres-sucursal", solicitud);
+
     // ---------- Reportes ----------
 
     public async Task<TablaReporte?> ReporteAsync(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, CancellationToken cancelacion = default)

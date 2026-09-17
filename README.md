@@ -455,6 +455,15 @@ dotnet run --project src/Central/CgPos.Central.Api
 - **Exportación:** cada reporte se descarga en **Excel** (.xlsx) y **PDF**, generados en el propio Central sin librerías externas ni internet, con exactamente las mismas filas que la pantalla.
 - **API del Manager:** `GET /api/manager/reportes/{tipo}?desde=&hasta=&sucursalId=&cajaId=`, con `/excel` y `/pdf` para descargar, y `GET /api/manager/reportes/formato607/archivo` para el archivo de la DGII.
 
+### Cierre consolidado de sucursal
+
+- **Qué es (RF-264):** al terminar el día, el Central agrupa los cierres de turno de todas las cajas de la sucursal: ventas, lo esperado, lo declarado y la diferencia, y las formas de pago sumadas. Del efectivo declarado (moneda local y extranjera) sale **lo que se debe depositar por moneda**; tarjetas, transferencias y demás no se depositan.
+- **Cuándo se puede:** solo si todos los turnos que vendieron ese día ya informaron su cierre y ninguno quedó reabierto sin volver a cerrarse; si no, la pantalla lista lo que falta. Se hace **una vez por sucursal y día** y no se modifica.
+- **Depósitos:** se registran uno o varios por moneda con banco (del maestro de bancos), número de boleta, monto y fecha. La diferencia (depositado menos lo que había que depositar) queda guardada y visible, igual que la diferencia de los cierres de caja.
+- **Cierres que llegan tarde:** si una caja informa un cierre de ese día después de consolidar, no cambia el consolidado, pero la lista lo avisa.
+- **Central Manager** (permiso `Central.CierresSucursal.Operar`): *Cierre de sucursal* prepara el día elegido, muestra cierres, formas de pago, efectivo a depositar y pendientes, registra los depósitos y cierra; debajo, la lista de cierres hechos con su detalle. Queda en la auditoría (`Reportes.CierreSucursal`).
+- **API del Manager:** `GET /api/manager/cierres-sucursal/preparar?sucursalId=&fecha=`, `POST /api/manager/cierres-sucursal`, `GET /api/manager/cierres-sucursal?sucursalId=&desde=&hasta=` y `GET /api/manager/cierres-sucursal/{id}`.
+
 ### Instalación y actualización de las cajas
 
 - **Instalar una caja** (`scripts/caja/instalar-caja.ps1`, como administrador): verifica SQL Server Express y el paquete, crea `C:\CGPOS` con Agente, Logs, Xml, Respaldos y Certificado, escribe `appsettings.Production.json` (conexión, códigos de sucursal y caja con `-Sucursal` y `-Caja`, URL y secreto del Central, carpetas) con permisos solo para el servicio y los administradores, copia el `.p12` (el PIN nunca se guarda: lo digita el supervisor en la caja), instala el servicio y comprueba `/salud`. La base de datos la crea y migra el propio Agente al arrancar.

@@ -779,6 +779,34 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 });
 
             migrationBuilder.CreateTable(
+                name: "CierresSucursal",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
+                    FechaOperacion = table.Column<DateOnly>(type: "date", nullable: false),
+                    CantidadCierres = table.Column<int>(type: "int", nullable: false),
+                    CantidadVentas = table.Column<int>(type: "int", nullable: false),
+                    TotalVentas = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    TotalEsperado = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    TotalDeclarado = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    Diferencia = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    Observacion = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    CerradoPor = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    CerradoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CierresSucursal", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CierresSucursal_Sucursales_SucursalId",
+                        column: x => x.SucursalId,
+                        principalTable: "Sucursales",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SesionesCentral",
                 columns: table => new
                 {
@@ -1321,6 +1349,55 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 });
 
             migrationBuilder.CreateTable(
+                name: "CierresSucursalFormaPago",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    CierreSucursalId = table.Column<int>(type: "int", nullable: false),
+                    Tipo = table.Column<int>(type: "int", nullable: false),
+                    Nombre = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
+                    Transacciones = table.Column<int>(type: "int", nullable: false),
+                    Esperado = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    Declarado = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    Diferencia = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CierresSucursalFormaPago", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CierresSucursalFormaPago_CierresSucursal_CierreSucursalId",
+                        column: x => x.CierreSucursalId,
+                        principalTable: "CierresSucursal",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DepositosCierreSucursal",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    CierreSucursalId = table.Column<int>(type: "int", nullable: false),
+                    Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
+                    BancoCodigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    BancoNombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    NumeroBoleta = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Monto = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    FechaDeposito = table.Column<DateOnly>(type: "date", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DepositosCierreSucursal", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DepositosCierreSucursal_CierresSucursal_CierreSucursalId",
+                        column: x => x.CierreSucursalId,
+                        principalTable: "CierresSucursal",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CierresFormaPago",
                 columns: table => new
                 {
@@ -1571,6 +1648,17 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 column: "CierreId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CierresSucursal_SucursalId_FechaOperacion",
+                table: "CierresSucursal",
+                columns: new[] { "SucursalId", "FechaOperacion" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CierresSucursalFormaPago_CierreSucursalId",
+                table: "CierresSucursalFormaPago",
+                column: "CierreSucursalId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CierresTurno_CajaId_TurnoNumero",
                 table: "CierresTurno",
                 columns: new[] { "CajaId", "TurnoNumero" },
@@ -1689,6 +1777,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "IX_Departamentos_Version",
                 table: "Departamentos",
                 column: "Version");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DepositosCierreSucursal_CierreSucursalId",
+                table: "DepositosCierreSucursal",
+                column: "CierreSucursalId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DescuentosTarjeta_BancoId",
@@ -2178,6 +2271,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "CierresFormaPago");
 
             migrationBuilder.DropTable(
+                name: "CierresSucursalFormaPago");
+
+            migrationBuilder.DropTable(
                 name: "CodigosArticulo");
 
             migrationBuilder.DropTable(
@@ -2194,6 +2290,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "Denominaciones");
+
+            migrationBuilder.DropTable(
+                name: "DepositosCierreSucursal");
 
             migrationBuilder.DropTable(
                 name: "DescuentosTarjeta");
@@ -2275,6 +2374,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "DocumentosRecibidos");
+
+            migrationBuilder.DropTable(
+                name: "CierresSucursal");
 
             migrationBuilder.DropTable(
                 name: "Bancos");

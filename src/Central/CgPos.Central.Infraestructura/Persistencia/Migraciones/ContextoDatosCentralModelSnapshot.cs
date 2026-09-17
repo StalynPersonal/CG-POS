@@ -2330,6 +2330,111 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.ToTable("CierresFormaPago", (string)null);
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreSucursal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CantidadCierres")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CantidadVentas")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CerradoEn")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.Property<string>("CerradoPor")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Diferencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateOnly>("FechaOperacion")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Observacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalDeclarado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalEsperado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalVentas")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SucursalId", "FechaOperacion")
+                        .IsUnique();
+
+                    b.ToTable("CierresSucursal", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreSucursalFormaPago", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CierreSucursalId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Declarado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Diferencia")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Esperado")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Transacciones")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CierreSucursalId");
+
+                    b.ToTable("CierresSucursalFormaPago", (string)null);
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
                 {
                     b.Property<int>("Id")
@@ -2542,6 +2647,53 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("FechaOperacion", "SucursalId", "CajaId");
 
                     b.ToTable("VentasCentral", (string)null);
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.DepositoCierreSucursal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<string>("BancoCodigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("BancoNombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CierreSucursalId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FechaDeposito")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)")
+                        .IsFixedLength();
+
+                    b.Property<decimal>("Monto")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("NumeroBoleta")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CierreSucursalId");
+
+                    b.ToTable("DepositosCierreSucursal", (string)null);
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.ImpuestoVentaCentral", b =>
@@ -3440,6 +3592,24 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreSucursal", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Organizacion.Sucursal", null)
+                        .WithMany()
+                        .HasForeignKey("SucursalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreSucursalFormaPago", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Reportes.CierreSucursal", null)
+                        .WithMany("FormasPago")
+                        .HasForeignKey("CierreSucursalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
                 {
                     b.HasOne("CgPos.Dominio.Organizacion.Caja", null)
@@ -3467,6 +3637,15 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .WithMany()
                         .HasForeignKey("SucursalId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.DepositoCierreSucursal", b =>
+                {
+                    b.HasOne("CgPos.Dominio.Reportes.CierreSucursal", null)
+                        .WithMany("Depositos")
+                        .HasForeignKey("CierreSucursalId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -3598,6 +3777,13 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
             modelBuilder.Entity("CgPos.Dominio.Clientes.Cliente", b =>
                 {
                     b.Navigation("Direcciones");
+                });
+
+            modelBuilder.Entity("CgPos.Dominio.Reportes.CierreSucursal", b =>
+                {
+                    b.Navigation("Depositos");
+
+                    b.Navigation("FormasPago");
                 });
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
