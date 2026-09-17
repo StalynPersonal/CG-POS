@@ -72,7 +72,6 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
                 ["BaseDatos:NivelCompatibilidad"] = NivelCompatibilidad,
                 ["Perifericos:Impresora:Carpeta"] = CarpetaImpresiones,
                 ["Ecf:CarpetaXml"] = CarpetaEcf,
-                ["Ecf:Ambiente"] = "Pruebas",
                 ["Ecf:Certificado:Ruta"] = RutaCertificado,
             })
             .Build();

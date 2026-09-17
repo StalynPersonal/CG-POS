@@ -122,6 +122,11 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> ActualizarSecuenciaAsync(Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud) =>
         EnviarAsync(HttpMethod.Put, $"api/fiscal/secuencias/{secuenciaId}", solicitud);
 
+    public Task<IReadOnlyList<DatosAnulacionEcf>?> ListarAnulacionesEcfAsync() => ListarAsync<DatosAnulacionEcf>("api/fiscal/anulaciones");
+
+    public Task<RespuestaAdministracion> AnularSecuenciasAsync(Guid secuenciaId, SolicitudAnulacionEcf solicitud) =>
+        EnviarAsync(HttpMethod.Post, $"api/fiscal/secuencias/{secuenciaId}/anulaciones", solicitud);
+
     // ---------- Usuarios y roles de caja ----------
 
     public Task<IReadOnlyList<CgPos.Dominio.Seguridad.DefinicionPermiso>?> ListarPermisosCajaAsync() =>

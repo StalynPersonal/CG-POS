@@ -1,17 +1,5 @@
 namespace CgPos.ECF.Documentos;
 
-public enum AmbienteEcf
-{
-    /// <summary>TesteCF: pruebas de la DGII.</summary>
-    Pruebas,
-
-    /// <summary>CerteCF: certificación.</summary>
-    Certificacion,
-
-    /// <summary>eCF: producción.</summary>
-    Produccion,
-}
-
 /// <summary>
 /// Datos de un comprobante fiscal electrónico para generar su XML. Independiente del POS: la caja lo arma desde la venta.
 /// Estructura según el formato e-CF 1.0 de la DGII; pendiente de validar contra los XSD oficiales y TesteCF.

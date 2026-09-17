@@ -97,7 +97,7 @@ Las reglas de negocio no tienen valores fijos en el código: las configura un us
 | `Pantallas.SegundosPorImagen` | Rotación de la publicidad (sin él no rota) | No |
 | `Balanza.PrefijoPeso`, `Balanza.PrefijoPrecio`, `Balanza.DigitosCodigoArticulo`, `Balanza.DigitosValor`, `Balanza.DecimalesPeso`, `Balanza.DecimalesPrecio` | Etiquetas de balanza; sin prefijos la caja no las interpreta | Si hay prefijos |
 
-Otras reglas que dependen de la configuración: sin **topes de descuento** en los maestros no se permite el descuento manual; el **ambiente e-CF** (`Ecf:Ambiente` en la configuración del Agente) es obligatorio para emitir; la **dirección** de la empresa o sucursal es obligatoria en el e-CF, las **tasas de ITBIS** del XML salen del maestro de impuestos y el indicador de **bien o servicio** sale del artículo (`esServicio` en los maestros). El nombre y las iniciales de la empresa en la pantalla de venta salen de la configuración de la caja. Las fechas del ticket, del e-CF y los plazos de devolución usan la **zona horaria configurada en el equipo** de la caja (en República Dominicana, UTC-4).
+Otras reglas que dependen de la configuración: sin **topes de descuento** en los maestros no se permite el descuento manual; las **direcciones del timbre** de la DGII (`Ecf.UrlConsultaTimbre` y `Ecf.UrlConsultaTimbreConsumo`, que definen el ambiente del código QR) son obligatorias para emitir; la **dirección** de la empresa o sucursal es obligatoria en el e-CF, las **tasas de ITBIS** del XML salen del maestro de impuestos y el indicador de **bien o servicio** sale del artículo (`esServicio` en los maestros). El nombre y las iniciales de la empresa en la pantalla de venta salen de la configuración de la caja. Las fechas del ticket, del e-CF y los plazos de devolución usan la **zona horaria configurada en el equipo** de la caja (en República Dominicana, UTC-4).
 
 ## Ejecutar la caja
 
@@ -235,7 +235,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 | `Ecf.ContingenciaPermiteCerrarTurno` | Permite cerrar el turno con ventas en contingencia pendientes | No |
 
 - **Validación contra los esquemas de la DGII:** los XSD oficiales están en `datos/xsd` y se configuran con `Ecf:CarpetaXsd`. Cada comprobante se valida contra el esquema de su tipo **después de firmarlo** (el esquema exige la firma); si no cumple, no se emite. Las unidades de medida viajan con el código de la tabla de la DGII (`UND` = 43, `LB` = 23…) y la cantidad con dos decimales, como exige el esquema.
-- **Resumen de consumo (RFCE):** una factura de consumo que no llega a `Fiscal.MontoIdentificacionConsumo` se le informa a la DGII como **resumen**: totales, formas de pago y el código de seguridad del e-CF, sin las líneas. La caja lo firma y lo envía al Central marcado como resumen, y el Central lo entrega en el servicio de facturas de consumo (`Central.Dgii.UrlBaseConsumo`). El e-CF completo queda en la caja y es el que se le entrega al cliente.
+- **Resumen de consumo (RFCE):** una factura de consumo que no llega a `Fiscal.MontoIdentificacionConsumo` se le informa a la DGII como **resumen**: totales, formas de pago y el código de seguridad del e-CF, sin las líneas. La caja lo firma y lo envía al Central marcado como resumen, y el Central lo entrega en el servicio de facturas de consumo (`Central.Dgii.UrlRecepcionConsumo`), que responde aceptado o rechazado en el mismo envío, sin trackId. El e-CF completo queda en la caja y es el que se le entrega al cliente.
 - **Por confirmar en la certificación:** rutas exactas de los servicios y detalles del resumen de consumo.
 
 ### Turno y cierre
@@ -365,14 +365,20 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 - El Central envía a la DGII los e-CF que recibe de las cajas y consulta su resultado (RF-222, RN-18). Un trabajador en segundo plano toma los pendientes cuyo próximo intento ya llegó, los envía y guarda el trackId; después consulta el resultado hasta obtener **aceptado**, **aceptado condicional** o **rechazado**. Los rechazos y las aceptaciones condicionales quedan en la auditoría con su motivo.
 - Un envío que no llega (sin conexión, autenticación, error del servicio) sigue pendiente y se reintenta con espera creciente: se duplica desde `Central.Dgii.MinutosReintento` hasta `Central.Dgii.MinutosMaximoReintento`. Cada comprobante guarda sus intentos y el último mensaje.
-- **Cliente:** `Dgii:Cliente = Http` (predeterminado) usa la DGII real: pide la semilla, la firma con el certificado del emisor (`Dgii:Certificado:Ruta` y `Dgii:Certificado:Pin` en la configuración segura, nunca en la base de datos), obtiene el token y envía cada XML firmado. `Simulado` (solo en desarrollo) recibe todo y lo acepta en la primera consulta. **Por confirmar en la certificación con la DGII (TesteCF):** rutas y formatos exactos de los servicios y el envío del resumen de facturas de consumo menores al monto de identificación (RFCE).
+- **Cliente:** `Dgii:Cliente = Http` (predeterminado) usa la DGII real: pide la semilla, la firma con el certificado del emisor (`Dgii:Certificado:Ruta` y `Dgii:Certificado:Pin` en la configuración segura, nunca en la base de datos), obtiene el token y envía cada XML firmado. `Simulado` (solo en desarrollo) recibe todo y lo acepta. **Por confirmar en la certificación con la DGII (TesteCF):** formatos exactos de las respuestas; las direcciones ya son parámetros.
+- **Sin reenvíos duplicados:** tras un fallo de comunicación, antes de reenviar se busca el comprobante en la DGII (por e-NCF con `Central.Dgii.UrlConsultaTrackIds`; el resumen de consumo, por e-NCF y código de seguridad con `Central.Dgii.UrlConsultaConsumo`). Si ya llegó, se retoma su trackId o su resultado.
+- **Anulación de e-NCF no utilizados (ANECF):** en *Rangos de e-CF*, un rango desactivado o vencido muestra el botón de anular. Se elige el tramo y el motivo; no se permite si la caja ya envió un e-CF de ese tramo o si solapa otra anulación aceptada. El Central firma el ANECF y lo envía (`Central.Dgii.UrlAnulacion`); cada intento queda registrado con la respuesta de la DGII y en la auditoría.
 - **Retorno del estado a la caja (RF-223):** cada resultado de la DGII baja en la sincronización de maestros a la caja que emitió el e-CF (y solo a ella), por versión de fila como los demás maestros. La caja actualiza su documento y su historial de estados, y la barra fiscal alerta al cajero si tiene e-CF rechazados.
 - `Dgii:TrabajadorHabilitado = false` desactiva el trabajador (las pruebas ejecutan el despacho a demanda).
 
 | Parámetro | Uso | Obligatorio |
 | --- | --- | --- |
 | `Central.Dgii.Habilitado` | Envía a la DGII los e-CF recibidos; sin él no se envía nada | No |
-| `Central.Dgii.UrlBase` | Dirección https de los servicios de la DGII según el ambiente (pruebas, certificación, producción) | Con el cliente Http |
+| `Central.Dgii.UrlSemilla` / `UrlValidarSemilla` | Autenticación: semilla y validación de la semilla firmada | Con el cliente Http |
+| `Central.Dgii.UrlRecepcion` / `UrlConsultaResultado` | Recepción de e-CF y consulta de su resultado por trackId | Con el cliente Http |
+| `Central.Dgii.UrlConsultaTrackIds` | Busca los envíos de un e-NCF para no reenviarlo | Con el cliente Http |
+| `Central.Dgii.UrlRecepcionConsumo` / `UrlConsultaConsumo` | Recepción y consulta de los resúmenes de consumo (RFCE) | Con el cliente Http |
+| `Central.Dgii.UrlAnulacion` | Anulación de rangos de e-NCF no utilizados (ANECF) | Para anular |
 | `Central.Dgii.SegundosCiclo` | Segundos entre ciclos de envío y consulta | Sí |
 | `Central.Dgii.LoteEnvio` | e-CF enviados y resultados consultados por ciclo | Sí |
 | `Central.Dgii.MinutosReintento` | Espera tras el primer envío fallido | Sí |

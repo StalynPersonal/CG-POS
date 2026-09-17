@@ -41,9 +41,18 @@ internal sealed class DespachadorDgii(
 
         foreach (var comprobante in pendientes)
         {
-            var respuesta = await LlamarAsync(
-                () => cliente.EnviarAsync(new ComprobanteParaDgii(comprobante.Id, comprobante.Encf, comprobante.TipoComprobante, comprobante.XmlFirmado, comprobante.EsResumenConsumo), cancelacion),
-                cancelacion);
+            var datos = new ComprobanteParaDgii(comprobante.Id, comprobante.Encf, comprobante.TipoComprobante, comprobante.XmlFirmado, comprobante.EsResumenConsumo);
+
+            // Tras un fallo, el envío anterior pudo llegar aunque no se recibiera la respuesta: se busca en la DGII antes de reenviar.
+            RespuestaDgii? recuperada = null;
+            if (comprobante.IntentosEnvio > 0)
+            {
+                recuperada = await LlamarRecuperacionAsync(datos, cancelacion);
+                if (recuperada is not null)
+                    registro.LogInformation("El e-CF {Encf} ya estaba en la DGII ({Resultado}); no se reenvía", comprobante.Encf, recuperada.Resultado);
+            }
+
+            var respuesta = recuperada ?? await LlamarAsync(() => cliente.EnviarAsync(datos, cancelacion), cancelacion);
             ahora = reloj.GetUtcNow();
 
             switch (respuesta.Resultado)
@@ -131,6 +140,20 @@ internal sealed class DespachadorDgii(
         }
 
         return estado;
+    }
+
+    /// <summary>Si la búsqueda falla no se reenvía a ciegas: el fallo se registra y se vuelve a buscar en el próximo intento.</summary>
+    private async Task<RespuestaDgii?> LlamarRecuperacionAsync(ComprobanteParaDgii datos, CancellationToken cancelacion)
+    {
+        try
+        {
+            return await cliente.RecuperarAsync(datos, cancelacion);
+        }
+        catch (Exception excepcion) when (!cancelacion.IsCancellationRequested)
+        {
+            registro.LogWarning(excepcion, "No se pudo buscar el e-CF {Encf} en la DGII", datos.Encf);
+            return RespuestaDgii.Fallo($"No se pudo verificar en la DGII si el e-CF ya se había recibido: {excepcion.Message}");
+        }
     }
 
     /// <summary>Un error inesperado del cliente no detiene el lote: se trata como fallo reintentable.</summary>

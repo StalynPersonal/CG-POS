@@ -51,6 +51,60 @@ public class ApiConfiguracionCajasPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
+    public async Task Solo_se_anulan_en_la_dgii_numeros_sin_usar_de_un_rango_que_la_caja_ya_no_usa()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+        var desde = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
+        var vence = new DateOnly(2028, 6, 30);
+        var secuenciaId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/fiscal/secuencias",
+            new SolicitudSecuenciaEcf(CentralEnPruebas.CajaDos, TipoComprobante.Gubernamental, desde, desde + 99, vence))).Cuerpo!.Id!.Value;
+        var ruta = $"/api/fiscal/secuencias/{secuenciaId}/anulaciones";
+
+        // Con el rango activo la caja podría usar esos números sin conexión.
+        Assert.Contains("está activo", (await EnviarAsync(cliente, admin, HttpMethod.Post, ruta, new SolicitudAnulacionEcf(desde, desde + 99, "Caja dañada"))).Cuerpo!.Mensaje);
+
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/fiscal/secuencias/{secuenciaId}",
+            new SolicitudActualizarSecuenciaEcf(desde + 99, vence, false))).Cuerpo!.Exitosa);
+
+        // La caja ya envió el e-CF número desde + 10: no se puede anular.
+        await RegistrarRecibidoAsync(SecuenciaEcf.FormatearEncf(TipoComprobante.Gubernamental, desde + 10));
+        var conUsado = await EnviarAsync(cliente, admin, HttpMethod.Post, ruta, new SolicitudAnulacionEcf(desde, desde + 20, "Caja dañada"));
+        Assert.Contains("ya se usó", conUsado.Cuerpo!.Mensaje);
+        Assert.Contains($"{desde + 11:N0}", conUsado.Cuerpo.Mensaje);
+
+        var sinMotivo = await EnviarAsync(cliente, admin, HttpMethod.Post, ruta, new SolicitudAnulacionEcf(desde + 11, desde + 99, " "));
+        Assert.Equal("Indique el motivo de la anulación.", sinMotivo.Cuerpo!.Mensaje);
+
+        var anulada = await EnviarAsync(cliente, admin, HttpMethod.Post, ruta, new SolicitudAnulacionEcf(desde + 11, desde + 99, "Caja dañada"));
+        Assert.True(anulada.Cuerpo!.Exitosa, anulada.Cuerpo.Mensaje);
+        Assert.Contains(central.Dgii.Anulaciones, xml => xml.Contains(SecuenciaEcf.FormatearEncf(TipoComprobante.Gubernamental, desde + 11)));
+
+        Assert.Contains("ya se anuló", (await EnviarAsync(cliente, admin, HttpMethod.Post, ruta, new SolicitudAnulacionEcf(desde + 50, desde + 60, "Otra vez"))).Cuerpo!.Mensaje);
+
+        // Un rechazo de la DGII también queda registrado.
+        central.Dgii.ProgramarAnulacion(new CgPos.Central.Aplicacion.Dgii.RespuestaAnulacionDgii(false, false, "Secuencia utilizada", null));
+        var rechazada = await EnviarAsync(cliente, admin, HttpMethod.Post, ruta, new SolicitudAnulacionEcf(desde, desde + 9, "Prueba de rechazo"));
+        Assert.Contains("rechazó", rechazada.Cuerpo!.Mensaje);
+
+        var anulaciones = (await ListarAsync<DatosAnulacionEcf>(cliente, admin, "/api/fiscal/anulaciones")).Where(a => a.SecuenciaId == secuenciaId).ToList();
+        Assert.Equal([(EstadoAnulacionEcf.Rechazada, 10L), (EstadoAnulacionEcf.Aceptada, 89L)], anulaciones.Select(a => (a.Estado, a.Cantidad)));
+    }
+
+    private Task RegistrarRecibidoAsync(string encf) =>
+        central.UsarContextoAsync(async contexto =>
+        {
+            var ahora = DateTimeOffset.UtcNow;
+            var documento = CgPos.Dominio.Sincronizacion.DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaDos, CentralEnPruebas.Sucursal,
+                "Venta.Cobrada", Guid.CreateVersion7(), "{}", new string('A', CgPos.Dominio.Sincronizacion.DocumentoRecibido.LargoHash), ahora, ahora);
+            contexto.DocumentosRecibidos.Add(documento);
+            contexto.ComprobantesRecibidos.Add(CgPos.Dominio.Sincronizacion.ComprobanteRecibido.Registrar(documento, encf, TipoComprobante.Gubernamental,
+                "<ECF/>", new string('B', CgPos.Dominio.Sincronizacion.DocumentoRecibido.LargoHash), ahora, ahora));
+            return await contexto.SaveChangesAsync();
+        });
+
+    [SkippableFact]
     public async Task Usuarios_y_roles_de_caja_bajan_con_el_pin_como_hash_y_se_validan_antes_de_publicar()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);

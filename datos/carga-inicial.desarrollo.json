@@ -164,6 +164,8 @@
     { "id": "01990000-0000-7000-8000-000000000536", "clave": "Sincronizacion.HorasAlertaPendientes", "valor": "24", "descripcion": "Horas sin sincronizar un documento desde las que se alerta" },
     { "id": "01990000-0000-7000-8000-000000000537", "clave": "Respaldo.DiasRetencion", "valor": "7", "descripcion": "Días que se conservan los respaldos de la base" },
     { "id": "01990000-0000-7000-8000-000000000538", "clave": "Reloj.ToleranciaSegundos", "valor": "60", "descripcion": "Segundos de diferencia con el servidor de hora desde los que se alerta" },
-    { "id": "01990000-0000-7000-8000-000000000539", "clave": "Numeracion.DigitosSecuencia", "valor": "7", "descripcion": "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente" }
+    { "id": "01990000-0000-7000-8000-000000000539", "clave": "Numeracion.DigitosSecuencia", "valor": "7", "descripcion": "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente" },
+    { "id": "01990000-0000-7000-8000-00000000053a", "clave": "Ecf.UrlConsultaTimbre", "valor": "https://ecf.dgii.gov.do/testecf/consultatimbre", "descripcion": "Consulta del timbre de la DGII en el código QR (ambiente de pruebas)" },
+    { "id": "01990000-0000-7000-8000-00000000053b", "clave": "Ecf.UrlConsultaTimbreConsumo", "valor": "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC", "descripcion": "Consulta del timbre de facturas de consumo en el código QR (ambiente de pruebas)" }
   ]
 }

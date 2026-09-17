@@ -49,6 +49,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();
 
+    // Anulaciones de e-NCF informadas a la DGII (ANECF)
+    public DbSet<CgPos.Dominio.Fiscal.AnulacionEcfCentral> AnulacionesEcf => Set<CgPos.Dominio.Fiscal.AnulacionEcfCentral>();
+
     /// <summary>Versión de fila (rowversion) de lo que baja a las cajas: permite entregar solo lo cambiado (RF-273).</summary>
     public const string ColumnaVersion = "Version";
 

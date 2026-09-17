@@ -141,6 +141,8 @@ public sealed class EscenarioSeguridad
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasSesion, "12", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.TipoIngresos, "1", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), CgPos.Dominio.Organizacion.CatalogoParametros.DigitosSecuenciaDocumentos, "7", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.UrlConsultaTimbre, "https://ecf.dgii.gov.do/testecf/consultatimbre", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.UrlConsultaTimbreConsumo, "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC", CajaId: CajaUno),
 
                 // Reglas de negocio de la caja de prueba: en producción las configura un usuario en el Central.
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MontoIdentificacionConsumo, "250000", CajaId: CajaUno),

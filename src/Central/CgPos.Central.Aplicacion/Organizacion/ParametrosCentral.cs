@@ -58,11 +58,29 @@ public static class ClavesParametrosCentral
     /// <summary>Activa el envío a la DGII de los e-CF recibidos. Opcional: sin él no se envía nada.</summary>
     public const string DgiiHabilitado = "Central.Dgii.Habilitado";
 
-    /// <summary>Dirección base (https) de los servicios de e-CF de la DGII: ambiente de pruebas, certificación o producción.</summary>
-    public const string DgiiUrlBase = "Central.Dgii.UrlBase";
+    /// <summary>Dirección del servicio que entrega la semilla de autenticación (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlSemilla = "Central.Dgii.UrlSemilla";
 
-    /// <summary>Dirección base del servicio de facturas de consumo de la DGII, donde se reciben los resúmenes (RFCE).</summary>
-    public const string DgiiUrlBaseConsumo = "Central.Dgii.UrlBaseConsumo";
+    /// <summary>Dirección del servicio que valida la semilla firmada y entrega el token (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlValidarSemilla = "Central.Dgii.UrlValidarSemilla";
+
+    /// <summary>Dirección del servicio que recibe los e-CF (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlRecepcion = "Central.Dgii.UrlRecepcion";
+
+    /// <summary>Dirección del servicio que consulta el resultado de un e-CF por su trackId (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlConsultaResultado = "Central.Dgii.UrlConsultaResultado";
+
+    /// <summary>Dirección del servicio que busca los envíos de un e-NCF (recupera el trackId perdido) (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlConsultaTrackIds = "Central.Dgii.UrlConsultaTrackIds";
+
+    /// <summary>Dirección del servicio que recibe los resúmenes de facturas de consumo (RFCE) (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlRecepcionConsumo = "Central.Dgii.UrlRecepcionConsumo";
+
+    /// <summary>Dirección del servicio que consulta el resultado de un resumen de factura de consumo (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlConsultaConsumo = "Central.Dgii.UrlConsultaConsumo";
+
+    /// <summary>Dirección del servicio que anula rangos de e-NCF no utilizados (ANECF) (https; incluye el ambiente de la DGII).</summary>
+    public const string DgiiUrlAnulacion = "Central.Dgii.UrlAnulacion";
 
     /// <summary>Segundos entre ciclos de envío y consulta.</summary>
     public const string DgiiSegundosCiclo = "Central.Dgii.SegundosCiclo";

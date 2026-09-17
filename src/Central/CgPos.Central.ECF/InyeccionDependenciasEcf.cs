@@ -19,6 +19,7 @@ public static class InyeccionDependenciasEcf
         var opciones = new OpcionesDgii(configuracion["Dgii:Cliente"], configuracion["Dgii:Certificado:Ruta"], configuracion["Dgii:Certificado:Pin"]);
         servicios.AddSingleton(opciones);
         servicios.AddScoped<IDespachadorDgii, DespachadorDgii>();
+        servicios.AddScoped<IServicioAnulacionesEcf, ServicioAnulacionesEcf>();
 
         if (opciones.UsaSimulador)
         {

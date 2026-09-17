@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using CgPos.Central.Aplicacion.Dgii;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Seguridad;
@@ -21,6 +22,13 @@ public static class RutasApiConfiguracionCajas
         fiscal.MapPut("/secuencias/{secuenciaId:guid}", async (Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, ClaimsPrincipal usuario,
                 IServicioConfiguracionCajas servicio, CancellationToken cancelacion) =>
             Responder(await servicio.ActualizarSecuenciaAsync(secuenciaId, solicitud, Actor(usuario), cancelacion)));
+
+        fiscal.MapGet("/anulaciones", async (IServicioAnulacionesEcf servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarAsync(cancelacion)));
+
+        fiscal.MapPost("/secuencias/{secuenciaId:guid}/anulaciones", async (Guid secuenciaId, SolicitudAnulacionEcf solicitud, ClaimsPrincipal usuario,
+                IServicioAnulacionesEcf servicio, CancellationToken cancelacion) =>
+            Responder(await servicio.AnularAsync(secuenciaId, solicitud, Actor(usuario), cancelacion)));
 
         var usuariosCaja = aplicacion.MapGroup("/api/usuarios-caja").RequireAuthorization(CatalogoPermisosCentral.AdministrarUsuariosCaja);
 

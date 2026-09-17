@@ -86,16 +86,52 @@
       "descripcion": "En desarrollo se envía a la DGII simulada (Dgii:Cliente = Simulado)"
     },
     {
-      "id": "01990000-0000-7000-8000-00000000090a",
-      "clave": "Central.Dgii.UrlBase",
-      "valor": "https://ecf.dgii.gov.do/testecf/",
-      "descripcion": "Ambiente de pruebas de e-CF de la DGII"
+      "id": "01990000-0000-7000-8000-000000000919",
+      "clave": "Central.Dgii.UrlSemilla",
+      "valor": "https://ecf.dgii.gov.do/testecf/autenticacion/api/Autenticacion/Semilla",
+      "descripcion": "Dirección del servicio que entrega la semilla de autenticación (ambiente de pruebas TesteCF)"
     },
     {
-      "id": "01990000-0000-7000-8000-000000000918",
-      "clave": "Central.Dgii.UrlBaseConsumo",
-      "valor": "https://fc.dgii.gov.do/testecf/",
-      "descripcion": "Servicio de facturas de consumo de la DGII (resúmenes RFCE)"
+      "id": "01990000-0000-7000-8000-00000000091a",
+      "clave": "Central.Dgii.UrlValidarSemilla",
+      "valor": "https://ecf.dgii.gov.do/testecf/autenticacion/api/Autenticacion/ValidarSemilla",
+      "descripcion": "Dirección del servicio que valida la semilla firmada y entrega el token (ambiente de pruebas TesteCF)"
+    },
+    {
+      "id": "01990000-0000-7000-8000-00000000091b",
+      "clave": "Central.Dgii.UrlRecepcion",
+      "valor": "https://ecf.dgii.gov.do/testecf/recepcion/api/FacturasElectronicas",
+      "descripcion": "Dirección del servicio que recibe los e-CF (ambiente de pruebas TesteCF)"
+    },
+    {
+      "id": "01990000-0000-7000-8000-00000000091c",
+      "clave": "Central.Dgii.UrlConsultaResultado",
+      "valor": "https://ecf.dgii.gov.do/testecf/consultaresultado/api/Consultas/Estado",
+      "descripcion": "Dirección del servicio que consulta el resultado de un e-CF por su trackId (ambiente de pruebas TesteCF)"
+    },
+    {
+      "id": "01990000-0000-7000-8000-00000000091d",
+      "clave": "Central.Dgii.UrlConsultaTrackIds",
+      "valor": "https://ecf.dgii.gov.do/testecf/consultatrackids/api/TrackIds/Consulta",
+      "descripcion": "Dirección del servicio que busca los envíos de un e-NCF (recupera el trackId perdido) (ambiente de pruebas TesteCF)"
+    },
+    {
+      "id": "01990000-0000-7000-8000-00000000091e",
+      "clave": "Central.Dgii.UrlRecepcionConsumo",
+      "valor": "https://fc.dgii.gov.do/testecf/recepcionfc/api/recepcion/ecf",
+      "descripcion": "Dirección del servicio que recibe los resúmenes de facturas de consumo (RFCE) (ambiente de pruebas TesteCF)"
+    },
+    {
+      "id": "01990000-0000-7000-8000-00000000091f",
+      "clave": "Central.Dgii.UrlConsultaConsumo",
+      "valor": "https://fc.dgii.gov.do/testecf/consultarfce/api/Consultas/Consulta",
+      "descripcion": "Dirección del servicio que consulta el resultado de un resumen de factura de consumo (ambiente de pruebas TesteCF)"
+    },
+    {
+      "id": "01990000-0000-7000-8000-000000000920",
+      "clave": "Central.Dgii.UrlAnulacion",
+      "valor": "https://ecf.dgii.gov.do/testecf/anulacionrangos/api/operaciones/anularrango",
+      "descripcion": "Dirección del servicio que anula rangos de e-NCF no utilizados (ANECF) (ambiente de pruebas TesteCF)"
     },
     {
       "id": "01990000-0000-7000-8000-00000000090b",

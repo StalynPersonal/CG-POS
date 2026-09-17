@@ -78,6 +78,38 @@ public class DespachoDgiiPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
+    public async Task Tras_un_fallo_se_busca_el_envio_en_la_dgii_y_si_ya_llego_no_se_reenvia()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        var encf = await RegistrarComprobanteAsync();
+        central.Dgii.ProgramarEnvio(encf, RespuestaDgii.Fallo("Tiempo de espera agotado"));
+        await central.ProcesarDgiiAsync();
+
+        // La DGII sí lo recibió aunque la respuesta no llegó: se retoma su trackId en vez de enviarlo otra vez.
+        central.Dgii.ProgramarRecuperacion(encf, new RespuestaDgii(ResultadoRespuestaDgii.EnProceso, $"REC-{encf}"));
+        await AdelantarAsync(encf);
+        await central.ProcesarDgiiAsync();
+
+        var recuperado = await LeerAsync(encf);
+        Assert.Equal((EstadoEnvioDgii.Enviado, $"REC-{encf}"), (recuperado.EstadoDgii, recuperado.TrackId));
+        Assert.Single(central.Dgii.Enviados, e => e == encf);
+    }
+
+    [SkippableFact]
+    public async Task El_resumen_de_consumo_toma_el_resultado_en_el_mismo_envio_sin_trackId()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        var encf = await RegistrarComprobanteAsync(resumenConsumo: true);
+        central.Dgii.ProgramarEnvio(encf, new RespuestaDgii(ResultadoRespuestaDgii.Aceptado));
+
+        await central.ProcesarDgiiAsync();
+
+        var resumen = await LeerAsync(encf);
+        Assert.Equal((EstadoEnvioDgii.Aceptado, 1), (resumen.EstadoDgii, resumen.IntentosEnvio));
+        Assert.Null(resumen.TrackId);
+    }
+
+    [SkippableFact]
     public async Task Sin_el_envio_activado_no_se_envia_nada()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
@@ -133,7 +165,7 @@ public class DespachoDgiiPruebas(CentralEnPruebas central)
         return (await respuesta.Content.ReadFromJsonAsync<PaqueteBajadaMaestros>(OpcionesJson.Predeterminadas))!;
     }
 
-    private async Task<string> RegistrarComprobanteAsync()
+    private async Task<string> RegistrarComprobanteAsync(bool resumenConsumo = false)
     {
         var encf = $"E32{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}";
         await central.UsarContextoAsync(async contexto =>
@@ -143,7 +175,7 @@ public class DespachoDgiiPruebas(CentralEnPruebas central)
                 "{}", new string('A', DocumentoRecibido.LargoHash), ahora, ahora);
             contexto.DocumentosRecibidos.Add(documento);
             contexto.ComprobantesRecibidos.Add(ComprobanteRecibido.Registrar(documento, encf, TipoComprobante.FacturaConsumo,
-                "<ECF><Encabezado><Emisor><RNCEmisor>131246796</RNCEmisor></Emisor></Encabezado></ECF>", new string('B', DocumentoRecibido.LargoHash), ahora, ahora));
+                "<ECF><Encabezado><Emisor><RNCEmisor>131246796</RNCEmisor></Emisor></Encabezado></ECF>", new string('B', DocumentoRecibido.LargoHash), ahora, ahora, resumenConsumo));
             return await contexto.SaveChangesAsync();
         });
         return encf;

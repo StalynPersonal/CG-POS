@@ -46,6 +46,7 @@ public class DocumentoEcfPruebas
         var codigoSeguridad = CodigoSeguridadEcf.Obtener(firmadoEcf);
 
         var resumen = GeneradorXmlRfce.Generar(Consumo(), codigoSeguridad);
+        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"utf-8\"?>", resumen);
         var xml = XDocument.Parse(resumen);
         var encabezado = xml.Root!.Element("Encabezado")!;
 
@@ -59,6 +60,35 @@ public class DocumentoEcfPruebas
 
         var firmado = new FirmadorEcf().Firmar(resumen, certificado);
         Assert.Empty(ValidadorEcf.ValidarContraXsd(firmado, carpeta, tipoEcf: null, nombreEsquema: "RFCE"));
+    }
+
+    [Fact]
+    public void La_anulacion_de_rangos_agrupa_por_tipo_suma_las_cantidades_y_cumple_su_esquema()
+    {
+        var carpeta = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "datos", "xsd"));
+        using var certificado = CertificadoFirma.CargarPkcs12(CertificadoFirma.CrearAutofirmadoDesarrollo("CN=CENTRAL PRUEBA", "1234",
+            DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1)), "1234");
+
+        var anulacion = GeneradorXmlAnecf.Generar("131246796", new DateTimeOffset(2026, 9, 17, 10, 5, 0, TimeSpan.FromHours(-4)),
+        [
+            new RangoAnulacionEcf(32, "E320000000101", "E320000000200"),
+            new RangoAnulacionEcf(31, "E310000000050", "E310000000050"),
+            new RangoAnulacionEcf(32, "E320000000501", "E320000000510"),
+        ]);
+
+        var xml = XDocument.Parse(anulacion);
+        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"utf-8\"?>", anulacion);
+        Assert.Equal("111", xml.Root!.Element("Encabezado")!.Element("CantidadeNCFAnulados")!.Value);
+        Assert.Equal("17-09-2026 10:05:00", xml.Root.Element("Encabezado")!.Element("FechaHoraAnulacioneNCF")!.Value);
+        var lineas = xml.Root.Element("DetalleAnulacion")!.Elements("Anulacion").ToList();
+        Assert.Equal([("31", "1"), ("32", "110")], lineas.Select(l => (l.Element("TipoeCF")!.Value, l.Element("CantidadeNCFAnulados")!.Value)));
+
+        var firmado = new FirmadorEcf().Firmar(anulacion, certificado);
+        Assert.Empty(ValidadorEcf.ValidarContraXsd(firmado, carpeta, tipoEcf: null, nombreEsquema: "ANECF"));
+
+        // Un rango al revés o de otro tipo no se genera.
+        Assert.Throws<ArgumentException>(() => GeneradorXmlAnecf.Generar("131246796", DateTimeOffset.Now, [new RangoAnulacionEcf(32, "E320000000200", "E320000000101")]));
+        Assert.Throws<ArgumentException>(() => GeneradorXmlAnecf.Generar("131246796", DateTimeOffset.Now, [new RangoAnulacionEcf(31, "E320000000001", "E320000000002")]));
     }
 
     [Fact]
@@ -148,7 +178,8 @@ public class DocumentoEcfPruebas
     [Fact]
     public void Url_del_timbre_usa_la_consulta_simplificada_en_consumo_menor_y_la_completa_en_los_demas()
     {
-        var consumo = TimbreEcf.Url(AmbienteEcf.Pruebas, Consumo(), "Ab+9/z", MontoIdentificacion);
+        var consumo = TimbreEcf.Url("https://ecf.dgii.gov.do/testecf/consultatimbre", "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC", Consumo(), "Ab+9/z",
+            MontoIdentificacion);
         // La consulta simplificada vive en el servicio de facturas de consumo de la DGII, con su propio host.
         Assert.StartsWith("https://fc.dgii.gov.do/testecf/ConsultaTimbreFC?", consumo);
         Assert.Contains("ENCF=E320000000123", consumo);
@@ -156,8 +187,8 @@ public class DocumentoEcfPruebas
         Assert.Contains("CodigoSeguridad=Ab%2B9%2Fz", consumo);
 
         var credito = Consumo() with { TipoEcf = 31, Encf = "E310000000001", Comprador = new CompradorEcf("131246796", "Constructora") };
-        var completa = TimbreEcf.Url(AmbienteEcf.Produccion, credito, "Ab+9/z", MontoIdentificacion);
-        Assert.StartsWith("https://ecf.dgii.gov.do/ecf/ConsultaTimbre?", completa);
+        var completa = TimbreEcf.Url("https://ecf.dgii.gov.do/ecf/consultatimbre/", "https://fc.dgii.gov.do/fc/ConsultaTimbreFC", credito, "Ab+9/z", MontoIdentificacion);
+        Assert.StartsWith("https://ecf.dgii.gov.do/ecf/consultatimbre?", completa);
         Assert.Contains("RncComprador=131246796", completa);
         Assert.Contains("FechaFirma=15-09-2026%2014%3A30%3A07", completa);
     }

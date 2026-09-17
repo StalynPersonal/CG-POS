@@ -106,9 +106,6 @@ public static class ClavesEcf
     /// <summary>Carpeta con los XSD oficiales de la DGII; opcional.</summary>
     public const string CarpetaXsd = "Ecf:CarpetaXsd";
 
-    /// <summary>Pruebas, Certificacion o Produccion.</summary>
-    public const string Ambiente = "Ecf:Ambiente";
-
     /// <summary>Solo desarrollo: crea un certificado autofirmado si no existe y lo carga con este PIN al arrancar.</summary>
     public const string PinDesarrollo = "Ecf:Certificado:PinDesarrollo";
 

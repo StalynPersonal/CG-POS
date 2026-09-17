@@ -144,6 +144,12 @@ public static class ClavesParametros
     /// </summary>
     public const string ContingenciaEcf = "Ecf.ContingenciaHabilitada";
 
+    /// <summary>Consulta completa del timbre en la DGII (código QR del ticket); su dirección define el ambiente.</summary>
+    public const string UrlConsultaTimbre = "Ecf.UrlConsultaTimbre";
+
+    /// <summary>Consulta simplificada del timbre de las facturas de consumo menores (servicio de facturas de consumo de la DGII).</summary>
+    public const string UrlConsultaTimbreConsumo = "Ecf.UrlConsultaTimbreConsumo";
+
     /// <summary>Permite cerrar el turno con ventas en contingencia pendientes de e-CF; sin él, el cierre las exige regularizadas.</summary>
     public const string ContingenciaPermiteCerrar = "Ecf.ContingenciaPermiteCerrarTurno";
 

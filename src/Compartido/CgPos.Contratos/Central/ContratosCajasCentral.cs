@@ -54,3 +54,23 @@ public sealed record SolicitudUsuarioCaja(
     string? Carne = null,
     bool QuitarCarne = false,
     bool Activo = true);
+
+/// <summary>Anulación de un rango de e-NCF no utilizados de una caja, informada a la DGII (ANECF).</summary>
+public sealed record DatosAnulacionEcf(
+    Guid Id,
+    Guid SecuenciaId,
+    string CajaCodigo,
+    string SucursalCodigo,
+    TipoComprobante TipoComprobante,
+    long Desde,
+    long Hasta,
+    long Cantidad,
+    string Motivo,
+    string UsuarioNombre,
+    DateTimeOffset SolicitadaEn,
+    EstadoAnulacionEcf Estado,
+    string? RespuestaDgii);
+
+/// <param name="Desde">Primera secuencia a anular (sin el prefijo E y el tipo).</param>
+/// <param name="Hasta">Última secuencia a anular, incluida.</param>
+public sealed record SolicitudAnulacionEcf(long Desde, long Hasta, string Motivo);

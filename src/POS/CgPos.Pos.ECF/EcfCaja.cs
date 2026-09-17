@@ -117,7 +117,6 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     private async Task<EmisionEcf> EmitirDocumentoAsync(Guid documentoId, Guid cajaId, Guid sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
         Func<string, DateOnly, EmisorEcf, DateTimeOffset, int, DocumentoEcf> armar, CancellationToken cancelacion)
     {
-        var ambiente = Ambiente();
         var certificadoFirma = certificado.ObtenerParaFirmar()
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado,
                 "El certificado digital de la caja no está cargado. Digite su PIN para poder emitir comprobantes.");
@@ -152,7 +151,9 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
             throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido, $"El e-CF no cumple el esquema de la DGII: {string.Join(" ", erroresXsd.Take(3))}");
 
         var codigoSeguridad = CodigoSeguridadEcf.Obtener(firmado);
-        var urlTimbre = TimbreEcf.Url(ambiente, documentoEcf, codigoSeguridad, montoIdentificacion);
+        // Las direcciones del timbre definen el ambiente de la DGII: son parámetros obligatorios, nunca se asume uno.
+        var urlTimbre = TimbreEcf.Url(await parametros.ObtenerRequeridoAsync(ClavesParametros.UrlConsultaTimbre, cajaId, cancelacion),
+            await parametros.ObtenerRequeridoAsync(ClavesParametros.UrlConsultaTimbreConsumo, cajaId, cancelacion), documentoEcf, codigoSeguridad, montoIdentificacion);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(firmado)));
 
         var ruta = RutaXml(RutasXmlEcf.Pendientes, reloj.GetLocalNow(), emisor.Rnc, encf);
@@ -197,13 +198,6 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         {
         }
     }
-
-    /// <summary>El ambiente no se asume: un comprobante de producción nunca debe salir con el timbre de pruebas, ni al revés.</summary>
-    private AmbienteEcf Ambiente() =>
-        Enum.TryParse<AmbienteEcf>(configuracion[ClavesEcf.Ambiente], ignoreCase: true, out var ambiente) && Enum.IsDefined(ambiente)
-            ? ambiente
-            : throw new EmisionEcfExcepcion(CodigoResultadoVenta.EcfInvalido,
-                $"Configure el ambiente de facturación electrónica ({ClavesEcf.Ambiente}: {string.Join(", ", Enum.GetNames<AmbienteEcf>())}) antes de emitir comprobantes.");
 
     private string RutaXml(string estado, DateTimeOffset fecha, string rnc, string encf)
     {

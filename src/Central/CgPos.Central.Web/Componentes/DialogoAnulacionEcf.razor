@@ -1,0 +1,61 @@
+@* Anulación ante la DGII de los e-NCF que no se usaron de un rango desactivado o vencido (ANECF). *@
+@using CgPos.Dominio.Ventas
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudTextField T="string" Value="@($"Caja {Secuencia.CajaCodigo} · E{(int)Secuencia.TipoComprobante} {ReglasComprobante.Nombre(Secuencia.TipoComprobante)}")"
+                          Label="Rango" Variant="Variant.Outlined" ReadOnly="true" />
+            <MudAlert Severity="Severity.Warning" Dense="true">
+                La DGII da por anulados estos números: no se podrán usar nunca. Anule solo lo que la caja no usó y asegúrese de que haya enviado todas sus ventas.
+            </MudAlert>
+            <MudNumericField T="long" @bind-Value="_desde" Label="Desde" Variant="Variant.Outlined" Min="@Secuencia.Desde" Max="@Secuencia.Hasta" HideSpinButtons="true"
+                             HelperText="@(Secuencia.UltimoRecibido is { } ultimo ? $"Última recibida: {ultimo:N0}" : "La caja no ha enviado e-CF de este rango.")" />
+            <MudNumericField T="long" @bind-Value="_hasta" Label="Hasta" Variant="Variant.Outlined" Min="@Secuencia.Desde" Max="@Secuencia.Hasta" HideSpinButtons="true"
+                             HelperText="@($"{Math.Max(0, _hasta - _desde + 1):N0} números")" />
+            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" Lines="2" Required="true" RequiredError="Obligatorio" />
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" Disabled="_procesando" OnClick="AnularAsync">Anular en la DGII</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter, EditorRequired] public DatosSecuenciaEcfCentral Secuencia { get; set; } = default!;
+
+    private long _desde;
+    private long _hasta;
+    private string? _motivo;
+    private string? _mensaje;
+    private bool _procesando;
+
+    protected override void OnInitialized()
+    {
+        // Lo sugerido es lo que queda sin usar después de lo último que envió la caja.
+        _desde = Secuencia.UltimoRecibido is { } ultimo ? Math.Min(ultimo + 1, Secuencia.Hasta) : Secuencia.Desde;
+        _hasta = Secuencia.Hasta;
+    }
+
+    private async Task AnularAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+        var respuesta = await Cliente.AnularSecuenciasAsync(Secuencia.Id, new SolicitudAnulacionEcf(_desde, _hasta, _motivo ?? string.Empty));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo anular el tramo.";
+    }
+}

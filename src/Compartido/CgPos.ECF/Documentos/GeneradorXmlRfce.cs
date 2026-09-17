@@ -107,6 +107,7 @@ public static class GeneradorXmlRfce
             xml.WriteEndDocument();
         }
 
-        return texto.ToString();
+        // XmlWriter sobre StringBuilder declara UTF-16 aunque se le pida UTF-8: la DGII recibe UTF-8.
+        return texto.ToString().Replace("encoding=\"utf-16\"", "encoding=\"utf-8\"", StringComparison.Ordinal);
     }
 }

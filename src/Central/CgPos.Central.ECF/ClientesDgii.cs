@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -22,17 +22,28 @@ internal sealed record OpcionesDgii(string? Cliente, string? RutaCertificado, st
     public bool UsaSimulador => string.Equals(Cliente, "Simulado", StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>DGII simulada para desarrollo: recibe todo y lo acepta en la primera consulta.</summary>
+/// <summary>DGII simulada para desarrollo: recibe todo y lo acepta (los e-CF en la primera consulta, los resúmenes de consumo al recibirlos).</summary>
 internal sealed class ClienteDgiiSimulado(ILogger<ClienteDgiiSimulado> registro) : IClienteDgii
 {
     public Task<RespuestaDgii> EnviarAsync(ComprobanteParaDgii comprobante, CancellationToken cancelacion = default)
     {
         registro.LogInformation("DGII simulada: recibido el e-CF {Encf}", comprobante.Encf);
-        return Task.FromResult(new RespuestaDgii(ResultadoRespuestaDgii.EnProceso, $"SIM-{Guid.CreateVersion7():N}"));
+        return Task.FromResult(comprobante.EsResumenConsumo
+            ? new RespuestaDgii(ResultadoRespuestaDgii.Aceptado, Mensaje: "Resumen aceptado por la DGII simulada.")
+            : new RespuestaDgii(ResultadoRespuestaDgii.EnProceso, $"SIM-{Guid.CreateVersion7():N}"));
     }
 
     public Task<RespuestaDgii> ConsultarAsync(string trackId, CancellationToken cancelacion = default) =>
         Task.FromResult(new RespuestaDgii(ResultadoRespuestaDgii.Aceptado, trackId, "Aceptado por la DGII simulada."));
+
+    public Task<RespuestaDgii?> RecuperarAsync(ComprobanteParaDgii comprobante, CancellationToken cancelacion = default) =>
+        Task.FromResult<RespuestaDgii?>(null);
+
+    public Task<RespuestaAnulacionDgii> AnularAsync(string xmlAnulacion, CancellationToken cancelacion = default)
+    {
+        registro.LogInformation("DGII simulada: anulación de e-NCF recibida");
+        return Task.FromResult(new RespuestaAnulacionDgii(true, false, "Anulación aceptada por la DGII simulada.", xmlAnulacion));
+    }
 }
 
 /// <summary>Token de la DGII y certificado del emisor, compartidos por todas las llamadas.</summary>
@@ -57,20 +68,13 @@ internal sealed class SesionDgii(OpcionesDgii opciones) : IDisposable
 }
 
 /// <summary>
-/// Servicios web de e-CF de la DGII: autenticación con la semilla firmada por el certificado del emisor, recepción del XML y consulta del
-/// resultado por trackId. Rutas y formatos de la documentación técnica de la DGII; por confirmar durante la certificación (TesteCF).
+/// Servicios web de e-CF de la DGII: autenticación con la semilla firmada por el certificado del emisor, recepción del XML, consulta del
+/// resultado, búsqueda de envíos por e-NCF y anulación de rangos. Cada dirección es un parámetro del Central (define el ambiente); los formatos
+/// siguen la documentación técnica de la DGII y se confirman durante la certificación (TesteCF).
 /// </summary>
 internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServiceScopeFactory fabricaAmbitos, TimeProvider reloj, ILogger<ClienteDgiiHttp> registro)
     : IClienteDgii
 {
-    private const string RutaSemilla = "autenticacion/api/Autenticacion/Semilla";
-    private const string RutaValidarSemilla = "autenticacion/api/Autenticacion/ValidarSemilla";
-    private const string RutaRecepcion = "recepcion/api/FacturasElectronicas";
-    private const string RutaEstado = "consultaresultado/api/Consultas/Estado";
-
-    /// <summary>Servicio de facturas de consumo: recibe el resumen (RFCE) de las que no llegan al monto de identificación.</summary>
-    private const string RutaRecepcionConsumo = "recepcionfc/api/recepcion/ecf";
-
     private static readonly JsonSerializerOptions OpcionesLectura = new(JsonSerializerDefaults.Web);
 
     private sealed record RespuestaTokenDgii(string? Token, DateTimeOffset? Expira);
@@ -79,23 +83,31 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
 
     private sealed record MensajeDgii(string? Valor, int? Codigo);
 
-    private sealed record RespuestaEstadoDgii(string? TrackId, string? Estado, IReadOnlyList<MensajeDgii>? Mensajes);
+    /// <summary>Resultado por trackId, del resumen de consumo (en su envío y en su consulta) y de cada envío encontrado por e-NCF.</summary>
+    private sealed record RespuestaEstadoDgii(string? TrackId, string? Estado, IReadOnlyList<MensajeDgii>? Mensajes, string? FechaRecepcion = null);
 
     public async Task<RespuestaDgii> EnviarAsync(ComprobanteParaDgii comprobante, CancellationToken cancelacion = default)
     {
-        var nombre = $"{RncEmisor(comprobante.XmlFirmado)}{comprobante.Encf}.xml";
-        var ruta = comprobante.EsResumenConsumo ? RutaRecepcionConsumo : RutaRecepcion;
-        using var respuesta = await EnviarAutenticadoAsync(
-            urlBase => new HttpRequestMessage(HttpMethod.Post, new Uri(urlBase, ruta)) { Content = ContenidoXml(comprobante.XmlFirmado, nombre) },
-            cancelacion, comprobante.EsResumenConsumo);
+        var nombre = $"{ValorXml(comprobante.XmlFirmado, "RNCEmisor")}{comprobante.Encf}.xml";
+        var clave = comprobante.EsResumenConsumo ? ClavesParametrosCentral.DgiiUrlRecepcionConsumo : ClavesParametrosCentral.DgiiUrlRecepcion;
+        using var respuesta = await EnviarAutenticadoAsync(clave,
+            url => new HttpRequestMessage(HttpMethod.Post, url) { Content = ContenidoXml(comprobante.XmlFirmado, nombre) }, cancelacion);
         var cuerpo = await respuesta.Content.ReadAsStringAsync(cancelacion);
+
+        // El resumen de consumo se acepta o se rechaza en el mismo envío, sin trackId.
+        if (comprobante.EsResumenConsumo)
+        {
+            return Leer<RespuestaEstadoDgii>(cuerpo) is { Estado.Length: > 0 } resumen
+                ? Resultado(resumen)
+                : RespuestaDgii.Fallo($"La DGII respondió {(int)respuesta.StatusCode} al recibir el resumen de consumo: {Texto(cuerpo)}");
+        }
 
         if (respuesta.StatusCode == HttpStatusCode.BadRequest)
             return new RespuestaDgii(ResultadoRespuestaDgii.Rechazado, Mensaje: Texto(cuerpo));
         if (!respuesta.IsSuccessStatusCode)
             return RespuestaDgii.Fallo($"La DGII respondió {(int)respuesta.StatusCode} al recibir el e-CF: {Texto(cuerpo)}");
 
-        var datos = JsonSerializer.Deserialize<RespuestaRecepcionDgii>(cuerpo, OpcionesLectura);
+        var datos = Leer<RespuestaRecepcionDgii>(cuerpo);
         return string.IsNullOrWhiteSpace(datos?.TrackId)
             ? RespuestaDgii.Fallo($"La DGII no devolvió el trackId: {datos?.Mensaje ?? datos?.Error ?? Texto(cuerpo)}")
             : new RespuestaDgii(ResultadoRespuestaDgii.EnProceso, datos.TrackId);
@@ -103,33 +115,89 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
 
     public async Task<RespuestaDgii> ConsultarAsync(string trackId, CancellationToken cancelacion = default)
     {
-        using var respuesta = await EnviarAutenticadoAsync(
-            urlBase => new HttpRequestMessage(HttpMethod.Get, new Uri(urlBase, $"{RutaEstado}?trackid={Uri.EscapeDataString(trackId)}")), cancelacion);
+        using var respuesta = await EnviarAutenticadoAsync(ClavesParametrosCentral.DgiiUrlConsultaResultado,
+            url => new HttpRequestMessage(HttpMethod.Get, Consulta(url, ("trackid", trackId))), cancelacion);
         var cuerpo = await respuesta.Content.ReadAsStringAsync(cancelacion);
         if (!respuesta.IsSuccessStatusCode)
             return RespuestaDgii.Fallo($"La DGII respondió {(int)respuesta.StatusCode} al consultar el resultado: {Texto(cuerpo)}");
 
-        var datos = JsonSerializer.Deserialize<RespuestaEstadoDgii>(cuerpo, OpcionesLectura);
-        var mensajes = string.Join(" ", (datos?.Mensajes ?? []).Select(m => m.Valor).Where(v => !string.IsNullOrWhiteSpace(v)));
-        var resultado = MaestroCentral.NormalizarBusqueda(datos?.Estado)?.Replace(" ", string.Empty) switch
+        return Resultado(Leer<RespuestaEstadoDgii>(cuerpo) ?? new RespuestaEstadoDgii(trackId, null, null)) with { TrackId = trackId };
+    }
+
+    public async Task<RespuestaDgii?> RecuperarAsync(ComprobanteParaDgii comprobante, CancellationToken cancelacion = default)
+    {
+        var rnc = ValorXml(comprobante.XmlFirmado, "RNCEmisor");
+        if (comprobante.EsResumenConsumo)
+        {
+            using var consulta = await EnviarAutenticadoAsync(ClavesParametrosCentral.DgiiUrlConsultaConsumo,
+                url => new HttpRequestMessage(HttpMethod.Get, Consulta(url, ("RNC_Emisor", rnc), ("ENCF", comprobante.Encf),
+                    ("Cod_Seguridad_eCF", ValorXml(comprobante.XmlFirmado, "CodigoSeguridadeCF")))), cancelacion);
+            var cuerpoConsumo = await consulta.Content.ReadAsStringAsync(cancelacion);
+            if (consulta.StatusCode == HttpStatusCode.NotFound)
+                return null;
+            if (!consulta.IsSuccessStatusCode)
+                return RespuestaDgii.Fallo($"La DGII respondió {(int)consulta.StatusCode} al consultar el resumen de consumo: {Texto(cuerpoConsumo)}");
+
+            return Leer<RespuestaEstadoDgii>(cuerpoConsumo) is { Estado.Length: > 0 } resumen && !EsNoEncontrado(resumen.Estado)
+                ? Resultado(resumen)
+                : null;
+        }
+
+        using var respuesta = await EnviarAutenticadoAsync(ClavesParametrosCentral.DgiiUrlConsultaTrackIds,
+            url => new HttpRequestMessage(HttpMethod.Get, Consulta(url, ("RncEmisor", rnc), ("Encf", comprobante.Encf))), cancelacion);
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(cancelacion);
+        if (respuesta.StatusCode == HttpStatusCode.NotFound)
+            return null;
+        if (!respuesta.IsSuccessStatusCode)
+            return RespuestaDgii.Fallo($"La DGII respondió {(int)respuesta.StatusCode} al buscar los envíos del e-NCF: {Texto(cuerpo)}");
+
+        // Si hubo varios envíos manda el último: su trackId es el que se sigue consultando.
+        var envios = Leer<List<RespuestaEstadoDgii>>(cuerpo) ?? [];
+        return envios.Where(e => !string.IsNullOrWhiteSpace(e.TrackId)).OrderByDescending(e => e.FechaRecepcion, StringComparer.Ordinal).FirstOrDefault() is { } ultimo
+            ? Resultado(ultimo) with { TrackId = ultimo.TrackId }
+            : null;
+    }
+
+    public async Task<RespuestaAnulacionDgii> AnularAsync(string xmlAnulacion, CancellationToken cancelacion = default)
+    {
+        var firmado = new FirmadorEcf().Firmar(xmlAnulacion, sesion.Certificado);
+        var nombre = $"{ValorXml(firmado, "RncEmisor")}ANECF.xml";
+        using var respuesta = await EnviarAutenticadoAsync(ClavesParametrosCentral.DgiiUrlAnulacion,
+            url => new HttpRequestMessage(HttpMethod.Post, url) { Content = ContenidoXml(firmado, nombre) }, cancelacion);
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(cancelacion);
+
+        if (respuesta.IsSuccessStatusCode)
+            return new RespuestaAnulacionDgii(true, false, Texto(cuerpo), firmado);
+
+        // Un 400 es un rechazo de la DGII; otro código es un error del servicio que se puede reintentar.
+        return new RespuestaAnulacionDgii(false, respuesta.StatusCode != HttpStatusCode.BadRequest,
+            $"La DGII respondió {(int)respuesta.StatusCode}: {Texto(cuerpo)}", firmado);
+    }
+
+    private static RespuestaDgii Resultado(RespuestaEstadoDgii datos)
+    {
+        var mensajes = string.Join(" ", (datos.Mensajes ?? []).Select(m => m.Valor).Where(v => !string.IsNullOrWhiteSpace(v)));
+        var resultado = MaestroCentral.NormalizarBusqueda(datos.Estado)?.Replace(" ", string.Empty) switch
         {
             "aceptado" => ResultadoRespuestaDgii.Aceptado,
             "aceptadocondicional" => ResultadoRespuestaDgii.AceptadoCondicional,
             "rechazado" => ResultadoRespuestaDgii.Rechazado,
             _ => ResultadoRespuestaDgii.EnProceso,
         };
-        return new RespuestaDgii(resultado, trackId, mensajes.Length == 0 ? null : mensajes);
+        return new RespuestaDgii(resultado, datos.TrackId, mensajes.Length == 0 ? null : mensajes);
     }
 
-    /// <param name="consumo">El envío va al servicio de facturas de consumo, que tiene su propia dirección base.</param>
-    private async Task<HttpResponseMessage> EnviarAutenticadoAsync(Func<Uri, HttpRequestMessage> crear, CancellationToken cancelacion, bool consumo = false)
+    private static bool EsNoEncontrado(string? estado) =>
+        MaestroCentral.NormalizarBusqueda(estado)?.Replace(" ", string.Empty) is "noencontrado" or "noexiste";
+
+    /// <param name="clave">Parámetro con la dirección del servicio.</param>
+    private async Task<HttpResponseMessage> EnviarAutenticadoAsync(string clave, Func<Uri, HttpRequestMessage> crear, CancellationToken cancelacion)
     {
-        var urlBase = await UrlBaseAsync(cancelacion, consumo);
+        var url = await UrlAsync(clave, cancelacion);
         for (var intento = 1; ; intento++)
         {
-            using var solicitud = crear(urlBase);
-            // El token se obtiene siempre del servicio de e-CF, aunque el envío vaya al de consumo.
-            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await TokenAsync(await UrlBaseAsync(cancelacion), cancelacion));
+            using var solicitud = crear(url);
+            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await TokenAsync(cancelacion));
             var respuesta = await http.SendAsync(solicitud, cancelacion);
             if (respuesta.StatusCode != HttpStatusCode.Unauthorized || intento > 1)
                 return respuesta;
@@ -140,7 +208,7 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
         }
     }
 
-    private async Task<string> TokenAsync(Uri urlBase, CancellationToken cancelacion)
+    private async Task<string> TokenAsync(CancellationToken cancelacion)
     {
         if (sesion.Token is { } vigente && sesion.VenceEn > reloj.GetUtcNow().AddMinutes(1))
             return vigente;
@@ -151,15 +219,15 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
             if (sesion.Token is { } obtenido && sesion.VenceEn > reloj.GetUtcNow().AddMinutes(1))
                 return obtenido;
 
-            var semilla = await http.GetStringAsync(new Uri(urlBase, RutaSemilla), cancelacion);
+            var semilla = await http.GetStringAsync(await UrlAsync(ClavesParametrosCentral.DgiiUrlSemilla, cancelacion), cancelacion);
             var firmada = new FirmadorEcf().Firmar(semilla, sesion.Certificado);
             using var contenido = ContenidoXml(firmada, "semilla.xml");
-            using var respuesta = await http.PostAsync(new Uri(urlBase, RutaValidarSemilla), contenido, cancelacion);
+            using var respuesta = await http.PostAsync(await UrlAsync(ClavesParametrosCentral.DgiiUrlValidarSemilla, cancelacion), contenido, cancelacion);
             var cuerpo = await respuesta.Content.ReadAsStringAsync(cancelacion);
             if (!respuesta.IsSuccessStatusCode)
                 throw new InvalidOperationException($"La DGII rechazó la autenticación ({(int)respuesta.StatusCode}): {Texto(cuerpo)}");
 
-            var datos = JsonSerializer.Deserialize<RespuestaTokenDgii>(cuerpo, OpcionesLectura);
+            var datos = Leer<RespuestaTokenDgii>(cuerpo);
             if (string.IsNullOrWhiteSpace(datos?.Token))
                 throw new InvalidOperationException("La DGII no devolvió el token de autenticación.");
 
@@ -174,15 +242,29 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
         }
     }
 
-    /// <param name="consumo">Dirección del servicio de facturas de consumo (RFCE), que la DGII publica en otro host.</param>
-    private async Task<Uri> UrlBaseAsync(CancellationToken cancelacion, bool consumo = false)
+    /// <summary>Dirección completa (https) de un servicio de la DGII, leída de su parámetro.</summary>
+    private async Task<Uri> UrlAsync(string clave, CancellationToken cancelacion)
     {
-        var clave = consumo ? ClavesParametrosCentral.DgiiUrlBaseConsumo : ClavesParametrosCentral.DgiiUrlBase;
         await using var ambito = fabricaAmbitos.CreateAsyncScope();
         var texto = await ambito.ServiceProvider.GetRequiredService<IParametrosCentral>().ObtenerRequeridoAsync(clave, cancelacion);
-        return Uri.TryCreate(texto.EndsWith('/') ? texto : texto + "/", UriKind.Absolute, out var url) && url.Scheme == Uri.UriSchemeHttps
+        return Uri.TryCreate(texto.Trim(), UriKind.Absolute, out var url) && url.Scheme == Uri.UriSchemeHttps
             ? url
             : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser una dirección https");
+    }
+
+    private static Uri Consulta(Uri url, params (string Nombre, string Valor)[] valores) =>
+        new($"{url.GetLeftPart(UriPartial.Path)}?{string.Join("&", valores.Select(v => $"{v.Nombre}={Uri.EscapeDataString(v.Valor)}"))}");
+
+    private static T? Leer<T>(string cuerpo)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(cuerpo) ? default : JsonSerializer.Deserialize<T>(cuerpo, OpcionesLectura);
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
     }
 
     private static MultipartFormDataContent ContenidoXml(string xml, string nombreArchivo)
@@ -192,14 +274,14 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
         return contenido;
     }
 
-    /// <summary>RNC del emisor dentro del XML (el nombre del archivo lo lleva); sin DTD ni entidades externas.</summary>
-    private static string RncEmisor(string xml)
+    /// <summary>Valor de un elemento del XML (ej. el RNC del emisor, que va en el nombre del archivo); sin DTD ni entidades externas.</summary>
+    private static string ValorXml(string xml, string elemento)
     {
         var configuracion = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null };
         using var lector = XmlReader.Create(new StringReader(xml), configuracion);
         while (lector.Read())
         {
-            if (lector.NodeType == XmlNodeType.Element && lector.LocalName == "RNCEmisor")
+            if (lector.NodeType == XmlNodeType.Element && lector.LocalName == elemento)
                 return lector.ReadElementContentAsString().Trim();
         }
 
