@@ -68,7 +68,7 @@ internal sealed class ServicioRecepcion(
             await RegistrarComprobanteAsync(documento, ecf, ahora, cancelacion);
 
         if (mensaje.TipoMensaje == TiposMensaje.VentaCobrada)
-            await RegistrarVentaAsync(documento, cancelacion);
+            await RegistrarVentaAsync(documento, ahora, cancelacion);
         else if (mensaje.TipoMensaje == TiposMensaje.TurnoCerrado)
             await RegistrarCierreAsync(documento, ahora, cancelacion);
         else if (mensaje.TipoMensaje == TiposMensaje.InscripcionFidelidad)
@@ -237,7 +237,7 @@ internal sealed class ServicioRecepcion(
     }
 
     /// <summary>La venta cobrada alimenta el modelo de lectura de los reportes (ventas, ITBIS y 607); si no se puede leer, el documento se guarda igual.</summary>
-    private async Task RegistrarVentaAsync(DocumentoRecibido documento, CancellationToken cancelacion)
+    private async Task RegistrarVentaAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)
     {
         DocumentoVentaCobrada? venta = null;
         try
@@ -248,8 +248,10 @@ internal sealed class ServicioRecepcion(
         {
         }
 
-        if (venta?.Venta is { } datos && datos.Id != Guid.Empty)
-            await registroVentas.RegistrarVentaAsync(venta, documento.SucursalId, documento.CajaId, cancelacion);
+        if (venta?.Venta is { } datos && datos.Id != Guid.Empty
+            && await registroVentas.RegistrarVentaAsync(venta, documento.SucursalId, documento.CajaId, cancelacion) is { } duplicado)
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.NumeroDuplicado,
+                duplicado, ahora, cancelacion);
     }
 
     /// <summary>El cierre de turno alimenta el reporte de cuadres (RF-267).</summary>
@@ -349,7 +351,9 @@ internal sealed class ServicioRecepcion(
                 nota.AplicarConsumo(consumido);
 
             contexto.NotasCredito.Add(nota);
-            await registroVentas.RegistrarNotaCreditoAsync(emitida, documento.SucursalId, documento.CajaId, cancelacion);
+            if (await registroVentas.RegistrarNotaCreditoAsync(emitida, documento.SucursalId, documento.CajaId, cancelacion) is { } duplicado)
+                await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.NumeroDuplicado,
+                    duplicado, ahora, cancelacion);
         }
         catch (ArgumentException excepcion)
         {

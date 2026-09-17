@@ -13,6 +13,8 @@ using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CgPos.Central.Pruebas.Api;
 
@@ -52,6 +54,32 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var texto = Encoding.UTF8.GetString(archivo.Contenido);
         Assert.StartsWith("607|", texto);
         Assert.Contains($"|1|{encf}||20260310|1000.00|180.00|0.00", texto);
+    }
+
+    [SkippableFact]
+    public async Task Un_numero_de_factura_repetido_por_otra_transaccion_no_entra_en_los_reportes_y_queda_como_conflicto()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+        var dia = new DateOnly(2026, 5, 20);
+        var numero = $"0101{Random.Shared.NextInt64(1, 9_999_999):D7}";
+
+        var (primera, _) = Venta(dia, 100m, 18m, numero);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, primera.Venta.Id, primera)));
+
+        // Otra transacción con el mismo número (ej. una caja reinstalada que reinició su numeración): el mensaje se guarda, pero no se duplica la factura.
+        var (segunda, _) = Venta(dia, 500m, 90m, numero);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.VentaCobrada, segunda.Venta.Id, segunda)));
+
+        var ventas = await TablaAsync(cliente, admin, TipoReporteCentral.Ventas, dia, dia);
+        Assert.Equal("1", Assert.Single(ventas.Filas, f => f[0] == "20/05/2026")[3]);
+
+        await using var ambito = central.Fabrica!.Services.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<CgPos.Central.Infraestructura.Persistencia.ContextoDatosCentral>();
+        Assert.True(await contexto.ConflictosSincronizacion.AsNoTracking()
+            .AnyAsync(c => c.Tipo == CgPos.Dominio.Sincronizacion.TipoConflictoSincronizacion.NumeroDuplicado && c.Detalle.Contains(numero)));
     }
 
     [SkippableFact]
@@ -110,12 +138,12 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    private static (DocumentoVentaCobrada Documento, string Encf) Venta(DateOnly dia, decimal baseImponible, decimal impuesto)
+    private static (DocumentoVentaCobrada Documento, string Encf) Venta(DateOnly dia, decimal baseImponible, decimal impuesto, string? numero = null)
     {
         var encf = $"E32{Random.Shared.NextInt64(1, 9_999_999_999):D10}";
         var cobrada = new DateTimeOffset(dia.ToDateTime(new TimeOnly(11, 30)), TimeSpan.FromHours(-4));
         var total = baseImponible + impuesto;
-        var venta = new DatosVenta(Guid.CreateVersion7(), $"01-01-{Random.Shared.Next(100_000, 999_999)}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
+        var venta = new DatosVenta(Guid.CreateVersion7(), numero ?? $"0101{Guid.NewGuid().ToString("N")[..12]}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
             "Cajero Desarrollo", cobrada.AddMinutes(-5),
             [],
             new DatosTotalesVenta(baseImponible, impuesto, total, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, baseImponible, impuesto, total)]),

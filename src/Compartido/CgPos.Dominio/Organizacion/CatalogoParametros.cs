@@ -75,6 +75,10 @@ public static class CatalogoParametros
 {
     public const string MonedaLocal = "General.MonedaLocal";
 
+    public const string DigitosSecuenciaDocumentos = "Numeracion.DigitosSecuencia";
+    public const string ProximaFactura = "Numeracion.ProximaFactura";
+    public const string ProximaNotaCredito = "Numeracion.ProximaNotaCredito";
+
     private const TipoValorParametro Texto = TipoValorParametro.Texto;
     private const TipoValorParametro Entero = TipoValorParametro.Entero;
     private const TipoValorParametro Decimal = TipoValorParametro.Decimal;
@@ -94,6 +98,15 @@ public static class CatalogoParametros
         new("Fiscal.PorcentajeAlertaSecuenciaEcf", "Fiscal", "Porcentaje restante de un rango de e-CF desde el cual se alerta", Decimal, true, Minimo: 0, Maximo: 100),
         new("Fiscal.DiasAlertaCertificado", "Fiscal", "Días antes del vencimiento del certificado digital para alertar", Entero, true, Minimo: 0),
         new("Fiscal.TipoIngresos", "Fiscal", "Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6)", Entero, true, Minimo: 1, Maximo: 6),
+
+        new(DigitosSecuenciaDocumentos, "Numeración de documentos",
+            "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente (sucursal + caja + secuencia); se puede aumentar en cualquier momento",
+            Entero, true, Minimo: Ventas.Venta.DigitosMinimosSecuencia, Maximo: Ventas.Venta.DigitosMaximosSecuencia),
+        new(ProximaFactura, "Numeración de documentos",
+            "Secuencia mínima de la próxima factura de la caja (para continuar la numeración tras reinstalarla); nunca hace retroceder la numeración",
+            Entero, false, Minimo: 1),
+        new(ProximaNotaCredito, "Numeración de documentos",
+            "Secuencia mínima de la próxima nota de crédito de la caja; nunca hace retroceder la numeración", Entero, false, Minimo: 1),
 
         new("Caja.PasoRedondeoEfectivo", "Caja y cierre", "Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)", Decimal, true, Minimo: 0),
         new("Caja.CierreCiego", "Caja y cierre", "El cajero declara el cierre sin ver lo esperado", Booleano, true),

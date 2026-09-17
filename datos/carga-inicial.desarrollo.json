@@ -163,6 +163,7 @@
     { "id": "01990000-0000-7000-8000-000000000535", "clave": "Sincronizacion.AlertaTamanoBaseDatosMb", "valor": "8000", "descripcion": "Tamaño de la base (MB) desde el que se alerta" },
     { "id": "01990000-0000-7000-8000-000000000536", "clave": "Sincronizacion.HorasAlertaPendientes", "valor": "24", "descripcion": "Horas sin sincronizar un documento desde las que se alerta" },
     { "id": "01990000-0000-7000-8000-000000000537", "clave": "Respaldo.DiasRetencion", "valor": "7", "descripcion": "Días que se conservan los respaldos de la base" },
-    { "id": "01990000-0000-7000-8000-000000000538", "clave": "Reloj.ToleranciaSegundos", "valor": "60", "descripcion": "Segundos de diferencia con el servidor de hora desde los que se alerta" }
+    { "id": "01990000-0000-7000-8000-000000000538", "clave": "Reloj.ToleranciaSegundos", "valor": "60", "descripcion": "Segundos de diferencia con el servidor de hora desde los que se alerta" },
+    { "id": "01990000-0000-7000-8000-000000000539", "clave": "Numeracion.DigitosSecuencia", "valor": "7", "descripcion": "Dígitos de la secuencia en el número de factura, nota de crédito y pendiente" }
   ]
 }

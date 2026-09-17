@@ -140,6 +140,7 @@ public sealed class EscenarioSeguridad
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MinutosVigenciaAutorizacion, "5", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.HorasSesion, "12", CajaId: CajaUno),
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.TipoIngresos, "1", CajaId: CajaUno),
+                new ParametroCarga(Guid.CreateVersion7(), CgPos.Dominio.Organizacion.CatalogoParametros.DigitosSecuenciaDocumentos, "7", CajaId: CajaUno),
 
                 // Reglas de negocio de la caja de prueba: en producción las configura un usuario en el Central.
                 new ParametroCarga(Guid.CreateVersion7(), ClavesParametros.MontoIdentificacionConsumo, "250000", CajaId: CajaUno),

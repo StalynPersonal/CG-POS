@@ -245,6 +245,9 @@ public enum TipoConflictoSincronizacion
 
     /// <summary>Una caja inscribió en fidelidad una cédula que el Central ya tiene con otro Id: se conserva la del Central.</summary>
     MiembroDuplicado,
+
+    /// <summary>El número de factura o de nota de crédito ya llegó de otra transacción: la numeración de una caja se repitió.</summary>
+    NumeroDuplicado,
 }
 
 /// <summary>

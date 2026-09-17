@@ -74,7 +74,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var inicio = await caja.VentaActualAsync();
 
-        Assert.Matches(@"^S[0-9A-F]{6}-01-\d{8}$", inicio.NumeroTransaccion);
+        Assert.Matches(@"^S[0-9A-F]{6}01\d{7}$", inicio.NumeroTransaccion);
 
         await caja.AgregarAsync(inicio.Id, caja.Catalogo.BarrasCincel);
         var conMayor = await caja.AgregarAsync(inicio.Id, $"12*{caja.Catalogo.CodigoCemento}");
@@ -216,6 +216,42 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var anulada = await caja.EjecutarAsync<ContextoDatosPos, Venta>(contexto => contexto.Ventas.SingleAsync(v => v.Id == venta.Id));
         Assert.Equal(EstadoVenta.Anulada, anulada.Estado);
         Assert.Equal("Pantalla limpiada", anulada.MotivoAnulacion);
+    }
+
+    [SkippableFact]
+    public async Task La_proxima_factura_configurada_adelanta_la_numeracion_pero_nunca_la_hace_retroceder()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var primera = await caja.VentaActualAsync();
+
+        async Task<string> LimpiarConProximaAsync(Guid ventaId, string proxima)
+        {
+            await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
+            {
+                var clave = CgPos.Dominio.Organizacion.CatalogoParametros.ProximaFactura;
+                var existente = await contexto.Parametros.SingleOrDefaultAsync(p => p.Clave == clave && p.CajaId == caja.Escenario.CajaUno);
+                if (existente is null)
+                    contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(clave, proxima, cajaId: caja.Escenario.CajaUno));
+                else
+                    existente.CambiarValor(proxima);
+                return await contexto.SaveChangesAsync();
+            });
+
+            await caja.AgregarAsync(ventaId, caja.Catalogo.BarrasCincel);
+            var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.LimpiarPantalla, "Prueba de numeración");
+            var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, ventaId, autorizacion));
+            Assert.True(limpia.Exitosa, limpia.Mensaje);
+            return limpia.Venta!.NumeroTransaccion;
+        }
+
+        var prefijo = primera.NumeroTransaccion[..^7];
+        var adelantada = await LimpiarConProximaAsync(primera.Id, "5000");
+        Assert.Equal(prefijo + "0005000", adelantada);
+
+        // Un valor menor al que ya se usó no repite números: la secuencia sigue desde donde iba.
+        var ventaAdelantada = await caja.VentaActualAsync();
+        Assert.Equal(prefijo + "0005001", await LimpiarConProximaAsync(ventaAdelantada.Id, "10"));
     }
 
     [SkippableFact]

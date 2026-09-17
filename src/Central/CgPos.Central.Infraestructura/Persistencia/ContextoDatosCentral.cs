@@ -10,6 +10,8 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
 {
     public DbSet<RegistroAuditoria> Auditoria => Set<RegistroAuditoria>();
 
+    public DbSet<CgPos.Central.Infraestructura.CargaInicial.ArchivoArranqueAplicado> ArchivosArranqueAplicados => Set<CgPos.Central.Infraestructura.CargaInicial.ArchivoArranqueAplicado>();
+
     // Organización (M01)
     public DbSet<Empresa> Empresas => Set<Empresa>();
     public DbSet<Sucursal> Sucursales => Set<Sucursal>();

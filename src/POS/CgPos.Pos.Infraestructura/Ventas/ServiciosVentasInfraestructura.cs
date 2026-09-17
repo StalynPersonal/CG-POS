@@ -389,10 +389,11 @@ internal sealed class ServicioVentas(
         {
             // Único en toda la empresa, como el número de transacción: sucursal, caja y secuencia de la caja.
             var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == venta.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
+            var digitos = await NumeracionDocumentos.DigitosAsync(parametros, venta.CajaId, cancelacion);
             foreach (var destino in venta.DestinosEntrega.OrderBy(d => d.Numero))
             {
                 var secuenciaPendiente = await secuencias.SiguienteAsync(venta.CajaId, TiposSecuencia.PendienteEntrega, cancelacion);
-                var pendiente = PendienteEntrega.Crear(venta, destino, $"PE-{Venta.FormatearNumero(codigoSucursal, sesion.CajaCodigo, secuenciaPendiente)}", ahora);
+                var pendiente = PendienteEntrega.Crear(venta, destino, $"PE-{Venta.FormatearNumero(codigoSucursal, sesion.CajaCodigo, secuenciaPendiente, digitos)}", ahora);
                 contexto.PendientesEntrega.Add(pendiente);
                 pendientes.Add(pendiente);
                 bandejaSalida.Encolar("Entregas.PendienteCreado", pendiente.Id, pendiente.ADatos());
@@ -1488,9 +1489,11 @@ internal sealed class ServicioVentas(
     {
         var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
         var moneda = await contexto.MonedaLocalAsync(parametros, sesion.CajaId, cancelacion);
-        var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion);
+        var digitos = await NumeracionDocumentos.DigitosAsync(parametros, sesion.CajaId, cancelacion);
+        var minimo = await NumeracionDocumentos.MinimoAsync(parametros, CgPos.Dominio.Organizacion.CatalogoParametros.ProximaFactura, sesion.CajaId, cancelacion);
+        var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion, minimo);
 
-        var venta = Venta.Iniciar(sesion.SucursalId, codigoSucursal, sesion.CajaId, sesion.CajaCodigo, turno.Id, secuencia,
+        var venta = Venta.Iniciar(sesion.SucursalId, codigoSucursal, sesion.CajaId, sesion.CajaCodigo, turno.Id, secuencia, digitos,
             sesion.UsuarioId, sesion.Nombre, moneda.Codigo, moneda.Simbolo, reloj.GetUtcNow());
         contexto.Ventas.Add(venta);
         await contexto.SaveChangesAsync(cancelacion);

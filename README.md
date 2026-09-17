@@ -110,7 +110,7 @@ dotnet run --project src/POS/CgPos.Pos.Agente
 - Salud del servicio y la base: <http://localhost:5180/salud>
 - Logs de desarrollo: `src/POS/CgPos.Pos.Agente/logs/`
 
-En desarrollo, el Agente aplica al arrancar `datos/carga-inicial.desarrollo.json` y opera como la Caja 01. Usuarios de prueba:
+En desarrollo, el Agente aplica al arrancar `datos/carga-inicial.desarrollo.json` y opera como la Caja 01. Cada archivo de datos (en la caja y en el Central) se aplica **solo si cambió** desde la última vez: su huella SHA-256 queda en la base, así que reiniciar no deshace lo que se editó en el Manager o llegó del Central. Si se modifica el archivo, se vuelve a aplicar completo. Usuarios de prueba:
 
 | Usuario | PIN | Carné | Rol |
 |---|---|---|---|
@@ -147,6 +147,11 @@ Etiquetas de balanza: por defecto EAN-13 con prefijo `21` (peso, 3 decimales) o 
 ### Turno y venta
 
 Al ingresar, si la caja no tiene turno abierto se pide el fondo (sugerido por el parámetro `Caja.FondoPredeterminado`). Solo puede haber un turno abierto por caja.
+
+**Numeración de documentos:** la factura es `código de sucursal + código de caja + secuencia` sin separadores (sucursal 01, caja 01, secuencia 1 con 7 dígitos = `01010000001`); la nota de crédito y el pendiente llevan el mismo número con `NC-` y `PE-`. La secuencia es por caja y atómica.
+- `Numeracion.DigitosSecuencia` (5 a 12): se puede aumentar en cualquier momento; si una secuencia supera los dígitos, el número crece en vez de reiniciarse.
+- `Numeracion.ProximaFactura` y `Numeracion.ProximaNotaCredito` (por caja): mínimo de la próxima secuencia, para continuar la numeración tras reinstalar una caja. Solo la adelantan; un valor menor al ya usado no la hace retroceder.
+- El Central exige que el número de factura y de nota de crédito sea único en la empresa: si llega repetido de otra transacción, el mensaje se guarda, no entra en los reportes y queda un conflicto `NumeroDuplicado` en el monitor.
 
 En la pantalla de venta:
 

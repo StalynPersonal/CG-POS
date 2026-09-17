@@ -148,14 +148,17 @@ internal sealed class ServicioDevoluciones(
         MovimientoPuntos? reversoPuntos = null;
         try
         {
-            var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.NotaCredito, cancelacion);
+            var digitos = await NumeracionDocumentos.DigitosAsync(parametros, sesion.CajaId, cancelacion);
+            var minimo = await NumeracionDocumentos.MinimoAsync(parametros, CgPos.Dominio.Organizacion.CatalogoParametros.ProximaNotaCredito, sesion.CajaId, cancelacion);
+            var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.NotaCredito, cancelacion, minimo);
+            var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
             var turnoId = await contexto.Turnos.AsNoTracking()
                 .Where(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto)
                 .Select(t => (Guid?)t.Id)
                 .FirstOrDefaultAsync(cancelacion);
 
             // Lo ya devuelto se relee dentro de la transacción para no devolver dos veces lo mismo (RF-42).
-            devolucion = Armar(await DevueltoAsync(venta.Id, cancelacion), $"NC-{sesion.CajaCodigo}-{secuencia:00000000}", turnoId, permiso);
+            devolucion = Armar(await DevueltoAsync(venta.Id, cancelacion), $"NC-{Venta.FormatearNumero(codigoSucursal, sesion.CajaCodigo, secuencia, digitos)}", turnoId, permiso);
             contexto.Devoluciones.Add(devolucion);
 
             emision = await emisorEcf.EmitirNotaCreditoAsync(devolucion, cancelacion);

@@ -134,7 +134,7 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
     private static DocumentoVentaCobrada VentaSinEcf()
     {
         var cobrada = DateTimeOffset.UtcNow;
-        var venta = new DatosVenta(Guid.CreateVersion7(), $"01-01-{Random.Shared.Next(100_000, 999_999)}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
+        var venta = new DatosVenta(Guid.CreateVersion7(), $"0101{Guid.NewGuid().ToString("N")[..12]}", EstadoVenta.Cobrada, Guid.CreateVersion7(),
             "Cajero Desarrollo", cobrada.AddMinutes(-3), [],
             new DatosTotalesVenta(1000m, 180m, 1180m, 1, 1m, [new DatosDesgloseImpuesto(18m, 1, 1000m, 180m, 1180m)]),
             TipoComprobante.FacturaConsumo, null, null, false, false, 250_000m, "DOP", "RD$", null, null, 1180m, 0m, 0m, cobrada);

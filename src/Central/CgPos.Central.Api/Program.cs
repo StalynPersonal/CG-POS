@@ -123,18 +123,23 @@ try
 
     await aplicacion.Services.InicializarBaseDatosCentralAsync();
 
-    // Datos iniciales desde archivo (instalación o desarrollo). Es idempotente.
-    if (aplicacion.Configuration["CargaInicial:Archivo"] is { Length: > 0 } archivoCarga)
-        await aplicacion.Services.AplicarCargaInicialCentralAsync(Path.GetFullPath(archivoCarga, aplicacion.Environment.ContentRootPath));
+    // Datos iniciales desde archivo (instalación o desarrollo). Cada archivo se aplica solo si cambió desde la última vez,
+    // para no pisar lo que se edita en el Manager al reiniciar.
+    string? RutaConfigurada(string clave) =>
+        aplicacion.Configuration[clave] is { Length: > 0 } ruta ? Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath) : null;
 
-    // Seguridad, parámetros y maestros para las cajas desde archivos con el formato de la caja (instalación o desarrollo). Solo lo cambiado baja.
-    if (aplicacion.Configuration["CargaInicialCajas:Archivo"] is { Length: > 0 } archivoCajas)
-        await CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarSeguridadCajasDesdeArchivoAsync(aplicacion.Services,
-            Path.GetFullPath(archivoCajas, aplicacion.Environment.ContentRootPath));
+    if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCarga)
+        await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicial:Archivo", archivoCarga,
+            (servicios, ruta, cancelacion) => servicios.AplicarCargaInicialCentralAsync(ruta, cancelacion));
 
-    if (aplicacion.Configuration["Maestros:Archivo"] is { Length: > 0 } archivoMaestros)
-        await CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarMaestrosDesdeArchivoAsync(aplicacion.Services,
-            Path.GetFullPath(archivoMaestros, aplicacion.Environment.ContentRootPath));
+    // Seguridad, parámetros y maestros para las cajas, con el formato de la caja.
+    if (RutaConfigurada("CargaInicialCajas:Archivo") is { } archivoCajas)
+        await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicialCajas:Archivo", archivoCajas,
+            CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarSeguridadCajasDesdeArchivoAsync);
+
+    if (RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
+        await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:Archivo", archivoMaestros,
+            CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarMaestrosDesdeArchivoAsync);
 
     await aplicacion.RunAsync();
 }

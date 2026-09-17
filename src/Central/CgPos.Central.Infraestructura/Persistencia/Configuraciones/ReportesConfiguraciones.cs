@@ -34,6 +34,9 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
         // Todos los reportes filtran por día de operación, y varios por sucursal o caja.
         constructor.HasIndex(c => new { c.FechaOperacion, c.SucursalId, c.CajaId });
         constructor.HasIndex(c => c.Encf);
+
+        // El número de factura o de nota de crédito identifica el documento en toda la empresa.
+        constructor.HasIndex(c => new { c.Tipo, c.Numero }).IsUnique();
     }
 }
 

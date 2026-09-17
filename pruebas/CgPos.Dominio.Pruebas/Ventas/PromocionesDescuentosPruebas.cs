@@ -31,7 +31,7 @@ public class PromocionesDescuentosPruebas
         "UND", false, 0, Guid.CreateVersion7(), 0m, 4, 10m, null, null, null, null, null);
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Sucursal, "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Martes10);
+        Venta.Iniciar(Sucursal, "01", Guid.CreateVersion7(), "01", Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Martes10);
 
     private static Promocion Oferta(string codigo, TipoPromocion tipo, decimal valor, ArticuloParaVenta articulo)
     {

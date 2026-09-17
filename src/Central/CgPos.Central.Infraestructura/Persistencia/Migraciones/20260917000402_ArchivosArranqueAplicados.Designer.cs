@@ -4,6 +4,7 @@ using CgPos.Central.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    partial class ContextoDatosCentralModelSnapshot : ModelSnapshot
+    [Migration("20260917000402_ArchivosArranqueAplicados")]
+    partial class ArchivosArranqueAplicados
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -948,9 +951,6 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.HasIndex("Encf");
 
                     b.HasIndex("SucursalId");
-
-                    b.HasIndex("Tipo", "Numero")
-                        .IsUnique();
 
                     b.HasIndex("FechaOperacion", "SucursalId", "CajaId");
 

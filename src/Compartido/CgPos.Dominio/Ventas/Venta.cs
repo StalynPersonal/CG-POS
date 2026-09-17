@@ -1,3 +1,4 @@
+using System.Globalization;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Entregas;
@@ -233,10 +234,28 @@ public sealed class Venta : Entidad
 
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
-    public static string FormatearNumero(string codigoSucursal, string codigoCaja, long secuencia) =>
-        $"{codigoSucursal.Trim()}-{codigoCaja.Trim()}-{secuencia:D8}";
+    /// <summary>Menor cantidad de dígitos que admite la secuencia de un número de documento.</summary>
+    public const int DigitosMinimosSecuencia = 5;
 
-    public static Venta Iniciar(Guid sucursalId, string codigoSucursal, Guid cajaId, string codigoCaja, Guid turnoId, long secuencia,
+    /// <summary>Mayor cantidad de dígitos de la secuencia (un billón de documentos por caja); con los prefijos NC- y PE- el número cabe en sus columnas.</summary>
+    public const int DigitosMaximosSecuencia = 12;
+
+    /// <summary>
+    /// Número de un documento de la caja: código de sucursal + código de caja + secuencia rellena con ceros a los dígitos configurados
+    /// (ej. sucursal 01, caja 01, secuencia 1 con 7 dígitos = 01010000001). Si la secuencia supera esos dígitos, el número crece: nunca se repite.
+    /// </summary>
+    public static string FormatearNumero(string codigoSucursal, string codigoCaja, long secuencia, int digitos)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(codigoSucursal);
+        ArgumentException.ThrowIfNullOrWhiteSpace(codigoCaja);
+        ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(digitos, DigitosMinimosSecuencia);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(digitos, DigitosMaximosSecuencia);
+
+        return codigoSucursal.Trim() + codigoCaja.Trim() + secuencia.ToString(new string('0', digitos), CultureInfo.InvariantCulture);
+    }
+
+    public static Venta Iniciar(Guid sucursalId, string codigoSucursal, Guid cajaId, string codigoCaja, Guid turnoId, long secuencia, int digitosSecuencia,
         Guid usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
@@ -244,7 +263,7 @@ public sealed class Venta : Entidad
         return new Venta
         {
             Id = Guid.CreateVersion7(),
-            NumeroTransaccion = Validar.Texto(FormatearNumero(codigoSucursal, codigoCaja, secuencia), "Número de transacción", LargoMaximoNumero),
+            NumeroTransaccion = Validar.Texto(FormatearNumero(codigoSucursal, codigoCaja, secuencia, digitosSecuencia), "Número de transacción", LargoMaximoNumero),
             Secuencia = secuencia,
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             CajaId = Validar.Id(cajaId, "Caja"),

@@ -109,21 +109,24 @@ try
 
     await aplicacion.Services.InicializarBaseDatosPosAsync();
 
-    // Datos desde archivo (desarrollo o instalación sin Central todavía). Todo es idempotente.
+    // Datos desde archivo (desarrollo o instalación sin Central todavía). Cada archivo se aplica solo si cambió desde la última vez.
     string? RutaConfigurada(string clave) =>
         aplicacion.Configuration[clave] is { Length: > 0 } ruta ? Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath) : null;
 
     if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCargaInicial)
-        await aplicacion.Services.AplicarCargaInicialAsync(archivoCargaInicial);
+        await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicial:Archivo", archivoCargaInicial,
+            (servicios, ruta, cancelacion) => servicios.AplicarCargaInicialAsync(ruta, cancelacion));
 
     if (RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
-        await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.AplicarMaestrosAsync(aplicacion.Services, archivoMaestros);
+        await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:Archivo", archivoMaestros,
+            (servicios, ruta, cancelacion) => CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.AplicarMaestrosAsync(servicios, ruta, cancelacion));
 
     if (RutaConfigurada("Maestros:PadronDgii") is { } archivoPadron)
-    {
-        var padron = await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.ImportarPadronDgiiAsync(aplicacion.Services, archivoPadron);
-        Log.Information("Padrón DGII importado: {Validos} registros válidos de {Leidas} líneas", padron.RegistrosValidos, padron.LineasLeidas);
-    }
+        await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:PadronDgii", archivoPadron, async (servicios, ruta, cancelacion) =>
+        {
+            var padron = await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.ImportarPadronDgiiAsync(servicios, ruta, cancelacion);
+            Log.Information("Padrón DGII importado: {Validos} registros válidos de {Leidas} líneas", padron.RegistrosValidos, padron.LineasLeidas);
+        });
 
     // Solo desarrollo: certificado autofirmado cargado con un PIN de configuración. En producción el PIN lo digita un usuario.
     if (aplicacion.Configuration[CgPos.Pos.Aplicacion.Ecf.ClavesEcf.PinDesarrollo] is { Length: > 0 } pinDesarrollo)
