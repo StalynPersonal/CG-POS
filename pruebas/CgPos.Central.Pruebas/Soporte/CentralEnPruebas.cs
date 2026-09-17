@@ -30,9 +30,9 @@ public sealed class CentralEnPruebas : IAsyncLifetime
 {
     public const string ContrasenaAdministrador = "Admin.Central2026";
     /// <summary>Sucursal 01 y sus cajas 01 y 02 de los datos de desarrollo, con los Id que les dio el Central al cargarlos.</summary>
-    public static Guid CajaUno { get; private set; }
-    public static Guid CajaDos { get; private set; }
-    public static Guid Sucursal { get; private set; }
+    public static int CajaUno { get; private set; }
+    public static int CajaDos { get; private set; }
+    public static int Sucursal { get; private set; }
 
     private static CentralEnPruebas? _instancia;
 
@@ -170,7 +170,7 @@ public sealed class CentralEnPruebas : IAsyncLifetime
         (await IngresarAsync(cliente, "ADMIN", ContrasenaAdministrador)).Cuerpo!.TokenAcceso!;
 
     /// <summary>Emite una credencial nueva para la caja (reemplaza la anterior) y devuelve su secreto.</summary>
-    public static async Task<string> EmitirCredencialAsync(HttpClient cliente, Guid cajaId)
+    public static async Task<string> EmitirCredencialAsync(HttpClient cliente, int cajaId)
     {
         using var respuesta = await cliente.SendAsync(Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", await TokenAdministradorAsync(cliente)));
         respuesta.EnsureSuccessStatusCode();
@@ -178,7 +178,7 @@ public sealed class CentralEnPruebas : IAsyncLifetime
     }
 
     /// <summary>Códigos de sucursal y caja con que se identifica una caja del Central (así viajan sus mensajes).</summary>
-    public static (int Sucursal, int Caja) CodigosCaja(Guid cajaId) =>
+    public static (int Sucursal, int Caja) CodigosCaja(int cajaId) =>
         _instancia!.UsarContextoAsync(async contexto =>
         {
             var caja = await contexto.Cajas.AsNoTracking().SingleAsync(c => c.Id == cajaId);
@@ -187,13 +187,13 @@ public sealed class CentralEnPruebas : IAsyncLifetime
         }).GetAwaiter().GetResult();
 
     /// <summary>Número de documento nuevo de esa caja (sucursal + caja + tipo + secuencia aleatoria), como los que numera la caja.</summary>
-    public static string NumeroDocumento(Guid cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado tipo)
+    public static string NumeroDocumento(int cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado tipo)
     {
         var (sucursal, caja) = CodigosCaja(cajaId);
         return CgPos.Dominio.Comun.NumeroDocumento.Formatear(sucursal, caja, tipo, Random.Shared.NextInt64(1, 999_999_999_999), 12);
     }
 
-    public static async Task<string> TokenCajaAsync(HttpClient cliente, Guid cajaId)
+    public static async Task<string> TokenCajaAsync(HttpClient cliente, int cajaId)
     {
         var secreto = await EmitirCredencialAsync(cliente, cajaId);
         var (sucursal, caja) = CodigosCaja(cajaId);

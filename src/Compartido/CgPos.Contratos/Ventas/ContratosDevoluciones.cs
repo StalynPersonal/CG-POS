@@ -9,7 +9,7 @@ public sealed record DatosMotivoDevolucion(int Codigo, string Nombre);
 /// <param name="ImporteDisponible">Lo que se acreditaría si se devuelve todo lo disponible, antes de retener el ITBIS.</param>
 public sealed record DatosLineaFacturaDevolucion(
     int NumeroLinea,
-    Guid ArticuloId,
+    int ArticuloId,
     string CodigoInterno,
     string CodigoLeido,
     string Descripcion,
@@ -25,12 +25,12 @@ public sealed record DatosLineaFacturaDevolucion(
     decimal PorcentajeImpuesto,
     bool RequiereSerial);
 
-public sealed record DatosNotaCreditoResumen(Guid Id, string Numero, string? Encf, decimal Total, DateTimeOffset CreadaEn);
+public sealed record DatosNotaCreditoResumen(int Id, string Numero, string? Encf, decimal Total, DateTimeOffset CreadaEn);
 
 /// <summary>Factura llamada para devolver (RF-159): lo vendido, lo ya devuelto y lo disponible por línea.</summary>
 /// <param name="RetieneImpuesto">Pasó el plazo de devolución: la nota acredita sin ITBIS (RF-44).</param>
 public sealed record DatosFacturaDevolucion(
-    Guid VentaId,
+    int VentaId,
     string NumeroTransaccion,
     string? Encf,
     TipoComprobante TipoComprobante,
@@ -50,7 +50,7 @@ public sealed record SolicitudLineaDevolucion(int NumeroLinea, decimal Cantidad,
 /// <param name="ReembolsoReferencia">Operación del terminal para la tarjeta o número del cheque.</param>
 /// <param name="ReembolsoDetalle">Banco del cheque, tarjeta o quien recibe el efectivo.</param>
 public sealed record SolicitudDevolucion(
-    Guid VentaId,
+    int VentaId,
     IReadOnlyList<SolicitudLineaDevolucion> Lineas,
     string? ClienteDocumento,
     string? ClienteNombre,
@@ -78,9 +78,9 @@ public sealed record DatosLineaNotaCredito(
     string? Serial);
 
 public sealed record DatosNotaCredito(
-    Guid Id,
+    int Id,
     string Numero,
-    Guid VentaOrigenId,
+    int VentaOrigenId,
     string VentaOrigenNumero,
     string? EncfOrigen,
     DateTimeOffset VentaOrigenCobradaEn,
@@ -111,7 +111,7 @@ public sealed record DatosNotaCredito(
     string? ReembolsoDetalle = null);
 
 
-public sealed record DatosSaldoNotaCredito(Guid Id, string Numero, string? Encf, string ClienteNombre, decimal Total, decimal Saldo, DateOnly VenceEn, EstadoNotaCredito Estado);
+public sealed record DatosSaldoNotaCredito(int Id, string Numero, string? Encf, string ClienteNombre, decimal Total, decimal Saldo, DateOnly VenceEn, EstadoNotaCredito Estado);
 
 public enum CodigoResultadoDevolucion
 {

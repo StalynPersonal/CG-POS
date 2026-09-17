@@ -8,7 +8,7 @@ public sealed record DatosLineaDestinoEntrega(int NumeroLinea, decimal Cantidad)
 public sealed record DatosDestinoEntrega(
     int Numero,
     MetodoEntrega Metodo,
-    Guid? AlmacenId,
+    int? AlmacenId,
     string? AlmacenNombre,
     string? Direccion,
     string? Sector,
@@ -27,7 +27,7 @@ public sealed record DatosDestinoEntrega(
 /// <param name="AutorizacionId">Marcar mercancía como pendiente requiere autorización de supervisor (RF-53, RN-15).</param>
 public sealed record SolicitudMarcarEntrega(
     MetodoEntrega Metodo,
-    Guid? AlmacenId,
+    int? AlmacenId,
     DatosEnvio? Envio,
     DateOnly? FechaComprometida,
     string? Comentario,
@@ -35,7 +35,7 @@ public sealed record SolicitudMarcarEntrega(
     Guid? AutorizacionId = null);
 
 /// <param name="EsDeLaSucursal">Almacén de la sucursal de la caja: se propone por defecto (RF-138).</param>
-public sealed record DatosAlmacen(Guid Id, string Codigo, string Nombre, Guid SucursalId, string? Direccion, bool EsDeLaSucursal);
+public sealed record DatosAlmacen(int Id, string Codigo, string Nombre, int SucursalId, string? Direccion, bool EsDeLaSucursal);
 
 public sealed record DatosLineaPendiente(
     int NumeroLineaVenta,
@@ -86,15 +86,15 @@ public sealed record RespuestaBusquedaPendientes(CodigoResultadoPendiente Result
 
 /// <summary>Documento de pendiente de entrega o envío (RF-249, RF-252) en la caja.</summary>
 public sealed record DatosPendienteEntrega(
-    Guid Id,
+    int Id,
     string Numero,
-    Guid VentaId,
+    int VentaId,
     string VentaNumero,
-    Guid SucursalId,
-    Guid CajaId,
+    int SucursalId,
+    int CajaId,
     MetodoEntrega Metodo,
     EstadoPendiente Estado,
-    Guid? AlmacenId,
+    int? AlmacenId,
     string? AlmacenNombre,
     string? Direccion,
     string? Sector,

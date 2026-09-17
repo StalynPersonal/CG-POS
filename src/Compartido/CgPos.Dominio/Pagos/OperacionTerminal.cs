@@ -29,10 +29,10 @@ public sealed class OperacionTerminal : Entidad
     {
     }
 
-    public Guid CajaId { get; private set; }
-    public Guid TurnoId { get; private set; }
-    public Guid VentaId { get; private set; }
-    public Guid UsuarioId { get; private set; }
+    public int CajaId { get; private set; }
+    public int TurnoId { get; private set; }
+    public int VentaId { get; private set; }
+    public int UsuarioId { get; private set; }
     public TipoOperacionTerminal Tipo { get; private set; }
     public EstadoOperacionTerminal Estado { get; private set; }
     public decimal Monto { get; private set; }
@@ -43,20 +43,19 @@ public sealed class OperacionTerminal : Entidad
     public DateTimeOffset Fecha { get; private set; }
 
     /// <summary>En una anulación, la operación de venta que anuló.</summary>
-    public Guid? OperacionAnuladaId { get; private set; }
+    public int? OperacionAnuladaId { get; private set; }
 
     /// <summary>La aprobación ya se aplicó como pago de una venta cobrada.</summary>
     public bool UsadaEnCobro { get; private set; }
 
-    public static OperacionTerminal Registrar(Guid cajaId, Guid turnoId, Guid ventaId, Guid usuarioId, TipoOperacionTerminal tipo, decimal monto, bool aprobada,
-        string? aprobacion, string? ultimosDigitos, string? marca, string? mensaje, DateTimeOffset fecha, Guid? operacionAnuladaId = null)
+    public static OperacionTerminal Registrar(int cajaId, int turnoId, int ventaId, int usuarioId, TipoOperacionTerminal tipo, decimal monto, bool aprobada,
+        string? aprobacion, string? ultimosDigitos, string? marca, string? mensaje, DateTimeOffset fecha, int? operacionAnuladaId = null)
     {
         if (monto <= 0)
             throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto de la operación debe ser mayor que cero.");
 
         return new OperacionTerminal
         {
-            Id = Guid.CreateVersion7(),
             CajaId = Validar.Id(cajaId, "Caja"),
             TurnoId = Validar.Id(turnoId, "Turno"),
             VentaId = Validar.Id(ventaId, "Venta"),

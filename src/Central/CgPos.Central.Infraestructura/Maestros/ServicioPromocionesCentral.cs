@@ -194,7 +194,7 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             .ToList();
 
         var mejor = candidatas.FirstOrDefault(c => c.Aplica);
-        Guid? ganadora = null;
+        int? ganadora = null;
         decimal total;
         string explicacion;
         if (mejor is null)

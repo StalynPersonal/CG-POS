@@ -10,7 +10,7 @@ namespace CgPos.Pos.Aplicacion.Sincronizacion;
 /// que lo origina, así nunca hay un documento sin su mensaje ni un mensaje sin su documento.
 /// El <see cref="Entidad.Id"/> es la clave de idempotencia: reenviarlo no lo duplica en el Central (RN-25).
 /// </summary>
-public sealed class MensajeSalida : Entidad
+public sealed class MensajeSalida
 {
     public const int LargoMaximoTipo = 100;
     public const int LargoMaximoError = 2000;
@@ -19,6 +19,9 @@ public sealed class MensajeSalida : Entidad
     private MensajeSalida()
     {
     }
+
+    /// <summary>Clave de idempotencia del mensaje: un Guid, porque identifica el mensaje también en el Central.</summary>
+    public Guid Id { get; private init; } = Guid.CreateVersion7();
 
     /// <summary>Tipo del mensaje, ej. "Factura.Emitida".</summary>
     public string TipoMensaje { get; private set; } = string.Empty;

@@ -25,10 +25,10 @@ public sealed record ErrorImportacionCentral(int Linea, string Mensaje);
 public sealed record ResultadoImportacionPromociones(int Leidas, int Nuevas, int Actualizadas, bool Publicada, IReadOnlyList<ErrorImportacionCentral> Errores);
 
 /// <param name="Momento">Fecha y hora local de la venta simulada: los días y horas de las ofertas son locales.</param>
-public sealed record SolicitudSimulacionPromociones(string ArticuloCodigo, decimal Cantidad, Guid SucursalId, DateTimeOffset Momento, bool ConFidelidad);
+public sealed record SolicitudSimulacionPromociones(string ArticuloCodigo, decimal Cantidad, int SucursalId, DateTimeOffset Momento, bool ConFidelidad);
 
 /// <param name="Motivo">Por qué no aplica; nulo si aplica.</param>
-public sealed record DatosCandidataPromocion(Guid Id, string Codigo, string Nombre, string Oferta, bool Aplica, string? Motivo, decimal Descuento);
+public sealed record DatosCandidataPromocion(int Id, string Codigo, string Nombre, string Oferta, bool Aplica, string? Motivo, decimal Descuento);
 
 /// <param name="BrutoMayor">Importe al precio por mayor, si la cantidad lo alcanza.</param>
 /// <param name="GanadoraId">La oferta que aplicaría la caja; nula si ninguna mejora el precio.</param>
@@ -39,6 +39,6 @@ public sealed record ResultadoSimulacionPromociones(
     decimal BrutoDetalle,
     decimal? BrutoMayor,
     IReadOnlyList<DatosCandidataPromocion> Candidatas,
-    Guid? GanadoraId,
+    int? GanadoraId,
     decimal Total,
     string Explicacion);

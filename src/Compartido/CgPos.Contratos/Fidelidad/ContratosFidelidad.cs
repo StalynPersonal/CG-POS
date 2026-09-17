@@ -6,7 +6,7 @@ namespace CgPos.Contratos.Fidelidad;
 /// <param name="ValorEnMoneda">Lo que valen los puntos disponibles al canjearlos; nulo si no se configuró el valor del punto.</param>
 /// <param name="SaldoSincronizadoEn">Cuándo el Central calculó el saldo base; nulo si aún no sincroniza.</param>
 public sealed record DatosMiembroFidelidad(
-    Guid Id,
+    int Id,
     string Cedula,
     string Nombre,
     string? Telefono,

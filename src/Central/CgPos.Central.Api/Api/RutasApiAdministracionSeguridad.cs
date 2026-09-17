@@ -23,14 +23,14 @@ public static class RutasApiAdministracionSeguridad
         seguridad.MapPost("/roles", async (SolicitudRolCentral solicitud, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CrearRolAsync(solicitud, Actor(usuario), cancelacion)));
 
-        seguridad.MapPut("/roles/{rolId:guid}", async (Guid rolId, SolicitudRolCentral solicitud, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
+        seguridad.MapPut("/roles/{rolId:int}", async (int rolId, SolicitudRolCentral solicitud, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.ActualizarRolAsync(rolId, solicitud, Actor(usuario), cancelacion)));
 
-        seguridad.MapPost("/roles/{rolId:guid}/activar", async (Guid rolId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
+        seguridad.MapPost("/roles/{rolId:int}/activar", async (int rolId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoRolAsync(rolId, true, Actor(usuario), cancelacion)));
 
-        seguridad.MapPost("/roles/{rolId:guid}/desactivar", async (Guid rolId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
+        seguridad.MapPost("/roles/{rolId:int}/desactivar", async (int rolId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoRolAsync(rolId, false, Actor(usuario), cancelacion)));
 
         seguridad.MapGet("/usuarios", async (IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
@@ -39,24 +39,24 @@ public static class RutasApiAdministracionSeguridad
         seguridad.MapPost("/usuarios", async (SolicitudUsuarioCentral solicitud, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CrearUsuarioAsync(solicitud, Actor(usuario), cancelacion)));
 
-        seguridad.MapPut("/usuarios/{usuarioId:guid}", async (Guid usuarioId, SolicitudActualizarUsuarioCentral solicitud, ClaimsPrincipal usuario,
+        seguridad.MapPut("/usuarios/{usuarioId:int}", async (int usuarioId, SolicitudActualizarUsuarioCentral solicitud, ClaimsPrincipal usuario,
                 IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
             Responder(await servicio.ActualizarUsuarioAsync(usuarioId, solicitud, Actor(usuario), cancelacion)));
 
-        seguridad.MapPost("/usuarios/{usuarioId:guid}/contrasena", async (Guid usuarioId, SolicitudContrasenaTemporal solicitud, ClaimsPrincipal usuario,
+        seguridad.MapPost("/usuarios/{usuarioId:int}/contrasena", async (int usuarioId, SolicitudContrasenaTemporal solicitud, ClaimsPrincipal usuario,
                 IServicioAdministracionSeguridad servicio, CancellationToken cancelacion) =>
             Responder(await servicio.RestablecerContrasenaAsync(usuarioId, solicitud.ContrasenaTemporal ?? string.Empty, Actor(usuario), cancelacion)))
             .SinCache();
 
-        seguridad.MapPost("/usuarios/{usuarioId:guid}/desbloquear", async (Guid usuarioId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
+        seguridad.MapPost("/usuarios/{usuarioId:int}/desbloquear", async (int usuarioId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.DesbloquearAsync(usuarioId, Actor(usuario), cancelacion)));
 
-        seguridad.MapPost("/usuarios/{usuarioId:guid}/activar", async (Guid usuarioId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
+        seguridad.MapPost("/usuarios/{usuarioId:int}/activar", async (int usuarioId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoUsuarioAsync(usuarioId, true, Actor(usuario), cancelacion)));
 
-        seguridad.MapPost("/usuarios/{usuarioId:guid}/desactivar", async (Guid usuarioId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
+        seguridad.MapPost("/usuarios/{usuarioId:int}/desactivar", async (int usuarioId, ClaimsPrincipal usuario, IServicioAdministracionSeguridad servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoUsuarioAsync(usuarioId, false, Actor(usuario), cancelacion)));
 

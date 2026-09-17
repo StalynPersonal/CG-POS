@@ -11,23 +11,23 @@ public class VentaPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 2, Guid.CreateVersion7(), 123, 7, Guid.CreateVersion7(), "Cajera Prueba", "DOP", "RD$", Ahora);
+        Venta.Iniciar(Ids.Siguiente(), 1, Ids.Siguiente(), 2, Ids.Siguiente(), 123, 7, Ids.Siguiente(), "Cajera Prueba", "DOP", "RD$", Ahora);
 
     private static ArticuloParaVenta Cincel() => new(
-        Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Guid.CreateVersion7(), true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 850.00m, null, null, null, null, null);
+        Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 850.00m, null, null, null, null, null);
 
     private static ArticuloParaVenta Cemento() => new(
-        Guid.CreateVersion7(), "CEM-425", "7460001000017", "Cemento gris", TipoArticulo.Normal, Guid.CreateVersion7(), true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 485.00m, 450.00m, 12m, 440m, null, null);
+        Ids.Siguiente(), "CEM-425", "7460001000017", "Cemento gris", TipoArticulo.Normal, Ids.Siguiente(), true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 485.00m, 450.00m, 12m, 440m, null, null);
 
     private static ArticuloParaVenta Cable() => new(
-        Guid.CreateVersion7(), "CAB-12", "7460001000048", "Cable #12 por pie", TipoArticulo.Normal, Guid.CreateVersion7(), true,
-        "PIE", true, 2, Guid.CreateVersion7(), 18m, 1, 18.50m, null, null, null, null, null);
+        Ids.Siguiente(), "CAB-12", "7460001000048", "Cable #12 por pie", TipoArticulo.Normal, Ids.Siguiente(), true,
+        "PIE", true, 2, Ids.Siguiente(), 18m, 1, 18.50m, null, null, null, null, null);
 
     private static ArticuloParaVenta Tomate(decimal? peso = null, decimal? precioEtiqueta = null) => new(
-        Guid.CreateVersion7(), "12345", peso is null && precioEtiqueta is null ? "12345" : "2112345023457", "Tomate", TipoArticulo.Pesado, Guid.CreateVersion7(), false,
-        "LB", true, 3, Guid.CreateVersion7(), 0m, 4, 45.00m, null, null, null, peso, precioEtiqueta);
+        Ids.Siguiente(), "12345", peso is null && precioEtiqueta is null ? "12345" : "2112345023457", "Tomate", TipoArticulo.Pesado, Ids.Siguiente(), false,
+        "LB", true, 3, Ids.Siguiente(), 0m, 4, 45.00m, null, null, null, peso, precioEtiqueta);
 
     [Fact]
     public void Numero_de_transaccion_combina_sucursal_caja_tipo_y_secuencia()
@@ -201,9 +201,9 @@ public class VentaPruebas
         venta.AgregarArticulo(Cincel(), null, Ahora);
 
         Assert.Equal(CodigoErrorVenta.MotivoRequerido,
-            Assert.Throws<ReglaVentaExcepcion>(() => venta.Anular(" ", Guid.CreateVersion7(), "Supervisor", Ahora)).Codigo);
+            Assert.Throws<ReglaVentaExcepcion>(() => venta.Anular(" ", Ids.Siguiente(), "Supervisor", Ahora)).Codigo);
 
-        venta.Anular("Pantalla limpiada", Guid.CreateVersion7(), "Supervisor", Ahora);
+        venta.Anular("Pantalla limpiada", Ids.Siguiente(), "Supervisor", Ahora);
 
         Assert.Equal(EstadoVenta.Anulada, venta.Estado);
         Assert.Equal(CodigoErrorVenta.VentaNoEditable, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(Cincel(), null, Ahora)).Codigo);
@@ -223,7 +223,7 @@ public class VentaPruebas
     {
         var venta = NuevaVenta();
 
-        venta.AsignarCliente(new ClienteVenta(Guid.CreateVersion7(), TipoDocumentoIdentidad.Rnc, "131-24679-6", "Constructora Ejemplo SRL",
+        venta.AsignarCliente(new ClienteVenta(Ids.Siguiente(), TipoDocumentoIdentidad.Rnc, "131-24679-6", "Constructora Ejemplo SRL",
             TipoComprobante.FacturaCreditoFiscal), Ahora);
 
         Assert.Equal("131246796", venta.ClienteDocumento);
@@ -345,9 +345,9 @@ public class VentaPruebas
     public void Turno_valida_fondo_y_no_se_cierra_dos_veces()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Turno.Abrir(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, DateOnly.FromDateTime(Ahora.Date), Guid.CreateVersion7(), "Cajera", -1m, Ahora));
+            Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), 1, DateOnly.FromDateTime(Ahora.Date), Ids.Siguiente(), "Cajera", -1m, Ahora));
 
-        var turno = Turno.Abrir(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, DateOnly.FromDateTime(Ahora.Date), Guid.CreateVersion7(), "Cajera", 5000.005m, Ahora);
+        var turno = Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), 1, DateOnly.FromDateTime(Ahora.Date), Ids.Siguiente(), "Cajera", 5000.005m, Ahora);
         Assert.Equal(5000.01m, turno.FondoInicial);
         Assert.True(turno.EstaAbierto);
 

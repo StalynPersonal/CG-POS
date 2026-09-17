@@ -45,7 +45,7 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
     }
 
     /// <summary>Carga los artículos pedidos por código o por Id (los que falten), en bloques.</summary>
-    public async Task CargarArticulosAsync(IEnumerable<string>? codigos, IEnumerable<Guid>? ids, CancellationToken cancelacion)
+    public async Task CargarArticulosAsync(IEnumerable<string>? codigos, IEnumerable<int>? ids, CancellationToken cancelacion)
     {
         foreach (var bloque in (codigos ?? []).Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Where(c => !_articulos.TieneCodigo(c)).Distinct().Chunk(1000))
         {
@@ -54,7 +54,7 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
                 _articulos.Registrar(articulo.Codigo, articulo.Id);
         }
 
-        foreach (var bloque in (ids ?? []).Where(id => id != Guid.Empty && !_articulos.TieneId(id)).Distinct().Chunk(1000))
+        foreach (var bloque in (ids ?? []).Where(id => id > 0 && !_articulos.TieneId(id)).Distinct().Chunk(1000))
         {
             var lista = bloque.ToList();
             foreach (var articulo in await contexto.Articulos.AsNoTracking().Where(a => lista.Contains(a.Id)).Select(a => new { a.Codigo, a.Id }).ToListAsync(cancelacion))
@@ -62,47 +62,47 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
         }
     }
 
-    public void RegistrarDepartamento(int codigo, Guid id) => _departamentos.Registrar(codigo, id);
-    public void RegistrarCategoria(int codigo, Guid id) => _categorias.Registrar(codigo, id);
-    public void RegistrarMarca(int codigo, Guid id) => _marcas.Registrar(codigo, id);
-    public void RegistrarUnidad(int codigo, Guid id) => _unidades.Registrar(codigo, id);
-    public void RegistrarImpuesto(string codigo, Guid id) => _impuestos.Registrar(codigo, id);
-    public void RegistrarArticulo(string codigo, Guid id) => _articulos.Registrar(codigo, id);
-    public void RegistrarBanco(string codigo, Guid id) => _bancos.Registrar(codigo, id);
-    public void RegistrarNivel(int codigo, Guid id) => _niveles.Registrar(codigo, id);
-    public void RegistrarPromocion(string codigo, Guid id) => _promociones.Registrar(codigo, id);
-    public void RegistrarRol(string codigo, Guid id) => _roles.Registrar(codigo, id);
+    public void RegistrarDepartamento(int codigo, int id) => _departamentos.Registrar(codigo, id);
+    public void RegistrarCategoria(int codigo, int id) => _categorias.Registrar(codigo, id);
+    public void RegistrarMarca(int codigo, int id) => _marcas.Registrar(codigo, id);
+    public void RegistrarUnidad(int codigo, int id) => _unidades.Registrar(codigo, id);
+    public void RegistrarImpuesto(string codigo, int id) => _impuestos.Registrar(codigo, id);
+    public void RegistrarArticulo(string codigo, int id) => _articulos.Registrar(codigo, id);
+    public void RegistrarBanco(string codigo, int id) => _bancos.Registrar(codigo, id);
+    public void RegistrarNivel(int codigo, int id) => _niveles.Registrar(codigo, id);
+    public void RegistrarPromocion(string codigo, int id) => _promociones.Registrar(codigo, id);
+    public void RegistrarRol(string codigo, int id) => _roles.Registrar(codigo, id);
 
     // Código -> Id
-    public Guid Departamento(int codigo) => _departamentos.Id(codigo);
-    public Guid Categoria(int codigo) => _categorias.Id(codigo);
-    public Guid Marca(int codigo) => _marcas.Id(codigo);
-    public Guid UnidadMedida(int codigo) => _unidades.Id(codigo);
-    public Guid Impuesto(string codigo) => _impuestos.Id(codigo?.Trim() ?? string.Empty);
-    public Guid Articulo(string codigo) => _articulos.Id(codigo?.Trim() ?? string.Empty);
-    public Guid Sucursal(int codigo) => _sucursales.Id(codigo);
-    public Guid Caja(int sucursalCodigo, int cajaCodigo) => _cajas.Id((sucursalCodigo, cajaCodigo));
-    public Guid Banco(string codigo) => _bancos.Id(codigo?.Trim() ?? string.Empty);
-    public Guid NivelFidelidad(int codigo) => _niveles.Id(codigo);
-    public Guid Promocion(string codigo) => _promociones.Id(codigo?.Trim() ?? string.Empty);
-    public Guid Rol(string codigo) => _roles.Id(codigo?.Trim() ?? string.Empty);
+    public int Departamento(int codigo) => _departamentos.Id(codigo);
+    public int Categoria(int codigo) => _categorias.Id(codigo);
+    public int Marca(int codigo) => _marcas.Id(codigo);
+    public int UnidadMedida(int codigo) => _unidades.Id(codigo);
+    public int Impuesto(string codigo) => _impuestos.Id(codigo?.Trim() ?? string.Empty);
+    public int Articulo(string codigo) => _articulos.Id(codigo?.Trim() ?? string.Empty);
+    public int Sucursal(int codigo) => _sucursales.Id(codigo);
+    public int Caja(int sucursalCodigo, int cajaCodigo) => _cajas.Id((sucursalCodigo, cajaCodigo));
+    public int Banco(string codigo) => _bancos.Id(codigo?.Trim() ?? string.Empty);
+    public int NivelFidelidad(int codigo) => _niveles.Id(codigo);
+    public int Promocion(string codigo) => _promociones.Id(codigo?.Trim() ?? string.Empty);
+    public int Rol(string codigo) => _roles.Id(codigo?.Trim() ?? string.Empty);
 
     // Id -> código
-    public int CodigoDepartamento(Guid id) => _departamentos.Codigo(id);
-    public int CodigoCategoria(Guid id) => _categorias.Codigo(id);
-    public int CodigoMarca(Guid id) => _marcas.Codigo(id);
-    public int CodigoUnidad(Guid id) => _unidades.Codigo(id);
-    public string CodigoImpuesto(Guid id) => _impuestos.Codigo(id);
-    public string CodigoArticulo(Guid id) => _articulos.Codigo(id);
-    public int CodigoSucursal(Guid id) => _sucursales.Codigo(id);
-    public (int Sucursal, int Caja) CodigoCaja(Guid id) => _cajas.Codigo(id);
-    public string CodigoBanco(Guid id) => _bancos.Codigo(id);
-    public int CodigoNivel(Guid id) => _niveles.Codigo(id);
-    public string CodigoPromocion(Guid id) => _promociones.Codigo(id);
-    public string CodigoRol(Guid id) => _roles.Codigo(id);
+    public int CodigoDepartamento(int id) => _departamentos.Codigo(id);
+    public int CodigoCategoria(int id) => _categorias.Codigo(id);
+    public int CodigoMarca(int id) => _marcas.Codigo(id);
+    public int CodigoUnidad(int id) => _unidades.Codigo(id);
+    public string CodigoImpuesto(int id) => _impuestos.Codigo(id);
+    public string CodigoArticulo(int id) => _articulos.Codigo(id);
+    public int CodigoSucursal(int id) => _sucursales.Codigo(id);
+    public (int Sucursal, int Caja) CodigoCaja(int id) => _cajas.Codigo(id);
+    public string CodigoBanco(int id) => _bancos.Codigo(id);
+    public int CodigoNivel(int id) => _niveles.Codigo(id);
+    public string CodigoPromocion(int id) => _promociones.Codigo(id);
+    public string CodigoRol(int id) => _roles.Codigo(id);
 
     /// <summary>Código de la referencia de una regla de acumulación, según su tipo.</summary>
-    public string? ReferenciaRegla(Dominio.Fidelidad.TipoReglaAcumulacion tipo, Guid? id) => id is not { } valor
+    public string? ReferenciaRegla(Dominio.Fidelidad.TipoReglaAcumulacion tipo, int? id) => id is not { } valor
         ? null
         : tipo switch
         {
@@ -116,16 +116,16 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
 
     private sealed class Mapa<T>(string nombre, IEqualityComparer<T>? comparador = null) where T : notnull
     {
-        private readonly Dictionary<T, Guid> _ids = new(comparador);
-        private readonly Dictionary<Guid, T> _codigos = [];
+        private readonly Dictionary<T, int> _ids = new(comparador);
+        private readonly Dictionary<int, T> _codigos = [];
 
-        public void Cargar<TFila>(IEnumerable<TFila> filas, Func<TFila, (T Codigo, Guid Id)> par)
+        public void Cargar<TFila>(IEnumerable<TFila> filas, Func<TFila, (T Codigo, int Id)> par)
         {
             foreach (var (codigo, id) in filas.Select(par))
                 Registrar(codigo, id);
         }
 
-        public void Registrar(T codigo, Guid id)
+        public void Registrar(T codigo, int id)
         {
             _ids[codigo] = id;
             _codigos[id] = codigo;
@@ -133,12 +133,12 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
 
         public bool TieneCodigo(T codigo) => _ids.ContainsKey(codigo);
 
-        public bool TieneId(Guid id) => _codigos.ContainsKey(id);
+        public bool TieneId(int id) => _codigos.ContainsKey(id);
 
-        public Guid Id(T codigo) =>
+        public int Id(T codigo) =>
             _ids.TryGetValue(codigo, out var id) ? id : throw new InvalidOperationException($"No existe {nombre} con código '{Texto(codigo)}'.");
 
-        public T Codigo(Guid id) =>
+        public T Codigo(int id) =>
             _codigos.TryGetValue(id, out var codigo) ? codigo : throw new InvalidOperationException($"No existe {nombre} con Id {id}.");
 
         private static string Texto(T codigo) => codigo is ValueTuple<int, int> (var s, var c) ? $"{s:00}-{c:00}" : codigo.ToString() ?? string.Empty;

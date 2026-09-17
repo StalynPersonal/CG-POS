@@ -217,7 +217,7 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
         return consulta;
     }
 
-    private async Task<(Dictionary<Guid, string> Sucursales, Dictionary<Guid, string> Cajas)> CodigosAsync(CancellationToken cancelacion) =>
+    private async Task<(Dictionary<int, string> Sucursales, Dictionary<int, string> Cajas)> CodigosAsync(CancellationToken cancelacion) =>
         (await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion),
             await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion));
 

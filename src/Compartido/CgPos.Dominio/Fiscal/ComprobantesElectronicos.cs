@@ -14,7 +14,7 @@ public sealed class SecuenciaEcf : Entidad
     {
     }
 
-    public Guid CajaId { get; private set; }
+    public int CajaId { get; private set; }
     public TipoComprobante TipoComprobante { get; private set; }
     public long Desde { get; private set; }
     public long Hasta { get; private set; }
@@ -29,7 +29,7 @@ public sealed class SecuenciaEcf : Entidad
     public long Restantes => Hasta - Ultimo;
     public decimal PorcentajeRestante => Total == 0 ? 0m : decimal.Round(Restantes * 100m / Total, 2);
 
-    public static SecuenciaEcf Asignar(Guid cajaId, TipoComprobante tipo, long desde, long hasta, DateOnly venceEn, Guid? id = null)
+    public static SecuenciaEcf Asignar(int cajaId, TipoComprobante tipo, long desde, long hasta, DateOnly venceEn)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de comprobante no válido.");
@@ -38,7 +38,6 @@ public sealed class SecuenciaEcf : Entidad
 
         var secuencia = new SecuenciaEcf
         {
-            Id = id ?? Guid.CreateVersion7(),
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,
             Desde = desde,
@@ -94,8 +93,8 @@ public sealed class DocumentoElectronico : Entidad
     {
     }
 
-    public Guid VentaId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int VentaId { get; private set; }
+    public int CajaId { get; private set; }
     public TipoComprobante TipoComprobante { get; private set; }
     public string Encf { get; private set; } = string.Empty;
     public DateTimeOffset FechaEmision { get; private set; }
@@ -114,7 +113,7 @@ public sealed class DocumentoElectronico : Entidad
 
     public IReadOnlyCollection<HistorialEstadoEcf> Historial => _historial;
 
-    public static DocumentoElectronico Emitir(Guid ventaId, Guid cajaId, TipoComprobante tipo, string encf, DateTimeOffset fechaEmision, DateTimeOffset fechaFirma,
+    public static DocumentoElectronico Emitir(int ventaId, int cajaId, TipoComprobante tipo, string encf, DateTimeOffset fechaEmision, DateTimeOffset fechaFirma,
         string codigoSeguridad, decimal montoTotal, string hashXml, string rutaXml, string urlTimbre)
     {
         if (encf is not { Length: LargoEncf })
@@ -122,7 +121,6 @@ public sealed class DocumentoElectronico : Entidad
 
         var documento = new DocumentoElectronico
         {
-            Id = Guid.CreateVersion7(),
             VentaId = Validar.Id(ventaId, "Venta"),
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,
@@ -160,16 +158,15 @@ public sealed class HistorialEstadoEcf : Entidad
     {
     }
 
-    internal HistorialEstadoEcf(Guid documentoId, EstadoDocumentoElectronico estado, DateTimeOffset fecha, string? mensaje)
+    internal HistorialEstadoEcf(int documentoId, EstadoDocumentoElectronico estado, DateTimeOffset fecha, string? mensaje)
     {
-        Id = Guid.CreateVersion7();
         DocumentoElectronicoId = documentoId;
         Estado = estado;
         Fecha = fecha;
         Mensaje = mensaje;
     }
 
-    public Guid DocumentoElectronicoId { get; private set; }
+    public int DocumentoElectronicoId { get; private set; }
     public EstadoDocumentoElectronico Estado { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
     public string? Mensaje { get; private set; }

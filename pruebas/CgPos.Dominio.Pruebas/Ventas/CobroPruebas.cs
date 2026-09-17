@@ -10,25 +10,25 @@ public class CobroPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
     private const decimal SinTope = 250_000m;
 
-    private static readonly FormaPagoParaCobro Efectivo = new(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
-    private static readonly FormaPagoParaCobro Dolares = new(Guid.CreateVersion7(), "USD", "Dólares", TipoFormaPago.MonedaExtranjera, "USD", true, false, false, true, true);
-    private static readonly FormaPagoParaCobro Tarjeta = new(Guid.CreateVersion7(), "TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", false, true, false, true, false);
-    private static readonly FormaPagoParaCobro Transferencia = new(Guid.CreateVersion7(), "TRA", "Transferencia", TipoFormaPago.Transferencia, "DOP", false, true, true, true, true);
-    private static readonly FormaPagoParaCobro Bono = new(Guid.CreateVersion7(), "BON", "Bono de regalo", TipoFormaPago.BonoRegalo, "DOP", false, true, false, false, false);
+    private static readonly FormaPagoParaCobro Efectivo = new(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
+    private static readonly FormaPagoParaCobro Dolares = new(Ids.Siguiente(), "USD", "Dólares", TipoFormaPago.MonedaExtranjera, "USD", true, false, false, true, true);
+    private static readonly FormaPagoParaCobro Tarjeta = new(Ids.Siguiente(), "TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", false, true, false, true, false);
+    private static readonly FormaPagoParaCobro Transferencia = new(Ids.Siguiente(), "TRA", "Transferencia", TipoFormaPago.Transferencia, "DOP", false, true, true, true, true);
+    private static readonly FormaPagoParaCobro Bono = new(Ids.Siguiente(), "BON", "Bono de regalo", TipoFormaPago.BonoRegalo, "DOP", false, true, false, false, false);
 
     private static readonly ArticuloParaVenta Cincel = new(
-        Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Guid.CreateVersion7(), true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 850.37m, null, null, null, null, null);
+        Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 850.37m, null, null, null, null, null);
 
     private static Venta VentaCon(int cinceles = 1)
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Ahora);
+        var venta = Venta.Iniciar(Ids.Siguiente(), 1, Ids.Siguiente(), 1, Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora);
         venta.AgregarArticulo(Cincel, cinceles, Ahora);
         return venta;
     }
 
     private static ResultadoCobro Cobrar(Venta venta, decimal paso, params PagoSolicitado[] pagos) =>
-        venta.Cobrar(pagos, paso, SinTope, Guid.CreateVersion7(), "Cajera", Ahora);
+        venta.Cobrar(pagos, paso, SinTope, Ids.Siguiente(), "Cajera", Ahora);
 
     [Fact]
     public void Efectivo_da_devuelta_y_la_venta_queda_cobrada()
@@ -135,7 +135,7 @@ public class CobroPruebas
     {
         var venta = VentaCon(300); // 255,111
 
-        var error = Assert.Throws<ReglaVentaExcepcion>(() => venta.Cobrar([new PagoSolicitado(Efectivo, 300_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Ahora));
+        var error = Assert.Throws<ReglaVentaExcepcion>(() => venta.Cobrar([new PagoSolicitado(Efectivo, 300_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora));
         Assert.Equal(CodigoErrorVenta.DocumentoRequerido, error.Codigo);
     }
 }

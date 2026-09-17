@@ -11,7 +11,6 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
     {
         constructor.ToTable("VentasCentral");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.Numero).HasMaxLength(ComprobanteVentaCentral.LargoMaximoNumero).IsRequired();
         constructor.Property(c => c.Encf).HasMaxLength(ComprobanteVentaCentral.LargoMaximoEncf).IsFixedLength().IsUnicode(false);
@@ -45,8 +44,6 @@ internal sealed class ImpuestoVentaCentralConfiguracion : IEntityTypeConfigurati
         constructor.ToTable("ImpuestosVenta");
         constructor.HasKey(i => i.Id);
 
-        // El Id lo pone el dominio: sin esto EF toma una fila nueva de un comprobante ya guardado como una modificación.
-        constructor.Property(i => i.Id).ValueGeneratedNever();
         constructor.HasIndex(i => i.ComprobanteId);
     }
 }
@@ -57,7 +54,6 @@ internal sealed class PagoVentaCentralConfiguracion : IEntityTypeConfiguration<P
     {
         constructor.ToTable("PagosVenta");
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
         constructor.Property(p => p.FormaPagoNombre).HasMaxLength(ComprobanteVentaCentral.LargoMaximoTexto);
         constructor.Property(p => p.Moneda).HasMaxLength(ComprobanteVentaCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false);
         constructor.HasIndex(p => p.ComprobanteId);
@@ -70,7 +66,6 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
     {
         constructor.ToTable("CierresTurno");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
         constructor.Property(c => c.UsuarioNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
         constructor.Property(c => c.ReabiertoPorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
         constructor.Property(c => c.MotivoReapertura).HasMaxLength(CierreTurnoCentral.LargoMaximoMotivo);
@@ -94,7 +89,6 @@ internal sealed class CierreFormaPagoCentralConfiguracion : IEntityTypeConfigura
     {
         constructor.ToTable("CierresFormaPago");
         constructor.HasKey(f => f.Id);
-        constructor.Property(f => f.Id).ValueGeneratedNever();
         constructor.Property(f => f.Nombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
         constructor.Property(f => f.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false);
         constructor.HasIndex(f => f.CierreId);

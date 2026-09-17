@@ -8,10 +8,10 @@
         <div class="cg-central__dialogo">
             @if (Secuencia is null)
             {
-                <MudSelect T="Guid?" @bind-Value="_cajaId" Label="Caja" Placeholder="Seleccione la caja" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
+                <MudSelect T="int?" @bind-Value="_cajaId" Label="Caja" Placeholder="Seleccione la caja" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
                     @foreach (var caja in Cajas)
                     {
-                        <MudSelectItem T="Guid?" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSelect T="TipoComprobante" @bind-Value="_tipo" Label="Comprobante" Variant="Variant.Outlined" ToStringFunc="NombreTipo">
@@ -54,7 +54,7 @@
     [Parameter] public DatosSecuenciaEcfCentral? Secuencia { get; set; }
     [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
 
-    private Guid? _cajaId;
+    private int? _cajaId;
     private TipoComprobante _tipo = TipoComprobante.FacturaConsumo;
     private long _desde = 1;
     private long _hasta;
@@ -65,7 +65,7 @@
 
     private static string NombreTipo(TipoComprobante tipo) => $"E{(int)tipo} · {ReglasComprobante.Nombre(tipo)}";
 
-    private string NombreCaja(Guid? cajaId) =>
+    private string NombreCaja(int? cajaId) =>
         Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"Caja {caja.Codigo} · Sucursal {caja.SucursalCodigo}" : string.Empty;
 
     protected override void OnInitialized()

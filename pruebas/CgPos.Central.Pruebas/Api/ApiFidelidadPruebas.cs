@@ -138,7 +138,7 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
     }
 
     /// <summary>Movimiento de una factura nueva de esa caja.</summary>
-    private static MensajeSincronizacion Movimiento(Guid cajaId, string cedula, TipoMovimientoPuntos tipo, int puntos, DateOnly? venceEn)
+    private static MensajeSincronizacion Movimiento(int cajaId, string cedula, TipoMovimientoPuntos tipo, int puntos, DateOnly? venceEn)
     {
         var factura = CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura);
         var contenido = JsonSerializer.Serialize(new DocumentoMovimientoPuntos(cedula, tipo, puntos, factura, DateTimeOffset.UtcNow, venceEn),
@@ -158,7 +158,7 @@ public class ApiFidelidadPruebas(CentralEnPruebas central)
         return Assert.Single(pagina.Elementos);
     }
 
-    private static async Task<RespuestaAjustePuntos> AjustarAsync(HttpClient cliente, string token, Guid miembroId, int puntos, string motivo)
+    private static async Task<RespuestaAjustePuntos> AjustarAsync(HttpClient cliente, string token, int miembroId, int puntos, string motivo)
     {
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/manager/fidelidad/miembros/{miembroId}/ajustes", token,
             new SolicitudAjustePuntos(puntos, motivo)));

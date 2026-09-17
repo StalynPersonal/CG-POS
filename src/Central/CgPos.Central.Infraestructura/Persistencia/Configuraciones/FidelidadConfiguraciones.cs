@@ -11,7 +11,6 @@ internal sealed class MovimientoPuntosCentralConfiguracion : IEntityTypeConfigur
     {
         constructor.ToTable("MovimientosPuntos");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
 
         constructor.Property(m => m.Cedula).HasMaxLength(MovimientoPuntosCentral.LargoMaximoCedula).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(m => m.Documento).HasMaxLength(MovimientoPuntosCentral.LargoMaximoDocumento).IsRequired();

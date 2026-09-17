@@ -8,7 +8,7 @@ namespace CgPos.Pos.Pruebas.Seguridad;
 /// <summary>Ingreso a la caja contra SQL Server real (usuario y clave, bloqueo y estado de caja/usuario).</summary>
 public class AutenticacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
-    private static readonly Guid Empresa = Guid.CreateVersion7();
+    private static readonly int Empresa = Ids.Siguiente();
 
     [SkippableFact]
     public async Task Clave_correcta_inicia_sesion_con_los_permisos_del_rol_y_queda_auditado()

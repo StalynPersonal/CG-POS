@@ -50,7 +50,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
                 .ToListAsync(cancelacion))
             .ToDictionary(c => c.CajaId, c => c.Cantidad);
 
-        int Contar(Guid cajaId, params EstadoEnvioDgii[] estadosDgii) =>
+        int Contar(int cajaId, params EstadoEnvioDgii[] estadosDgii) =>
             comprobantes.Where(c => c.CajaId == cajaId && estadosDgii.Contains(c.EstadoDgii)).Sum(c => c.Cantidad);
 
         var datosCajas = cajas
@@ -96,7 +96,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             porEstado, conFallo, pendienteMasAntiguo, datosCajas, contingencias.Values.Sum());
     }
 
-    public async Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
+    public async Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, int? sucursalId, int? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
         CancellationToken cancelacion = default)
     {
         tamano = Math.Clamp(tamano, 1, IServicioMonitorCentral.TamanoMaximoPagina);
@@ -142,10 +142,10 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             total);
     }
 
-    public async Task<string?> ObtenerXmlAsync(Guid comprobanteId, CancellationToken cancelacion = default) =>
+    public async Task<string?> ObtenerXmlAsync(int comprobanteId, CancellationToken cancelacion = default) =>
         await contexto.ComprobantesRecibidos.AsNoTracking().Where(c => c.Id == comprobanteId).Select(c => c.XmlFirmado).SingleOrDefaultAsync(cancelacion);
 
-    public async Task<ResultadoAdministracion> ReenviarAsync(Guid comprobanteId, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> ReenviarAsync(int comprobanteId, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         if (await contexto.ComprobantesRecibidos.SingleOrDefaultAsync(c => c.Id == comprobanteId, cancelacion) is not { } comprobante)
             return ResultadoAdministracion.Inexistente("El comprobante no existe.");
@@ -181,7 +181,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             .ToList();
     }
 
-    public async Task<ResultadoAdministracion> ResolverConflictoAsync(Guid conflictoId, string resolucion, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> ResolverConflictoAsync(int conflictoId, string resolucion, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         if (await contexto.ConflictosSincronizacion.SingleOrDefaultAsync(c => c.Id == conflictoId, cancelacion) is not { } conflicto)
             return ResultadoAdministracion.Inexistente("El conflicto no existe.");

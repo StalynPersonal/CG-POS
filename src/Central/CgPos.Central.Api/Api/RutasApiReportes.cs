@@ -12,20 +12,20 @@ public static class RutasApiReportes
     {
         var manager = aplicacion.MapGroup("/api/manager/reportes").RequireAuthorization(CatalogoPermisosCentral.ConsultarReportes);
 
-        manager.MapGet("/{tipo}", async (TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, Guid? cajaId,
+        manager.MapGet("/{tipo}", async (TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, int? cajaId,
                 IServicioReportesCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.TablaAsync(tipo, new FiltroReporte(desde, hasta, sucursalId, cajaId), cancelacion)));
 
-        manager.MapGet("/{tipo}/excel", async (TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, Guid? cajaId,
+        manager.MapGet("/{tipo}/excel", async (TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, int? cajaId,
                 IServicioReportesCentral servicio, IExportadorReportes exportador, CancellationToken cancelacion) =>
             Descargar(exportador.AExcel(await servicio.TablaAsync(tipo, new FiltroReporte(desde, hasta, sucursalId, cajaId), cancelacion))));
 
-        manager.MapGet("/{tipo}/pdf", async (TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, Guid? cajaId,
+        manager.MapGet("/{tipo}/pdf", async (TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, int? cajaId,
                 IServicioReportesCentral servicio, IExportadorReportes exportador, CancellationToken cancelacion) =>
             Descargar(exportador.APdf(await servicio.TablaAsync(tipo, new FiltroReporte(desde, hasta, sucursalId, cajaId), cancelacion))));
 
         // Archivo de envío del 607: el RNC del emisor sale de la empresa configurada en el Central.
-        manager.MapGet("/formato607/archivo", async (DateOnly desde, DateOnly hasta, Guid? sucursalId, Guid? cajaId, IServicioReportesCentral servicio,
+        manager.MapGet("/formato607/archivo", async (DateOnly desde, DateOnly hasta, int? sucursalId, int? cajaId, IServicioReportesCentral servicio,
                 IExportadorReportes exportador, IServicioOrganizacion organizacion, CancellationToken cancelacion) =>
         {
             var empresa = await organizacion.ObtenerEmpresaAsync(cancelacion);

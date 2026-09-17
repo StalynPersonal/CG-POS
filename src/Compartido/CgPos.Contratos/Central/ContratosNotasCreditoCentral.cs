@@ -5,10 +5,10 @@ namespace CgPos.Contratos.Central;
 /// <param name="Reservado">Saldo retenido por reservas vigentes de otras cajas.</param>
 /// <param name="Disponible">Lo que se puede consumir ahora: saldo menos reservas vigentes.</param>
 public sealed record DatosNotaCreditoCentral(
-    Guid Id,
+    int Id,
     string Numero,
     string? Encf,
-    Guid SucursalId,
+    int SucursalId,
     string SucursalCodigo,
     string CajaCodigo,
     string ClienteDocumento,

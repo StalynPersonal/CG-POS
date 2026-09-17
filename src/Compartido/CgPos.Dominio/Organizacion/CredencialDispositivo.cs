@@ -17,7 +17,7 @@ public sealed class CredencialDispositivo : Entidad
     {
     }
 
-    public Guid CajaId { get; private set; }
+    public int CajaId { get; private set; }
     public string SecretoHash { get; private set; } = string.Empty;
     public DateTimeOffset EmitidaEn { get; private set; }
 
@@ -31,7 +31,7 @@ public sealed class CredencialDispositivo : Entidad
 
     public bool Activa => RevocadaEn is null;
 
-    public static CredencialDispositivo Emitir(Guid cajaId, string secretoHash, DateTimeOffset ahora, string emitidaPor)
+    public static CredencialDispositivo Emitir(int cajaId, string secretoHash, DateTimeOffset ahora, string emitidaPor)
     {
         if (secretoHash is not { Length: LargoHashSecreto } || !secretoHash.All(char.IsAsciiHexDigit))
             throw new ArgumentException($"El hash del secreto debe ser hexadecimal de {LargoHashSecreto} caracteres.", nameof(secretoHash));

@@ -12,7 +12,6 @@ internal sealed class DescuentoTarjetaConfiguracion : IEntityTypeConfiguration<D
     {
         constructor.ToTable("DescuentosTarjeta");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.Codigo).HasMaxLength(DescuentoTarjeta.LargoMaximoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(d => d.Nombre).HasMaxLength(DescuentoTarjeta.LargoMaximoNombre).IsRequired();
         constructor.Property(d => d.Bines).HasMaxLength(DescuentoTarjeta.LargoMaximoBines).IsUnicode(false).IsRequired();
@@ -24,13 +23,13 @@ internal sealed class PromocionConfiguracion : IEntityTypeConfiguration<Promocio
 {
     // Las listas de artículos, departamentos y sucursales se guardan como Ids separados por coma: la caja filtra en memoria
     // las pocas ofertas vigentes, así no depende de funciones JSON (SQL Server 2014 en desarrollo).
-    private static readonly ValueConverter<List<Guid>, string> ConversorIds = new(
+    private static readonly ValueConverter<List<int>, string> ConversorIds = new(
         lista => string.Join(",", lista),
         texto => string.IsNullOrEmpty(texto)
-            ? new List<Guid>()
-            : texto.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(parte => Guid.Parse(parte)).ToList());
+            ? new List<int>()
+            : texto.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(parte => int.Parse(parte, System.Globalization.CultureInfo.InvariantCulture)).ToList());
 
-    private static readonly ValueComparer<List<Guid>> ComparadorIds = new(
+    private static readonly ValueComparer<List<int>> ComparadorIds = new(
         (a, b) => a!.SequenceEqual(b!),
         lista => lista.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         lista => lista.ToList());
@@ -39,7 +38,6 @@ internal sealed class PromocionConfiguracion : IEntityTypeConfiguration<Promocio
     {
         constructor.ToTable("Promociones");
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
         constructor.Property(p => p.Codigo).HasMaxLength(Promocion.LargoMaximoCodigo).IsRequired();
         constructor.Property(p => p.Nombre).HasMaxLength(Promocion.LargoMaximoNombre).IsRequired();
         constructor.Property(p => p.Valor).HasPrecision(18, 2);
@@ -64,7 +62,7 @@ internal sealed class PromocionConfiguracion : IEntityTypeConfiguration<Promocio
 
     private static void ListaIds(EntityTypeBuilder<Promocion> constructor, string campo, string columna)
     {
-        var propiedad = constructor.Property<List<Guid>>(campo)
+        var propiedad = constructor.Property<List<int>>(campo)
             .HasColumnName(columna)
             .HasConversion(ConversorIds, ComparadorIds)
             .IsUnicode(false)
@@ -79,7 +77,6 @@ internal sealed class MotivoDescuentoConfiguracion : IEntityTypeConfiguration<Mo
     {
         constructor.ToTable("MotivosDescuento");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
                 constructor.Property(m => m.Nombre).HasMaxLength(MotivoDescuento.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(m => m.Codigo).IsUnique();
     }
@@ -91,7 +88,6 @@ internal sealed class TopeDescuentoConfiguracion : IEntityTypeConfiguration<Tope
     {
         constructor.ToTable("TopesDescuento");
         constructor.HasKey(t => t.Id);
-        constructor.Property(t => t.Id).ValueGeneratedNever();
         constructor.Property(t => t.PorcentajeMaximo).HasPrecision(5, 2);
         constructor.Property(t => t.MontoMaximo).HasPrecision(18, 2);
         constructor.Ignore(t => t.EsGeneral);

@@ -6,8 +6,8 @@ public class SaldoPuntosCentralPruebas
 {
     private static readonly DateTimeOffset Inicio = new(2026, 1, 10, 9, 0, 0, TimeSpan.FromHours(-4));
     private static readonly DateOnly Hoy = new(2026, 9, 15);
-    private static readonly Guid Caja = Guid.CreateVersion7();
-    private static readonly Guid Sucursal = Guid.CreateVersion7();
+    private static readonly int Caja = Ids.Siguiente();
+    private static readonly int Sucursal = Ids.Siguiente();
     private const string Cedula = "00113918205";
 
     private static MovimientoPuntosCentral Acumula(int puntos, DateOnly? venceEn, int dia) =>
@@ -78,7 +78,7 @@ public class SaldoPuntosCentralPruebas
     [Fact]
     public void El_saldo_publicado_avisa_cuando_cambia_para_no_republicar_el_maestro_sin_motivo()
     {
-        var saldo = SaldoPuntosCentral.Crear(Guid.CreateVersion7(), Cedula);
+        var saldo = SaldoPuntosCentral.Crear(Ids.Siguiente(), Cedula);
         var calculado = new SaldoPuntos(40, 10, Hoy.AddMonths(1), 0);
 
         Assert.True(saldo.Aplicar(calculado, Inicio));

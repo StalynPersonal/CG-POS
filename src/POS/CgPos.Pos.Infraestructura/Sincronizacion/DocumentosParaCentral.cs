@@ -91,9 +91,9 @@ internal static class DocumentosParaCentral
     /// <summary>Referencia del mensaje de un movimiento de puntos: el documento que lo originó y el tipo.</summary>
     public static string ReferenciaPuntos(MovimientoPuntos movimiento) => $"{movimiento.Documento}-{movimiento.Tipo}";
 
-    private static async Task<Dictionary<Guid, string>> CodigosAlmacenesAsync(ContextoDatosPos contexto, IEnumerable<Guid?> ids, CancellationToken cancelacion)
+    private static async Task<Dictionary<int, string>> CodigosAlmacenesAsync(ContextoDatosPos contexto, IEnumerable<int?> ids, CancellationToken cancelacion)
     {
-        var buscar = ids.OfType<Guid>().Distinct().ToList();
+        var buscar = ids.OfType<int>().Distinct().ToList();
         return buscar.Count == 0
             ? []
             : await contexto.Almacenes.AsNoTracking().Where(a => buscar.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Codigo, cancelacion);

@@ -11,7 +11,6 @@ internal sealed class RegistroAuditoriaConfiguracion : IEntityTypeConfiguration<
         constructor.ToTable("Auditoria");
 
         constructor.HasKey(r => r.Id);
-        constructor.Property(r => r.Id).ValueGeneratedNever();
 
         constructor.Property(r => r.Accion).HasMaxLength(RegistroAuditoria.LargoMaximoAccion).IsRequired();
         constructor.Property(r => r.TipoEntidad).HasMaxLength(RegistroAuditoria.LargoMaximoTipoEntidad).IsRequired();

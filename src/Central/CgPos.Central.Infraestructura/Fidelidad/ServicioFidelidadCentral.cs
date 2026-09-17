@@ -39,13 +39,13 @@ internal sealed class ServicioFidelidadCentral(
         return new PaginaMiembrosFidelidadCentral(await DatosAsync(filas, cancelacion), total);
     }
 
-    public async Task<DatosMiembroFidelidadCentral?> ObtenerAsync(Guid miembroId, CancellationToken cancelacion = default)
+    public async Task<DatosMiembroFidelidadCentral?> ObtenerAsync(int miembroId, CancellationToken cancelacion = default)
     {
         var fila = await contexto.MiembrosFidelidad.AsNoTracking().SingleOrDefaultAsync(m => m.Id == miembroId, cancelacion);
         return fila is null ? null : (await DatosAsync([fila], cancelacion))[0];
     }
 
-    public async Task<IReadOnlyList<DatosMovimientoPuntosCentral>> ListarMovimientosAsync(Guid miembroId, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosMovimientoPuntosCentral>> ListarMovimientosAsync(int miembroId, CancellationToken cancelacion = default)
     {
         var cedula = await contexto.MiembrosFidelidad.AsNoTracking().Where(m => m.Id == miembroId).Select(m => m.Cedula).SingleOrDefaultAsync(cancelacion);
         var movimientos = await contexto.MovimientosPuntos.AsNoTracking()
@@ -53,7 +53,7 @@ internal sealed class ServicioFidelidadCentral(
             .OrderByDescending(m => m.Fecha)
             .ToListAsync(cancelacion);
 
-        var idsCajas = movimientos.Select(m => m.CajaId).OfType<Guid>().Distinct().ToList();
+        var idsCajas = movimientos.Select(m => m.CajaId).OfType<int>().Distinct().ToList();
         var cajas = idsCajas.Count == 0
             ? []
             : await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
@@ -65,7 +65,7 @@ internal sealed class ServicioFidelidadCentral(
             m.Fecha, m.VenceEn, m.Usuario, m.Motivo)).ToList();
     }
 
-    public async Task<RespuestaAjustePuntos> AjustarAsync(Guid miembroId, int puntos, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<RespuestaAjustePuntos> AjustarAsync(int miembroId, int puntos, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         if (puntos == 0)
             return new RespuestaAjustePuntos(false, "El ajuste no puede ser de cero puntos.");

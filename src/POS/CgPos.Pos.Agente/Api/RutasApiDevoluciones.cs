@@ -37,7 +37,7 @@ public static class RutasApiDevoluciones
                 return respuesta.NotaCredito is not null ? Results.Ok(respuesta) : Results.UnprocessableEntity(respuesta);
             }));
 
-        api.MapPost("/{devolucionId:guid}/reimprimir", (Guid devolucionId, ClaimsPrincipal usuario, IServicioDevoluciones servicio, CancellationToken cancelacion) =>
+        api.MapPost("/{devolucionId:int}/reimprimir", (int devolucionId, ClaimsPrincipal usuario, IServicioDevoluciones servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion =>
             {
                 var respuesta = await servicio.ReimprimirAsync(sesion, devolucionId, cancelacion);

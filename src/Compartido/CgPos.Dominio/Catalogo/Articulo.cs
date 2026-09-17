@@ -41,15 +41,15 @@ public sealed class Articulo : Entidad
 
     public string Descripcion { get; private set; } = string.Empty;
     public string? Referencia { get; private set; }
-    public Guid DepartamentoId { get; private set; }
+    public int DepartamentoId { get; private set; }
 
     /// <summary>Categoría dentro del departamento. El Central la exige al publicar; es nula solo en artículos cargados antes de existir las categorías.</summary>
-    public Guid? CategoriaId { get; private set; }
+    public int? CategoriaId { get; private set; }
 
     /// <summary>Marca; opcional (hay artículos genéricos sin marca).</summary>
-    public Guid? MarcaId { get; private set; }
-    public Guid UnidadMedidaId { get; private set; }
-    public Guid ImpuestoId { get; private set; }
+    public int? MarcaId { get; private set; }
+    public int UnidadMedidaId { get; private set; }
+    public int ImpuestoId { get; private set; }
     public TipoArticulo Tipo { get; private set; }
 
     /// <summary>Costo unitario sin impuesto.</summary>
@@ -82,19 +82,18 @@ public sealed class Articulo : Entidad
     /// <summary>Los combos y kits no aplican lista por mayor (RN-04).</summary>
     public bool AplicaPrecioMayor => Tipo != TipoArticulo.ComboKit;
 
-    public static Articulo Crear(string codigo, string descripcion, Guid departamentoId, Guid unidadMedidaId, Guid impuestoId,
-        TipoArticulo tipo = TipoArticulo.Normal, Guid? id = null)
+    public static Articulo Crear(string codigo, string descripcion, int departamentoId, int unidadMedidaId, int impuestoId,
+        TipoArticulo tipo = TipoArticulo.Normal)
     {
         var articulo = new Articulo
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de artículo", LargoMaximoCodigo),
         };
         articulo.ActualizarDatos(descripcion, null, departamentoId, unidadMedidaId, impuestoId, tipo);
         return articulo;
     }
 
-    public void ActualizarDatos(string descripcion, string? referencia, Guid departamentoId, Guid unidadMedidaId, Guid impuestoId, TipoArticulo tipo)
+    public void ActualizarDatos(string descripcion, string? referencia, int departamentoId, int unidadMedidaId, int impuestoId, TipoArticulo tipo)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de artículo no válido.");
@@ -130,10 +129,10 @@ public sealed class Articulo : Entidad
     }
 
     /// <summary>La categoría debe ser del departamento del artículo: lo valida quien conoce las categorías (el Central al publicar).</summary>
-    public void Clasificar(Guid? categoriaId, Guid? marcaId)
+    public void Clasificar(int? categoriaId, int? marcaId)
     {
-        CategoriaId = categoriaId == Guid.Empty ? null : categoriaId;
-        MarcaId = marcaId == Guid.Empty ? null : marcaId;
+        CategoriaId = categoriaId == 0 ? null : categoriaId;
+        MarcaId = marcaId == 0 ? null : marcaId;
     }
 
     public void ConfigurarNaturaleza(bool esServicio) => EsServicio = esServicio;
@@ -185,14 +184,14 @@ public sealed class CodigoArticulo
     {
     }
 
-    internal CodigoArticulo(Guid articuloId, string codigo, TipoCodigoArticulo tipo)
+    internal CodigoArticulo(int articuloId, string codigo, TipoCodigoArticulo tipo)
     {
         ArticuloId = articuloId;
         Codigo = codigo;
         Tipo = tipo;
     }
 
-    public Guid ArticuloId { get; private set; }
+    public int ArticuloId { get; private set; }
 
     /// <summary>Código de barras o de proveedor, único entre todos los artículos.</summary>
     public string Codigo { get; private set; } = string.Empty;

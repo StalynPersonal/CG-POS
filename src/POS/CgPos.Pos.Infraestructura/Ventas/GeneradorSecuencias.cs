@@ -11,7 +11,7 @@ internal sealed class SecuenciaCaja
 {
     public const int LargoMaximoTipo = 30;
 
-    public Guid CajaId { get; set; }
+    public int CajaId { get; set; }
     public string Tipo { get; set; } = string.Empty;
     public long Ultimo { get; set; }
 }
@@ -38,7 +38,7 @@ internal sealed class GeneradorSecuencias(ContextoDatosPos contexto)
     /// Valor mínimo que puede entregar (el que se configuró para continuar una numeración, ej. tras reinstalar la caja). Solo empuja la secuencia
     /// hacia adelante: si ya va más alta, sigue desde donde iba y nunca repite un número.
     /// </param>
-    public async Task<long> SiguienteAsync(Guid cajaId, string tipo, CancellationToken cancelacion, long minimo = 1)
+    public async Task<long> SiguienteAsync(int cajaId, string tipo, CancellationToken cancelacion, long minimo = 1)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(minimo, 1);
 
@@ -58,11 +58,11 @@ internal sealed class GeneradorSecuencias(ContextoDatosPos contexto)
 /// <summary>Numeración de los documentos de la caja según los parámetros del Central.</summary>
 internal static class NumeracionDocumentos
 {
-    public static Task<int> DigitosAsync(IParametros parametros, Guid cajaId, CancellationToken cancelacion) =>
+    public static Task<int> DigitosAsync(IParametros parametros, int cajaId, CancellationToken cancelacion) =>
         parametros.ObtenerEnteroAsync(CatalogoParametros.DigitosSecuenciaDocumentos, cajaId, cancelacion);
 
     /// <summary>Mínimo configurado para la próxima secuencia; 1 si no se configuró.</summary>
-    public static async Task<long> MinimoAsync(IParametros parametros, string clave, Guid cajaId, CancellationToken cancelacion) =>
+    public static async Task<long> MinimoAsync(IParametros parametros, string clave, int cajaId, CancellationToken cancelacion) =>
         await parametros.ObtenerAsync(clave, cajaId, cancelacion) is { Length: > 0 } texto
             ? long.TryParse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minimo) && minimo >= 1
                 ? minimo

@@ -11,10 +11,10 @@ public interface IServicioDespachoCentral
 {
     public const int TamanoMaximoPagina = 100;
 
-    Task<PaginaPendientesCentral> ListarAsync(string? buscar, EstadoPendiente? estado, MetodoEntrega? metodo, Guid? sucursalId, bool soloAtrasados,
+    Task<PaginaPendientesCentral> ListarAsync(string? buscar, EstadoPendiente? estado, MetodoEntrega? metodo, int? sucursalId, bool soloAtrasados,
         bool soloAbiertos, int pagina, int tamano, CancellationToken cancelacion = default);
 
-    Task<DetallePendienteCentral?> ObtenerAsync(Guid pendienteId, CancellationToken cancelacion = default);
+    Task<DetallePendienteCentral?> ObtenerAsync(int pendienteId, CancellationToken cancelacion = default);
 
     Task<ResumenDespachoCentral> ResumenAsync(CancellationToken cancelacion = default);
 }

@@ -23,15 +23,15 @@ public static class RutasApiDespacho
                 return respuesta.Exitosa ? Results.Ok(respuesta) : Results.UnprocessableEntity(respuesta);
             }));
 
-        api.MapPost("/{pendienteId:guid}/estado", (Guid pendienteId, SolicitudEstadoPendiente solicitud, ClaimsPrincipal usuario, IServicioDespacho servicio,
+        api.MapPost("/{pendienteId:int}/estado", (int pendienteId, SolicitudEstadoPendiente solicitud, ClaimsPrincipal usuario, IServicioDespacho servicio,
                 CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.CambiarEstadoAsync(sesion, pendienteId, solicitud, cancelacion))));
 
-        api.MapPost("/{pendienteId:guid}/entregas", (Guid pendienteId, SolicitudEntregaPendiente solicitud, ClaimsPrincipal usuario, IServicioDespacho servicio,
+        api.MapPost("/{pendienteId:int}/entregas", (int pendienteId, SolicitudEntregaPendiente solicitud, ClaimsPrincipal usuario, IServicioDespacho servicio,
                 CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.EntregarAsync(sesion, pendienteId, solicitud, cancelacion))));
 
-        api.MapPost("/{pendienteId:guid}/anular", (Guid pendienteId, SolicitudAnularPendiente solicitud, ClaimsPrincipal usuario, IServicioDespacho servicio,
+        api.MapPost("/{pendienteId:int}/anular", (int pendienteId, SolicitudAnularPendiente solicitud, ClaimsPrincipal usuario, IServicioDespacho servicio,
                 CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.AnularAsync(sesion, pendienteId, solicitud, cancelacion))));
 

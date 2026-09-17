@@ -12,7 +12,6 @@ internal sealed class DocumentoRecibidoConfiguracion : IEntityTypeConfiguration<
     {
         constructor.ToTable("DocumentosRecibidos");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
 
         constructor.Property(d => d.TipoMensaje).HasMaxLength(DocumentoRecibido.LargoMaximoTipo).IsRequired();
         constructor.Property(d => d.Contenido).IsRequired().Metadata.SetMaxLength(null);
@@ -21,6 +20,8 @@ internal sealed class DocumentoRecibidoConfiguracion : IEntityTypeConfiguration<
         constructor.HasOne<Caja>().WithMany().HasForeignKey(d => d.CajaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(d => d.SucursalId).OnDelete(DeleteBehavior.Restrict);
 
+        // El Id del mensaje es la clave de idempotencia de la caja: un mensaje se guarda una sola vez aunque llegue dos veces a la vez.
+        constructor.HasIndex(d => d.MensajeId).IsUnique();
         constructor.HasIndex(d => new { d.CajaId, d.RecibidoEn });
         constructor.Property(d => d.Referencia).HasMaxLength(DocumentoRecibido.LargoMaximoReferencia).IsUnicode(false).IsRequired();
         constructor.HasIndex(d => d.Referencia);
@@ -34,7 +35,6 @@ internal sealed class ComprobanteRecibidoConfiguracion : IEntityTypeConfiguratio
     {
         constructor.ToTable("ComprobantesRecibidos");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(c => c.Referencia).HasMaxLength(DocumentoRecibido.LargoMaximoReferencia).IsUnicode(false).IsRequired();
@@ -66,7 +66,6 @@ internal sealed class ConflictoSincronizacionConfiguracion : IEntityTypeConfigur
     {
         constructor.ToTable("ConflictosSincronizacion");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.TipoMensaje).HasMaxLength(DocumentoRecibido.LargoMaximoTipo).IsRequired();
         constructor.Property(c => c.Tipo).HasConversion<string>().HasMaxLength(40);
@@ -87,6 +86,7 @@ internal sealed class EstadoSincronizacionCajaConfiguracion : IEntityTypeConfigu
     {
         constructor.ToTable("EstadosSincronizacionCaja");
         constructor.HasKey(e => e.CajaId);
+        constructor.Property(e => e.CajaId).ValueGeneratedNever();
         constructor.Property(e => e.UltimoError).HasMaxLength(EstadoSincronizacionCaja.LargoMaximoError);
 
         constructor.HasOne<Caja>().WithOne().HasForeignKey<EstadoSincronizacionCaja>(e => e.CajaId).OnDelete(DeleteBehavior.Restrict);

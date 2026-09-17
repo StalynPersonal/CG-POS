@@ -9,7 +9,7 @@ namespace CgPos.Pos.Pruebas.Organizacion;
 
 public class ParametrosPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
-    private static readonly Guid Empresa = Guid.CreateVersion7();
+    private static readonly int Empresa = Ids.Siguiente();
 
     [SkippableFact]
     public async Task Prevalece_caja_luego_sucursal_luego_general()

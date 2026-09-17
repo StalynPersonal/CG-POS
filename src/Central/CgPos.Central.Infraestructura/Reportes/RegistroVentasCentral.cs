@@ -12,7 +12,7 @@ namespace CgPos.Central.Infraestructura.Reportes;
 internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeProvider reloj)
 {
     /// <summary>La factura se identifica por su número: si ya se registró (un reenvío, o la regularización de una contingencia), no se repite.</summary>
-    public async Task RegistrarVentaAsync(DocumentoVentaCobrada venta, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
+    public async Task RegistrarVentaAsync(DocumentoVentaCobrada venta, int sucursalId, int cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(venta);
         if (await YaRegistradoAsync(TipoComprobanteVenta.Factura, venta.Numero, cancelacion))
@@ -33,7 +33,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
         contexto.VentasCentral.Add(comprobante);
     }
 
-    public async Task RegistrarNotaCreditoAsync(DocumentoNotaCreditoEmitida nota, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
+    public async Task RegistrarNotaCreditoAsync(DocumentoNotaCreditoEmitida nota, int sucursalId, int cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(nota);
         if (await YaRegistradoAsync(TipoComprobanteVenta.NotaCredito, nota.Numero, cancelacion))
@@ -59,7 +59,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
     }
 
     /// <summary>Un cierre reabierto y vuelto a cerrar llega otra vez: se actualiza con lo último que informó la caja. Se identifica por la caja y el turno.</summary>
-    public async Task RegistrarCierreAsync(DocumentoCierreTurno cierre, Guid sucursalId, Guid cajaId, CancellationToken cancelacion)
+    public async Task RegistrarCierreAsync(DocumentoCierreTurno cierre, int sucursalId, int cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(cierre);
         var ahora = reloj.GetUtcNow();

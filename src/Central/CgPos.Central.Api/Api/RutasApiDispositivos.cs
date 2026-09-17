@@ -32,11 +32,11 @@ public static class RutasApiDispositivos
                 EmisorTokensCentral.LeerDispositivo(usuario) is { } dispositivo ? Results.Ok(dispositivo) : Results.Unauthorized())
             .RequireAuthorization(PoliticasCentral.Dispositivo);
 
-        var credencial = aplicacion.MapGroup("/api/cajas/{cajaId:guid}/credencial")
+        var credencial = aplicacion.MapGroup("/api/cajas/{cajaId:int}/credencial")
             .RequireAuthorization(CatalogoPermisosCentral.AdministrarDispositivos)
             .SinCache();
 
-        credencial.MapPost("", async (Guid cajaId, ClaimsPrincipal usuario, IServicioDispositivos servicio, CancellationToken cancelacion) =>
+        credencial.MapPost("", async (int cajaId, ClaimsPrincipal usuario, IServicioDispositivos servicio, CancellationToken cancelacion) =>
         {
             if (EmisorTokensCentral.LeerSesion(usuario) is not { } sesion)
                 return Results.Unauthorized();
@@ -47,7 +47,7 @@ public static class RutasApiDispositivos
                 : Results.Ok(new DatosCredencialDispositivo(emitida.CajaId, emitida.SucursalCodigo, emitida.CajaCodigo, emitida.Secreto, emitida.EmitidaEn));
         });
 
-        credencial.MapPost("/revocar", async (Guid cajaId, SolicitudRevocacionCredencial solicitud, ClaimsPrincipal usuario, IServicioDispositivos servicio,
+        credencial.MapPost("/revocar", async (int cajaId, SolicitudRevocacionCredencial solicitud, ClaimsPrincipal usuario, IServicioDispositivos servicio,
             CancellationToken cancelacion) =>
         {
             if (EmisorTokensCentral.LeerSesion(usuario) is not { } sesion)

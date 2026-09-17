@@ -18,8 +18,8 @@ public sealed class PendienteCentral : Entidad
 
     public string Numero { get; private set; } = string.Empty;
     public string VentaNumero { get; private set; } = string.Empty;
-    public Guid SucursalId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int SucursalId { get; private set; }
+    public int CajaId { get; private set; }
     public MetodoEntrega Metodo { get; private set; }
     public EstadoPendiente Estado { get; private set; }
     public string? AlmacenNombre { get; private set; }
@@ -113,8 +113,8 @@ public sealed class PendienteCentral : Entidad
 public sealed record DatosPendienteCentral(
     string Numero,
     string VentaNumero,
-    Guid SucursalId,
-    Guid CajaId,
+    int SucursalId,
+    int CajaId,
     MetodoEntrega Metodo,
     EstadoPendiente Estado,
     string? AlmacenNombre,

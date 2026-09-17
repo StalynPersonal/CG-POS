@@ -34,7 +34,7 @@ namespace CgPos.Pos.Pruebas.Ventas;
 /// <summary>Turno y venta en curso contra SQL Server real: escaneo, precios, eliminación con autorización y recuperación.</summary>
 public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
-    private static readonly Guid Empresa = Guid.CreateVersion7();
+    private static readonly int Empresa = Ids.Siguiente();
 
     [SkippableFact]
     public async Task Sin_turno_abierto_no_se_puede_vender_y_se_ofrece_abrirlo()
@@ -121,7 +121,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     public async Task La_venta_en_curso_se_recupera_tras_un_cierre_inesperado()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        Guid ventaId;
+        int ventaId;
         await using (var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa))
         {
             var venta = await caja.VentaActualAsync();
@@ -225,7 +225,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var primera = await caja.VentaActualAsync();
 
-        async Task<string> LimpiarConProximaAsync(Guid ventaId, string proxima)
+        async Task<string> LimpiarConProximaAsync(int ventaId, string proxima)
         {
             await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
             {
@@ -613,7 +613,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
             FormasPago: [new FormaPagoCarga($"USD{caja.Catalogo.Sufijo}", "Dólares", TipoFormaPago.MonedaExtranjera, 5, "USD")],
             TasasCambio: [new TasaCambioCarga("USD", 60.25m, EscenarioSeguridad.Inicio.AddDays(-1))]), "Pruebas"));
-        var formaDolares = await caja.EjecutarAsync<ContextoDatosPos, Guid>(contexto =>
+        var formaDolares = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
             contexto.FormasPago.Where(f => f.Codigo == $"USD{caja.Catalogo.Sufijo}").Select(f => f.Id).SingleAsync());
 
         var catalogo = await caja.EjecutarAsync<IConsultaCatalogoCobro, DatosCatalogoCobro>(s => s.ObtenerAsync());
@@ -1063,7 +1063,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
             Almacenes: [new AlmacenCarga($"ALM{caja.Catalogo.Sufijo}", $"Almacén Kennedy {caja.Catalogo.Sufijo}", caja.Escenario.CodigoSucursal)]), "Pruebas"));
-        var almacen = await caja.EjecutarAsync<ContextoDatosPos, Guid>(contexto =>
+        var almacen = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
             contexto.Almacenes.Where(a => a.Codigo == $"ALM{caja.Catalogo.Sufijo}").Select(a => a.Id).SingleAsync());
 
         var almacenes = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosAlmacen>>(s => s.ListarAlmacenesAsync(caja.Cajero));
@@ -1139,7 +1139,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
             Almacenes: [new AlmacenCarga($"DSP{caja.Catalogo.Sufijo}", $"Almacén despacho {caja.Catalogo.Sufijo}", caja.Escenario.CodigoSucursal)]), "Pruebas"));
-        var almacen = await caja.EjecutarAsync<ContextoDatosPos, Guid>(contexto =>
+        var almacen = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
             contexto.Almacenes.Where(a => a.Codigo == $"DSP{caja.Catalogo.Sufijo}").Select(a => a.Id).SingleAsync());
 
         // Factura con cemento y taladro para retiro y un cincel para envío.
@@ -1526,7 +1526,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 ActivatorUtilities.CreateInstance<CgPos.Pos.Infraestructura.Sincronizacion.ProcesadorBandejaSalida>(proveedor, new CentralDePrueba(ResultadoEnvioCentral.Recibido()))
                     .ProcesarAsync());
 
-        Task<(string RutaXml, Guid MensajeId)> DocumentoAsync(Guid ventaId) =>
+        Task<(string RutaXml, Guid MensajeId)> DocumentoAsync(int ventaId) =>
             caja.EjecutarAsync<ContextoDatosPos, (string, Guid)>(async contexto =>
                 (await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == ventaId).Select(d => d.RutaXml).SingleAsync(),
                  await contexto.BandejaSalida.AsNoTracking()
@@ -1585,7 +1585,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     public async Task Las_secuencias_no_se_repiten_con_pedidos_simultaneos()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var cajaId = Guid.CreateVersion7();
+        var cajaId = Ids.Siguiente();
 
         var pedidos = Enumerable.Range(0, 25).Select(async _ =>
         {
@@ -1647,7 +1647,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         public SesionUsuario Cajero { get; private set; } = null!;
         public SesionUsuario CajeroDos { get; private set; } = null!;
 
-        public static async Task<CajaEnPruebas> CrearAsync(BaseDatosPruebas baseDatos, Guid empresa, bool abrirTurno = true, bool cargarCertificado = true,
+        public static async Task<CajaEnPruebas> CrearAsync(BaseDatosPruebas baseDatos, int empresa, bool abrirTurno = true, bool cargarCertificado = true,
             long hastaSecuenciaConsumo = 1000)
         {
             var caja = new CajaEnPruebas(baseDatos, await EscenarioSeguridad.CrearAsync(baseDatos, empresa)) { _cargarCertificado = cargarCertificado };
@@ -1708,7 +1708,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             return respuesta.Venta!;
         }
 
-        public async Task<DatosVenta> AgregarAsync(Guid ventaId, string codigo)
+        public async Task<DatosVenta> AgregarAsync(int ventaId, string codigo)
         {
             var respuesta = await EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarArticuloAsync(Cajero, ventaId, codigo, null));
             Assert.True(respuesta.Exitosa, $"{codigo}: {respuesta.Mensaje}");

@@ -20,24 +20,24 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<RespuestaAdministracion> CrearRolAsync(SolicitudRolCentral solicitud) => EnviarAsync(HttpMethod.Post, "api/seguridad/roles", solicitud);
 
-    public Task<RespuestaAdministracion> ActualizarRolAsync(Guid rolId, SolicitudRolCentral solicitud) => EnviarAsync(HttpMethod.Put, $"api/seguridad/roles/{rolId}", solicitud);
+    public Task<RespuestaAdministracion> ActualizarRolAsync(int rolId, SolicitudRolCentral solicitud) => EnviarAsync(HttpMethod.Put, $"api/seguridad/roles/{rolId}", solicitud);
 
-    public Task<RespuestaAdministracion> CambiarEstadoRolAsync(Guid rolId, bool activo) =>
+    public Task<RespuestaAdministracion> CambiarEstadoRolAsync(int rolId, bool activo) =>
         EnviarAsync(HttpMethod.Post, $"api/seguridad/roles/{rolId}/{(activo ? "activar" : "desactivar")}");
 
     public Task<IReadOnlyList<DatosUsuarioCentral>?> ListarUsuariosAsync() => ListarAsync<DatosUsuarioCentral>("api/seguridad/usuarios");
 
     public Task<RespuestaAdministracion> CrearUsuarioAsync(SolicitudUsuarioCentral solicitud) => EnviarAsync(HttpMethod.Post, "api/seguridad/usuarios", solicitud);
 
-    public Task<RespuestaAdministracion> ActualizarUsuarioAsync(Guid usuarioId, SolicitudActualizarUsuarioCentral solicitud) =>
+    public Task<RespuestaAdministracion> ActualizarUsuarioAsync(int usuarioId, SolicitudActualizarUsuarioCentral solicitud) =>
         EnviarAsync(HttpMethod.Put, $"api/seguridad/usuarios/{usuarioId}", solicitud);
 
-    public Task<RespuestaAdministracion> RestablecerContrasenaAsync(Guid usuarioId, string contrasenaTemporal) =>
+    public Task<RespuestaAdministracion> RestablecerContrasenaAsync(int usuarioId, string contrasenaTemporal) =>
         EnviarAsync(HttpMethod.Post, $"api/seguridad/usuarios/{usuarioId}/contrasena", new SolicitudContrasenaTemporal(contrasenaTemporal));
 
-    public Task<RespuestaAdministracion> DesbloquearUsuarioAsync(Guid usuarioId) => EnviarAsync(HttpMethod.Post, $"api/seguridad/usuarios/{usuarioId}/desbloquear");
+    public Task<RespuestaAdministracion> DesbloquearUsuarioAsync(int usuarioId) => EnviarAsync(HttpMethod.Post, $"api/seguridad/usuarios/{usuarioId}/desbloquear");
 
-    public Task<RespuestaAdministracion> CambiarEstadoUsuarioAsync(Guid usuarioId, bool activo) =>
+    public Task<RespuestaAdministracion> CambiarEstadoUsuarioAsync(int usuarioId, bool activo) =>
         EnviarAsync(HttpMethod.Post, $"api/seguridad/usuarios/{usuarioId}/{(activo ? "activar" : "desactivar")}");
 
     // ---------- Organización ----------
@@ -60,20 +60,20 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<RespuestaAdministracion> CrearSucursalAsync(SolicitudSucursal solicitud) => EnviarAsync(HttpMethod.Post, "api/organizacion/sucursales", solicitud);
 
-    public Task<RespuestaAdministracion> ActualizarSucursalAsync(Guid sucursalId, SolicitudSucursal solicitud) =>
+    public Task<RespuestaAdministracion> ActualizarSucursalAsync(int sucursalId, SolicitudSucursal solicitud) =>
         EnviarAsync(HttpMethod.Put, $"api/organizacion/sucursales/{sucursalId}", solicitud);
 
-    public Task<RespuestaAdministracion> CambiarEstadoSucursalAsync(Guid sucursalId, bool activa) =>
+    public Task<RespuestaAdministracion> CambiarEstadoSucursalAsync(int sucursalId, bool activa) =>
         EnviarAsync(HttpMethod.Post, $"api/organizacion/sucursales/{sucursalId}/{(activa ? "activar" : "desactivar")}");
 
     public Task<IReadOnlyList<DatosCaja>?> ListarCajasAsync() => ListarAsync<DatosCaja>("api/organizacion/cajas");
 
     public Task<RespuestaAdministracion> CrearCajaAsync(SolicitudCaja solicitud) => EnviarAsync(HttpMethod.Post, "api/organizacion/cajas", solicitud);
 
-    public Task<RespuestaAdministracion> ActualizarCajaAsync(Guid cajaId, SolicitudActualizarCaja solicitud) =>
+    public Task<RespuestaAdministracion> ActualizarCajaAsync(int cajaId, SolicitudActualizarCaja solicitud) =>
         EnviarAsync(HttpMethod.Put, $"api/organizacion/cajas/{cajaId}", solicitud);
 
-    public Task<RespuestaAdministracion> CambiarEstadoCajaAsync(Guid cajaId, bool habilitada) =>
+    public Task<RespuestaAdministracion> CambiarEstadoCajaAsync(int cajaId, bool habilitada) =>
         EnviarAsync(HttpMethod.Post, $"api/organizacion/cajas/{cajaId}/{(habilitada ? "habilitar" : "deshabilitar")}");
 
     public Task<IReadOnlyList<DefinicionParametro>?> ListarCatalogoParametrosAsync() => ListarAsync<DefinicionParametro>("api/organizacion/parametros/catalogo");
@@ -82,13 +82,13 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<RespuestaAdministracion> CrearParametroAsync(SolicitudParametro solicitud) => EnviarAsync(HttpMethod.Post, "api/organizacion/parametros", solicitud);
 
-    public Task<RespuestaAdministracion> CambiarValorParametroAsync(Guid parametroId, string valor) =>
+    public Task<RespuestaAdministracion> CambiarValorParametroAsync(int parametroId, string valor) =>
         EnviarAsync(HttpMethod.Put, $"api/organizacion/parametros/{parametroId}", new SolicitudValorParametro(valor));
 
     // ---------- Credenciales de las cajas ----------
 
     /// <returns>La credencial recién emitida (su secreto solo se ve aquí) o el motivo por el que no se emitió.</returns>
-    public async Task<(DatosCredencialDispositivo? Credencial, string? Error)> EmitirCredencialAsync(Guid cajaId)
+    public async Task<(DatosCredencialDispositivo? Credencial, string? Error)> EmitirCredencialAsync(int cajaId)
     {
         try
         {
@@ -110,7 +110,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public Task<RespuestaAdministracion> RevocarCredencialAsync(Guid cajaId, string motivo) =>
+    public Task<RespuestaAdministracion> RevocarCredencialAsync(int cajaId, string motivo) =>
         EnviarAsync(HttpMethod.Post, $"api/cajas/{cajaId}/credencial/revocar", new SolicitudRevocacionCredencial(motivo));
 
     // ---------- Rangos de e-CF ----------
@@ -119,12 +119,12 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<RespuestaAdministracion> AsignarSecuenciaAsync(SolicitudSecuenciaEcf solicitud) => EnviarAsync(HttpMethod.Post, "api/fiscal/secuencias", solicitud);
 
-    public Task<RespuestaAdministracion> ActualizarSecuenciaAsync(Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud) =>
+    public Task<RespuestaAdministracion> ActualizarSecuenciaAsync(int secuenciaId, SolicitudActualizarSecuenciaEcf solicitud) =>
         EnviarAsync(HttpMethod.Put, $"api/fiscal/secuencias/{secuenciaId}", solicitud);
 
     public Task<IReadOnlyList<DatosAnulacionEcf>?> ListarAnulacionesEcfAsync() => ListarAsync<DatosAnulacionEcf>("api/fiscal/anulaciones");
 
-    public Task<RespuestaAdministracion> AnularSecuenciasAsync(Guid secuenciaId, SolicitudAnulacionEcf solicitud) =>
+    public Task<RespuestaAdministracion> AnularSecuenciasAsync(int secuenciaId, SolicitudAnulacionEcf solicitud) =>
         EnviarAsync(HttpMethod.Post, $"api/fiscal/secuencias/{secuenciaId}/anulaciones", solicitud);
 
     // ---------- Usuarios y roles de caja ----------
@@ -134,12 +134,12 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<IReadOnlyList<DatosRolCaja>?> ListarRolesCajaAsync() => ListarAsync<DatosRolCaja>("api/usuarios-caja/roles");
 
-    public Task<RespuestaAdministracion> GuardarRolCajaAsync(Guid? rolId, SolicitudRolCaja solicitud) =>
+    public Task<RespuestaAdministracion> GuardarRolCajaAsync(int? rolId, SolicitudRolCaja solicitud) =>
         rolId is { } id ? EnviarAsync(HttpMethod.Put, $"api/usuarios-caja/roles/{id}", solicitud) : EnviarAsync(HttpMethod.Post, "api/usuarios-caja/roles", solicitud);
 
     public Task<IReadOnlyList<DatosUsuarioCaja>?> ListarUsuariosCajaAsync() => ListarAsync<DatosUsuarioCaja>("api/usuarios-caja/usuarios");
 
-    public Task<RespuestaAdministracion> GuardarUsuarioCajaAsync(Guid? usuarioId, SolicitudUsuarioCaja solicitud) =>
+    public Task<RespuestaAdministracion> GuardarUsuarioCajaAsync(int? usuarioId, SolicitudUsuarioCaja solicitud) =>
         usuarioId is { } id
             ? EnviarAsync(HttpMethod.Put, $"api/usuarios-caja/usuarios/{id}", solicitud)
             : EnviarAsync(HttpMethod.Post, "api/usuarios-caja/usuarios", solicitud);
@@ -263,7 +263,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public async Task<PaginaComprobantesDgii?> BuscarComprobantesDgiiAsync(CgPos.Dominio.Sincronizacion.EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar,
+    public async Task<PaginaComprobantesDgii?> BuscarComprobantesDgiiAsync(CgPos.Dominio.Sincronizacion.EstadoEnvioDgii? estado, int? sucursalId, int? cajaId, string? buscar,
         bool soloConFallo, int pagina, int tamano, CancellationToken cancelacion = default)
     {
         var ruta = $"api/monitor/comprobantes?pagina={pagina}&tamano={tamano}&soloConFallo={(soloConFallo ? "true" : "false")}"
@@ -281,7 +281,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public async Task<string?> ObtenerXmlComprobanteAsync(Guid comprobanteId)
+    public async Task<string?> ObtenerXmlComprobanteAsync(int comprobanteId)
     {
         try
         {
@@ -293,12 +293,12 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public Task<RespuestaAdministracion> ReenviarComprobanteAsync(Guid comprobanteId) => EnviarAsync(HttpMethod.Post, $"api/monitor/comprobantes/{comprobanteId}/reenviar");
+    public Task<RespuestaAdministracion> ReenviarComprobanteAsync(int comprobanteId) => EnviarAsync(HttpMethod.Post, $"api/monitor/comprobantes/{comprobanteId}/reenviar");
 
     public Task<IReadOnlyList<DatosConflictoSincronizacion>?> ListarConflictosAsync(bool abiertos) =>
         ListarAsync<DatosConflictoSincronizacion>($"api/monitor/conflictos?abiertos={(abiertos ? "true" : "false")}");
 
-    public Task<RespuestaAdministracion> ResolverConflictoAsync(Guid conflictoId, string resolucion) =>
+    public Task<RespuestaAdministracion> ResolverConflictoAsync(int conflictoId, string resolucion) =>
         EnviarAsync(HttpMethod.Post, $"api/monitor/conflictos/{conflictoId}/resolver", new SolicitudResolverConflicto(resolucion));
 
     // ---------- Notas de crédito ----------
@@ -319,10 +319,10 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public Task<IReadOnlyList<DatosMovimientoNotaCredito>?> ListarMovimientosNotaCreditoAsync(Guid notaCreditoId) =>
+    public Task<IReadOnlyList<DatosMovimientoNotaCredito>?> ListarMovimientosNotaCreditoAsync(int notaCreditoId) =>
         ListarAsync<DatosMovimientoNotaCredito>($"api/manager/notas-credito/{notaCreditoId}/movimientos");
 
-    public Task<RespuestaAdministracion> ProrrogarNotaCreditoAsync(Guid notaCreditoId, DateOnly venceEn, string motivo) =>
+    public Task<RespuestaAdministracion> ProrrogarNotaCreditoAsync(int notaCreditoId, DateOnly venceEn, string motivo) =>
         EnviarAsync(HttpMethod.Post, $"api/manager/notas-credito/{notaCreditoId}/prorrogar", new SolicitudProrrogaNotaCredito(venceEn, motivo));
 
     // ---------- Programa de fidelidad ----------
@@ -342,7 +342,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public Task<IReadOnlyList<DatosMovimientoPuntosCentral>?> ListarMovimientosPuntosAsync(Guid miembroId) =>
+    public Task<IReadOnlyList<DatosMovimientoPuntosCentral>?> ListarMovimientosPuntosAsync(int miembroId) =>
         ListarAsync<DatosMovimientoPuntosCentral>($"api/manager/fidelidad/miembros/{miembroId}/movimientos");
 
     // ---------- Actualización de las cajas ----------
@@ -367,7 +367,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     // ---------- Reportes ----------
 
-    public async Task<TablaReporte?> ReporteAsync(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, CancellationToken cancelacion = default)
+    public async Task<TablaReporte?> ReporteAsync(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, CancellationToken cancelacion = default)
     {
         try
         {
@@ -381,7 +381,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     /// <returns>El archivo con su nombre y tipo, o nulo si el Central no lo generó.</returns>
     public async Task<(string Nombre, string TipoContenido, byte[] Contenido)?> DescargarReporteAsync(TipoReporteCentral tipo, string formato, DateOnly desde,
-        DateOnly hasta, Guid? sucursalId)
+        DateOnly hasta, int? sucursalId)
     {
         var ruta = formato == "607" ? RutaReporte(TipoReporteCentral.Formato607, desde, hasta, sucursalId, "archivo") : RutaReporte(tipo, desde, hasta, sucursalId, formato);
         try
@@ -399,14 +399,14 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    private static string RutaReporte(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, Guid? sucursalId, string? formato) =>
+    private static string RutaReporte(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, string? formato) =>
         $"api/manager/reportes/{tipo}{(formato is null ? string.Empty : "/" + formato)}?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}"
         + (sucursalId is { } sucursal ? $"&sucursalId={sucursal}" : string.Empty);
 
     // ---------- Despacho de pendientes y envíos ----------
 
     public async Task<PaginaPendientesCentral?> BuscarPendientesAsync(string? buscar, CgPos.Dominio.Entregas.EstadoPendiente? estado,
-        CgPos.Dominio.Entregas.MetodoEntrega? metodo, Guid? sucursalId, bool soloAtrasados, bool soloAbiertos, int pagina, int tamano,
+        CgPos.Dominio.Entregas.MetodoEntrega? metodo, int? sucursalId, bool soloAtrasados, bool soloAbiertos, int pagina, int tamano,
         CancellationToken cancelacion = default)
     {
         var ruta = $"api/manager/despacho/pendientes?pagina={pagina}&tamano={tamano}"
@@ -425,7 +425,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public async Task<DetallePendienteCentral?> ObtenerPendienteAsync(Guid pendienteId)
+    public async Task<DetallePendienteCentral?> ObtenerPendienteAsync(int pendienteId)
     {
         try
         {
@@ -449,7 +449,7 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
-    public async Task<RespuestaAjustePuntos> AjustarPuntosAsync(Guid miembroId, int puntos, string motivo)
+    public async Task<RespuestaAjustePuntos> AjustarPuntosAsync(int miembroId, int puntos, string motivo)
     {
         var (datos, error) = await PostearAsync<RespuestaAjustePuntos>($"api/manager/fidelidad/miembros/{miembroId}/ajustes",
             new SolicitudAjustePuntos(puntos, motivo));

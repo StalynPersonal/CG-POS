@@ -11,7 +11,6 @@ internal sealed class NotaCreditoCentralConfiguracion : IEntityTypeConfiguration
     {
         constructor.ToTable("NotasCredito");
         constructor.HasKey(n => n.Id);
-        constructor.Property(n => n.Id).ValueGeneratedNever();
 
         constructor.Property(n => n.Numero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
         constructor.Property(n => n.Encf).HasMaxLength(NotaCreditoCentral.LargoMaximoEncf).IsFixedLength().IsUnicode(false);
@@ -38,7 +37,6 @@ internal sealed class ConsumoNotaCreditoCentralConfiguracion : IEntityTypeConfig
     {
         constructor.ToTable("ConsumosNotaCredito");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
         constructor.Property(c => c.NotaCreditoNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
         constructor.Property(c => c.VentaNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
 
@@ -56,7 +54,6 @@ internal sealed class ReservaNotaCreditoCentralConfiguracion : IEntityTypeConfig
     {
         constructor.ToTable("ReservasNotaCredito");
         constructor.HasKey(r => r.Id);
-        constructor.Property(r => r.Id).ValueGeneratedNever();
         constructor.Property(r => r.Cierre).HasMaxLength(ReservaNotaCreditoCentral.LargoMaximoCierre);
         constructor.Property(r => r.VentaNumero).HasMaxLength(NotaCreditoCentral.LargoMaximoNumero).IsRequired();
 

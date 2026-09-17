@@ -129,7 +129,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         Assert.Equal((HttpStatusCode.Forbidden, HttpStatusCode.Forbidden), (manager.StatusCode, caja.StatusCode));
     }
 
-    private static (MensajeSincronizacion Mensaje, string Numero, string Encf) MensajeEmision(Guid cajaId, decimal total, DateOnly venceEn)
+    private static (MensajeSincronizacion Mensaje, string Numero, string Encf) MensajeEmision(int cajaId, decimal total, DateOnly venceEn)
     {
         var numero = CentralEnPruebas.NumeroDocumento(cajaId, TipoDocumentoNumerado.NotaCredito);
         var encf = $"E34{Random.Shared.NextInt64(1, 9_999_999_999):D10}";
@@ -147,7 +147,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
             DateTimeOffset.UtcNow), numero, encf);
     }
 
-    private static MensajeSincronizacion MensajeConsumo(Guid cajaId, string numeroNota, string encf, string ventaNumero, decimal monto)
+    private static MensajeSincronizacion MensajeConsumo(int cajaId, string numeroNota, string encf, string ventaNumero, decimal monto)
     {
         var contenido = JsonSerializer.Serialize(
             new DocumentoConsumoNotaCredito(numeroNota, encf, ventaNumero, monto, 0m, DateTimeOffset.UtcNow), OpcionesJson.Predeterminadas);
@@ -169,7 +169,7 @@ public class ApiNotasCreditoPruebas(CentralEnPruebas central)
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaReservaNotaCredito>(OpcionesJson.Predeterminadas))!;
     }
 
-    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> ProrrogarAsync(HttpClient cliente, string token, Guid notaId, DateOnly venceEn,
+    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> ProrrogarAsync(HttpClient cliente, string token, int notaId, DateOnly venceEn,
         string motivo)
     {
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/manager/notas-credito/{notaId}/prorrogar", token,

@@ -21,8 +21,8 @@ public sealed class CierreTurnoCentral : Entidad
 
     public long TurnoNumero { get; private set; }
     public int Numero { get; private set; }
-    public Guid SucursalId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int SucursalId { get; private set; }
+    public int CajaId { get; private set; }
     public DateOnly FechaOperacion { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
     public string Moneda { get; private set; } = string.Empty;
@@ -46,7 +46,7 @@ public sealed class CierreTurnoCentral : Entidad
     /// <summary>Faltó o sobró dinero respecto de lo esperado.</summary>
     public bool ConDiferencia => Diferencia != 0m;
 
-    public static CierreTurnoCentral Registrar(long turnoNumero, int numero, Guid sucursalId, Guid cajaId, DateOnly fechaOperacion,
+    public static CierreTurnoCentral Registrar(long turnoNumero, int numero, int sucursalId, int cajaId, DateOnly fechaOperacion,
         string? usuarioNombre, string moneda, bool ciego, decimal fondoInicial, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
         decimal totalEsperado, decimal totalDeclarado, decimal diferencia, DateTimeOffset abiertoEn, DateTimeOffset cerradoEn, DateTimeOffset ahora)
     {
@@ -108,7 +108,7 @@ public sealed class CierreTurnoCentral : Entidad
 
 public sealed class CierreFormaPagoCentral : Entidad
 {
-    public Guid CierreId { get; internal set; }
+    public int CierreId { get; internal set; }
     public TipoFormaPago Tipo { get; internal set; }
     public string Nombre { get; internal set; } = string.Empty;
     public string Moneda { get; internal set; } = string.Empty;

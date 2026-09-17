@@ -32,8 +32,8 @@ public sealed class ComprobanteVentaCentral : Entidad
 
     public TipoComprobanteVenta Tipo { get; private set; }
     public string Numero { get; private set; } = string.Empty;
-    public Guid SucursalId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int SucursalId { get; private set; }
+    public int CajaId { get; private set; }
     /// <summary>Número del turno en la caja; nulo en una nota de crédito emitida fuera de un turno.</summary>
     public long? TurnoNumero { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
@@ -71,7 +71,7 @@ public sealed class ComprobanteVentaCentral : Entidad
     public IReadOnlyList<ImpuestoVentaCentral> Impuestos => _impuestos;
     public IReadOnlyList<PagoVentaCentral> Pagos => _pagos;
 
-    public static ComprobanteVentaCentral Registrar(TipoComprobanteVenta tipo, string numero, Guid sucursalId, Guid cajaId, long? turnoNumero,
+    public static ComprobanteVentaCentral Registrar(TipoComprobanteVenta tipo, string numero, int sucursalId, int cajaId, long? turnoNumero,
         string? usuarioNombre, DateTimeOffset fecha, DateOnly fechaOperacion, TipoComprobante tipoFiscal, string? encf, string? encfModificado,
         TipoDocumentoIdentidad? clienteTipoDocumento, string? clienteDocumento, string? clienteNombre, string moneda, decimal subtotal, decimal descuento,
         decimal impuesto, decimal impuestoRetenido, decimal total, int cantidadLineas, DateTimeOffset ahora)
@@ -133,7 +133,7 @@ public sealed class ComprobanteVentaCentral : Entidad
 /// <summary>ITBIS por tasa del comprobante, para el reporte de impuestos y el 607.</summary>
 public sealed class ImpuestoVentaCentral : Entidad
 {
-    public Guid ComprobanteId { get; internal set; }
+    public int ComprobanteId { get; internal set; }
     public decimal Porcentaje { get; internal set; }
     public decimal Base { get; internal set; }
     public decimal Impuesto { get; internal set; }
@@ -142,7 +142,7 @@ public sealed class ImpuestoVentaCentral : Entidad
 /// <summary>Lo cobrado por forma de pago, para el cuadre y el reporte de ventas.</summary>
 public sealed class PagoVentaCentral : Entidad
 {
-    public Guid ComprobanteId { get; internal set; }
+    public int ComprobanteId { get; internal set; }
     public TipoFormaPago Tipo { get; internal set; }
     public string FormaPagoNombre { get; internal set; } = string.Empty;
     public string Moneda { get; internal set; } = string.Empty;

@@ -7,10 +7,10 @@ namespace CgPos.Central.Aplicacion.Seguridad;
 /// <summary>Usuario autenticado en el Central, con los permisos de su rol al momento de ingresar o renovar.</summary>
 /// <param name="SesionId">Familia de tokens de renovación de esta sesión; cerrarla invalida también el token de acceso.</param>
 public sealed record SesionCentralUsuario(
-    Guid UsuarioId,
+    int UsuarioId,
     string Codigo,
     string Nombre,
-    Guid RolId,
+    int RolId,
     string RolCodigo,
     string RolNombre,
     IReadOnlySet<string> Permisos,
@@ -65,13 +65,13 @@ public interface IServicioSesionesCentral
     /// </summary>
     Task<ResultadoSesionCentral> RenovarAsync(string tokenRenovacion, OrigenSolicitud origen, CancellationToken cancelacion = default);
 
-    Task CerrarAsync(Guid sesionId, Guid usuarioId, CancellationToken cancelacion = default);
+    Task CerrarAsync(Guid sesionId, int usuarioId, CancellationToken cancelacion = default);
 
     /// <summary>La sesión sigue abierta y el usuario activo: se consulta con cada token de acceso.</summary>
-    Task<bool> EsSesionActivaAsync(Guid sesionId, Guid usuarioId, CancellationToken cancelacion = default);
+    Task<bool> EsSesionActivaAsync(Guid sesionId, int usuarioId, CancellationToken cancelacion = default);
 
     /// <summary>Cambia la contraseña del propio usuario según la política configurada, cierra todas sus sesiones e inicia una nueva.</summary>
-    Task<ResultadoSesionCentral> CambiarContrasenaAsync(Guid usuarioId, string actual, string nueva, OrigenSolicitud origen, CancellationToken cancelacion = default);
+    Task<ResultadoSesionCentral> CambiarContrasenaAsync(int usuarioId, string actual, string nueva, OrigenSolicitud origen, CancellationToken cancelacion = default);
 }
 
 /// <summary>Política de contraseñas del Central; los valores salen de parámetros.</summary>

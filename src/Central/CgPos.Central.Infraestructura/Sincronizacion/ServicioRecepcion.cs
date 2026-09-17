@@ -47,7 +47,7 @@ internal sealed class ServicioRecepcion(
             return await RechazarAsync(mensaje, remitente, estado, TipoConflictoSincronizacion.HashInvalido,
                 "El hash del contenido no coincide: el mensaje se alteró o llegó incompleto.", ahora, cancelacion);
 
-        var existente = await contexto.DocumentosRecibidos.SingleOrDefaultAsync(d => d.Id == mensaje.Id, cancelacion);
+        var existente = await contexto.DocumentosRecibidos.SingleOrDefaultAsync(d => d.MensajeId == mensaje.Id, cancelacion);
         if (existente is not null)
             return await ResponderExistenteAsync(existente, mensaje, remitente, estado, ahora, cancelacion);
 
@@ -94,7 +94,7 @@ internal sealed class ServicioRecepcion(
         {
             // Dos envíos simultáneos del mismo mensaje: el que llegó primero lo guardó.
             contexto.ChangeTracker.Clear();
-            var ganador = await contexto.DocumentosRecibidos.AsNoTracking().SingleOrDefaultAsync(d => d.Id == mensaje.Id, cancelacion);
+            var ganador = await contexto.DocumentosRecibidos.AsNoTracking().SingleOrDefaultAsync(d => d.MensajeId == mensaje.Id, cancelacion);
             if (ganador is null)
                 throw;
 
@@ -142,7 +142,7 @@ internal sealed class ServicioRecepcion(
             return;
         }
 
-        await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.EncfDuplicado,
+        await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.EncfDuplicado,
             $"El e-NCF {encf} ya se recibió en el documento {anterior.DocumentoId} de la caja {anterior.CajaId}. La transacción se guardó; el comprobante no se registró de nuevo para la DGII.",
             ahora, cancelacion);
     }
@@ -167,14 +167,14 @@ internal sealed class ServicioRecepcion(
 
         if (inscripcion is null || cedula is null)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 "La inscripción de fidelidad no se pudo leer (cédula inválida); se guardó sin publicar el miembro.", ahora, cancelacion);
             return;
         }
 
         if (await contexto.MiembrosFidelidad.AnyAsync(m => m.Cedula == cedula, cancelacion))
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.MiembroDuplicado,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.MiembroDuplicado,
                 $"La cédula {cedula} ya está inscrita en el Central; se conserva esa inscripción y la caja actualiza su registro con ella.", ahora, cancelacion);
             return;
         }
@@ -205,7 +205,7 @@ internal sealed class ServicioRecepcion(
 
         if (movimiento is null || string.IsNullOrWhiteSpace(movimiento.Documento) || movimiento.Puntos == 0)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 "El movimiento de puntos no se pudo leer; el mensaje se guardó sin tocar el saldo del miembro.", ahora, cancelacion);
             return;
         }
@@ -224,7 +224,7 @@ internal sealed class ServicioRecepcion(
         catch (Exception excepcion) when (excepcion is ArgumentException or ArgumentOutOfRangeException)
         {
             contexto.ChangeTracker.Clear();
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 $"El movimiento de puntos no se pudo registrar: {ValidacionMaestros.MensajeError(excepcion)}", ahora, cancelacion);
         }
     }
@@ -250,7 +250,7 @@ internal sealed class ServicioRecepcion(
             : NumeroAjeno(venta.Numero, TipoDocumentoNumerado.Factura, remitente);
         if (venta is null || problema is not null)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 problema!, ahora, cancelacion);
             return;
         }
@@ -272,7 +272,7 @@ internal sealed class ServicioRecepcion(
 
         if (cierre is null || cierre.TurnoNumero < 1)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 "El cierre de turno no se pudo leer; el mensaje se guardó sin incluirlo en los cuadres.", ahora, cancelacion);
             return;
         }
@@ -300,7 +300,7 @@ internal sealed class ServicioRecepcion(
             : NumeroAjeno(pendiente.Numero, TipoDocumentoNumerado.PendienteEntrega, remitente);
         if (pendiente is null || problema is not null)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 problema!, ahora, cancelacion);
             return;
         }
@@ -321,7 +321,7 @@ internal sealed class ServicioRecepcion(
         catch (ArgumentException excepcion)
         {
             contexto.ChangeTracker.Clear();
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 $"El pendiente {numero} no se pudo registrar: {ValidacionMaestros.MensajeError(excepcion)}", ahora, cancelacion);
         }
     }
@@ -343,7 +343,7 @@ internal sealed class ServicioRecepcion(
             : NumeroAjeno(emitida.Numero, TipoDocumentoNumerado.NotaCredito, remitente);
         if (emitida is null || problema is not null)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 problema!, ahora, cancelacion);
             return;
         }
@@ -367,7 +367,7 @@ internal sealed class ServicioRecepcion(
         }
         catch (ArgumentException excepcion)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 $"La nota de crédito {numero} no se pudo registrar: {ValidacionMaestros.MensajeError(excepcion)}", ahora, cancelacion);
         }
     }
@@ -387,7 +387,7 @@ internal sealed class ServicioRecepcion(
         if (consumo is null || string.IsNullOrWhiteSpace(consumo.NotaCreditoNumero) || consumo.Monto <= 0
             || NumeroAjeno(consumo.VentaNumero, TipoDocumentoNumerado.Factura, remitente) is not null)
         {
-            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.Id, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje, TipoConflictoSincronizacion.DocumentoInvalido,
                 "El consumo de la nota de crédito no se pudo leer; el mensaje se guardó sin descontar el saldo.", ahora, cancelacion);
             return;
         }
@@ -439,7 +439,7 @@ internal sealed class ServicioRecepcion(
     }
 
     /// <summary>Un conflicto abierto del mismo mensaje y tipo solo suma la repetición: la caja reintenta un rechazo hasta que se corrige.</summary>
-    private async Task RegistrarConflictoAsync(Guid cajaId, Guid sucursalId, Guid mensajeId, string? tipoMensaje, TipoConflictoSincronizacion tipo, string detalle,
+    private async Task RegistrarConflictoAsync(int cajaId, int sucursalId, Guid mensajeId, string? tipoMensaje, TipoConflictoSincronizacion tipo, string detalle,
         DateTimeOffset ahora, CancellationToken cancelacion)
     {
         var abierto = await contexto.ConflictosSincronizacion
@@ -458,7 +458,7 @@ internal sealed class ServicioRecepcion(
         registro.LogWarning("Conflicto de sincronización {Tipo} de la caja {Caja} en el mensaje {Mensaje}: {Detalle}", tipo, cajaId, mensajeId, detalle);
     }
 
-    private async Task<EstadoSincronizacionCaja> EstadoCajaAsync(Guid cajaId, CancellationToken cancelacion)
+    private async Task<EstadoSincronizacionCaja> EstadoCajaAsync(int cajaId, CancellationToken cancelacion)
     {
         var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == cajaId, cancelacion);
         if (estado is not null)

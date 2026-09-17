@@ -137,7 +137,7 @@ public sealed record TopeDescuentoCarga(int Codigo, int Nivel, decimal? Porcenta
 public sealed record DatosMotivoDescuento(int Codigo, string Nombre);
 
 /// <summary>Oferta vigente de un artículo, para la consulta de precio (RF-24) y la columna Promo (RF-141).</summary>
-public sealed record DatosPromocionVigente(Guid Id, string Codigo, string Nombre, string Descripcion, TipoPromocion Tipo, DateTimeOffset VigenteHasta);
+public sealed record DatosPromocionVigente(int Id, string Codigo, string Nombre, string Descripcion, TipoPromocion Tipo, DateTimeOffset VigenteHasta);
 
 public sealed record DepartamentoCarga(int Codigo, string Nombre, bool PermiteDescuentoManual = true, bool EsNoCodificada = false, bool Activa = true);
 
@@ -237,20 +237,20 @@ public enum OrigenCodigoLeido
 
 /// <summary>Artículo listo para agregar a una venta, con sus precios vigentes y datos fiscales.</summary>
 public sealed record DatosArticuloVenta(
-    Guid ArticuloId,
+    int ArticuloId,
     string Codigo,
     string Descripcion,
     string? Referencia,
     string CodigoLeido,
     OrigenCodigoLeido OrigenCodigo,
     TipoArticulo Tipo,
-    Guid DepartamentoId,
+    int DepartamentoId,
     string DepartamentoNombre,
     bool PermiteDescuentoManual,
     string UnidadMedidaCodigo,
     bool PermiteDecimales,
     int DecimalesCantidad,
-    Guid ImpuestoId,
+    int ImpuestoId,
     string ImpuestoCodigo,
     decimal PorcentajeImpuesto,
     int IndicadorFacturacion,
@@ -263,13 +263,13 @@ public sealed record DatosArticuloVenta(
     string? RutaImagen,
     decimal? Tara = null,
     bool EsServicio = false,
-    Guid? CategoriaId = null,
+    int? CategoriaId = null,
     string? CategoriaNombre = null,
-    Guid? MarcaId = null,
+    int? MarcaId = null,
     string? MarcaNombre = null);
 
 public sealed record DatosArticuloResumen(
-    Guid ArticuloId,
+    int ArticuloId,
     string Codigo,
     string Descripcion,
     string? Referencia,
@@ -288,7 +288,7 @@ public sealed record DatosPrecioHistorico(
     string? UsuarioNombre);
 
 public sealed record DatosDireccionCliente(
-    Guid Id,
+    int Id,
     string Alias,
     string Direccion,
     string? Sector,
@@ -298,7 +298,7 @@ public sealed record DatosDireccionCliente(
     bool EsPrincipal);
 
 public sealed record DatosClienteResumen(
-    Guid ClienteId,
+    int ClienteId,
     TipoDocumentoIdentidad TipoDocumento,
     string Documento,
     string Nombre,
@@ -324,7 +324,7 @@ public sealed record DatosConsultaDocumento(
     DatosClienteResumen? Cliente);
 
 public sealed record DatosFormaPago(
-    Guid Id,
+    int Id,
     string Codigo,
     string Nombre,
     TipoFormaPago Tipo,
@@ -336,11 +336,11 @@ public sealed record DatosFormaPago(
     bool RequiereBanco,
     bool PermiteComprobanteFiscal);
 
-public sealed record DatosBanco(Guid Id, string Codigo, string Nombre, string? RutaLogo);
+public sealed record DatosBanco(int Id, string Codigo, string Nombre, string? RutaLogo);
 
-public sealed record DatosTipoTarjeta(Guid Id, int Codigo, string Nombre);
+public sealed record DatosTipoTarjeta(int Id, int Codigo, string Nombre);
 
-public sealed record DatosDenominacion(Guid Id, string Moneda, decimal Valor, TipoDenominacion Tipo);
+public sealed record DatosDenominacion(int Id, string Moneda, decimal Valor, TipoDenominacion Tipo);
 
 /// <summary>Maestros que necesita la pantalla de cobro (RF-150, RF-184).</summary>
 public sealed record DatosCatalogoCobro(
@@ -350,4 +350,4 @@ public sealed record DatosCatalogoCobro(
     IReadOnlyList<DatosDenominacion> Denominaciones,
     IReadOnlyList<DatosTasaCambio>? Tasas = null);
 
-public sealed record DatosDepartamento(Guid Id, int Codigo, string Nombre, bool EsNoCodificada);
+public sealed record DatosDepartamento(int Id, int Codigo, string Nombre, bool EsNoCodificada);

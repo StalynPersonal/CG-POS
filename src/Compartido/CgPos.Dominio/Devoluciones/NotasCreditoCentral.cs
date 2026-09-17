@@ -27,8 +27,8 @@ public sealed class NotaCreditoCentral : Entidad
 
     public string Numero { get; private set; } = string.Empty;
     public string? Encf { get; private set; }
-    public Guid CajaId { get; private set; }
-    public Guid SucursalId { get; private set; }
+    public int CajaId { get; private set; }
+    public int SucursalId { get; private set; }
     public string ClienteDocumento { get; private set; } = string.Empty;
     public string ClienteNombre { get; private set; } = string.Empty;
     public string Moneda { get; private set; } = string.Empty;
@@ -54,7 +54,7 @@ public sealed class NotaCreditoCentral : Entidad
         : hoy > VenceEn ? EstadoNotaCreditoCentral.Vencida
         : EstadoNotaCreditoCentral.Vigente;
 
-    public static NotaCreditoCentral Registrar(string numero, string? encf, Guid cajaId, Guid sucursalId, string? clienteDocumento, string? clienteNombre,
+    public static NotaCreditoCentral Registrar(string numero, string? encf, int cajaId, int sucursalId, string? clienteDocumento, string? clienteNombre,
         string moneda, decimal total, DateOnly venceEn, DateTimeOffset emitidaEn, DateTimeOffset ahora)
     {
         if (total <= 0)
@@ -110,12 +110,12 @@ public sealed class ConsumoNotaCreditoCentral : Entidad
 
     public string NotaCreditoNumero { get; private set; } = string.Empty;
     public string VentaNumero { get; private set; } = string.Empty;
-    public Guid CajaId { get; private set; }
+    public int CajaId { get; private set; }
     public decimal Monto { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
     public DateTimeOffset RegistradoEn { get; private set; }
 
-    public static ConsumoNotaCreditoCentral Registrar(string notaCreditoNumero, string ventaNumero, Guid cajaId, decimal monto, DateTimeOffset fecha,
+    public static ConsumoNotaCreditoCentral Registrar(string notaCreditoNumero, string ventaNumero, int cajaId, decimal monto, DateTimeOffset fecha,
         DateTimeOffset ahora)
     {
         if (monto <= 0)
@@ -145,8 +145,8 @@ public sealed class ReservaNotaCreditoCentral : Entidad
     {
     }
 
-    public Guid NotaCreditoId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int NotaCreditoId { get; private set; }
+    public int CajaId { get; private set; }
 
     /// <summary>Factura de la caja para la que se retuvo el saldo: con ella la caja la libera o la confirma al consumir.</summary>
     public string VentaNumero { get; private set; } = string.Empty;
@@ -161,7 +161,7 @@ public sealed class ReservaNotaCreditoCentral : Entidad
 
     public bool EstaVigente(DateTimeOffset ahora) => CerradaEn is null && VenceEn > ahora;
 
-    public static ReservaNotaCreditoCentral Crear(Guid notaCreditoId, Guid cajaId, string ventaNumero, decimal monto, DateTimeOffset ahora, TimeSpan vigencia)
+    public static ReservaNotaCreditoCentral Crear(int notaCreditoId, int cajaId, string ventaNumero, decimal monto, DateTimeOffset ahora, TimeSpan vigencia)
     {
         if (monto <= 0)
             throw new ArgumentOutOfRangeException(nameof(monto), monto, "El monto de la reserva debe ser mayor que cero.");

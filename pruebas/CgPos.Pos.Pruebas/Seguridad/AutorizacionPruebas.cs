@@ -11,7 +11,7 @@ namespace CgPos.Pos.Pruebas.Seguridad;
 /// <summary>Autorización de supervisor contra SQL Server real.</summary>
 public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
-    private static readonly Guid Empresa = Guid.CreateVersion7();
+    private static readonly int Empresa = Ids.Siguiente();
 
     [SkippableFact]
     public async Task Con_permiso_propio_no_se_requiere_supervisor()

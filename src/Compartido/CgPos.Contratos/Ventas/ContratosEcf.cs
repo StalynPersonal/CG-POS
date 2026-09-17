@@ -42,8 +42,8 @@ public sealed record SolicitudCargarCertificado(string Pin);
 public sealed record RespuestaCertificado(bool Correcto, string? Mensaje, DatosEstadoEcf? Estado);
 
 public sealed record DatosDocumentoElectronico(
-    Guid Id,
-    Guid VentaId,
+    int Id,
+    int VentaId,
     string Encf,
     TipoComprobante TipoComprobante,
     decimal MontoTotal,

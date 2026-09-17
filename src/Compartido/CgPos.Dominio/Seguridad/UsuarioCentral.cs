@@ -22,7 +22,7 @@ public sealed class UsuarioCentral : Entidad
 
     public string Nombre { get; private set; } = string.Empty;
     public string? Correo { get; private set; }
-    public Guid RolId { get; private set; }
+    public int RolId { get; private set; }
     public bool Activo { get; private set; } = true;
 
     /// <summary>Hash de la contraseña (incluye algoritmo, iteraciones y sal).</summary>
@@ -36,11 +36,10 @@ public sealed class UsuarioCentral : Entidad
     public DateTimeOffset? BloqueadoHasta { get; private set; }
     public DateTimeOffset? UltimoIngresoEn { get; private set; }
 
-    public static UsuarioCentral Crear(string codigo, string nombre, string? correo, Guid rolId, string contrasenaHash, bool debeCambiarContrasena, Guid? id = null)
+    public static UsuarioCentral Crear(string codigo, string nombre, string? correo, int rolId, string contrasenaHash, bool debeCambiarContrasena)
     {
         var usuario = new UsuarioCentral
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Usuario", LargoMaximoCodigo),
             ContrasenaHash = Validar.Texto(contrasenaHash, "Hash de la contraseña", LargoMaximoHashContrasena),
             DebeCambiarContrasena = debeCambiarContrasena,
@@ -60,7 +59,7 @@ public sealed class UsuarioCentral : Entidad
         Correo = textoCorreo;
     }
 
-    public void CambiarRol(Guid rolId) => RolId = Validar.Id(rolId, "Rol");
+    public void CambiarRol(int rolId) => RolId = Validar.Id(rolId, "Rol");
 
     /// <param name="debeCambiar">
     /// <c>true</c> cuando la asigna un administrador (contraseña temporal); <c>false</c> cuando la cambia el propio usuario.

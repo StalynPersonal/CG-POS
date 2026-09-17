@@ -100,7 +100,7 @@ internal sealed class ServicioCargaInicial(
     }
 
     /// <summary>Id local de cada caja por el código de su sucursal y el suyo.</summary>
-    internal static async Task<Dictionary<(int Sucursal, int Caja), Guid>> IdsCajasAsync(ContextoDatosPos contexto, CancellationToken cancelacion) =>
+    internal static async Task<Dictionary<(int Sucursal, int Caja), int>> IdsCajasAsync(ContextoDatosPos contexto, CancellationToken cancelacion) =>
         (await contexto.Cajas.Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, c.Codigo, c.Id }).ToListAsync(cancelacion))
         .ToDictionary(c => (c.Sucursal, c.Codigo), c => c.Id);
 
@@ -207,7 +207,7 @@ internal sealed class ServicioCargaInicial(
     }
 
     /// <summary>La caja pertenece a una sola empresa, identificada por su RNC.</summary>
-    private async Task<Guid> AplicarEmpresaAsync(EmpresaCarga dato, CancellationToken cancelacion)
+    private async Task<int> AplicarEmpresaAsync(EmpresaCarga dato, CancellationToken cancelacion)
     {
         var empresa = await contexto.Empresas.SingleOrDefaultAsync(cancelacion);
         if (empresa is null)
@@ -226,7 +226,7 @@ internal sealed class ServicioCargaInicial(
         return empresa.Id;
     }
 
-    private async Task<Guid> AplicarSucursalAsync(SucursalCarga dato, Guid empresaId, CancellationToken cancelacion)
+    private async Task<int> AplicarSucursalAsync(SucursalCarga dato, int empresaId, CancellationToken cancelacion)
     {
         var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Codigo == dato.Codigo, cancelacion);
         if (sucursal is null)
@@ -245,7 +245,7 @@ internal sealed class ServicioCargaInicial(
         return sucursal.Id;
     }
 
-    private async Task<Guid> AplicarCajaAsync(CajaCarga dato, IReadOnlyDictionary<int, Guid> idsSucursales, CancellationToken cancelacion)
+    private async Task<int> AplicarCajaAsync(CajaCarga dato, IReadOnlyDictionary<int, int> idsSucursales, CancellationToken cancelacion)
     {
         var sucursalId = idsSucursales[dato.SucursalCodigo];
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.SucursalId == sucursalId && c.Codigo == dato.Codigo, cancelacion);
@@ -265,7 +265,7 @@ internal sealed class ServicioCargaInicial(
         return caja.Id;
     }
 
-    private async Task<Guid> AplicarRolAsync(RolCarga dato, CancellationToken cancelacion)
+    private async Task<int> AplicarRolAsync(RolCarga dato, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
         var rol = await contexto.Roles.Include(r => r.PermisosAsignados).SingleOrDefaultAsync(r => r.Codigo == codigo, cancelacion);
@@ -295,7 +295,7 @@ internal sealed class ServicioCargaInicial(
         return rol.Id;
     }
 
-    private async Task AplicarUsuarioAsync(UsuarioCarga dato, IReadOnlyDictionary<string, Guid> idsRoles, IReadOnlyDictionary<(int Sucursal, int Caja), Guid> idsCajas,
+    private async Task AplicarUsuarioAsync(UsuarioCarga dato, IReadOnlyDictionary<string, int> idsRoles, IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas,
         CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
@@ -334,8 +334,8 @@ internal sealed class ServicioCargaInicial(
         if (dato.Activo) usuario.Activar(); else usuario.Desactivar();
     }
 
-    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, Guid> idsSucursales,
-        IReadOnlyDictionary<(int Sucursal, int Caja), Guid> idsCajas, CancellationToken cancelacion)
+    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, int> idsSucursales,
+        IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas, CancellationToken cancelacion)
     {
         var (sucursalId, cajaId) = AmbitoLocal(dato.SucursalCodigo, dato.CajaCodigo, idsSucursales, idsCajas);
         var clave = dato.Clave.Trim();
@@ -352,8 +352,8 @@ internal sealed class ServicioCargaInicial(
     }
 
     /// <summary>Sucursal y caja locales de un parámetro: el de caja se guarda solo con la caja (la sucursal va implícita en ella).</summary>
-    internal static (Guid? SucursalId, Guid? CajaId) AmbitoLocal(int? sucursalCodigo, int? cajaCodigo, IReadOnlyDictionary<int, Guid> idsSucursales,
-        IReadOnlyDictionary<(int Sucursal, int Caja), Guid> idsCajas) =>
+    internal static (int? SucursalId, int? CajaId) AmbitoLocal(int? sucursalCodigo, int? cajaCodigo, IReadOnlyDictionary<int, int> idsSucursales,
+        IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas) =>
         (sucursalCodigo, cajaCodigo) switch
         {
             ({ } s, { } c) => (null, idsCajas[(s, c)]),

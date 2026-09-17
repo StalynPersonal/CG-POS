@@ -24,9 +24,9 @@ public sealed class RegistroAuditoria : Entidad
     public string? Detalle { get; private set; }
 
     public string? Motivo { get; private set; }
-    public Guid? UsuarioId { get; private set; }
+    public int? UsuarioId { get; private set; }
     public string? UsuarioNombre { get; private set; }
-    public Guid? AutorizadoPorId { get; private set; }
+    public int? AutorizadoPorId { get; private set; }
     public string? AutorizadoPorNombre { get; private set; }
 
     public static RegistroAuditoria Crear(
@@ -36,9 +36,9 @@ public sealed class RegistroAuditoria : Entidad
         string? entidadId = null,
         string? detalleJson = null,
         string? motivo = null,
-        Guid? usuarioId = null,
+        int? usuarioId = null,
         string? usuarioNombre = null,
-        Guid? autorizadoPorId = null,
+        int? autorizadoPorId = null,
         string? autorizadoPorNombre = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accion);

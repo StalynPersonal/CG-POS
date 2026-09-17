@@ -228,7 +228,7 @@ internal sealed class ServicioVentas(
 {
     // ---------- Cobro y periféricos (M08) ----------
 
-    public async Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, Guid ventaId, decimal monto, CancellationToken cancelacion = default)
+    public async Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(SesionUsuario sesion, int ventaId, decimal monto, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -252,7 +252,7 @@ internal sealed class ServicioVentas(
                 resultado.Mensaje, datos);
     }
 
-    public async Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    public async Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -282,7 +282,7 @@ internal sealed class ServicioVentas(
         return new RespuestaOperacionTerminal(CodigoResultadoVenta.Correcto, resultado.Mensaje, DatosOperacion(anulacion, false));
     }
 
-    public async Task<RespuestaCobro> CobrarAsync(SesionUsuario sesion, Guid ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId,
+    public async Task<RespuestaCobro> CobrarAsync(SesionUsuario sesion, int ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId,
         CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
@@ -585,12 +585,12 @@ internal sealed class ServicioVentas(
     {
         var idsFormas = pagos.Select(p => p.FormaPagoId).Distinct().ToList();
         var formas = await contexto.FormasPago.AsNoTracking().Where(f => idsFormas.Contains(f.Id) && f.Activa).ToDictionaryAsync(f => f.Id, cancelacion);
-        var idsBancos = pagos.Select(p => p.BancoId).OfType<Guid>().Distinct().ToList();
+        var idsBancos = pagos.Select(p => p.BancoId).OfType<int>().Distinct().ToList();
         var bancos = await contexto.Bancos.AsNoTracking().Where(b => idsBancos.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Nombre, cancelacion);
-        var idsTipos = pagos.Select(p => p.TipoTarjetaId).OfType<Guid>().Distinct().ToList();
+        var idsTipos = pagos.Select(p => p.TipoTarjetaId).OfType<int>().Distinct().ToList();
         var tipos = await contexto.TiposTarjeta.AsNoTracking().Where(t => idsTipos.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Nombre, cancelacion);
         var tasas = await contexto.TasasCambio.AsNoTracking().ToListAsync(cancelacion);
-        var idsOperaciones = pagos.Select(p => p.OperacionTerminalId).OfType<Guid>().Distinct().ToList();
+        var idsOperaciones = pagos.Select(p => p.OperacionTerminalId).OfType<int>().Distinct().ToList();
         var operaciones = await contexto.OperacionesTerminal.Where(o => idsOperaciones.Contains(o.Id)).ToDictionaryAsync(o => o.Id, cancelacion);
 
         var solicitados = new List<PagoSolicitado>();
@@ -606,7 +606,7 @@ internal sealed class ServicioVentas(
             var referencia = pago.Referencia;
             var ultimosDigitos = pago.UltimosDigitos;
             string? marca = null;
-            Guid? operacionId = null;
+            int? operacionId = null;
 
             if (forma.Tipo == TipoFormaPago.Tarjeta && !pago.AprobacionManual)
             {
@@ -774,7 +774,7 @@ internal sealed class ServicioVentas(
         return Correcta(venta);
     }
 
-    public async Task<RespuestaVenta> AgregarDesdeBalanzaAsync(SesionUsuario sesion, Guid ventaId, string codigo, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> AgregarDesdeBalanzaAsync(SesionUsuario sesion, int ventaId, string codigo, CancellationToken cancelacion = default)
     {
         if (!sesion.TienePermiso(CatalogoPermisos.RegistrarVenta))
             return new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "No tiene permiso para registrar ventas.", null, CatalogoPermisos.RegistrarVenta);
@@ -803,7 +803,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(pesado, null, reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, Guid ventaId, string codigo, decimal? cantidad, string? serial = null,
+    public async Task<RespuestaVenta> AgregarArticuloAsync(SesionUsuario sesion, int ventaId, string codigo, decimal? cantidad, string? serial = null,
         bool serialEnDespacho = false, CancellationToken cancelacion = default)
     {
         if (!sesion.TienePermiso(CatalogoPermisos.RegistrarVenta))
@@ -823,7 +823,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(articulo.AArticuloParaVenta(), cantidadFinal, reloj.GetUtcNow(), serial, serialEnDespacho), cancelacion);
     }
 
-    public async Task<RespuestaVenta> CambiarCantidadAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> CambiarCantidadAsync(SesionUsuario sesion, int ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -832,16 +832,16 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.CambiarCantidad(numeroLinea, cantidad, reloj.GetUtcNow()), cancelacion);
     }
 
-    public Task<RespuestaVenta> EliminarLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> EliminarLineaAsync(SesionUsuario sesion, int ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EliminarAsync(sesion, ventaId, autorizacionId, venta => venta.EliminarLinea(numeroLinea, reloj.GetUtcNow()), cancelacion);
 
-    public Task<RespuestaVenta> EliminarPorCodigoAsync(SesionUsuario sesion, Guid ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> EliminarPorCodigoAsync(SesionUsuario sesion, int ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EliminarAsync(sesion, ventaId, autorizacionId, venta => venta.EliminarPorCodigo(codigo, reloj.GetUtcNow()), cancelacion);
 
-    public Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, Guid ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, int ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         AnularYContinuarAsync(sesion, ventaId, CatalogoPermisos.LimpiarPantalla, "Pantalla limpiada", autorizacionId, "Ventas.PantallaLimpiada", cancelacion);
 
-    public async Task<RespuestaVenta> AnularAsync(SesionUsuario sesion, Guid ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> AnularAsync(SesionUsuario sesion, int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
         // Sin autorización el motivo es obligatorio; con autorización se toma el motivo que dio el supervisor.
         if (string.IsNullOrWhiteSpace(motivo) && autorizacionId is null && sesion.TienePermiso(CatalogoPermisos.AnularVenta))
@@ -850,7 +850,7 @@ internal sealed class ServicioVentas(
         return await AnularYContinuarAsync(sesion, ventaId, CatalogoPermisos.AnularVenta, motivo, autorizacionId, "Ventas.Anulada", cancelacion);
     }
 
-    public async Task<RespuestaVenta> AsignarClienteAsync(SesionUsuario sesion, Guid ventaId, string documento, string? nombre, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> AsignarClienteAsync(SesionUsuario sesion, int ventaId, string documento, string? nombre, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -885,7 +885,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.AsignarCliente(cliente, reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> QuitarClienteAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> QuitarClienteAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -894,7 +894,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.QuitarCliente(reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> MarcarEntregaAsync(SesionUsuario sesion, Guid ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> MarcarEntregaAsync(SesionUsuario sesion, int ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -953,7 +953,7 @@ internal sealed class ServicioVentas(
         }, cancelacion);
     }
 
-    public async Task<RespuestaVenta> QuitarEntregaAsync(SesionUsuario sesion, Guid ventaId, int numeroDestino, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> QuitarEntregaAsync(SesionUsuario sesion, int ventaId, int numeroDestino, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -968,7 +968,7 @@ internal sealed class ServicioVentas(
             .OrderByDescending(a => a.EsDeLaSucursal)
             .ToList();
 
-    public async Task<RespuestaVenta> AsignarFidelidadAsync(SesionUsuario sesion, Guid ventaId, string cedula, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> AsignarFidelidadAsync(SesionUsuario sesion, int ventaId, string cedula, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -994,7 +994,7 @@ internal sealed class ServicioVentas(
             cancelacion);
     }
 
-    public async Task<RespuestaVenta> QuitarFidelidadAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> QuitarFidelidadAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1003,7 +1003,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.QuitarFidelidad(reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, int ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1038,7 +1038,7 @@ internal sealed class ServicioVentas(
         }, cancelacion);
     }
 
-    public async Task<RespuestaVenta> EstablecerLimiteCompraAsync(SesionUsuario sesion, Guid ventaId, decimal? limite, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> EstablecerLimiteCompraAsync(SesionUsuario sesion, int ventaId, decimal? limite, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1047,7 +1047,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.EstablecerLimiteCompra(limite, reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1084,7 +1084,7 @@ internal sealed class ServicioVentas(
             .ToList();
     }
 
-    public async Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
         var (turno, rechazo) = await TurnoDelUsuarioAsync(sesion, cancelacion);
         if (rechazo is not null)
@@ -1134,7 +1134,7 @@ internal sealed class ServicioVentas(
         return new RespuestaVenta(CodigoResultadoVenta.Correcto, null, null);
     }
 
-    private async Task<RespuestaVenta> AnularYContinuarAsync(SesionUsuario sesion, Guid ventaId, string codigoPermiso, string? motivo, Guid? autorizacionId,
+    private async Task<RespuestaVenta> AnularYContinuarAsync(SesionUsuario sesion, int ventaId, string codigoPermiso, string? motivo, Guid? autorizacionId,
         string accionAuditoria, CancellationToken cancelacion)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
@@ -1165,7 +1165,7 @@ internal sealed class ServicioVentas(
         return resultado.Exitosa ? await ContinuarConNuevaAsync(sesion, cancelacion) : resultado;
     }
 
-    private async Task<RespuestaVenta> EliminarAsync(SesionUsuario sesion, Guid ventaId, Guid? autorizacionId, Func<Venta, LineaVenta> eliminar, CancellationToken cancelacion)
+    private async Task<RespuestaVenta> EliminarAsync(SesionUsuario sesion, int ventaId, Guid? autorizacionId, Func<Venta, LineaVenta> eliminar, CancellationToken cancelacion)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1208,7 +1208,7 @@ internal sealed class ServicioVentas(
         }
     }
 
-    public async Task<RespuestaVenta> AplicarDescuentoLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, TipoDescuento tipo, decimal valor,
+    public async Task<RespuestaVenta> AplicarDescuentoLineaAsync(SesionUsuario sesion, int ventaId, int numeroLinea, TipoDescuento tipo, decimal valor,
         string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
@@ -1250,7 +1250,7 @@ internal sealed class ServicioVentas(
         }, cancelacion);
     }
 
-    public async Task<RespuestaVenta> QuitarDescuentoLineaAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> QuitarDescuentoLineaAsync(SesionUsuario sesion, int ventaId, int numeroLinea, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1259,7 +1259,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.QuitarDescuentoLinea(numeroLinea, reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> AplicarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas,
+    public async Task<RespuestaVenta> AplicarDescuentoFacturaAsync(SesionUsuario sesion, int ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas,
         string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
@@ -1308,7 +1308,7 @@ internal sealed class ServicioVentas(
         };
     }
 
-    public async Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(SesionUsuario sesion, Guid ventaId, string bin, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(SesionUsuario sesion, int ventaId, string bin, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1352,7 +1352,7 @@ internal sealed class ServicioVentas(
             : respuesta;
     }
 
-    public async Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> QuitarDescuentoFacturaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1361,7 +1361,7 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.QuitarDescuentoFactura(reloj.GetUtcNow()), cancelacion);
     }
 
-    public async Task<RespuestaVenta> DesactivarPromocionAsync(SesionUsuario sesion, Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default)
+    public async Task<RespuestaVenta> DesactivarPromocionAsync(SesionUsuario sesion, int ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
         if (rechazo is not null)
@@ -1394,7 +1394,7 @@ internal sealed class ServicioVentas(
             .Select(m => new DatosMotivoDescuento(m.Codigo, m.Nombre))
             .ToListAsync(cancelacion);
 
-    public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(SesionUsuario sesion, Guid articuloId, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(SesionUsuario sesion, int articuloId, CancellationToken cancelacion = default)
     {
         var clasificacion = await contexto.Articulos.Where(a => a.Id == articuloId)
             .Select(a => new { a.DepartamentoId, a.CategoriaId, a.MarcaId })
@@ -1439,8 +1439,8 @@ internal sealed class ServicioVentas(
     }
 
     /// <summary>Compara el descuento con el tope del nivel de quien lo autoriza (RN-10); el nivel es el del supervisor si hubo clave.</summary>
-    private async Task<RespuestaVenta?> RechazoPorTopeAsync(SesionUsuario sesion, ResultadoPermiso permiso, string codigoPermiso, Guid? articuloId, Guid? departamentoId,
-        VistaPreviaDescuento vista, Venta venta, CancellationToken cancelacion, Guid? categoriaId = null, Guid? marcaId = null)
+    private async Task<RespuestaVenta?> RechazoPorTopeAsync(SesionUsuario sesion, ResultadoPermiso permiso, string codigoPermiso, int? articuloId, int? departamentoId,
+        VistaPreviaDescuento vista, Venta venta, CancellationToken cancelacion, int? categoriaId = null, int? marcaId = null)
     {
         var nivel = permiso.SupervisorId is { } supervisorId
             ? await (from usuario in contexto.Usuarios
@@ -1518,7 +1518,7 @@ internal sealed class ServicioVentas(
         return (turno, null);
     }
 
-    private async Task<(Venta? Venta, RespuestaVenta? Rechazo)> CargarVentaEditableAsync(SesionUsuario sesion, Guid ventaId, CancellationToken cancelacion)
+    private async Task<(Venta? Venta, RespuestaVenta? Rechazo)> CargarVentaEditableAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion)
     {
         var (turno, rechazo) = await TurnoDelUsuarioAsync(sesion, cancelacion);
         if (rechazo is not null)

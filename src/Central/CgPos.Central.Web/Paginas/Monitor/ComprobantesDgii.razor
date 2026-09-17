@@ -35,18 +35,18 @@
                         <MudSelectItem T="EstadoEnvioDgii?" Value="@estado">@EtiquetasMonitor.Estado(estado)</MudSelectItem>
                     }
                 </MudSelect>
-                <MudSelect T="Guid?" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Dense="true" Clearable="true"
+                <MudSelect T="int?" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Dense="true" Clearable="true"
                            ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : "Todas")" Style="max-width: 240px">
                     @foreach (var sucursal in _sucursales)
                     {
-                        <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                     }
                 </MudSelect>
-                <MudSelect T="Guid?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
+                <MudSelect T="int?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
                            ToStringFunc="@(id => CajasDeLaSucursal.FirstOrDefault(c => c.CajaId == id) is { } caja ? $"{caja.CajaCodigo} · {caja.CajaNombre}" : "Todas")" Style="max-width: 220px">
                     @foreach (var caja in CajasDeLaSucursal)
                     {
-                        <MudSelectItem T="Guid?" Value="@caja.CajaId">@(_sucursalId is null ? $"{caja.SucursalCodigo}-" : string.Empty)@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@caja.CajaId">@(_sucursalId is null ? $"{caja.SucursalCodigo}-" : string.Empty)@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSwitch T="bool" Value="_soloConFallo" ValueChanged="@(v => FiltrarAsync(() => _soloConFallo = v))" Label="Solo envíos con fallo" Color="Color.Secondary" />
@@ -107,17 +107,17 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "estado")] public string? EstadoInicial { get; set; }
-    [SupplyParameterFromQuery(Name = "cajaId")] public Guid? CajaInicial { get; set; }
+    [SupplyParameterFromQuery(Name = "cajaId")] public int? CajaInicial { get; set; }
     [SupplyParameterFromQuery(Name = "soloConFallo")] public bool? SoloConFalloInicial { get; set; }
 
     private readonly List<BreadcrumbItem> _migas = [new("Monitor", "monitor"), new("e-CF y DGII", null, disabled: true)];
     private MudTable<DatosComprobanteDgii>? _tabla;
     private IReadOnlyList<DatosEstadoCaja> _cajas = [];
     private IReadOnlyList<DatosSucursal> _sucursales = [];
-    private Guid? _sucursalId;
+    private int? _sucursalId;
     private string? _buscar;
     private EstadoEnvioDgii? _estado;
-    private Guid? _cajaId;
+    private int? _cajaId;
     private bool _soloConFallo;
     private bool _error;
 
@@ -134,7 +134,7 @@
     private IEnumerable<DatosEstadoCaja> CajasDeLaSucursal =>
         _sucursales.FirstOrDefault(s => s.Id == _sucursalId) is { } sucursal ? _cajas.Where(c => c.SucursalCodigo == sucursal.Codigo.ToString("00")) : _cajas;
 
-    private Task CambiarSucursalAsync(Guid? sucursalId) => FiltrarAsync(() =>
+    private Task CambiarSucursalAsync(int? sucursalId) => FiltrarAsync(() =>
     {
         _sucursalId = sucursalId;
 

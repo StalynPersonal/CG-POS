@@ -5,7 +5,7 @@ using CgPos.Dominio.Turnos;
 namespace CgPos.Contratos.Ventas;
 
 public sealed record DatosMovimientoCaja(
-    Guid Id,
+    int Id,
     TipoMovimientoCaja Tipo,
     int Numero,
     decimal Monto,
@@ -17,7 +17,7 @@ public sealed record DatosMovimientoCaja(
     DateTimeOffset Fecha);
 
 /// <summary>Forma de pago en el resumen del turno. En cierre ciego lo esperado solo lo ve quien tiene permiso de pre-cierre (RF-9).</summary>
-public sealed record DatosFormaPagoTurno(Guid FormaPagoId, string Codigo, string Nombre, TipoFormaPago Tipo, string Moneda, int Orden, decimal? Esperado, int? Transacciones)
+public sealed record DatosFormaPagoTurno(int FormaPagoId, string Codigo, string Nombre, TipoFormaPago Tipo, string Moneda, int Orden, decimal? Esperado, int? Transacciones)
 {
     public bool EsEfectivo => ReglasCuadre.EsEfectivo(Tipo);
 }
@@ -64,9 +64,9 @@ public sealed record DatosConciliacionTarjetas(
 
 public sealed record SolicitudRetiroEfectivo(decimal Monto, string? Motivo, Guid? AutorizacionId);
 
-public sealed record SolicitudDeclaracionFormaPago(Guid FormaPagoId, decimal Monto);
+public sealed record SolicitudDeclaracionFormaPago(int FormaPagoId, decimal Monto);
 
-public sealed record SolicitudConteoDenominacion(Guid DenominacionId, int Cantidad);
+public sealed record SolicitudConteoDenominacion(int DenominacionId, int Cantidad);
 
 /// <param name="Conteo">Efectivo por denominaciones; si viene, es lo declarado de la forma de efectivo de esa moneda.</param>
 public sealed record SolicitudCierreTurno(
@@ -77,7 +77,7 @@ public sealed record SolicitudCierreTurno(
 public sealed record SolicitudReabrirCierre(string? Motivo, Guid? AutorizacionId);
 
 public sealed record DatosCierreFormaPago(
-    Guid FormaPagoId,
+    int FormaPagoId,
     string Codigo,
     string Nombre,
     TipoFormaPago Tipo,
@@ -91,12 +91,12 @@ public sealed record DatosCierreDenominacion(string Moneda, decimal Valor, TipoD
 
 /// <summary>Cierre de turno completo: se imprime, se reimprime igual (RF-291) y viaja al Central (RF-267).</summary>
 public sealed record DatosCierre(
-    Guid Id,
-    Guid TurnoId,
+    int Id,
+    int TurnoId,
     long TurnoNumero,
     int Numero,
-    Guid CajaId,
-    Guid SucursalId,
+    int CajaId,
+    int SucursalId,
     DateOnly FechaOperacion,
     bool Ciego,
     decimal FondoInicial,

@@ -57,16 +57,16 @@ public interface IConsultaArticulos
     Task<DatosArticuloVenta?> BuscarPorCodigoAsync(string codigo, CancellationToken cancelacion = default);
 
     /// <summary>Búsqueda por descripción, referencia o código; todas las palabras deben coincidir (RF-132).</summary>
-    Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, int? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default);
 
     /// <summary>Artículos marcados para el catálogo visual de la caja (mosaicos), en orden alfabético.</summary>
-    Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? departamentoId = null, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(int? departamentoId = null, CancellationToken cancelacion = default);
 
     /// <summary>Artículos de departamentos no codificadas en orden alfabético (RF-134).</summary>
-    Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? departamentoId = null, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(int? departamentoId = null, CancellationToken cancelacion = default);
 
     /// <summary>Histórico de precios del artículo, del más reciente al más antiguo (RF-190).</summary>
-    Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(Guid articuloId, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(int articuloId, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosDepartamento>> ListarDepartamentosAsync(CancellationToken cancelacion = default);
 }
@@ -85,6 +85,6 @@ public interface IConsultaCatalogoCobro
 public interface IServicioPrecios
 {
     /// <summary>Registra un cambio de precio con su vigencia y lo deja en la bitácora y en auditoría (RF-190).</summary>
-    Task RegistrarCambioAsync(Guid articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde, string origen,
+    Task RegistrarCambioAsync(int articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde, string origen,
         SesionUsuario? usuario = null, CancellationToken cancelacion = default);
 }

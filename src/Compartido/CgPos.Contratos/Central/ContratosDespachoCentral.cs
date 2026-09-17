@@ -7,7 +7,7 @@ namespace CgPos.Contratos.Central;
 /// <summary>Pendiente de entrega o envío visto desde el Central, con la sucursal y la caja que lo emitieron.</summary>
 /// <param name="Atrasado">Pasó la fecha comprometida y todavía no se entregó.</param>
 public sealed record DatosPendienteCentralResumen(
-    Guid Id,
+    int Id,
     string Numero,
     string VentaNumero,
     string SucursalCodigo,

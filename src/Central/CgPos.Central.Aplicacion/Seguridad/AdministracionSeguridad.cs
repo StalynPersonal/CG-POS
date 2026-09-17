@@ -3,9 +3,9 @@ using CgPos.Contratos.Central;
 
 namespace CgPos.Central.Aplicacion.Seguridad;
 
-public sealed record ResultadoAdministracion(bool Exitosa, string? Mensaje, Guid? Id, bool NoEncontrado = false)
+public sealed record ResultadoAdministracion(bool Exitosa, string? Mensaje, int? Id, bool NoEncontrado = false)
 {
-    public static ResultadoAdministracion Correcto(Guid? id = null) => new(true, null, id);
+    public static ResultadoAdministracion Correcto(int? id = null) => new(true, null, id);
 
     public static ResultadoAdministracion Error(string mensaje) => new(false, mensaje, null);
 
@@ -22,9 +22,9 @@ public interface IServicioAdministracionSeguridad
 
     Task<ResultadoAdministracion> CrearRolAsync(SolicitudRolCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> ActualizarRolAsync(Guid rolId, SolicitudRolCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ActualizarRolAsync(int rolId, SolicitudRolCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> CambiarEstadoRolAsync(Guid rolId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> CambiarEstadoRolAsync(int rolId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosUsuarioCentral>> ListarUsuariosAsync(CancellationToken cancelacion = default);
 
@@ -32,13 +32,13 @@ public interface IServicioAdministracionSeguridad
     Task<ResultadoAdministracion> CrearUsuarioAsync(SolicitudUsuarioCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Un cambio de rol cierra las sesiones del usuario para que ingrese con sus permisos nuevos.</summary>
-    Task<ResultadoAdministracion> ActualizarUsuarioAsync(Guid usuarioId, SolicitudActualizarUsuarioCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ActualizarUsuarioAsync(int usuarioId, SolicitudActualizarUsuarioCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Asigna una contraseña temporal, desbloquea al usuario y cierra sus sesiones.</summary>
-    Task<ResultadoAdministracion> RestablecerContrasenaAsync(Guid usuarioId, string contrasenaTemporal, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> RestablecerContrasenaAsync(int usuarioId, string contrasenaTemporal, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> DesbloquearAsync(Guid usuarioId, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> DesbloquearAsync(int usuarioId, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Desactivar cierra las sesiones del usuario; nadie puede desactivarse a sí mismo.</summary>
-    Task<ResultadoAdministracion> CambiarEstadoUsuarioAsync(Guid usuarioId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> CambiarEstadoUsuarioAsync(int usuarioId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

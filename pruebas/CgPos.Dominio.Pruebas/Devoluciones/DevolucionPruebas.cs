@@ -12,24 +12,24 @@ public class DevolucionPruebas
     private static readonly DateOnly DiaCobro = new(2026, 9, 1);
     private static readonly TimeZoneInfo HoraCaja = TimeZoneInfo.CreateCustomTimeZone("Caja de prueba", TimeSpan.FromHours(-4), "Caja de prueba", "Caja de prueba");
     private static readonly ClienteDevolucion Cliente = new(TipoDocumentoIdentidad.Rnc, "401007551", "Cliente de prueba");
-    private static readonly FormaPagoParaCobro Efectivo = new(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
+    private static readonly FormaPagoParaCobro Efectivo = new(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
 
     private static readonly ArticuloParaVenta Cincel = new(
-        Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Guid.CreateVersion7(), true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 850m, null, null, null, null, null);
+        Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 850m, null, null, null, null, null);
 
     private static Venta VentaCobrada(decimal cinceles)
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Cobro);
+        var venta = Venta.Iniciar(Ids.Siguiente(), 1, Ids.Siguiente(), 1, Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Cobro);
         venta.AgregarArticulo(Cincel, cinceles, Cobro);
-        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Cobro);
+        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Cobro);
         return venta;
     }
 
     private static Devolucion Devolver(Venta venta, decimal cantidad, IReadOnlyDictionary<int, DevueltoLinea>? devuelto = null, DateOnly? hoy = null,
         string? serial = null) =>
         Devolucion.Registrar(venta, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
-            Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", null, Guid.CreateVersion7(), "Cajera", Guid.CreateVersion7(), "Encargado",
+            Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", null, Ids.Siguiente(), "Cajera", Ids.Siguiente(), "Encargado",
             diasRetencionImpuesto: 30, mesesVigencia: 6, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
 
     [Fact]
@@ -73,12 +73,12 @@ public class DevolucionPruebas
         var venta = VentaCobrada(1);
 
         var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", null, Guid.CreateVersion7(), "Cajera",
+            new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", null, Ids.Siguiente(), "Cajera",
             null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.ClienteRequerido, sinCliente.Codigo);
 
         var sinMotivo = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Guid.CreateVersion7(), "Cajera", null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
+            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Ids.Siguiente(), "Cajera", null, null, 30, 6, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.MotivoRequerido, sinMotivo.Codigo);
     }
 
@@ -87,13 +87,13 @@ public class DevolucionPruebas
     {
         var nota = Devolver(VentaCobrada(1), 1);
 
-        Assert.Equal(350m, nota.Consumir(Guid.CreateVersion7(), "01-01-00000009", Guid.CreateVersion7(), 500m, DiaCobro.AddDays(5), Cobro.AddDays(5)));
+        Assert.Equal(350m, nota.Consumir(Ids.Siguiente(), "01-01-00000009", Ids.Siguiente(), 500m, DiaCobro.AddDays(5), Cobro.AddDays(5)));
         Assert.Equal(EstadoNotaCredito.Vigente, nota.EstadoSaldo(DiaCobro.AddDays(5)));
         Assert.Equal(CodigoErrorDevolucion.SaldoInsuficiente,
-            Assert.Throws<ReglaDevolucionExcepcion>(() => nota.Consumir(Guid.CreateVersion7(), "X", Guid.CreateVersion7(), 351m, DiaCobro.AddDays(5), Cobro)).Codigo);
+            Assert.Throws<ReglaDevolucionExcepcion>(() => nota.Consumir(Ids.Siguiente(), "X", Ids.Siguiente(), 351m, DiaCobro.AddDays(5), Cobro)).Codigo);
         Assert.Equal(EstadoNotaCredito.Vencida, nota.EstadoSaldo(nota.VenceEn.AddDays(1)));
 
-        Assert.Equal(0m, nota.Consumir(Guid.CreateVersion7(), "01-01-00000010", Guid.CreateVersion7(), 350m, DiaCobro.AddDays(6), Cobro.AddDays(6)));
+        Assert.Equal(0m, nota.Consumir(Ids.Siguiente(), "01-01-00000010", Ids.Siguiente(), 350m, DiaCobro.AddDays(6), Cobro.AddDays(6)));
         Assert.Equal(EstadoNotaCredito.Consumida, nota.EstadoSaldo(DiaCobro.AddDays(6)));
         Assert.Equal(2, nota.Consumos.Count);
     }

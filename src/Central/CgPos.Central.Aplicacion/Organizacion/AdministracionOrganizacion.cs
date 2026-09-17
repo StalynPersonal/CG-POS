@@ -18,23 +18,23 @@ public interface IServicioOrganizacion
 
     Task<ResultadoAdministracion> CrearSucursalAsync(SolicitudSucursal solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> ActualizarSucursalAsync(Guid sucursalId, SolicitudSucursal solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ActualizarSucursalAsync(int sucursalId, SolicitudSucursal solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Las cajas de una sucursal inactiva no se autentican ante el Central.</summary>
-    Task<ResultadoAdministracion> CambiarEstadoSucursalAsync(Guid sucursalId, bool activa, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> CambiarEstadoSucursalAsync(int sucursalId, bool activa, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosCaja>> ListarCajasAsync(CancellationToken cancelacion = default);
 
     Task<ResultadoAdministracion> CrearCajaAsync(SolicitudCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> ActualizarCajaAsync(Guid cajaId, SolicitudActualizarCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ActualizarCajaAsync(int cajaId, SolicitudActualizarCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Una caja deshabilitada no abre turno (RF-169) ni se autentica ante el Central.</summary>
-    Task<ResultadoAdministracion> CambiarEstadoCajaAsync(Guid cajaId, bool habilitada, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> CambiarEstadoCajaAsync(int cajaId, bool habilitada, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosParametro>> ListarParametrosAsync(CancellationToken cancelacion = default);
 
     Task<ResultadoAdministracion> CrearParametroAsync(SolicitudParametro solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> CambiarValorParametroAsync(Guid parametroId, string valor, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> CambiarValorParametroAsync(int parametroId, string valor, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

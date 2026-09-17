@@ -12,7 +12,6 @@ internal sealed class AlmacenConfiguracion : IEntityTypeConfiguration<Almacen>
     {
         constructor.ToTable("Almacenes");
         constructor.HasKey(a => a.Id);
-        constructor.Property(a => a.Id).ValueGeneratedNever();
         constructor.Property(a => a.Codigo).HasMaxLength(Almacen.LargoMaximoCodigo).IsRequired();
         constructor.Property(a => a.Nombre).HasMaxLength(Almacen.LargoMaximoNombre).IsRequired();
         constructor.Property(a => a.Direccion).HasMaxLength(Almacen.LargoMaximoDireccion);
@@ -26,7 +25,6 @@ internal sealed class DestinoEntregaConfiguracion : IEntityTypeConfiguration<Des
     {
         constructor.ToTable("DestinosEntregaVenta");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.AlmacenNombre).HasMaxLength(Almacen.LargoMaximoNombre);
         ConfigurarEnvio(constructor);
         constructor.Property(d => d.Comentario).HasMaxLength(DestinoEntrega.LargoMaximoComentario);
@@ -55,7 +53,6 @@ internal sealed class LineaDestinoEntregaConfiguracion : IEntityTypeConfiguratio
     {
         constructor.ToTable("LineasDestinoEntrega");
         constructor.HasKey(l => l.Id);
-        constructor.Property(l => l.Id).ValueGeneratedNever();
         constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
     }
 }
@@ -66,7 +63,6 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
     {
         constructor.ToTable("PendientesEntrega");
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
         constructor.Property(p => p.Numero).HasMaxLength(PendienteEntrega.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(p => p.VentaNumero).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(p => p.AlmacenNombre).HasMaxLength(Almacen.LargoMaximoNombre);
@@ -103,7 +99,6 @@ internal sealed class LineaPendienteEntregaConfiguracion : IEntityTypeConfigurat
     {
         constructor.ToTable("LineasPendienteEntrega");
         constructor.HasKey(l => l.Id);
-        constructor.Property(l => l.Id).ValueGeneratedNever();
         constructor.Property(l => l.CodigoInterno).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
         constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(UnidadMedida.LargoMaximoAbreviatura).IsRequired();
@@ -120,7 +115,6 @@ internal sealed class EntregaPendienteConfiguracion : IEntityTypeConfiguration<E
     {
         constructor.ToTable("EntregasPendiente");
         constructor.HasKey(e => e.Id);
-        constructor.Property(e => e.Id).ValueGeneratedNever();
         constructor.Property(e => e.RecibeNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre).IsRequired();
         constructor.Property(e => e.RecibeCedula).HasMaxLength(20).IsRequired();
         constructor.Property(e => e.UsuarioNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre).IsRequired();
@@ -135,7 +129,6 @@ internal sealed class LineaEntregaPendienteConfiguracion : IEntityTypeConfigurat
     {
         constructor.ToTable("LineasEntregaPendiente");
         constructor.HasKey(l => l.Id);
-        constructor.Property(l => l.Id).ValueGeneratedNever();
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
         constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
         constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);

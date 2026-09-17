@@ -48,7 +48,7 @@ public sealed record ResultadoRegularizacion(int Emitidos, int Pendientes, strin
 /// </summary>
 public interface IRegularizacionContingencia
 {
-    Task<ResultadoRegularizacion> RegularizarAsync(Guid cajaId, CancellationToken cancelacion = default);
+    Task<ResultadoRegularizacion> RegularizarAsync(int cajaId, CancellationToken cancelacion = default);
 }
 
 /// <summary>Comprobante emitido: el documento de la caja, lo que viaja al Central y hasta cuándo vale la secuencia.</summary>

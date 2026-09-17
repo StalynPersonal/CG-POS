@@ -43,11 +43,10 @@ public sealed class Cliente : Entidad
 
     public IReadOnlyCollection<DireccionCliente> Direcciones => _direcciones;
 
-    public static Cliente Crear(string codigo, TipoDocumentoIdentidad tipoDocumento, string documento, string nombre, Guid? id = null)
+    public static Cliente Crear(string codigo, TipoDocumentoIdentidad tipoDocumento, string documento, string nombre)
     {
         var cliente = new Cliente
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código del cliente", LargoMaximoCodigo).ToUpperInvariant(),
             TipoDocumento = tipoDocumento,
             Documento = ValidarDocumento(tipoDocumento, documento),
@@ -85,42 +84,42 @@ public sealed class Cliente : Entidad
     }
 
     public DireccionCliente AgregarDireccion(string alias, string direccion, string? sector = null, string? ciudad = null,
-        string? referencia = null, string? telefono = null, bool esPrincipal = false, Guid? id = null)
+        string? referencia = null, string? telefono = null, bool esPrincipal = false)
     {
-        var nueva = DireccionCliente.Crear(Id, alias, direccion, sector, ciudad, referencia, telefono, id);
+        var nueva = DireccionCliente.Crear(Id, alias, direccion, sector, ciudad, referencia, telefono);
         _direcciones.Add(nueva);
 
         if (esPrincipal || _direcciones.Count == 1)
-            MarcarPrincipal(nueva.Id);
+            MarcarPrincipal(nueva);
 
         return nueva;
     }
 
-    public void ActualizarDireccion(Guid direccionId, string alias, string direccion, string? sector, string? ciudad, string? referencia, string? telefono)
-    {
-        var existente = _direcciones.SingleOrDefault(d => d.Id == direccionId)
-            ?? throw new ArgumentException("La dirección no pertenece al cliente.", nameof(direccionId));
+    // Las direcciones se identifican por su alias dentro del cliente: las nuevas todavía no tienen Id hasta guardarse.
 
-        existente.Actualizar(alias, direccion, sector, ciudad, referencia, telefono);
+    public void ActualizarDireccion(string alias, string direccion, string? sector, string? ciudad, string? referencia, string? telefono) =>
+        Direccion(alias).Actualizar(alias, direccion, sector, ciudad, referencia, telefono);
+
+    public void QuitarDireccion(string alias)
+    {
+        var quitada = Direccion(alias);
+        _direcciones.Remove(quitada);
+
+        if (quitada.EsPrincipal && _direcciones.Count > 0)
+            MarcarPrincipal(_direcciones[0]);
     }
 
-    public void QuitarDireccion(Guid direccionId)
+    public void MarcarPrincipal(string alias) => MarcarPrincipal(Direccion(alias));
+
+    private void MarcarPrincipal(DireccionCliente principal)
     {
-        var eraPrincipal = _direcciones.Any(d => d.Id == direccionId && d.EsPrincipal);
-        _direcciones.RemoveAll(d => d.Id == direccionId);
-
-        if (eraPrincipal && _direcciones.Count > 0)
-            MarcarPrincipal(_direcciones[0].Id);
-    }
-
-    public void MarcarPrincipal(Guid direccionId)
-    {
-        if (_direcciones.All(d => d.Id != direccionId))
-            throw new ArgumentException("La dirección no pertenece al cliente.", nameof(direccionId));
-
         foreach (var direccion in _direcciones)
-            direccion.EstablecerPrincipal(direccion.Id == direccionId);
+            direccion.EstablecerPrincipal(ReferenceEquals(direccion, principal));
     }
+
+    private DireccionCliente Direccion(string alias) =>
+        _direcciones.SingleOrDefault(d => string.Equals(d.Alias, alias?.Trim(), StringComparison.OrdinalIgnoreCase))
+        ?? throw new ArgumentException($"La dirección «{alias}» no pertenece al cliente.", nameof(alias));
 
     public void Activar() => Activo = true;
 
@@ -159,7 +158,7 @@ public sealed class DireccionCliente : Entidad
     {
     }
 
-    public Guid ClienteId { get; private set; }
+    public int ClienteId { get; private set; }
     public string Alias { get; private set; } = string.Empty;
     public string Direccion { get; private set; } = string.Empty;
     public string? Sector { get; private set; }
@@ -168,10 +167,10 @@ public sealed class DireccionCliente : Entidad
     public string? Telefono { get; private set; }
     public bool EsPrincipal { get; private set; }
 
-    internal static DireccionCliente Crear(Guid clienteId, string alias, string direccion, string? sector, string? ciudad,
-        string? referencia, string? telefono, Guid? id)
+    internal static DireccionCliente Crear(int clienteId, string alias, string direccion, string? sector, string? ciudad,
+        string? referencia, string? telefono)
     {
-        var nueva = new DireccionCliente { Id = id ?? Guid.CreateVersion7(), ClienteId = clienteId };
+        var nueva = new DireccionCliente { ClienteId = clienteId };
         nueva.Actualizar(alias, direccion, sector, ciudad, referencia, telefono);
         return nueva;
     }

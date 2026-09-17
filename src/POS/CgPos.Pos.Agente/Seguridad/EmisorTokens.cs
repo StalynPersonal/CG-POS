@@ -83,10 +83,10 @@ public sealed class EmisorTokens
 
         string? Valor(string tipo) => usuario.FindFirst(tipo)?.Value;
 
-        if (!Guid.TryParse(Valor(AtributosToken.UsuarioId), out var usuarioId)
-            || !Guid.TryParse(Valor(AtributosToken.RolId), out var rolId)
-            || !Guid.TryParse(Valor(AtributosToken.Caja), out var cajaId)
-            || !Guid.TryParse(Valor(AtributosToken.Sucursal), out var sucursalId)
+        if (!int.TryParse(Valor(AtributosToken.UsuarioId), out var usuarioId)
+            || !int.TryParse(Valor(AtributosToken.RolId), out var rolId)
+            || !int.TryParse(Valor(AtributosToken.Caja), out var cajaId)
+            || !int.TryParse(Valor(AtributosToken.Sucursal), out var sucursalId)
             || !int.TryParse(Valor(AtributosToken.Nivel), NumberStyles.Integer, CultureInfo.InvariantCulture, out var nivel))
             return null;
 

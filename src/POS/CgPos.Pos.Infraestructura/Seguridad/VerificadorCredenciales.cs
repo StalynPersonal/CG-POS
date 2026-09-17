@@ -32,7 +32,7 @@ internal sealed class VerificadorCredenciales(
     // Hash de relleno para que un código inexistente tarde lo mismo que una clave incorrecta (evita enumerar usuarios).
     private static readonly Lazy<string> HashRelleno = new(() => new HashCredenciales().HashClave("relleno"));
 
-    public async Task<VerificacionCredencial> VerificarAsync(CredencialUsuario credencial, Guid? cajaId, CancellationToken cancelacion)
+    public async Task<VerificacionCredencial> VerificarAsync(CredencialUsuario credencial, int? cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(credencial);
         var ahora = reloj.GetUtcNow();

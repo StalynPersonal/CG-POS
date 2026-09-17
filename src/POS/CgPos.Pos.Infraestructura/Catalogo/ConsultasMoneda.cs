@@ -13,7 +13,7 @@ internal static class ConsultasMoneda
     /// Sin ella la caja no puede vender ni cuadrar.
     /// </summary>
     /// <exception cref="ParametroNoConfiguradoExcepcion">Falta el parámetro o la moneda no existe o está inactiva.</exception>
-    public static async Task<DatosMoneda> MonedaLocalAsync(this ContextoDatosPos contexto, IParametros parametros, Guid cajaId, CancellationToken cancelacion)
+    public static async Task<DatosMoneda> MonedaLocalAsync(this ContextoDatosPos contexto, IParametros parametros, int cajaId, CancellationToken cancelacion)
     {
         var codigo = (await parametros.ObtenerRequeridoAsync(ClavesParametros.MonedaLocal, cajaId, cancelacion)).Trim().ToUpperInvariant();
 

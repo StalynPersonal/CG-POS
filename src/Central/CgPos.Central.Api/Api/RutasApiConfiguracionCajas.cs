@@ -19,14 +19,14 @@ public static class RutasApiConfiguracionCajas
         fiscal.MapPost("/secuencias", async (SolicitudSecuenciaEcf solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio, CancellationToken cancelacion) =>
             Responder(await servicio.AsignarSecuenciaAsync(solicitud, Actor(usuario), cancelacion)));
 
-        fiscal.MapPut("/secuencias/{secuenciaId:guid}", async (Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, ClaimsPrincipal usuario,
+        fiscal.MapPut("/secuencias/{secuenciaId:int}", async (int secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, ClaimsPrincipal usuario,
                 IServicioConfiguracionCajas servicio, CancellationToken cancelacion) =>
             Responder(await servicio.ActualizarSecuenciaAsync(secuenciaId, solicitud, Actor(usuario), cancelacion)));
 
         fiscal.MapGet("/anulaciones", async (IServicioAnulacionesEcf servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarAsync(cancelacion)));
 
-        fiscal.MapPost("/secuencias/{secuenciaId:guid}/anulaciones", async (Guid secuenciaId, SolicitudAnulacionEcf solicitud, ClaimsPrincipal usuario,
+        fiscal.MapPost("/secuencias/{secuenciaId:int}/anulaciones", async (int secuenciaId, SolicitudAnulacionEcf solicitud, ClaimsPrincipal usuario,
                 IServicioAnulacionesEcf servicio, CancellationToken cancelacion) =>
             Responder(await servicio.AnularAsync(secuenciaId, solicitud, Actor(usuario), cancelacion)));
 
@@ -40,7 +40,7 @@ public static class RutasApiConfiguracionCajas
         usuariosCaja.MapPost("/roles", async (SolicitudRolCaja solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio, CancellationToken cancelacion) =>
             Responder(await servicio.GuardarRolCajaAsync(null, solicitud, Actor(usuario), cancelacion)));
 
-        usuariosCaja.MapPut("/roles/{rolId:guid}", async (Guid rolId, SolicitudRolCaja solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio,
+        usuariosCaja.MapPut("/roles/{rolId:int}", async (int rolId, SolicitudRolCaja solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.GuardarRolCajaAsync(rolId, solicitud, Actor(usuario), cancelacion)));
 
@@ -50,7 +50,7 @@ public static class RutasApiConfiguracionCajas
         usuariosCaja.MapPost("/usuarios", async (SolicitudUsuarioCaja solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio, CancellationToken cancelacion) =>
             Responder(await servicio.GuardarUsuarioCajaAsync(null, solicitud, Actor(usuario), cancelacion)));
 
-        usuariosCaja.MapPut("/usuarios/{usuarioId:guid}", async (Guid usuarioId, SolicitudUsuarioCaja solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio,
+        usuariosCaja.MapPut("/usuarios/{usuarioId:int}", async (int usuarioId, SolicitudUsuarioCaja solicitud, ClaimsPrincipal usuario, IServicioConfiguracionCajas servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.GuardarUsuarioCajaAsync(usuarioId, solicitud, Actor(usuario), cancelacion)));
 

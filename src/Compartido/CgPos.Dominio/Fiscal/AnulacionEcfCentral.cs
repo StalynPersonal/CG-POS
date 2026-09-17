@@ -28,8 +28,8 @@ public sealed class AnulacionEcfCentral : Entidad
     {
     }
 
-    public Guid SecuenciaId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int SecuenciaId { get; private set; }
+    public int CajaId { get; private set; }
     public TipoComprobante TipoComprobante { get; private set; }
     public long Desde { get; private set; }
     public long Hasta { get; private set; }
@@ -41,7 +41,7 @@ public sealed class AnulacionEcfCentral : Entidad
     public string? RespuestaDgii { get; private set; }
     public string? XmlFirmado { get; private set; }
 
-    public static AnulacionEcfCentral Registrar(Guid secuenciaId, Guid cajaId, TipoComprobante tipo, long desde, long hasta, string motivo, string usuarioNombre,
+    public static AnulacionEcfCentral Registrar(int secuenciaId, int cajaId, TipoComprobante tipo, long desde, long hasta, string motivo, string usuarioNombre,
         EstadoAnulacionEcf estado, string? respuestaDgii, string? xmlFirmado, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(desde, 1);
@@ -50,7 +50,6 @@ public sealed class AnulacionEcfCentral : Entidad
 
         return new AnulacionEcfCentral
         {
-            Id = Guid.CreateVersion7(),
             SecuenciaId = Validar.Id(secuenciaId, "Rango de e-CF"),
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,

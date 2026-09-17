@@ -40,16 +40,16 @@ public sealed class EscenarioSeguridad
     public string CodigoRolCajero => $"CAJ{Sufijo}";
     public string CodigoRolSupervisor => $"SUP{Sufijo}";
 
-    public Guid Sucursal { get; private set; }
-    public Guid CajaUno { get; private set; }
-    public Guid CajaDos { get; private set; }
-    public Guid RolCajero { get; private set; }
-    public Guid RolSupervisor { get; private set; }
-    public Guid Cajero { get; private set; }
-    public Guid CajeroDos { get; private set; }
-    public Guid Supervisor { get; private set; }
-    public Guid Inactivo { get; private set; }
-    public Guid SinCaja { get; private set; }
+    public int Sucursal { get; private set; }
+    public int CajaUno { get; private set; }
+    public int CajaDos { get; private set; }
+    public int RolCajero { get; private set; }
+    public int RolSupervisor { get; private set; }
+    public int Cajero { get; private set; }
+    public int CajeroDos { get; private set; }
+    public int Supervisor { get; private set; }
+    public int Inactivo { get; private set; }
+    public int SinCaja { get; private set; }
 
     public string CodigoCajero => $"C{Sufijo}";
     public string CodigoCajeroDos => $"K{Sufijo}";
@@ -57,7 +57,7 @@ public sealed class EscenarioSeguridad
     public string CodigoInactivo => $"I{Sufijo}";
     public string CodigoSinCaja => $"N{Sufijo}";
 
-    public static async Task<EscenarioSeguridad> CrearAsync(BaseDatosPruebas baseDatos, Guid empresaId)
+    public static async Task<EscenarioSeguridad> CrearAsync(BaseDatosPruebas baseDatos, int empresaId)
     {
         var escenario = new EscenarioSeguridad(baseDatos);
 
@@ -85,7 +85,7 @@ public sealed class EscenarioSeguridad
     }
 
     /// <summary>Proveedor con reloj controlable y la caja indicada como caja actual.</summary>
-    public (ServiceProvider Proveedor, RelojPrueba Reloj) CrearProveedor(Guid? cajaId, Action<IServiceCollection>? extras = null)
+    public (ServiceProvider Proveedor, RelojPrueba Reloj) CrearProveedor(int? cajaId, Action<IServiceCollection>? extras = null)
     {
         var reloj = new RelojPrueba(Inicio);
         var proveedor = _baseDatos.CrearProveedor(servicios =>
@@ -111,7 +111,7 @@ public sealed class EscenarioSeguridad
         return await ambito.ServiceProvider.GetRequiredService<IServicioAutorizacion>().AutorizarAsync(solicitud);
     }
 
-    public static async Task<int> ContarAuditoriaAsync(IServiceProvider proveedor, string accion, Guid usuarioId)
+    public static async Task<int> ContarAuditoriaAsync(IServiceProvider proveedor, string accion, int usuarioId)
     {
         await using var ambito = proveedor.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
@@ -123,7 +123,7 @@ public sealed class EscenarioSeguridad
 
     private CajaReferencia Dos => new(CodigoSucursal, CodigoCajaDos);
 
-    private PaqueteCargaInicial CrearPaquete(Guid empresaId) =>
+    private PaqueteCargaInicial CrearPaquete(int empresaId) =>
         new(
             new EmpresaCarga("999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
             Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de seguridad")],

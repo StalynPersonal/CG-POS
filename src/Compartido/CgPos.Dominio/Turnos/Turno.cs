@@ -20,8 +20,8 @@ public sealed class Turno : Entidad
     {
     }
 
-    public Guid CajaId { get; private set; }
-    public Guid SucursalId { get; private set; }
+    public int CajaId { get; private set; }
+    public int SucursalId { get; private set; }
 
     /// <summary>Número correlativo del turno en la caja.</summary>
     public long Numero { get; private set; }
@@ -29,11 +29,11 @@ public sealed class Turno : Entidad
     /// <summary>Día operativo del turno (hora local de la caja).</summary>
     public DateOnly FechaOperacion { get; private set; }
 
-    public Guid UsuarioAperturaId { get; private set; }
+    public int UsuarioAperturaId { get; private set; }
     public string UsuarioAperturaNombre { get; private set; } = string.Empty;
 
     /// <summary>Usuario que opera la caja ahora; cambia con el relevo (RF-260) sin cerrar el turno.</summary>
-    public Guid UsuarioActualId { get; private set; }
+    public int UsuarioActualId { get; private set; }
 
     public string UsuarioActualNombre { get; private set; } = string.Empty;
 
@@ -44,7 +44,7 @@ public sealed class Turno : Entidad
     public DateTimeOffset AbiertoEn { get; private set; }
     public DateTimeOffset? CerradoEn { get; private set; }
 
-    public static Turno Abrir(Guid cajaId, Guid sucursalId, long numero, DateOnly fechaOperacion, Guid usuarioId, string usuarioNombre,
+    public static Turno Abrir(int cajaId, int sucursalId, long numero, DateOnly fechaOperacion, int usuarioId, string usuarioNombre,
         decimal fondoInicial, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(fondoInicial);
@@ -53,7 +53,6 @@ public sealed class Turno : Entidad
         var nombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario);
         return new Turno
         {
-            Id = Guid.CreateVersion7(),
             CajaId = Validar.Id(cajaId, "Caja"),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             Numero = numero,
@@ -80,7 +79,7 @@ public sealed class Turno : Entidad
     }
 
     /// <summary>Otro usuario toma el turno sin cerrarlo ni cuadrar (RF-260, RF-113). Devuelve el movimiento para el historial.</summary>
-    public MovimientoCaja Relevar(int numero, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    public MovimientoCaja Relevar(int numero, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
     {
         if (!EstaAbierto)
             throw new InvalidOperationException("No se puede relevar un turno cerrado.");

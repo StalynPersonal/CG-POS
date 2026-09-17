@@ -33,8 +33,8 @@ public sealed class MovimientoPuntosCentral : Entidad
 
     /// <summary>Número de la factura o de la nota de crédito que originó el movimiento; vacío en un ajuste.</summary>
     public string Documento { get; private set; } = string.Empty;
-    public Guid? CajaId { get; private set; }
-    public Guid? SucursalId { get; private set; }
+    public int? CajaId { get; private set; }
+    public int? SucursalId { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
 
     /// <summary>Fecha hasta la que valen los puntos acumulados; nula si no vencen (RF-242).</summary>
@@ -45,7 +45,7 @@ public sealed class MovimientoPuntosCentral : Entidad
     public string? Motivo { get; private set; }
 
     /// <summary>Movimiento informado por una caja; el documento y el tipo son su clave de idempotencia.</summary>
-    public static MovimientoPuntosCentral DesdeCaja(string cedula, TipoMovimientoPuntos tipo, int puntos, string documento, Guid cajaId, Guid sucursalId,
+    public static MovimientoPuntosCentral DesdeCaja(string cedula, TipoMovimientoPuntos tipo, int puntos, string documento, int cajaId, int sucursalId,
         DateTimeOffset fecha, DateOnly? venceEn, DateTimeOffset ahora)
     {
         if (puntos == 0)
@@ -109,7 +109,7 @@ public sealed class SaldoPuntosCentral
     }
 
     /// <summary>Miembro del programa: es la clave, un saldo por miembro.</summary>
-    public Guid MiembroId { get; private set; }
+    public int MiembroId { get; private set; }
 
     public string Cedula { get; private set; } = string.Empty;
     public int Puntos { get; private set; }
@@ -118,7 +118,7 @@ public sealed class SaldoPuntosCentral
     public int Vencidos { get; private set; }
     public DateTimeOffset CalculadoEn { get; private set; }
 
-    public static SaldoPuntosCentral Crear(Guid miembroId, string cedula) => new()
+    public static SaldoPuntosCentral Crear(int miembroId, string cedula) => new()
     {
         MiembroId = Validar.Id(miembroId, "Miembro"),
         Cedula = MiembroFidelidad.ValidarCedula(cedula),

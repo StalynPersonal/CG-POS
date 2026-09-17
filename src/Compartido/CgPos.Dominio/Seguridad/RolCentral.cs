@@ -19,11 +19,10 @@ public sealed class RolCentral : Entidad
     public bool Activo { get; private set; } = true;
     public IReadOnlyCollection<RolCentralPermiso> PermisosAsignados => _permisosAsignados;
 
-    public static RolCentral Crear(string codigo, string nombre, Guid? id = null)
+    public static RolCentral Crear(string codigo, string nombre)
     {
         var rol = new RolCentral
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de rol", LargoMaximoCodigo),
         };
         rol.CambiarNombre(nombre);
@@ -61,12 +60,12 @@ public sealed class RolCentralPermiso
     {
     }
 
-    internal RolCentralPermiso(Guid rolId, string permisoCodigo)
+    internal RolCentralPermiso(int rolId, string permisoCodigo)
     {
         RolId = rolId;
         PermisoCodigo = permisoCodigo;
     }
 
-    public Guid RolId { get; private set; }
+    public int RolId { get; private set; }
     public string PermisoCodigo { get; private set; } = string.Empty;
 }

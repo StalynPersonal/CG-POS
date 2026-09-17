@@ -5,7 +5,7 @@ namespace CgPos.Dominio.Ventas;
 
 /// <summary>Datos de la forma de pago del maestro que el cobro necesita (RF-184).</summary>
 public sealed record FormaPagoParaCobro(
-    Guid FormaPagoId,
+    int FormaPagoId,
     string Codigo,
     string Nombre,
     TipoFormaPago Tipo,
@@ -25,13 +25,13 @@ public sealed record PagoSolicitado(
     decimal MontoRecibido,
     decimal? TasaCambio = null,
     string? Referencia = null,
-    Guid? BancoId = null,
+    int? BancoId = null,
     string? BancoNombre = null,
-    Guid? TipoTarjetaId = null,
+    int? TipoTarjetaId = null,
     string? TipoTarjetaNombre = null,
     string? UltimosDigitos = null,
     bool AprobacionManual = false,
-    Guid? OperacionTerminalId = null);
+    int? OperacionTerminalId = null);
 
 /// <param name="TotalCobrado">Total de la venta después del redondeo del efectivo.</param>
 /// <param name="Redondeo">Diferencia por redondeo del efectivo (RF-216); positiva o negativa.</param>
@@ -47,9 +47,9 @@ public sealed class PagoVenta : Entidad
     {
     }
 
-    public Guid VentaId { get; private set; }
+    public int VentaId { get; private set; }
     public int Numero { get; private set; }
-    public Guid FormaPagoId { get; private set; }
+    public int FormaPagoId { get; private set; }
     public string FormaPagoCodigo { get; private set; } = string.Empty;
     public string FormaPagoNombre { get; private set; } = string.Empty;
     public TipoFormaPago Tipo { get; private set; }
@@ -61,9 +61,9 @@ public sealed class PagoVenta : Entidad
     public decimal MontoAplicado { get; private set; }
 
     public string? Referencia { get; private set; }
-    public Guid? BancoId { get; private set; }
+    public int? BancoId { get; private set; }
     public string? BancoNombre { get; private set; }
-    public Guid? TipoTarjetaId { get; private set; }
+    public int? TipoTarjetaId { get; private set; }
     public string? TipoTarjetaNombre { get; private set; }
     public string? UltimosDigitos { get; private set; }
     public bool AprobacionManual { get; private set; }
@@ -72,15 +72,14 @@ public sealed class PagoVenta : Entidad
     public bool ParaConciliar { get; private set; }
 
     /// <summary>Operación del terminal de pago que aprobó la tarjeta, para anularla o conciliarla (RF-214, RF-215).</summary>
-    public Guid? OperacionTerminalId { get; private set; }
+    public int? OperacionTerminalId { get; private set; }
 
     public bool PermiteDevuelta { get; private set; }
 
     /// <param name="monedaVenta">Moneda de la venta: los pagos en ella no llevan tasa.</param>
-    internal static PagoVenta Crear(Guid ventaId, string monedaVenta, int numero, PagoSolicitado pago, decimal montoAplicado) =>
+    internal static PagoVenta Crear(int ventaId, string monedaVenta, int numero, PagoSolicitado pago, decimal montoAplicado) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             VentaId = ventaId,
             Numero = numero,
             FormaPagoId = pago.Forma.FormaPagoId,

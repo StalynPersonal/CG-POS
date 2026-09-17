@@ -18,11 +18,10 @@ public sealed class MotivoDevolucion : Entidad
     public string Nombre { get; private set; } = string.Empty;
     public bool Activo { get; private set; } = true;
 
-    public static MotivoDevolucion Crear(int codigo, string nombre, Guid? id = null)
+    public static MotivoDevolucion Crear(int codigo, string nombre)
     {
         var motivo = new MotivoDevolucion
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de motivo"),
         };
         motivo.CambiarNombre(nombre);
@@ -106,13 +105,13 @@ public sealed class Devolucion : Entidad
     }
 
     public string Numero { get; private set; } = string.Empty;
-    public Guid SucursalId { get; private set; }
-    public Guid CajaId { get; private set; }
-    public Guid? TurnoId { get; private set; }
-    public Guid UsuarioId { get; private set; }
+    public int SucursalId { get; private set; }
+    public int CajaId { get; private set; }
+    public int? TurnoId { get; private set; }
+    public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
-    public Guid VentaOrigenId { get; private set; }
+    public int VentaOrigenId { get; private set; }
     public string VentaOrigenNumero { get; private set; } = string.Empty;
     public DateTimeOffset VentaOrigenCobradaEn { get; private set; }
     public TipoComprobante TipoComprobanteOrigen { get; private set; }
@@ -129,7 +128,7 @@ public sealed class Devolucion : Entidad
     public string? Observacion { get; private set; }
 
     /// <summary>Encargado que autorizó la devolución; sale impreso en la nota (RF-162).</summary>
-    public Guid? AutorizadoPorId { get; private set; }
+    public int? AutorizadoPorId { get; private set; }
 
     public string? AutorizadoPorNombre { get; private set; }
 
@@ -177,7 +176,7 @@ public sealed class Devolucion : Entidad
 
     public static Devolucion Registrar(Venta venta, string? encfOrigen, IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
         IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, int? motivoCodigo, string? motivoNombre, string? observacion,
-        string numero, Guid? turnoId, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre,
+        string numero, int? turnoId, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
         int diasRetencionImpuesto, int mesesVigencia, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria)
     {
         ArgumentNullException.ThrowIfNull(zonaHoraria);
@@ -201,7 +200,6 @@ public sealed class Devolucion : Entidad
         var fechaVenta = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(cobradaEn, zonaHoraria).DateTime);
         var devolucion = new Devolucion
         {
-            Id = Guid.CreateVersion7(),
             Numero = Validar.Texto(numero, "Número de la devolución", LargoMaximoNumero),
             SucursalId = venta.SucursalId,
             CajaId = venta.CajaId,
@@ -307,7 +305,7 @@ public sealed class Devolucion : Entidad
     }
 
     /// <summary>Consume saldo de la nota como forma de pago de otra venta (RF-36, RF-38). Devuelve el saldo que queda (RF-43).</summary>
-    public decimal Consumir(Guid ventaId, string ventaNumero, Guid cajaId, decimal monto, DateOnly hoy, DateTimeOffset ahora)
+    public decimal Consumir(int ventaId, string ventaNumero, int cajaId, decimal monto, DateOnly hoy, DateTimeOffset ahora)
     {
         var redondeado = Redondear(monto);
         if (redondeado <= 0m)
@@ -338,9 +336,9 @@ public sealed class LineaDevolucion : Entidad
     {
     }
 
-    public Guid DevolucionId { get; private set; }
+    public int DevolucionId { get; private set; }
     public int NumeroLineaOrigen { get; private set; }
-    public Guid ArticuloId { get; private set; }
+    public int ArticuloId { get; private set; }
     public string CodigoInterno { get; private set; } = string.Empty;
     public string CodigoLeido { get; private set; } = string.Empty;
     public string Descripcion { get; private set; } = string.Empty;
@@ -367,14 +365,13 @@ public sealed class LineaDevolucion : Entidad
 
     public string? Serial { get; private set; }
 
-    internal static LineaDevolucion Crear(Guid devolucionId, LineaVenta linea, decimal cantidad, decimal importeFactura, bool retieneImpuesto, string? serial)
+    internal static LineaDevolucion Crear(int devolucionId, LineaVenta linea, decimal cantidad, decimal importeFactura, bool retieneImpuesto, string? serial)
     {
         var baseImponible = Devolucion.Redondear(importeFactura / (1m + linea.PorcentajeImpuesto / 100m));
         var impuesto = importeFactura - baseImponible;
 
         return new LineaDevolucion
         {
-            Id = Guid.CreateVersion7(),
             DevolucionId = devolucionId,
             NumeroLineaOrigen = linea.NumeroLinea,
             ArticuloId = linea.ArticuloId,
@@ -405,18 +402,17 @@ public sealed class ConsumoNotaCredito : Entidad
     {
     }
 
-    public Guid DevolucionId { get; private set; }
-    public Guid VentaId { get; private set; }
+    public int DevolucionId { get; private set; }
+    public int VentaId { get; private set; }
     public string VentaNumero { get; private set; } = string.Empty;
-    public Guid CajaId { get; private set; }
+    public int CajaId { get; private set; }
     public decimal Monto { get; private set; }
     public decimal SaldoRestante { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
 
-    internal static ConsumoNotaCredito Crear(Guid devolucionId, Guid ventaId, string ventaNumero, Guid cajaId, decimal monto, decimal saldoRestante, DateTimeOffset fecha) =>
+    internal static ConsumoNotaCredito Crear(int devolucionId, int ventaId, string ventaNumero, int cajaId, decimal monto, decimal saldoRestante, DateTimeOffset fecha) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             DevolucionId = devolucionId,
             VentaId = ventaId,
             VentaNumero = ventaNumero,

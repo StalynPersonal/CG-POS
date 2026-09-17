@@ -10,7 +10,7 @@ internal static class ConsultasTicket
     /// <summary>
     /// Empresa, sucursal, caja, mensaje al pie configurado, zona horaria del equipo y moneda local, para el encabezado de tickets y reportes de caja.
     /// </summary>
-    public static async Task<EncabezadoTicket> EncabezadoTicketAsync(this ContextoDatosPos contexto, IParametros parametros, TimeZoneInfo zonaHoraria, Guid cajaId,
+    public static async Task<EncabezadoTicket> EncabezadoTicketAsync(this ContextoDatosPos contexto, IParametros parametros, TimeZoneInfo zonaHoraria, int cajaId,
         CancellationToken cancelacion)
     {
         var datos = await (

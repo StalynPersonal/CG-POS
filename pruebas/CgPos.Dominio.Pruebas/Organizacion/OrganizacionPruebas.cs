@@ -25,19 +25,9 @@ public class OrganizacionPruebas
     }
 
     [Fact]
-    public void Conserva_el_id_asignado_por_el_Central()
-    {
-        var idCentral = Guid.CreateVersion7();
-
-        var caja = Caja.Crear(Guid.CreateVersion7(), 1, "Caja 01", id: idCentral);
-
-        Assert.Equal(idCentral, caja.Id);
-    }
-
-    [Fact]
     public void Caja_nace_habilitada_y_se_puede_deshabilitar()
     {
-        var caja = Caja.Crear(Guid.CreateVersion7(), 1, "Caja 01");
+        var caja = Caja.Crear(Ids.Siguiente(), 1, "Caja 01");
         Assert.True(caja.Habilitada);
 
         caja.Deshabilitar();
@@ -51,14 +41,14 @@ public class OrganizacionPruebas
     public void Parametro_aplica_a_un_solo_ambito()
     {
         var general = Parametro.Crear("Seguridad.IntentosMaximosClave", "3");
-        var deCaja = Parametro.Crear("Seguridad.IntentosMaximosClave", "5", cajaId: Guid.CreateVersion7());
+        var deCaja = Parametro.Crear("Seguridad.IntentosMaximosClave", "5", cajaId: Ids.Siguiente());
 
         Assert.Null(general.SucursalId);
         Assert.Null(general.CajaId);
         Assert.NotNull(deCaja.CajaId);
 
         Assert.Throws<ArgumentException>(() =>
-            Parametro.Crear("Seguridad.IntentosMaximosClave", "3", sucursalId: Guid.CreateVersion7(), cajaId: Guid.CreateVersion7()));
-        Assert.Throws<ArgumentException>(() => Parametro.Crear("Seguridad.IntentosMaximosClave", "3", cajaId: Guid.Empty));
+            Parametro.Crear("Seguridad.IntentosMaximosClave", "3", sucursalId: Ids.Siguiente(), cajaId: Ids.Siguiente()));
+        Assert.Throws<ArgumentException>(() => Parametro.Crear("Seguridad.IntentosMaximosClave", "3", cajaId: 0));
     }
 }

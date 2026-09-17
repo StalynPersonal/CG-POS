@@ -28,7 +28,7 @@ internal sealed class ServicioActualizacionesCaja(ContextoDatosCentral contexto,
             ? new FileStream(paquete.Ruta, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true)
             : null;
 
-    public async Task ReportarVersionAsync(Guid cajaId, string version, CancellationToken cancelacion = default)
+    public async Task ReportarVersionAsync(int cajaId, string version, CancellationToken cancelacion = default)
     {
         if (await contexto.Cajas.SingleOrDefaultAsync(c => c.Id == cajaId, cancelacion) is not { } caja)
             return;

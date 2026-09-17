@@ -9,7 +9,7 @@ public sealed record SolicitudVersionCaja(string Version);
 
 /// <param name="AlDia">La caja ya tiene la versión que el Central publicó.</param>
 public sealed record DatosVersionCaja(
-    Guid CajaId,
+    int CajaId,
     string SucursalCodigo,
     string SucursalNombre,
     string CajaCodigo,

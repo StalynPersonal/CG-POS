@@ -95,7 +95,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    private static DocumentoPendienteEntrega Pendiente(Guid cajaId, MetodoEntrega metodo, EstadoPendiente estado, DateOnly? comprometida, decimal cantidad,
+    private static DocumentoPendienteEntrega Pendiente(int cajaId, MetodoEntrega metodo, EstadoPendiente estado, DateOnly? comprometida, decimal cantidad,
         decimal entregada)
     {
         var creado = DateTimeOffset.UtcNow.AddHours(-2);
@@ -108,7 +108,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
             []);
     }
 
-    private static MensajeSincronizacion Mensaje(string tipo, DocumentoPendienteEntrega pendiente, Guid cajaId)
+    private static MensajeSincronizacion Mensaje(string tipo, DocumentoPendienteEntrega pendiente, int cajaId)
     {
         var contenido = JsonSerializer.Serialize(pendiente, OpcionesJson.Predeterminadas);
         return new MensajeSincronizacion(Guid.CreateVersion7(), tipo, pendiente.Numero, contenido, HashSincronizacion.Calcular(contenido), CentralEnPruebas.CodigosCaja(cajaId).Sucursal, CentralEnPruebas.CodigosCaja(cajaId).Caja,

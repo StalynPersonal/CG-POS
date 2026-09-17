@@ -4,7 +4,8 @@ using CgPos.Dominio.Fiscal;
 namespace CgPos.Dominio.Sincronizacion;
 
 /// <summary>
-/// Documento recibido de una caja tal como lo envió (RF-274). Su Id es el del mensaje de la bandeja de salida: la clave de idempotencia (RN-25).
+/// Documento recibido de una caja tal como lo envió (RF-274). <see cref="MensajeId"/> es el Id del mensaje de la bandeja de salida: la clave de
+/// idempotencia (RN-25).
 /// La caja es la autoridad sobre sus transacciones (RN-24): el Central lo guarda sin modificarlo.
 /// </summary>
 public sealed class DocumentoRecibido : Entidad
@@ -17,8 +18,9 @@ public sealed class DocumentoRecibido : Entidad
     {
     }
 
-    public Guid CajaId { get; private set; }
-    public Guid SucursalId { get; private set; }
+    public Guid MensajeId { get; private set; }
+    public int CajaId { get; private set; }
+    public int SucursalId { get; private set; }
     public string TipoMensaje { get; private set; } = string.Empty;
 
     /// <summary>Número del documento de la caja (factura, nota de crédito, pendiente…) o su llave natural (cédula, turno).</summary>
@@ -34,7 +36,7 @@ public sealed class DocumentoRecibido : Entidad
 
     public DateTimeOffset? UltimoReenvioEn { get; private set; }
 
-    public static DocumentoRecibido Recibir(Guid mensajeId, Guid cajaId, Guid sucursalId, string tipoMensaje, string referencia, string contenido, string hashContenido,
+    public static DocumentoRecibido Recibir(Guid mensajeId, int cajaId, int sucursalId, string tipoMensaje, string referencia, string contenido, string hashContenido,
         DateTimeOffset creadoEnCaja, DateTimeOffset ahora)
     {
         ArgumentException.ThrowIfNullOrEmpty(contenido);
@@ -43,7 +45,7 @@ public sealed class DocumentoRecibido : Entidad
 
         return new DocumentoRecibido
         {
-            Id = Validar.Id(mensajeId, "Mensaje"),
+            MensajeId = mensajeId == Guid.Empty ? throw new ArgumentException("Mensaje es obligatorio.", nameof(mensajeId)) : mensajeId,
             CajaId = Validar.Id(cajaId, "Caja"),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             TipoMensaje = Validar.Texto(tipoMensaje, "Tipo de mensaje", LargoMaximoTipo),
@@ -81,13 +83,13 @@ public sealed class ComprobanteRecibido : Entidad
     }
 
     /// <summary>Documento recibido (mensaje) que trajo el comprobante.</summary>
-    public Guid DocumentoId { get; private set; }
+    public int DocumentoId { get; private set; }
 
     /// <summary>Número de la factura o de la nota de crédito en la caja.</summary>
     public string Referencia { get; private set; } = string.Empty;
 
-    public Guid CajaId { get; private set; }
-    public Guid SucursalId { get; private set; }
+    public int CajaId { get; private set; }
+    public int SucursalId { get; private set; }
     public string Encf { get; private set; } = string.Empty;
     public TipoComprobante TipoComprobante { get; private set; }
     public string XmlFirmado { get; private set; } = string.Empty;
@@ -208,7 +210,7 @@ public sealed class ComprobanteRecibido : Entidad
 
         return new ComprobanteRecibido
         {
-            DocumentoId = documento.Id,
+            DocumentoId = Validar.Id(documento.Id, "Documento recibido"),
             Referencia = documento.Referencia,
             CajaId = documento.CajaId,
             SucursalId = documento.SucursalId,
@@ -265,8 +267,8 @@ public sealed class ConflictoSincronizacion : Entidad
     {
     }
 
-    public Guid CajaId { get; private set; }
-    public Guid? SucursalId { get; private set; }
+    public int CajaId { get; private set; }
+    public int? SucursalId { get; private set; }
     public Guid MensajeId { get; private set; }
     public string TipoMensaje { get; private set; } = string.Empty;
     public TipoConflictoSincronizacion Tipo { get; private set; }
@@ -280,7 +282,7 @@ public sealed class ConflictoSincronizacion : Entidad
 
     public bool Abierto => ResueltoEn is null;
 
-    public static ConflictoSincronizacion Registrar(Guid cajaId, Guid? sucursalId, Guid mensajeId, string? tipoMensaje, TipoConflictoSincronizacion tipo, string detalle,
+    public static ConflictoSincronizacion Registrar(int cajaId, int? sucursalId, Guid mensajeId, string? tipoMensaje, TipoConflictoSincronizacion tipo, string detalle,
         DateTimeOffset ahora) =>
         new()
         {
@@ -324,7 +326,7 @@ public sealed class EstadoSincronizacionCaja
     {
     }
 
-    public Guid CajaId { get; private set; }
+    public int CajaId { get; private set; }
     public DateTimeOffset? UltimaRecepcionEn { get; private set; }
     public long MensajesRecibidos { get; private set; }
     public long Duplicados { get; private set; }
@@ -341,7 +343,7 @@ public sealed class EstadoSincronizacionCaja
     /// <summary>Versión hasta la que se le entregaron maestros en la última descarga.</summary>
     public long VersionMaestrosEntregada { get; private set; }
 
-    public static EstadoSincronizacionCaja Crear(Guid cajaId) => new() { CajaId = Validar.Id(cajaId, "Caja") };
+    public static EstadoSincronizacionCaja Crear(int cajaId) => new() { CajaId = Validar.Id(cajaId, "Caja") };
 
     public void RegistrarDescarga(DateTimeOffset ahora, long desde, long hasta)
     {

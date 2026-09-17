@@ -54,7 +54,7 @@ internal interface ITablaCarga<TCarga> where TCarga : class
     TipoMaestro Tipo { get; }
 
     /// <summary>Id en el Central del registro con la llave de la carga; nulo si no existe.</summary>
-    Task<Guid?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion);
+    Task<int?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion);
 
     Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, int pagina, int tamano,
         CancellationToken cancelacion);
@@ -62,7 +62,7 @@ internal interface ITablaCarga<TCarga> where TCarga : class
     Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> TodosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, CancellationToken cancelacion);
 
     /// <summary>Carga del registro con ese Id en el Central; nulo si no existe.</summary>
-    Task<DatosMaestroCentral<TCarga>?> PorIdAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, Guid id, CancellationToken cancelacion);
+    Task<DatosMaestroCentral<TCarga>?> PorIdAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, int id, CancellationToken cancelacion);
 }
 
 /// <param name="Incluir">Colecciones que forman parte del registro (códigos del artículo, direcciones del cliente…).</param>
@@ -119,13 +119,13 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
         return true;
     }
 
-    public async Task<Guid?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion) =>
-        await Consulta(contexto).AsNoTracking().Where(llave(carga)).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(cancelacion);
+    public async Task<int?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion) =>
+        await Consulta(contexto).AsNoTracking().Where(llave(carga)).Select(e => (int?)e.Id).FirstOrDefaultAsync(cancelacion);
 
     public Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> TodosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, CancellationToken cancelacion) =>
         ListarAsync(contexto, resolutor, cancelacion);
 
-    public async Task<DatosMaestroCentral<TCarga>?> PorIdAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, Guid id, CancellationToken cancelacion) =>
+    public async Task<DatosMaestroCentral<TCarga>?> PorIdAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, int id, CancellationToken cancelacion) =>
         (await ListarAsync(contexto, resolutor, cancelacion, e => e.Id == id)).SingleOrDefault();
 
     /// <summary>El registro con la llave de la carga: primero lo agregado en esta misma publicación, luego la base.</summary>
@@ -179,8 +179,8 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
             await antesDeLeer(contexto, entidades, resolutor, cancelacion);
 
         // Cuándo y quién (y los precios del artículo) están en columnas del Central, fuera de la entidad del dominio.
-        var modificado = new Dictionary<Guid, (DateTimeOffset En, string Por)>();
-        var precios = new Dictionary<Guid, PreciosPublicados>();
+        var modificado = new Dictionary<int, (DateTimeOffset En, string Por)>();
+        var precios = new Dictionary<int, PreciosPublicados>();
         foreach (var bloque in entidades.Select(e => e.Id).Chunk(1000))
         {
             var ids = bloque.ToList();
@@ -390,7 +390,7 @@ internal static class TablasMaestros
             e.CategoriaId is { } categoria ? r.CodigoCategoria(categoria) : null,
             e.MarcaId is { } marca ? r.CodigoMarca(marca) : null),
         q => q.OrderBy(e => e.Codigo),
-        antesDeLeer: (c, entidades, r, cancelacion) => r.CargarArticulosAsync(null, entidades.Select(e => e.ArticuloId).OfType<Guid>(), cancelacion));
+        antesDeLeer: (c, entidades, r, cancelacion) => r.CargarArticulosAsync(null, entidades.Select(e => e.ArticuloId).OfType<int>(), cancelacion));
 
     public static TablaMaestro<TasaCambio, TasaCambioCarga> TasasCambio { get; } = new(
         TipoMaestro.TasaCambio, c => c.TasasCambio,
@@ -438,7 +438,7 @@ internal static class TablasMaestros
             e.VigenteDesde, e.VigenteHasta, e.Activa),
         q => q.OrderBy(e => e.Codigo),
         antesDeLeer: (c, entidades, r, cancelacion) =>
-            r.CargarArticulosAsync(null, entidades.Where(e => e.Tipo == TipoReglaAcumulacion.Articulo).Select(e => e.ReferenciaId).OfType<Guid>(), cancelacion));
+            r.CargarArticulosAsync(null, entidades.Where(e => e.Tipo == TipoReglaAcumulacion.Articulo).Select(e => e.ReferenciaId).OfType<int>(), cancelacion));
 
     public static TablaMaestro<MiembroFidelidad, MiembroFidelidadCarga> MiembrosFidelidad { get; } = new(
         TipoMaestro.MiembroFidelidad, c => c.MiembrosFidelidad,

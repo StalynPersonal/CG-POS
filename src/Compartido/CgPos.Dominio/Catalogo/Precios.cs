@@ -21,7 +21,7 @@ public sealed class PrecioArticulo : Entidad
     {
     }
 
-    public Guid ArticuloId { get; private set; }
+    public int ArticuloId { get; private set; }
     public ListaPrecio Lista { get; private set; }
 
     /// <summary>Precio unitario con impuesto incluido.</summary>
@@ -33,11 +33,11 @@ public sealed class PrecioArticulo : Entidad
     /// <summary>De dónde vino el cambio: "SAP B1", "Central", "Carga inicial", "Importación CSV"…</summary>
     public string Origen { get; private set; } = string.Empty;
 
-    public Guid? UsuarioId { get; private set; }
+    public int? UsuarioId { get; private set; }
     public string? UsuarioNombre { get; private set; }
 
-    public static PrecioArticulo Registrar(Guid articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde,
-        DateTimeOffset registradoEn, string origen, Guid? usuarioId = null, string? usuarioNombre = null, Guid? id = null)
+    public static PrecioArticulo Registrar(int articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde,
+        DateTimeOffset registradoEn, string origen, int? usuarioId = null, string? usuarioNombre = null)
     {
         if (precio <= 0)
             throw new ArgumentOutOfRangeException(nameof(precio), precio, "El precio debe ser mayor que cero.");
@@ -46,7 +46,6 @@ public sealed class PrecioArticulo : Entidad
 
         return new PrecioArticulo
         {
-            Id = id ?? Guid.CreateVersion7(),
             ArticuloId = Validar.Id(articuloId, "Artículo"),
             Lista = lista,
             Precio = precio,

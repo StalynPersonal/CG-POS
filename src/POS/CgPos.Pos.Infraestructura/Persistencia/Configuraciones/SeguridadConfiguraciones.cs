@@ -24,7 +24,6 @@ internal sealed class RolConfiguracion : IEntityTypeConfiguration<Rol>
     {
         constructor.ToTable("Roles");
         constructor.HasKey(r => r.Id);
-        constructor.Property(r => r.Id).ValueGeneratedNever();
 
         constructor.Property(r => r.Codigo).HasMaxLength(Rol.LargoMaximoCodigo).IsRequired();
         constructor.Property(r => r.Nombre).HasMaxLength(Rol.LargoMaximoNombre).IsRequired();
@@ -53,7 +52,6 @@ internal sealed class UsuarioConfiguracion : IEntityTypeConfiguration<Usuario>
     {
         constructor.ToTable("Usuarios");
         constructor.HasKey(u => u.Id);
-        constructor.Property(u => u.Id).ValueGeneratedNever();
 
         constructor.Property(u => u.Codigo).HasMaxLength(Usuario.LargoMaximoCodigo).IsRequired();
         constructor.Property(u => u.Nombre).HasMaxLength(Usuario.LargoMaximoNombre).IsRequired();

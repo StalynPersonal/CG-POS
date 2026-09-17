@@ -4,8 +4,8 @@ namespace CgPos.Dominio.Pruebas.Ventas;
 
 public class TopesDescuentoPruebas
 {
-    private static readonly Guid Ferreteria = Guid.CreateVersion7();
-    private static readonly Guid Taladro = Guid.CreateVersion7();
+    private static readonly int Ferreteria = Ids.Siguiente();
+    private static readonly int Taladro = Ids.Siguiente();
 
     private static readonly TopeDescuento[] Topes =
     [
@@ -27,12 +27,12 @@ public class TopesDescuentoPruebas
     [Fact]
     public void Se_usa_el_alcance_mas_especifico_con_topes()
     {
-        var departamento = ReglasTopeDescuento.Evaluar(Topes, 2, Guid.CreateVersion7(), Ferreteria, 8m, 50m);
+        var departamento = ReglasTopeDescuento.Evaluar(Topes, 2, Ids.Siguiente(), Ferreteria, 8m, 50m);
         Assert.False(departamento.Permitido);
         Assert.Equal(5m, departamento.PorcentajeMaximo);
 
         // El departamento solo tiene tope de nivel 2: un gerente usa ese mismo tope de departamento (el más alto que no supera su nivel).
-        Assert.False(ReglasTopeDescuento.Evaluar(Topes, 3, Guid.CreateVersion7(), Ferreteria, 8m, 50m).Permitido);
+        Assert.False(ReglasTopeDescuento.Evaluar(Topes, 3, Ids.Siguiente(), Ferreteria, 8m, 50m).Permitido);
 
         // El taladro solo tiene tope de nivel 3: un supervisor no puede descontarlo.
         var supervisor = ReglasTopeDescuento.Evaluar(Topes, 2, Taladro, Ferreteria, 1m, 10m);

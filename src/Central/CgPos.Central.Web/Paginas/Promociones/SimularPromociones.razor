@@ -20,10 +20,10 @@
             <MudAutocomplete T="ArticuloCarga" @bind-Value="_articulo" SearchFunc="BuscarArticulosAsync" Label="Artículo" Variant="Variant.Outlined"
                              ToStringFunc="@(a => a is null ? null : $"{a.Codigo} · {a.Descripcion}")" DebounceInterval="350" MinCharacters="2" ResetValueOnEmptyText="true" />
             <MudNumericField T="decimal" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Min="0" HideSpinButtons="true" />
-            <MudSelect T="Guid?" @bind-Value="_sucursalId" Label="Sucursal" Variant="Variant.Outlined" ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id)?.Nombre)">
+            <MudSelect T="int?" @bind-Value="_sucursalId" Label="Sucursal" Variant="Variant.Outlined" ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id)?.Nombre)">
                 @foreach (var sucursal in _sucursales)
                 {
-                    <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
             <div class="d-flex gap-2">
@@ -100,7 +100,7 @@
     private IReadOnlyList<DatosSucursal> _sucursales = [];
     private ArticuloCarga? _articulo;
     private decimal _cantidad = 1;
-    private Guid? _sucursalId;
+    private int? _sucursalId;
     private DateTime? _fecha = DateTime.Today;
     private TimeSpan? _hora = DateTime.Now.TimeOfDay;
     private bool _conFidelidad;

@@ -28,12 +28,17 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
             contexto.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
             var cronometroCarga = Stopwatch.StartNew();
+            // Los Id salen de la secuencia HiLo de EF: se reserva un valor por artículo y cada valor cubre un bloque de Id que EF ya no entrega.
             await contexto.Database.ExecuteSqlInterpolatedAsync($"""
+                DECLARE @primero sql_variant;
+                EXEC sys.sp_sequence_get_range @sequence_name = N'EntityFrameworkHiLoSequence', @range_size = {CantidadArticulos}, @range_first_value = @primero OUTPUT;
+                DECLARE @incremento int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'EntityFrameworkHiLoSequence');
+
                 WITH numeros AS (
                     SELECT TOP ({CantidadArticulos}) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
                     FROM sys.all_objects a CROSS JOIN sys.all_objects b)
                 INSERT INTO Articulos (Id, Codigo, Descripcion, DepartamentoId, UnidadMedidaId, ImpuestoId, Tipo, MostrarEnCatalogo, VentaEnPos, Activo, EsServicio)
-                SELECT NEWID(), CONCAT('R', {escenario.Sufijo}, '-', n), CONCAT('Tornillo acero inoxidable ', n, ' mm'),
+                SELECT CAST(@primero AS int) + (n - 1) * @incremento, CONCAT('R', {escenario.Sufijo}, '-', n), CONCAT('Tornillo acero inoxidable ', n, ' mm'),
                        {escenario.DepartamentoFerreteria}, {escenario.UnidadUnidad}, {escenario.ImpuestoItbis18}, 0, 0, 1, 1, 0
                 FROM numeros;
 
@@ -42,7 +47,7 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
                 FROM Articulos WHERE Codigo LIKE CONCAT('R', {escenario.Sufijo}, '-%');
 
                 INSERT INTO PreciosArticulo (Id, ArticuloId, Lista, Precio, VigenteDesde, RegistradoEn, Origen)
-                SELECT NEWID(), Id, 0, 25.00, '2020-01-01T00:00:00+00:00', SYSDATETIMEOFFSET(), 'Rendimiento'
+                SELECT Id + 1, Id, 0, 25.00, '2020-01-01T00:00:00+00:00', SYSDATETIMEOFFSET(), 'Rendimiento'
                 FROM Articulos WHERE Codigo LIKE CONCAT('R', {escenario.Sufijo}, '-%');
                 """);
             salida.WriteLine($"Carga de {CantidadArticulos} artículos: {cronometroCarga.ElapsedMilliseconds} ms");

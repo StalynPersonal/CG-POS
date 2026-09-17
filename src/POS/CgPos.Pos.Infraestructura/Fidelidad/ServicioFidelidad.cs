@@ -24,7 +24,7 @@ internal static class ConsultasFidelidad
         return miembro.SaldoDisponible(movimientos, hoy);
     }
 
-    public static async Task<DatosMiembroFidelidad> DatosMiembroAsync(this ContextoDatosPos contexto, IParametros parametros, MiembroFidelidad miembro, Guid cajaId,
+    public static async Task<DatosMiembroFidelidad> DatosMiembroAsync(this ContextoDatosPos contexto, IParametros parametros, MiembroFidelidad miembro, int cajaId,
         DateOnly hoy, CancellationToken cancelacion)
     {
         var saldo = await contexto.SaldoPuntosAsync(miembro, hoy, cancelacion);
@@ -34,7 +34,7 @@ internal static class ConsultasFidelidad
             miembro.PuntosPorVencer, miembro.ProximoVencimiento, miembro.SaldoSincronizadoEn, miembro.InscritoEnCaja);
     }
 
-    public static async Task<string?> NombreNivelAsync(this ContextoDatosPos contexto, Guid? nivelId, CancellationToken cancelacion) =>
+    public static async Task<string?> NombreNivelAsync(this ContextoDatosPos contexto, int? nivelId, CancellationToken cancelacion) =>
         nivelId is { } id
             ? await contexto.NivelesFidelidad.AsNoTracking().Where(n => n.Id == id).Select(n => n.Nombre).FirstOrDefaultAsync(cancelacion)
             : null;

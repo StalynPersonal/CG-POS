@@ -13,21 +13,20 @@ public sealed class Categoria : Entidad
 
     public int Codigo { get; private set; }
     public string Nombre { get; private set; } = string.Empty;
-    public Guid DepartamentoId { get; private set; }
+    public int DepartamentoId { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static Categoria Crear(int codigo, string nombre, Guid departamentoId, Guid? id = null)
+    public static Categoria Crear(int codigo, string nombre, int departamentoId)
     {
         var categoria = new Categoria
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de categoría"),
         };
         categoria.Actualizar(nombre, departamentoId);
         return categoria;
     }
 
-    public void Actualizar(string nombre, Guid departamentoId)
+    public void Actualizar(string nombre, int departamentoId)
     {
         Nombre = Validar.Texto(nombre, "Nombre de categoría", LargoMaximoNombre);
         DepartamentoId = Validar.Id(departamentoId, "Departamento");
@@ -51,11 +50,10 @@ public sealed class Marca : Entidad
     public string Nombre { get; private set; } = string.Empty;
     public bool Activa { get; private set; } = true;
 
-    public static Marca Crear(int codigo, string nombre, Guid? id = null)
+    public static Marca Crear(int codigo, string nombre)
     {
         var marca = new Marca
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de marca"),
         };
         marca.CambiarNombre(nombre);

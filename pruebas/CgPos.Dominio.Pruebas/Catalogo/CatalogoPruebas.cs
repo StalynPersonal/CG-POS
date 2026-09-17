@@ -51,7 +51,7 @@ public class CatalogoPruebas
     [Fact]
     public void Articulo_admite_varios_codigos_sin_duplicarlos()
     {
-        var articulo = Articulo.Crear("7891114119695", "Cincel", Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        var articulo = Articulo.Crear("7891114119695", "Cincel", Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente());
 
         articulo.AgregarCodigo("7891114119695", TipoCodigoArticulo.Barras);
         articulo.AgregarCodigo(" 7891114119695 ", TipoCodigoArticulo.Barras);
@@ -67,7 +67,7 @@ public class CatalogoPruebas
     [Fact]
     public void Articulo_valida_configuracion_de_precios()
     {
-        var articulo = Articulo.Crear("A1", "Artículo", Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        var articulo = Articulo.Crear("A1", "Artículo", Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente());
 
         Assert.Throws<ArgumentOutOfRangeException>(() => articulo.ConfigurarPrecios(-1m, null, null));
         Assert.Throws<ArgumentOutOfRangeException>(() => articulo.ConfigurarPrecios(null, null, 0m));
@@ -98,7 +98,7 @@ public class CatalogoPruebas
         Assert.False(casa.EsPrincipal);
         Assert.True(almacen.EsPrincipal);
 
-        cliente.QuitarDireccion(almacen.Id);
+        cliente.QuitarDireccion(almacen.Alias);
         Assert.True(Assert.Single(cliente.Direcciones).EsPrincipal);
 
         Assert.Throws<ArgumentException>(() => Cliente.Crear($"CL{Codigos.Siguiente()}", TipoDocumentoIdentidad.Cedula, "12345", "Formato inválido"));

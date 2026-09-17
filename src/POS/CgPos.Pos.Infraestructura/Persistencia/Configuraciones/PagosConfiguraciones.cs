@@ -10,7 +10,6 @@ internal sealed class TasaCambioConfiguracion : IEntityTypeConfiguration<TasaCam
     {
         constructor.ToTable("TasasCambio");
         constructor.HasKey(t => t.Id);
-        constructor.Property(t => t.Id).ValueGeneratedNever();
         constructor.Property(t => t.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
         constructor.Property(t => t.Tasa).HasPrecision(18, 4);
         constructor.HasIndex(t => new { t.Moneda, t.VigenteDesde }).IsUnique();
@@ -23,7 +22,6 @@ internal sealed class OperacionTerminalConfiguracion : IEntityTypeConfiguration<
     {
         constructor.ToTable("OperacionesTerminal");
         constructor.HasKey(o => o.Id);
-        constructor.Property(o => o.Id).ValueGeneratedNever();
         constructor.Property(o => o.Monto).HasPrecision(18, 2);
         constructor.Property(o => o.Aprobacion).HasMaxLength(OperacionTerminal.LargoMaximoAprobacion);
         constructor.Property(o => o.UltimosDigitos).HasMaxLength(4).IsUnicode(false);

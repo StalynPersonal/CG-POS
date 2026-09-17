@@ -22,11 +22,10 @@ public sealed class UnidadMedida : Entidad
     public bool PermiteDecimales { get; private set; }
     public int Decimales { get; private set; }
 
-    public static UnidadMedida Crear(int codigo, string abreviatura, string nombre, bool permiteDecimales = false, int decimales = 0, Guid? id = null)
+    public static UnidadMedida Crear(int codigo, string abreviatura, string nombre, bool permiteDecimales = false, int decimales = 0)
     {
         var unidad = new UnidadMedida
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de unidad"),
         };
         unidad.Actualizar(abreviatura, nombre, permiteDecimales, decimales);

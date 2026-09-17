@@ -9,21 +9,21 @@ public class EntregasPruebas
 {
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 10, 0, 0, TimeSpan.FromHours(-4));
     private static readonly DateOnly Hoy = DateOnly.FromDateTime(Ahora.DateTime);
-    private static readonly Guid Almacen = Guid.CreateVersion7();
+    private static readonly int Almacen = Ids.Siguiente();
 
-    private static readonly ArticuloParaVenta Cemento = new(Guid.CreateVersion7(), "CEM", "CEM", "Cemento gris", TipoArticulo.Normal, Guid.CreateVersion7(), true, "UN",
-        false, 0, Guid.CreateVersion7(), 18m, 1, 485m, null, null, null, null, null);
+    private static readonly ArticuloParaVenta Cemento = new(Ids.Siguiente(), "CEM", "CEM", "Cemento gris", TipoArticulo.Normal, Ids.Siguiente(), true, "UN",
+        false, 0, Ids.Siguiente(), 18m, 1, 485m, null, null, null, null, null);
 
-    private static readonly ArticuloParaVenta Taladro = new(Guid.CreateVersion7(), "TAL", "TAL", "Taladro", TipoArticulo.Serializado, Guid.CreateVersion7(), true, "UN",
-        false, 0, Guid.CreateVersion7(), 18m, 1, 6950m, null, null, null, null, null);
+    private static readonly ArticuloParaVenta Taladro = new(Ids.Siguiente(), "TAL", "TAL", "Taladro", TipoArticulo.Serializado, Ids.Siguiente(), true, "UN",
+        false, 0, Ids.Siguiente(), 18m, 1, 6950m, null, null, null, null, null);
 
-    private static readonly FormaPagoParaCobro Efectivo = new(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
+    private static readonly FormaPagoParaCobro Efectivo = new(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
 
     private static readonly DatosEnvio Envio = new("Calle 1 #2", "Naco", "Santo Domingo", null, "809-555-1111", "Mensajería", 350m);
 
     private static Venta VentaConCementoYTaladroSinSerial()
     {
-        var venta = Venta.Iniciar(Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Ahora);
+        var venta = Venta.Iniciar(Ids.Siguiente(), 1, Ids.Siguiente(), 1, Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora);
         venta.AgregarArticulo(Cemento, 3m, Ahora);
         venta.AgregarArticulo(Taladro, null, Ahora, serialEnDespacho: true);
         return venta;
@@ -46,7 +46,7 @@ public class EntregasPruebas
             venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, null, null, [new CantidadEntrega(1, 4m)], null, null, Hoy, Ahora)));
 
         var retiro = venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, Hoy.AddDays(2), "Retira el jueves", [new CantidadEntrega(1, 2m)],
-            Guid.CreateVersion7(), "Supervisor", Hoy, Ahora);
+            Ids.Siguiente(), "Supervisor", Hoy, Ahora);
         Assert.Equal(1, retiro.Numero);
         Assert.Equal(2m, venta.CantidadEnEntregas(1));
 
@@ -67,11 +67,11 @@ public class EntregasPruebas
         var venta = VentaConCementoYTaladroSinSerial();
         Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(Taladro, null, Ahora));
 
-        Assert.Equal(CodigoErrorVenta.RequiereSerial, Rechazo(() => venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Ahora)));
+        Assert.Equal(CodigoErrorVenta.RequiereSerial, Rechazo(() => venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora)));
 
         venta.MarcarEntrega(MetodoEntrega.Envio, null, null, Envio, Hoy.AddDays(1), null, [new CantidadEntrega(2, 1m), new CantidadEntrega(1, 1m)],
-            Guid.CreateVersion7(), "Supervisor", Hoy, Ahora);
-        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Ahora);
+            Ids.Siguiente(), "Supervisor", Hoy, Ahora);
+        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora);
 
         var pendiente = PendienteEntrega.Crear(venta, venta.DestinosEntrega.Single(), "PE-01-00000001", Ahora);
         Assert.Equal(EstadoPendiente.Pendiente, pendiente.Estado);
@@ -86,8 +86,8 @@ public class EntregasPruebas
     {
         var venta = VentaConCementoYTaladroSinSerial();
         venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, null, null, [new CantidadEntrega(1, 3m), new CantidadEntrega(2, 1m)],
-            Guid.CreateVersion7(), "Supervisor", Hoy, Ahora);
-        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Ahora);
+            Ids.Siguiente(), "Supervisor", Hoy, Ahora);
+        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora);
         var pendiente = PendienteEntrega.Crear(venta, venta.DestinosEntrega.Single(), "PE-01-00000002", Ahora);
 
         pendiente.CambiarEstado(EstadoPendiente.EnPreparacion, "Almacén", Ahora);
@@ -118,7 +118,7 @@ public class EntregasPruebas
     {
         var venta = VentaConCementoYTaladroSinSerial();
         venta.MarcarEntrega(MetodoEntrega.Envio, null, null, Envio, null, null, [new CantidadEntrega(1, 3m), new CantidadEntrega(2, 1m)], null, null, Hoy, Ahora);
-        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Guid.CreateVersion7(), "Cajera", Ahora);
+        venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora);
         var pendiente = PendienteEntrega.Crear(venta, venta.DestinosEntrega.Single(), "PE-01-00000003", Ahora);
 
         pendiente.CambiarEstado(EstadoPendiente.Preparado, "Almacén", Ahora);

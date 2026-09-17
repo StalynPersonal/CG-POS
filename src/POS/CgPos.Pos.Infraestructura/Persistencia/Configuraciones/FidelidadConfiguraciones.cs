@@ -12,7 +12,6 @@ internal sealed class NivelFidelidadConfiguracion : IEntityTypeConfiguration<Niv
     {
         constructor.ToTable("NivelesFidelidad");
         constructor.HasKey(n => n.Id);
-        constructor.Property(n => n.Id).ValueGeneratedNever();
                 constructor.Property(n => n.Nombre).HasMaxLength(NivelFidelidad.LargoMaximoNombre).IsRequired();
         constructor.Property(n => n.FactorAcumulacion).HasPrecision(9, 4);
         constructor.HasIndex(n => n.Codigo).IsUnique();
@@ -25,7 +24,6 @@ internal sealed class ReglaAcumulacionConfiguracion : IEntityTypeConfiguration<R
     {
         constructor.ToTable("ReglasAcumulacion");
         constructor.HasKey(r => r.Id);
-        constructor.Property(r => r.Id).ValueGeneratedNever();
                 constructor.Property(r => r.Nombre).HasMaxLength(ReglaAcumulacion.LargoMaximoNombre).IsRequired();
         constructor.Property(r => r.MontoBase).HasPrecision(18, 2);
         constructor.Property(r => r.Puntos).HasPrecision(18, 4);
@@ -39,7 +37,6 @@ internal sealed class MiembroFidelidadConfiguracion : IEntityTypeConfiguration<M
     {
         constructor.ToTable("MiembrosFidelidad");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
         constructor.Property(m => m.Cedula).HasMaxLength(DocumentoIdentidad.LargoCedula).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(m => m.Nombre).HasMaxLength(MiembroFidelidad.LargoMaximoNombre).IsRequired();
         constructor.Property(m => m.Telefono).HasMaxLength(MiembroFidelidad.LargoMaximoTelefono);
@@ -54,7 +51,6 @@ internal sealed class MovimientoPuntosConfiguracion : IEntityTypeConfiguration<M
     {
         constructor.ToTable("MovimientosPuntos");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
         constructor.Property(m => m.Cedula).HasMaxLength(DocumentoIdentidad.LargoCedula).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(m => m.Documento).HasMaxLength(MovimientoPuntos.LargoMaximoDocumento).IsUnicode(false).IsRequired();
         constructor.HasOne<MiembroFidelidad>().WithMany().HasForeignKey(m => m.MiembroId).OnDelete(DeleteBehavior.Restrict);

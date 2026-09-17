@@ -7,8 +7,8 @@ public class FidelidadPruebas
     // Martes 15 de septiembre de 2026, 10:00 hora local.
     private static readonly DateTimeOffset Martes = new(2026, 9, 15, 10, 0, 0, TimeSpan.FromHours(-4));
     private static readonly DateOnly Hoy = DateOnly.FromDateTime(Martes.DateTime);
-    private static readonly Guid Ferreteria = Guid.CreateVersion7();
-    private static readonly Guid Cincel = Guid.CreateVersion7();
+    private static readonly int Ferreteria = Ids.Siguiente();
+    private static readonly int Cincel = Ids.Siguiente();
     private const string Cedula = "00113918205";
 
     private static ReglaAcumulacion General() =>
@@ -26,7 +26,7 @@ public class FidelidadPruebas
         var lineas = new[]
         {
             new LineaPuntuable(Cincel, Ferreteria, null, 850m),
-            new LineaPuntuable(Guid.CreateVersion7(), Guid.CreateVersion7(), null, 200m),
+            new LineaPuntuable(Ids.Siguiente(), Ids.Siguiente(), null, 200m),
         };
 
         // Martes gana la regla del día en ambas líneas: (8.5 + 2) × 3 = 31.5 → × 1.5 = 47.25 → 47.
@@ -42,7 +42,7 @@ public class FidelidadPruebas
     [Fact]
     public void Reglas_por_promocion_y_fuera_de_vigencia()
     {
-        var promocion = Guid.CreateVersion7();
+        var promocion = Ids.Siguiente();
         var reglas = new[]
         {
             ReglaAcumulacion.Crear(8, "Oferta con puntos", TipoReglaAcumulacion.Promocion, 50m, 1m, promocion, null, null, null),
@@ -59,17 +59,17 @@ public class FidelidadPruebas
     public void Saldo_disponible_suma_lo_local_posterior_a_la_sincronizacion_y_descarta_lo_vencido()
     {
         var sincronizadoEn = Martes.AddDays(-5);
-        var miembro = MiembroFidelidad.DesdeCentral(Cedula, "Cliente Ejemplo", Martes.AddYears(-1), Guid.CreateVersion7());
+        var miembro = MiembroFidelidad.DesdeCentral(Cedula, "Cliente Ejemplo", Martes.AddYears(-1));
         miembro.SincronizarSaldo(1000, sincronizadoEn, puntosPorVencer: 200, proximoVencimiento: Hoy.AddDays(-1));
 
-        var cajaId = Guid.CreateVersion7();
+        var cajaId = Ids.Siguiente();
         var movimientos = new[]
         {
             // Anterior a la sincronización: el Central ya lo contó.
-            MovimientoPuntos.Acumulacion(miembro, 50, Guid.CreateVersion7(), "T-1", cajaId, sincronizadoEn.AddDays(-1), null),
-            MovimientoPuntos.Acumulacion(miembro, 30, Guid.CreateVersion7(), "T-2", cajaId, Martes.AddDays(-2), Hoy.AddMonths(12)),
-            MovimientoPuntos.Acumulacion(miembro, 40, Guid.CreateVersion7(), "T-3", cajaId, Martes.AddDays(-2), Hoy.AddDays(-1)),
-            MovimientoPuntos.Canje(miembro, 100, Guid.CreateVersion7(), "T-4", cajaId, Martes.AddDays(-1)),
+            MovimientoPuntos.Acumulacion(miembro, 50, Ids.Siguiente(), "T-1", cajaId, sincronizadoEn.AddDays(-1), null),
+            MovimientoPuntos.Acumulacion(miembro, 30, Ids.Siguiente(), "T-2", cajaId, Martes.AddDays(-2), Hoy.AddMonths(12)),
+            MovimientoPuntos.Acumulacion(miembro, 40, Ids.Siguiente(), "T-3", cajaId, Martes.AddDays(-2), Hoy.AddDays(-1)),
+            MovimientoPuntos.Canje(miembro, 100, Ids.Siguiente(), "T-4", cajaId, Martes.AddDays(-1)),
         };
 
         // 1000 − 200 vencidos + 30 − 100 = 730 (los 40 locales vencieron y los 50 ya estaban en el saldo).

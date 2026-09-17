@@ -25,4 +25,4 @@ public sealed record EntradaAuditoria(
     UsuarioAuditoria? Usuario = null,
     UsuarioAuditoria? AutorizadoPor = null);
 
-public sealed record UsuarioAuditoria(Guid Id, string Nombre);
+public sealed record UsuarioAuditoria(int Id, string Nombre);

@@ -113,12 +113,12 @@ public static class ExtensionesSeguridadCentral
         var vigente = Valor(AtributosTokenCentral.Tipo) switch
         {
             AtributosTokenCentral.TipoUsuario =>
-                Guid.TryParse(Valor(AtributosTokenCentral.UsuarioId), out var usuarioId)
+                int.TryParse(Valor(AtributosTokenCentral.UsuarioId), out var usuarioId)
                 && Guid.TryParse(Valor(AtributosTokenCentral.Sesion), out var sesionId)
                 && await servicios.GetRequiredService<IServicioSesionesCentral>().EsSesionActivaAsync(sesionId, usuarioId, cancelacion),
             AtributosTokenCentral.TipoDispositivo =>
-                Guid.TryParse(Valor(AtributosTokenCentral.Credencial), out var credencialId)
-                && Guid.TryParse(Valor(AtributosTokenCentral.Caja), out var cajaId)
+                int.TryParse(Valor(AtributosTokenCentral.Credencial), out var credencialId)
+                && int.TryParse(Valor(AtributosTokenCentral.Caja), out var cajaId)
                 && await servicios.GetRequiredService<IServicioDispositivos>().EsCredencialActivaAsync(credencialId, cajaId, cancelacion),
             _ => false,
         };

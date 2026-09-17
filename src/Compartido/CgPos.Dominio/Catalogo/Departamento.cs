@@ -22,11 +22,10 @@ public sealed class Departamento : Entidad
 
     public bool Activa { get; private set; } = true;
 
-    public static Departamento Crear(int codigo, string nombre, bool permiteDescuentoManual = true, bool esNoCodificada = false, Guid? id = null)
+    public static Departamento Crear(int codigo, string nombre, bool permiteDescuentoManual = true, bool esNoCodificada = false)
     {
         var departamento = new Departamento
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de departamento"),
         };
         departamento.Actualizar(nombre, permiteDescuentoManual, esNoCodificada);

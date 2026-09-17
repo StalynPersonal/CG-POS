@@ -10,7 +10,6 @@ internal sealed class RolCentralConfiguracion : IEntityTypeConfiguration<RolCent
     {
         constructor.ToTable("RolesCentral");
         constructor.HasKey(r => r.Id);
-        constructor.Property(r => r.Id).ValueGeneratedNever();
 
         constructor.Property(r => r.Codigo).HasMaxLength(RolCentral.LargoMaximoCodigo).IsRequired();
         constructor.Property(r => r.Nombre).HasMaxLength(RolCentral.LargoMaximoNombre).IsRequired();
@@ -38,7 +37,6 @@ internal sealed class UsuarioCentralConfiguracion : IEntityTypeConfiguration<Usu
     {
         constructor.ToTable("UsuariosCentral");
         constructor.HasKey(u => u.Id);
-        constructor.Property(u => u.Id).ValueGeneratedNever();
 
         constructor.Property(u => u.Codigo).HasMaxLength(UsuarioCentral.LargoMaximoCodigo).IsRequired();
         constructor.Property(u => u.Nombre).HasMaxLength(UsuarioCentral.LargoMaximoNombre).IsRequired();

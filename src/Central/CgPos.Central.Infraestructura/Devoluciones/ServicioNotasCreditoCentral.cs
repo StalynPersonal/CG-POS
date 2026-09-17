@@ -25,7 +25,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         return nota is null ? null : ParaCaja((await DatosAsync([nota], cancelacion))[0]);
     }
 
-    public async Task<RespuestaReservaNotaCredito> ReservarAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, decimal monto,
+    public async Task<RespuestaReservaNotaCredito> ReservarAsync(string notaCreditoNumero, int cajaId, string ventaNumero, decimal monto,
         CancellationToken cancelacion = default)
     {
         if (monto <= 0)
@@ -73,7 +73,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         return new RespuestaReservaNotaCredito(true, mensaje, reservado, reserva.VenceEn, ParaCaja(datos));
     }
 
-    public async Task<bool> LiberarReservaAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, CancellationToken cancelacion = default)
+    public async Task<bool> LiberarReservaAsync(string notaCreditoNumero, int cajaId, string ventaNumero, CancellationToken cancelacion = default)
     {
         var numero = (notaCreditoNumero ?? string.Empty).Trim();
         var factura = (ventaNumero ?? string.Empty).Trim();
@@ -121,7 +121,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         return new PaginaNotasCreditoCentral(await DatosAsync(notas, cancelacion), total);
     }
 
-    public async Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(Guid notaCreditoId, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(int notaCreditoId, CancellationToken cancelacion = default)
     {
         var nota = await contexto.NotasCredito.AsNoTracking().SingleOrDefaultAsync(n => n.Id == notaCreditoId, cancelacion);
         var numero = nota?.Numero;
@@ -143,7 +143,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         return movimientos.OrderByDescending(m => m.Fecha).ToList();
     }
 
-    public async Task<ResultadoAdministracion> ProrrogarAsync(Guid notaCreditoId, DateOnly venceEn, string motivo, UsuarioAuditoria actor,
+    public async Task<ResultadoAdministracion> ProrrogarAsync(int notaCreditoId, DateOnly venceEn, string motivo, UsuarioAuditoria actor,
         CancellationToken cancelacion = default)
     {
         var meses = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.NotasCreditoMesesMaximoProrroga, cancelacion);
@@ -203,7 +203,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         new(nota.Numero, nota.Encf, nota.SucursalCodigo, nota.CajaCodigo, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Total, nota.Disponible,
             nota.VenceEn, nota.Estado);
 
-    private async Task<Dictionary<Guid, string>> CodigosCajasAsync(IEnumerable<Guid> ids, CancellationToken cancelacion)
+    private async Task<Dictionary<int, string>> CodigosCajasAsync(IEnumerable<int> ids, CancellationToken cancelacion)
     {
         var buscar = ids.Distinct().ToList();
         return buscar.Count == 0

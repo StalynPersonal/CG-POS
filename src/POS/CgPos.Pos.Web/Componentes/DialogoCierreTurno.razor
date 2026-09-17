@@ -160,15 +160,15 @@
 @code {
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
-    private readonly Dictionary<Guid, string> _declarado = [];
-    private readonly Dictionary<Guid, string> _cantidades = [];
+    private readonly Dictionary<int, string> _declarado = [];
+    private readonly Dictionary<int, string> _cantidades = [];
 
     private DatosResumenTurno? _resumen;
     private DatosCierre? _cierre;
     private RespuestaCaja? _respuestaCierre;
     private IReadOnlyList<string> _bloqueos = [];
-    private Guid? _formaActiva;
-    private Guid? _denominacionActiva;
+    private int? _formaActiva;
+    private int? _denominacionActiva;
     private string _monedaConteo = string.Empty;
     private string? _mensaje;
     private string? _aviso;
@@ -204,7 +204,7 @@
     private static decimal Monto(string? texto) =>
         decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var valor) ? valor : 0m;
 
-    private int Cantidad(Guid denominacionId) => int.TryParse(_cantidades.GetValueOrDefault(denominacionId), out var valor) ? valor : 0;
+    private int Cantidad(int denominacionId) => int.TryParse(_cantidades.GetValueOrDefault(denominacionId), out var valor) ? valor : 0;
 
     private decimal TotalContado(string moneda) => _resumen!.Denominaciones.Where(d => d.Moneda == moneda).Sum(d => d.Valor * Cantidad(d.Id));
 

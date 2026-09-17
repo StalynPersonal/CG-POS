@@ -10,17 +10,17 @@ namespace CgPos.Pos.Infraestructura.Catalogo;
 /// </summary>
 internal sealed class ResolutorCodigosPos(ContextoDatosPos contexto) : IResolutorCodigos
 {
-    private Dictionary<int, Guid> _departamentos = [];
-    private Dictionary<int, Guid> _categorias = [];
-    private Dictionary<int, Guid> _marcas = [];
-    private Dictionary<int, Guid> _unidades = [];
-    private Dictionary<string, Guid> _impuestos = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, Guid> _articulos = new(StringComparer.Ordinal);
-    private Dictionary<int, Guid> _sucursales = [];
-    private Dictionary<(int, int), Guid> _cajas = [];
-    private Dictionary<string, Guid> _bancos = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<int, Guid> _niveles = [];
-    private Dictionary<string, Guid> _promociones = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<int, int> _departamentos = [];
+    private Dictionary<int, int> _categorias = [];
+    private Dictionary<int, int> _marcas = [];
+    private Dictionary<int, int> _unidades = [];
+    private Dictionary<string, int> _impuestos = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, int> _articulos = new(StringComparer.Ordinal);
+    private Dictionary<int, int> _sucursales = [];
+    private Dictionary<(int, int), int> _cajas = [];
+    private Dictionary<string, int> _bancos = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<int, int> _niveles = [];
+    private Dictionary<string, int> _promociones = new(StringComparer.OrdinalIgnoreCase);
 
     /// <param name="articulos">Códigos de artículo que el paquete referencia (promociones, topes, reglas): no se cargan los 150 mil.</param>
     public async Task PrepararAsync(IEnumerable<string> articulos, CancellationToken cancelacion)
@@ -50,41 +50,41 @@ internal sealed class ResolutorCodigosPos(ContextoDatosPos contexto) : IResoluto
     }
 
     /// <summary>Id del artículo en esta caja, o nulo si todavía no existe.</summary>
-    public async Task<Guid?> ArticuloExistenteAsync(string codigo, CancellationToken cancelacion)
+    public async Task<int?> ArticuloExistenteAsync(string codigo, CancellationToken cancelacion)
     {
         var limpio = codigo.Trim();
         if (_articulos.TryGetValue(limpio, out var id))
             return id;
 
-        return await contexto.Articulos.AsNoTracking().Where(a => a.Codigo == limpio).Select(a => (Guid?)a.Id).SingleOrDefaultAsync(cancelacion);
+        return await contexto.Articulos.AsNoTracking().Where(a => a.Codigo == limpio).Select(a => (int?)a.Id).SingleOrDefaultAsync(cancelacion);
     }
 
-    public void RegistrarDepartamento(int codigo, Guid id) => _departamentos[codigo] = id;
-    public void RegistrarCategoria(int codigo, Guid id) => _categorias[codigo] = id;
-    public void RegistrarMarca(int codigo, Guid id) => _marcas[codigo] = id;
-    public void RegistrarUnidad(int codigo, Guid id) => _unidades[codigo] = id;
-    public void RegistrarImpuesto(string codigo, Guid id) => _impuestos[codigo] = id;
-    public void RegistrarArticulo(string codigo, Guid id) => _articulos[codigo] = id;
-    public void RegistrarBanco(string codigo, Guid id) => _bancos[codigo] = id;
-    public void RegistrarNivel(int codigo, Guid id) => _niveles[codigo] = id;
-    public void RegistrarPromocion(string codigo, Guid id) => _promociones[codigo] = id;
+    public void RegistrarDepartamento(int codigo, int id) => _departamentos[codigo] = id;
+    public void RegistrarCategoria(int codigo, int id) => _categorias[codigo] = id;
+    public void RegistrarMarca(int codigo, int id) => _marcas[codigo] = id;
+    public void RegistrarUnidad(int codigo, int id) => _unidades[codigo] = id;
+    public void RegistrarImpuesto(string codigo, int id) => _impuestos[codigo] = id;
+    public void RegistrarArticulo(string codigo, int id) => _articulos[codigo] = id;
+    public void RegistrarBanco(string codigo, int id) => _bancos[codigo] = id;
+    public void RegistrarNivel(int codigo, int id) => _niveles[codigo] = id;
+    public void RegistrarPromocion(string codigo, int id) => _promociones[codigo] = id;
 
-    public Guid Departamento(int codigo) => Buscar(_departamentos, codigo, "el departamento");
-    public Guid Categoria(int codigo) => Buscar(_categorias, codigo, "la categoría");
-    public Guid Marca(int codigo) => Buscar(_marcas, codigo, "la marca");
-    public Guid UnidadMedida(int codigo) => Buscar(_unidades, codigo, "la unidad de medida");
-    public Guid Impuesto(string codigo) => Buscar(_impuestos, codigo?.Trim() ?? string.Empty, "el impuesto");
-    public Guid Articulo(string codigo) => Buscar(_articulos, codigo?.Trim() ?? string.Empty, "el artículo");
-    public Guid Sucursal(int codigo) => Buscar(_sucursales, codigo, "la sucursal");
-    public Guid Banco(string codigo) => Buscar(_bancos, codigo?.Trim() ?? string.Empty, "el banco");
-    public Guid NivelFidelidad(int codigo) => Buscar(_niveles, codigo, "el nivel de fidelidad");
-    public Guid Promocion(string codigo) => Buscar(_promociones, codigo?.Trim() ?? string.Empty, "la promoción");
+    public int Departamento(int codigo) => Buscar(_departamentos, codigo, "el departamento");
+    public int Categoria(int codigo) => Buscar(_categorias, codigo, "la categoría");
+    public int Marca(int codigo) => Buscar(_marcas, codigo, "la marca");
+    public int UnidadMedida(int codigo) => Buscar(_unidades, codigo, "la unidad de medida");
+    public int Impuesto(string codigo) => Buscar(_impuestos, codigo?.Trim() ?? string.Empty, "el impuesto");
+    public int Articulo(string codigo) => Buscar(_articulos, codigo?.Trim() ?? string.Empty, "el artículo");
+    public int Sucursal(int codigo) => Buscar(_sucursales, codigo, "la sucursal");
+    public int Banco(string codigo) => Buscar(_bancos, codigo?.Trim() ?? string.Empty, "el banco");
+    public int NivelFidelidad(int codigo) => Buscar(_niveles, codigo, "el nivel de fidelidad");
+    public int Promocion(string codigo) => Buscar(_promociones, codigo?.Trim() ?? string.Empty, "la promoción");
 
-    public Guid Caja(int sucursalCodigo, int cajaCodigo) =>
+    public int Caja(int sucursalCodigo, int cajaCodigo) =>
         _cajas.TryGetValue((sucursalCodigo, cajaCodigo), out var id)
             ? id
             : throw new InvalidOperationException($"No existe en la caja la caja {cajaCodigo:00} de la sucursal {sucursalCodigo:00}.");
 
-    private static Guid Buscar<T>(Dictionary<T, Guid> mapa, T codigo, string nombre) where T : notnull =>
+    private static int Buscar<T>(Dictionary<T, int> mapa, T codigo, string nombre) where T : notnull =>
         mapa.TryGetValue(codigo, out var id) ? id : throw new InvalidOperationException($"No existe en la caja {nombre} con código '{codigo}'.");
 }

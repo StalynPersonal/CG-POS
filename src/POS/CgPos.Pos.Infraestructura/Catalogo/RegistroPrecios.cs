@@ -10,13 +10,13 @@ internal static class RegistroPrecios
     /// <returns><c>true</c> si se agregó un registro de precio al contexto (sin guardar).</returns>
     public static async Task<bool> RegistrarSiCambiaAsync(
         ContextoDatosPos contexto,
-        Guid articuloId,
+        int articuloId,
         ListaPrecio lista,
         decimal precio,
         DateTimeOffset vigenteDesde,
         DateTimeOffset ahora,
         string origen,
-        Guid? usuarioId,
+        int? usuarioId,
         string? usuarioNombre,
         CancellationToken cancelacion)
     {

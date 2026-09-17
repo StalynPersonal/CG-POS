@@ -11,7 +11,6 @@ internal sealed class MovimientoCajaConfiguracion : IEntityTypeConfiguration<Mov
     {
         constructor.ToTable("MovimientosCaja");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
         constructor.Property(m => m.Monto).HasPrecision(18, 2);
         constructor.Property(m => m.Moneda).HasMaxLength(Moneda.LargoCodigo).IsUnicode(false);
         constructor.Property(m => m.Motivo).HasMaxLength(MovimientoCaja.LargoMaximoMotivo);
@@ -30,7 +29,6 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
     {
         constructor.ToTable("CierresTurno");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
         constructor.Property(c => c.FondoInicial).HasPrecision(18, 2);
         constructor.Property(c => c.Moneda).HasMaxLength(Moneda.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(c => c.TotalVentas).HasPrecision(18, 2);
@@ -59,7 +57,6 @@ internal sealed class CierreFormaPagoConfiguracion : IEntityTypeConfiguration<Ci
     {
         constructor.ToTable("CierresTurnoFormasPago");
         constructor.HasKey(f => f.Id);
-        constructor.Property(f => f.Id).ValueGeneratedNever();
         constructor.Property(f => f.Codigo).HasMaxLength(FormaPago.LargoMaximoCodigo).IsRequired();
         constructor.Property(f => f.Nombre).HasMaxLength(FormaPago.LargoMaximoNombre).IsRequired();
         constructor.Property(f => f.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
@@ -75,7 +72,6 @@ internal sealed class CierreDenominacionConfiguracion : IEntityTypeConfiguration
     {
         constructor.ToTable("CierresTurnoDenominaciones");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
         constructor.Property(d => d.Valor).HasPrecision(18, 2);
         constructor.Property(d => d.Importe).HasPrecision(18, 2);

@@ -15,7 +15,7 @@ internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, Tim
 {
     private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
 
-    public async Task<PaginaPendientesCentral> ListarAsync(string? buscar, EstadoPendiente? estado, MetodoEntrega? metodo, Guid? sucursalId, bool soloAtrasados,
+    public async Task<PaginaPendientesCentral> ListarAsync(string? buscar, EstadoPendiente? estado, MetodoEntrega? metodo, int? sucursalId, bool soloAtrasados,
         bool soloAbiertos, int pagina, int tamano, CancellationToken cancelacion = default)
     {
         tamano = Math.Clamp(tamano, 1, IServicioDespachoCentral.TamanoMaximoPagina);
@@ -52,7 +52,7 @@ internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, Tim
         return new PaginaPendientesCentral(await ResumenesAsync(pendientes, cancelacion), total);
     }
 
-    public async Task<DetallePendienteCentral?> ObtenerAsync(Guid pendienteId, CancellationToken cancelacion = default)
+    public async Task<DetallePendienteCentral?> ObtenerAsync(int pendienteId, CancellationToken cancelacion = default)
     {
         var pendiente = await contexto.PendientesEntrega.AsNoTracking().SingleOrDefaultAsync(p => p.Id == pendienteId, cancelacion);
         if (pendiente is null)

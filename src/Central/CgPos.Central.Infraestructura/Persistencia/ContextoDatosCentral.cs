@@ -83,6 +83,8 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
+        // Los Id son enteros de esta base: EF los reserva por bloques de una secuencia (HiLo) al agregar cada entidad, sin ir a la base por cada una.
+        constructorModelo.UseHiLo();
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosCentral).Assembly);
 
         // La de los maestros publicados se define en su configuración, junto con su índice.

@@ -17,7 +17,7 @@ public sealed record EntradaAuditoria(
     string? Motivo = null,
     UsuarioAuditoria? Usuario = null);
 
-public sealed record UsuarioAuditoria(Guid Id, string Nombre);
+public sealed record UsuarioAuditoria(int Id, string Nombre);
 
 /// <summary>Hash de las contraseñas del Central Manager.</summary>
 public interface IHashContrasenas

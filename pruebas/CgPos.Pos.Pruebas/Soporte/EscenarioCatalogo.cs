@@ -30,40 +30,40 @@ public sealed class EscenarioCatalogo
     public int CodigoReglaFerreteria { get; } = Codigos.Siguiente();
 
     // Id locales (después de aplicar el paquete)
-    public Guid DepartamentoFerreteria { get; private set; }
-    public Guid DepartamentoVegetales { get; private set; }
-    public Guid CategoriaHerramientas { get; private set; }
-    public Guid CategoriaVegetales { get; private set; }
-    public Guid UnidadUnidad { get; private set; }
-    public Guid UnidadLibra { get; private set; }
-    public Guid ImpuestoItbis18 { get; private set; }
-    public Guid ImpuestoExento { get; private set; }
+    public int DepartamentoFerreteria { get; private set; }
+    public int DepartamentoVegetales { get; private set; }
+    public int CategoriaHerramientas { get; private set; }
+    public int CategoriaVegetales { get; private set; }
+    public int UnidadUnidad { get; private set; }
+    public int UnidadLibra { get; private set; }
+    public int ImpuestoItbis18 { get; private set; }
+    public int ImpuestoExento { get; private set; }
 
-    public Guid ArticuloCincel { get; private set; }
-    public Guid ArticuloCemento { get; private set; }
-    public Guid ArticuloCombo { get; private set; }
-    public Guid ArticuloTomate { get; private set; }
-    public Guid ArticuloCebolla { get; private set; }
-    public Guid ArticuloInactivo { get; private set; }
-    public Guid ArticuloFueraDePos { get; private set; }
-    public Guid ArticuloTaladro { get; private set; }
+    public int ArticuloCincel { get; private set; }
+    public int ArticuloCemento { get; private set; }
+    public int ArticuloCombo { get; private set; }
+    public int ArticuloTomate { get; private set; }
+    public int ArticuloCebolla { get; private set; }
+    public int ArticuloInactivo { get; private set; }
+    public int ArticuloFueraDePos { get; private set; }
+    public int ArticuloTaladro { get; private set; }
 
-    public Guid Cliente { get; private set; }
-    public Guid DireccionOficina { get; private set; }
-    public Guid DireccionObra { get; private set; }
-    public Guid FormaEfectivo { get; private set; }
-    public Guid FormaTarjeta { get; private set; }
-    public Guid Banco { get; private set; }
-    public Guid TipoTarjeta { get; private set; }
-    public Guid BilleteMil { get; private set; }
-    public Guid FormaNotaCredito { get; private set; }
-    public Guid TopeGeneral { get; private set; }
-    public Guid MotivoDevolucion { get; private set; }
-    public Guid FormaPuntos { get; private set; }
-    public Guid NivelOro { get; private set; }
-    public Guid ReglaGeneral { get; private set; }
-    public Guid ReglaFerreteria { get; private set; }
-    public Guid Miembro { get; private set; }
+    public int Cliente { get; private set; }
+    public int DireccionOficina { get; private set; }
+    public int DireccionObra { get; private set; }
+    public int FormaEfectivo { get; private set; }
+    public int FormaTarjeta { get; private set; }
+    public int Banco { get; private set; }
+    public int TipoTarjeta { get; private set; }
+    public int BilleteMil { get; private set; }
+    public int FormaNotaCredito { get; private set; }
+    public int TopeGeneral { get; private set; }
+    public int MotivoDevolucion { get; private set; }
+    public int FormaPuntos { get; private set; }
+    public int NivelOro { get; private set; }
+    public int ReglaGeneral { get; private set; }
+    public int ReglaFerreteria { get; private set; }
+    public int Miembro { get; private set; }
     public string CedulaMiembro { get; } = CedulaAleatoriaValida();
 
     /// <summary>Saldo que el Central sincronizó para el miembro del escenario.</summary>

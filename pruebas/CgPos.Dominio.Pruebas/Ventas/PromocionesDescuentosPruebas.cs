@@ -9,29 +9,29 @@ public class PromocionesDescuentosPruebas
     /// <summary>Martes 15 de septiembre de 2026, 10:00 hora de RD.</summary>
     private static readonly DateTimeOffset Martes10 = new(2026, 9, 15, 10, 0, 0, TimeSpan.FromHours(-4));
 
-    private static readonly Guid Sucursal = Guid.CreateVersion7();
-    private static readonly Guid DepartamentoFerreteria = Guid.CreateVersion7();
-    private static readonly Guid DepartamentoPanaderia = Guid.CreateVersion7();
+    private static readonly int Sucursal = Ids.Siguiente();
+    private static readonly int DepartamentoFerreteria = Ids.Siguiente();
+    private static readonly int DepartamentoPanaderia = Ids.Siguiente();
 
     private static readonly ArticuloParaVenta Cincel = new(
-        Guid.CreateVersion7(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, DepartamentoFerreteria, true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 850m, null, null, null, null, null);
+        Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, DepartamentoFerreteria, true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 850m, null, null, null, null, null);
 
     private static readonly ArticuloParaVenta Cemento = new(
-        Guid.CreateVersion7(), "CEM-425", "7460001000017", "Cemento gris", TipoArticulo.Normal, DepartamentoFerreteria, true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 485m, 450m, 12m, null, null, null);
+        Ids.Siguiente(), "CEM-425", "7460001000017", "Cemento gris", TipoArticulo.Normal, DepartamentoFerreteria, true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 485m, 450m, 12m, null, null, null);
 
     private static readonly ArticuloParaVenta Martillo = new(
-        Guid.CreateVersion7(), "MAR-16", "7460001000093", "Martillo 16 oz", TipoArticulo.Normal, DepartamentoFerreteria, true,
-        "UND", false, 0, Guid.CreateVersion7(), 18m, 1, 600m, null, null, null, null, null);
+        Ids.Siguiente(), "MAR-16", "7460001000093", "Martillo 16 oz", TipoArticulo.Normal, DepartamentoFerreteria, true,
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 600m, null, null, null, null, null);
 
     /// <summary>Panadería: no admite descuento manual, solo ofertas (RN-09).</summary>
     private static readonly ArticuloParaVenta Pan = new(
-        Guid.CreateVersion7(), "PAN-AGUA", "PAN-AGUA", "Pan de agua", TipoArticulo.Normal, DepartamentoPanaderia, false,
-        "UND", false, 0, Guid.CreateVersion7(), 0m, 4, 10m, null, null, null, null, null);
+        Ids.Siguiente(), "PAN-AGUA", "PAN-AGUA", "Pan de agua", TipoArticulo.Normal, DepartamentoPanaderia, false,
+        "UND", false, 0, Ids.Siguiente(), 0m, 4, 10m, null, null, null, null, null);
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Sucursal, 1, Guid.CreateVersion7(), 1, Guid.CreateVersion7(), 1, 7, Guid.CreateVersion7(), "Cajera", "DOP", "RD$", Martes10);
+        Venta.Iniciar(Sucursal, 1, Ids.Siguiente(), 1, Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Martes10);
 
     private static Promocion Oferta(string codigo, TipoPromocion tipo, decimal valor, ArticuloParaVenta articulo)
     {
@@ -121,7 +121,7 @@ public class PromocionesDescuentosPruebas
         Assert.False(martesManana.EstaVigente(Sucursal, Martes10.AddDays(1)));    // miércoles
         Assert.False(martesManana.EstaVigente(Sucursal, Martes10.AddDays(14)));   // fuera de fechas
 
-        martesManana.AsignarAlcance([Cincel.ArticuloId], null, [Guid.CreateVersion7()]);
+        martesManana.AsignarAlcance([Cincel.ArticuloId], null, [Ids.Siguiente()]);
         Assert.False(martesManana.EstaVigente(Sucursal, Martes10));               // otra sucursal
 
         var nocturna = Oferta("NOC", TipoPromocion.Porcentaje, 10m, Cincel);
@@ -180,7 +180,7 @@ public class PromocionesDescuentosPruebas
         Assert.Equal(85m, vista.Monto);
         Assert.Equal(10m, vista.Porcentaje);
 
-        venta.AplicarDescuentoLinea(cincel.NumeroLinea, TipoDescuento.Porcentaje, 10m, "Cliente frecuente", Guid.CreateVersion7(), "Supervisor", Martes10);
+        venta.AplicarDescuentoLinea(cincel.NumeroLinea, TipoDescuento.Porcentaje, 10m, "Cliente frecuente", Ids.Siguiente(), "Supervisor", Martes10);
         Assert.Equal(85m, cincel.DescuentoManual);
         Assert.Equal(765m, cincel.ImporteConImpuesto);
         Assert.Equal("Cliente frecuente", cincel.MotivoDescuento);
@@ -199,7 +199,7 @@ public class PromocionesDescuentosPruebas
         var pan = venta.AgregarArticulo(Pan, null, Martes10);
         Recalcular(venta, Oferta("MAR15", TipoPromocion.Porcentaje, 15m, Martillo));
 
-        var resultado = venta.AplicarDescuentoFactura(TipoDescuento.Monto, 100m, null, "Cliente frecuente", Guid.CreateVersion7(), "Supervisor", Martes10);
+        var resultado = venta.AplicarDescuentoFactura(TipoDescuento.Monto, 100m, null, "Cliente frecuente", Ids.Siguiente(), "Supervisor", Martes10);
 
         Assert.Equal(100m, resultado.Monto);
         Assert.Equal([martillo.NumeroLinea, pan.NumeroLinea], resultado.LineasExcluidas);

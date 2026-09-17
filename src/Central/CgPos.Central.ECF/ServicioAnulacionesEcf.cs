@@ -36,7 +36,7 @@ internal sealed class ServicioAnulacionesEcf(
             .ToList();
     }
 
-    public async Task<ResultadoAdministracion> AnularAsync(Guid secuenciaId, SolicitudAnulacionEcf solicitud, UsuarioAuditoria actor,
+    public async Task<ResultadoAdministracion> AnularAsync(int secuenciaId, SolicitudAnulacionEcf solicitud, UsuarioAuditoria actor,
         CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(solicitud);

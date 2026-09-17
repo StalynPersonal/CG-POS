@@ -46,17 +46,17 @@ public sealed class ReglaVentaExcepcion(CodigoErrorVenta codigo, string mensaje)
 
 /// <summary>Datos del artículo tal como se leyó en caja, con precios vigentes y lectura de balanza.</summary>
 public sealed record ArticuloParaVenta(
-    Guid ArticuloId,
+    int ArticuloId,
     string CodigoInterno,
     string CodigoLeido,
     string Descripcion,
     TipoArticulo Tipo,
-    Guid DepartamentoId,
+    int DepartamentoId,
     bool PermiteDescuentoManual,
     string UnidadMedidaCodigo,
     bool PermiteDecimales,
     int DecimalesCantidad,
-    Guid ImpuestoId,
+    int ImpuestoId,
     decimal PorcentajeImpuesto,
     int IndicadorFacturacion,
     decimal? PrecioDetalle,
@@ -66,8 +66,8 @@ public sealed record ArticuloParaVenta(
     decimal? PesoLeido,
     decimal? PrecioLeido,
     bool EsServicio = false,
-    Guid? CategoriaId = null,
-    Guid? MarcaId = null);
+    int? CategoriaId = null,
+    int? MarcaId = null);
 
 public sealed record DesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 
@@ -94,14 +94,14 @@ public sealed record ResultadoDescuentoFactura(decimal Monto, decimal Porcentaje
 
 /// <summary>Cliente asignado a la venta: registrado, del padrón DGII o solo con documento.</summary>
 public sealed record ClienteVenta(
-    Guid? ClienteId,
+    int? ClienteId,
     TipoDocumentoIdentidad? TipoDocumento,
     string? Documento,
     string Nombre,
     TipoComprobante ComprobantePredeterminado);
 
 /// <summary>Miembro del programa de fidelidad asignado a la venta.</summary>
-public sealed record MiembroVenta(Guid MiembroId, string Cedula, string Nombre, string? Nivel);
+public sealed record MiembroVenta(int MiembroId, string Cedula, string Nombre, string? Nivel);
 
 /// <summary>Qué comprobantes se emiten en una venta de caja y qué documento del comprador exige cada uno (RF-27).</summary>
 public static class ReglasComprobante
@@ -163,10 +163,10 @@ public sealed class Venta : Entidad
 
     public string NumeroTransaccion { get; private set; } = string.Empty;
     public long Secuencia { get; private set; }
-    public Guid SucursalId { get; private set; }
-    public Guid CajaId { get; private set; }
-    public Guid TurnoId { get; private set; }
-    public Guid UsuarioId { get; private set; }
+    public int SucursalId { get; private set; }
+    public int CajaId { get; private set; }
+    public int TurnoId { get; private set; }
+    public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
     /// <summary>Moneda local de la caja al iniciar la venta (ISO 4217): los montos de la factura están en ella.</summary>
@@ -179,11 +179,11 @@ public sealed class Venta : Entidad
     public DateTimeOffset ActualizadaEn { get; private set; }
     public DateTimeOffset? AnuladaEn { get; private set; }
     public string? MotivoAnulacion { get; private set; }
-    public Guid? AnuladaPorId { get; private set; }
+    public int? AnuladaPorId { get; private set; }
     public string? AnuladaPorNombre { get; private set; }
 
     // Cliente y comprobante (RF-13, RF-27)
-    public Guid? ClienteId { get; private set; }
+    public int? ClienteId { get; private set; }
     public TipoDocumentoIdentidad? ClienteTipoDocumento { get; private set; }
     public string? ClienteDocumento { get; private set; }
     public string? ClienteNombre { get; private set; }
@@ -193,7 +193,7 @@ public sealed class Venta : Entidad
     public decimal? LimiteCompra { get; private set; }
 
     // Programa de fidelidad (M11): la cédula identifica al miembro (RF-236).
-    public Guid? FidelidadMiembroId { get; private set; }
+    public int? FidelidadMiembroId { get; private set; }
     public string? FidelidadCedula { get; private set; }
     public string? FidelidadNombre { get; private set; }
     public string? FidelidadNivel { get; private set; }
@@ -213,12 +213,12 @@ public sealed class Venta : Entidad
     public string? DescuentoFacturaLineas { get; private set; }
 
     public string? MotivoDescuentoFactura { get; private set; }
-    public Guid? DescuentoFacturaAutorizadoPorId { get; private set; }
+    public int? DescuentoFacturaAutorizadoPorId { get; private set; }
     public string? DescuentoFacturaAutorizadoPorNombre { get; private set; }
 
     // Cobro (M08)
     public DateTimeOffset? CobradaEn { get; private set; }
-    public Guid? CobradaPorId { get; private set; }
+    public int? CobradaPorId { get; private set; }
     public string? CobradaPorNombre { get; private set; }
 
     /// <summary>Total cobrado después del redondeo del efectivo.</summary>
@@ -237,14 +237,13 @@ public sealed class Venta : Entidad
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
     /// <summary>Menor cantidad de dígitos que admite la secuencia de un número de documento.</summary>
-    public static Venta Iniciar(Guid sucursalId, int codigoSucursal, Guid cajaId, int codigoCaja, Guid turnoId, long secuencia, int digitosSecuencia,
-        Guid usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
+    public static Venta Iniciar(int sucursalId, int codigoSucursal, int cajaId, int codigoCaja, int turnoId, long secuencia, int digitosSecuencia,
+        int usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
 
         return new Venta
         {
-            Id = Guid.CreateVersion7(),
             NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(codigoSucursal, codigoCaja, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia), "Número de transacción", LargoMaximoNumero),
             Secuencia = secuencia,
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
@@ -389,7 +388,7 @@ public sealed class Venta : Entidad
     }
 
     /// <summary>Anula la transacción completa antes de cobrarla (RF-194, RF-146); no consume NCF.</summary>
-    public void Anular(string motivo, Guid usuarioId, string usuarioNombre, DateTimeOffset ahora)
+    public void Anular(string motivo, int usuarioId, string usuarioNombre, DateTimeOffset ahora)
     {
         if (Estado is not (EstadoVenta.EnCurso or EstadoVenta.EnEspera))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, $"No se puede anular una venta {Estado}.");
@@ -444,8 +443,8 @@ public sealed class Venta : Entidad
     /// Marca líneas, completas o en parte, para retiro en un almacén o envío a dirección (RF-246 a RF-248, RN-12 a RN-14). Quien llama
     /// valida la autorización del supervisor (RF-53, RN-15). Una factura admite varios destinos.
     /// </summary>
-    public DestinoEntrega MarcarEntrega(MetodoEntrega metodo, Guid? almacenId, string? almacenNombre, DatosEnvio? envio, DateOnly? fechaComprometida,
-        string? comentario, IReadOnlyCollection<CantidadEntrega> cantidades, Guid? autorizadoPorId, string? autorizadoPorNombre, DateOnly hoy, DateTimeOffset ahora)
+    public DestinoEntrega MarcarEntrega(MetodoEntrega metodo, int? almacenId, string? almacenNombre, DatosEnvio? envio, DateOnly? fechaComprometida,
+        string? comentario, IReadOnlyCollection<CantidadEntrega> cantidades, int? autorizadoPorId, string? autorizadoPorNombre, DateOnly hoy, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(cantidades);
         AsegurarEditable();
@@ -606,7 +605,7 @@ public sealed class Venta : Entidad
     /// </summary>
     /// <param name="ahoraLocal">Fecha y hora local de la caja, para los días y horas de las ofertas.</param>
     /// <remarks>Las ofertas exclusivas del programa de fidelidad solo aplican con un miembro asignado (RF-207).</remarks>
-    public void RecalcularPromociones(IReadOnlyCollection<Promocion> promociones, Guid sucursalId, DateTimeOffset ahoraLocal)
+    public void RecalcularPromociones(IReadOnlyCollection<Promocion> promociones, int sucursalId, DateTimeOffset ahoraLocal)
     {
         ArgumentNullException.ThrowIfNull(promociones);
         if (Estado != EstadoVenta.EnCurso)
@@ -699,7 +698,7 @@ public sealed class Venta : Entidad
     }
 
     /// <summary>Descuento por monto o porcentaje a una línea (RF-199), con motivo y quién lo autorizó (RF-203).</summary>
-    public LineaVenta AplicarDescuentoLinea(int numeroLinea, TipoDescuento tipo, decimal valor, string motivo, Guid? autorizadoPorId, string? autorizadoPorNombre,
+    public LineaVenta AplicarDescuentoLinea(int numeroLinea, TipoDescuento tipo, decimal valor, string motivo, int? autorizadoPorId, string? autorizadoPorNombre,
         DateTimeOffset ahora)
     {
         if (string.IsNullOrWhiteSpace(motivo))
@@ -728,7 +727,7 @@ public sealed class Venta : Entidad
     /// línea al centavo; las líneas en oferta o de departamentos sin descuento manual quedan fuera y se informan (RF-204).
     /// </summary>
     public ResultadoDescuentoFactura AplicarDescuentoFactura(TipoDescuento tipo, decimal valor, IReadOnlyCollection<int>? lineas, string motivo,
-        Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+        int? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
     {
         AsegurarEditable();
         if (string.IsNullOrWhiteSpace(motivo))
@@ -859,7 +858,7 @@ public sealed class Venta : Entidad
     /// factura de consumo grande exige identificación (RF-26); si se paga con efectivo se aplica el redondeo configurado (RF-216).
     /// </summary>
     /// <param name="pasoRedondeoEfectivo">Múltiplo al que se redondea el total cuando hay efectivo (ej. 1 = al peso); 0 = sin redondeo.</param>
-    public ResultadoCobro Cobrar(IReadOnlyList<PagoSolicitado> pagos, decimal pasoRedondeoEfectivo, decimal montoIdentificacion, Guid usuarioId, string usuarioNombre,
+    public ResultadoCobro Cobrar(IReadOnlyList<PagoSolicitado> pagos, decimal pasoRedondeoEfectivo, decimal montoIdentificacion, int usuarioId, string usuarioNombre,
         DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(pagos);
@@ -1031,7 +1030,7 @@ public sealed class LineaVenta : Entidad
     public bool SerialPendiente { get; private set; }
 
     // Oferta aplicada: queda registrada por línea para el reporte de efecto promocional (RF-210).
-    public Guid? PromocionId { get; private set; }
+    public int? PromocionId { get; private set; }
     public string? PromocionCodigo { get; private set; }
     public string? PromocionNombre { get; private set; }
 
@@ -1048,7 +1047,7 @@ public sealed class LineaVenta : Entidad
     public TipoDescuento? DescuentoManualTipo { get; private set; }
     public decimal? DescuentoManualValor { get; private set; }
     public string? MotivoDescuento { get; private set; }
-    public Guid? DescuentoAutorizadoPorId { get; private set; }
+    public int? DescuentoAutorizadoPorId { get; private set; }
     public string? DescuentoAutorizadoPorNombre { get; private set; }
 
     /// <summary>Parte de esta línea del descuento a la factura, prorrateado para impuestos y e-CF (RF-200, RN-07).</summary>
@@ -1058,9 +1057,9 @@ public sealed class LineaVenta : Entidad
 
     public decimal DescuentoTotal => DescuentoPromocion + DescuentoManual + DescuentoFactura;
 
-    public Guid VentaId { get; private set; }
+    public int VentaId { get; private set; }
     public int NumeroLinea { get; private set; }
-    public Guid ArticuloId { get; private set; }
+    public int ArticuloId { get; private set; }
     public string CodigoInterno { get; private set; } = string.Empty;
 
     /// <summary>Código tal como se leyó (barras, proveedor, interno o etiqueta de balanza); al tocarlo se muestra el interno (RF-109).</summary>
@@ -1068,14 +1067,14 @@ public sealed class LineaVenta : Entidad
 
     public string Descripcion { get; private set; } = string.Empty;
     public TipoArticulo TipoArticulo { get; private set; }
-    public Guid DepartamentoId { get; private set; }
-    public Guid? CategoriaId { get; private set; }
-    public Guid? MarcaId { get; private set; }
+    public int DepartamentoId { get; private set; }
+    public int? CategoriaId { get; private set; }
+    public int? MarcaId { get; private set; }
     public bool PermiteDescuentoManual { get; private set; }
     public string UnidadMedidaCodigo { get; private set; } = string.Empty;
     public bool PermiteDecimales { get; private set; }
     public int DecimalesCantidad { get; private set; }
-    public Guid ImpuestoId { get; private set; }
+    public int ImpuestoId { get; private set; }
     public decimal PorcentajeImpuesto { get; private set; }
     public int IndicadorFacturacion { get; private set; }
 
@@ -1115,11 +1114,10 @@ public sealed class LineaVenta : Entidad
     /// <summary>Importe a cobrar, con impuesto y después de ofertas y descuentos.</summary>
     public decimal ImporteConImpuesto => EsReverso ? 0m : Math.Max(0m, ImporteBruto - DescuentoTotal);
 
-    internal static LineaVenta Crear(Guid ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad, PrecioDeterminado precio,
+    internal static LineaVenta Crear(int ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad, PrecioDeterminado precio,
         decimal? importeEtiqueta, bool leidaDeBalanza, string? serial, bool serialPendiente) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             Serial = serial,
             SerialPendiente = serialPendiente,
             VentaId = ventaId,
@@ -1152,10 +1150,9 @@ public sealed class LineaVenta : Entidad
             LeidaDeBalanza = leidaDeBalanza,
         };
 
-    internal static LineaVenta CrearReverso(Guid ventaId, int numeroLinea, LineaVenta original) =>
+    internal static LineaVenta CrearReverso(int ventaId, int numeroLinea, LineaVenta original) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             Serial = original.Serial,
             VentaId = ventaId,
             NumeroLinea = numeroLinea,
@@ -1220,7 +1217,7 @@ public sealed class LineaVenta : Entidad
         DescuentoPromocion = descuento;
     }
 
-    internal void AplicarDescuentoManual(decimal monto, TipoDescuento tipo, decimal valor, string motivo, Guid? autorizadoPorId, string? autorizadoPorNombre)
+    internal void AplicarDescuentoManual(decimal monto, TipoDescuento tipo, decimal valor, string motivo, int? autorizadoPorId, string? autorizadoPorNombre)
     {
         DescuentoManual = monto;
         DescuentoManualTipo = tipo;

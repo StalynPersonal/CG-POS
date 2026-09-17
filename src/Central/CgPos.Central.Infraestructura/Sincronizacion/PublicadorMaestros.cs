@@ -101,7 +101,7 @@ internal sealed class PublicadorMaestros(
             var etiqueta = $"Usuario de caja '{dato.Codigo}'";
             try
             {
-                Usuario.Crear(dato.Codigo, dato.Nombre, Guid.CreateVersion7());
+                Usuario.Crear(dato.Codigo, dato.Nombre, ResolutorValidacion.Id("Rol", dato.RolCodigo));
             }
             catch (ArgumentException excepcion)
             {
@@ -238,8 +238,8 @@ internal sealed class PublicadorMaestros(
     /// <returns><c>true</c> si el parámetro es nuevo o cambió de valor.</returns>
     private async Task<bool> AplicarParametroAsync(ParametroCarga dato, ResolutorCodigosCentral resolutor, CancellationToken cancelacion)
     {
-        Guid? sucursalId = null;
-        Guid? cajaId = null;
+        int? sucursalId = null;
+        int? cajaId = null;
         if (dato is { SucursalCodigo: { } s, CajaCodigo: { } c })
             cajaId = resolutor.Caja(s, c);
         else if (dato.CajaCodigo is not null)
@@ -436,8 +436,8 @@ public static class ExtensionesPublicacionMaestros
         {
             try
             {
-                var cajaId = dato is { SucursalCodigo: { } s, CajaCodigo: { } c } ? resolutor.Caja(s, c) : (Guid?)null;
-                var sucursalId = cajaId is null && dato.SucursalCodigo is { } sucursal ? resolutor.Sucursal(sucursal) : (Guid?)null;
+                var cajaId = dato is { SucursalCodigo: { } s, CajaCodigo: { } c } ? resolutor.Caja(s, c) : (int?)null;
+                var sucursalId = cajaId is null && dato.SucursalCodigo is { } sucursal ? resolutor.Sucursal(sucursal) : (int?)null;
                 return parametros.Any(p => p.Clave == dato.Clave.Trim() && p.SucursalId == sucursalId && p.CajaId == cajaId);
             }
             catch (InvalidOperationException)

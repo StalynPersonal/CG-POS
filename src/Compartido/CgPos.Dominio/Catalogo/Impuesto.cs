@@ -24,11 +24,10 @@ public sealed class Impuesto : Entidad
 
     public bool Activo { get; private set; } = true;
 
-    public static Impuesto Crear(string codigo, string nombre, decimal porcentaje, int indicadorFacturacion, Guid? id = null)
+    public static Impuesto Crear(string codigo, string nombre, decimal porcentaje, int indicadorFacturacion)
     {
         var impuesto = new Impuesto
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de impuesto", LargoMaximoCodigo).ToUpperInvariant(),
         };
         impuesto.Actualizar(nombre, porcentaje, indicadorFacturacion);

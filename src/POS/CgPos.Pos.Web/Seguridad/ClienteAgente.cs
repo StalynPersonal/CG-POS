@@ -74,16 +74,16 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> ObtenerVentaActualAsync(CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Get, "api/ventas/actual", null, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> AgregarArticuloAsync(Guid ventaId, string codigo, decimal? cantidad = null, string? serial = null, bool serialEnDespacho = false,
+    public Task<RespuestaVenta> AgregarArticuloAsync(int ventaId, string codigo, decimal? cantidad = null, string? serial = null, bool serialEnDespacho = false,
         CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas", new SolicitudAgregarArticulo(codigo, cantidad, serial, serialEnDespacho), ErrorVenta, cancelacion);
 
     // ---------- Pendientes de entrega y envíos (C10) ----------
 
-    public Task<RespuestaVenta> MarcarEntregaAsync(Guid ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> MarcarEntregaAsync(int ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/entregas", solicitud, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> QuitarEntregaAsync(Guid ventaId, int numeroDestino, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> QuitarEntregaAsync(int ventaId, int numeroDestino, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/entregas/{numeroDestino}", null, ErrorVenta, cancelacion);
 
     // ---------- Despacho de pendientes (C10) ----------
@@ -104,13 +104,13 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         EnviarAsync<object?, RespuestaBusquedaPendientes>(HttpMethod.Get, $"api/despacho/pendientes/buscar/{Uri.EscapeDataString(codigo)}", null,
             mensaje => new RespuestaBusquedaPendientes(CodigoResultadoPendiente.NoEncontrado, mensaje, []), cancelacion);
 
-    public Task<RespuestaPendiente> CambiarEstadoPendienteAsync(Guid pendienteId, EstadoPendiente estado, CancellationToken cancelacion = default) =>
+    public Task<RespuestaPendiente> CambiarEstadoPendienteAsync(int pendienteId, EstadoPendiente estado, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/despacho/pendientes/{pendienteId}/estado", new SolicitudEstadoPendiente(estado), ErrorPendiente, cancelacion);
 
-    public Task<RespuestaPendiente> EntregarPendienteAsync(Guid pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default) =>
+    public Task<RespuestaPendiente> EntregarPendienteAsync(int pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/despacho/pendientes/{pendienteId}/entregas", solicitud, ErrorPendiente, cancelacion);
 
-    public Task<RespuestaPendiente> AnularPendienteAsync(Guid pendienteId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaPendiente> AnularPendienteAsync(int pendienteId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/despacho/pendientes/{pendienteId}/anular", new SolicitudAnularPendiente(motivo, autorizacionId), ErrorPendiente, cancelacion);
 
     private static RespuestaPendiente ErrorPendiente(string mensaje) => new(CodigoResultadoPendiente.OperacionInvalida, mensaje, null);
@@ -127,35 +127,35 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaVenta> AgregarDesdeBalanzaAsync(Guid ventaId, string codigo, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> AgregarDesdeBalanzaAsync(int ventaId, string codigo, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/balanza", new SolicitudPesarArticulo(codigo), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> CambiarCantidadAsync(Guid ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> CambiarCantidadAsync(int ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/lineas/{numeroLinea}/cantidad", new SolicitudCambiarCantidad(cantidad), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> EliminarLineaAsync(Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> EliminarLineaAsync(int ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/{numeroLinea}/eliminar", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> EliminarPorCodigoAsync(Guid ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> EliminarPorCodigoAsync(int ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/eliminar-por-codigo", new SolicitudEliminarPorCodigo(codigo, autorizacionId), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> LimpiarVentaAsync(Guid ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> LimpiarVentaAsync(int ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/limpiar", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
 
     // ---------- Cliente, comprobante, límite, espera, anular y suspender (C4) ----------
 
-    public Task<RespuestaVenta> AsignarClienteAsync(Guid ventaId, string documento, string? nombre, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> AsignarClienteAsync(int ventaId, string documento, string? nombre, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/cliente", new SolicitudAsignarCliente(documento, nombre), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> QuitarClienteAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> QuitarClienteAsync(int ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/cliente", null, ErrorVenta, cancelacion);
 
     // ---------- Programa de fidelidad (C10) ----------
 
-    public Task<RespuestaVenta> AsignarFidelidadAsync(Guid ventaId, string cedula, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> AsignarFidelidadAsync(int ventaId, string cedula, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/fidelidad", new SolicitudAsignarFidelidad(cedula), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> QuitarFidelidadAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> QuitarFidelidadAsync(int ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/fidelidad", null, ErrorVenta, cancelacion);
 
     public Task<RespuestaFidelidad> ConsultarFidelidadAsync(string cedula, CancellationToken cancelacion = default) =>
@@ -165,13 +165,13 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaFidelidad> InscribirFidelidadAsync(SolicitudInscripcionFidelidad solicitud, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/fidelidad/miembros", solicitud, mensaje => new RespuestaFidelidad(CodigoResultadoFidelidad.DatosInvalidos, mensaje, null), cancelacion);
 
-    public Task<RespuestaVenta> CambiarComprobanteAsync(Guid ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> CambiarComprobanteAsync(int ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/comprobante", new SolicitudCambiarComprobante(tipo, autorizacionId), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> EstablecerLimiteCompraAsync(Guid ventaId, decimal? limite, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> EstablecerLimiteCompraAsync(int ventaId, decimal? limite, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/limite", new SolicitudLimiteCompra(limite), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> PonerEnEsperaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> PonerEnEsperaAsync(int ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Post, $"api/ventas/{ventaId}/espera", null, ErrorVenta, cancelacion);
 
     public async Task<IReadOnlyList<DatosVentaEnEspera>> ListarEnEsperaAsync(CancellationToken cancelacion = default)
@@ -186,10 +186,10 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaVenta> RetomarVentaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> RetomarVentaAsync(int ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Post, $"api/ventas/{ventaId}/retomar", null, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> AnularVentaAsync(Guid ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> AnularVentaAsync(int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/anular", new SolicitudAnularVenta(motivo, autorizacionId), ErrorVenta, cancelacion);
 
     public Task<RespuestaVenta> SuspenderCajaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
@@ -209,15 +209,15 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(Guid ventaId, decimal monto, CancellationToken cancelacion = default) =>
+    public Task<RespuestaOperacionTerminal> CobrarConTerminalAsync(int ventaId, decimal monto, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/terminal", new SolicitudCobroTarjeta(monto),
             mensaje => new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalSinConexion, mensaje, null), cancelacion);
 
-    public Task<RespuestaOperacionTerminal> AnularUltimaTarjetaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaOperacionTerminal> AnularUltimaTarjetaAsync(int ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaOperacionTerminal>(HttpMethod.Post, $"api/ventas/{ventaId}/terminal/anular-ultima", null,
             mensaje => new RespuestaOperacionTerminal(CodigoResultadoVenta.TerminalSinConexion, mensaje, null), cancelacion);
 
-    public Task<RespuestaCobro> CobrarAsync(Guid ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaCobro> CobrarAsync(int ventaId, IReadOnlyList<SolicitudPago> pagos, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/cobrar", new SolicitudCobro(pagos, autorizacionId),
             mensaje => new RespuestaCobro(CodigoResultadoVenta.VentaNoEditable, mensaje, null, null), cancelacion);
 
@@ -229,25 +229,25 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     // ---------- Descuentos y ofertas (C5) ----------
 
-    public Task<RespuestaVenta> AplicarDescuentoLineaAsync(Guid ventaId, int numeroLinea, TipoDescuento tipo, decimal valor, string? motivo, Guid? autorizacionId,
+    public Task<RespuestaVenta> AplicarDescuentoLineaAsync(int ventaId, int numeroLinea, TipoDescuento tipo, decimal valor, string? motivo, Guid? autorizacionId,
         CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/{numeroLinea}/descuento", new SolicitudDescuentoLinea(tipo, valor, motivo, autorizacionId), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> QuitarDescuentoLineaAsync(Guid ventaId, int numeroLinea, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> QuitarDescuentoLineaAsync(int ventaId, int numeroLinea, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/lineas/{numeroLinea}/descuento", null, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> AplicarDescuentoFacturaAsync(Guid ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas, string? motivo,
+    public Task<RespuestaVenta> AplicarDescuentoFacturaAsync(int ventaId, TipoDescuento tipo, decimal valor, IReadOnlyList<int>? lineas, string? motivo,
         Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/descuento", new SolicitudDescuentoFactura(tipo, valor, lineas, motivo, autorizacionId), ErrorVenta, cancelacion);
 
     /// <summary>Descuento del banco por el BIN de la tarjeta (RF-98), antes de cobrar.</summary>
-    public Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(Guid ventaId, string bin, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> AplicarDescuentoTarjetaAsync(int ventaId, string bin, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/descuento-tarjeta", new SolicitudDescuentoTarjeta(bin), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> QuitarDescuentoFacturaAsync(Guid ventaId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> QuitarDescuentoFacturaAsync(int ventaId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/descuento", null, ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> DesactivarOfertaAsync(Guid ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaVenta> DesactivarOfertaAsync(int ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/lineas/{numeroLinea}/desactivar-oferta", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
 
     public async Task<IReadOnlyList<DatosMotivoDescuento>> ListarMotivosDescuentoAsync(CancellationToken cancelacion = default)
@@ -262,7 +262,7 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(Guid articuloId, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosPromocionVigente>> ListarPromocionesVigentesAsync(int articuloId, CancellationToken cancelacion = default)
     {
         try
         {
@@ -344,10 +344,10 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaCaja> ReabrirCierreAsync(Guid cierreId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaCaja> ReabrirCierreAsync(int cierreId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/caja/cierres/{cierreId}/reabrir", new SolicitudReabrirCierre(motivo, autorizacionId), ErrorCaja, cancelacion);
 
-    public Task<RespuestaCaja> ReimprimirCierreAsync(Guid cierreId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaCaja> ReimprimirCierreAsync(int cierreId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaCaja>(HttpMethod.Post, $"api/caja/cierres/{cierreId}/reimprimir", null, ErrorCaja, cancelacion);
 
     private static RespuestaCaja ErrorCaja(string mensaje) => new(CodigoResultadoCaja.TurnoNoAbierto, mensaje);
@@ -365,7 +365,7 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         EnviarAsync<object?, RespuestaSaldoNotaCredito>(HttpMethod.Get, $"api/devoluciones/notas-credito/{Uri.EscapeDataString(codigo)}", null,
             mensaje => new RespuestaSaldoNotaCredito(CodigoResultadoDevolucion.NotaCreditoNoEncontrada, mensaje, null), cancelacion);
 
-    public Task<RespuestaDevolucion> ReimprimirNotaCreditoAsync(Guid devolucionId, CancellationToken cancelacion = default) =>
+    public Task<RespuestaDevolucion> ReimprimirNotaCreditoAsync(int devolucionId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaDevolucion>(HttpMethod.Post, $"api/devoluciones/{devolucionId}/reimprimir", null,
             mensaje => new RespuestaDevolucion(CodigoResultadoDevolucion.NotaCreditoNoEncontrada, mensaje), cancelacion);
 

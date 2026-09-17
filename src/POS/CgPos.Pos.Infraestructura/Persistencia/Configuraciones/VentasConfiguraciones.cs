@@ -16,7 +16,6 @@ internal sealed class TurnoConfiguracion : IEntityTypeConfiguration<Turno>
     {
         constructor.ToTable("Turnos");
         constructor.HasKey(t => t.Id);
-        constructor.Property(t => t.Id).ValueGeneratedNever();
         constructor.Property(t => t.UsuarioAperturaNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
         constructor.Property(t => t.UsuarioActualNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
         constructor.Property(t => t.FondoInicial).HasPrecision(18, 2);
@@ -39,7 +38,6 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
     {
         constructor.ToTable("Ventas");
         constructor.HasKey(v => v.Id);
-        constructor.Property(v => v.Id).ValueGeneratedNever();
         constructor.Property(v => v.NumeroTransaccion).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(v => v.UsuarioNombre).HasMaxLength(Venta.LargoMaximoUsuario).IsRequired();
         constructor.Property(v => v.Moneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoCodigo).IsUnicode(false).IsRequired();
@@ -82,7 +80,6 @@ internal sealed class PagoVentaConfiguracion : IEntityTypeConfiguration<PagoVent
     {
         constructor.ToTable("PagosVenta");
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
         constructor.Property(p => p.FormaPagoCodigo).HasMaxLength(Dominio.Pagos.FormaPago.LargoMaximoCodigo).IsRequired();
         constructor.Property(p => p.FormaPagoNombre).HasMaxLength(Dominio.Pagos.FormaPago.LargoMaximoNombre).IsRequired();
         constructor.Property(p => p.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
@@ -104,7 +101,6 @@ internal sealed class LineaVentaConfiguracion : IEntityTypeConfiguration<LineaVe
     {
         constructor.ToTable("LineasVenta");
         constructor.HasKey(l => l.Id);
-        constructor.Property(l => l.Id).ValueGeneratedNever();
         constructor.Property(l => l.CodigoInterno).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.CodigoLeido).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();

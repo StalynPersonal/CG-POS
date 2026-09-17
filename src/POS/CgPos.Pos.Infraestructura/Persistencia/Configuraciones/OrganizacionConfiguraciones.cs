@@ -10,7 +10,6 @@ internal sealed class EmpresaConfiguracion : IEntityTypeConfiguration<Empresa>
     {
         constructor.ToTable("Empresas");
         constructor.HasKey(e => e.Id);
-        constructor.Property(e => e.Id).ValueGeneratedNever();
 
         constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoRnc).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(e => e.RazonSocial).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
@@ -28,7 +27,6 @@ internal sealed class SucursalConfiguracion : IEntityTypeConfiguration<Sucursal>
     {
         constructor.ToTable("Sucursales");
         constructor.HasKey(s => s.Id);
-        constructor.Property(s => s.Id).ValueGeneratedNever();
 
 
         constructor.Property(s => s.Nombre).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
@@ -46,7 +44,6 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
     {
         constructor.ToTable("Cajas");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
 
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
@@ -67,7 +64,6 @@ internal sealed class ParametroConfiguracion : IEntityTypeConfiguration<Parametr
         constructor.ToTable("Parametros", tabla =>
             tabla.HasCheckConstraint("CK_Parametros_UnSoloAmbito", "[SucursalId] IS NULL OR [CajaId] IS NULL"));
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
 
         constructor.Property(p => p.Clave).HasMaxLength(Parametro.LargoMaximoClave).IsRequired();
         constructor.Property(p => p.Valor).HasMaxLength(Parametro.LargoMaximoValor).IsRequired();

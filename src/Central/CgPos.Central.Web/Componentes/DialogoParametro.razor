@@ -164,8 +164,8 @@
         }
         else
         {
-            Guid? sucursalId = _ambito.StartsWith("s:", StringComparison.Ordinal) ? Guid.Parse(_ambito[2..]) : null;
-            Guid? cajaId = _ambito.StartsWith("c:", StringComparison.Ordinal) ? Guid.Parse(_ambito[2..]) : null;
+            int? sucursalId = _ambito.StartsWith("s:", StringComparison.Ordinal) ? int.Parse(_ambito[2..], System.Globalization.CultureInfo.InvariantCulture) : null;
+            int? cajaId = _ambito.StartsWith("c:", StringComparison.Ordinal) ? int.Parse(_ambito[2..], System.Globalization.CultureInfo.InvariantCulture) : null;
             respuesta = await Cliente.CrearParametroAsync(new SolicitudParametro(definicion.Clave, valor, sucursalId, cajaId));
         }
 

@@ -11,7 +11,6 @@ internal sealed class EmpresaConfiguracion : IEntityTypeConfiguration<Empresa>
     {
         constructor.ToTable("Empresas");
         constructor.HasKey(e => e.Id);
-        constructor.Property(e => e.Id).ValueGeneratedNever();
 
         // En el Central todos los datos de la empresa y de las sucursales son obligatorios (salen en e-CF, tickets y reportes).
         constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoRnc).IsFixedLength().IsUnicode(false).IsRequired();
@@ -30,7 +29,6 @@ internal sealed class SucursalConfiguracion : IEntityTypeConfiguration<Sucursal>
     {
         constructor.ToTable("Sucursales");
         constructor.HasKey(s => s.Id);
-        constructor.Property(s => s.Id).ValueGeneratedNever();
 
         constructor.Property(s => s.Nombre).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
         constructor.Property(s => s.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion).IsRequired();
@@ -47,7 +45,6 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
     {
         constructor.ToTable("Cajas");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
 
@@ -63,7 +60,6 @@ internal sealed class ParametroConfiguracion : IEntityTypeConfiguration<Parametr
         constructor.ToTable("Parametros", tabla =>
             tabla.HasCheckConstraint("CK_Parametros_UnSoloAmbito", "[SucursalId] IS NULL OR [CajaId] IS NULL"));
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
 
         constructor.Property(p => p.Clave).HasMaxLength(Parametro.LargoMaximoClave).IsRequired();
         constructor.Property(p => p.Valor).HasMaxLength(Parametro.LargoMaximoValor).IsRequired();
@@ -83,7 +79,6 @@ internal sealed class CredencialDispositivoConfiguracion : IEntityTypeConfigurat
     {
         constructor.ToTable("CredencialesDispositivo");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.SecretoHash).HasMaxLength(CredencialDispositivo.LargoHashSecreto).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(c => c.EmitidaPor).HasMaxLength(CredencialDispositivo.LargoMaximoNombre).IsRequired();
@@ -104,7 +99,6 @@ internal sealed class RegistroAuditoriaConfiguracion : IEntityTypeConfiguration<
         constructor.ToTable("Auditoria");
 
         constructor.HasKey(r => r.Id);
-        constructor.Property(r => r.Id).ValueGeneratedNever();
 
         constructor.Property(r => r.Accion).HasMaxLength(RegistroAuditoria.LargoMaximoAccion).IsRequired();
         constructor.Property(r => r.TipoEntidad).HasMaxLength(RegistroAuditoria.LargoMaximoTipoEntidad).IsRequired();

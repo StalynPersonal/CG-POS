@@ -9,7 +9,7 @@ public sealed class Sucursal : Entidad
     {
     }
 
-    public Guid EmpresaId { get; private set; }
+    public int EmpresaId { get; private set; }
 
     /// <summary>Código de la sucursal (1 a 99), único en la empresa; en los números de documento va con dos dígitos (ej. 01).</summary>
     public int Codigo { get; private set; }
@@ -19,12 +19,11 @@ public sealed class Sucursal : Entidad
     public string? Telefono { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static Sucursal Crear(Guid empresaId, int codigo, string nombre,
-        string? direccion = null, string? telefono = null, Guid? id = null)
+    public static Sucursal Crear(int empresaId, int codigo, string nombre,
+        string? direccion = null, string? telefono = null)
     {
         var sucursal = new Sucursal
         {
-            Id = id ?? Guid.CreateVersion7(),
             EmpresaId = Validar.Id(empresaId, "Empresa"),
             Codigo = Validar.Codigo(codigo, "Código de sucursal", CodigosCatalogo.MaximoSucursalCaja),
         };

@@ -16,16 +16,16 @@ public interface IServicioConfiguracionCajas
     Task<ResultadoAdministracion> AsignarSecuenciaAsync(SolicitudSecuenciaEcf solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Amplía, prorroga o desactiva un rango: nunca lo reduce.</summary>
-    Task<ResultadoAdministracion> ActualizarSecuenciaAsync(Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ActualizarSecuenciaAsync(int secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosRolCaja>> ListarRolesCajaAsync(CancellationToken cancelacion = default);
 
     /// <param name="rolId">Nulo para crear el rol.</param>
-    Task<ResultadoAdministracion> GuardarRolCajaAsync(Guid? rolId, SolicitudRolCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> GuardarRolCajaAsync(int? rolId, SolicitudRolCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosUsuarioCaja>> ListarUsuariosCajaAsync(CancellationToken cancelacion = default);
 
     /// <summary>La clave se publica solo como hash; sin clave nueva se conserva la actual.</summary>
     /// <param name="usuarioId">Nulo para crear el usuario.</param>
-    Task<ResultadoAdministracion> GuardarUsuarioCajaAsync(Guid? usuarioId, SolicitudUsuarioCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> GuardarUsuarioCajaAsync(int? usuarioId, SolicitudUsuarioCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

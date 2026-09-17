@@ -15,21 +15,32 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var sufijo = Guid.NewGuid().ToString("N")[..6];
 
-        var empresa = Empresa.Crear(RncUnico(), "Contreras Group SRL");
-        var sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Principal");
-        var caja = Caja.Crear(sucursal.Id, 1, "Caja 01");
-        var rol = Rol.Crear($"SUP{sufijo}", "Supervisor", nivel: 2);
-        rol.AsignarPermiso(CatalogoPermisos.AutorizarOperaciones);
-        rol.AsignarPermiso(CatalogoPermisos.EliminarLinea);
-        var usuario = Usuario.Crear($"U{sufijo}", "Supervisor Prueba", rol.Id);
-        usuario.AsignarCaja(caja.Id);
-        usuario.EstablecerClaveHash($"PBKDF2-SHA256$100000$sal{sufijo}$hash");
+        Empresa empresa;
+        Sucursal sucursal;
+        Caja caja;
+        Rol rol;
+        Usuario usuario;
 
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
         {
             var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
             await AsegurarCatalogoPermisosAsync(contexto);
-            contexto.AddRange(empresa, sucursal, caja, rol, usuario);
+
+            // Cada entidad recibe su Id al agregarla al contexto, antes de crear la que la referencia.
+            empresa = Empresa.Crear(RncUnico(), "Contreras Group SRL");
+            contexto.Add(empresa);
+            sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Principal");
+            contexto.Add(sucursal);
+            caja = Caja.Crear(sucursal.Id, 1, "Caja 01");
+            contexto.Add(caja);
+            rol = Rol.Crear($"SUP{sufijo}", "Supervisor", nivel: 2);
+            rol.AsignarPermiso(CatalogoPermisos.AutorizarOperaciones);
+            rol.AsignarPermiso(CatalogoPermisos.EliminarLinea);
+            contexto.Add(rol);
+            usuario = Usuario.Crear($"U{sufijo}", "Supervisor Prueba", rol.Id);
+            usuario.AsignarCaja(caja.Id);
+            usuario.EstablecerClaveHash($"PBKDF2-SHA256$100000$sal{sufijo}$hash");
+            contexto.Add(usuario);
             contexto.Parametros.Add(Parametro.Crear("Seguridad.IntentosMaximosClave", "3", cajaId: caja.Id));
             await contexto.SaveChangesAsync();
         }
@@ -78,15 +89,18 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
 
         // Sucursal y caja reales: así el único motivo posible de rechazo es la restricción de ámbito, no las llaves foráneas.
+        // Cada entidad recibe su Id al agregarla al contexto, antes de crear la que la referencia.
         var empresa = Empresa.Crear(RncUnico(), "Empresa Ámbito");
+        contexto.Add(empresa);
         var sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Ámbito");
+        contexto.Add(sucursal);
         var caja = Caja.Crear(sucursal.Id, 1, "Caja Ámbito");
-        contexto.AddRange(empresa, sucursal, caja);
+        contexto.Add(caja);
         await contexto.SaveChangesAsync();
 
         // El dominio ya lo impide; se verifica que la base también lo garantice (defensa en profundidad).
         var insertar = () => contexto.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT INTO Parametros (Id, Clave, Valor, SucursalId, CajaId) VALUES (NEWID(), 'Prueba.Ambito', '1', {sucursal.Id}, {caja.Id})");
+            $"INSERT INTO Parametros (Id, Clave, Valor, SucursalId, CajaId) VALUES (NEXT VALUE FOR EntityFrameworkHiLoSequence, 'Prueba.Ambito', '1', {sucursal.Id}, {caja.Id})");
 
         var error = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(insertar);
         Assert.Contains("CK_Parametros_UnSoloAmbito", error.Message);

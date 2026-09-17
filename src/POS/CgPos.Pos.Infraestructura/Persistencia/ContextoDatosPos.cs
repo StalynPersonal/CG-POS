@@ -92,6 +92,8 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
+        // Los Id son enteros de esta base: EF los reserva por bloques de una secuencia (HiLo) al agregar cada entidad, sin ir a la base por cada una.
+        constructorModelo.UseHiLo();
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosPos).Assembly);
     }
 

@@ -8,10 +8,10 @@
                           HelperText="Con este nombre ingresa al Central." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre completo" Variant="Variant.Outlined" />
             <MudTextField T="string" @bind-Value="_correo" Label="Correo (opcional)" Variant="Variant.Outlined" InputType="InputType.Email" />
-            <MudSelect T="Guid?" @bind-Value="_rolId" Label="Rol" Placeholder="Seleccione el rol" Variant="Variant.Outlined" ToStringFunc="NombreRol">
+            <MudSelect T="int?" @bind-Value="_rolId" Label="Rol" Placeholder="Seleccione el rol" Variant="Variant.Outlined" ToStringFunc="NombreRol">
                 @foreach (var rol in Roles.Where(r => r.Activo || r.Id == Usuario?.RolId))
                 {
-                    <MudSelectItem T="Guid?" Value="@rol.Id">@rol.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@rol.Id">@rol.Nombre</MudSelectItem>
                 }
             </MudSelect>
             @if (Usuario is null)
@@ -41,11 +41,11 @@
     private string? _nombre;
     private string? _correo;
     private string? _contrasena;
-    private Guid? _rolId;
+    private int? _rolId;
     private string? _mensaje;
     private bool _procesando;
 
-    private string NombreRol(Guid? rolId) => Roles.FirstOrDefault(r => r.Id == rolId)?.Nombre ?? string.Empty;
+    private string NombreRol(int? rolId) => Roles.FirstOrDefault(r => r.Id == rolId)?.Nombre ?? string.Empty;
 
     protected override void OnInitialized()
     {

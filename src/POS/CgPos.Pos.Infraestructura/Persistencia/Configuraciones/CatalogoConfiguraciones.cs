@@ -13,7 +13,6 @@ internal sealed class DepartamentoConfiguracion : IEntityTypeConfiguration<Depar
     {
         constructor.ToTable("Departamentos");
         constructor.HasKey(f => f.Id);
-        constructor.Property(f => f.Id).ValueGeneratedNever();
                 constructor.Property(f => f.Nombre).HasMaxLength(Departamento.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(f => f.Codigo).IsUnique();
     }
@@ -25,7 +24,6 @@ internal sealed class CategoriaConfiguracion : IEntityTypeConfiguration<Categori
     {
         constructor.ToTable("Categorias");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
                 constructor.Property(c => c.Nombre).HasMaxLength(Categoria.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(c => c.Codigo).IsUnique();
         constructor.HasOne<Departamento>().WithMany().HasForeignKey(c => c.DepartamentoId).OnDelete(DeleteBehavior.Restrict);
@@ -38,7 +36,6 @@ internal sealed class MarcaConfiguracion : IEntityTypeConfiguration<Marca>
     {
         constructor.ToTable("Marcas");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
                 constructor.Property(m => m.Nombre).HasMaxLength(Marca.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(m => m.Codigo).IsUnique();
     }
@@ -50,7 +47,6 @@ internal sealed class UnidadMedidaConfiguracion : IEntityTypeConfiguration<Unida
     {
         constructor.ToTable("UnidadesMedida");
         constructor.HasKey(u => u.Id);
-        constructor.Property(u => u.Id).ValueGeneratedNever();
         constructor.Property(u => u.Abreviatura).HasMaxLength(UnidadMedida.LargoMaximoAbreviatura).IsRequired();
         constructor.Property(u => u.Nombre).HasMaxLength(UnidadMedida.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(u => u.Codigo).IsUnique();
@@ -63,7 +59,6 @@ internal sealed class ImpuestoConfiguracion : IEntityTypeConfiguration<Impuesto>
     {
         constructor.ToTable("Impuestos");
         constructor.HasKey(i => i.Id);
-        constructor.Property(i => i.Id).ValueGeneratedNever();
         constructor.Property(i => i.Codigo).HasMaxLength(Impuesto.LargoMaximoCodigo).IsRequired();
         constructor.Property(i => i.Nombre).HasMaxLength(Impuesto.LargoMaximoNombre).IsRequired();
         constructor.Property(i => i.Porcentaje).HasPrecision(5, 2);
@@ -77,7 +72,6 @@ internal sealed class ArticuloConfiguracion : IEntityTypeConfiguration<Articulo>
     {
         constructor.ToTable("Articulos");
         constructor.HasKey(a => a.Id);
-        constructor.Property(a => a.Id).ValueGeneratedNever();
 
         constructor.Property(a => a.Codigo).HasMaxLength(Articulo.LargoMaximoCodigo).IsRequired();
         constructor.Property(a => a.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
@@ -118,7 +112,6 @@ internal sealed class PrecioArticuloConfiguracion : IEntityTypeConfiguration<Pre
     {
         constructor.ToTable("PreciosArticulo");
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
         constructor.Property(p => p.Origen).HasMaxLength(PrecioArticulo.LargoMaximoOrigen).IsRequired();
         constructor.Property(p => p.UsuarioNombre).HasMaxLength(PrecioArticulo.LargoMaximoUsuario);
 
@@ -133,7 +126,6 @@ internal sealed class ClienteConfiguracion : IEntityTypeConfiguration<Cliente>
     {
         constructor.ToTable("Clientes");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
 
         constructor.Property(c => c.Codigo).HasMaxLength(Cliente.LargoMaximoCodigo).IsRequired();
         constructor.HasIndex(c => c.Codigo).IsUnique();
@@ -157,7 +149,6 @@ internal sealed class DireccionClienteConfiguracion : IEntityTypeConfiguration<D
     {
         constructor.ToTable("DireccionesCliente");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.Alias).HasMaxLength(DireccionCliente.LargoMaximoAlias).IsRequired();
         constructor.Property(d => d.Direccion).HasMaxLength(DireccionCliente.LargoMaximoDireccion).IsRequired();
         constructor.Property(d => d.Sector).HasMaxLength(DireccionCliente.LargoMaximoLugar);
@@ -191,7 +182,6 @@ internal sealed class MonedaConfiguracion : IEntityTypeConfiguration<Moneda>
     {
         constructor.ToTable("Monedas");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
         constructor.Property(m => m.Codigo).HasMaxLength(Moneda.LargoCodigo).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(m => m.Nombre).HasMaxLength(Moneda.LargoMaximoNombre).IsRequired();
         constructor.Property(m => m.Simbolo).HasMaxLength(Moneda.LargoMaximoSimbolo).IsRequired();
@@ -205,7 +195,6 @@ internal sealed class FormaPagoConfiguracion : IEntityTypeConfiguration<FormaPag
     {
         constructor.ToTable("FormasPago");
         constructor.HasKey(f => f.Id);
-        constructor.Property(f => f.Id).ValueGeneratedNever();
         constructor.Property(f => f.Codigo).HasMaxLength(FormaPago.LargoMaximoCodigo).IsRequired();
         constructor.Property(f => f.Nombre).HasMaxLength(FormaPago.LargoMaximoNombre).IsRequired();
         constructor.Property(f => f.Moneda).HasMaxLength(3).IsFixedLength().IsUnicode(false).IsRequired();
@@ -219,7 +208,6 @@ internal sealed class BancoConfiguracion : IEntityTypeConfiguration<Banco>
     {
         constructor.ToTable("Bancos");
         constructor.HasKey(b => b.Id);
-        constructor.Property(b => b.Id).ValueGeneratedNever();
         constructor.Property(b => b.Codigo).HasMaxLength(Banco.LargoMaximoCodigo).IsRequired();
         constructor.Property(b => b.Nombre).HasMaxLength(Banco.LargoMaximoNombre).IsRequired();
         constructor.Property(b => b.RutaLogo).HasMaxLength(Banco.LargoMaximoRutaLogo);
@@ -233,7 +221,6 @@ internal sealed class TipoTarjetaConfiguracion : IEntityTypeConfiguration<TipoTa
     {
         constructor.ToTable("TiposTarjeta");
         constructor.HasKey(t => t.Id);
-        constructor.Property(t => t.Id).ValueGeneratedNever();
                 constructor.Property(t => t.Nombre).HasMaxLength(TipoTarjeta.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(t => t.Codigo).IsUnique();
     }
@@ -245,7 +232,6 @@ internal sealed class DenominacionConfiguracion : IEntityTypeConfiguration<Denom
     {
         constructor.ToTable("Denominaciones");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.Moneda).HasMaxLength(3).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Property(d => d.Valor).HasPrecision(18, 2);
         constructor.HasIndex(d => new { d.Moneda, d.Valor, d.Tipo }).IsUnique();

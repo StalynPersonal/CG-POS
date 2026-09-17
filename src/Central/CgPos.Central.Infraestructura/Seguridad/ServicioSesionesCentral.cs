@@ -116,7 +116,7 @@ internal sealed class ServicioSesionesCentral(
         return ResultadoSesionCentral.Exito(CrearSesion(usuario, rol!, actual.Familia), token, nueva.ExpiraEn);
     }
 
-    public async Task CerrarAsync(Guid sesionId, Guid usuarioId, CancellationToken cancelacion = default)
+    public async Task CerrarAsync(Guid sesionId, int usuarioId, CancellationToken cancelacion = default)
     {
         var ahora = reloj.GetUtcNow();
         await RevocarAsync(s => s.Familia == sesionId && s.UsuarioId == usuarioId, ahora, "Sesión cerrada por el usuario", cancelacion);
@@ -127,7 +127,7 @@ internal sealed class ServicioSesionesCentral(
         await contexto.SaveChangesAsync(cancelacion);
     }
 
-    public async Task<bool> EsSesionActivaAsync(Guid sesionId, Guid usuarioId, CancellationToken cancelacion = default)
+    public async Task<bool> EsSesionActivaAsync(Guid sesionId, int usuarioId, CancellationToken cancelacion = default)
     {
         var ahora = reloj.GetUtcNow();
         return await contexto.SesionesCentral.AnyAsync(s => s.Familia == sesionId && s.UsuarioId == usuarioId
@@ -135,7 +135,7 @@ internal sealed class ServicioSesionesCentral(
             && await contexto.UsuariosCentral.AnyAsync(u => u.Id == usuarioId && u.Activo, cancelacion);
     }
 
-    public async Task<ResultadoSesionCentral> CambiarContrasenaAsync(Guid usuarioId, string actual, string nueva, OrigenSolicitud origen,
+    public async Task<ResultadoSesionCentral> CambiarContrasenaAsync(int usuarioId, string actual, string nueva, OrigenSolicitud origen,
         CancellationToken cancelacion = default)
     {
         var ahora = reloj.GetUtcNow();
@@ -212,7 +212,7 @@ internal sealed class ServicioSesionesCentral(
             sesion.Revocar(ahora, motivo);
     }
 
-    private Task<RolCentral?> CargarRolAsync(Guid rolId, CancellationToken cancelacion) =>
+    private Task<RolCentral?> CargarRolAsync(int rolId, CancellationToken cancelacion) =>
         contexto.RolesCentral.Include(r => r.PermisosAsignados).AsNoTracking().SingleOrDefaultAsync(r => r.Id == rolId, cancelacion);
 
     private async Task<ResultadoSesionCentral> RechazarIngresoAsync(UsuarioCentral? usuario, MotivoRechazoCentral motivo, OrigenSolicitud origen,

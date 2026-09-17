@@ -81,7 +81,7 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
         Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> CrearAsync(SolicitudParametro solicitud) =>
             EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/parametros", solicitud);
-        Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> CambiarAsync(Guid id, string valor) =>
+        Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> CambiarAsync(int id, string valor) =>
             EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/parametros/{id}", new SolicitudValorParametro(valor));
 
         Assert.Equal("El parámetro «Pruebas.NoExiste» no existe en el catálogo.", (await CrearAsync(new("Pruebas.NoExiste", "1"))).Cuerpo!.Mensaje);
@@ -180,7 +180,7 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         return (await respuesta.Content.ReadFromJsonAsync<DatosEmpresa>(OpcionesJson.Predeterminadas))!;
     }
 
-    private static async Task<HttpStatusCode> PedirTokenAsync(HttpClient cliente, Guid cajaId, string secreto)
+    private static async Task<HttpStatusCode> PedirTokenAsync(HttpClient cliente, int cajaId, string secreto)
     {
         var (sucursal, caja) = CentralEnPruebas.CodigosCaja(cajaId);
         using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);

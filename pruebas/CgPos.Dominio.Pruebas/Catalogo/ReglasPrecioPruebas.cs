@@ -5,11 +5,11 @@ namespace CgPos.Dominio.Pruebas.Catalogo;
 public class ReglasPrecioPruebas
 {
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 12, 0, 0, TimeSpan.Zero);
-    private static readonly Impuesto Itbis18 = Impuesto.Crear("ITBIS18", "ITBIS 18%", 18m, 1);
+    private static readonly Impuesto Itbis18 = Ids.Asignar(Impuesto.Crear("ITBIS18", "ITBIS 18%", 18m, 1));
 
     private static Articulo CrearArticulo(TipoArticulo tipo = TipoArticulo.Normal, decimal? cantidadMinimaMayor = 12m, decimal? costo = null, decimal? precioMinimo = null)
     {
-        var articulo = Articulo.Crear("CEM-425", "Cemento gris 42.5 kg", Guid.CreateVersion7(), Guid.CreateVersion7(), Itbis18.Id, tipo);
+        var articulo = Articulo.Crear("CEM-425", "Cemento gris 42.5 kg", Ids.Siguiente(), Ids.Siguiente(), Itbis18.Id, tipo);
         articulo.ConfigurarPrecios(costo, precioMinimo, cantidadMinimaMayor);
         return articulo;
     }
@@ -77,7 +77,7 @@ public class ReglasPrecioPruebas
     [Fact]
     public void Precio_vigente_es_el_mas_reciente_ya_iniciado_y_los_futuros_no_aplican_todavia()
     {
-        var articuloId = Guid.CreateVersion7();
+        var articuloId = Ids.Siguiente();
         var historial = new[]
         {
             PrecioArticulo.Registrar(articuloId, ListaPrecio.Detalle, 450m, Ahora.AddDays(-30), Ahora.AddDays(-30), "SAP B1"),
@@ -120,7 +120,7 @@ public class ReglasPrecioPruebas
         Assert.Equal(720.34m, decimal.Round(Itbis18.BaseDesdePrecioConImpuesto(850.00m), 2));
         Assert.Equal(129.66m, decimal.Round(Itbis18.MontoDesdePrecioConImpuesto(850.00m), 2));
 
-        var exento = Impuesto.Crear("EXENTO", "Exento", 0m, 4);
+        var exento = Ids.Asignar(Impuesto.Crear("EXENTO", "Exento", 0m, 4));
         Assert.Equal(100m, exento.BaseDesdePrecioConImpuesto(100m));
         Assert.Equal(0m, exento.MontoDesdePrecioConImpuesto(100m));
     }

@@ -12,7 +12,6 @@ internal sealed class MotivoDevolucionConfiguracion : IEntityTypeConfiguration<M
     {
         constructor.ToTable("MotivosDevolucion");
         constructor.HasKey(m => m.Id);
-        constructor.Property(m => m.Id).ValueGeneratedNever();
                 constructor.Property(m => m.Nombre).HasMaxLength(MotivoDevolucion.LargoMaximoNombre).IsRequired();
         constructor.HasIndex(m => m.Codigo).IsUnique();
     }
@@ -24,7 +23,6 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
     {
         constructor.ToTable("Devoluciones");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.Numero).HasMaxLength(Devolucion.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(d => d.UsuarioNombre).HasMaxLength(Devolucion.LargoMaximoNombre).IsRequired();
         constructor.Property(d => d.VentaOrigenNumero).HasMaxLength(30).IsUnicode(false).IsRequired();
@@ -61,7 +59,6 @@ internal sealed class LineaDevolucionConfiguracion : IEntityTypeConfiguration<Li
     {
         constructor.ToTable("LineasDevolucion");
         constructor.HasKey(l => l.Id);
-        constructor.Property(l => l.Id).ValueGeneratedNever();
         constructor.Property(l => l.CodigoInterno).HasMaxLength(50).IsRequired();
         constructor.Property(l => l.CodigoLeido).HasMaxLength(50).IsRequired();
         constructor.Property(l => l.Descripcion).HasMaxLength(200).IsRequired();
@@ -84,7 +81,6 @@ internal sealed class ConsumoNotaCreditoConfiguracion : IEntityTypeConfiguration
     {
         constructor.ToTable("ConsumosNotaCredito");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
         constructor.Property(c => c.VentaNumero).HasMaxLength(30).IsUnicode(false).IsRequired();
         constructor.Property(c => c.Monto).HasPrecision(18, 2);
         constructor.Property(c => c.SaldoRestante).HasPrecision(18, 2);

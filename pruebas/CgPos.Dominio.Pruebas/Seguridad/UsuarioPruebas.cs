@@ -7,29 +7,29 @@ public class UsuarioPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 8, 0, 0, TimeSpan.FromHours(-4));
     private static readonly TimeSpan Bloqueo = TimeSpan.FromMinutes(5);
 
-    private static Usuario CrearUsuario() => Usuario.Crear("C001", "Cajera Prueba", Guid.CreateVersion7());
+    private static Usuario CrearUsuario() => Usuario.Crear("C001", "Cajera Prueba", Ids.Siguiente());
 
     [Fact]
     public void Crear_limpia_espacios_y_valida_datos_obligatorios()
     {
-        var usuario = Usuario.Crear("  C001 ", "  Ana Pérez ", Guid.CreateVersion7());
+        var usuario = Usuario.Crear("  C001 ", "  Ana Pérez ", Ids.Siguiente());
 
         Assert.Equal("C001", usuario.Codigo);
         Assert.Equal("Ana Pérez", usuario.Nombre);
         Assert.True(usuario.Activo);
 
-        Assert.Throws<ArgumentException>(() => Usuario.Crear("", "Ana", Guid.CreateVersion7()));
-        Assert.Throws<ArgumentException>(() => Usuario.Crear("C002", " ", Guid.CreateVersion7()));
-        Assert.Throws<ArgumentException>(() => Usuario.Crear("C003", "Ana", Guid.Empty));
-        Assert.Throws<ArgumentException>(() => Usuario.Crear(new string('X', Usuario.LargoMaximoCodigo + 1), "Ana", Guid.CreateVersion7()));
+        Assert.Throws<ArgumentException>(() => Usuario.Crear("", "Ana", Ids.Siguiente()));
+        Assert.Throws<ArgumentException>(() => Usuario.Crear("C002", " ", Ids.Siguiente()));
+        Assert.Throws<ArgumentException>(() => Usuario.Crear("C003", "Ana", 0));
+        Assert.Throws<ArgumentException>(() => Usuario.Crear(new string('X', Usuario.LargoMaximoCodigo + 1), "Ana", Ids.Siguiente()));
     }
 
     [Fact]
     public void Solo_opera_las_cajas_asignadas_y_estando_activo()
     {
         var usuario = CrearUsuario();
-        var caja01 = Guid.CreateVersion7();
-        var caja02 = Guid.CreateVersion7();
+        var caja01 = Ids.Siguiente();
+        var caja02 = Ids.Siguiente();
 
         usuario.AsignarCaja(caja01);
         usuario.AsignarCaja(caja01); // repetir no duplica

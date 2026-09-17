@@ -16,10 +16,10 @@ public sealed class ComprobanteContingencia : Entidad
     {
     }
 
-    public Guid VentaId { get; private set; }
+    public int VentaId { get; private set; }
     public string VentaNumero { get; private set; } = string.Empty;
-    public Guid CajaId { get; private set; }
-    public Guid? TurnoId { get; private set; }
+    public int CajaId { get; private set; }
+    public int? TurnoId { get; private set; }
 
     /// <summary>Número del comprobante provisional que se le entrega al cliente.</summary>
     public string Numero { get; private set; } = string.Empty;
@@ -44,7 +44,7 @@ public sealed class ComprobanteContingencia : Entidad
 
     public bool EstaPendiente => RegularizadoEn is null;
 
-    public static ComprobanteContingencia Registrar(Guid ventaId, string ventaNumero, Guid cajaId, Guid? turnoId, string numero, TipoComprobante tipo,
+    public static ComprobanteContingencia Registrar(int ventaId, string ventaNumero, int cajaId, int? turnoId, string numero, TipoComprobante tipo,
         decimal total, string motivo, DateTimeOffset ahora) =>
         new()
         {

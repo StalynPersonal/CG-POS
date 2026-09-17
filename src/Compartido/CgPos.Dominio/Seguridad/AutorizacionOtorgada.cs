@@ -5,8 +5,9 @@ namespace CgPos.Dominio.Seguridad;
 /// <summary>
 /// Autorización de supervisor concedida para un permiso y un solicitante. Es de un solo uso y vence pronto:
 /// la operación que la usa la consume en la misma transacción, así el servidor no confía solo en la pantalla.
+/// Su Id es un Guid, no un entero de la base: la pantalla lo presenta como comprobante y no debe poder adivinarse.
 /// </summary>
-public sealed class AutorizacionOtorgada : Entidad
+public sealed class AutorizacionOtorgada
 {
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoMotivo = 500;
@@ -17,11 +18,13 @@ public sealed class AutorizacionOtorgada : Entidad
     {
     }
 
+    public Guid Id { get; private init; }
+
     public string Permiso { get; private set; } = string.Empty;
-    public Guid CajaId { get; private set; }
-    public Guid SolicitanteId { get; private set; }
+    public int CajaId { get; private set; }
+    public int SolicitanteId { get; private set; }
     public string SolicitanteNombre { get; private set; } = string.Empty;
-    public Guid SupervisorId { get; private set; }
+    public int SupervisorId { get; private set; }
     public string SupervisorNombre { get; private set; } = string.Empty;
     public string Motivo { get; private set; } = string.Empty;
     public DateTimeOffset ConcedidaEn { get; private set; }
@@ -30,8 +33,8 @@ public sealed class AutorizacionOtorgada : Entidad
     public string? UsadaEnTipoEntidad { get; private set; }
     public string? UsadaEnEntidadId { get; private set; }
 
-    public static AutorizacionOtorgada Otorgar(Guid id, string permiso, Guid cajaId, Guid solicitanteId, string solicitanteNombre,
-        Guid supervisorId, string supervisorNombre, string motivo, DateTimeOffset ahora, TimeSpan vigencia)
+    public static AutorizacionOtorgada Otorgar(Guid id, string permiso, int cajaId, int solicitanteId, string solicitanteNombre,
+        int supervisorId, string supervisorNombre, string motivo, DateTimeOffset ahora, TimeSpan vigencia)
     {
         if (!CatalogoPermisos.Existe(permiso))
             throw new ArgumentException($"El permiso '{permiso}' no existe en el catálogo.", nameof(permiso));
@@ -39,7 +42,7 @@ public sealed class AutorizacionOtorgada : Entidad
 
         return new AutorizacionOtorgada
         {
-            Id = Validar.Id(id, "Autorización"),
+            Id = id == Guid.Empty ? throw new ArgumentException("Autorización es obligatorio.", nameof(id)) : id,
             Permiso = permiso,
             CajaId = Validar.Id(cajaId, "Caja"),
             SolicitanteId = Validar.Id(solicitanteId, "Solicitante"),
@@ -52,7 +55,7 @@ public sealed class AutorizacionOtorgada : Entidad
         };
     }
 
-    public bool PuedeUsarse(string permiso, Guid solicitanteId, Guid cajaId, DateTimeOffset ahora) =>
+    public bool PuedeUsarse(string permiso, int solicitanteId, int cajaId, DateTimeOffset ahora) =>
         UsadaEn is null && Permiso == permiso && SolicitanteId == solicitanteId && CajaId == cajaId && ahora <= VenceEn;
 
     public void MarcarUsada(DateTimeOffset ahora, string tipoEntidad, string? entidadId)

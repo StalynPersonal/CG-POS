@@ -24,10 +24,10 @@
 <MudPaper Elevation="1">
     <MudTable T="DatosCaja" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
-            <MudSelect T="Guid?" @bind-Value="_sucursalFiltro" Label="Sucursal" Clearable="true" Dense="true" Style="max-width: 320px" ToStringFunc="NombreSucursal">
+            <MudSelect T="int?" @bind-Value="_sucursalFiltro" Label="Sucursal" Clearable="true" Dense="true" Style="max-width: 320px" ToStringFunc="NombreSucursal">
                 @foreach (var sucursal in _sucursales)
                 {
-                    <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
         </ToolBarContent>
@@ -98,13 +98,13 @@
 @code {
     private IReadOnlyList<DatosCaja> _cajas = [];
     private IReadOnlyList<DatosSucursal> _sucursales = [];
-    private Guid? _sucursalFiltro;
+    private int? _sucursalFiltro;
     private bool _cargando = true;
     private bool _error;
 
     private IEnumerable<DatosCaja> Filtradas => _sucursalFiltro is { } sucursalId ? _cajas.Where(c => c.SucursalId == sucursalId) : _cajas;
 
-    private string NombreSucursal(Guid? sucursalId) =>
+    private string NombreSucursal(int? sucursalId) =>
         _sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo:00} · {sucursal.Nombre}" : string.Empty;
 
     private static string Fecha(DateTimeOffset momento) => momento.ToLocalTime().ToString("dd/MM/yyyy h:mm tt");

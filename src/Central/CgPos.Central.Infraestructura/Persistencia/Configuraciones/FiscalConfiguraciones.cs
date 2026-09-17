@@ -11,7 +11,6 @@ internal sealed class AnulacionEcfCentralConfiguracion : IEntityTypeConfiguratio
     {
         constructor.ToTable("AnulacionesEcf");
         constructor.HasKey(a => a.Id);
-        constructor.Property(a => a.Id).ValueGeneratedNever();
         constructor.Ignore(a => a.Cantidad);
         constructor.Property(a => a.Motivo).HasMaxLength(AnulacionEcfCentral.LargoMaximoMotivo).IsRequired();
         constructor.Property(a => a.UsuarioNombre).HasMaxLength(AnulacionEcfCentral.LargoMaximoUsuario).IsRequired();

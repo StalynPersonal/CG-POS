@@ -13,14 +13,14 @@ namespace CgPos.Pos.Infraestructura.Organizacion;
 
 internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, IServiceScopeFactory ambitos) : IContextoCaja
 {
-    private Guid? _cajaId;
+    private int? _cajaId;
 
     public int? SucursalCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaSucursal);
 
     public int? CajaCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaCodigo);
 
     /// <summary>Se busca por los códigos y se recuerda una vez encontrada: la caja no cambia de Id en su base.</summary>
-    public Guid? CajaId
+    public int? CajaId
     {
         get
         {
@@ -31,7 +31,7 @@ internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, ISer
             var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
             _cajaId = contexto.Cajas.AsNoTracking()
                 .Where(c => c.Codigo == caja && contexto.Sucursales.Any(s => s.Id == c.SucursalId && s.Codigo == sucursal))
-                .Select(c => (Guid?)c.Id)
+                .Select(c => (int?)c.Id)
                 .FirstOrDefault();
             return _cajaId;
         }
@@ -42,13 +42,13 @@ internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, ISer
 
 internal sealed class ServicioParametros(ContextoDatosPos contexto) : IParametros
 {
-    public async Task<string?> ObtenerAsync(string clave, Guid? cajaId = null, CancellationToken cancelacion = default)
+    public async Task<string?> ObtenerAsync(string clave, int? cajaId = null, CancellationToken cancelacion = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(clave);
 
         var sucursalId = cajaId is null
             ? null
-            : await contexto.Cajas.Where(c => c.Id == cajaId).Select(c => (Guid?)c.SucursalId).FirstOrDefaultAsync(cancelacion);
+            : await contexto.Cajas.Where(c => c.Id == cajaId).Select(c => (int?)c.SucursalId).FirstOrDefaultAsync(cancelacion);
 
         var candidatos = await contexto.Parametros
             .AsNoTracking()

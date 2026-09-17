@@ -15,11 +15,11 @@ public interface IServicioDespacho
     /// <summary>Pendientes abiertos de la caja, los de fecha comprometida más cercana primero.</summary>
     Task<IReadOnlyList<DatosPendienteEntrega>> ListarAbiertosAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
-    Task<RespuestaPendiente> CambiarEstadoAsync(SesionUsuario sesion, Guid pendienteId, SolicitudEstadoPendiente solicitud, CancellationToken cancelacion = default);
+    Task<RespuestaPendiente> CambiarEstadoAsync(SesionUsuario sesion, int pendienteId, SolicitudEstadoPendiente solicitud, CancellationToken cancelacion = default);
 
     /// <summary>Registra la entrega total o parcial e imprime la constancia firmada por quien recibe (RF-253, RF-254).</summary>
-    Task<RespuestaPendiente> EntregarAsync(SesionUsuario sesion, Guid pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default);
+    Task<RespuestaPendiente> EntregarAsync(SesionUsuario sesion, int pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default);
 
     /// <summary>Anula un pendiente sin entregas con motivo y autorización, liberando la mercancía (RF-255).</summary>
-    Task<RespuestaPendiente> AnularAsync(SesionUsuario sesion, Guid pendienteId, SolicitudAnularPendiente solicitud, CancellationToken cancelacion = default);
+    Task<RespuestaPendiente> AnularAsync(SesionUsuario sesion, int pendienteId, SolicitudAnularPendiente solicitud, CancellationToken cancelacion = default);
 }

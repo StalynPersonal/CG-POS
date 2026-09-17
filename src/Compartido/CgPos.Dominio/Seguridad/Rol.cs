@@ -25,11 +25,10 @@ public sealed class Rol : Entidad
     public bool Activo { get; private set; } = true;
     public IReadOnlyCollection<RolPermiso> PermisosAsignados => _permisosAsignados;
 
-    public static Rol Crear(string codigo, string nombre, int nivel, Guid? id = null)
+    public static Rol Crear(string codigo, string nombre, int nivel)
     {
         var rol = new Rol
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de rol", LargoMaximoCodigo),
         };
         rol.Actualizar(nombre, nivel);
@@ -74,12 +73,12 @@ public sealed class RolPermiso
     {
     }
 
-    internal RolPermiso(Guid rolId, string permisoCodigo)
+    internal RolPermiso(int rolId, string permisoCodigo)
     {
         RolId = rolId;
         PermisoCodigo = permisoCodigo;
     }
 
-    public Guid RolId { get; private set; }
+    public int RolId { get; private set; }
     public string PermisoCodigo { get; private set; } = string.Empty;
 }

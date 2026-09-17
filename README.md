@@ -298,7 +298,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 - Las imágenes (png, jpg, webp o svg) se toman de `Pantallas:CarpetaPublicidad` (`C:\CGPOS\Publicidad` en producción; `datos/publicidad` en desarrollo). El intervalo se configura con `Pantallas:SegundosPorImagen` y el texto con `Pantallas:MensajeBienvenida`.
 - `scripts/caja/abrir-pantallas.ps1 -MonitorCajero 1 -MonitorCliente 2 [-MonitorDevoluciones 3]` abre cada pantalla en modo kiosco en su monitor (numerados de izquierda a derecha).
 
-Las migraciones se aplican solas al arrancar. Las bases de desarrollo creadas antes de la identificación por código deben borrarse: las migraciones de la caja y del Central se regeneraron desde cero (`Inicial`). Para aplicarlas manualmente:
+Las migraciones se aplican solas al arrancar. Las bases de desarrollo creadas antes de los Id enteros deben borrarse: las migraciones de la caja y del Central se regeneraron desde cero (`Inicial`). Para aplicarlas manualmente:
 
 ```powershell
 dotnet ef database update --project src/POS/CgPos.Pos.Infraestructura --startup-project src/POS/CgPos.Pos.Agente
@@ -532,7 +532,7 @@ El Central se publica con `dotnet publish src/Central/CgPos.Central.Api -c Relea
 
 - Todo en español: proyectos, namespaces, clases, métodos, variables, parámetros y mensajes. Solo se mantienen siglas técnicas (Id, Api, Json, Pin, Hash, Token, Jwt, Xml, e-CF) y los nombres que exige .NET.
 - El servidor corporativo se llama **Central**.
-- Los Id son internos de cada base (hoy GUID v7): entre la caja y el Central solo viajan códigos y números de documento.
+- Los Id son enteros internos de cada base: EF los reserva por bloques de la secuencia `EntityFrameworkHiLoSequence` (HiLo) al agregar la entidad al contexto, así que una entidad nueva vale 0 hasta entonces y la que la referencia se crea después de agregarla. Entre la caja y el Central solo viajan códigos y números de documento. Siguen siendo Guid, porque no son Id de una base: el Id de cada mensaje de la bandeja de salida (clave de idempotencia en el Central), las autorizaciones de supervisor de un solo uso y las sesiones del Central.
 - Todo lo que va al Central se escribe en la bandeja de salida dentro de la misma transacción del documento.
 - Seguridad: permisos granulares definidos en `CatalogoPermisos` (caja) y `CatalogoPermisosCentral` (Central); cada permiso es una política de autorización con el mismo nombre.
 - Formato RD fijo: `RD$2,175.34` y `dd/MM/yyyy`.

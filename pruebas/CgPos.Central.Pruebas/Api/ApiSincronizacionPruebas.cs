@@ -33,7 +33,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         Assert.Equal((HttpStatusCode.OK, EstadoRecepcion.Duplicado), (reenvio.Estado, reenvio.Cuerpo!.Estado));
 
         var (documento, comprobante, estado) = await central.UsarContextoAsync(async contexto => (
-            await contexto.DocumentosRecibidos.SingleAsync(d => d.Id == mensaje.Id),
+            await contexto.DocumentosRecibidos.SingleAsync(d => d.MensajeId == mensaje.Id),
             await contexto.ComprobantesRecibidos.SingleAsync(c => c.Encf == encf),
             await contexto.EstadosSincronizacionCaja.SingleAsync(e => e.CajaId == CentralEnPruebas.CajaUno)));
 
@@ -77,7 +77,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         Assert.Equal((TipoConflictoSincronizacion.XmlAlterado, 2, true), (alterado.Tipo, alterado.Ocurrencias, alterado.Abierto));
 
         // Nada rechazado se guardó.
-        Assert.False(await central.UsarContextoAsync(contexto => contexto.DocumentosRecibidos.AnyAsync(d => d.Id == xmlAlterado.Id || d.Id == hashInvalido.Id)));
+        Assert.False(await central.UsarContextoAsync(contexto => contexto.DocumentosRecibidos.AnyAsync(d => d.MensajeId == xmlAlterado.Id || d.MensajeId == hashInvalido.Id)));
     }
 
     [SkippableFact]
@@ -109,8 +109,9 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         Assert.Equal(EstadoRecepcion.Recibido, (await EnviarAsync(cliente, token, segunda)).Cuerpo!.Estado);
 
         var (documentos, comprobantes, conflicto) = await central.UsarContextoAsync(async contexto => (
-            await contexto.DocumentosRecibidos.CountAsync(d => d.Id == primera.Id || d.Id == segunda.Id),
-            await contexto.ComprobantesRecibidos.Where(c => c.Encf == encf).Select(c => c.DocumentoId).ToListAsync(),
+            await contexto.DocumentosRecibidos.CountAsync(d => d.MensajeId == primera.Id || d.MensajeId == segunda.Id),
+            await contexto.ComprobantesRecibidos.Where(c => c.Encf == encf)
+                .Join(contexto.DocumentosRecibidos, c => c.DocumentoId, d => d.Id, (_, d) => d.MensajeId).ToListAsync(),
             await contexto.ConflictosSincronizacion.SingleAsync(c => c.MensajeId == segunda.Id && c.Tipo == TipoConflictoSincronizacion.EncfDuplicado)));
 
         Assert.Equal(2, documentos);
@@ -130,7 +131,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
 
         var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         using var solicitud = CentralEnPruebas.Solicitud(HttpMethod.Post, Ruta, token, mensaje);
-        solicitud.Headers.Add("Idempotency-Key", Guid.CreateVersion7().ToString());
+        solicitud.Headers.Add("Idempotency-Key", Ids.Siguiente().ToString());
         using var respuesta = await cliente.SendAsync(solicitud);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, respuesta.StatusCode);
@@ -164,7 +165,7 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
 
     private static string NuevoEncf() => $"E32{Random.Shared.NextInt64(1, 9_999_999_999):D10}";
 
-    private static MensajeSincronizacion MensajeVenta(Guid cajaId, string encf, Guid? id = null, string? numero = null, bool alterarXml = false)
+    private static MensajeSincronizacion MensajeVenta(int cajaId, string encf, Guid? id = null, string? numero = null, bool alterarXml = false)
     {
         var xml = $"<ECF><Encabezado><eNCF>{encf}</eNCF></Encabezado><Signature>firma</Signature></ECF>";
         var ecf = new DocumentoElectronicoParaCentral(encf, (TipoComprobante)32, alterarXml ? xml.Replace("firma", "otra", StringComparison.Ordinal) : xml,

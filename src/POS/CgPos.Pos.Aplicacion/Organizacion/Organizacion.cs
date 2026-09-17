@@ -12,44 +12,44 @@ public interface IContextoCaja
 {
     int? SucursalCodigo { get; }
     int? CajaCodigo { get; }
-    Guid? CajaId { get; }
+    int? CajaId { get; }
 }
 
 /// <summary>Lectura de parámetros con precedencia: caja → sucursal de la caja → general.</summary>
 public interface IParametros
 {
-    Task<string?> ObtenerAsync(string clave, Guid? cajaId = null, CancellationToken cancelacion = default);
+    Task<string?> ObtenerAsync(string clave, int? cajaId = null, CancellationToken cancelacion = default);
 }
 
 public static class ParametrosExtensiones
 {
     /// <exception cref="ParametroNoConfiguradoExcepcion">El parámetro no existe o está vacío.</exception>
-    public static async Task<string> ObtenerRequeridoAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+    public static async Task<string> ObtenerRequeridoAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         await parametros.ObtenerAsync(clave, cajaId, cancelacion) is { Length: > 0 } valor ? valor : throw new ParametroNoConfiguradoExcepcion(clave);
 
-    public static async Task<int> ObtenerEnteroAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+    public static async Task<int> ObtenerEnteroAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         int.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor)
             ? valor
             : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número entero");
 
-    public static async Task<decimal> ObtenerDecimalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+    public static async Task<decimal> ObtenerDecimalAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         decimal.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), NumberStyles.Number, CultureInfo.InvariantCulture, out var valor)
             ? valor
             : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número válido (use punto decimal)");
 
-    public static async Task<bool> ObtenerBooleanoAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+    public static async Task<bool> ObtenerBooleanoAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         bool.TryParse(await parametros.ObtenerRequeridoAsync(clave, cajaId, cancelacion), out var valor)
             ? valor
             : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser true o false");
 
     /// <summary>Para reglas que el negocio puede no activar: <c>false</c> si no está configurado, error si está mal escrito.</summary>
-    public static async Task<bool> ObtenerBooleanoOpcionalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+    public static async Task<bool> ObtenerBooleanoOpcionalAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         await parametros.ObtenerAsync(clave, cajaId, cancelacion) is not { Length: > 0 } texto ? false
         : bool.TryParse(texto, out var valor) ? valor
         : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser true o false");
 
     /// <summary>Para valores que el negocio puede no usar (ej. fondo sugerido): nulo si no está configurado, error si está mal escrito.</summary>
-    public static async Task<decimal?> ObtenerDecimalOpcionalAsync(this IParametros parametros, string clave, Guid? cajaId, CancellationToken cancelacion = default) =>
+    public static async Task<decimal?> ObtenerDecimalOpcionalAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         await parametros.ObtenerAsync(clave, cajaId, cancelacion) is not { Length: > 0 } texto ? null
         : decimal.TryParse(texto, NumberStyles.Number, CultureInfo.InvariantCulture, out var valor) ? valor
         : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número válido (use punto decimal)");

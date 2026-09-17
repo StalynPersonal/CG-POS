@@ -21,11 +21,10 @@ public sealed class NivelFidelidad : Entidad
 
     public bool Activo { get; private set; } = true;
 
-    public static NivelFidelidad Crear(int codigo, string nombre, int orden, decimal factorAcumulacion, Guid? id = null)
+    public static NivelFidelidad Crear(int codigo, string nombre, int orden, decimal factorAcumulacion)
     {
         var nivel = new NivelFidelidad
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código del nivel"),
         };
         nivel.Actualizar(nombre, orden, factorAcumulacion);
@@ -63,7 +62,7 @@ public enum TipoReglaAcumulacion
 }
 
 /// <summary>Línea cobrada con lo necesario para acumular puntos.</summary>
-public sealed record LineaPuntuable(Guid ArticuloId, Guid DepartamentoId, Guid? PromocionId, decimal Importe, Guid? CategoriaId = null, Guid? MarcaId = null);
+public sealed record LineaPuntuable(int ArticuloId, int DepartamentoId, int? PromocionId, decimal Importe, int? CategoriaId = null, int? MarcaId = null);
 
 /// <summary>
 /// Regla de acumulación configurable (RF-238): otorga <see cref="Puntos"/> por cada <see cref="MontoBase"/> comprado de lo que
@@ -82,7 +81,7 @@ public sealed class ReglaAcumulacion : Entidad
     public TipoReglaAcumulacion Tipo { get; private set; }
 
     /// <summary>Departamento, categoría, marca, artículo o promoción según el tipo.</summary>
-    public Guid? ReferenciaId { get; private set; }
+    public int? ReferenciaId { get; private set; }
 
     public DayOfWeek? DiaSemana { get; private set; }
     public decimal MontoBase { get; private set; }
@@ -91,19 +90,18 @@ public sealed class ReglaAcumulacion : Entidad
     public DateTimeOffset? VigenteHasta { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static ReglaAcumulacion Crear(int codigo, string nombre, TipoReglaAcumulacion tipo, decimal montoBase, decimal puntos, Guid? referenciaId,
-        DayOfWeek? diaSemana, DateTimeOffset? vigenteDesde, DateTimeOffset? vigenteHasta, Guid? id = null)
+    public static ReglaAcumulacion Crear(int codigo, string nombre, TipoReglaAcumulacion tipo, decimal montoBase, decimal puntos, int? referenciaId,
+        DayOfWeek? diaSemana, DateTimeOffset? vigenteDesde, DateTimeOffset? vigenteHasta)
     {
         var regla = new ReglaAcumulacion
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de la regla"),
         };
         regla.Actualizar(nombre, tipo, montoBase, puntos, referenciaId, diaSemana, vigenteDesde, vigenteHasta);
         return regla;
     }
 
-    public void Actualizar(string nombre, TipoReglaAcumulacion tipo, decimal montoBase, decimal puntos, Guid? referenciaId, DayOfWeek? diaSemana,
+    public void Actualizar(string nombre, TipoReglaAcumulacion tipo, decimal montoBase, decimal puntos, int? referenciaId, DayOfWeek? diaSemana,
         DateTimeOffset? vigenteDesde, DateTimeOffset? vigenteHasta)
     {
         if (!Enum.IsDefined(tipo))
@@ -172,7 +170,7 @@ public sealed class MiembroFidelidad : Entidad
     public string Nombre { get; private set; } = string.Empty;
     public string? Telefono { get; private set; }
     public string? Correo { get; private set; }
-    public Guid? NivelId { get; private set; }
+    public int? NivelId { get; private set; }
 
     /// <summary>Saldo que calculó el Central al <see cref="SaldoSincronizadoEn"/>.</summary>
     public int SaldoSincronizado { get; private set; }
@@ -199,11 +197,10 @@ public sealed class MiembroFidelidad : Entidad
     }
 
     /// <summary>Inscripción desde la caja sin interrumpir la venta (RF-237); la confirma el Central al sincronizar.</summary>
-    public static MiembroFidelidad Inscribir(string cedula, string nombre, string? telefono, string? correo, DateTimeOffset ahora, Guid? id = null)
+    public static MiembroFidelidad Inscribir(string cedula, string nombre, string? telefono, string? correo, DateTimeOffset ahora)
     {
         var miembro = new MiembroFidelidad
         {
-            Id = id ?? Guid.CreateVersion7(),
             Cedula = ValidarCedula(cedula),
             InscritoEn = ahora,
             InscritoEnCaja = true,
@@ -213,9 +210,9 @@ public sealed class MiembroFidelidad : Entidad
     }
 
     /// <summary>Miembro que envía el Central con su saldo al día.</summary>
-    public static MiembroFidelidad DesdeCentral(string cedula, string nombre, DateTimeOffset inscritoEn, Guid? id = null)
+    public static MiembroFidelidad DesdeCentral(string cedula, string nombre, DateTimeOffset inscritoEn)
     {
-        var miembro = new MiembroFidelidad { Id = id ?? Guid.CreateVersion7(), Cedula = ValidarCedula(cedula), InscritoEn = inscritoEn };
+        var miembro = new MiembroFidelidad { Cedula = ValidarCedula(cedula), InscritoEn = inscritoEn };
         miembro.ActualizarContacto(nombre, null, null);
         return miembro;
     }
@@ -233,7 +230,7 @@ public sealed class MiembroFidelidad : Entidad
         Correo = correoValido;
     }
 
-    public void AsignarNivel(Guid? nivelId) => NivelId = nivelId;
+    public void AsignarNivel(int? nivelId) => NivelId = nivelId;
 
     /// <summary>Saldo recalculado por el Central; confirma también la inscripción hecha en caja.</summary>
     public void SincronizarSaldo(int saldo, DateTimeOffset saldoAl, int puntosPorVencer, DateOnly? proximoVencimiento)
@@ -286,26 +283,26 @@ public sealed class MovimientoPuntos : Entidad
     {
     }
 
-    public Guid MiembroId { get; private set; }
+    public int MiembroId { get; private set; }
     public string Cedula { get; private set; } = string.Empty;
     public TipoMovimientoPuntos Tipo { get; private set; }
 
     /// <summary>Positivo al acumular; negativo al canjear o reversar.</summary>
     public int Puntos { get; private set; }
 
-    public Guid? VentaId { get; private set; }
-    public Guid? DevolucionId { get; private set; }
+    public int? VentaId { get; private set; }
+    public int? DevolucionId { get; private set; }
 
     /// <summary>Número de la transacción o de la nota de crédito.</summary>
     public string Documento { get; private set; } = string.Empty;
 
-    public Guid CajaId { get; private set; }
+    public int CajaId { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
 
     /// <summary>Fecha hasta la que valen los puntos acumulados; nula si el programa no configura vencimiento.</summary>
     public DateOnly? VenceEn { get; private set; }
 
-    public static MovimientoPuntos Acumulacion(MiembroFidelidad miembro, int puntos, Guid ventaId, string documento, Guid cajaId, DateTimeOffset ahora, DateOnly? venceEn)
+    public static MovimientoPuntos Acumulacion(MiembroFidelidad miembro, int puntos, int ventaId, string documento, int cajaId, DateTimeOffset ahora, DateOnly? venceEn)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(puntos);
         var movimiento = Crear(miembro, TipoMovimientoPuntos.Acumulacion, puntos, documento, cajaId, ahora);
@@ -314,7 +311,7 @@ public sealed class MovimientoPuntos : Entidad
         return movimiento;
     }
 
-    public static MovimientoPuntos Canje(MiembroFidelidad miembro, int puntos, Guid ventaId, string documento, Guid cajaId, DateTimeOffset ahora)
+    public static MovimientoPuntos Canje(MiembroFidelidad miembro, int puntos, int ventaId, string documento, int cajaId, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(puntos);
         var movimiento = Crear(miembro, TipoMovimientoPuntos.Canje, -puntos, documento, cajaId, ahora);
@@ -322,7 +319,7 @@ public sealed class MovimientoPuntos : Entidad
         return movimiento;
     }
 
-    public static MovimientoPuntos Reverso(MiembroFidelidad miembro, int puntos, Guid ventaId, Guid devolucionId, string documento, Guid cajaId, DateTimeOffset ahora)
+    public static MovimientoPuntos Reverso(MiembroFidelidad miembro, int puntos, int ventaId, int devolucionId, string documento, int cajaId, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(puntos);
         var movimiento = Crear(miembro, TipoMovimientoPuntos.Reverso, -puntos, documento, cajaId, ahora);
@@ -331,12 +328,11 @@ public sealed class MovimientoPuntos : Entidad
         return movimiento;
     }
 
-    private static MovimientoPuntos Crear(MiembroFidelidad miembro, TipoMovimientoPuntos tipo, int puntos, string documento, Guid cajaId, DateTimeOffset ahora)
+    private static MovimientoPuntos Crear(MiembroFidelidad miembro, TipoMovimientoPuntos tipo, int puntos, string documento, int cajaId, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(miembro);
         return new MovimientoPuntos
         {
-            Id = Guid.CreateVersion7(),
             MiembroId = miembro.Id,
             Cedula = miembro.Cedula,
             Tipo = tipo,

@@ -14,12 +14,12 @@ public interface IServicioFidelidadCentral
 
     Task<PaginaMiembrosFidelidadCentral> ListarAsync(string? buscar, bool soloConPuntos, int pagina, int tamano, CancellationToken cancelacion = default);
 
-    Task<DatosMiembroFidelidadCentral?> ObtenerAsync(Guid miembroId, CancellationToken cancelacion = default);
+    Task<DatosMiembroFidelidadCentral?> ObtenerAsync(int miembroId, CancellationToken cancelacion = default);
 
-    Task<IReadOnlyList<DatosMovimientoPuntosCentral>> ListarMovimientosAsync(Guid miembroId, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosMovimientoPuntosCentral>> ListarMovimientosAsync(int miembroId, CancellationToken cancelacion = default);
 
     /// <summary>Ajuste manual a favor o en contra, con motivo y responsable; queda en la auditoría y baja a las cajas.</summary>
-    Task<RespuestaAjustePuntos> AjustarAsync(Guid miembroId, int puntos, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<RespuestaAjustePuntos> AjustarAsync(int miembroId, int puntos, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <summary>Recalcula los miembros cuyos puntos ya vencieron, para que las cajas reciban el saldo al día (RF-242).</summary>
     /// <returns>Cuántos miembros cambiaron de saldo.</returns>

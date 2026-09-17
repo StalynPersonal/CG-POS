@@ -19,14 +19,14 @@ public static class RutasApiFidelidad
                 CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarAsync(buscar, soloConPuntos ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
 
-        manager.MapGet("/miembros/{miembroId:guid}", async (Guid miembroId, IServicioFidelidadCentral servicio, CancellationToken cancelacion) =>
+        manager.MapGet("/miembros/{miembroId:int}", async (int miembroId, IServicioFidelidadCentral servicio, CancellationToken cancelacion) =>
             await servicio.ObtenerAsync(miembroId, cancelacion) is { } miembro ? Results.Ok(miembro) : Results.NotFound());
 
-        manager.MapGet("/miembros/{miembroId:guid}/movimientos", async (Guid miembroId, IServicioFidelidadCentral servicio, CancellationToken cancelacion) =>
+        manager.MapGet("/miembros/{miembroId:int}/movimientos", async (int miembroId, IServicioFidelidadCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarMovimientosAsync(miembroId, cancelacion)));
 
         // Ajuste manual a favor o en contra: exige motivo y queda en la auditoría.
-        manager.MapPost("/miembros/{miembroId:guid}/ajustes", async (Guid miembroId, SolicitudAjustePuntos solicitud, ClaimsPrincipal usuario,
+        manager.MapPost("/miembros/{miembroId:int}/ajustes", async (int miembroId, SolicitudAjustePuntos solicitud, ClaimsPrincipal usuario,
                 IServicioFidelidadCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.AjustarAsync(miembroId, solicitud.Puntos, solicitud.Motivo, Actor(usuario), cancelacion)));
 

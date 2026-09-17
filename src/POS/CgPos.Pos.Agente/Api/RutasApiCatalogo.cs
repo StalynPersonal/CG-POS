@@ -15,16 +15,16 @@ public static class RutasApiCatalogo
         api.MapGet("/articulos/codigo/{codigo}", async (string codigo, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             await consulta.BuscarPorCodigoAsync(codigo, cancelacion) is { } articulo ? Results.Ok(articulo) : Results.NotFound());
 
-        api.MapGet("/articulos", async (string? texto, Guid? departamentoId, int? maximo, IConsultaArticulos consulta, CancellationToken cancelacion) =>
+        api.MapGet("/articulos", async (string? texto, int? departamentoId, int? maximo, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.BuscarAsync(texto, departamentoId, maximo ?? 50, cancelacion)));
 
-        api.MapGet("/articulos/catalogo", async (Guid? departamentoId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
+        api.MapGet("/articulos/catalogo", async (int? departamentoId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.ListarCatalogoAsync(departamentoId, cancelacion)));
 
-        api.MapGet("/articulos/no-codificados", async (Guid? departamentoId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
+        api.MapGet("/articulos/no-codificados", async (int? departamentoId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.ListarNoCodificadosAsync(departamentoId, cancelacion)));
 
-        api.MapGet("/articulos/{articuloId:guid}/precios", async (Guid articuloId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
+        api.MapGet("/articulos/{articuloId:int}/precios", async (int articuloId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.ObtenerHistorialPreciosAsync(articuloId, cancelacion)));
 
         api.MapGet("/departamentos", async (IConsultaArticulos consulta, CancellationToken cancelacion) =>

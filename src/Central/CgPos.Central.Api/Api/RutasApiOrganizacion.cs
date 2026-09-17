@@ -25,14 +25,14 @@ public static class RutasApiOrganizacion
         organizacion.MapPost("/sucursales", async (SolicitudSucursal solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CrearSucursalAsync(solicitud, Actor(usuario), cancelacion)));
 
-        organizacion.MapPut("/sucursales/{sucursalId:guid}", async (Guid sucursalId, SolicitudSucursal solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
+        organizacion.MapPut("/sucursales/{sucursalId:int}", async (int sucursalId, SolicitudSucursal solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.ActualizarSucursalAsync(sucursalId, solicitud, Actor(usuario), cancelacion)));
 
-        organizacion.MapPost("/sucursales/{sucursalId:guid}/activar", async (Guid sucursalId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
+        organizacion.MapPost("/sucursales/{sucursalId:int}/activar", async (int sucursalId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoSucursalAsync(sucursalId, true, Actor(usuario), cancelacion)));
 
-        organizacion.MapPost("/sucursales/{sucursalId:guid}/desactivar", async (Guid sucursalId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
+        organizacion.MapPost("/sucursales/{sucursalId:int}/desactivar", async (int sucursalId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoSucursalAsync(sucursalId, false, Actor(usuario), cancelacion)));
 
         organizacion.MapGet("/cajas", async (IServicioOrganizacion servicio, CancellationToken cancelacion) =>
@@ -41,14 +41,14 @@ public static class RutasApiOrganizacion
         organizacion.MapPost("/cajas", async (SolicitudCaja solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CrearCajaAsync(solicitud, Actor(usuario), cancelacion)));
 
-        organizacion.MapPut("/cajas/{cajaId:guid}", async (Guid cajaId, SolicitudActualizarCaja solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
+        organizacion.MapPut("/cajas/{cajaId:int}", async (int cajaId, SolicitudActualizarCaja solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.ActualizarCajaAsync(cajaId, solicitud, Actor(usuario), cancelacion)));
 
-        organizacion.MapPost("/cajas/{cajaId:guid}/habilitar", async (Guid cajaId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
+        organizacion.MapPost("/cajas/{cajaId:int}/habilitar", async (int cajaId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoCajaAsync(cajaId, true, Actor(usuario), cancelacion)));
 
-        organizacion.MapPost("/cajas/{cajaId:guid}/deshabilitar", async (Guid cajaId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
+        organizacion.MapPost("/cajas/{cajaId:int}/deshabilitar", async (int cajaId, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CambiarEstadoCajaAsync(cajaId, false, Actor(usuario), cancelacion)));
 
         organizacion.MapGet("/parametros/catalogo", () => Results.Ok(CatalogoParametros.Todos));
@@ -59,7 +59,7 @@ public static class RutasApiOrganizacion
         organizacion.MapPost("/parametros", async (SolicitudParametro solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Responder(await servicio.CrearParametroAsync(solicitud, Actor(usuario), cancelacion)));
 
-        organizacion.MapPut("/parametros/{parametroId:guid}", async (Guid parametroId, SolicitudValorParametro solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
+        organizacion.MapPut("/parametros/{parametroId:int}", async (int parametroId, SolicitudValorParametro solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.CambiarValorParametroAsync(parametroId, solicitud.Valor ?? string.Empty, Actor(usuario), cancelacion)));
 

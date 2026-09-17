@@ -122,7 +122,7 @@ internal sealed class ServicioDevoluciones(
             }
         }
 
-        Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, Guid? turnoId, ResultadoPermiso? permiso) =>
+        Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, int? turnoId, ResultadoPermiso? permiso) =>
             Devolucion.Registrar(venta, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero, turnoId,
                 sesion.UsuarioId, sesion.Nombre, permiso?.SupervisorId ?? sesion.UsuarioId, permiso?.SupervisorNombre ?? sesion.Nombre,
                 diasRetencion, mesesVigencia, Hoy, ahora, reloj.LocalTimeZone);
@@ -157,7 +157,7 @@ internal sealed class ServicioDevoluciones(
             var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
             var turnoId = await contexto.Turnos.AsNoTracking()
                 .Where(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto)
-                .Select(t => (Guid?)t.Id)
+                .Select(t => (int?)t.Id)
                 .FirstOrDefaultAsync(cancelacion);
 
             // Lo ya devuelto se relee dentro de la transacción para no devolver dos veces lo mismo (RF-42).
@@ -271,7 +271,7 @@ internal sealed class ServicioDevoluciones(
         };
     }
 
-    public async Task<RespuestaDevolucion> ReimprimirAsync(SesionUsuario sesion, Guid devolucionId, CancellationToken cancelacion = default)
+    public async Task<RespuestaDevolucion> ReimprimirAsync(SesionUsuario sesion, int devolucionId, CancellationToken cancelacion = default)
     {
         var devolucion = await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas)
             .SingleOrDefaultAsync(d => d.Id == devolucionId && d.CajaId == sesion.CajaId, cancelacion);
@@ -300,7 +300,7 @@ internal sealed class ServicioDevoluciones(
     /// Entrega el dinero de la devolución según lo permita la configuración (RF-123): efectivo de la gaveta, devolución a la tarjeta
     /// o cheque que emite contabilidad. Devuelve el motivo del rechazo, o nulo si el reembolso quedó registrado.
     /// </summary>
-    private async Task<string?> ReembolsarAsync(SesionUsuario sesion, SolicitudDevolucion solicitud, Devolucion devolucion, Guid? turnoId,
+    private async Task<string?> ReembolsarAsync(SesionUsuario sesion, SolicitudDevolucion solicitud, Devolucion devolucion, int? turnoId,
         ResultadoPermiso permiso, DateTimeOffset ahora, CancellationToken cancelacion)
     {
         var referencia = solicitud.ReembolsoReferencia?.Trim();
@@ -361,12 +361,12 @@ internal sealed class ServicioDevoluciones(
             return venta;
 
         // También por el e-NCF impreso en la factura.
-        var ventaId = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == codigo).Select(d => (Guid?)d.VentaId).FirstOrDefaultAsync(cancelacion);
+        var ventaId = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == codigo).Select(d => (int?)d.VentaId).FirstOrDefaultAsync(cancelacion);
         return ventaId is null ? null : await consulta.FirstOrDefaultAsync(v => v.Id == ventaId, cancelacion);
     }
 
     /// <summary>Cantidad por línea de la factura que sigue pendiente de entrega en pendientes no anulados.</summary>
-    private async Task<Dictionary<int, decimal>> PorEntregarAsync(Guid ventaId, CancellationToken cancelacion) =>
+    private async Task<Dictionary<int, decimal>> PorEntregarAsync(int ventaId, CancellationToken cancelacion) =>
         (await contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas)
             .Where(p => p.VentaId == ventaId && p.Estado != EstadoPendiente.Anulado)
             .ToListAsync(cancelacion))
@@ -376,7 +376,7 @@ internal sealed class ServicioDevoluciones(
         .Where(x => x.Pendiente > 0)
         .ToDictionary(x => x.Linea, x => x.Pendiente);
 
-    private async Task<Dictionary<int, DevueltoLinea>> DevueltoAsync(Guid ventaId, CancellationToken cancelacion) =>
+    private async Task<Dictionary<int, DevueltoLinea>> DevueltoAsync(int ventaId, CancellationToken cancelacion) =>
         (await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas).Where(d => d.VentaOrigenId == ventaId).ToListAsync(cancelacion)).Devuelto();
 
     private async Task<DatosFacturaDevolucion> ArmarFacturaAsync(SesionUsuario sesion, Venta venta, CancellationToken cancelacion)

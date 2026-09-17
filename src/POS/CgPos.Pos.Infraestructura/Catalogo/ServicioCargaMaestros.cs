@@ -165,12 +165,12 @@ internal sealed class ServicioCargaMaestros(
         }
     }
 
-    private Task<Guid> AplicarAsync<T>(DbSet<T> conjunto, System.Linq.Expressions.Expression<Func<T, bool>> llave, Func<T> crear, Action<T> actualizar,
+    private Task<int> AplicarAsync<T>(DbSet<T> conjunto, System.Linq.Expressions.Expression<Func<T, bool>> llave, Func<T> crear, Action<T> actualizar,
         CancellationToken cancelacion) where T : Dominio.Comun.Entidad =>
         AplicarAsync(conjunto, conjunto, llave, crear, actualizar, cancelacion);
 
     /// <summary>Busca por la llave (código o llave natural), primero entre lo agregado en este paquete; crea o actualiza.</summary>
-    private async Task<Guid> AplicarAsync<T>(IQueryable<T> consulta, DbSet<T> conjunto, System.Linq.Expressions.Expression<Func<T, bool>> llave, Func<T> crear,
+    private async Task<int> AplicarAsync<T>(IQueryable<T> consulta, DbSet<T> conjunto, System.Linq.Expressions.Expression<Func<T, bool>> llave, Func<T> crear,
         Action<T> actualizar, CancellationToken cancelacion) where T : Dominio.Comun.Entidad
     {
         var entidad = conjunto.Local.AsQueryable().FirstOrDefault(llave) ?? await consulta.FirstOrDefaultAsync(llave, cancelacion);
@@ -189,7 +189,7 @@ internal sealed class ServicioCargaMaestros(
         return entidad.Id;
     }
 
-    private async Task<Guid> AplicarArticuloAsync(ArticuloCarga dato, ResolutorCodigosPos resolutor, string origen, DateTimeOffset ahora, CancellationToken cancelacion)
+    private async Task<int> AplicarArticuloAsync(ArticuloCarga dato, ResolutorCodigosPos resolutor, string origen, DateTimeOffset ahora, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
         var id = await AplicarAsync(contexto.Articulos.Include(a => a.Codigos), contexto.Articulos, a => a.Codigo == codigo,

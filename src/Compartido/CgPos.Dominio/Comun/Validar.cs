@@ -36,9 +36,10 @@ internal static class Validar
         return valor;
     }
 
-    public static Guid Id(Guid valor, string campo)
+    /// <summary>Id de una entidad ya agregada a la base (mayor que cero).</summary>
+    public static int Id(int valor, string campo)
     {
-        if (valor == Guid.Empty)
+        if (valor <= 0)
             throw new ArgumentException($"{campo} es obligatorio.", campo);
 
         return valor;

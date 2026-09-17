@@ -38,8 +38,8 @@ internal sealed class ServicioDespacho(
         if (pendientes.Count == 0)
         {
             // Por la factura: número de transacción o e-NCF impreso.
-            var ventaId = await contexto.Ventas.AsNoTracking().Where(v => v.NumeroTransaccion == buscado).Select(v => (Guid?)v.Id).FirstOrDefaultAsync(cancelacion)
-                ?? await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == buscado).Select(d => (Guid?)d.VentaId).FirstOrDefaultAsync(cancelacion);
+            var ventaId = await contexto.Ventas.AsNoTracking().Where(v => v.NumeroTransaccion == buscado).Select(v => (int?)v.Id).FirstOrDefaultAsync(cancelacion)
+                ?? await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == buscado).Select(d => (int?)d.VentaId).FirstOrDefaultAsync(cancelacion);
             if (ventaId is { } id)
                 pendientes = await Pendientes.AsNoTracking().Where(p => p.VentaId == id).OrderBy(p => p.Numero).ToListAsync(cancelacion);
         }
@@ -61,7 +61,7 @@ internal sealed class ServicioDespacho(
         .Select(p => p.ADatos())
         .ToList();
 
-    public async Task<RespuestaPendiente> CambiarEstadoAsync(SesionUsuario sesion, Guid pendienteId, SolicitudEstadoPendiente solicitud, CancellationToken cancelacion = default)
+    public async Task<RespuestaPendiente> CambiarEstadoAsync(SesionUsuario sesion, int pendienteId, SolicitudEstadoPendiente solicitud, CancellationToken cancelacion = default)
     {
         if (!sesion.TienePermiso(CatalogoPermisos.DespacharPendiente))
             return SinPermiso();
@@ -85,7 +85,7 @@ internal sealed class ServicioDespacho(
         return new RespuestaPendiente(CodigoResultadoPendiente.Correcto, $"Pendiente {pendiente.Numero}: {NombreEstado(pendiente.Estado)}.", pendiente.ADatos());
     }
 
-    public async Task<RespuestaPendiente> EntregarAsync(SesionUsuario sesion, Guid pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default)
+    public async Task<RespuestaPendiente> EntregarAsync(SesionUsuario sesion, int pendienteId, SolicitudEntregaPendiente solicitud, CancellationToken cancelacion = default)
     {
         if (!sesion.TienePermiso(CatalogoPermisos.DespacharPendiente))
             return SinPermiso();
@@ -126,7 +126,7 @@ internal sealed class ServicioDespacho(
         return new RespuestaPendiente(CodigoResultadoPendiente.Correcto, impresion.Correcto ? mensaje : $"{mensaje} {impresion.Mensaje}", datos);
     }
 
-    public async Task<RespuestaPendiente> AnularAsync(SesionUsuario sesion, Guid pendienteId, SolicitudAnularPendiente solicitud, CancellationToken cancelacion = default)
+    public async Task<RespuestaPendiente> AnularAsync(SesionUsuario sesion, int pendienteId, SolicitudAnularPendiente solicitud, CancellationToken cancelacion = default)
     {
         var ahora = reloj.GetUtcNow();
 

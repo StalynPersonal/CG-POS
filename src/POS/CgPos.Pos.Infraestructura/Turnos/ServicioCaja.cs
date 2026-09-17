@@ -284,7 +284,7 @@ internal sealed class ServicioCaja(
         return new RespuestaCaja(CodigoResultadoCaja.Correcto, mensaje, Cierre: datos, Turno: turno.ADatos());
     }
 
-    public async Task<RespuestaCaja> ReabrirCierreAsync(SesionUsuario sesion, Guid cierreId, string? motivo, Guid? autorizacionId,
+    public async Task<RespuestaCaja> ReabrirCierreAsync(SesionUsuario sesion, int cierreId, string? motivo, Guid? autorizacionId,
         CancellationToken cancelacion = default)
     {
         var cierre = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Denominaciones)
@@ -350,7 +350,7 @@ internal sealed class ServicioCaja(
         return cierres.Select(c => c.ADatos(movimientos.Where(m => m.TurnoId == c.TurnoId))).ToList();
     }
 
-    public async Task<RespuestaCaja> ReimprimirCierreAsync(SesionUsuario sesion, Guid cierreId, CancellationToken cancelacion = default)
+    public async Task<RespuestaCaja> ReimprimirCierreAsync(SesionUsuario sesion, int cierreId, CancellationToken cancelacion = default)
     {
         var cierre = await contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Denominaciones)
             .SingleOrDefaultAsync(c => c.Id == cierreId && c.CajaId == sesion.CajaId, cancelacion);

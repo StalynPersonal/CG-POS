@@ -21,16 +21,16 @@ public interface IServicioNotasCreditoCentral
     /// Retiene saldo de la nota (por su número) para la factura <paramref name="ventaNumero"/> de esa caja, hasta que confirme el consumo o venza la
     /// reserva. Una reserva abierta de la misma factura se reemplaza.
     /// </summary>
-    Task<RespuestaReservaNotaCredito> ReservarAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, decimal monto, CancellationToken cancelacion = default);
+    Task<RespuestaReservaNotaCredito> ReservarAsync(string notaCreditoNumero, int cajaId, string ventaNumero, decimal monto, CancellationToken cancelacion = default);
 
     /// <returns><c>false</c> si esa caja no tiene una reserva abierta de la nota para esa factura.</returns>
-    Task<bool> LiberarReservaAsync(string notaCreditoNumero, Guid cajaId, string ventaNumero, CancellationToken cancelacion = default);
+    Task<bool> LiberarReservaAsync(string notaCreditoNumero, int cajaId, string ventaNumero, CancellationToken cancelacion = default);
 
     Task<PaginaNotasCreditoCentral> ListarAsync(string? buscar, EstadoNotaCreditoCentral? estado, bool soloSobregiradas, int pagina, int tamano,
         CancellationToken cancelacion = default);
 
-    Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(Guid notaCreditoId, CancellationToken cancelacion = default);
+    Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(int notaCreditoId, CancellationToken cancelacion = default);
 
     /// <summary>Habilita una nota vencida hasta una fecha nueva, dentro del máximo configurado (RF-40).</summary>
-    Task<ResultadoAdministracion> ProrrogarAsync(Guid notaCreditoId, DateOnly venceEn, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ProrrogarAsync(int notaCreditoId, DateOnly venceEn, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

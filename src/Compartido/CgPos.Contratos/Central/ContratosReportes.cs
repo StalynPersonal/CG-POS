@@ -28,7 +28,7 @@ public enum TipoReporteCentral
 
 /// <param name="Desde">Primer día de operación incluido.</param>
 /// <param name="Hasta">Último día de operación incluido.</param>
-public sealed record FiltroReporte(DateOnly Desde, DateOnly Hasta, Guid? SucursalId = null, Guid? CajaId = null);
+public sealed record FiltroReporte(DateOnly Desde, DateOnly Hasta, int? SucursalId = null, int? CajaId = null);
 
 /// <summary>Resultado de un reporte en forma de tabla: sirve para la pantalla y para exportarlo a Excel o PDF sin duplicar la consulta.</summary>
 /// <param name="Alineaciones">Por columna, <c>true</c> si es numérica (se alinea a la derecha y se totaliza).</param>

@@ -36,18 +36,17 @@ public sealed class DescuentoTarjeta : Entidad
     /// <summary>Tope del descuento en moneda; nulo si no hay tope.</summary>
     public decimal? MontoMaximo { get; private set; }
 
-    public Guid? BancoId { get; private set; }
+    public int? BancoId { get; private set; }
     public DateTimeOffset VigenteDesde { get; private set; }
     public DateTimeOffset VigenteHasta { get; private set; }
     public DiasSemana Dias { get; private set; } = DiasSemana.Todos;
     public bool Activo { get; private set; } = true;
 
-    public static DescuentoTarjeta Crear(Guid id, string codigo, string nombre, string bines, TipoDescuentoTarjeta tipo, decimal valor, decimal? montoMinimo,
-        decimal? montoMaximo, Guid? bancoId, DateTimeOffset vigenteDesde, DateTimeOffset vigenteHasta, DiasSemana dias, bool activo)
+    public static DescuentoTarjeta Crear(string codigo, string nombre, string bines, TipoDescuentoTarjeta tipo, decimal valor, decimal? montoMinimo,
+        decimal? montoMaximo, int? bancoId, DateTimeOffset vigenteDesde, DateTimeOffset vigenteHasta, DiasSemana dias, bool activo)
     {
         var descuento = new DescuentoTarjeta
         {
-            Id = Validar.Id(id, "Descuento de tarjeta"),
             Codigo = Validar.Texto(codigo, "Código del descuento", LargoMaximoCodigo).ToUpperInvariant(),
         };
 
@@ -55,7 +54,7 @@ public sealed class DescuentoTarjeta : Entidad
         return descuento;
     }
 
-    public void Actualizar(string nombre, string bines, TipoDescuentoTarjeta tipo, decimal valor, decimal? montoMinimo, decimal? montoMaximo, Guid? bancoId,
+    public void Actualizar(string nombre, string bines, TipoDescuentoTarjeta tipo, decimal valor, decimal? montoMinimo, decimal? montoMaximo, int? bancoId,
         DateTimeOffset vigenteDesde, DateTimeOffset vigenteHasta, DiasSemana dias, bool activo)
     {
         if (!Enum.IsDefined(tipo))

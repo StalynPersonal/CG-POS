@@ -17,22 +17,21 @@ public sealed class Almacen : Entidad
 
     public string Codigo { get; private set; } = string.Empty;
     public string Nombre { get; private set; } = string.Empty;
-    public Guid SucursalId { get; private set; }
+    public int SucursalId { get; private set; }
     public string? Direccion { get; private set; }
     public bool Activo { get; private set; } = true;
 
-    public static Almacen Crear(string codigo, string nombre, Guid sucursalId, string? direccion, Guid? id = null)
+    public static Almacen Crear(string codigo, string nombre, int sucursalId, string? direccion)
     {
         var almacen = new Almacen
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código del almacén", LargoMaximoCodigo).ToUpperInvariant(),
         };
         almacen.Actualizar(nombre, sucursalId, direccion);
         return almacen;
     }
 
-    public void Actualizar(string nombre, Guid sucursalId, string? direccion)
+    public void Actualizar(string nombre, int sucursalId, string? direccion)
     {
         Nombre = Validar.Texto(nombre, "Nombre del almacén", LargoMaximoNombre);
         SucursalId = Validar.Id(sucursalId, "Sucursal");
@@ -75,10 +74,10 @@ public sealed class DestinoEntrega : Entidad
     {
     }
 
-    public Guid VentaId { get; private set; }
+    public int VentaId { get; private set; }
     public int Numero { get; private set; }
     public MetodoEntrega Metodo { get; private set; }
-    public Guid? AlmacenId { get; private set; }
+    public int? AlmacenId { get; private set; }
     public string? AlmacenNombre { get; private set; }
     public string? Direccion { get; private set; }
     public string? Sector { get; private set; }
@@ -91,18 +90,17 @@ public sealed class DestinoEntrega : Entidad
     public string? Comentario { get; private set; }
 
     /// <summary>Supervisor que autorizó marcar la mercancía como pendiente (RF-53, RN-15).</summary>
-    public Guid? AutorizadoPorId { get; private set; }
+    public int? AutorizadoPorId { get; private set; }
 
     public string? AutorizadoPorNombre { get; private set; }
 
     public IReadOnlyList<LineaDestinoEntrega> Lineas => _lineas;
 
-    internal static DestinoEntrega Crear(Guid ventaId, int numero, MetodoEntrega metodo, Guid? almacenId, string? almacenNombre, DatosEnvio? envio,
-        DateOnly? fechaComprometida, string? comentario, Guid? autorizadoPorId, string? autorizadoPorNombre, IEnumerable<CantidadEntrega> cantidades)
+    internal static DestinoEntrega Crear(int ventaId, int numero, MetodoEntrega metodo, int? almacenId, string? almacenNombre, DatosEnvio? envio,
+        DateOnly? fechaComprometida, string? comentario, int? autorizadoPorId, string? autorizadoPorNombre, IEnumerable<CantidadEntrega> cantidades)
     {
         var destino = new DestinoEntrega
         {
-            Id = Guid.CreateVersion7(),
             VentaId = ventaId,
             Numero = numero,
             Metodo = metodo,
@@ -129,7 +127,7 @@ public sealed class DestinoEntrega : Entidad
         }
 
         foreach (var cantidad in cantidades)
-            destino._lineas.Add(new LineaDestinoEntrega { Id = Guid.CreateVersion7(), DestinoEntregaId = destino.Id, NumeroLinea = cantidad.NumeroLinea, Cantidad = cantidad.Cantidad });
+            destino._lineas.Add(new LineaDestinoEntrega { DestinoEntregaId = destino.Id, NumeroLinea = cantidad.NumeroLinea, Cantidad = cantidad.Cantidad });
 
         return destino;
     }
@@ -141,7 +139,7 @@ public sealed class LineaDestinoEntrega : Entidad
     {
     }
 
-    public Guid DestinoEntregaId { get; internal set; }
+    public int DestinoEntregaId { get; internal set; }
     public int NumeroLinea { get; internal set; }
     public decimal Cantidad { get; internal set; }
 }
@@ -198,12 +196,12 @@ public sealed class PendienteEntrega : Entidad
     }
 
     public string Numero { get; private set; } = string.Empty;
-    public Guid VentaId { get; private set; }
+    public int VentaId { get; private set; }
     public string VentaNumero { get; private set; } = string.Empty;
-    public Guid SucursalId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int SucursalId { get; private set; }
+    public int CajaId { get; private set; }
     public MetodoEntrega Metodo { get; private set; }
-    public Guid? AlmacenId { get; private set; }
+    public int? AlmacenId { get; private set; }
     public string? AlmacenNombre { get; private set; }
     public string? Direccion { get; private set; }
     public string? Sector { get; private set; }
@@ -238,7 +236,6 @@ public sealed class PendienteEntrega : Entidad
 
         var pendiente = new PendienteEntrega
         {
-            Id = Guid.CreateVersion7(),
             Numero = Validar.Texto(numero, "Número del pendiente", LargoMaximoNumero),
             VentaId = venta.Id,
             VentaNumero = venta.NumeroTransaccion,
@@ -369,9 +366,9 @@ public sealed class LineaPendienteEntrega : Entidad
     {
     }
 
-    public Guid PendienteEntregaId { get; private set; }
+    public int PendienteEntregaId { get; private set; }
     public int NumeroLineaVenta { get; private set; }
-    public Guid ArticuloId { get; private set; }
+    public int ArticuloId { get; private set; }
     public string CodigoInterno { get; private set; } = string.Empty;
     public string Descripcion { get; private set; } = string.Empty;
     public string UnidadMedidaCodigo { get; private set; } = string.Empty;
@@ -385,10 +382,9 @@ public sealed class LineaPendienteEntrega : Entidad
 
     public decimal CantidadPendiente => Cantidad - CantidadEntregada;
 
-    internal static LineaPendienteEntrega Crear(Guid pendienteId, LineaVenta linea, decimal cantidad) =>
+    internal static LineaPendienteEntrega Crear(int pendienteId, LineaVenta linea, decimal cantidad) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             PendienteEntregaId = pendienteId,
             NumeroLineaVenta = linea.NumeroLinea,
             ArticuloId = linea.ArticuloId,
@@ -417,7 +413,7 @@ public sealed class EntregaPendiente : Entidad
     {
     }
 
-    public Guid PendienteEntregaId { get; private set; }
+    public int PendienteEntregaId { get; private set; }
     public int Numero { get; private set; }
     public string RecibeNombre { get; private set; } = string.Empty;
     public string RecibeCedula { get; private set; } = string.Empty;
@@ -426,10 +422,9 @@ public sealed class EntregaPendiente : Entidad
 
     public IReadOnlyList<LineaEntregaPendiente> Lineas => _lineas;
 
-    internal static EntregaPendiente Crear(Guid pendienteId, int numero, string? recibeNombre, string? recibeCedula, string usuarioNombre, DateTimeOffset ahora) =>
+    internal static EntregaPendiente Crear(int pendienteId, int numero, string? recibeNombre, string? recibeCedula, string usuarioNombre, DateTimeOffset ahora) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             PendienteEntregaId = pendienteId,
             Numero = numero,
             RecibeNombre = Validar.Texto(recibeNombre, "Nombre de quien recibe", DestinoEntrega.LargoMaximoNombre),
@@ -441,7 +436,6 @@ public sealed class EntregaPendiente : Entidad
     internal void AgregarLinea(LineaPendienteEntrega linea, decimal cantidad, string? serial) =>
         _lineas.Add(new LineaEntregaPendiente
         {
-            Id = Guid.CreateVersion7(),
             EntregaPendienteId = Id,
             NumeroLineaVenta = linea.NumeroLineaVenta,
             Descripcion = linea.Descripcion,
@@ -456,7 +450,7 @@ public sealed class LineaEntregaPendiente : Entidad
     {
     }
 
-    public Guid EntregaPendienteId { get; internal set; }
+    public int EntregaPendienteId { get; internal set; }
     public int NumeroLineaVenta { get; internal set; }
     public string Descripcion { get; internal set; } = string.Empty;
     public decimal Cantidad { get; internal set; }

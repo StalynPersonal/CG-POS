@@ -5,18 +5,18 @@ namespace CgPos.Pos.Aplicacion.Seguridad;
 
 /// <summary>Usuario autenticado en esta caja, con los permisos de su rol al momento de ingresar.</summary>
 public sealed record SesionUsuario(
-    Guid UsuarioId,
+    int UsuarioId,
     string Codigo,
     string Nombre,
-    Guid RolId,
+    int RolId,
     string RolCodigo,
     string RolNombre,
     int Nivel,
     IReadOnlySet<string> Permisos,
-    Guid CajaId,
+    int CajaId,
     int CajaCodigo,
     string CajaNombre,
-    Guid SucursalId)
+    int SucursalId)
 {
     public bool TienePermiso(string permiso) => Permisos.Contains(permiso);
 }
@@ -86,14 +86,14 @@ public sealed record ResultadoAutorizacion(
     bool RequirioSupervisor,
     MotivoRechazoAutorizacion? Motivo,
     Guid? AutorizacionId,
-    Guid? SupervisorId,
+    int? SupervisorId,
     string? SupervisorNombre,
     DateTimeOffset? BloqueadoHasta)
 {
     /// <summary>El solicitante ya tiene el permiso: no hace falta supervisor.</summary>
     public static ResultadoAutorizacion SinSupervisor() => new(true, false, null, null, null, null, null);
 
-    public static ResultadoAutorizacion Conceder(Guid autorizacionId, Guid supervisorId, string supervisorNombre) =>
+    public static ResultadoAutorizacion Conceder(Guid autorizacionId, int supervisorId, string supervisorNombre) =>
         new(true, true, null, autorizacionId, supervisorId, supervisorNombre, null);
 
     public static ResultadoAutorizacion Rechazo(MotivoRechazoAutorizacion motivo, DateTimeOffset? bloqueadoHasta = null) =>

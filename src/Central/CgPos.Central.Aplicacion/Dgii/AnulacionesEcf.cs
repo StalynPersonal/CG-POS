@@ -16,5 +16,5 @@ public interface IServicioAnulacionesEcf
     /// Solo se anula dentro de un rango desactivado o vencido (la caja ya no lo usa), sin e-CF recibidos en el tramo y sin solapar otra anulación
     /// aceptada. La respuesta de la DGII queda registrada, sea aceptada, rechazada o fallida.
     /// </summary>
-    Task<ResultadoAdministracion> AnularAsync(Guid secuenciaId, SolicitudAnulacionEcf solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> AnularAsync(int secuenciaId, SolicitudAnulacionEcf solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

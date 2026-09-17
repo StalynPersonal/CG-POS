@@ -40,11 +40,11 @@ public static class RutasApiNotasCredito
                 IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarAsync(buscar, estado, soloSobregiradas ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
 
-        manager.MapGet("/{notaCreditoId:guid}/movimientos", async (Guid notaCreditoId, IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
+        manager.MapGet("/{notaCreditoId:int}/movimientos", async (int notaCreditoId, IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarMovimientosAsync(notaCreditoId, cancelacion)));
 
         // Habilitar una nota vencida (RF-40): exige el motivo y queda en la auditoría.
-        manager.MapPost("/{notaCreditoId:guid}/prorrogar", async (Guid notaCreditoId, SolicitudProrrogaNotaCredito solicitud, ClaimsPrincipal usuario,
+        manager.MapPost("/{notaCreditoId:int}/prorrogar", async (int notaCreditoId, SolicitudProrrogaNotaCredito solicitud, ClaimsPrincipal usuario,
                 IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
             Responder(await servicio.ProrrogarAsync(notaCreditoId, solicitud.VenceEn, solicitud.Motivo, Actor(usuario), cancelacion)));
 

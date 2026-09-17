@@ -10,7 +10,6 @@ internal sealed class SecuenciaEcfConfiguracion : IEntityTypeConfiguration<Secue
     {
         constructor.ToTable("SecuenciasEcf");
         constructor.HasKey(s => s.Id);
-        constructor.Property(s => s.Id).ValueGeneratedNever();
         constructor.Ignore(s => s.Total);
         constructor.Ignore(s => s.Restantes);
         constructor.Ignore(s => s.PorcentajeRestante);
@@ -26,7 +25,6 @@ internal sealed class ComprobanteContingenciaConfiguracion : IEntityTypeConfigur
     {
         constructor.ToTable("ComprobantesContingencia");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.Id).ValueGeneratedNever();
         constructor.Property(c => c.Numero).HasMaxLength(ComprobanteContingencia.LargoMaximoNumero).IsRequired();
         constructor.Property(c => c.VentaNumero).HasMaxLength(ComprobanteContingencia.LargoMaximoNumero).IsRequired();
         constructor.Property(c => c.Motivo).HasMaxLength(ComprobanteContingencia.LargoMaximoMotivo).IsRequired();
@@ -45,7 +43,6 @@ internal sealed class DocumentoElectronicoConfiguracion : IEntityTypeConfigurati
     {
         constructor.ToTable("DocumentosElectronicos");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Id).ValueGeneratedNever();
         constructor.Property(d => d.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false).IsRequired();
         constructor.Property(d => d.CodigoSeguridad).HasMaxLength(20).IsUnicode(false).IsRequired();
         constructor.Property(d => d.HashXml).HasMaxLength(64).IsUnicode(false).IsRequired();
@@ -69,7 +66,6 @@ internal sealed class HistorialEstadoEcfConfiguracion : IEntityTypeConfiguration
     {
         constructor.ToTable("HistorialEstadosEcf");
         constructor.HasKey(h => h.Id);
-        constructor.Property(h => h.Id).ValueGeneratedNever();
         constructor.Property(h => h.Mensaje).HasMaxLength(DocumentoElectronico.LargoMaximoMensaje);
     }
 }

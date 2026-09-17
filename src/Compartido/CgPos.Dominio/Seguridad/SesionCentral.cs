@@ -5,8 +5,9 @@ namespace CgPos.Dominio.Seguridad;
 /// <summary>
 /// Token de renovación de una sesión del Central Manager; solo se guarda su hash SHA-256. Cada renovación usa el token una sola vez
 /// y emite otro de la misma familia (rotación). Presentar un token ya usado indica que fue copiado: se revoca la familia completa.
+/// Su Id es un Guid, no un entero de la base: identifica la sesión en el token de acceso.
 /// </summary>
-public sealed class SesionCentral : Entidad
+public sealed class SesionCentral
 {
     public const int LargoHashToken = 64;
     public const int LargoMaximoMotivo = 150;
@@ -17,7 +18,9 @@ public sealed class SesionCentral : Entidad
     {
     }
 
-    public Guid UsuarioId { get; private set; }
+    public Guid Id { get; private init; } = Guid.CreateVersion7();
+
+    public int UsuarioId { get; private set; }
 
     /// <summary>Id de la sesión: el del primer token, compartido por todos los que salen de sus renovaciones.</summary>
     public Guid Familia { get; private set; }
@@ -42,7 +45,7 @@ public sealed class SesionCentral : Entidad
 
     /// <param name="inactividad">Tiempo sin renovar tras el que vence el token.</param>
     /// <param name="duracion">Duración máxima de la sesión.</param>
-    public static SesionCentral Iniciar(Guid usuarioId, string tokenHash, DateTimeOffset ahora, TimeSpan inactividad, TimeSpan duracion,
+    public static SesionCentral Iniciar(int usuarioId, string tokenHash, DateTimeOffset ahora, TimeSpan inactividad, TimeSpan duracion,
         string? direccionIp, string? agenteUsuario)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duracion, TimeSpan.Zero);
@@ -75,7 +78,7 @@ public sealed class SesionCentral : Entidad
         RevocadaEn = ahora;
     }
 
-    private static SesionCentral Nueva(Guid usuarioId, Guid? familia, string tokenHash, DateTimeOffset ahora, DateTimeOffset finSesion, TimeSpan inactividad,
+    private static SesionCentral Nueva(int usuarioId, Guid? familia, string tokenHash, DateTimeOffset ahora, DateTimeOffset finSesion, TimeSpan inactividad,
         string? direccionIp, string? agenteUsuario)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(inactividad, TimeSpan.Zero);

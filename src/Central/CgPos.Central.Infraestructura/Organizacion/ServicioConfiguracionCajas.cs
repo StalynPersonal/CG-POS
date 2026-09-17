@@ -58,10 +58,10 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         var secuencia = new SecuenciaEcfCarga(sucursal, caja, solicitud.TipoComprobante, solicitud.Desde, solicitud.Hasta, solicitud.VenceEn);
         return await PublicarAsync(() => publicador.PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]), actor.Nombre, cancelacion),
             async () => await contexto.SecuenciasEcf.Where(s => s.TipoComprobante == secuencia.TipoComprobante && s.Desde == secuencia.Desde)
-                .Select(s => (Guid?)s.Id).SingleOrDefaultAsync(cancelacion));
+                .Select(s => (int?)s.Id).SingleOrDefaultAsync(cancelacion));
     }
 
-    public async Task<ResultadoAdministracion> ActualizarSecuenciaAsync(Guid secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, UsuarioAuditoria actor,
+    public async Task<ResultadoAdministracion> ActualizarSecuenciaAsync(int secuenciaId, SolicitudActualizarSecuenciaEcf solicitud, UsuarioAuditoria actor,
         CancellationToken cancelacion = default)
     {
         var resolutor = new ResolutorCodigosCentral(contexto);
@@ -70,7 +70,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
 
         var secuencia = anterior with { Hasta = solicitud.Hasta, VenceEn = solicitud.VenceEn, Activa = solicitud.Activa };
         return await PublicarAsync(() => publicador.PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]), actor.Nombre, cancelacion),
-            () => Task.FromResult<Guid?>(secuenciaId));
+            () => Task.FromResult<int?>(secuenciaId));
     }
 
     public async Task<IReadOnlyList<DatosRolCaja>> ListarRolesCajaAsync(CancellationToken cancelacion = default)
@@ -86,7 +86,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
             .ToList();
     }
 
-    public async Task<ResultadoAdministracion> GuardarRolCajaAsync(Guid? rolId, SolicitudRolCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> GuardarRolCajaAsync(int? rolId, SolicitudRolCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var codigo = solicitud.Codigo?.Trim() ?? string.Empty;
         if (rolId is { } id)
@@ -103,7 +103,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
 
         var rol = new RolCarga(codigo, solicitud.Nombre ?? string.Empty, solicitud.Nivel, solicitud.Permisos ?? [], solicitud.Activo);
         return await PublicarAsync(() => publicador.PublicarSeguridadCajasAsync([rol], [], [], actor.Nombre, cancelacion),
-            async () => await contexto.RolesCaja.Where(r => r.Codigo == codigo).Select(r => (Guid?)r.Id).SingleOrDefaultAsync(cancelacion));
+            async () => await contexto.RolesCaja.Where(r => r.Codigo == codigo).Select(r => (int?)r.Id).SingleOrDefaultAsync(cancelacion));
     }
 
     public async Task<IReadOnlyList<DatosUsuarioCaja>> ListarUsuariosCajaAsync(CancellationToken cancelacion = default)
@@ -117,7 +117,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
             .ToList();
     }
 
-    public async Task<ResultadoAdministracion> GuardarUsuarioCajaAsync(Guid? usuarioId, SolicitudUsuarioCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> GuardarUsuarioCajaAsync(int? usuarioId, SolicitudUsuarioCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var codigo = solicitud.Codigo?.Trim() ?? string.Empty;
         if (usuarioId is { } id)
@@ -155,11 +155,11 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
 
         var usuario = new UsuarioCarga(codigo, solicitud.Nombre ?? string.Empty, rolCodigo, cajas, Clave: claveNueva, Activo: solicitud.Activo);
         return await PublicarAsync(() => publicador.PublicarSeguridadCajasAsync([], [usuario], [], actor.Nombre, cancelacion),
-            async () => await contexto.UsuariosCaja.Where(u => u.Codigo == codigo).Select(u => (Guid?)u.Id).SingleOrDefaultAsync(cancelacion));
+            async () => await contexto.UsuariosCaja.Where(u => u.Codigo == codigo).Select(u => (int?)u.Id).SingleOrDefaultAsync(cancelacion));
     }
 
     /// <summary>Códigos de sucursal y caja; (0, 0) si la caja no existe.</summary>
-    private async Task<(int Sucursal, int Caja)> CodigosCajaAsync(Guid cajaId, CancellationToken cancelacion)
+    private async Task<(int Sucursal, int Caja)> CodigosCajaAsync(int cajaId, CancellationToken cancelacion)
     {
         var codigos = await contexto.Cajas.AsNoTracking().Where(c => c.Id == cajaId)
             .Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, Caja = c.Codigo })
@@ -167,7 +167,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         return codigos is null ? (0, 0) : (codigos.Sucursal, codigos.Caja);
     }
 
-    private static async Task<ResultadoAdministracion> PublicarAsync(Func<Task<ResultadoPublicacion>> publicar, Func<Task<Guid?>> id)
+    private static async Task<ResultadoAdministracion> PublicarAsync(Func<Task<ResultadoPublicacion>> publicar, Func<Task<int?>> id)
     {
         try
         {

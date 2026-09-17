@@ -32,7 +32,7 @@ internal sealed class ConsultaArticulos(
             return await ArmarDatosVentaAsync(porCodigo.ArticuloId, leido, origen, null, cancelacion);
         }
 
-        var porInterno = await contexto.Articulos.Where(a => a.Codigo == leido).Select(a => (Guid?)a.Id).FirstOrDefaultAsync(cancelacion);
+        var porInterno = await contexto.Articulos.Where(a => a.Codigo == leido).Select(a => (int?)a.Id).FirstOrDefaultAsync(cancelacion);
         if (porInterno is { } idInterno)
             return await ArmarDatosVentaAsync(idInterno, leido, OrigenCodigoLeido.CodigoInterno, null, cancelacion);
 
@@ -42,7 +42,7 @@ internal sealed class ConsultaArticulos(
 
         var idBalanza = await contexto.Articulos
             .Where(a => a.Codigo == lectura!.CodigoArticulo || a.Codigos.Any(c => c.Codigo == lectura.CodigoArticulo))
-            .Select(a => (Guid?)a.Id)
+            .Select(a => (int?)a.Id)
             .FirstOrDefaultAsync(cancelacion);
 
         return idBalanza is { } id
@@ -50,7 +50,7 @@ internal sealed class ConsultaArticulos(
             : null;
     }
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, Guid? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, int? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default)
     {
         maximo = Math.Clamp(maximo, 1, 200);
         var consulta = Vendibles();
@@ -72,7 +72,7 @@ internal sealed class ConsultaArticulos(
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(Guid? departamentoId = null, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(int? departamentoId = null, CancellationToken cancelacion = default)
     {
         var consulta = Vendibles().Where(a => a.MostrarEnCatalogo);
         if (departamentoId is { } departamento)
@@ -82,7 +82,7 @@ internal sealed class ConsultaArticulos(
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(Guid? departamentoId = null, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(int? departamentoId = null, CancellationToken cancelacion = default)
     {
         var departamentosNoCodificadas = contexto.Departamentos.Where(f => f.Activa && f.EsNoCodificada).Select(f => f.Id);
         var consulta = Vendibles().Where(a => departamentosNoCodificadas.Contains(a.DepartamentoId));
@@ -93,7 +93,7 @@ internal sealed class ConsultaArticulos(
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
 
-    public async Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(Guid articuloId, CancellationToken cancelacion = default) =>
+    public async Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(int articuloId, CancellationToken cancelacion = default) =>
         await contexto.PreciosArticulo
             .AsNoTracking()
             .Where(p => p.ArticuloId == articuloId)
@@ -112,7 +112,7 @@ internal sealed class ConsultaArticulos(
 
     private IQueryable<Articulo> Vendibles() => contexto.Articulos.AsNoTracking().Where(a => a.Activo && a.VentaEnPos);
 
-    private async Task<DatosArticuloVenta?> ArmarDatosVentaAsync(Guid articuloId, string codigoLeido, OrigenCodigoLeido origen, LecturaBalanza? lectura, CancellationToken cancelacion)
+    private async Task<DatosArticuloVenta?> ArmarDatosVentaAsync(int articuloId, string codigoLeido, OrigenCodigoLeido origen, LecturaBalanza? lectura, CancellationToken cancelacion)
     {
         var datos = await (
                 from articulo in Vendibles()
@@ -188,7 +188,7 @@ internal sealed class ConsultaArticulos(
             .ToList();
     }
 
-    private async Task<Dictionary<Guid, PreciosVigentes>> PreciosVigentesAsync(List<Guid> articulosIds, CancellationToken cancelacion)
+    private async Task<Dictionary<int, PreciosVigentes>> PreciosVigentesAsync(List<int> articulosIds, CancellationToken cancelacion)
     {
         var ahora = reloj.GetUtcNow();
         var historial = await contexto.PreciosArticulo
@@ -302,7 +302,7 @@ internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvi
 
 internal sealed class ServicioPrecios(ContextoDatosPos contexto, IAuditoria auditoria, TimeProvider reloj) : IServicioPrecios
 {
-    public async Task RegistrarCambioAsync(Guid articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde, string origen,
+    public async Task RegistrarCambioAsync(int articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde, string origen,
         SesionUsuario? usuario = null, CancellationToken cancelacion = default)
     {
         if (!await contexto.Articulos.AnyAsync(a => a.Id == articuloId, cancelacion))

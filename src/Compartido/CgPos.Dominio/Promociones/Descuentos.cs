@@ -15,11 +15,10 @@ public sealed class MotivoDescuento : Entidad
     public string Nombre { get; private set; } = string.Empty;
     public bool Activo { get; private set; } = true;
 
-    public static MotivoDescuento Crear(int codigo, string nombre, Guid? id = null)
+    public static MotivoDescuento Crear(int codigo, string nombre)
     {
         var motivo = new MotivoDescuento
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de motivo"),
         };
         motivo.CambiarNombre(nombre);
@@ -47,26 +46,26 @@ public sealed class TopeDescuento : Entidad
     public int Codigo { get; private set; }
 
     public int Nivel { get; private set; }
-    public Guid? DepartamentoId { get; private set; }
-    public Guid? CategoriaId { get; private set; }
-    public Guid? MarcaId { get; private set; }
-    public Guid? ArticuloId { get; private set; }
+    public int? DepartamentoId { get; private set; }
+    public int? CategoriaId { get; private set; }
+    public int? MarcaId { get; private set; }
+    public int? ArticuloId { get; private set; }
 
     /// <summary>Sin departamento, categoría, marca ni artículo: aplica a todo.</summary>
     public bool EsGeneral => DepartamentoId is null && CategoriaId is null && MarcaId is null && ArticuloId is null;
     public decimal? PorcentajeMaximo { get; private set; }
     public decimal? MontoMaximo { get; private set; }
 
-    public static TopeDescuento Crear(int codigo, int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? departamentoId = null, Guid? articuloId = null,
-        Guid? id = null, Guid? categoriaId = null, Guid? marcaId = null)
+    public static TopeDescuento Crear(int codigo, int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, int? departamentoId = null, int? articuloId = null,
+        int? categoriaId = null, int? marcaId = null)
     {
-        var tope = new TopeDescuento { Id = id ?? Guid.CreateVersion7(), Codigo = Validar.Codigo(codigo, "Código del tope") };
+        var tope = new TopeDescuento { Codigo = Validar.Codigo(codigo, "Código del tope") };
         tope.Actualizar(nivel, porcentajeMaximo, montoMaximo, departamentoId, articuloId, categoriaId, marcaId);
         return tope;
     }
 
-    public void Actualizar(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, Guid? departamentoId, Guid? articuloId, Guid? categoriaId = null,
-        Guid? marcaId = null)
+    public void Actualizar(int nivel, decimal? porcentajeMaximo, decimal? montoMaximo, int? departamentoId, int? articuloId, int? categoriaId = null,
+        int? marcaId = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(nivel, 1);
         if (new[] { departamentoId, categoriaId, marcaId, articuloId }.Count(id => id is not null) > 1)
@@ -100,8 +99,8 @@ public static class ReglasTopeDescuento
     /// exige a alguien de mayor nivel. Sin ningún tope configurado el descuento manual no se permite: el límite lo define el negocio.
     /// </summary>
     /// <param name="articuloId">Nulo para el descuento a la factura, que solo usa topes generales.</param>
-    public static EvaluacionTope Evaluar(IReadOnlyCollection<TopeDescuento> topes, int nivelAutorizador, Guid? articuloId, Guid? departamentoId,
-        decimal porcentaje, decimal monto, Guid? categoriaId = null, Guid? marcaId = null)
+    public static EvaluacionTope Evaluar(IReadOnlyCollection<TopeDescuento> topes, int nivelAutorizador, int? articuloId, int? departamentoId,
+        decimal porcentaje, decimal monto, int? categoriaId = null, int? marcaId = null)
     {
         ArgumentNullException.ThrowIfNull(topes);
 

@@ -101,9 +101,9 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
     /// </summary>
     private IEnumerable<DatosParametro> Filas => _parametros.Concat(_catalogo
         .Where(d => !_parametros.Any(p => p.Clave == d.Clave && p.SucursalId is null && p.CajaId is null))
-        .Select(d => new DatosParametro(Guid.Empty, d.Clave, string.Empty, d.Descripcion, null, null, "General")));
+        .Select(d => new DatosParametro(0, d.Clave, string.Empty, d.Descripcion, null, null, "General")));
 
-    private static bool EsSinConfigurar(DatosParametro parametro) => parametro.Id == Guid.Empty;
+    private static bool EsSinConfigurar(DatosParametro parametro) => parametro.Id == 0;
 
     private IEnumerable<DatosParametro> Filtrados => (string.IsNullOrWhiteSpace(_filtro)
             ? Filas

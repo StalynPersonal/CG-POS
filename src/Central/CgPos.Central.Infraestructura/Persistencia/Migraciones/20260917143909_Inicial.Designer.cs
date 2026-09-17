@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(ContextoDatosCentral))]
-    [Migration("20260917140724_Inicial")]
+    [Migration("20260917143909_Inicial")]
     partial class Inicial
     {
         /// <inheritdoc />
@@ -23,7 +23,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            SqlServerModelBuilderExtensions.UseHiLo(modelBuilder, "EntityFrameworkHiLoSequence");
+
+            modelBuilder.HasSequence("EntityFrameworkHiLoSequence")
+                .IncrementsBy(10);
 
             modelBuilder.Entity("CgPos.Central.Infraestructura.CargaInicial.ArchivoArranqueAplicado", b =>
                 {
@@ -49,16 +52,19 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Auditoria.RegistroAuditoria", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<string>("Accion")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid?>("AutorizadoPorId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("AutorizadoPorId")
+                        .HasColumnType("int");
 
                     b.Property<string>("AutorizadoPorNombre")
                         .HasMaxLength(150)
@@ -84,8 +90,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid?>("UsuarioId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("int");
 
                     b.Property<string>("UsuarioNombre")
                         .HasMaxLength(150)
@@ -104,8 +110,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Articulo", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -114,8 +123,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid?>("CategoriaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("CategoriaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Codigo")
                         .IsRequired()
@@ -126,8 +135,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("DepartamentoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("DepartamentoId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
@@ -137,11 +146,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<bool>("EsServicio")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("ImpuestoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("ImpuestoId")
+                        .HasColumnType("int");
 
-                    b.Property<Guid?>("MarcaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("MarcaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("ModificadoEn")
                         .HasPrecision(3)
@@ -186,8 +195,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("Tipo")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("UnidadMedidaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("UnidadMedidaId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("VentaEnPos")
                         .HasColumnType("bit");
@@ -222,8 +231,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Categoria", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -231,8 +243,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     b.Property<int>("Codigo")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("DepartamentoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("DepartamentoId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("ModificadoEn")
                         .HasPrecision(3)
@@ -268,8 +280,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.CodigoArticulo", b =>
                 {
-                    b.Property<Guid>("ArticuloId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("ArticuloId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Codigo")
                         .HasMaxLength(30)
@@ -288,8 +300,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Departamento", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -335,8 +350,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Impuesto", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -385,8 +403,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.Marca", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -426,8 +447,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Catalogo.UnidadMedida", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<string>("Abreviatura")
                         .IsRequired()
@@ -475,8 +499,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Clientes.Cliente", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -552,8 +579,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Clientes.DireccionCliente", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<string>("Alias")
                         .IsRequired()
@@ -564,8 +594,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid>("ClienteId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Direccion")
                         .IsRequired()
@@ -597,11 +627,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("Fecha")
                         .HasPrecision(3)
@@ -637,8 +670,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Devoluciones.MotivoDevolucion", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -678,11 +714,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Devoluciones.NotaCreditoCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("ClienteDocumento")
                         .IsRequired()
@@ -736,8 +775,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 4)
@@ -768,11 +807,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("CerradaEn")
                         .HasPrecision(3)
@@ -790,8 +832,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("NotaCreditoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("NotaCreditoId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("VenceEn")
                         .HasPrecision(3)
@@ -813,8 +855,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Entregas.Almacen", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -842,8 +887,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
@@ -865,8 +910,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Entregas.PendienteCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<DateTimeOffset>("ActualizadoEn")
                         .HasPrecision(3)
@@ -880,8 +928,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Ciudad")
                         .HasMaxLength(250)
@@ -921,8 +969,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Telefono")
                         .HasMaxLength(250)
@@ -962,8 +1010,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.MiembroFidelidad", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -995,8 +1046,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<Guid?>("NivelId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("NivelId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1042,11 +1093,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.MovimientoPuntosCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid?>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int?>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Cedula")
                         .IsRequired()
@@ -1078,8 +1132,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid?>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("int");
@@ -1108,8 +1162,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.NivelFidelidad", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -1156,8 +1213,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.ReglaAcumulacion", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -1190,8 +1250,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid?>("ReferenciaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("ReferenciaId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("int");
@@ -1222,8 +1282,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fidelidad.SaldoPuntosCentral", b =>
                 {
-                    b.Property<Guid>("MiembroId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("MiembroId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("CalculadoEn")
                         .HasPrecision(3)
@@ -1257,11 +1317,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fiscal.AnulacionEcfCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<long>("Desde")
                         .HasColumnType("bigint");
@@ -1281,8 +1344,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<Guid>("SecuenciaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SecuenciaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("SolicitadaEn")
                         .HasPrecision(3)
@@ -1308,14 +1371,17 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Fiscal.SecuenciaEcf", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<long>("Desde")
                         .HasColumnType("bigint");
@@ -1361,8 +1427,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Caja", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<int>("Codigo")
                         .HasColumnType("int");
@@ -1375,8 +1444,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
@@ -1402,11 +1471,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Organizacion.CredencialDispositivo", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("EmitidaEn")
                         .HasPrecision(3)
@@ -1453,8 +1525,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Empresa", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<string>("Direccion")
                         .IsRequired()
@@ -1499,11 +1574,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Parametro", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid?>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int?>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Clave")
                         .IsRequired()
@@ -1514,8 +1592,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
-                    b.Property<Guid?>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Valor")
                         .IsRequired()
@@ -1545,8 +1623,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Organizacion.Sucursal", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -1559,8 +1640,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
-                    b.Property<Guid>("EmpresaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1588,8 +1669,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Pagos.Banco", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -1635,8 +1719,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Pagos.Denominacion", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -1682,8 +1769,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Pagos.FormaPago", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("AbreGaveta")
                         .HasColumnType("bit");
@@ -1753,8 +1843,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Pagos.Moneda", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -1803,8 +1896,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Pagos.TasaCambio", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<DateTimeOffset>("ModificadoEn")
                         .HasPrecision(3)
@@ -1847,8 +1943,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Pagos.TipoTarjeta", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -1888,14 +1987,17 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Promociones.DescuentoTarjeta", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
-                    b.Property<Guid?>("BancoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("BancoId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Bines")
                         .IsRequired()
@@ -1969,8 +2071,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Promociones.MotivoDescuento", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -2010,8 +2115,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Promociones.Promocion", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activa")
                         .HasColumnType("bit");
@@ -2124,23 +2232,26 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Promociones.TopeDescuento", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid?>("ArticuloId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
-                    b.Property<Guid?>("CategoriaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("ArticuloId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CategoriaId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Codigo")
                         .HasColumnType("int");
 
-                    b.Property<Guid?>("DepartamentoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("DepartamentoId")
+                        .HasColumnType("int");
 
-                    b.Property<Guid?>("MarcaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("MarcaId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("ModificadoEn")
                         .HasPrecision(3)
@@ -2188,11 +2299,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreFormaPagoCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CierreId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CierreId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Declarado")
                         .HasPrecision(18, 4)
@@ -2233,15 +2347,18 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.CierreTurnoCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<DateTimeOffset>("AbiertoEn")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CantidadVentas")
                         .HasColumnType("int");
@@ -2290,8 +2407,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("TotalDeclarado")
                         .HasPrecision(18, 4)
@@ -2331,11 +2448,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.ComprobanteVentaCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CantidadLineas")
                         .HasColumnType("int");
@@ -2402,8 +2522,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("int");
@@ -2441,15 +2561,18 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.ImpuestoVentaCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<decimal>("Base")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<Guid>("ComprobanteId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("ComprobanteId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Impuesto")
                         .HasPrecision(18, 4)
@@ -2468,11 +2591,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Reportes.PagoVentaCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("ComprobanteId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("ComprobanteId")
+                        .HasColumnType("int");
 
                     b.Property<string>("FormaPagoNombre")
                         .IsRequired()
@@ -2502,8 +2628,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.Rol", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -2548,8 +2677,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -2574,8 +2706,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolCentralPermiso", b =>
                 {
-                    b.Property<Guid>("RolId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("RolId")
+                        .HasColumnType("int");
 
                     b.Property<string>("PermisoCodigo")
                         .HasMaxLength(100)
@@ -2589,8 +2721,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.RolPermiso", b =>
                 {
-                    b.Property<Guid>("RolId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("RolId")
+                        .HasColumnType("int");
 
                     b.Property<string>("PermisoCodigo")
                         .HasMaxLength(100)
@@ -2654,8 +2786,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
 
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -2671,8 +2803,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.Usuario", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -2701,8 +2836,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<Guid>("RolId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("RolId")
+                        .HasColumnType("int");
 
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
@@ -2724,11 +2859,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.UsuarioCaja", b =>
                 {
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.HasKey("UsuarioId", "CajaId");
 
@@ -2739,8 +2874,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Seguridad.UsuarioCentral", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
@@ -2779,8 +2917,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<Guid>("RolId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("RolId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("UltimoIngresoEn")
                         .HasPrecision(3)
@@ -2798,14 +2936,17 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Sincronizacion.ComprobanteRecibido", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
 
-                    b.Property<Guid>("DocumentoId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DocumentoId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Encf")
                         .IsRequired()
@@ -2862,8 +3003,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnicode(false)
                         .HasColumnType("varchar(40)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<int>("TipoComprobante")
                         .HasColumnType("int");
@@ -2901,11 +3042,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Sincronizacion.ConflictoSincronizacion", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Detalle")
                         .IsRequired()
@@ -2934,8 +3078,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<Guid?>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int?>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Tipo")
                         .IsRequired()
@@ -2962,11 +3106,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Sincronizacion.DocumentoRecibido", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseHiLo(b.Property<int>("Id"));
+
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Contenido")
                         .IsRequired()
@@ -2983,6 +3130,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("char(64)")
                         .IsFixedLength();
 
+                    b.Property<Guid>("MensajeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("RecibidoEn")
                         .HasPrecision(3)
                         .HasColumnType("datetimeoffset(3)");
@@ -2996,8 +3146,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .IsUnicode(false)
                         .HasColumnType("varchar(40)");
 
-                    b.Property<Guid>("SucursalId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("SucursalId")
+                        .HasColumnType("int");
 
                     b.Property<string>("TipoMensaje")
                         .IsRequired()
@@ -3009,6 +3159,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("datetimeoffset(3)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MensajeId")
+                        .IsUnique();
 
                     b.HasIndex("Referencia");
 
@@ -3023,8 +3176,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             modelBuilder.Entity("CgPos.Dominio.Sincronizacion.EstadoSincronizacionCaja", b =>
                 {
-                    b.Property<Guid>("CajaId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("CajaId")
+                        .HasColumnType("int");
 
                     b.Property<long>("Duplicados")
                         .HasColumnType("bigint");

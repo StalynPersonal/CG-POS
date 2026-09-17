@@ -40,11 +40,10 @@ public sealed class Moneda : Entidad
 
     public bool Activa { get; private set; } = true;
 
-    public static Moneda Crear(string codigo, string nombre, string simbolo, Guid? id = null)
+    public static Moneda Crear(string codigo, string nombre, string simbolo)
     {
         var moneda = new Moneda
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = FormaPago.ValidarMoneda(codigo),
         };
         moneda.Actualizar(nombre, simbolo);
@@ -95,14 +94,13 @@ public sealed class FormaPago : Entidad
 
     public bool Activa { get; private set; } = true;
 
-    public static FormaPago Crear(string codigo, string nombre, TipoFormaPago tipo, int orden, string moneda, Guid? id = null)
+    public static FormaPago Crear(string codigo, string nombre, TipoFormaPago tipo, int orden, string moneda)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de forma de pago no válido.");
 
         var forma = new FormaPago
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de forma de pago", LargoMaximoCodigo).ToUpperInvariant(),
             Tipo = tipo,
             Moneda = ValidarMoneda(moneda),
@@ -171,11 +169,10 @@ public sealed class Banco : Entidad
     public string? RutaLogo { get; private set; }
     public bool Activo { get; private set; } = true;
 
-    public static Banco Crear(string codigo, string nombre, string? rutaLogo = null, Guid? id = null)
+    public static Banco Crear(string codigo, string nombre, string? rutaLogo = null)
     {
         var banco = new Banco
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de banco", LargoMaximoCodigo).ToUpperInvariant(),
         };
         banco.Actualizar(nombre, rutaLogo);
@@ -205,10 +202,9 @@ public sealed class TipoTarjeta : Entidad
     public string Nombre { get; private set; } = string.Empty;
     public bool Activo { get; private set; } = true;
 
-    public static TipoTarjeta Crear(int codigo, string nombre, Guid? id = null) =>
+    public static TipoTarjeta Crear(int codigo, string nombre) =>
         new()
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Codigo(codigo, "Código de tipo de tarjeta"),
             Nombre = Validar.Texto(nombre, "Nombre de tipo de tarjeta", LargoMaximoNombre),
         };
@@ -238,7 +234,7 @@ public sealed class Denominacion : Entidad
     public TipoDenominacion Tipo { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static Denominacion Crear(string moneda, decimal valor, TipoDenominacion tipo, Guid? id = null)
+    public static Denominacion Crear(string moneda, decimal valor, TipoDenominacion tipo)
     {
         if (valor <= 0)
             throw new ArgumentOutOfRangeException(nameof(valor), valor, "El valor de la denominación debe ser mayor que cero.");
@@ -247,7 +243,6 @@ public sealed class Denominacion : Entidad
 
         return new Denominacion
         {
-            Id = id ?? Guid.CreateVersion7(),
             Moneda = FormaPago.ValidarMoneda(moneda),
             Valor = valor,
             Tipo = tipo,

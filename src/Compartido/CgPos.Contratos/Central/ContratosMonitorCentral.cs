@@ -8,7 +8,7 @@ namespace CgPos.Contratos.Central;
 /// <param name="VentasEnContingencia">Ventas que la caja cobró sin poder firmar su e-CF y que aún no lo tienen (RF-224).</param>
 /// <param name="Alertas">Lo que requiere atención, en texto para el usuario; vacía si la caja está al día.</param>
 public sealed record DatosEstadoCaja(
-    Guid CajaId,
+    int CajaId,
     string CajaCodigo,
     string CajaNombre,
     string SucursalCodigo,
@@ -43,10 +43,10 @@ public sealed record DatosMonitorCentral(
     int VentasEnContingencia = 0);
 
 public sealed record DatosComprobanteDgii(
-    Guid Id,
+    int Id,
     string Encf,
     TipoComprobante TipoComprobante,
-    Guid CajaId,
+    int CajaId,
     string CajaCodigo,
     string CajaNombre,
     string SucursalCodigo,
@@ -63,8 +63,8 @@ public sealed record DatosComprobanteDgii(
 public sealed record PaginaComprobantesDgii(IReadOnlyList<DatosComprobanteDgii> Elementos, int Total);
 
 public sealed record DatosConflictoSincronizacion(
-    Guid Id,
-    Guid CajaId,
+    int Id,
+    int CajaId,
     string CajaCodigo,
     Guid MensajeId,
     string TipoMensaje,

@@ -43,7 +43,7 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         Assert.Single((await ObtenerAsync<PaginaComprobantesDgii>(cliente, admin,
             $"/api/monitor/comprobantes?buscar={encf[3..]}&sucursalId={CentralEnPruebas.Sucursal}")).Elementos);
         Assert.Empty((await ObtenerAsync<PaginaComprobantesDgii>(cliente, admin,
-            $"/api/monitor/comprobantes?buscar={encf[3..]}&sucursalId={Guid.CreateVersion7()}")).Elementos);
+            $"/api/monitor/comprobantes?buscar={encf[3..]}&sucursalId={Ids.Siguiente()}")).Elementos);
 
         using (var xml = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, $"/api/monitor/comprobantes/{rechazadoId}/xml", admin)))
             Assert.Contains("<RNCEmisor>", await xml.Content.ReadAsStringAsync());
@@ -53,7 +53,7 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         Assert.Equal((EstadoEnvioDgii.Pendiente, (string?)null), (reenviado.EstadoDgii, reenviado.TrackId));
 
         Assert.Contains("ya fue aceptado", (await EnviarAsync(cliente, admin, $"/api/monitor/comprobantes/{aceptadoId}/reenviar")).Cuerpo!.Mensaje);
-        Assert.Equal(HttpStatusCode.NotFound, (await EnviarAsync(cliente, admin, $"/api/monitor/comprobantes/{Guid.CreateVersion7()}/reenviar")).Estado);
+        Assert.Equal(HttpStatusCode.NotFound, (await EnviarAsync(cliente, admin, $"/api/monitor/comprobantes/{Ids.Siguiente()}/reenviar")).Estado);
     }
 
     [SkippableFact]
@@ -162,7 +162,7 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
-    private async Task<(Guid Id, string Encf)> RegistrarComprobanteAsync(Action<ComprobanteRecibido> preparar)
+    private async Task<(int Id, string Encf)> RegistrarComprobanteAsync(Action<ComprobanteRecibido> preparar)
     {
         var encf = $"E31{Random.Shared.NextInt64(1_000_000_000, 9_999_999_999)}";
         var id = await central.UsarContextoAsync(async contexto =>
@@ -170,10 +170,10 @@ public class ApiMonitorPruebas(CentralEnPruebas central)
             var ahora = DateTimeOffset.UtcNow;
             var documento = DocumentoRecibido.Recibir(Guid.CreateVersion7(), CentralEnPruebas.CajaUno, CentralEnPruebas.Sucursal, "Venta.Cobrada", Guid.NewGuid().ToString("N")[..12],
                 "{}", new string('A', DocumentoRecibido.LargoHash), ahora, ahora);
+            contexto.DocumentosRecibidos.Add(documento);
             var comprobante = ComprobanteRecibido.Registrar(documento, encf, TipoComprobante.FacturaCreditoFiscal,
                 "<ECF><Encabezado><Emisor><RNCEmisor>131246796</RNCEmisor></Emisor></Encabezado></ECF>", new string('B', DocumentoRecibido.LargoHash), ahora, ahora);
             preparar(comprobante);
-            contexto.DocumentosRecibidos.Add(documento);
             contexto.ComprobantesRecibidos.Add(comprobante);
             await contexto.SaveChangesAsync();
             return comprobante.Id;

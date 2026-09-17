@@ -74,9 +74,9 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
                     throw new FormatException($"No existe la categoría '{codigoCategoria}'.");
                 if (categoria.DepartamentoId != departamentoId)
                     throw new FormatException($"La categoría '{codigoCategoria}' no es del departamento del artículo.");
-                Guid? categoriaId = categoria.Id;
+                int? categoriaId = categoria.Id;
 
-                Guid? marcaId = Valor("marca") is { } codigoMarca ? BuscarId(marcas, codigoMarca, "la marca") : null;
+                int? marcaId = Valor("marca") is { } codigoMarca ? BuscarId(marcas, codigoMarca, "la marca") : null;
                 var precioDetalle = LeerDecimal(Valor("precio_detalle"), "precio_detalle") ?? throw new FormatException("Falta el precio detalle.");
                 var precioMayor = LeerDecimal(Valor("precio_mayor"), "precio_mayor");
                 var tipo = Valor("tipo") is { } textoTipo
@@ -152,7 +152,7 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
         return new ResultadoImportacionArticulos(creados, actualizados, precios, errores);
     }
 
-    private static Guid BuscarId(Dictionary<string, Guid> ids, string? codigo, string nombre) =>
+    private static int BuscarId(Dictionary<string, int> ids, string? codigo, string nombre) =>
         codigo is not null && ids.TryGetValue(codigo, out var id)
             ? id
             : throw new FormatException(codigo is null ? $"Falta {nombre}." : $"No existe {nombre} '{codigo}'.");

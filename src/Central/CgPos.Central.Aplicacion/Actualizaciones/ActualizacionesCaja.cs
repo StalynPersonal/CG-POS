@@ -15,7 +15,7 @@ public interface IServicioActualizacionesCaja
     Task<Stream?> AbrirPaqueteAsync(CancellationToken cancelacion = default);
 
     /// <summary>La caja informa qué versión quedó instalada.</summary>
-    Task ReportarVersionAsync(Guid cajaId, string version, CancellationToken cancelacion = default);
+    Task ReportarVersionAsync(int cajaId, string version, CancellationToken cancelacion = default);
 
     /// <summary>Versión instalada en cada caja, para ver el avance del despliegue desde el Central Manager.</summary>
     Task<IReadOnlyList<DatosVersionCaja>> VersionesAsync(CancellationToken cancelacion = default);

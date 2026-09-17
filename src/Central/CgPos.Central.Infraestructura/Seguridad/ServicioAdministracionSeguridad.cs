@@ -56,7 +56,7 @@ internal sealed class ServicioAdministracionSeguridad(
         return ResultadoAdministracion.Correcto(rol.Id);
     }
 
-    public async Task<ResultadoAdministracion> ActualizarRolAsync(Guid rolId, SolicitudRolCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> ActualizarRolAsync(int rolId, SolicitudRolCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var (roles, usuarios) = await CargarSeguridadAsync(cancelacion);
         var rol = roles.SingleOrDefault(r => r.Id == rolId);
@@ -88,7 +88,7 @@ internal sealed class ServicioAdministracionSeguridad(
         return ResultadoAdministracion.Correcto(rol.Id);
     }
 
-    public async Task<ResultadoAdministracion> CambiarEstadoRolAsync(Guid rolId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> CambiarEstadoRolAsync(int rolId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var (roles, usuarios) = await CargarSeguridadAsync(cancelacion);
         var rol = roles.SingleOrDefault(r => r.Id == rolId);
@@ -146,7 +146,7 @@ internal sealed class ServicioAdministracionSeguridad(
         return ResultadoAdministracion.Correcto(usuario.Id);
     }
 
-    public async Task<ResultadoAdministracion> ActualizarUsuarioAsync(Guid usuarioId, SolicitudActualizarUsuarioCentral solicitud, UsuarioAuditoria actor,
+    public async Task<ResultadoAdministracion> ActualizarUsuarioAsync(int usuarioId, SolicitudActualizarUsuarioCentral solicitud, UsuarioAuditoria actor,
         CancellationToken cancelacion = default)
     {
         var (roles, usuarios) = await CargarSeguridadAsync(cancelacion);
@@ -184,7 +184,7 @@ internal sealed class ServicioAdministracionSeguridad(
         return ResultadoAdministracion.Correcto(usuario.Id);
     }
 
-    public async Task<ResultadoAdministracion> RestablecerContrasenaAsync(Guid usuarioId, string contrasenaTemporal, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> RestablecerContrasenaAsync(int usuarioId, string contrasenaTemporal, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var usuario = await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Id == usuarioId, cancelacion);
         if (usuario is null)
@@ -202,7 +202,7 @@ internal sealed class ServicioAdministracionSeguridad(
         return ResultadoAdministracion.Correcto(usuario.Id);
     }
 
-    public async Task<ResultadoAdministracion> DesbloquearAsync(Guid usuarioId, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> DesbloquearAsync(int usuarioId, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var usuario = await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Id == usuarioId, cancelacion);
         if (usuario is null)
@@ -214,7 +214,7 @@ internal sealed class ServicioAdministracionSeguridad(
         return ResultadoAdministracion.Correcto(usuario.Id);
     }
 
-    public async Task<ResultadoAdministracion> CambiarEstadoUsuarioAsync(Guid usuarioId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> CambiarEstadoUsuarioAsync(int usuarioId, bool activo, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         if (!activo && usuarioId == actor.Id)
             return ResultadoAdministracion.Error("No puede desactivar su propio usuario.");
@@ -268,13 +268,13 @@ internal sealed class ServicioAdministracionSeguridad(
         return ReglasContrasena.Validar(contrasena, largoMinimo, compleja, codigoUsuario);
     }
 
-    private async Task RevocarSesionesAsync(Guid usuarioId, string motivo, CancellationToken cancelacion)
+    private async Task RevocarSesionesAsync(int usuarioId, string motivo, CancellationToken cancelacion)
     {
         var ahora = reloj.GetUtcNow();
         foreach (var sesion in await contexto.SesionesCentral.Where(s => s.UsuarioId == usuarioId && s.RevocadaEn == null).ToListAsync(cancelacion))
             sesion.Revocar(ahora, motivo);
     }
 
-    private void Auditar(string accion, string tipo, Guid entidadId, UsuarioAuditoria actor, object detalle) =>
+    private void Auditar(string accion, string tipo, int entidadId, UsuarioAuditoria actor, object detalle) =>
         auditoria.Registrar(new EntradaAuditoria(accion, tipo, entidadId.ToString(), detalle, Usuario: actor));
 }

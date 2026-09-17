@@ -16,11 +16,10 @@ public sealed class TasaCambio : Entidad
 
     public DateTimeOffset VigenteDesde { get; private set; }
 
-    public static TasaCambio Registrar(string moneda, decimal tasa, DateTimeOffset vigenteDesde, Guid? id = null)
+    public static TasaCambio Registrar(string moneda, decimal tasa, DateTimeOffset vigenteDesde)
     {
         var registro = new TasaCambio
         {
-            Id = id ?? Guid.CreateVersion7(),
             Moneda = FormaPago.ValidarMoneda(moneda),
         };
         registro.Actualizar(tasa, vigenteDesde);

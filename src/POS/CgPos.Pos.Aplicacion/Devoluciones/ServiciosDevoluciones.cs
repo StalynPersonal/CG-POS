@@ -18,7 +18,7 @@ public interface IServicioDevoluciones
     /// <summary>Saldo de una nota de crédito por su e-NCF o número, con mensaje si está consumida, vencida o no existe (RF-43).</summary>
     Task<RespuestaSaldoNotaCredito> ConsultarNotaCreditoAsync(SesionUsuario sesion, string codigo, CancellationToken cancelacion = default);
 
-    Task<RespuestaDevolucion> ReimprimirAsync(SesionUsuario sesion, Guid devolucionId, CancellationToken cancelacion = default);
+    Task<RespuestaDevolucion> ReimprimirAsync(SesionUsuario sesion, int devolucionId, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosMotivoDevolucion>> ListarMotivosAsync(CancellationToken cancelacion = default);
 }

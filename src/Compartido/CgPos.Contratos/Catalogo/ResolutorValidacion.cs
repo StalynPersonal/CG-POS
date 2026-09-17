@@ -11,19 +11,19 @@ public sealed class ResolutorValidacion : IResolutorCodigos
 {
     public static ResolutorValidacion Instancia { get; } = new();
 
-    public Guid Departamento(int codigo) => Id("Departamento", codigo.ToString());
-    public Guid Categoria(int codigo) => Id("Categoria", codigo.ToString());
-    public Guid Marca(int codigo) => Id("Marca", codigo.ToString());
-    public Guid UnidadMedida(int codigo) => Id("UnidadMedida", codigo.ToString());
-    public Guid Impuesto(string codigo) => Id("Impuesto", codigo);
-    public Guid Articulo(string codigo) => Id("Articulo", codigo);
-    public Guid Sucursal(int codigo) => Id("Sucursal", codigo.ToString());
-    public Guid Caja(int sucursalCodigo, int cajaCodigo) => Id("Caja", $"{sucursalCodigo}:{cajaCodigo}");
-    public Guid Banco(string codigo) => Id("Banco", codigo);
-    public Guid NivelFidelidad(int codigo) => Id("NivelFidelidad", codigo.ToString());
-    public Guid Promocion(string codigo) => Id("Promocion", codigo);
+    public int Departamento(int codigo) => Id("Departamento", codigo.ToString());
+    public int Categoria(int codigo) => Id("Categoria", codigo.ToString());
+    public int Marca(int codigo) => Id("Marca", codigo.ToString());
+    public int UnidadMedida(int codigo) => Id("UnidadMedida", codigo.ToString());
+    public int Impuesto(string codigo) => Id("Impuesto", codigo);
+    public int Articulo(string codigo) => Id("Articulo", codigo);
+    public int Sucursal(int codigo) => Id("Sucursal", codigo.ToString());
+    public int Caja(int sucursalCodigo, int cajaCodigo) => Id("Caja", $"{sucursalCodigo}:{cajaCodigo}");
+    public int Banco(string codigo) => Id("Banco", codigo);
+    public int NivelFidelidad(int codigo) => Id("NivelFidelidad", codigo.ToString());
+    public int Promocion(string codigo) => Id("Promocion", codigo);
 
-    /// <summary>Id derivado del tipo y el código (mismo código, mismo Id; nunca vacío).</summary>
-    public static Guid Id(string tipo, string? codigo) =>
-        new(MD5.HashData(Encoding.UTF8.GetBytes($"{tipo}:{codigo?.Trim().ToUpperInvariant()}")));
+    /// <summary>Id derivado del tipo y el código (mismo código, mismo Id; siempre mayor que cero).</summary>
+    public static int Id(string tipo, string? codigo) =>
+        (int)(BitConverter.ToUInt32(MD5.HashData(Encoding.UTF8.GetBytes($"{tipo}:{codigo?.Trim().ToUpperInvariant()}"))) % int.MaxValue) + 1;
 }

@@ -4,11 +4,11 @@
 <MudDialog>
     <DialogContent>
         <div class="cg-central__dialogo">
-            <MudSelect T="Guid?" @bind-Value="_sucursalId" Label="Sucursal" Placeholder="Seleccione la sucursal" Variant="Variant.Outlined"
+            <MudSelect T="int?" @bind-Value="_sucursalId" Label="Sucursal" Placeholder="Seleccione la sucursal" Variant="Variant.Outlined"
                        Disabled="@(Caja is not null)" ToStringFunc="NombreSucursal">
                 @foreach (var sucursal in Sucursales.Where(s => s.Activa || s.Id == Caja?.SucursalId))
                 {
-                    <MudSelectItem T="Guid?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
             <MudNumericField T="int?" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Caja is not null)" Min="1" Max="99"
@@ -32,13 +32,13 @@
     [Parameter] public DatosCaja? Caja { get; set; }
     [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
 
-    private Guid? _sucursalId;
+    private int? _sucursalId;
     private int? _codigo;
     private string? _nombre;
     private string? _mensaje;
     private bool _procesando;
 
-    private string NombreSucursal(Guid? sucursalId) =>
+    private string NombreSucursal(int? sucursalId) =>
         Sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo:00} · {sucursal.Nombre}" : string.Empty;
 
     protected override void OnInitialized()

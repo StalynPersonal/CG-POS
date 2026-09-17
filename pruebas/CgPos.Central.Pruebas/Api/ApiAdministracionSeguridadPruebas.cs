@@ -14,10 +14,10 @@ public class ApiAdministracionSeguridadPruebas(CentralEnPruebas central)
     private const string Temporal = "Temporal.Clave#2026";
 
     /// <summary>Usuario ADMIN y rol ADMINISTRADOR de los datos de desarrollo, con los Id que les dio el Central al cargarlos.</summary>
-    private Guid Administrador => central.UsarContextoAsync(contexto => contexto.UsuariosCentral.Where(u => u.Codigo == "ADMIN").Select(u => u.Id).SingleAsync())
+    private int Administrador => central.UsarContextoAsync(contexto => contexto.UsuariosCentral.Where(u => u.Codigo == "ADMIN").Select(u => u.Id).SingleAsync())
         .GetAwaiter().GetResult();
 
-    private Guid RolAdministrador => central.UsarContextoAsync(contexto => contexto.RolesCentral.Where(r => r.Codigo == "ADMINISTRADOR").Select(r => r.Id).SingleAsync())
+    private int RolAdministrador => central.UsarContextoAsync(contexto => contexto.RolesCentral.Where(r => r.Codigo == "ADMINISTRADOR").Select(r => r.Id).SingleAsync())
         .GetAwaiter().GetResult();
 
     [SkippableFact]
@@ -66,7 +66,7 @@ public class ApiAdministracionSeguridadPruebas(CentralEnPruebas central)
         var permisoInexistente = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/seguridad/roles", new SolicitudRolCentral($"R{sufijo}", "Rol", ["Central.No.Existe"]));
         Assert.Contains("no existe en el catálogo del Central", permisoInexistente.Cuerpo!.Mensaje);
 
-        var inexistente = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/seguridad/roles/{Guid.CreateVersion7()}", new SolicitudRolCentral("X", "X", []));
+        var inexistente = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/seguridad/roles/{Ids.Siguiente()}", new SolicitudRolCentral("X", "X", []));
         Assert.Equal(HttpStatusCode.NotFound, inexistente.Estado);
 
         Assert.DoesNotContain(await ListarAsync<DatosUsuarioCentral>(cliente, admin, "/api/seguridad/usuarios"), u => u.Codigo == $"C{sufijo}");
@@ -140,7 +140,7 @@ public class ApiAdministracionSeguridadPruebas(CentralEnPruebas central)
 
     private static string Sufijo() => Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
-    private static async Task<(Guid RolId, string Codigo)> CrearUsuarioConRolAsync(HttpClient cliente, string token, string sufijo, params string[] permisos)
+    private static async Task<(int RolId, string Codigo)> CrearUsuarioConRolAsync(HttpClient cliente, string token, string sufijo, params string[] permisos)
     {
         var rol = await EnviarAsync(cliente, token, HttpMethod.Post, "/api/seguridad/roles", new SolicitudRolCentral($"REP{sufijo}", "Reportes " + sufijo, permisos));
         Assert.True(rol.Cuerpo!.Exitosa, rol.Cuerpo.Mensaje);

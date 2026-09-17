@@ -26,7 +26,7 @@ internal sealed class RegularizacionContingencia(
     TimeProvider reloj,
     ILogger<RegularizacionContingencia> registro) : IRegularizacionContingencia
 {
-    public async Task<ResultadoRegularizacion> RegularizarAsync(Guid cajaId, CancellationToken cancelacion = default)
+    public async Task<ResultadoRegularizacion> RegularizarAsync(int cajaId, CancellationToken cancelacion = default)
     {
         var pendientes = await contexto.ComprobantesContingencia
             .Where(c => c.CajaId == cajaId && c.RegularizadoEn == null)

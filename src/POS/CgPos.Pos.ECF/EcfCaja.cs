@@ -114,7 +114,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     }
 
     /// <param name="documentoId">Venta o devolución que origina el comprobante.</param>
-    private async Task<EmisionEcf> EmitirDocumentoAsync(Guid documentoId, Guid cajaId, Guid sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
+    private async Task<EmisionEcf> EmitirDocumentoAsync(int documentoId, int cajaId, int sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
         Func<string, DateOnly, EmisorEcf, DateTimeOffset, int, DocumentoEcf> armar, CancellationToken cancelacion)
     {
         var certificadoFirma = certificado.ObtenerParaFirmar()
@@ -207,13 +207,13 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
 
     private sealed class SecuenciaAsignada
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
         public long Ultimo { get; set; }
         public DateOnly VenceEn { get; set; }
     }
 
     /// <summary>Toma la siguiente secuencia disponible de forma atómica (bloqueo de fila) dentro de la transacción abierta.</summary>
-    private async Task<SecuenciaAsignada?> SiguienteSecuenciaAsync(Guid cajaId, TipoComprobante tipo, DateOnly hoy, CancellationToken cancelacion)
+    private async Task<SecuenciaAsignada?> SiguienteSecuenciaAsync(int cajaId, TipoComprobante tipo, DateOnly hoy, CancellationToken cancelacion)
     {
         var fecha = hoy.ToDateTime(TimeOnly.MinValue);
         var resultado = await contexto.Database.SqlQuery<SecuenciaAsignada>($"""
@@ -228,7 +228,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         return resultado.SingleOrDefault();
     }
 
-    private async Task<EmisorEcf> EmisorAsync(Guid sucursalId, CancellationToken cancelacion)
+    private async Task<EmisorEcf> EmisorAsync(int sucursalId, CancellationToken cancelacion)
     {
         var datos = await (
                 from sucursal in contexto.Sucursales

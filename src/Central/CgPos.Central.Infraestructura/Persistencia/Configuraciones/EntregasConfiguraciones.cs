@@ -11,7 +11,6 @@ internal sealed class PendienteCentralConfiguracion : IEntityTypeConfiguration<P
     {
         constructor.ToTable("PendientesEntrega");
         constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Id).ValueGeneratedNever();
 
         constructor.Property(p => p.Numero).HasMaxLength(PendienteCentral.LargoMaximoNumero).IsRequired();
         constructor.Property(p => p.VentaNumero).HasMaxLength(PendienteCentral.LargoMaximoNumero);

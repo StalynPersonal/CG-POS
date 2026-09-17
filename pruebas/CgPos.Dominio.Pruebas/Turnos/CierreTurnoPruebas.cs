@@ -6,15 +6,15 @@ namespace CgPos.Dominio.Pruebas.Turnos;
 public class CierreTurnoPruebas
 {
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 18, 0, 0, TimeSpan.FromHours(-4));
-    private static readonly Guid Cajera = Guid.CreateVersion7();
+    private static readonly int Cajera = Ids.Siguiente();
     private const string MonedaLocal = "DOP";
 
-    private static readonly FormaPagoCuadre Efectivo = new(Guid.CreateVersion7(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1);
-    private static readonly FormaPagoCuadre Dolares = new(Guid.CreateVersion7(), "USD", "Dólares", TipoFormaPago.MonedaExtranjera, "USD", 2);
-    private static readonly FormaPagoCuadre Tarjeta = new(Guid.CreateVersion7(), "TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 3);
+    private static readonly FormaPagoCuadre Efectivo = new(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1);
+    private static readonly FormaPagoCuadre Dolares = new(Ids.Siguiente(), "USD", "Dólares", TipoFormaPago.MonedaExtranjera, "USD", 2);
+    private static readonly FormaPagoCuadre Tarjeta = new(Ids.Siguiente(), "TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 3);
 
     private static Turno TurnoAbierto(decimal fondo = 2000m) =>
-        Turno.Abrir(Guid.CreateVersion7(), Guid.CreateVersion7(), 7, DateOnly.FromDateTime(Ahora.DateTime), Cajera, "Cajera", fondo, Ahora.AddHours(-8));
+        Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), 7, DateOnly.FromDateTime(Ahora.DateTime), Cajera, "Cajera", fondo, Ahora.AddHours(-8));
 
     [Fact]
     public void Esperado_del_efectivo_descuenta_devuelta_y_retiros_y_deja_el_fondo_fuera_del_cuadre()
@@ -65,9 +65,9 @@ public class CierreTurnoPruebas
         };
         var conteo = new[]
         {
-            new ConteoDenominacion(Guid.CreateVersion7(), "DOP", 1000m, TipoDenominacion.Billete, 3),
-            new ConteoDenominacion(Guid.CreateVersion7(), "DOP", 200m, TipoDenominacion.Billete, 2),
-            new ConteoDenominacion(Guid.CreateVersion7(), "DOP", 25m, TipoDenominacion.Moneda, 0),
+            new ConteoDenominacion(Ids.Siguiente(), "DOP", 1000m, TipoDenominacion.Billete, 3),
+            new ConteoDenominacion(Ids.Siguiente(), "DOP", 200m, TipoDenominacion.Billete, 2),
+            new ConteoDenominacion(Ids.Siguiente(), "DOP", 25m, TipoDenominacion.Moneda, 0),
         };
 
         var cierre = CierreTurno.Registrar(turno, 1, ciego: true, fondoEnCuadre: false, 6, 4650m, 300m, esperados,
@@ -89,14 +89,14 @@ public class CierreTurnoPruebas
     {
         var turno = TurnoAbierto();
         var esperados = new[] { new EsperadoFormaPago(Efectivo.FormaPagoId, "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1, 1000m, 1) };
-        var conteo = new[] { new ConteoDenominacion(Guid.CreateVersion7(), "DOP", 500m, TipoDenominacion.Billete, 2) };
+        var conteo = new[] { new ConteoDenominacion(Ids.Siguiente(), "DOP", 500m, TipoDenominacion.Billete, 2) };
 
         CodigoErrorCierre Rechazo(DeclaradoFormaPago[] declarados, ConteoDenominacion[] contado) =>
             Assert.Throws<ReglaCierreExcepcion>(() => CierreTurno.Registrar(turno, 1, true, false, 1, 1000m, 0m, esperados, declarados, contado, MonedaLocal, Cajera, "Cajera", Ahora)).Codigo;
 
         Assert.Equal(CodigoErrorCierre.ConteoNoCoincide, Rechazo([new DeclaradoFormaPago(Efectivo.FormaPagoId, 900m)], conteo));
         Assert.Equal(CodigoErrorCierre.MontoInvalido, Rechazo([new DeclaradoFormaPago(Efectivo.FormaPagoId, -1m)], []));
-        Assert.Equal(CodigoErrorCierre.FormaPagoDesconocida, Rechazo([new DeclaradoFormaPago(Guid.CreateVersion7(), 10m)], []));
+        Assert.Equal(CodigoErrorCierre.FormaPagoDesconocida, Rechazo([new DeclaradoFormaPago(Ids.Siguiente(), 10m)], []));
         Assert.True(turno.EstaAbierto);
     }
 
@@ -104,9 +104,9 @@ public class CierreTurnoPruebas
     public void Relevo_cambia_el_usuario_del_turno_y_la_reapertura_lo_vuelve_a_abrir()
     {
         var turno = TurnoAbierto();
-        var relevista = Guid.CreateVersion7();
+        var relevista = Ids.Siguiente();
 
-        var relevo = turno.Relevar(1, relevista, "Relevista", Guid.CreateVersion7(), "Supervisor", Ahora);
+        var relevo = turno.Relevar(1, relevista, "Relevista", Ids.Siguiente(), "Supervisor", Ahora);
 
         Assert.Equal(TipoMovimientoCaja.Relevo, relevo.Tipo);
         Assert.Equal(Cajera, relevo.UsuarioAnteriorId);
@@ -114,14 +114,14 @@ public class CierreTurnoPruebas
         Assert.Throws<InvalidOperationException>(() => turno.Relevar(2, relevista, "Relevista", null, null, Ahora));
 
         var cierre = CierreTurno.Registrar(turno, 1, true, false, 0, 0m, 0m, [], [], [], MonedaLocal, relevista, "Relevista", Ahora);
-        Assert.Equal(CodigoErrorCierre.MotivoRequerido, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Guid.CreateVersion7(), "Gerente", " ", Ahora)).Codigo);
+        Assert.Equal(CodigoErrorCierre.MotivoRequerido, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Ids.Siguiente(), "Gerente", " ", Ahora)).Codigo);
 
-        cierre.Reabrir(Guid.CreateVersion7(), "Gerente", "Billete de 1,000 mal contado", Ahora);
+        cierre.Reabrir(Ids.Siguiente(), "Gerente", "Billete de 1,000 mal contado", Ahora);
         turno.Reabrir();
 
         Assert.Equal(EstadoCierre.Reabierto, cierre.Estado);
         Assert.True(turno.EstaAbierto);
         Assert.Null(turno.CerradoEn);
-        Assert.Equal(CodigoErrorCierre.YaReabierto, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Guid.CreateVersion7(), "Gerente", "Otra vez", Ahora)).Codigo);
+        Assert.Equal(CodigoErrorCierre.YaReabierto, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Ids.Siguiente(), "Gerente", "Otra vez", Ahora)).Codigo);
     }
 }

@@ -12,17 +12,17 @@ public sealed record RespuestaIngreso(
     DateTimeOffset? BloqueadoHasta = null);
 
 public sealed record DatosSesion(
-    Guid UsuarioId,
+    int UsuarioId,
     string Codigo,
     string Nombre,
     string RolCodigo,
     string RolNombre,
     int Nivel,
     IReadOnlyList<string> Permisos,
-    Guid CajaId,
+    int CajaId,
     string CajaCodigo,
     string CajaNombre,
-    Guid SucursalId);
+    int SucursalId);
 
 /// <summary>Solicitud de autorización de supervisor con su código de usuario y su clave.</summary>
 public sealed record SolicitudAutorizacion(
@@ -38,14 +38,14 @@ public sealed record RespuestaAutorizacion(
     bool Concedida,
     string? Mensaje = null,
     Guid? AutorizacionId = null,
-    Guid? SupervisorId = null,
+    int? SupervisorId = null,
     string? SupervisorNombre = null,
     bool RequirioSupervisor = true);
 
 public sealed record DatosEstadoCaja(
     bool Configurada,
     bool Habilitada,
-    Guid? CajaId = null,
+    int? CajaId = null,
     string? CajaCodigo = null,
     string? CajaNombre = null,
     string? SucursalNombre = null,

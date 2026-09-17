@@ -51,7 +51,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
 
     public async Task<ResultadoAdministracion> CrearSucursalAsync(SolicitudSucursal solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
-        var empresaId = await contexto.Empresas.Select(e => (Guid?)e.Id).FirstOrDefaultAsync(cancelacion);
+        var empresaId = await contexto.Empresas.Select(e => (int?)e.Id).FirstOrDefaultAsync(cancelacion);
         if (empresaId is null)
             return ResultadoAdministracion.Error("Configure la empresa antes de crear sucursales.");
 
@@ -75,7 +75,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         return await GuardarAsync("Organizacion.SucursalCreada", "Sucursal", sucursal.Id, actor, solicitud, cancelacion);
     }
 
-    public async Task<ResultadoAdministracion> ActualizarSucursalAsync(Guid sucursalId, SolicitudSucursal solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> ActualizarSucursalAsync(int sucursalId, SolicitudSucursal solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Id == sucursalId, cancelacion);
         if (sucursal is null)
@@ -98,7 +98,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         return await GuardarAsync("Organizacion.SucursalActualizada", "Sucursal", sucursal.Id, actor, solicitud, cancelacion);
     }
 
-    public async Task<ResultadoAdministracion> CambiarEstadoSucursalAsync(Guid sucursalId, bool activa, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> CambiarEstadoSucursalAsync(int sucursalId, bool activa, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Id == sucursalId, cancelacion);
         if (sucursal is null)
@@ -152,7 +152,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         return await GuardarAsync("Organizacion.CajaCreada", "Caja", caja.Id, actor, solicitud, cancelacion);
     }
 
-    public async Task<ResultadoAdministracion> ActualizarCajaAsync(Guid cajaId, SolicitudActualizarCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> ActualizarCajaAsync(int cajaId, SolicitudActualizarCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.Id == cajaId, cancelacion);
         if (caja is null)
@@ -171,7 +171,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         return await GuardarAsync("Organizacion.CajaActualizada", "Caja", caja.Id, actor, solicitud, cancelacion);
     }
 
-    public async Task<ResultadoAdministracion> CambiarEstadoCajaAsync(Guid cajaId, bool habilitada, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> CambiarEstadoCajaAsync(int cajaId, bool habilitada, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.Id == cajaId, cancelacion);
         if (caja is null)
@@ -226,7 +226,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         return await GuardarAsync("Organizacion.ParametroCreado", "Parametro", parametro.Id, actor, new { clave, valor, solicitud.SucursalId, solicitud.CajaId }, cancelacion);
     }
 
-    public async Task<ResultadoAdministracion> CambiarValorParametroAsync(Guid parametroId, string valor, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    public async Task<ResultadoAdministracion> CambiarValorParametroAsync(int parametroId, string valor, UsuarioAuditoria actor, CancellationToken cancelacion = default)
     {
         var parametro = await contexto.Parametros.SingleOrDefaultAsync(p => p.Id == parametroId, cancelacion);
         if (parametro is null)
@@ -266,7 +266,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         return null;
     }
 
-    private async Task<ResultadoAdministracion> GuardarAsync(string accion, string tipo, Guid entidadId, UsuarioAuditoria actor, object detalle, CancellationToken cancelacion)
+    private async Task<ResultadoAdministracion> GuardarAsync(string accion, string tipo, int entidadId, UsuarioAuditoria actor, object detalle, CancellationToken cancelacion)
     {
         auditoria.Registrar(new EntradaAuditoria(accion, tipo, entidadId.ToString(), detalle, Usuario: actor));
         await contexto.SaveChangesAsync(cancelacion);

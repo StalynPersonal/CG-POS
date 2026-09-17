@@ -5,7 +5,7 @@ namespace CgPos.Contratos.Central;
 /// <summary>Miembro del programa con el saldo oficial que lleva el Central (RF-240, RF-242).</summary>
 /// <param name="CalculadoEn">Cuándo se recalculó el saldo por última vez; nulo si nunca tuvo movimientos.</param>
 public sealed record DatosMiembroFidelidadCentral(
-    Guid Id,
+    int Id,
     string Cedula,
     string Nombre,
     string? Telefono,
@@ -23,7 +23,7 @@ public sealed record PaginaMiembrosFidelidadCentral(IReadOnlyList<DatosMiembroFi
 
 /// <param name="Origen">De una caja al sincronizar o de un ajuste hecho en el Central.</param>
 public sealed record DatosMovimientoPuntosCentral(
-    Guid Id,
+    int Id,
     TipoMovimientoPuntos Tipo,
     OrigenMovimientoPuntos Origen,
     int Puntos,

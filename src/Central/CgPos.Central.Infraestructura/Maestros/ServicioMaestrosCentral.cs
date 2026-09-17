@@ -69,7 +69,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     {
         ArgumentNullException.ThrowIfNull(solicitud);
         var codigo = codigoCliente?.Trim().ToUpperInvariant() ?? string.Empty;
-        var id = await contexto.Clientes.AsNoTracking().Where(c => c.Codigo == codigo).Select(c => (Guid?)c.Id).SingleOrDefaultAsync(cancelacion);
+        var id = await contexto.Clientes.AsNoTracking().Where(c => c.Codigo == codigo).Select(c => (int?)c.Id).SingleOrDefaultAsync(cancelacion);
         if (id is null || (await TablasMaestros.Clientes.PorIdAsync(contexto, new ResolutorCodigosCentral(contexto), id.Value, cancelacion))?.Dato is not { } actual)
             return ResultadoAdministracion.Inexistente("El cliente no existe.");
         if (string.IsNullOrWhiteSpace(solicitud.Motivo))
@@ -176,7 +176,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     private async Task<ArticuloCarga?> ArticuloAsync(string codigo, CancellationToken cancelacion)
     {
         var limpio = codigo?.Trim() ?? string.Empty;
-        var id = await contexto.Articulos.AsNoTracking().Where(a => a.Codigo == limpio).Select(a => (Guid?)a.Id).SingleOrDefaultAsync(cancelacion);
+        var id = await contexto.Articulos.AsNoTracking().Where(a => a.Codigo == limpio).Select(a => (int?)a.Id).SingleOrDefaultAsync(cancelacion);
         return id is null ? null : (await TablasMaestros.Articulos.PorIdAsync(contexto, new ResolutorCodigosCentral(contexto), id.Value, cancelacion))?.Dato;
     }
 

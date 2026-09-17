@@ -22,11 +22,10 @@ public sealed class Empresa : Entidad
 
     /// <param name="id">Id asignado por el Central; si se omite se genera uno nuevo.</param>
     public static Empresa Crear(string rnc, string razonSocial, string? nombreComercial = null,
-        string? direccion = null, string? telefono = null, Guid? id = null)
+        string? direccion = null, string? telefono = null)
     {
         var empresa = new Empresa
         {
-            Id = id ?? Guid.CreateVersion7(),
             Rnc = Validar.Digitos(rnc, "RNC", LargoRnc),
         };
         empresa.ActualizarDatos(razonSocial, nombreComercial, direccion, telefono);

@@ -7,11 +7,11 @@ using CgPos.Dominio.Ventas;
 namespace CgPos.Contratos.Ventas;
 
 public sealed record DatosTurno(
-    Guid Id,
+    int Id,
     long Numero,
     DateOnly FechaOperacion,
-    Guid CajaId,
-    Guid UsuarioActualId,
+    int CajaId,
+    int UsuarioActualId,
     string UsuarioActualNombre,
     decimal FondoInicial,
     EstadoTurno Estado,
@@ -40,7 +40,7 @@ public sealed record RespuestaTurno(CodigoResultadoTurno Resultado, string? Mens
 
 public sealed record DatosLineaVenta(
     int NumeroLinea,
-    Guid ArticuloId,
+    int ArticuloId,
     string CodigoInterno,
     string CodigoLeido,
     string Descripcion,
@@ -89,15 +89,15 @@ public sealed record DatosTotalesVenta(
 /// <param name="Monto">Suma prorrateada que se aplicó en las líneas.</param>
 public sealed record DatosDescuentoFactura(TipoDescuento Tipo, decimal Valor, IReadOnlyList<int>? Lineas, string? Motivo, string? AutorizadoPorNombre, decimal Monto);
 
-public sealed record DatosClienteVenta(Guid? ClienteId, TipoDocumentoIdentidad? TipoDocumento, string? Documento, string Nombre);
+public sealed record DatosClienteVenta(int? ClienteId, TipoDocumentoIdentidad? TipoDocumento, string? Documento, string Nombre);
 
 /// <param name="Lineas">En orden de pantalla: cada reverso aparece justo debajo de la línea que anula.</param>
 /// <param name="RequiereIdentificacion">Factura de consumo desde <paramref name="MontoIdentificacion"/> sin cédula o RNC (RF-26).</param>
 public sealed record DatosVenta(
-    Guid Id,
+    int Id,
     string NumeroTransaccion,
     EstadoVenta Estado,
-    Guid TurnoId,
+    int TurnoId,
     string UsuarioNombre,
     DateTimeOffset IniciadaEn,
     IReadOnlyList<DatosLineaVenta> Lineas,
@@ -121,14 +121,14 @@ public sealed record DatosVenta(
     IReadOnlyList<DatosDestinoEntrega>? DestinosEntrega = null);
 
 /// <summary>Miembro del programa de fidelidad de la venta y los puntos que acumuló y canjeó al cobrar.</summary>
-public sealed record DatosFidelidadVenta(Guid MiembroId, string Cedula, string Nombre, string? Nivel, int PuntosAcumulados, int PuntosCanjeados);
+public sealed record DatosFidelidadVenta(int MiembroId, string Cedula, string Nombre, string? Nivel, int PuntosAcumulados, int PuntosCanjeados);
 
 /// <summary>Cédula del miembro del programa de fidelidad (ID/PIN, RF-236).</summary>
 public sealed record SolicitudAsignarFidelidad(string Cedula);
 
 /// <summary>Resumen de una factura en espera del cajero en su turno (RF-22, RF-197).</summary>
 public sealed record DatosVentaEnEspera(
-    Guid Id,
+    int Id,
     string NumeroTransaccion,
     string? ClienteNombre,
     decimal Total,

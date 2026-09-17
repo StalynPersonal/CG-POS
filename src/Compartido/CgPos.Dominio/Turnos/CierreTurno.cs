@@ -25,8 +25,8 @@ public sealed class MovimientoCaja : Entidad
     {
     }
 
-    public Guid TurnoId { get; private set; }
-    public Guid CajaId { get; private set; }
+    public int TurnoId { get; private set; }
+    public int CajaId { get; private set; }
     public TipoMovimientoCaja Tipo { get; private set; }
 
     /// <summary>Correlativo por tipo dentro del turno.</summary>
@@ -38,20 +38,20 @@ public sealed class MovimientoCaja : Entidad
     public string? Moneda { get; private set; }
 
     public string? Motivo { get; private set; }
-    public Guid UsuarioId { get; private set; }
+    public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
     /// <summary>En un relevo, quien operaba el turno antes.</summary>
-    public Guid? UsuarioAnteriorId { get; private set; }
+    public int? UsuarioAnteriorId { get; private set; }
 
     public string? UsuarioAnteriorNombre { get; private set; }
-    public Guid? AutorizadoPorId { get; private set; }
+    public int? AutorizadoPorId { get; private set; }
     public string? AutorizadoPorNombre { get; private set; }
     public DateTimeOffset Fecha { get; private set; }
 
     /// <param name="moneda">Moneda local de la caja: los retiros salen del efectivo local.</param>
-    public static MovimientoCaja Retiro(Turno turno, int numero, decimal monto, string moneda, string? motivo, Guid usuarioId, string usuarioNombre,
-        Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    public static MovimientoCaja Retiro(Turno turno, int numero, decimal monto, string moneda, string? motivo, int usuarioId, string usuarioNombre,
+        int? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(turno);
         if (!turno.EstaAbierto)
@@ -66,8 +66,8 @@ public sealed class MovimientoCaja : Entidad
     }
 
     /// <summary>Efectivo entregado al cliente al devolver mercancía (RF-123); baja lo esperado en la gaveta igual que un retiro.</summary>
-    public static MovimientoCaja Reembolso(Turno turno, int numero, decimal monto, string moneda, string? motivo, Guid usuarioId, string usuarioNombre,
-        Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    public static MovimientoCaja Reembolso(Turno turno, int numero, decimal monto, string moneda, string? motivo, int usuarioId, string usuarioNombre,
+        int? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(turno);
         if (!turno.EstaAbierto)
@@ -81,7 +81,7 @@ public sealed class MovimientoCaja : Entidad
         return reembolso;
     }
 
-    internal static MovimientoCaja Relevo(Turno turno, int numero, Guid usuarioId, string usuarioNombre, Guid? autorizadoPorId, string? autorizadoPorNombre,
+    internal static MovimientoCaja Relevo(Turno turno, int numero, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
         DateTimeOffset ahora)
     {
         var movimiento = Crear(turno, TipoMovimientoCaja.Relevo, numero, 0m, null, usuarioId, usuarioNombre, autorizadoPorId, autorizadoPorNombre, ahora);
@@ -90,14 +90,13 @@ public sealed class MovimientoCaja : Entidad
         return movimiento;
     }
 
-    private static MovimientoCaja Crear(Turno turno, TipoMovimientoCaja tipo, int numero, decimal monto, string? motivo, Guid usuarioId, string usuarioNombre,
-        Guid? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
+    private static MovimientoCaja Crear(Turno turno, TipoMovimientoCaja tipo, int numero, decimal monto, string? motivo, int usuarioId, string usuarioNombre,
+        int? autorizadoPorId, string? autorizadoPorNombre, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(numero, 1);
 
         return new MovimientoCaja
         {
-            Id = Guid.CreateVersion7(),
             TurnoId = turno.Id,
             CajaId = turno.CajaId,
             Tipo = tipo,
@@ -136,18 +135,18 @@ public sealed class ReglaCierreExcepcion(CodigoErrorCierre codigo, string mensaj
     public CodigoErrorCierre Codigo { get; } = codigo;
 }
 
-public sealed record FormaPagoCuadre(Guid FormaPagoId, string Codigo, string Nombre, TipoFormaPago Tipo, string Moneda, int Orden);
+public sealed record FormaPagoCuadre(int FormaPagoId, string Codigo, string Nombre, TipoFormaPago Tipo, string Moneda, int Orden);
 
 /// <param name="MontoRecibido">En la moneda de la forma de pago, con la devuelta incluida.</param>
 /// <param name="MontoAplicado">En pesos, lo que abonó a la factura.</param>
-public sealed record PagoCuadre(Guid FormaPagoId, decimal MontoRecibido, decimal MontoAplicado);
+public sealed record PagoCuadre(int FormaPagoId, decimal MontoRecibido, decimal MontoAplicado);
 
 /// <param name="Esperado">En la moneda de la forma de pago.</param>
-public sealed record EsperadoFormaPago(Guid FormaPagoId, string Codigo, string Nombre, TipoFormaPago Tipo, string Moneda, int Orden, decimal Esperado, int Transacciones);
+public sealed record EsperadoFormaPago(int FormaPagoId, string Codigo, string Nombre, TipoFormaPago Tipo, string Moneda, int Orden, decimal Esperado, int Transacciones);
 
-public sealed record DeclaradoFormaPago(Guid FormaPagoId, decimal Monto);
+public sealed record DeclaradoFormaPago(int FormaPagoId, decimal Monto);
 
-public sealed record ConteoDenominacion(Guid DenominacionId, string Moneda, decimal Valor, TipoDenominacion Tipo, int Cantidad);
+public sealed record ConteoDenominacion(int DenominacionId, string Moneda, decimal Valor, TipoDenominacion Tipo, int Cantidad);
 
 /// <summary>Cálculo de lo esperado en la caja por forma de pago (RF-86, RF-263).</summary>
 public static class ReglasCuadre
@@ -205,9 +204,9 @@ public sealed class CierreTurno : Entidad
     {
     }
 
-    public Guid TurnoId { get; private set; }
-    public Guid CajaId { get; private set; }
-    public Guid SucursalId { get; private set; }
+    public int TurnoId { get; private set; }
+    public int CajaId { get; private set; }
+    public int SucursalId { get; private set; }
     public long TurnoNumero { get; private set; }
 
     /// <summary>1 para el primer cierre del turno; aumenta si el turno se reabre y se vuelve a cerrar.</summary>
@@ -233,11 +232,11 @@ public sealed class CierreTurno : Entidad
     /// <summary>Declarado menos esperado: positivo es sobrante, negativo faltante.</summary>
     public decimal Diferencia { get; private set; }
 
-    public Guid UsuarioId { get; private set; }
+    public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
     public DateTimeOffset CerradoEn { get; private set; }
     public EstadoCierre Estado { get; private set; }
-    public Guid? ReabiertoPorId { get; private set; }
+    public int? ReabiertoPorId { get; private set; }
     public string? ReabiertoPorNombre { get; private set; }
     public DateTimeOffset? ReabiertoEn { get; private set; }
     public string? MotivoReapertura { get; private set; }
@@ -247,7 +246,7 @@ public sealed class CierreTurno : Entidad
 
     public static CierreTurno Registrar(Turno turno, int numero, bool ciego, bool fondoEnCuadre, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
         IReadOnlyCollection<EsperadoFormaPago> esperados, IReadOnlyCollection<DeclaradoFormaPago> declarados, IReadOnlyCollection<ConteoDenominacion> conteo,
-        string monedaLocal, Guid usuarioId, string usuarioNombre, DateTimeOffset ahora)
+        string monedaLocal, int usuarioId, string usuarioNombre, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(turno);
         ArgumentOutOfRangeException.ThrowIfLessThan(numero, 1);
@@ -263,7 +262,6 @@ public sealed class CierreTurno : Entidad
 
         var cierre = new CierreTurno
         {
-            Id = Guid.CreateVersion7(),
             TurnoId = turno.Id,
             CajaId = turno.CajaId,
             SucursalId = turno.SucursalId,
@@ -320,7 +318,7 @@ public sealed class CierreTurno : Entidad
     }
 
     /// <summary>Marca el cierre como reabierto (RF-266). Quien llama reabre también el turno.</summary>
-    public void Reabrir(Guid usuarioId, string usuarioNombre, string? motivo, DateTimeOffset ahora)
+    public void Reabrir(int usuarioId, string usuarioNombre, string? motivo, DateTimeOffset ahora)
     {
         if (Estado != EstadoCierre.Vigente)
             throw new ReglaCierreExcepcion(CodigoErrorCierre.YaReabierto, "El cierre ya fue reabierto.");
@@ -341,8 +339,8 @@ public sealed class CierreFormaPago : Entidad
     {
     }
 
-    public Guid CierreTurnoId { get; private set; }
-    public Guid FormaPagoId { get; private set; }
+    public int CierreTurnoId { get; private set; }
+    public int FormaPagoId { get; private set; }
     public string Codigo { get; private set; } = string.Empty;
     public string Nombre { get; private set; } = string.Empty;
     public TipoFormaPago Tipo { get; private set; }
@@ -353,10 +351,9 @@ public sealed class CierreFormaPago : Entidad
     public decimal Declarado { get; private set; }
     public decimal Diferencia { get; private set; }
 
-    internal static CierreFormaPago Crear(Guid cierreId, EsperadoFormaPago esperado, decimal declarado) =>
+    internal static CierreFormaPago Crear(int cierreId, EsperadoFormaPago esperado, decimal declarado) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             CierreTurnoId = cierreId,
             FormaPagoId = esperado.FormaPagoId,
             Codigo = esperado.Codigo,
@@ -377,18 +374,17 @@ public sealed class CierreDenominacion : Entidad
     {
     }
 
-    public Guid CierreTurnoId { get; private set; }
-    public Guid DenominacionId { get; private set; }
+    public int CierreTurnoId { get; private set; }
+    public int DenominacionId { get; private set; }
     public string Moneda { get; private set; } = string.Empty;
     public decimal Valor { get; private set; }
     public TipoDenominacion Tipo { get; private set; }
     public int Cantidad { get; private set; }
     public decimal Importe { get; private set; }
 
-    internal static CierreDenominacion Crear(Guid cierreId, ConteoDenominacion conteo) =>
+    internal static CierreDenominacion Crear(int cierreId, ConteoDenominacion conteo) =>
         new()
         {
-            Id = Guid.CreateVersion7(),
             CierreTurnoId = cierreId,
             DenominacionId = conteo.DenominacionId,
             Moneda = conteo.Moneda,

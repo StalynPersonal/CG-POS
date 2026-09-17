@@ -185,7 +185,7 @@ internal sealed class ServicioCargaInicialCentral(
     }
 
     /// <summary>El Central pertenece a una sola empresa, identificada por su RNC.</summary>
-    private async Task<Guid> AplicarEmpresaAsync(EmpresaCarga dato, CancellationToken cancelacion)
+    private async Task<int> AplicarEmpresaAsync(EmpresaCarga dato, CancellationToken cancelacion)
     {
         var empresa = await contexto.Empresas.SingleOrDefaultAsync(cancelacion);
         if (empresa is null)
@@ -203,7 +203,7 @@ internal sealed class ServicioCargaInicialCentral(
         return empresa.Id;
     }
 
-    private async Task<Guid> AplicarSucursalAsync(SucursalCarga dato, Guid empresaId, CancellationToken cancelacion)
+    private async Task<int> AplicarSucursalAsync(SucursalCarga dato, int empresaId, CancellationToken cancelacion)
     {
         var sucursal = await contexto.Sucursales.SingleOrDefaultAsync(s => s.Codigo == dato.Codigo, cancelacion);
         if (sucursal is not null)
@@ -219,7 +219,7 @@ internal sealed class ServicioCargaInicialCentral(
         return sucursal.Id;
     }
 
-    private async Task<Guid> AplicarCajaAsync(CajaCarga dato, Guid sucursalId, CancellationToken cancelacion)
+    private async Task<int> AplicarCajaAsync(CajaCarga dato, int sucursalId, CancellationToken cancelacion)
     {
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.SucursalId == sucursalId && c.Codigo == dato.Codigo, cancelacion);
         if (caja is not null)
@@ -235,11 +235,11 @@ internal sealed class ServicioCargaInicialCentral(
         return caja.Id;
     }
 
-    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, Guid> idsSucursales, IReadOnlyDictionary<(int Sucursal, int Caja), Guid> idsCajas,
+    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, int> idsSucursales, IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas,
         CancellationToken cancelacion)
     {
-        Guid? sucursalId = null;
-        Guid? cajaId = null;
+        int? sucursalId = null;
+        int? cajaId = null;
         if (dato is { SucursalCodigo: { } s, CajaCodigo: { } c })
             cajaId = idsCajas[(s, c)];
         else if (dato.SucursalCodigo is { } sucursal)
@@ -256,7 +256,7 @@ internal sealed class ServicioCargaInicialCentral(
         _creados++;
     }
 
-    private async Task<Guid> AplicarRolAsync(RolCentralCarga dato, CancellationToken cancelacion)
+    private async Task<int> AplicarRolAsync(RolCentralCarga dato, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
         var rol = await contexto.RolesCentral.Include(r => r.PermisosAsignados).SingleOrDefaultAsync(r => r.Codigo == codigo, cancelacion);
@@ -281,7 +281,7 @@ internal sealed class ServicioCargaInicialCentral(
         return rol.Id;
     }
 
-    private async Task AplicarUsuarioAsync(UsuarioCentralCarga dato, Guid rolId, CancellationToken cancelacion)
+    private async Task AplicarUsuarioAsync(UsuarioCentralCarga dato, int rolId, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
         if (await contexto.UsuariosCentral.AnyAsync(u => u.Codigo == codigo, cancelacion))

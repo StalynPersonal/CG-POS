@@ -80,7 +80,7 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
         using var tokenRevocado = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/dispositivos/actual", tokenSegunda.Token));
         Assert.Equal(HttpStatusCode.Unauthorized, tokenRevocado.StatusCode);
 
-        using var cajaInexistente = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{Guid.CreateVersion7()}/credencial", administrador));
+        using var cajaInexistente = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{Ids.Siguiente()}/credencial", administrador));
         Assert.Equal(HttpStatusCode.NotFound, cajaInexistente.StatusCode);
     }
 
@@ -122,14 +122,14 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
     private static async Task<string> TokenAdministradorAsync(HttpClient cliente) =>
         (await CentralEnPruebas.IngresarAsync(cliente, "ADMIN", CentralEnPruebas.ContrasenaAdministrador)).Cuerpo!.TokenAcceso!;
 
-    private static async Task<DatosCredencialDispositivo> EmitirAsync(HttpClient cliente, string tokenAdministrador, Guid cajaId)
+    private static async Task<DatosCredencialDispositivo> EmitirAsync(HttpClient cliente, string tokenAdministrador, int cajaId)
     {
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", tokenAdministrador));
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         return (await respuesta.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!;
     }
 
-    private static async Task<(HttpStatusCode Estado, RespuestaTokenDispositivo? Cuerpo)> PedirTokenAsync(HttpClient cliente, Guid cajaId, string secreto)
+    private static async Task<(HttpStatusCode Estado, RespuestaTokenDispositivo? Cuerpo)> PedirTokenAsync(HttpClient cliente, int cajaId, string secreto)
     {
         var (sucursal, caja) = CentralEnPruebas.CodigosCaja(cajaId);
         using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);

@@ -84,7 +84,7 @@ public sealed class EmisorTokensCentral
 
         string? Valor(string tipo) => usuario.FindFirst(tipo)?.Value;
 
-        if (!Guid.TryParse(Valor(AtributosTokenCentral.UsuarioId), out var usuarioId) || !Guid.TryParse(Valor(AtributosTokenCentral.Sesion), out var sesionId))
+        if (!int.TryParse(Valor(AtributosTokenCentral.UsuarioId), out var usuarioId) || !Guid.TryParse(Valor(AtributosTokenCentral.Sesion), out var sesionId))
             return null;
 
         return new DatosSesionCentral(
@@ -106,7 +106,7 @@ public sealed class EmisorTokensCentral
 
         string? Valor(string tipo) => usuario.FindFirst(tipo)?.Value;
 
-        return Guid.TryParse(Valor(AtributosTokenCentral.Caja), out var cajaId) && Guid.TryParse(Valor(AtributosTokenCentral.Sucursal), out var sucursalId)
+        return int.TryParse(Valor(AtributosTokenCentral.Caja), out var cajaId) && int.TryParse(Valor(AtributosTokenCentral.Sucursal), out var sucursalId)
             ? new DatosDispositivo(cajaId, int.TryParse(Valor(AtributosTokenCentral.CajaCodigo), out var cajaCodigo) ? cajaCodigo : 0,
                 Valor(AtributosTokenCentral.CajaNombre) ?? string.Empty, sucursalId,
                 int.TryParse(Valor(AtributosTokenCentral.SucursalCodigo), out var sucursalCodigo) ? sucursalCodigo : 0)

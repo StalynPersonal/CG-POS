@@ -44,11 +44,11 @@ public sealed class Promocion : Entidad
     public const int LargoMaximoNombre = 150;
 
     // No son readonly: se reemplazan completas para que EF detecte el cambio al guardarlas como texto.
-    private List<Guid> _articulos = [];
-    private List<Guid> _departamentos = [];
-    private List<Guid> _categorias = [];
-    private List<Guid> _marcas = [];
-    private List<Guid> _sucursales = [];
+    private List<int> _articulos = [];
+    private List<int> _departamentos = [];
+    private List<int> _categorias = [];
+    private List<int> _marcas = [];
+    private List<int> _sucursales = [];
 
     private Promocion()
     {
@@ -80,22 +80,21 @@ public sealed class Promocion : Entidad
     public bool Activa { get; private set; } = true;
 
     /// <summary>Artículos incluidos. Si artículos, departamentos, categorías y marcas están vacíos, no aplica a nada.</summary>
-    public IReadOnlyCollection<Guid> Articulos => _articulos;
+    public IReadOnlyCollection<int> Articulos => _articulos;
 
-    public IReadOnlyCollection<Guid> Departamentos => _departamentos;
+    public IReadOnlyCollection<int> Departamentos => _departamentos;
 
-    public IReadOnlyCollection<Guid> Categorias => _categorias;
+    public IReadOnlyCollection<int> Categorias => _categorias;
 
-    public IReadOnlyCollection<Guid> Marcas => _marcas;
+    public IReadOnlyCollection<int> Marcas => _marcas;
 
     /// <summary>Sucursales donde aplica; vacío = todas (RF-60).</summary>
-    public IReadOnlyCollection<Guid> Sucursales => _sucursales;
+    public IReadOnlyCollection<int> Sucursales => _sucursales;
 
-    public static Promocion Crear(string codigo, string nombre, TipoPromocion tipo, decimal valor, DateTimeOffset vigenteDesde, DateTimeOffset vigenteHasta, Guid? id = null)
+    public static Promocion Crear(string codigo, string nombre, TipoPromocion tipo, decimal valor, DateTimeOffset vigenteDesde, DateTimeOffset vigenteHasta)
     {
         var promocion = new Promocion
         {
-            Id = id ?? Guid.CreateVersion7(),
             Codigo = Validar.Texto(codigo, "Código de promoción", LargoMaximoCodigo).ToUpperInvariant(),
         };
         promocion.Actualizar(nombre, tipo, valor, vigenteDesde, vigenteHasta);
@@ -155,8 +154,8 @@ public sealed class Promocion : Entidad
         HoraHasta = horaHasta;
     }
 
-    public void AsignarAlcance(IEnumerable<Guid>? articulos, IEnumerable<Guid>? departamentos, IEnumerable<Guid>? sucursales,
-        IEnumerable<Guid>? categorias = null, IEnumerable<Guid>? marcas = null)
+    public void AsignarAlcance(IEnumerable<int>? articulos, IEnumerable<int>? departamentos, IEnumerable<int>? sucursales,
+        IEnumerable<int>? categorias = null, IEnumerable<int>? marcas = null)
     {
         _articulos = Limpiar(articulos);
         _departamentos = Limpiar(departamentos);
@@ -172,7 +171,7 @@ public sealed class Promocion : Entidad
     public void Desactivar() => Activa = false;
 
     /// <param name="ahoraLocal">Fecha y hora local de la caja: los días y horas de la oferta son locales.</param>
-    public bool EstaVigente(Guid sucursalId, DateTimeOffset ahoraLocal)
+    public bool EstaVigente(int sucursalId, DateTimeOffset ahoraLocal)
     {
         if (!Activa || ahoraLocal < VigenteDesde || ahoraLocal > VigenteHasta)
             return false;
@@ -191,7 +190,7 @@ public sealed class Promocion : Entidad
     }
 
     /// <summary>La oferta alcanza al artículo si lo incluye directamente o por su departamento, su categoría o su marca.</summary>
-    public bool AplicaA(Guid articuloId, Guid departamentoId, Guid? categoriaId = null, Guid? marcaId = null) =>
+    public bool AplicaA(int articuloId, int departamentoId, int? categoriaId = null, int? marcaId = null) =>
         _articulos.Contains(articuloId) || _departamentos.Contains(departamentoId)
         || (categoriaId is { } categoria && _categorias.Contains(categoria))
         || (marcaId is { } marca && _marcas.Contains(marca));
@@ -209,8 +208,8 @@ public sealed class Promocion : Entidad
 
     private static DiasSemana DiaDe(DayOfWeek dia) => (DiasSemana)(1 << (int)dia);
 
-    private static List<Guid> Limpiar(IEnumerable<Guid>? origen) =>
-        origen is null ? [] : origen.Where(id => id != Guid.Empty).Distinct().ToList();
+    private static List<int> Limpiar(IEnumerable<int>? origen) =>
+        origen is null ? [] : origen.Where(id => id != 0).Distinct().ToList();
 }
 
 public static class MotorPromociones

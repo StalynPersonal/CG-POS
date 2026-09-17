@@ -7,16 +7,16 @@
             <MudTextField T="string" @bind-Value="_codigo" Label="Código de usuario" Variant="Variant.Outlined" Disabled="@(Usuario is not null)"
                           HelperText="Con este código ingresa a la caja." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
-            <MudSelect T="Guid?" @bind-Value="_rolId" Label="Rol" Placeholder="Seleccione el rol" Variant="Variant.Outlined" ToStringFunc="NombreRol">
+            <MudSelect T="int?" @bind-Value="_rolId" Label="Rol" Placeholder="Seleccione el rol" Variant="Variant.Outlined" ToStringFunc="NombreRol">
                 @foreach (var rol in Roles.Where(r => r.Activo || r.Id == Usuario?.RolId))
                 {
-                    <MudSelectItem T="Guid?" Value="@rol.Id">@rol.Nombre (nivel @rol.Nivel)</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@rol.Id">@rol.Nombre (nivel @rol.Nivel)</MudSelectItem>
                 }
             </MudSelect>
-            <MudSelect T="Guid" @bind-SelectedValues="_cajas" MultiSelection="true" Label="Cajas que opera" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
+            <MudSelect T="int" @bind-SelectedValues="_cajas" MultiSelection="true" Label="Cajas que opera" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
                 @foreach (var caja in Cajas)
                 {
-                    <MudSelectItem T="Guid" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                    <MudSelectItem T="int" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
                 }
             </MudSelect>
             <MudTextField T="string" @bind-Value="_clave" Label="@(Usuario is null ? "Clave" : "Clave nueva (vacía conserva la actual)")" Variant="Variant.Outlined"
@@ -43,16 +43,16 @@
 
     private string? _codigo;
     private string? _nombre;
-    private Guid? _rolId;
-    private IReadOnlyCollection<Guid> _cajas = [];
+    private int? _rolId;
+    private IReadOnlyCollection<int> _cajas = [];
     private string? _clave;
     private bool _activo = true;
     private string? _mensaje;
     private bool _procesando;
 
-    private string NombreRol(Guid? rolId) => Roles.FirstOrDefault(r => r.Id == rolId)?.Nombre ?? string.Empty;
+    private string NombreRol(int? rolId) => Roles.FirstOrDefault(r => r.Id == rolId)?.Nombre ?? string.Empty;
 
-    private string NombreCaja(Guid cajaId) =>
+    private string NombreCaja(int cajaId) =>
         Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : string.Empty;
 
     protected override void OnInitialized()

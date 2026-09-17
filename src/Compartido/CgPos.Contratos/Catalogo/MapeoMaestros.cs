@@ -15,17 +15,17 @@ namespace CgPos.Contratos.Catalogo;
 /// <remarks>Lanza <see cref="InvalidOperationException"/> si el código no existe.</remarks>
 public interface IResolutorCodigos
 {
-    Guid Departamento(int codigo);
-    Guid Categoria(int codigo);
-    Guid Marca(int codigo);
-    Guid UnidadMedida(int codigo);
-    Guid Impuesto(string codigo);
-    Guid Articulo(string codigo);
-    Guid Sucursal(int codigo);
-    Guid Caja(int sucursalCodigo, int cajaCodigo);
-    Guid Banco(string codigo);
-    Guid NivelFidelidad(int codigo);
-    Guid Promocion(string codigo);
+    int Departamento(int codigo);
+    int Categoria(int codigo);
+    int Marca(int codigo);
+    int UnidadMedida(int codigo);
+    int Impuesto(string codigo);
+    int Articulo(string codigo);
+    int Sucursal(int codigo);
+    int Caja(int sucursalCodigo, int cajaCodigo);
+    int Banco(string codigo);
+    int NivelFidelidad(int codigo);
+    int Promocion(string codigo);
 }
 
 /// <summary>
@@ -145,7 +145,7 @@ public static class MapeoMaestros
         if (alias.GroupBy(a => a, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1) is { } repetido)
             throw new ArgumentException($"La dirección «{repetido.Key}» está repetida en el cliente.");
 
-        foreach (var sobrante in e.Direcciones.Where(x => !alias.Contains(x.Alias, StringComparer.OrdinalIgnoreCase)).Select(x => x.Id).ToList())
+        foreach (var sobrante in e.Direcciones.Where(x => !alias.Contains(x.Alias, StringComparer.OrdinalIgnoreCase)).Select(x => x.Alias).ToList())
             e.QuitarDireccion(sobrante);
 
         foreach (var direccion in direcciones)
@@ -154,11 +154,11 @@ public static class MapeoMaestros
             if (existente is null)
                 e.AgregarDireccion(direccion.Alias!, direccion.Direccion, direccion.Sector, direccion.Ciudad, direccion.Referencia, direccion.Telefono);
             else
-                e.ActualizarDireccion(existente.Id, direccion.Alias!, direccion.Direccion, direccion.Sector, direccion.Ciudad, direccion.Referencia, direccion.Telefono);
+                e.ActualizarDireccion(direccion.Alias!, direccion.Direccion, direccion.Sector, direccion.Ciudad, direccion.Referencia, direccion.Telefono);
         }
 
         if (direcciones.FirstOrDefault(x => x.EsPrincipal) is { } principal)
-            e.MarcarPrincipal(e.Direcciones.First(x => string.Equals(x.Alias, principal.Alias?.Trim(), StringComparison.OrdinalIgnoreCase)).Id);
+            e.MarcarPrincipal(principal.Alias!);
 
         if (d.Activo) e.Activar(); else e.Desactivar();
     }
@@ -297,7 +297,7 @@ public static class MapeoMaestros
 
     public static MiembroFidelidad Crear(MiembroFidelidadCarga d, IResolutorCodigos r, DateTimeOffset ahora)
     {
-        var miembro = MiembroFidelidad.DesdeCentral(MiembroFidelidad.ValidarCedula(d.Cedula), d.Nombre, d.InscritoEn ?? ahora, Guid.CreateVersion7());
+        var miembro = MiembroFidelidad.DesdeCentral(MiembroFidelidad.ValidarCedula(d.Cedula), d.Nombre, d.InscritoEn ?? ahora);
         Actualizar(miembro, d, r);
         return miembro;
     }
@@ -315,7 +315,7 @@ public static class MapeoMaestros
     }
 
     public static DescuentoTarjeta Crear(DescuentoTarjetaCarga d, IResolutorCodigos r) =>
-        DescuentoTarjeta.Crear(Guid.CreateVersion7(), d.Codigo, d.Nombre, d.Bines, d.Tipo, d.Valor, d.MontoMinimo, d.MontoMaximo, BancoDe(d, r),
+        DescuentoTarjeta.Crear(d.Codigo, d.Nombre, d.Bines, d.Tipo, d.Valor, d.MontoMinimo, d.MontoMaximo, BancoDe(d, r),
             d.VigenteDesde, d.VigenteHasta, d.Dias, d.Activo);
 
     public static void Actualizar(DescuentoTarjeta e, DescuentoTarjetaCarga d, IResolutorCodigos r)
@@ -336,7 +336,7 @@ public static class MapeoMaestros
     }
 
     /// <summary>Código de la referencia de una regla de acumulación según su tipo.</summary>
-    public static Guid? ReferenciaRegla(ReglaAcumulacionCarga d, IResolutorCodigos r)
+    public static int? ReferenciaRegla(ReglaAcumulacionCarga d, IResolutorCodigos r)
     {
         var referencia = d.Referencia?.Trim();
         if (string.IsNullOrEmpty(referencia))
@@ -357,13 +357,13 @@ public static class MapeoMaestros
         };
     }
 
-    private static (Guid? Departamento, Guid? Articulo, Guid? Categoria, Guid? Marca) AlcanceTope(TopeDescuentoCarga d, IResolutorCodigos r) =>
+    private static (int? Departamento, int? Articulo, int? Categoria, int? Marca) AlcanceTope(TopeDescuentoCarga d, IResolutorCodigos r) =>
         (d.DepartamentoCodigo is { } departamento ? r.Departamento(departamento) : null,
          string.IsNullOrWhiteSpace(d.ArticuloCodigo) ? null : r.Articulo(d.ArticuloCodigo),
          d.CategoriaCodigo is { } categoria ? r.Categoria(categoria) : null,
          d.MarcaCodigo is { } marca ? r.Marca(marca) : null);
 
-    private static Guid? BancoDe(DescuentoTarjetaCarga d, IResolutorCodigos r) => string.IsNullOrWhiteSpace(d.BancoCodigo) ? null : r.Banco(d.BancoCodigo);
+    private static int? BancoDe(DescuentoTarjetaCarga d, IResolutorCodigos r) => string.IsNullOrWhiteSpace(d.BancoCodigo) ? null : r.Banco(d.BancoCodigo);
 
     private static T Activar<T>(T entidad, bool activa, Action<T> activar, Action<T> desactivar)
     {

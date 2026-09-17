@@ -11,7 +11,7 @@ public sealed class Caja : Entidad
     {
     }
 
-    public Guid SucursalId { get; private set; }
+    public int SucursalId { get; private set; }
 
     /// <summary>Código de la caja (1 a 99), único dentro de su sucursal; en los números de documento va con dos dígitos (ej. 01).</summary>
     public int Codigo { get; private set; }
@@ -24,10 +24,9 @@ public sealed class Caja : Entidad
 
     public DateTimeOffset? VersionReportadaEn { get; private set; }
 
-    public static Caja Crear(Guid sucursalId, int codigo, string nombre, Guid? id = null) =>
+    public static Caja Crear(int sucursalId, int codigo, string nombre) =>
         new()
         {
-            Id = id ?? Guid.CreateVersion7(),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             Codigo = Validar.Codigo(codigo, "Código de caja", CodigosCatalogo.MaximoSucursalCaja),
             Nombre = Validar.Texto(nombre, "Nombre de caja", LargoMaximoNombre),

@@ -11,7 +11,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
 {
     private const string TipoEntidad = "Caja";
 
-    public async Task<CredencialEmitida?> EmitirCredencialAsync(Guid cajaId, UsuarioAuditoria emisor, CancellationToken cancelacion = default)
+    public async Task<CredencialEmitida?> EmitirCredencialAsync(int cajaId, UsuarioAuditoria emisor, CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(emisor);
 
@@ -40,7 +40,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         return new CredencialEmitida(caja.Id, sucursalCodigo, caja.Codigo, secreto, ahora);
     }
 
-    public async Task<bool> RevocarCredencialAsync(Guid cajaId, string motivo, UsuarioAuditoria usuario, CancellationToken cancelacion = default)
+    public async Task<bool> RevocarCredencialAsync(int cajaId, string motivo, UsuarioAuditoria usuario, CancellationToken cancelacion = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(motivo);
         ArgumentNullException.ThrowIfNull(usuario);
@@ -62,7 +62,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
             .Where(c => c.Codigo == cajaCodigo && contexto.Sucursales.Any(s => s.Id == c.SucursalId && s.Codigo == sucursalCodigo))
             .Select(c => c.Id)
             .FirstOrDefaultAsync(cancelacion);
-        var credencial = cajaId == Guid.Empty || string.IsNullOrWhiteSpace(secreto)
+        var credencial = cajaId <= 0 || string.IsNullOrWhiteSpace(secreto)
             ? null
             : await contexto.CredencialesDispositivo.SingleOrDefaultAsync(c => c.CajaId == cajaId && c.RevocadaEn == null, cancelacion);
 
@@ -88,13 +88,13 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         return ResultadoDispositivo.Exito(new DispositivoAutenticado(cajaId, datos.Codigo, datos.Nombre, datos.SucursalId, datos.SucursalCodigo, credencial.Id));
     }
 
-    public Task<bool> EsCredencialActivaAsync(Guid credencialId, Guid cajaId, CancellationToken cancelacion = default) =>
+    public Task<bool> EsCredencialActivaAsync(int credencialId, int cajaId, CancellationToken cancelacion = default) =>
         contexto.CredencialesDispositivo.AnyAsync(c => c.Id == credencialId && c.CajaId == cajaId && c.RevocadaEn == null
             && contexto.Cajas.Any(caja => caja.Id == cajaId && caja.Habilitada), cancelacion);
 
-    private async Task<ResultadoDispositivo> RechazarAsync(Guid cajaId, MotivoRechazoDispositivo motivo, OrigenSolicitud origen, CancellationToken cancelacion)
+    private async Task<ResultadoDispositivo> RechazarAsync(int cajaId, MotivoRechazoDispositivo motivo, OrigenSolicitud origen, CancellationToken cancelacion)
     {
-        auditoria.Registrar(new EntradaAuditoria("Dispositivos.AutenticacionRechazada", TipoEntidad, cajaId == Guid.Empty ? null : cajaId.ToString(),
+        auditoria.Registrar(new EntradaAuditoria("Dispositivos.AutenticacionRechazada", TipoEntidad, cajaId <= 0 ? null : cajaId.ToString(),
             new { Motivo = motivo.ToString(), origen.DireccionIp, origen.AgenteUsuario }));
         await contexto.SaveChangesAsync(cancelacion);
         return ResultadoDispositivo.Rechazo(motivo);

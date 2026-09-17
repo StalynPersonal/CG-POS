@@ -17,8 +17,8 @@ public static class TiposEcfCaja
 
 /// <param name="UltimoRecibido">Última secuencia de ese tipo que el Central recibió de la caja dentro del rango; nulo si ninguna.</param>
 public sealed record DatosSecuenciaEcfCentral(
-    Guid Id,
-    Guid CajaId,
+    int Id,
+    int CajaId,
     string CajaCodigo,
     string SucursalCodigo,
     TipoComprobante TipoComprobante,
@@ -28,33 +28,33 @@ public sealed record DatosSecuenciaEcfCentral(
     bool Activa,
     long? UltimoRecibido);
 
-public sealed record SolicitudSecuenciaEcf(Guid CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn);
+public sealed record SolicitudSecuenciaEcf(int CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn);
 
 /// <summary>Un rango solo se amplía, se prorroga o se desactiva: la caja, el tipo y el inicio no cambian.</summary>
 public sealed record SolicitudActualizarSecuenciaEcf(long Hasta, DateOnly VenceEn, bool Activa);
 
-public sealed record DatosRolCaja(Guid Id, string Codigo, string Nombre, int Nivel, IReadOnlyList<string> Permisos, bool Activo, int Usuarios);
+public sealed record DatosRolCaja(int Id, string Codigo, string Nombre, int Nivel, IReadOnlyList<string> Permisos, bool Activo, int Usuarios);
 
 /// <param name="Codigo">No cambia después de crear el rol.</param>
 /// <param name="Permisos">Códigos del catálogo de permisos de la caja.</param>
 public sealed record SolicitudRolCaja(string Codigo, string Nombre, int Nivel, IReadOnlyList<string> Permisos, bool Activo = true);
 
-public sealed record DatosUsuarioCaja(Guid Id, string Codigo, string Nombre, Guid RolId, string RolNombre, IReadOnlyList<Guid> Cajas, bool TieneClave, bool Activo);
+public sealed record DatosUsuarioCaja(int Id, string Codigo, string Nombre, int RolId, string RolNombre, IReadOnlyList<int> Cajas, bool TieneClave, bool Activo);
 
 /// <param name="Codigo">No cambia después de crear el usuario.</param>
 /// <param name="Clave">Clave nueva. Obligatoria al crear; vacía conserva la actual.</param>
 public sealed record SolicitudUsuarioCaja(
     string Codigo,
     string Nombre,
-    Guid RolId,
-    IReadOnlyList<Guid> Cajas,
+    int RolId,
+    IReadOnlyList<int> Cajas,
     string? Clave = null,
     bool Activo = true);
 
 /// <summary>Anulación de un rango de e-NCF no utilizados de una caja, informada a la DGII (ANECF).</summary>
 public sealed record DatosAnulacionEcf(
-    Guid Id,
-    Guid SecuenciaId,
+    int Id,
+    int SecuenciaId,
     string CajaCodigo,
     string SucursalCodigo,
     TipoComprobante TipoComprobante,

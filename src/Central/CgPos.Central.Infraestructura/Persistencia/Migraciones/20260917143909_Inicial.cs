@@ -11,6 +11,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateSequence(
+                name: "EntityFrameworkHiLoSequence",
+                incrementBy: 10);
+
             migrationBuilder.CreateTable(
                 name: "ArchivosArranqueAplicados",
                 columns: table => new
@@ -28,16 +32,16 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Auditoria",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     OcurridoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     Accion = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     TipoEntidad = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     EntidadId = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
                     Detalle = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Motivo = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    UsuarioId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    UsuarioId = table.Column<int>(type: "int", nullable: true),
                     UsuarioNombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
-                    AutorizadoPorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    AutorizadoPorId = table.Column<int>(type: "int", nullable: true),
                     AutorizadoPorNombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true)
                 },
                 constraints: table =>
@@ -49,7 +53,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Bancos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     RutaLogo = table.Column<string>(type: "nvarchar(260)", maxLength: 260, nullable: true),
@@ -67,7 +71,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Clientes",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     TipoDocumento = table.Column<int>(type: "int", nullable: false),
                     Documento = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
@@ -92,7 +96,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Denominaciones",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
                     Valor = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
@@ -110,7 +114,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Departamentos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     PermiteDescuentoManual = table.Column<bool>(type: "bit", nullable: false),
@@ -129,7 +133,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Empresas",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Rnc = table.Column<string>(type: "char(9)", unicode: false, fixedLength: true, maxLength: 9, nullable: false),
                     RazonSocial = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     NombreComercial = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
@@ -146,7 +150,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "FormasPago",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
@@ -171,7 +175,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Impuestos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Porcentaje = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
@@ -190,7 +194,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Marcas",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Activa = table.Column<bool>(type: "bit", nullable: false),
@@ -207,7 +211,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Monedas",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Simbolo = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
@@ -225,7 +229,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "MotivosDescuento",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
@@ -242,7 +246,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "MotivosDevolucion",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
@@ -259,7 +263,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "NivelesFidelidad",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: false),
                     Orden = table.Column<int>(type: "int", nullable: false),
@@ -278,7 +282,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Promociones",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
@@ -312,11 +316,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ReglasAcumulacion",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
-                    ReferenciaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReferenciaId = table.Column<int>(type: "int", nullable: true),
                     DiaSemana = table.Column<int>(type: "int", nullable: true),
                     MontoBase = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Puntos = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
@@ -336,7 +340,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "RolesCaja",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Nivel = table.Column<int>(type: "int", nullable: false),
@@ -354,7 +358,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "RolesCentral",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false)
@@ -368,7 +372,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "SaldosPuntos",
                 columns: table => new
                 {
-                    MiembroId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    MiembroId = table.Column<int>(type: "int", nullable: false),
                     Cedula = table.Column<string>(type: "char(11)", unicode: false, fixedLength: true, maxLength: 11, nullable: false),
                     Puntos = table.Column<int>(type: "int", nullable: false),
                     PuntosPorVencer = table.Column<int>(type: "int", nullable: false),
@@ -385,7 +389,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "TasasCambio",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Moneda = table.Column<string>(type: "varchar(3)", unicode: false, maxLength: 3, nullable: false),
                     Tasa = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     VigenteDesde = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -402,7 +406,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "TiposTarjeta",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
@@ -419,7 +423,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "UnidadesMedida",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Abreviatura = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
@@ -438,7 +442,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "DescuentosTarjeta",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "varchar(30)", unicode: false, maxLength: 30, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Bines = table.Column<string>(type: "varchar(400)", unicode: false, maxLength: 400, nullable: false),
@@ -446,7 +450,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                     Valor = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     MontoMinimo = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
                     MontoMaximo = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
-                    BancoId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    BancoId = table.Column<int>(type: "int", nullable: true),
                     VigenteDesde = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     VigenteHasta = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     Dias = table.Column<int>(type: "int", nullable: false),
@@ -470,8 +474,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "DireccionesCliente",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ClienteId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    ClienteId = table.Column<int>(type: "int", nullable: false),
                     Alias = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Direccion = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
                     Sector = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
@@ -495,10 +499,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Categorias",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    DepartamentoId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    DepartamentoId = table.Column<int>(type: "int", nullable: false),
                     Activa = table.Column<bool>(type: "bit", nullable: false),
                     ModificadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     ModificadoPor = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
@@ -519,8 +523,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Sucursales",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    EmpresaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    EmpresaId = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Direccion = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
@@ -543,12 +547,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "MiembrosFidelidad",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Cedula = table.Column<string>(type: "char(11)", unicode: false, fixedLength: true, maxLength: 11, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Telefono = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     Correo = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
-                    NivelId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    NivelId = table.Column<int>(type: "int", nullable: true),
                     SaldoSincronizado = table.Column<int>(type: "int", nullable: false),
                     SaldoSincronizadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: true),
                     PuntosPorVencer = table.Column<int>(type: "int", nullable: false),
@@ -575,7 +579,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "RolesCajaPermisos",
                 columns: table => new
                 {
-                    RolId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RolId = table.Column<int>(type: "int", nullable: false),
                     PermisoCodigo = table.Column<string>(type: "varchar(100)", unicode: false, maxLength: 100, nullable: false)
                 },
                 constraints: table =>
@@ -593,10 +597,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "UsuariosCaja",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    RolId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RolId = table.Column<int>(type: "int", nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
                     ClaveHash = table.Column<string>(type: "varchar(256)", unicode: false, maxLength: 256, nullable: true),
                     ModificadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -618,7 +622,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "RolesCentralPermisos",
                 columns: table => new
                 {
-                    RolId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RolId = table.Column<int>(type: "int", nullable: false),
                     PermisoCodigo = table.Column<string>(type: "varchar(100)", unicode: false, maxLength: 100, nullable: false)
                 },
                 constraints: table =>
@@ -636,11 +640,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "UsuariosCentral",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Correo = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
-                    RolId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RolId = table.Column<int>(type: "int", nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
                     ContrasenaHash = table.Column<string>(type: "varchar(256)", unicode: false, maxLength: 256, nullable: false),
                     DebeCambiarContrasena = table.Column<bool>(type: "bit", nullable: false),
@@ -664,15 +668,15 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Articulos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Descripcion = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Referencia = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    DepartamentoId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CategoriaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    MarcaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    UnidadMedidaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ImpuestoId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    DepartamentoId = table.Column<int>(type: "int", nullable: false),
+                    CategoriaId = table.Column<int>(type: "int", nullable: true),
+                    MarcaId = table.Column<int>(type: "int", nullable: true),
+                    UnidadMedidaId = table.Column<int>(type: "int", nullable: false),
+                    ImpuestoId = table.Column<int>(type: "int", nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
                     Costo = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
                     PrecioMinimo = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
@@ -729,10 +733,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Almacenes",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
                     Direccion = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
                     ModificadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -754,8 +758,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Cajas",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Habilitada = table.Column<bool>(type: "bit", nullable: false),
@@ -779,7 +783,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UsuarioId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UsuarioId = table.Column<int>(type: "int", nullable: false),
                     Familia = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TokenHash = table.Column<string>(type: "char(64)", unicode: false, fixedLength: true, maxLength: 64, nullable: false),
                     CreadaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -807,7 +811,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "CodigosArticulo",
                 columns: table => new
                 {
-                    ArticuloId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ArticuloId = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false)
                 },
@@ -826,13 +830,13 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "TopesDescuento",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Codigo = table.Column<int>(type: "int", nullable: false),
                     Nivel = table.Column<int>(type: "int", nullable: false),
-                    DepartamentoId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    CategoriaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    MarcaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    ArticuloId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    DepartamentoId = table.Column<int>(type: "int", nullable: true),
+                    CategoriaId = table.Column<int>(type: "int", nullable: true),
+                    MarcaId = table.Column<int>(type: "int", nullable: true),
+                    ArticuloId = table.Column<int>(type: "int", nullable: true),
                     PorcentajeMaximo = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true),
                     MontoMaximo = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     ModificadoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -872,9 +876,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "AnulacionesEcf",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SecuenciaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    SecuenciaId = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     TipoComprobante = table.Column<int>(type: "int", nullable: false),
                     Desde = table.Column<long>(type: "bigint", nullable: false),
                     Hasta = table.Column<long>(type: "bigint", nullable: false),
@@ -900,11 +904,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "CierresTurno",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     TurnoNumero = table.Column<long>(type: "bigint", nullable: false),
                     Numero = table.Column<int>(type: "int", nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     FechaOperacion = table.Column<DateOnly>(type: "date", nullable: false),
                     UsuarioNombre = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
@@ -944,9 +948,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ConflictosSincronizacion",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: true),
                     MensajeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TipoMensaje = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Tipo = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
@@ -973,10 +977,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ConsumosNotaCredito",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     NotaCreditoNumero = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     VentaNumero = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     Monto = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     Fecha = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     RegistradoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false)
@@ -996,8 +1000,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "CredencialesDispositivo",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     SecretoHash = table.Column<string>(type: "char(64)", unicode: false, fixedLength: true, maxLength: 64, nullable: false),
                     EmitidaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     EmitidaPor = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
@@ -1021,9 +1025,10 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "DocumentosRecibidos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    MensajeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
                     TipoMensaje = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Referencia = table.Column<string>(type: "varchar(40)", unicode: false, maxLength: 40, nullable: false),
                     Contenido = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -1054,7 +1059,7 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "EstadosSincronizacionCaja",
                 columns: table => new
                 {
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     UltimaRecepcionEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: true),
                     MensajesRecibidos = table.Column<long>(type: "bigint", nullable: false),
                     Duplicados = table.Column<long>(type: "bigint", nullable: false),
@@ -1080,14 +1085,14 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "MovimientosPuntos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Cedula = table.Column<string>(type: "char(11)", unicode: false, fixedLength: true, maxLength: 11, nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
                     Origen = table.Column<int>(type: "int", nullable: false),
                     Puntos = table.Column<int>(type: "int", nullable: false),
                     Documento = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    CajaId = table.Column<int>(type: "int", nullable: true),
+                    SucursalId = table.Column<int>(type: "int", nullable: true),
                     Fecha = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
                     VenceEn = table.Column<DateOnly>(type: "date", nullable: true),
                     RegistradoEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -1115,11 +1120,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "NotasCredito",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Numero = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     Encf = table.Column<string>(type: "char(13)", unicode: false, fixedLength: true, maxLength: 13, nullable: true),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
                     ClienteDocumento = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     ClienteNombre = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
@@ -1153,12 +1158,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "Parametros",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Clave = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Valor = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     Descripcion = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    SucursalId = table.Column<int>(type: "int", nullable: true),
+                    CajaId = table.Column<int>(type: "int", nullable: true),
                     Version = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
                 },
                 constraints: table =>
@@ -1183,11 +1188,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "PendientesEntrega",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Numero = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     VentaNumero = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     Metodo = table.Column<int>(type: "int", nullable: false),
                     Estado = table.Column<int>(type: "int", nullable: false),
                     AlmacenNombre = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
@@ -1226,8 +1231,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "SecuenciasEcf",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     TipoComprobante = table.Column<int>(type: "int", nullable: false),
                     Desde = table.Column<long>(type: "bigint", nullable: false),
                     Hasta = table.Column<long>(type: "bigint", nullable: false),
@@ -1253,8 +1258,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "UsuariosCajaCajas",
                 columns: table => new
                 {
-                    UsuarioId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    UsuarioId = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1277,11 +1282,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "VentasCentral",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
                     Numero = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     TurnoNumero = table.Column<long>(type: "bigint", nullable: true),
                     UsuarioNombre = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Fecha = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -1322,8 +1327,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "CierresFormaPago",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CierreId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    CierreId = table.Column<int>(type: "int", nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
                     Nombre = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
@@ -1347,11 +1352,11 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ComprobantesRecibidos",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DocumentoId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    DocumentoId = table.Column<int>(type: "int", nullable: false),
                     Referencia = table.Column<string>(type: "varchar(40)", unicode: false, maxLength: 40, nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SucursalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
+                    SucursalId = table.Column<int>(type: "int", nullable: false),
                     Encf = table.Column<string>(type: "char(13)", unicode: false, fixedLength: true, maxLength: 13, nullable: false),
                     TipoComprobante = table.Column<int>(type: "int", nullable: false),
                     XmlFirmado = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -1383,9 +1388,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ReservasNotaCredito",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    NotaCreditoId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CajaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    NotaCreditoId = table.Column<int>(type: "int", nullable: false),
+                    CajaId = table.Column<int>(type: "int", nullable: false),
                     VentaNumero = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     Monto = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     CreadaEn = table.Column<DateTimeOffset>(type: "datetimeoffset(3)", precision: 3, nullable: false),
@@ -1414,8 +1419,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "ImpuestosVenta",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ComprobanteId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    ComprobanteId = table.Column<int>(type: "int", nullable: false),
                     Porcentaje = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     Base = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     Impuesto = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false)
@@ -1435,8 +1440,8 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "PagosVenta",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ComprobanteId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    ComprobanteId = table.Column<int>(type: "int", nullable: false),
                     Tipo = table.Column<int>(type: "int", nullable: false),
                     FormaPagoNombre = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Moneda = table.Column<string>(type: "char(3)", unicode: false, fixedLength: true, maxLength: 3, nullable: false),
@@ -1714,6 +1719,12 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
                 name: "IX_DocumentosRecibidos_CajaId_RecibidoEn",
                 table: "DocumentosRecibidos",
                 columns: new[] { "CajaId", "RecibidoEn" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DocumentosRecibidos_MensajeId",
+                table: "DocumentosRecibidos",
+                column: "MensajeId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentosRecibidos_Referencia",
@@ -2321,6 +2332,9 @@ namespace CgPos.Central.Infraestructura.Persistencia.Migraciones
 
             migrationBuilder.DropTable(
                 name: "Empresas");
+
+            migrationBuilder.DropSequence(
+                name: "EntityFrameworkHiLoSequence");
         }
     }
 }

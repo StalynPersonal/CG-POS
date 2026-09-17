@@ -16,16 +16,16 @@ public interface IServicioMonitorCentral
     /// <param name="buscar">Parte del e-NCF o el trackId exacto.</param>
     /// <param name="soloConFallo">Solo pendientes cuyo envío ya falló.</param>
     /// <param name="sucursalId">Solo los comprobantes de las cajas de esa sucursal.</param>
-    Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
+    Task<PaginaComprobantesDgii> BuscarComprobantesAsync(EstadoEnvioDgii? estado, int? sucursalId, int? cajaId, string? buscar, bool soloConFallo, int pagina, int tamano,
         CancellationToken cancelacion = default);
 
     /// <returns>El XML firmado; nulo si el comprobante no existe.</returns>
-    Task<string?> ObtenerXmlAsync(Guid comprobanteId, CancellationToken cancelacion = default);
+    Task<string?> ObtenerXmlAsync(int comprobanteId, CancellationToken cancelacion = default);
 
     /// <summary>Vuelve a poner en cola de envío un e-CF rechazado o pendiente, ahora mismo (reenvío dirigido).</summary>
-    Task<ResultadoAdministracion> ReenviarAsync(Guid comprobanteId, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ReenviarAsync(int comprobanteId, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosConflictoSincronizacion>> ListarConflictosAsync(bool abiertos, CancellationToken cancelacion = default);
 
-    Task<ResultadoAdministracion> ResolverConflictoAsync(Guid conflictoId, string resolucion, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+    Task<ResultadoAdministracion> ResolverConflictoAsync(int conflictoId, string resolucion, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

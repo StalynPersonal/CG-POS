@@ -20,7 +20,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
     public async Task Bandeja_de_salida_y_auditoria_se_guardan_juntos_en_un_solo_SaveChanges()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var documentoId = Guid.CreateVersion7();
+        var documentoId = Ids.Siguiente();
         Guid mensajeId;
 
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
@@ -33,7 +33,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
             auditoria.Registrar(new EntradaAuditoria(
                 "Prueba.DocumentoEmitido", TipoDocumento, documentoId.ToString(),
                 Detalle: new { Total = 850.00m },
-                Usuario: new UsuarioAuditoria(Guid.CreateVersion7(), "Cajero Prueba")));
+                Usuario: new UsuarioAuditoria(Ids.Siguiente(), "Cajero Prueba")));
 
             // Encolar y registrar no guardan por sí mismos.
             Assert.Equal(0, await contexto.BandejaSalida.CountAsync(m => m.Referencia == documentoId.ToString("N")));
@@ -61,7 +61,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
     public async Task Si_SaveChanges_falla_no_queda_ni_el_mensaje_ni_la_auditoria()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var documentoId = Guid.CreateVersion7();
+        var documentoId = Ids.Siguiente();
 
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
         {
@@ -84,7 +84,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
     public async Task Transaccion_explicita_revierte_lo_ya_guardado_si_un_paso_posterior_falla()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var documentoId = Guid.CreateVersion7();
+        var documentoId = Ids.Siguiente();
 
         await using (var ambito = baseDatos.Servicios!.CreateAsyncScope())
         {
@@ -110,7 +110,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
     public async Task Contenido_grande_se_guarda_completo()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var documentoId = Guid.CreateVersion7();
+        var documentoId = Ids.Siguiente();
         // Una factura con muchas líneas genera un JSON muy superior a 4,000 caracteres.
         var lineas = Enumerable.Range(1, 400).Select(i => new { Linea = i, Codigo = $"7891114{i:000000}", Descripcion = $"Artículo de prueba número {i}", Total = 720.34m }).ToList();
         Guid mensajeId;
@@ -144,7 +144,7 @@ public class BandejaSalidaAuditoriaTransaccionPruebas(BaseDatosPruebas baseDatos
         }
     }
 
-    private async Task AfirmarQueNoQuedoNadaAsync(Guid documentoId)
+    private async Task AfirmarQueNoQuedoNadaAsync(int documentoId)
     {
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();

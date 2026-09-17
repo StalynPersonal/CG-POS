@@ -18,21 +18,21 @@ public static class RutasApiMonitor
 
         grupo.MapGet("/", async (IServicioMonitorCentral servicio, CancellationToken cancelacion) => Results.Ok(await servicio.ObtenerAsync(cancelacion)));
 
-        grupo.MapGet("/comprobantes", async (EstadoEnvioDgii? estado, Guid? sucursalId, Guid? cajaId, string? buscar, bool? soloConFallo, int? pagina, int? tamano,
+        grupo.MapGet("/comprobantes", async (EstadoEnvioDgii? estado, int? sucursalId, int? cajaId, string? buscar, bool? soloConFallo, int? pagina, int? tamano,
                 IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.BuscarComprobantesAsync(estado, sucursalId, cajaId, buscar, soloConFallo ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
 
-        grupo.MapGet("/comprobantes/{comprobanteId:guid}/xml", async (Guid comprobanteId, IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
+        grupo.MapGet("/comprobantes/{comprobanteId:int}/xml", async (int comprobanteId, IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             await servicio.ObtenerXmlAsync(comprobanteId, cancelacion) is { } xml ? Results.Text(xml, "application/xml", Encoding.UTF8) : Results.NotFound());
 
-        grupo.MapPost("/comprobantes/{comprobanteId:guid}/reenviar", async (Guid comprobanteId, ClaimsPrincipal usuario, IServicioMonitorCentral servicio,
+        grupo.MapPost("/comprobantes/{comprobanteId:int}/reenviar", async (int comprobanteId, ClaimsPrincipal usuario, IServicioMonitorCentral servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.ReenviarAsync(comprobanteId, Actor(usuario), cancelacion)));
 
         grupo.MapGet("/conflictos", async (bool? abiertos, IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarConflictosAsync(abiertos ?? true, cancelacion)));
 
-        grupo.MapPost("/conflictos/{conflictoId:guid}/resolver", async (Guid conflictoId, SolicitudResolverConflicto solicitud, ClaimsPrincipal usuario,
+        grupo.MapPost("/conflictos/{conflictoId:int}/resolver", async (int conflictoId, SolicitudResolverConflicto solicitud, ClaimsPrincipal usuario,
                 IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             Responder(await servicio.ResolverConflictoAsync(conflictoId, solicitud.Resolucion, Actor(usuario), cancelacion)));
 

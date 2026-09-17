@@ -4,7 +4,7 @@ namespace CgPos.Contratos.Ventas;
 
 public sealed record DatosPagoVenta(
     int Numero,
-    Guid FormaPagoId,
+    int FormaPagoId,
     string FormaPagoCodigo,
     string FormaPagoNombre,
     TipoFormaPago Tipo,
@@ -22,14 +22,14 @@ public sealed record DatosPagoVenta(
 /// <param name="OperacionTerminalId">Operación aprobada por el terminal de pago (tarjeta integrada).</param>
 /// <param name="AprobacionManual">Tarjeta aprobada a mano por caída de la pasarela; requiere permiso (RF-213).</param>
 public sealed record SolicitudPago(
-    Guid FormaPagoId,
+    int FormaPagoId,
     decimal MontoRecibido,
     string? Referencia = null,
-    Guid? BancoId = null,
-    Guid? TipoTarjetaId = null,
+    int? BancoId = null,
+    int? TipoTarjetaId = null,
     string? UltimosDigitos = null,
     bool AprobacionManual = false,
-    Guid? OperacionTerminalId = null);
+    int? OperacionTerminalId = null);
 
 /// <param name="AutorizacionId">Autorización para pagos con aprobación manual de tarjeta.</param>
 public sealed record SolicitudCobro(IReadOnlyList<SolicitudPago> Pagos, Guid? AutorizacionId = null);
@@ -70,7 +70,7 @@ public sealed record RespuestaOperacionTerminal(CodigoResultadoVenta Resultado, 
 public sealed record RespuestaImpresion(bool Correcto, string? Mensaje);
 
 public sealed record DatosOperacionTerminal(
-    Guid Id,
+    int Id,
     bool Aprobada,
     bool SinConexion,
     decimal Monto,

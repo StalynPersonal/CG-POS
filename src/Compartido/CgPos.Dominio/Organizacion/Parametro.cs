@@ -21,20 +21,19 @@ public sealed class Parametro : Entidad
 
     public string Valor { get; private set; } = string.Empty;
     public string? Descripcion { get; private set; }
-    public Guid? SucursalId { get; private set; }
-    public Guid? CajaId { get; private set; }
+    public int? SucursalId { get; private set; }
+    public int? CajaId { get; private set; }
 
     public static Parametro Crear(string clave, string valor, string? descripcion = null,
-        Guid? sucursalId = null, Guid? cajaId = null, Guid? id = null)
+        int? sucursalId = null, int? cajaId = null)
     {
         if (sucursalId is not null && cajaId is not null)
             throw new ArgumentException("Un parámetro aplica a una sucursal o a una caja, no a ambas.");
-        if (sucursalId == Guid.Empty || cajaId == Guid.Empty)
+        if (sucursalId == 0 || cajaId == 0)
             throw new ArgumentException("El ámbito del parámetro no puede ser un Id vacío.");
 
         var parametro = new Parametro
         {
-            Id = id ?? Guid.CreateVersion7(),
             Clave = Validar.Texto(clave, "Clave", LargoMaximoClave),
             Descripcion = Validar.TextoOpcional(descripcion, "Descripción", LargoMaximoDescripcion),
             SucursalId = sucursalId,
