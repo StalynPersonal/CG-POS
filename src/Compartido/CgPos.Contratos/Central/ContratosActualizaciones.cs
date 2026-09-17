@@ -11,6 +11,7 @@ public sealed record SolicitudVersionCaja(string Version);
 public sealed record DatosVersionCaja(
     Guid CajaId,
     string SucursalCodigo,
+    string SucursalNombre,
     string CajaCodigo,
     string CajaNombre,
     bool Habilitada,

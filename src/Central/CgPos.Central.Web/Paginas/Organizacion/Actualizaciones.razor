@@ -38,7 +38,7 @@ else
             <MudTh>Estado</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Sucursal">@context.SucursalCodigo</MudTd>
+            <MudTd DataLabel="Sucursal">@context.SucursalCodigo<div class="cg-central__detalle">@context.SucursalNombre</div></MudTd>
             <MudTd DataLabel="Caja">@context.CajaCodigo<div class="cg-central__detalle">@context.CajaNombre</div></MudTd>
             <MudTd DataLabel="Versión instalada">@(context.Version ?? "Sin reportar")</MudTd>
             <MudTd DataLabel="Reportada">@(context.ReportadaEn?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>

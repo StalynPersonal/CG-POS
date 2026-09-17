@@ -44,11 +44,16 @@ internal sealed class ServicioActualizacionesCaja(ContextoDatosCentral contexto,
     public async Task<IReadOnlyList<DatosVersionCaja>> VersionesAsync(CancellationToken cancelacion = default)
     {
         var publicada = await parametros.ObtenerAsync(ClavesParametrosCentral.ActualizacionesVersionPublicada, cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
-        var cajas = await contexto.Cajas.AsNoTracking().OrderBy(c => c.Codigo).ToListAsync(cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, cancelacion);
+        var cajas = await contexto.Cajas.AsNoTracking().ToListAsync(cancelacion);
 
-        return cajas.Select(c => new DatosVersionCaja(c.Id, sucursales.GetValueOrDefault(c.SucursalId) ?? string.Empty, c.Codigo, c.Nombre, c.Habilitada,
-            c.VersionAgente, c.VersionReportadaEn, publicada is { Length: > 0 } && string.Equals(c.VersionAgente, publicada, StringComparison.Ordinal))).ToList();
+        return cajas
+            .Select(c => new DatosVersionCaja(c.Id, sucursales.GetValueOrDefault(c.SucursalId)?.Codigo ?? string.Empty,
+                sucursales.GetValueOrDefault(c.SucursalId)?.Nombre ?? string.Empty, c.Codigo, c.Nombre, c.Habilitada, c.VersionAgente, c.VersionReportadaEn,
+                publicada is { Length: > 0 } && string.Equals(c.VersionAgente, publicada, StringComparison.Ordinal)))
+            .OrderBy(c => c.SucursalCodigo, StringComparer.Ordinal)
+            .ThenBy(c => c.CajaCodigo, StringComparer.Ordinal)
+            .ToList();
     }
 
     /// <summary>Paquete publicado en la carpeta configurada; nulo si falta la configuración o el archivo.</summary>
