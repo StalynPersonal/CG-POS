@@ -31,7 +31,7 @@ public enum TipoMaestro
     /// <summary>Rol de los usuarios de caja (con su nivel y permisos del catálogo de la caja).</summary>
     RolCaja,
 
-    /// <summary>Usuario de caja con el hash de su PIN y carné y las cajas que opera.</summary>
+    /// <summary>Usuario de caja con el hash de su clave y las cajas que opera.</summary>
     UsuarioCaja,
 
     /// <summary>Categoría de artículos dentro de un departamento.</summary>

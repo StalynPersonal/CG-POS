@@ -44,20 +44,16 @@ public sealed record RolCarga(
     IReadOnlyList<string>? Permisos = null,
     bool Activo = true);
 
-/// <param name="Pin">PIN en claro. Solo para archivos de desarrollo: se guarda como hash.</param>
-/// <param name="PinHash">Hash del PIN ya calculado (lo que envía el Central).</param>
-/// <param name="CredencialBarras">Código de barras del carné en claro. Solo para desarrollo.</param>
-/// <param name="CredencialBarrasHash">SHA-256 hex del código de barras del carné.</param>
+/// <param name="Clave">Clave en claro: solo en archivos de desarrollo o al asignarla en el Central; se guarda como hash y nunca baja a la caja.</param>
+/// <param name="ClaveHash">Hash de la clave ya calculado (lo que envía el Central).</param>
 public sealed record UsuarioCarga(
     Guid Id,
     string Codigo,
     string Nombre,
     Guid RolId,
     IReadOnlyList<Guid>? Cajas = null,
-    string? Pin = null,
-    string? PinHash = null,
-    string? CredencialBarras = null,
-    string? CredencialBarrasHash = null,
+    string? Clave = null,
+    string? ClaveHash = null,
     bool Activo = true);
 
 public sealed record ParametroCarga(

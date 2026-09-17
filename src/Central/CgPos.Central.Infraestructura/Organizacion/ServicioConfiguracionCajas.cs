@@ -13,7 +13,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Organizacion;
 
-internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, IPublicadorMaestros publicador) : IServicioConfiguracionCajas
+internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, IPublicadorMaestros publicador, IParametrosCentral parametros)
+    : IServicioConfiguracionCajas
 {
     public async Task<IReadOnlyList<DatosSecuenciaEcfCentral>> ListarSecuenciasAsync(CancellationToken cancelacion = default)
     {
@@ -89,7 +90,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
 
         return (await CargarAsync<UsuarioCarga>(TipoMaestro.UsuarioCaja, cancelacion))
             .Select(u => new DatosUsuarioCaja(u.Id, u.Codigo, u.Nombre, u.RolId, roles.GetValueOrDefault(u.RolId) ?? string.Empty, u.Cajas ?? [],
-                u.PinHash is not null, u.CredencialBarrasHash is not null, u.Activo))
+                u.ClaveHash is not null, u.Activo))
             .OrderBy(u => u.Codigo, StringComparer.Ordinal)
             .ToList();
     }
@@ -100,8 +101,13 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         if (usuarioId is { } id && (anterior = await BuscarAsync<UsuarioCarga>(TipoMaestro.UsuarioCaja, id, cancelacion)) is null)
             return ResultadoAdministracion.Inexistente("El usuario de caja no existe.");
 
-        var pinNuevo = string.IsNullOrWhiteSpace(solicitud.Pin) ? null : solicitud.Pin.Trim();
-        var carneNuevo = string.IsNullOrWhiteSpace(solicitud.Carne) ? null : solicitud.Carne.Trim();
+        var claveNueva = string.IsNullOrEmpty(solicitud.Clave) ? null : solicitud.Clave;
+        if (claveNueva is not null)
+        {
+            var largoMinimo = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.LargoMinimoContrasena, cancelacion);
+            if (claveNueva.Length < largoMinimo)
+                return ResultadoAdministracion.Error($"La clave debe tener al menos {largoMinimo} caracteres.");
+        }
 
         var usuario = new UsuarioCarga(
             usuarioId ?? Guid.CreateVersion7(),
@@ -109,10 +115,8 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
             solicitud.Nombre ?? string.Empty,
             solicitud.RolId,
             solicitud.Cajas ?? [],
-            Pin: pinNuevo,
-            PinHash: pinNuevo is null ? anterior?.PinHash : null,
-            CredencialBarras: carneNuevo,
-            CredencialBarrasHash: carneNuevo is not null || solicitud.QuitarCarne ? null : anterior?.CredencialBarrasHash,
+            Clave: claveNueva,
+            ClaveHash: claveNueva is null ? anterior?.ClaveHash : null,
             Activo: solicitud.Activo);
 
         return await PublicarAsync(() => publicador.PublicarSeguridadCajasAsync([], [usuario], [], actor.Nombre, cancelacion), usuario.Id);

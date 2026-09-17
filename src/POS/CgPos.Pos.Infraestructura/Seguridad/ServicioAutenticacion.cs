@@ -57,13 +57,13 @@ internal sealed class ServicioAutenticacion(
             _ => "Seguridad.IngresoRechazado",
         };
 
-        var codigoIntentado = usuario is null && credencial is CredencialUsuario.Pin pin ? pin.CodigoUsuario?.Trim() : null;
+        var codigoIntentado = usuario is null ? credencial.CodigoUsuario?.Trim() : null;
 
         auditoria.Registrar(new EntradaAuditoria(
             accion,
             "Usuario",
             usuario?.Id.ToString(),
-            Detalle: new { credencial.Metodo, Motivo = resultado.Motivo?.ToString(), Caja = caja.Codigo, CodigoIntentado = codigoIntentado },
+            Detalle: new { Motivo = resultado.Motivo?.ToString(), Caja = caja.Codigo, CodigoIntentado = codigoIntentado },
             Usuario: usuario is null ? null : new UsuarioAuditoria(usuario.Id, usuario.Nombre)));
     }
 

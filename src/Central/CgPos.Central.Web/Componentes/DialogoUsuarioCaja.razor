@@ -1,4 +1,4 @@
-@* Alta o edición de un usuario de caja. El PIN y el carné solo viajan como hash; dejarlos vacíos conserva los actuales. *@
+@* Alta o edición de un usuario de caja. Entra a la caja con su código y su clave; la clave solo viaja como hash y vacía conserva la actual. *@
 @inject ClienteCentral Cliente
 
 <MudDialog>
@@ -19,14 +19,8 @@
                     <MudSelectItem T="Guid" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
                 }
             </MudSelect>
-            <MudTextField T="string" @bind-Value="_pin" Label="@(Usuario is null ? "PIN" : "PIN nuevo (vacío conserva el actual)")" Variant="Variant.Outlined"
-                          InputType="InputType.Password" HelperText="De 4 a 8 dígitos." />
-            <MudTextField T="string" @bind-Value="_carne" Label="@(Usuario?.TieneCarne == true ? "Carné nuevo (vacío conserva el actual)" : "Carné (opcional)")"
-                          Variant="Variant.Outlined" InputType="InputType.Password" Disabled="_quitarCarne" />
-            @if (Usuario?.TieneCarne == true)
-            {
-                <MudCheckBox T="bool" @bind-Value="_quitarCarne" Label="Retirar el carné actual" Color="Color.Secondary" Dense="true" />
-            }
+            <MudTextField T="string" @bind-Value="_clave" Label="@(Usuario is null ? "Clave" : "Clave nueva (vacía conserva la actual)")" Variant="Variant.Outlined"
+                          InputType="InputType.Password" HelperText="Con esta clave y su código entra a la caja y autoriza operaciones." />
             <MudSwitch T="bool" @bind-Value="_activo" Label="@(_activo ? "Activo" : "Inactivo")" Color="Color.Secondary" />
             @if (_mensaje is not null)
             {
@@ -51,9 +45,7 @@
     private string? _nombre;
     private Guid? _rolId;
     private IReadOnlyCollection<Guid> _cajas = [];
-    private string? _pin;
-    private string? _carne;
-    private bool _quitarCarne;
+    private string? _clave;
     private bool _activo = true;
     private string? _mensaje;
     private bool _procesando;
@@ -85,7 +77,7 @@
 
         _procesando = true;
         _mensaje = null;
-        var solicitud = new SolicitudUsuarioCaja(_codigo ?? string.Empty, _nombre ?? string.Empty, rolId, _cajas.ToList(), _pin, _quitarCarne ? null : _carne, _quitarCarne, _activo);
+        var solicitud = new SolicitudUsuarioCaja(_codigo ?? string.Empty, _nombre ?? string.Empty, rolId, _cajas.ToList(), _clave, _activo);
         var respuesta = await Cliente.GuardarUsuarioCajaAsync(Usuario?.Id, solicitud);
         _procesando = false;
 

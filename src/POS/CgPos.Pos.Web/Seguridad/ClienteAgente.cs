@@ -33,14 +33,8 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaIngreso> IngresarConPinAsync(string codigoUsuario, string pin, CancellationToken cancelacion = default) =>
-        IngresarAsync("api/sesion/pin", new SolicitudIngresoPin(codigoUsuario, pin), cancelacion);
-
-    public Task<RespuestaIngreso> IngresarConCarneAsync(string codigoBarras, CancellationToken cancelacion = default) =>
-        IngresarAsync("api/sesion/carne", new SolicitudIngresoCarne(codigoBarras), cancelacion);
-
-    public Task<RespuestaIngreso> IngresarConHuellaAsync(CancellationToken cancelacion = default) =>
-        IngresarAsync<object?>("api/sesion/huella", null, cancelacion);
+    public Task<RespuestaIngreso> IngresarAsync(string codigoUsuario, string clave, CancellationToken cancelacion = default) =>
+        IngresarAsync("api/sesion/ingreso", new SolicitudIngreso(codigoUsuario, clave), cancelacion);
 
     public async Task<RespuestaAutorizacion> SolicitarAutorizacionAsync(SolicitudAutorizacion solicitud, CancellationToken cancelacion = default)
     {

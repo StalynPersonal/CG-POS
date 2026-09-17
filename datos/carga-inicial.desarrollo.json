@@ -89,8 +89,7 @@
       "nombre": "Cajero Desarrollo",
       "rolId": "01990000-0000-7000-8000-000000000301",
       "cajas": [ "01990000-0000-7000-8000-000000000201", "01990000-0000-7000-8000-000000000202" ],
-      "pin": "1111",
-      "credencialBarras": "CGP-C001"
+      "clave": "Cajero.2026"
     },
     {
       "id": "01990000-0000-7000-8000-000000000402",
@@ -98,8 +97,7 @@
       "nombre": "Supervisor Desarrollo",
       "rolId": "01990000-0000-7000-8000-000000000302",
       "cajas": [ "01990000-0000-7000-8000-000000000201", "01990000-0000-7000-8000-000000000202" ],
-      "pin": "2222",
-      "credencialBarras": "CGP-S001"
+      "clave": "Supervisor.2026"
     },
     {
       "id": "01990000-0000-7000-8000-000000000403",
@@ -107,15 +105,15 @@
       "nombre": "Gerente Desarrollo",
       "rolId": "01990000-0000-7000-8000-000000000303",
       "cajas": [ "01990000-0000-7000-8000-000000000201", "01990000-0000-7000-8000-000000000202" ],
-      "pin": "3333"
+      "clave": "Gerente.2026"
     }
   ],
   "parametros": [
     {
       "id": "01990000-0000-7000-8000-000000000501",
-      "clave": "Seguridad.IntentosMaximosPin",
+      "clave": "Seguridad.IntentosMaximosClave",
       "valor": "3",
-      "descripcion": "Intentos fallidos de PIN antes de bloquear al usuario"
+      "descripcion": "Intentos fallidos de clave antes de bloquear al usuario"
     },
     {
       "id": "01990000-0000-7000-8000-000000000502",

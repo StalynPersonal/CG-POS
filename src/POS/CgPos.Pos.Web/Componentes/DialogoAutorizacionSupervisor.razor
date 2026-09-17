@@ -9,32 +9,22 @@
 
         <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" MaxLength="500" Immediate="true" Class="mb-2" />
 
-        <MudTabs @bind-ActivePanelIndex="_pestana" Elevation="0" Class="cg-pestanas">
-            <MudTabPanel Text="Código y PIN" Icon="@Icons.Material.Filled.Pin">
-                <div class="cg-autorizacion__pin">
-                    <div class="cg-autorizacion__campos">
-                        <div @onclick="() => _campo = CampoActivo.Codigo">
-                            <MudTextField T="string" @bind-Value="_codigo" Label="Código del supervisor" Variant="Variant.Outlined"
-                                          Immediate="true" Class="@ClaseCampo(CampoActivo.Codigo)" />
-                        </div>
-                        <div @onclick="() => _campo = CampoActivo.Pin">
-                            <MudTextField T="string" @bind-Value="_pin" Label="PIN" InputType="InputType.Password" Variant="Variant.Outlined"
-                                          Immediate="true" Class="@ClaseCampo(CampoActivo.Pin)" />
-                        </div>
-                    </div>
-                    <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
-                                   Modo="@(_campo == CampoActivo.Pin ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)"
-                                   PermitirDecimal="false" PermitirCambioModo="@(_campo == CampoActivo.Codigo)"
-                                   LongitudMaxima="@(_campo == CampoActivo.Pin ? 8 : 20)"
-                                   TextoConfirmar="@(_campo == CampoActivo.Codigo ? "Siguiente" : "Autorizar")" />
+        <div class="cg-autorizacion__pin">
+            <div class="cg-autorizacion__campos">
+                <div @onclick="() => _campo = CampoActivo.Codigo">
+                    <MudTextField T="string" @bind-Value="_codigo" Label="Usuario del supervisor" Variant="Variant.Outlined"
+                                  Immediate="true" Class="@ClaseCampo(CampoActivo.Codigo)" />
                 </div>
-            </MudTabPanel>
-            <MudTabPanel Text="Carné" Icon="@Icons.Material.Filled.QrCodeScanner">
-                <MudText Typo="Typo.body1" Class="mb-3">Escanee el carné del supervisor.</MudText>
-                <MudTextField T="string" @bind-Value="_carne" Label="Código del carné" InputType="InputType.Password" Variant="Variant.Outlined"
-                              Immediate="true" OnKeyDown="AlTeclearCarneAsync" />
-            </MudTabPanel>
-        </MudTabs>
+                <div @onclick="() => _campo = CampoActivo.Clave">
+                    <MudTextField T="string" @bind-Value="_clave" Label="Clave" InputType="InputType.Password" Variant="Variant.Outlined"
+                                  Immediate="true" Class="@ClaseCampo(CampoActivo.Clave)" OnKeyDown="AlTeclearClaveAsync" />
+                </div>
+            </div>
+            <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
+                           Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true"
+                           LongitudMaxima="@(_campo == CampoActivo.Clave ? 64 : 20)"
+                           TextoConfirmar="@(_campo == CampoActivo.Codigo ? "Siguiente" : "Autorizar")" />
+        </div>
 
         @if (_procesando)
         {
@@ -56,10 +46,8 @@
     private enum CampoActivo
     {
         Codigo,
-        Pin,
+        Clave,
     }
-
-    private const int PestanaCarne = 1;
 
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
@@ -73,14 +61,12 @@
 
     private string? _motivo;
     private string? _codigo;
-    private string? _pin;
-    private string? _carne;
+    private string? _clave;
     private string? _mensaje;
-    private int _pestana;
     private CampoActivo _campo = CampoActivo.Codigo;
     private bool _procesando;
 
-    private string ValorCampoActivo => (_campo == CampoActivo.Codigo ? _codigo : _pin) ?? string.Empty;
+    private string ValorCampoActivo => (_campo == CampoActivo.Codigo ? _codigo : _clave) ?? string.Empty;
 
     private string? ClaseCampo(CampoActivo campo) => _campo == campo ? "cg-campo-activo" : null;
 
@@ -89,21 +75,21 @@
         if (_campo == CampoActivo.Codigo)
             _codigo = valor;
         else
-            _pin = valor;
+            _clave = valor;
     }
 
     private Task AlConfirmarTecladoAsync(string _)
     {
         if (_campo == CampoActivo.Codigo)
         {
-            _campo = CampoActivo.Pin;
+            _campo = CampoActivo.Clave;
             return Task.CompletedTask;
         }
 
         return AutorizarAsync();
     }
 
-    private Task AlTeclearCarneAsync(KeyboardEventArgs evento) =>
+    private Task AlTeclearClaveAsync(KeyboardEventArgs evento) =>
         evento.Key == "Enter" ? AutorizarAsync() : Task.CompletedTask;
 
     private async Task AutorizarAsync()
@@ -117,19 +103,13 @@
             return;
         }
 
-        var porCarne = _pestana == PestanaCarne;
-        var faltanDatos = porCarne
-            ? string.IsNullOrWhiteSpace(_carne)
-            : string.IsNullOrWhiteSpace(_codigo) || string.IsNullOrEmpty(_pin);
-        if (faltanDatos)
+        if (string.IsNullOrWhiteSpace(_codigo) || string.IsNullOrEmpty(_clave))
         {
-            _mensaje = porCarne ? "Escanee el carné del supervisor." : "Indique el código y el PIN del supervisor.";
+            _mensaje = "Indique el usuario y la clave del supervisor.";
             return;
         }
 
-        var solicitud = porCarne
-            ? new SolicitudAutorizacion(Permiso, _motivo, CodigoBarras: _carne, TipoEntidad: TipoEntidad, EntidadId: EntidadId, ForzarSupervisor: ForzarSupervisor)
-            : new SolicitudAutorizacion(Permiso, _motivo, _codigo!.Trim(), _pin, TipoEntidad: TipoEntidad, EntidadId: EntidadId, ForzarSupervisor: ForzarSupervisor);
+        var solicitud = new SolicitudAutorizacion(Permiso, _motivo, _codigo.Trim(), _clave, TipoEntidad, EntidadId, ForzarSupervisor);
 
         _procesando = true;
         _mensaje = null;
@@ -143,8 +123,7 @@
         }
 
         _mensaje = respuesta.Mensaje ?? "Autorización denegada.";
-        _pin = string.Empty;
-        _carne = string.Empty;
+        _clave = string.Empty;
     }
 
     private void Cancelar() => Dialogo.Cancel();

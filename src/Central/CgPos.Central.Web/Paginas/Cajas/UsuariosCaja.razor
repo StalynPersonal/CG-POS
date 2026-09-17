@@ -10,7 +10,7 @@
     <div>
         <MudText Typo="Typo.h4" Class="cg-central__titulo">Usuarios de caja</MudText>
         <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
-            Cajeros, supervisores y gerentes: su rol, las cajas que operan, su PIN y su carné. Bajan a las cajas en su próxima sincronización.
+            Cajeros, supervisores y gerentes: su rol, las cajas que operan, su clave de acceso. Bajan a las cajas en su próxima sincronización.
         </MudText>
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="() => AbrirDialogoAsync(null)">
@@ -34,7 +34,7 @@
             <MudTh>Nombre</MudTh>
             <MudTh>Rol</MudTh>
             <MudTh>Cajas</MudTh>
-            <MudTh>Credenciales</MudTh>
+            <MudTh>Acceso</MudTh>
             <MudTh>Estado</MudTh>
             <MudTh Style="width: 56px"></MudTh>
         </HeaderContent>
@@ -43,15 +43,15 @@
             <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
             <MudTd DataLabel="Rol">@context.RolNombre</MudTd>
             <MudTd DataLabel="Cajas">@NombresCajas(context.Cajas)</MudTd>
-            <MudTd DataLabel="Credenciales">
+            <MudTd DataLabel="Acceso">
                 <div class="cg-central__chips">
-                    @if (context.TienePin)
+                    @if (context.TieneClave)
                     {
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Pin">PIN</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Key">Clave asignada</MudChip>
                     }
-                    @if (context.TieneCarne)
+                    else
                     {
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.QrCode">Carné</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Sin clave</MudChip>
                     }
                 </div>
             </MudTd>

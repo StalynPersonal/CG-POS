@@ -111,37 +111,21 @@ internal sealed class PublicadorMaestros(
             var anterior = existentes.TryGetValue((TipoMaestro.UsuarioCaja, dato.Id), out var fila) ? FormatoMaestros.Leer<UsuarioCarga>(fila) : null;
             if (anterior is not null && anterior.Codigo != dato.Codigo.Trim())
                 errores.Add($"{etiqueta}: el código del usuario no se puede cambiar.");
-            var pinHash = dato.PinHash;
-            if (dato.Pin is not null)
-            {
-                if (!HashCredencialesCaja.EsPinValido(dato.Pin))
-                    errores.Add($"{etiqueta} tiene un PIN inválido (debe tener entre 4 y 8 dígitos).");
-                else
-                    pinHash = anterior?.PinHash is { } hashAnterior && HashCredencialesCaja.VerificarPin(dato.Pin, hashAnterior)
+            // La clave solo baja como hash; una clave que no cambió conserva su hash (lleva sal aleatoria).
+            var claveHash = dato.ClaveHash;
+            if (dato.Clave is not null)
+                claveHash = dato.Clave.Length == 0
+                    ? null
+                    : anterior?.ClaveHash is { } hashAnterior && HashCredencialesCaja.VerificarClave(dato.Clave, hashAnterior)
                         ? hashAnterior
-                        : HashCredencialesCaja.HashPin(dato.Pin);
-            }
+                        : HashCredencialesCaja.HashClave(dato.Clave);
 
-            pinHash ??= anterior?.PinHash;
-            if (pinHash is null)
-                errores.Add($"{etiqueta} es nuevo y no tiene PIN.");
+            claveHash ??= anterior?.ClaveHash;
+            if (claveHash is null)
+                errores.Add($"{etiqueta} no tiene clave.");
 
-            var barras = dato.CredencialBarrasHash ?? (dato.CredencialBarras is null ? null : HashCredencialesCaja.HashCredencialBarras(dato.CredencialBarras));
-            filas.Add(new FilaMaestro(TipoMaestro.UsuarioCaja, dato.Id, dato.Codigo, null,
-                dato with { Pin = null, PinHash = pinHash, CredencialBarras = null, CredencialBarrasHash = barras }));
+            filas.Add(new FilaMaestro(TipoMaestro.UsuarioCaja, dato.Id, dato.Codigo, null, dato with { Clave = null, ClaveHash = claveHash }));
         }
-
-        // Un carné identifica a un solo usuario: la caja tiene un índice único sobre su hash.
-        var usuariosPublicados = filas.Where(f => f.Tipo == TipoMaestro.UsuarioCaja).Select(f => (UsuarioCarga)f.Dato).ToList();
-        var idsPublicados = usuariosPublicados.Select(u => u.Id).ToHashSet();
-        foreach (var repetido in existentes.Values
-                     .Where(m => m.Tipo == TipoMaestro.UsuarioCaja && !idsPublicados.Contains(m.Id))
-                     .Select(FormatoMaestros.Leer<UsuarioCarga>)
-                     .Concat(usuariosPublicados)
-                     .Where(u => u.CredencialBarrasHash is not null)
-                     .GroupBy(u => u.CredencialBarrasHash, StringComparer.OrdinalIgnoreCase)
-                     .Where(g => g.Count() > 1))
-            errores.Add($"El carné está asignado a más de un usuario de caja ({string.Join(", ", repetido.Select(u => u.Codigo))}).");
 
         foreach (var parametro in parametros)
         {

@@ -148,16 +148,14 @@ internal sealed class ServicioCargaInicial(
             foreach (var cajaId in (usuario.Cajas ?? []).Where(id => !idsCajas.Contains(id)))
                 errores.Add($"{etiqueta} referencia una caja inexistente ({cajaId}).");
 
-            if (usuario.Pin is not null && usuario.PinHash is not null)
-                errores.Add($"{etiqueta} trae 'pin' y 'pinHash'; use solo uno.");
-            if (usuario.Pin is not null && !hashCredenciales.EsPinValido(usuario.Pin))
-                errores.Add($"{etiqueta} tiene un PIN inválido (debe tener entre 4 y 8 dígitos).");
-            if (usuario.PinHash is not null && !hashCredenciales.EsHashPinReconocido(usuario.PinHash))
-                errores.Add($"{etiqueta} tiene un 'pinHash' con formato no reconocido.");
-            if (usuario.Pin is null && usuario.PinHash is null && !idsUsuariosExistentes.Contains(usuario.Id))
-                errores.Add($"{etiqueta} es nuevo y no tiene PIN.");
-            if (usuario.CredencialBarras is not null && usuario.CredencialBarrasHash is not null)
-                errores.Add($"{etiqueta} trae 'credencialBarras' y 'credencialBarrasHash'; use solo uno.");
+            if (usuario.Clave is not null && usuario.ClaveHash is not null)
+                errores.Add($"{etiqueta} trae 'clave' y 'claveHash'; use solo uno.");
+            if (usuario.Clave is { Length: 0 })
+                errores.Add($"{etiqueta} tiene la clave vacía.");
+            if (usuario.ClaveHash is not null && !hashCredenciales.EsHashClaveReconocido(usuario.ClaveHash))
+                errores.Add($"{etiqueta} tiene un 'claveHash' con formato no reconocido.");
+            if (usuario.Clave is null && usuario.ClaveHash is null && !idsUsuariosExistentes.Contains(usuario.Id))
+                errores.Add($"{etiqueta} es nuevo y no tiene clave.");
 
             var codigoUsuario = usuario.Codigo.Trim();
             if (await contexto.Usuarios.AnyAsync(u => u.Codigo == codigoUsuario && u.Id != usuario.Id, cancelacion))
@@ -309,19 +307,16 @@ internal sealed class ServicioCargaInicial(
             _actualizados++;
         }
 
-        if (dato.PinHash is not null)
+        if (dato.ClaveHash is not null)
         {
-            if (usuario.PinHash != dato.PinHash)
-                usuario.EstablecerPinHash(dato.PinHash);
+            if (usuario.ClaveHash != dato.ClaveHash)
+                usuario.EstablecerClaveHash(dato.ClaveHash);
         }
-        else if (dato.Pin is not null && (usuario.PinHash is null || !hashCredenciales.VerificarPin(dato.Pin, usuario.PinHash)))
+        else if (dato.Clave is not null && (usuario.ClaveHash is null || !hashCredenciales.VerificarClave(dato.Clave, usuario.ClaveHash)))
         {
-            // Solo se recalcula si el PIN cambió: el hash lleva sal aleatoria.
-            usuario.EstablecerPinHash(hashCredenciales.HashPin(dato.Pin));
+            // Solo se recalcula si la clave cambió: el hash lleva sal aleatoria.
+            usuario.EstablecerClaveHash(hashCredenciales.HashClave(dato.Clave));
         }
-
-        usuario.EstablecerCredencialBarrasHash(dato.CredencialBarrasHash
-            ?? (dato.CredencialBarras is null ? null : hashCredenciales.HashCredencialBarras(dato.CredencialBarras)));
 
         var cajasDeseadas = (dato.Cajas ?? []).ToHashSet();
         foreach (var sobrante in usuario.CajasAsignadas.Select(c => c.CajaId).Where(id => !cajasDeseadas.Contains(id)).ToList())

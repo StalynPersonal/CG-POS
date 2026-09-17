@@ -54,7 +54,7 @@ public static class InyeccionDependencias
         servicios.AddSingleton<IContextoCaja>(new ContextoCajaConfigurado(configuracion));
         servicios.AddScoped<IParametros, ServicioParametros>();
         servicios.AddScoped<IEstadoCaja, ServicioEstadoCaja>();
-        servicios.AddScoped<ILectorHuella>(proveedor => new LectorHuellaSimulado(configuracion, proveedor.GetRequiredService<ContextoDatosPos>()));
+
         servicios.AddScoped<VerificadorCredenciales>();
         servicios.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
         servicios.AddScoped<IServicioAutorizacion, ServicioAutorizacion>();

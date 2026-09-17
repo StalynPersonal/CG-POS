@@ -57,13 +57,9 @@ internal sealed class UsuarioConfiguracion : IEntityTypeConfiguration<Usuario>
 
         constructor.Property(u => u.Codigo).HasMaxLength(Usuario.LargoMaximoCodigo).IsRequired();
         constructor.Property(u => u.Nombre).HasMaxLength(Usuario.LargoMaximoNombre).IsRequired();
-        constructor.Property(u => u.PinHash).HasMaxLength(Usuario.LargoMaximoHashPin).IsUnicode(false);
-        constructor.Property(u => u.CredencialBarrasHash)
-            .HasMaxLength(Usuario.LargoHashCredencialBarras).IsFixedLength().IsUnicode(false);
+        constructor.Property(u => u.ClaveHash).HasMaxLength(Usuario.LargoMaximoHashClave).IsUnicode(false);
 
         constructor.HasIndex(u => u.Codigo).IsUnique();
-        // Único solo entre los usuarios que tienen credencial de barras (EF agrega el filtro IS NOT NULL).
-        constructor.HasIndex(u => u.CredencialBarrasHash).IsUnique();
 
         constructor.HasOne<Rol>().WithMany().HasForeignKey(u => u.RolId).OnDelete(DeleteBehavior.Restrict);
 

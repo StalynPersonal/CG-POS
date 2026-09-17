@@ -23,8 +23,8 @@ public interface IPublicadorMaestros
     Task<ResultadoPublicacion> PublicarAsync(PaqueteMaestros paquete, string usuario, CancellationToken cancelacion = default, bool corregirDocumentoCliente = false);
 
     /// <summary>
-    /// Roles, usuarios y parámetros de las cajas en el formato de la carga inicial de la caja. Un PIN o carné en claro se publica solo como hash,
-    /// con el mismo formato que verifica la caja; un PIN que no cambió conserva su hash.
+    /// Roles, usuarios y parámetros de las cajas en el formato de la carga inicial de la caja. Una clave en claro se publica solo como hash,
+    /// con el mismo formato que verifica la caja; una clave que no cambió conserva su hash.
     /// </summary>
     /// <exception cref="PublicacionInvalidaExcepcion">Algún registro no es válido.</exception>
     Task<ResultadoPublicacion> PublicarSeguridadCajasAsync(IReadOnlyList<RolCarga> roles, IReadOnlyList<UsuarioCarga> usuarios, IReadOnlyList<ParametroCarga> parametros,

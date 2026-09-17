@@ -3,15 +3,14 @@ using CgPos.Dominio.Comun;
 namespace CgPos.Dominio.Seguridad;
 
 /// <summary>
-/// Usuario de la caja (cajero, supervisor…). Las credenciales se guardan solo como hash;
-/// el cálculo del hash lo hace el servicio de autenticación.
+/// Usuario de la caja (cajero, supervisor…). Entra con su código y su clave; la clave se guarda solo como hash,
+/// que calcula el Central (o la carga inicial de desarrollo).
 /// </summary>
 public sealed class Usuario : Entidad
 {
     public const int LargoMaximoCodigo = 20;
     public const int LargoMaximoNombre = 150;
-    public const int LargoMaximoHashPin = 256;
-    public const int LargoHashCredencialBarras = 64;
+    public const int LargoMaximoHashClave = 256;
 
     private readonly List<UsuarioCaja> _cajasAsignadas = [];
 
@@ -26,11 +25,8 @@ public sealed class Usuario : Entidad
     public Guid RolId { get; private set; }
     public bool Activo { get; private set; } = true;
 
-    /// <summary>Hash del PIN (incluye algoritmo, iteraciones y sal).</summary>
-    public string? PinHash { get; private set; }
-
-    /// <summary>Hash SHA-256 (hex) del código de barras del carné, para ingresar escaneándolo.</summary>
-    public string? CredencialBarrasHash { get; private set; }
+    /// <summary>Hash de la clave (incluye algoritmo, iteraciones y sal).</summary>
+    public string? ClaveHash { get; private set; }
 
     public int IntentosFallidos { get; private set; }
     public DateTimeOffset? BloqueadoHasta { get; private set; }
@@ -53,15 +49,7 @@ public sealed class Usuario : Entidad
 
     public void CambiarRol(Guid rolId) => RolId = Validar.Id(rolId, "Rol");
 
-    public void EstablecerPinHash(string pinHash) => PinHash = Validar.Texto(pinHash, "Hash del PIN", LargoMaximoHashPin);
-
-    public void EstablecerCredencialBarrasHash(string? hash)
-    {
-        if (hash is not null && (hash.Length != LargoHashCredencialBarras || !hash.All(char.IsAsciiHexDigit)))
-            throw new ArgumentException($"El hash de la credencial debe ser hexadecimal de {LargoHashCredencialBarras} caracteres.", nameof(hash));
-
-        CredencialBarrasHash = hash?.ToUpperInvariant();
-    }
+    public void EstablecerClaveHash(string claveHash) => ClaveHash = Validar.Texto(claveHash, "Hash de la clave", LargoMaximoHashClave);
 
     public void AsignarCaja(Guid cajaId)
     {

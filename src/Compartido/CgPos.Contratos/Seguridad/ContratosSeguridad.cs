@@ -1,8 +1,7 @@
 namespace CgPos.Contratos.Seguridad;
 
-public sealed record SolicitudIngresoPin(string CodigoUsuario, string Pin);
-
-public sealed record SolicitudIngresoCarne(string CodigoBarras);
+/// <summary>Ingreso a la caja con código de usuario y clave.</summary>
+public sealed record SolicitudIngreso(string CodigoUsuario, string Clave);
 
 public sealed record RespuestaIngreso(
     bool Exitoso,
@@ -25,13 +24,12 @@ public sealed record DatosSesion(
     string CajaNombre,
     Guid SucursalId);
 
-/// <summary>Solicitud de autorización de supervisor: credencial por código + PIN o por carné.</summary>
+/// <summary>Solicitud de autorización de supervisor con su código de usuario y su clave.</summary>
 public sealed record SolicitudAutorizacion(
     string Permiso,
     string Motivo,
     string? CodigoSupervisor = null,
-    string? Pin = null,
-    string? CodigoBarras = null,
+    string? Clave = null,
     string? TipoEntidad = null,
     string? EntidadId = null,
     bool ForzarSupervisor = false);

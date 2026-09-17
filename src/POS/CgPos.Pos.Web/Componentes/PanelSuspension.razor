@@ -1,4 +1,4 @@
-@* Caja suspendida (RF-23): la pantalla queda bloqueada hasta que el mismo cajero digite su PIN. La venta en curso se conserva. *@
+@* Caja suspendida (RF-23): la pantalla queda bloqueada hasta que el mismo cajero digite su clave. La venta en curso se conserva. *@
 @inject ClienteAgente Cliente
 
 <div class="cg-turno">
@@ -18,8 +18,8 @@
 
         <div class="cg-turno__formulario">
             <div class="cg-turno__fondo">
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">PIN de @NombreUsuario para reanudar</MudText>
-                <MudTextField T="string" Value="_pin" ValueChanged="valor => _pin = valor" InputType="InputType.Password" Variant="Variant.Outlined"
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Clave de @NombreUsuario para reanudar</MudText>
+                <MudTextField T="string" Value="_clave" ValueChanged="valor => _clave = valor" InputType="InputType.Password" Variant="Variant.Outlined"
                               Immediate="true" AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="cg-campo-activo" />
                 <div class="cg-turno__acciones">
                     <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="_procesando" Class="cg-turno__boton"
@@ -32,7 +32,7 @@
                     <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
                 }
             </div>
-            <TecladoTactil @bind-Valor="_pin" AlConfirmar="_ => ReanudarAsync()" PermitirDecimal="false" PermitirCambioModo="false" LongitudMaxima="8" TextoConfirmar="Reanudar" />
+            <TecladoTactil @bind-Valor="_clave" AlConfirmar="_ => ReanudarAsync()" Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true" LongitudMaxima="64" TextoConfirmar="Reanudar" />
         </div>
     </MudPaper>
 </div>
@@ -45,7 +45,7 @@
     [Parameter] public EventCallback AlSalir { get; set; }
 
     private readonly DateTime _desde = DateTime.Now;
-    private string _pin = string.Empty;
+    private string _clave = string.Empty;
     private string? _mensaje;
     private bool _procesando;
 
@@ -53,13 +53,13 @@
 
     private async Task ReanudarAsync()
     {
-        if (_procesando || string.IsNullOrEmpty(_pin))
+        if (_procesando || string.IsNullOrEmpty(_clave))
             return;
 
         _procesando = true;
-        var respuesta = await Cliente.IngresarConPinAsync(CodigoUsuario, _pin);
+        var respuesta = await Cliente.IngresarAsync(CodigoUsuario, _clave);
         _procesando = false;
-        _pin = string.Empty;
+        _clave = string.Empty;
 
         if (respuesta.Exitoso)
         {
@@ -67,6 +67,6 @@
             return;
         }
 
-        _mensaje = respuesta.Mensaje ?? "PIN incorrecto.";
+        _mensaje = respuesta.Mensaje ?? "Clave incorrecta.";
     }
 }

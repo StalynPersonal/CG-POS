@@ -21,29 +21,8 @@ public sealed record SesionUsuario(
     public bool TienePermiso(string permiso) => Permisos.Contains(permiso);
 }
 
-/// <summary>Formas de identificar a un usuario.</summary>
-public abstract record CredencialUsuario
-{
-    private CredencialUsuario()
-    {
-    }
-
-    public sealed record Pin(string CodigoUsuario, string Valor) : CredencialUsuario;
-
-    /// <summary>Código de barras del carné, leído con el escáner.</summary>
-    public sealed record Carne(string CodigoBarras) : CredencialUsuario;
-
-    /// <summary>El lector de huella identifica al usuario.</summary>
-    public sealed record Huella : CredencialUsuario;
-
-    public string Metodo => this switch
-    {
-        Pin => "PIN",
-        Carne => "Carné",
-        Huella => "Huella",
-        _ => "Desconocido",
-    };
-}
+/// <summary>Credencial con la que un usuario entra a la caja o autoriza una operación: su código de usuario y su clave.</summary>
+public sealed record CredencialUsuario(string CodigoUsuario, string Clave);
 
 public enum MotivoRechazoIngreso
 {
@@ -131,24 +110,13 @@ public interface IServicioAutorizacion
     Task<ResultadoAutorizacion> AutorizarAsync(SolicitudAutorizacionSupervisor solicitud, CancellationToken cancelacion = default);
 }
 
-/// <summary>Lector biométrico. El dispositivo compara la huella y devuelve el usuario identificado.</summary>
-public interface ILectorHuella
-{
-    Task<Guid?> IdentificarUsuarioAsync(CancellationToken cancelacion = default);
-}
-
 /// <summary>Mensajes para el usuario. No revelan si un código de usuario existe.</summary>
 public static class MensajesSeguridad
 {
-    public static string Para(MotivoRechazoIngreso motivo, CredencialUsuario? credencial = null, DateTimeOffset? bloqueadoHasta = null) =>
+    public static string Para(MotivoRechazoIngreso motivo, DateTimeOffset? bloqueadoHasta = null) =>
         motivo switch
         {
-            MotivoRechazoIngreso.CredencialesInvalidas => credencial switch
-            {
-                CredencialUsuario.Carne => "Carné no reconocido.",
-                CredencialUsuario.Huella => "Huella no reconocida.",
-                _ => "Usuario o PIN incorrecto.",
-            },
+            MotivoRechazoIngreso.CredencialesInvalidas => "Usuario o clave incorrectos.",
             MotivoRechazoIngreso.UsuarioBloqueado => "Usuario bloqueado por intentos fallidos." + Hasta(bloqueadoHasta),
             MotivoRechazoIngreso.UsuarioInactivo => "El usuario está inactivo. Contacte al supervisor.",
             MotivoRechazoIngreso.RolInactivo => "El rol del usuario está inactivo. Contacte al supervisor.",

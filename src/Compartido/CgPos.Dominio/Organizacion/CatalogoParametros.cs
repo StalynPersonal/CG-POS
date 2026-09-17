@@ -89,7 +89,7 @@ public static class CatalogoParametros
     [
         new("General.MonedaLocal", "General", "Código ISO de la moneda local de la caja; debe estar publicada en el maestro de monedas", Texto, true),
 
-        new("Seguridad.IntentosMaximosPin", "Seguridad de la caja", "Intentos de PIN fallidos seguidos que bloquean al usuario de la caja", Entero, true, Minimo: 1),
+        new("Seguridad.IntentosMaximosClave", "Seguridad de la caja", "Intentos de clave fallidos seguidos que bloquean al usuario de la caja", Entero, true, Minimo: 1),
         new("Seguridad.MinutosBloqueo", "Seguridad de la caja", "Minutos que dura el bloqueo del usuario de la caja", Entero, true, Minimo: 1),
         new("Seguridad.MinutosVigenciaAutorizacion", "Seguridad de la caja", "Minutos para usar una autorización de supervisor concedida", Entero, true, Minimo: 1),
         new("Seguridad.HorasSesion", "Seguridad de la caja", "Horas que dura la sesión de un usuario en la caja", Decimal, true, Minimo: 0.1m),

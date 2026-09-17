@@ -25,7 +25,7 @@ public interface IServicioConfiguracionCajas
 
     Task<IReadOnlyList<DatosUsuarioCaja>> ListarUsuariosCajaAsync(CancellationToken cancelacion = default);
 
-    /// <summary>El PIN y el carné se publican solo como hash; sin PIN nuevo se conserva el actual.</summary>
+    /// <summary>La clave se publica solo como hash; sin clave nueva se conserva la actual.</summary>
     /// <param name="usuarioId">Nulo para crear el usuario.</param>
     Task<ResultadoAdministracion> GuardarUsuarioCajaAsync(Guid? usuarioId, SolicitudUsuarioCaja solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

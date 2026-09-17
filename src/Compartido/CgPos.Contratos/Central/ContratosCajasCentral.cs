@@ -39,20 +39,16 @@ public sealed record DatosRolCaja(Guid Id, string Codigo, string Nombre, int Niv
 /// <param name="Permisos">Códigos del catálogo de permisos de la caja.</param>
 public sealed record SolicitudRolCaja(string Codigo, string Nombre, int Nivel, IReadOnlyList<string> Permisos, bool Activo = true);
 
-public sealed record DatosUsuarioCaja(Guid Id, string Codigo, string Nombre, Guid RolId, string RolNombre, IReadOnlyList<Guid> Cajas, bool TienePin, bool TieneCarne, bool Activo);
+public sealed record DatosUsuarioCaja(Guid Id, string Codigo, string Nombre, Guid RolId, string RolNombre, IReadOnlyList<Guid> Cajas, bool TieneClave, bool Activo);
 
 /// <param name="Codigo">No cambia después de crear el usuario.</param>
-/// <param name="Pin">PIN nuevo (4 a 8 dígitos). Obligatorio al crear; vacío conserva el actual.</param>
-/// <param name="Carne">Código de barras del carné nuevo; vacío conserva el actual.</param>
-/// <param name="QuitarCarne">Retira el carné actual.</param>
+/// <param name="Clave">Clave nueva. Obligatoria al crear; vacía conserva la actual.</param>
 public sealed record SolicitudUsuarioCaja(
     string Codigo,
     string Nombre,
     Guid RolId,
     IReadOnlyList<Guid> Cajas,
-    string? Pin = null,
-    string? Carne = null,
-    bool QuitarCarne = false,
+    string? Clave = null,
     bool Activo = true);
 
 /// <summary>Anulación de un rango de e-NCF no utilizados de una caja, informada a la DGII (ANECF).</summary>

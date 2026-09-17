@@ -87,19 +87,3 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
         return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
     }
 }
-
-/// <summary>
-/// Lector de huella simulado hasta integrar el dispositivo real: identifica siempre al usuario
-/// configurado en <c>Perifericos:HuellaSimulada:CodigoUsuario</c> (vacío = no reconoce ninguna huella).
-/// </summary>
-internal sealed class LectorHuellaSimulado(IConfiguration configuracion, ContextoDatosPos contexto) : ILectorHuella
-{
-    public async Task<Guid?> IdentificarUsuarioAsync(CancellationToken cancelacion = default)
-    {
-        var codigo = configuracion["Perifericos:HuellaSimulada:CodigoUsuario"]?.Trim();
-        if (string.IsNullOrEmpty(codigo))
-            return null;
-
-        return await contexto.Usuarios.Where(u => u.Codigo == codigo).Select(u => (Guid?)u.Id).FirstOrDefaultAsync(cancelacion);
-    }
-}

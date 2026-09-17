@@ -16,7 +16,7 @@ public sealed class Parametro : Entidad
     {
     }
 
-    /// <summary>Clave con formato "Modulo.Nombre", ej. "Seguridad.IntentosMaximosPin".</summary>
+    /// <summary>Clave con formato "Modulo.Nombre", ej. "Seguridad.IntentosMaximosClave".</summary>
     public string Clave { get; private set; } = string.Empty;
 
     public string Valor { get; private set; } = string.Empty;

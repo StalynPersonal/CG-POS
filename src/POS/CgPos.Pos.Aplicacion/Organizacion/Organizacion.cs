@@ -89,7 +89,7 @@ public static class ClavesParametros
     /// <summary>Máximo de puntos que se canjean por transacción mientras la caja no confirma el saldo con el Central (RF-243). Opcional.</summary>
     public const string MaximoPuntosCanjeSinConexion = "Fidelidad.MaximoPuntosCanjeSinConexion";
 
-    public const string IntentosMaximosPin = "Seguridad.IntentosMaximosPin";
+    public const string IntentosMaximosClave = "Seguridad.IntentosMaximosClave";
     public const string MinutosBloqueo = "Seguridad.MinutosBloqueo";
 
     /// <summary>Minutos que tiene el usuario para usar una autorización de supervisor concedida.</summary>
