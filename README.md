@@ -575,3 +575,4 @@ El Central se publica con `dotnet publish src/Central/CgPos.Central.Api -c Relea
 - Todo lo que va al Central se escribe en la bandeja de salida dentro de la misma transacción del documento.
 - Seguridad: permisos granulares definidos en `CatalogoPermisos` (caja) y `CatalogoPermisosCentral` (Central); cada permiso es una política de autorización con el mismo nombre.
 - Formato RD fijo: `RD$2,175.34` y `dd/MM/yyyy`.
+- **Manual de usuario:** se genera con `python scripts/manual/generar-manual-usuario.py` y queda en `documentos referencia/Manual de usuario CG-POS.docx` (esa carpeta no se versiona). El .docx no se edita a mano: se edita el script y se vuelve a generar. Todo cambio que toque pantallas, rutas, teclas, permisos, parámetros visibles o pasos de un flujo se refleja ahí en el mismo trabajo.
