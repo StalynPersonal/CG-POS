@@ -1,11 +1,15 @@
-@* Nombre grande de la pantalla en la barra superior (CAJA, DEVOLUCIONES, DESPACHO) para distinguirlas de un vistazo. *@
+@* Nombre grande de la pantalla (CAJA, DEVOLUCIONES, DESPACHO) para distinguirlas de un vistazo; también se muestra en el ingreso. *@
 
-<span class="cg-nombre-pantalla">
-    <MudIcon Icon="@Icono" Class="cg-nombre-pantalla__icono" />
-    <span>@Nombre</span>
+<span class="cg-nombre-pantalla @Class">
+    <MudIcon Icon="@Pantalla.Icono" Class="cg-nombre-pantalla__icono" />
+    <span>@Prefijo@Pantalla.Nombre</span>
 </span>
 
 @code {
-    [Parameter, EditorRequired] public string Nombre { get; set; } = string.Empty;
-    [Parameter, EditorRequired] public string Icono { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public PantallaCaja Pantalla { get; set; } = PantallasCaja.Caja;
+
+    /// <summary>Texto antes del nombre, ej. "Ingreso a ".</summary>
+    [Parameter] public string? Prefijo { get; set; }
+
+    [Parameter] public string? Class { get; set; }
 }

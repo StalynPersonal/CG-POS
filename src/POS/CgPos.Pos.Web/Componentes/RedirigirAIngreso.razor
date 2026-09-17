@@ -20,6 +20,7 @@
             return;
         }
 
-        Navegacion.NavigateTo("ingreso", replace: true);
+        var pantalla = PantallasCaja.PorRuta(Navegacion.ToBaseRelativePath(Navegacion.Uri));
+        Navegacion.NavigateTo(pantalla == PantallasCaja.Caja ? "ingreso" : $"ingreso?pantalla={pantalla.Ruta}", replace: true);
     }
 }

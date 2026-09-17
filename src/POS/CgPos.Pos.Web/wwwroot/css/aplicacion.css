@@ -203,6 +203,15 @@
     letter-spacing: .08em;
 }
 .cg-nombre-pantalla__icono { font-size: 1.6rem; }
+.cg-nombre-pantalla--ingreso {
+    align-self: flex-start;
+    margin-bottom: 12px;
+    padding: 6px 16px;
+    background: var(--cg-primario-oscuro);
+    color: #fff;
+    font-size: 1.5rem;
+    letter-spacing: .04em;
+}
 
 .cg-venta__encabezado {
     display: grid;
