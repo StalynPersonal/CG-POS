@@ -145,18 +145,18 @@ try
         return Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath);
     }
 
-    if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCarga)
-        await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicial:Archivo", archivoCarga,
-            (servicios, ruta, cancelacion) => servicios.AplicarCargaInicialCentralAsync(ruta, cancelacion));
+    //if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCarga)
+    //    await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicial:Archivo", archivoCarga,
+    //        (servicios, ruta, cancelacion) => servicios.AplicarCargaInicialCentralAsync(ruta, cancelacion));
 
-    // Seguridad, parámetros y maestros para las cajas, con el formato de la caja.
-    if (RutaConfigurada("CargaInicialCajas:Archivo") is { } archivoCajas)
-        await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicialCajas:Archivo", archivoCajas,
-            CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarSeguridadCajasDesdeArchivoAsync);
+    //// Seguridad, parámetros y maestros para las cajas, con el formato de la caja.
+    //if (RutaConfigurada("CargaInicialCajas:Archivo") is { } archivoCajas)
+    //    await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicialCajas:Archivo", archivoCajas,
+    //        CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarSeguridadCajasDesdeArchivoAsync);
 
-    if (RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
-        await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:Archivo", archivoMaestros,
-            CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarMaestrosDesdeArchivoAsync);
+    //if (RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
+    //    await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:Archivo", archivoMaestros,
+    //        CgPos.Central.Infraestructura.Sincronizacion.ExtensionesPublicacionMaestros.PublicarMaestrosDesdeArchivoAsync);
 
     await aplicacion.RunAsync();
 }
