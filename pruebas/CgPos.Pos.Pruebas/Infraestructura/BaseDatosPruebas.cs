@@ -1,5 +1,6 @@
 ﻿using CgPos.Pos.ECF;
 using CgPos.Pos.Infraestructura;
+using CgPos.Pruebas.Compartido;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -76,10 +77,11 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
             })
             .Build();
 
-        Servicios = CrearProveedor();
+        // La base se crea con el mismo script que se usa al instalar una caja: así el script queda probado.
+        await EsquemaBaseDatosPruebas.CrearAsync(CadenaConexion,
+            EsquemaBaseDatosPruebas.ScriptCaja(CgPos.Pos.Pruebas.Soporte.RutasPrueba.RaizRepositorio()));
 
-        await using var ambito = Servicios.CreateAsyncScope();
-        await ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>().Database.MigrateAsync();
+        Servicios = CrearProveedor();
     }
 
     /// <summary>

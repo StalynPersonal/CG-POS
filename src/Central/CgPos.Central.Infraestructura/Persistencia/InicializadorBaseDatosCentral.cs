@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using CgPos.Dominio.Comun;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -10,7 +11,11 @@ public static class InicializadorBaseDatosCentral
     private const int IntentosMaximos = 10;
     private static readonly TimeSpan EsperaEntreIntentos = TimeSpan.FromSeconds(3);
 
-    /// <summary>Aplica las migraciones pendientes al arrancar; reintenta mientras SQL Server no esté disponible.</summary>
+    /// <summary>
+    /// Comprueba que la base del Central exista y tenga sus tablas; reintenta mientras SQL Server no esté disponible.
+    /// El Central no crea ni cambia la base: eso lo hace el script <c>scripts/base-datos/central/structura_base_datos.sql</c>.
+    /// </summary>
+    /// <exception cref="BaseDatosNoPreparadaExcepcion">La base no existe o le faltan tablas.</exception>
     public static async Task InicializarBaseDatosCentralAsync(this IServiceProvider servicios, CancellationToken cancelacion = default)
     {
         await using var ambito = servicios.CreateAsyncScope();
@@ -21,19 +26,18 @@ public static class InicializadorBaseDatosCentral
         {
             try
             {
-                var pendientes = (await contexto.Database.GetPendingMigrationsAsync(cancelacion)).ToList();
-                if (pendientes.Count == 0)
-                {
-                    logger.LogInformation("Base de datos del Central al día");
-                }
-                else
-                {
-                    logger.LogInformation("Aplicando {Cantidad} migración(es): {Migraciones}", pendientes.Count, string.Join(", ", pendientes));
-                    await contexto.Database.MigrateAsync(cancelacion);
-                    logger.LogInformation("Migraciones aplicadas");
-                }
+                if (!await contexto.Database.CanConnectAsync(cancelacion))
+                    throw new BaseDatosNoPreparadaExcepcion(
+                        "La base de datos del Central no existe. Créela con scripts/base-datos/central/structura_base_datos.sql.");
 
+                await contexto.UsuariosCentral.AnyAsync(cancelacion);
+                logger.LogInformation("Base de datos del Central lista");
                 return;
+            }
+            catch (SqlException excepcion) when (excepcion.Number == 208)
+            {
+                throw new BaseDatosNoPreparadaExcepcion(
+                    "A la base de datos del Central le faltan tablas. Ejecute scripts/base-datos/central/structura_base_datos.sql.", excepcion);
             }
             catch (SqlException excepcion) when (intento < IntentosMaximos)
             {

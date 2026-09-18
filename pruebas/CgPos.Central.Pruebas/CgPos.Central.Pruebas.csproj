@@ -25,6 +25,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Las bases de las pruebas se crean con los mismos scripts SQL que en producción. -->
+    <Compile Include="..\Compartido\EsquemaBaseDatosPruebas.cs" Link="Soporte\EsquemaBaseDatosPruebas.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Central\CgPos.Central.Aplicacion\CgPos.Central.Aplicacion.csproj" />
     <ProjectReference Include="..\..\src\Central\CgPos.Central.Infraestructura\CgPos.Central.Infraestructura.csproj" />
     <ProjectReference Include="..\..\src\Central\CgPos.Central.ECF\CgPos.Central.ECF.csproj" />

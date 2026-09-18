@@ -56,6 +56,11 @@ public sealed class CentralEnPruebas : IAsyncLifetime
         }
 
         var cadenaConexion = new SqlConnectionStringBuilder(servidor) { InitialCatalog = $"CgPosCentralPruebas_{Guid.NewGuid():N}" }.ConnectionString;
+
+        // La base se crea con el mismo script que se usa en producción: así el script queda probado en cada corrida.
+        await CgPos.Pruebas.Compartido.EsquemaBaseDatosPruebas.CrearAsync(
+            cadenaConexion, CgPos.Pruebas.Compartido.EsquemaBaseDatosPruebas.ScriptCentral(RutasPrueba.RaizRepositorio()),
+            sinAdministrador: true);
         var archivoLogs = Path.Combine(Path.GetTempPath(), "cgpos-pruebas", "central-.log");
 
         Fabrica = new WebApplicationFactory<EmisorTokensCentral>().WithWebHostBuilder(anfitrion =>
@@ -81,7 +86,7 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             });
         });
 
-        // Arranca el Central: aplica migraciones y la carga inicial.
+        // Arranca el Central: verifica la base y aplica la carga inicial.
         _ = Fabrica.Server;
         _instancia = this;
 

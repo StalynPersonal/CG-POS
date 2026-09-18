@@ -1,3 +1,4 @@
+using CgPos.Dominio.Comun;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,9 +12,11 @@ public static class InicializadorBaseDatos
     private static readonly TimeSpan EsperaEntreIntentos = TimeSpan.FromSeconds(3);
 
     /// <summary>
-    /// Aplica las migraciones pendientes de la base local al arrancar el Agente.
+    /// Comprueba que la base local exista y tenga sus tablas. El Agente no crea ni cambia la base: eso lo hace el script
+    /// <c>scripts/base-datos/pos/structura_base_datos.sql</c>, que se ejecuta al instalar la caja.
     /// Reintenta si SQL Server aún no está disponible (ej. el servicio de SQL Express arranca después del equipo).
     /// </summary>
+    /// <exception cref="BaseDatosNoPreparadaExcepcion">La base no existe o le faltan tablas.</exception>
     public static async Task InicializarBaseDatosPosAsync(this IServiceProvider servicios, CancellationToken cancelacion = default)
     {
         await using var ambito = servicios.CreateAsyncScope();
@@ -24,17 +27,18 @@ public static class InicializadorBaseDatos
         {
             try
             {
-                var pendientes = (await contexto.Database.GetPendingMigrationsAsync(cancelacion)).ToList();
-                if (pendientes.Count == 0)
-                {
-                    logger.LogInformation("Base de datos local al día");
-                    return;
-                }
+                if (!await contexto.Database.CanConnectAsync(cancelacion))
+                    throw new BaseDatosNoPreparadaExcepcion(
+                        "La base de datos de la caja no existe. Créela con scripts/base-datos/pos/structura_base_datos.sql.");
 
-                logger.LogInformation("Aplicando {Cantidad} migración(es): {Migraciones}", pendientes.Count, string.Join(", ", pendientes));
-                await contexto.Database.MigrateAsync(cancelacion);
-                logger.LogInformation("Migraciones aplicadas");
+                await contexto.Turnos.AnyAsync(cancelacion);
+                logger.LogInformation("Base de datos local lista");
                 return;
+            }
+            catch (SqlException excepcion) when (EsFaltanTablas(excepcion))
+            {
+                throw new BaseDatosNoPreparadaExcepcion(
+                    "A la base de datos de la caja le faltan tablas. Ejecute scripts/base-datos/pos/structura_base_datos.sql.", excepcion);
             }
             catch (SqlException excepcion) when (intento < IntentosMaximos)
             {
@@ -44,4 +48,7 @@ public static class InicializadorBaseDatos
             }
         }
     }
+
+    /// <summary>208 es «nombre de objeto no válido»: la base existe pero no tiene el esquema.</summary>
+    internal static bool EsFaltanTablas(SqlException excepcion) => excepcion.Number == 208;
 }

@@ -1,0 +1,1757 @@
+﻿/*
+    CG-POS · Base de datos del Central
+    Estructura completa del servidor corporativo y el usuario administrador.
+
+    Cómo usarlo:
+        sqlcmd -S .\SQLEXPRESS -E -i structura_base_datos.sql
+    o ábralo en SQL Server Management Studio y ejecútelo.
+
+    Crea la base «CgPosCentral» si no existe, la secuencia de Id, todas las tablas con sus llaves,
+    índices y restricciones. Volver a ejecutarlo sobre una base que ya tiene las tablas da error:
+    es para crear la base desde cero.
+
+    Generado desde el modelo del sistema con scripts/base-datos/generar-estructura-sql.py.
+    No editar a mano: se edita el modelo y se vuelve a generar.
+*/
+
+IF DB_ID(N'CgPosCentral') IS NULL
+BEGIN
+    PRINT 'Creando la base CgPosCentral...';
+    EXEC (N'CREATE DATABASE [CgPosCentral]');
+END
+GO
+
+ALTER DATABASE [CgPosCentral] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+GO
+
+USE [CgPosCentral];
+GO
+
+/* Los índices filtrados y las restricciones exigen estas opciones; sqlcmd las trae apagadas. */
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+CREATE SEQUENCE [EntityFrameworkHiLoSequence] START WITH 1 INCREMENT BY 10 NO CYCLE;
+GO
+
+
+CREATE TABLE [ArchivosArranqueAplicados] (
+    [Clave] varchar(100) NOT NULL,
+    [Huella] varchar(64) NOT NULL,
+    [AplicadoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_ArchivosArranqueAplicados] PRIMARY KEY ([Clave])
+);
+GO
+
+
+CREATE TABLE [Auditoria] (
+    [Id] int NOT NULL,
+    [OcurridoEn] datetimeoffset(3) NOT NULL,
+    [Accion] nvarchar(100) NOT NULL,
+    [TipoEntidad] nvarchar(100) NOT NULL,
+    [EntidadId] nvarchar(64) NULL,
+    [Detalle] nvarchar(max) NULL,
+    [Motivo] nvarchar(500) NULL,
+    [UsuarioId] int NULL,
+    [UsuarioNombre] nvarchar(150) NULL,
+    [AutorizadoPorId] int NULL,
+    [AutorizadoPorNombre] nvarchar(150) NULL,
+    CONSTRAINT [PK_Auditoria] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Bancos] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(20) NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [RutaLogo] nvarchar(260) NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Bancos] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Clientes] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(20) NOT NULL,
+    [TipoDocumento] int NOT NULL,
+    [Documento] varchar(20) NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [TipoComprobantePredeterminado] int NOT NULL,
+    [ExoneradoItbis] bit NOT NULL,
+    [AplicaRetencion] bit NOT NULL,
+    [ListaPrecioPredeterminada] int NOT NULL,
+    [Telefono] nvarchar(20) NULL,
+    [Correo] nvarchar(150) NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Clientes] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Denominaciones] (
+    [Id] int NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Valor] decimal(18,2) NOT NULL,
+    [Tipo] int NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Denominaciones] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Departamentos] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [PermiteDescuentoManual] bit NOT NULL,
+    [EsNoCodificada] bit NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Departamentos] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Empresas] (
+    [Id] int NOT NULL,
+    [Rnc] char(9) NOT NULL,
+    [RazonSocial] nvarchar(150) NOT NULL,
+    [NombreComercial] nvarchar(150) NOT NULL,
+    [Direccion] nvarchar(250) NOT NULL,
+    [Telefono] nvarchar(20) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Empresas] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [FormasPago] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(20) NOT NULL,
+    [Nombre] nvarchar(50) NOT NULL,
+    [Tipo] int NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Orden] int NOT NULL,
+    [AbreGaveta] bit NOT NULL,
+    [PermiteDevuelta] bit NOT NULL,
+    [RequiereReferencia] bit NOT NULL,
+    [RequiereBanco] bit NOT NULL,
+    [PermiteComprobanteFiscal] bit NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_FormasPago] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Impuestos] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(20) NOT NULL,
+    [Nombre] nvarchar(50) NOT NULL,
+    [Porcentaje] decimal(5,2) NOT NULL,
+    [IndicadorFacturacion] int NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Impuestos] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Marcas] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Marcas] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Monedas] (
+    [Id] int NOT NULL,
+    [Codigo] char(3) NOT NULL,
+    [Nombre] nvarchar(50) NOT NULL,
+    [Simbolo] nvarchar(5) NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Monedas] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [MotivosDescuento] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_MotivosDescuento] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [MotivosDevolucion] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_MotivosDevolucion] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [NivelesFidelidad] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(60) NOT NULL,
+    [Orden] int NOT NULL,
+    [FactorAcumulacion] decimal(9,4) NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_NivelesFidelidad] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [Promociones] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(30) NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [Tipo] int NOT NULL,
+    [Valor] decimal(18,2) NOT NULL,
+    [CantidadLleva] int NULL,
+    [CantidadPaga] int NULL,
+    [CantidadMinima] decimal(18,3) NULL,
+    [LimitePorCliente] decimal(18,3) NULL,
+    [VigenteDesde] datetimeoffset(3) NOT NULL,
+    [VigenteHasta] datetimeoffset(3) NOT NULL,
+    [Dias] int NOT NULL,
+    [HoraDesde] time NULL,
+    [HoraHasta] time NULL,
+    [SoloFidelidad] bit NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    [Articulos] varchar(max) NOT NULL,
+    [Categorias] varchar(max) NOT NULL,
+    [Departamentos] varchar(max) NOT NULL,
+    [Marcas] varchar(max) NOT NULL,
+    [Sucursales] varchar(max) NOT NULL,
+    CONSTRAINT [PK_Promociones] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [ReglasAcumulacion] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Tipo] int NOT NULL,
+    [ReferenciaId] int NULL,
+    [DiaSemana] int NULL,
+    [MontoBase] decimal(18,2) NOT NULL,
+    [Puntos] decimal(18,4) NOT NULL,
+    [VigenteDesde] datetimeoffset(3) NULL,
+    [VigenteHasta] datetimeoffset(3) NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_ReglasAcumulacion] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [RolesCaja] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(30) NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Nivel] int NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_RolesCaja] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [RolesCentral] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(30) NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Activo] bit NOT NULL,
+    CONSTRAINT [PK_RolesCentral] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [SaldosPuntos] (
+    [MiembroId] int NOT NULL,
+    [Cedula] char(11) NOT NULL,
+    [Puntos] int NOT NULL,
+    [PuntosPorVencer] int NOT NULL,
+    [ProximoVencimiento] date NULL,
+    [Vencidos] int NOT NULL,
+    [CalculadoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_SaldosPuntos] PRIMARY KEY ([MiembroId])
+);
+GO
+
+
+CREATE TABLE [TasasCambio] (
+    [Id] int NOT NULL,
+    [Moneda] varchar(3) NOT NULL,
+    [Tasa] decimal(18,4) NOT NULL,
+    [VigenteDesde] datetimeoffset(3) NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_TasasCambio] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [TiposTarjeta] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(50) NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_TiposTarjeta] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [UnidadesMedida] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Abreviatura] nvarchar(10) NOT NULL,
+    [Nombre] nvarchar(50) NOT NULL,
+    [PermiteDecimales] bit NOT NULL,
+    [Decimales] int NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_UnidadesMedida] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [DescuentosTarjeta] (
+    [Id] int NOT NULL,
+    [Codigo] varchar(30) NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [Bines] varchar(400) NOT NULL,
+    [Tipo] int NOT NULL,
+    [Valor] decimal(18,4) NOT NULL,
+    [MontoMinimo] decimal(18,4) NULL,
+    [MontoMaximo] decimal(18,4) NULL,
+    [BancoId] int NULL,
+    [VigenteDesde] datetimeoffset(3) NOT NULL,
+    [VigenteHasta] datetimeoffset(3) NOT NULL,
+    [Dias] int NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_DescuentosTarjeta] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_DescuentosTarjeta_Bancos_BancoId] FOREIGN KEY ([BancoId]) REFERENCES [Bancos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [DireccionesCliente] (
+    [Id] int NOT NULL,
+    [ClienteId] int NOT NULL,
+    [Alias] nvarchar(50) NOT NULL,
+    [Direccion] nvarchar(250) NOT NULL,
+    [Sector] nvarchar(100) NULL,
+    [Ciudad] nvarchar(100) NULL,
+    [Referencia] nvarchar(250) NULL,
+    [Telefono] nvarchar(20) NULL,
+    [EsPrincipal] bit NOT NULL,
+    CONSTRAINT [PK_DireccionesCliente] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_DireccionesCliente_Clientes_ClienteId] FOREIGN KEY ([ClienteId]) REFERENCES [Clientes] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [Categorias] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [DepartamentoId] int NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Categorias] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Categorias_Departamentos_DepartamentoId] FOREIGN KEY ([DepartamentoId]) REFERENCES [Departamentos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [Sucursales] (
+    [Id] int NOT NULL,
+    [EmpresaId] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [Direccion] nvarchar(250) NOT NULL,
+    [Telefono] nvarchar(20) NOT NULL,
+    [Activa] bit NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Sucursales] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Sucursales_Empresas_EmpresaId] FOREIGN KEY ([EmpresaId]) REFERENCES [Empresas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [MiembrosFidelidad] (
+    [Id] int NOT NULL,
+    [Cedula] char(11) NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [Telefono] nvarchar(20) NULL,
+    [Correo] nvarchar(150) NULL,
+    [NivelId] int NULL,
+    [SaldoSincronizado] int NOT NULL,
+    [SaldoSincronizadoEn] datetimeoffset(3) NULL,
+    [PuntosPorVencer] int NOT NULL,
+    [ProximoVencimiento] date NULL,
+    [InscritoEn] datetimeoffset(3) NOT NULL,
+    [InscritoEnCaja] bit NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_MiembrosFidelidad] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_MiembrosFidelidad_NivelesFidelidad_NivelId] FOREIGN KEY ([NivelId]) REFERENCES [NivelesFidelidad] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [RolesCajaPermisos] (
+    [RolId] int NOT NULL,
+    [PermisoCodigo] varchar(100) NOT NULL,
+    CONSTRAINT [PK_RolesCajaPermisos] PRIMARY KEY ([RolId], [PermisoCodigo]),
+    CONSTRAINT [FK_RolesCajaPermisos_RolesCaja_RolId] FOREIGN KEY ([RolId]) REFERENCES [RolesCaja] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UsuariosCaja] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(20) NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [RolId] int NOT NULL,
+    [Activo] bit NOT NULL,
+    [ClaveHash] varchar(256) NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_UsuariosCaja] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_UsuariosCaja_RolesCaja_RolId] FOREIGN KEY ([RolId]) REFERENCES [RolesCaja] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [RolesCentralPermisos] (
+    [RolId] int NOT NULL,
+    [PermisoCodigo] varchar(100) NOT NULL,
+    CONSTRAINT [PK_RolesCentralPermisos] PRIMARY KEY ([RolId], [PermisoCodigo]),
+    CONSTRAINT [FK_RolesCentralPermisos_RolesCentral_RolId] FOREIGN KEY ([RolId]) REFERENCES [RolesCentral] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UsuariosCentral] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(50) NOT NULL,
+    [Nombre] nvarchar(150) NOT NULL,
+    [Correo] nvarchar(150) NULL,
+    [RolId] int NOT NULL,
+    [Activo] bit NOT NULL,
+    [ContrasenaHash] varchar(256) NOT NULL,
+    [DebeCambiarContrasena] bit NOT NULL,
+    [ContrasenaCambiadaEn] datetimeoffset(3) NULL,
+    [IntentosFallidos] int NOT NULL,
+    [BloqueadoHasta] datetimeoffset(3) NULL,
+    [UltimoIngresoEn] datetimeoffset(3) NULL,
+    CONSTRAINT [PK_UsuariosCentral] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_UsuariosCentral_RolesCentral_RolId] FOREIGN KEY ([RolId]) REFERENCES [RolesCentral] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [Articulos] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(30) NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [Referencia] nvarchar(50) NULL,
+    [DepartamentoId] int NOT NULL,
+    [CategoriaId] int NULL,
+    [MarcaId] int NULL,
+    [UnidadMedidaId] int NOT NULL,
+    [ImpuestoId] int NOT NULL,
+    [Tipo] int NOT NULL,
+    [Costo] decimal(18,4) NULL,
+    [PrecioMinimo] decimal(18,4) NULL,
+    [CantidadMinimaMayor] decimal(18,4) NULL,
+    [Tara] decimal(18,4) NULL,
+    [RutaImagen] nvarchar(260) NULL,
+    [EsServicio] bit NOT NULL,
+    [MostrarEnCatalogo] bit NOT NULL,
+    [VentaEnPos] bit NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [PrecioDetalle] decimal(18,2) NOT NULL,
+    [PrecioMayor] decimal(18,2) NULL,
+    [PreciosVigentesDesde] datetimeoffset(3) NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Articulos] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Articulos_Categorias_CategoriaId] FOREIGN KEY ([CategoriaId]) REFERENCES [Categorias] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Articulos_Departamentos_DepartamentoId] FOREIGN KEY ([DepartamentoId]) REFERENCES [Departamentos] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Articulos_Impuestos_ImpuestoId] FOREIGN KEY ([ImpuestoId]) REFERENCES [Impuestos] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Articulos_Marcas_MarcaId] FOREIGN KEY ([MarcaId]) REFERENCES [Marcas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Articulos_UnidadesMedida_UnidadMedidaId] FOREIGN KEY ([UnidadMedidaId]) REFERENCES [UnidadesMedida] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [Almacenes] (
+    [Id] int NOT NULL,
+    [Codigo] nvarchar(20) NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [SucursalId] int NOT NULL,
+    [Direccion] nvarchar(250) NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Almacenes] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Almacenes_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [Cajas] (
+    [Id] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Habilitada] bit NOT NULL,
+    [VersionAgente] nvarchar(256) NULL,
+    [VersionReportadaEn] datetimeoffset(3) NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Cajas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Cajas_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [CierresSucursal] (
+    [Id] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [FechaOperacion] date NOT NULL,
+    [CantidadCierres] int NOT NULL,
+    [CantidadVentas] int NOT NULL,
+    [TotalVentas] decimal(18,4) NOT NULL,
+    [TotalEsperado] decimal(18,4) NOT NULL,
+    [TotalDeclarado] decimal(18,4) NOT NULL,
+    [Diferencia] decimal(18,4) NOT NULL,
+    [Observacion] nvarchar(500) NULL,
+    [CerradoPor] nvarchar(200) NOT NULL,
+    [CerradoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_CierresSucursal] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresSucursal_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [ListasBoda] (
+    [Id] int NOT NULL,
+    [Numero] varchar(20) NOT NULL,
+    [Evento] nvarchar(150) NOT NULL,
+    [FechaEvento] date NOT NULL,
+    [Lugar] nvarchar(200) NULL,
+    [ClienteDocumento] nvarchar(20) NOT NULL,
+    [ClienteNombre] nvarchar(150) NOT NULL,
+    [ClienteTelefono] nvarchar(100) NULL,
+    [ClienteCorreo] nvarchar(100) NULL,
+    [SucursalId] int NULL,
+    [Observacion] nvarchar(500) NULL,
+    [Estado] varchar(20) NOT NULL,
+    [CreadaEn] datetimeoffset(3) NOT NULL,
+    [ActualizadaEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_ListasBoda] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ListasBoda_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [SesionesCentral] (
+    [Id] uniqueidentifier NOT NULL,
+    [UsuarioId] int NOT NULL,
+    [Familia] uniqueidentifier NOT NULL,
+    [TokenHash] char(64) NOT NULL,
+    [CreadaEn] datetimeoffset(3) NOT NULL,
+    [ExpiraEn] datetimeoffset(3) NOT NULL,
+    [FinSesion] datetimeoffset(3) NOT NULL,
+    [UsadaEn] datetimeoffset(3) NULL,
+    [ReemplazadaPorId] uniqueidentifier NULL,
+    [RevocadaEn] datetimeoffset(3) NULL,
+    [MotivoRevocacion] nvarchar(150) NULL,
+    [DireccionIp] varchar(45) NULL,
+    [AgenteUsuario] nvarchar(256) NULL,
+    CONSTRAINT [PK_SesionesCentral] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_SesionesCentral_UsuariosCentral_UsuarioId] FOREIGN KEY ([UsuarioId]) REFERENCES [UsuariosCentral] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [CodigosArticulo] (
+    [ArticuloId] int NOT NULL,
+    [Codigo] nvarchar(30) NOT NULL,
+    [Tipo] int NOT NULL,
+    CONSTRAINT [PK_CodigosArticulo] PRIMARY KEY ([ArticuloId], [Codigo]),
+    CONSTRAINT [FK_CodigosArticulo_Articulos_ArticuloId] FOREIGN KEY ([ArticuloId]) REFERENCES [Articulos] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [TopesDescuento] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nivel] int NOT NULL,
+    [DepartamentoId] int NULL,
+    [CategoriaId] int NULL,
+    [MarcaId] int NULL,
+    [ArticuloId] int NULL,
+    [PorcentajeMaximo] decimal(5,2) NULL,
+    [MontoMaximo] decimal(18,2) NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_TopesDescuento] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_TopesDescuento_Articulos_ArticuloId] FOREIGN KEY ([ArticuloId]) REFERENCES [Articulos] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_TopesDescuento_Categorias_CategoriaId] FOREIGN KEY ([CategoriaId]) REFERENCES [Categorias] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_TopesDescuento_Departamentos_DepartamentoId] FOREIGN KEY ([DepartamentoId]) REFERENCES [Departamentos] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_TopesDescuento_Marcas_MarcaId] FOREIGN KEY ([MarcaId]) REFERENCES [Marcas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [AnulacionesEcf] (
+    [Id] int NOT NULL,
+    [SecuenciaId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TipoComprobante] int NOT NULL,
+    [Desde] bigint NOT NULL,
+    [Hasta] bigint NOT NULL,
+    [Motivo] nvarchar(500) NOT NULL,
+    [UsuarioNombre] nvarchar(150) NOT NULL,
+    [SolicitadaEn] datetimeoffset(3) NOT NULL,
+    [Estado] int NOT NULL,
+    [RespuestaDgii] nvarchar(2000) NULL,
+    [XmlFirmado] nvarchar(max) NULL,
+    CONSTRAINT [PK_AnulacionesEcf] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_AnulacionesEcf_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [CierresTurno] (
+    [Id] int NOT NULL,
+    [TurnoNumero] bigint NOT NULL,
+    [Numero] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [FechaOperacion] date NOT NULL,
+    [UsuarioNombre] nvarchar(200) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Ciego] bit NOT NULL,
+    [FondoInicial] decimal(18,4) NOT NULL,
+    [CantidadVentas] int NOT NULL,
+    [TotalVentas] decimal(18,4) NOT NULL,
+    [TotalRetiros] decimal(18,4) NOT NULL,
+    [TotalEsperado] decimal(18,4) NOT NULL,
+    [TotalDeclarado] decimal(18,4) NOT NULL,
+    [Diferencia] decimal(18,4) NOT NULL,
+    [AbiertoEn] datetimeoffset(3) NOT NULL,
+    [CerradoEn] datetimeoffset(3) NOT NULL,
+    [ReabiertoPorNombre] nvarchar(200) NULL,
+    [ReabiertoEn] datetimeoffset(3) NULL,
+    [MotivoReapertura] nvarchar(500) NULL,
+    [RegistradoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_CierresTurno] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresTurno_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_CierresTurno_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [ConflictosSincronizacion] (
+    [Id] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [SucursalId] int NULL,
+    [MensajeId] uniqueidentifier NOT NULL,
+    [TipoMensaje] nvarchar(100) NOT NULL,
+    [Tipo] nvarchar(40) NOT NULL,
+    [Detalle] nvarchar(2000) NOT NULL,
+    [DetectadoEn] datetimeoffset(3) NOT NULL,
+    [Ocurrencias] int NOT NULL,
+    [UltimaOcurrenciaEn] datetimeoffset(3) NOT NULL,
+    [ResueltoEn] datetimeoffset(3) NULL,
+    [ResueltoPor] nvarchar(150) NULL,
+    [Resolucion] nvarchar(500) NULL,
+    CONSTRAINT [PK_ConflictosSincronizacion] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ConflictosSincronizacion_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [ConsumosNotaCredito] (
+    [Id] int NOT NULL,
+    [NotaCreditoNumero] nvarchar(40) NOT NULL,
+    [VentaNumero] nvarchar(40) NOT NULL,
+    [CajaId] int NOT NULL,
+    [Monto] decimal(18,4) NOT NULL,
+    [Fecha] datetimeoffset(3) NOT NULL,
+    [RegistradoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_ConsumosNotaCredito] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ConsumosNotaCredito_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [CredencialesDispositivo] (
+    [Id] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [SecretoHash] char(64) NOT NULL,
+    [EmitidaEn] datetimeoffset(3) NOT NULL,
+    [EmitidaPor] nvarchar(150) NOT NULL,
+    [RevocadaEn] datetimeoffset(3) NULL,
+    [MotivoRevocacion] nvarchar(250) NULL,
+    [UltimoUsoEn] datetimeoffset(3) NULL,
+    [UltimaIp] varchar(45) NULL,
+    CONSTRAINT [PK_CredencialesDispositivo] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CredencialesDispositivo_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [DocumentosRecibidos] (
+    [Id] int NOT NULL,
+    [MensajeId] uniqueidentifier NOT NULL,
+    [CajaId] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [TipoMensaje] nvarchar(100) NOT NULL,
+    [Referencia] varchar(40) NOT NULL,
+    [Contenido] nvarchar(max) NOT NULL,
+    [HashContenido] char(64) NOT NULL,
+    [CreadoEnCaja] datetimeoffset(3) NOT NULL,
+    [RecibidoEn] datetimeoffset(3) NOT NULL,
+    [Reenvios] int NOT NULL,
+    [UltimoReenvioEn] datetimeoffset(3) NULL,
+    CONSTRAINT [PK_DocumentosRecibidos] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_DocumentosRecibidos_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_DocumentosRecibidos_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [EstadosSincronizacionCaja] (
+    [CajaId] int NOT NULL,
+    [UltimaRecepcionEn] datetimeoffset(3) NULL,
+    [MensajesRecibidos] bigint NOT NULL,
+    [Duplicados] bigint NOT NULL,
+    [Rechazados] bigint NOT NULL,
+    [UltimoRechazoEn] datetimeoffset(3) NULL,
+    [UltimoError] nvarchar(2000) NULL,
+    [UltimaDescargaEn] datetimeoffset(3) NULL,
+    [VersionMaestrosConfirmada] bigint NOT NULL,
+    [VersionMaestrosEntregada] bigint NOT NULL,
+    CONSTRAINT [PK_EstadosSincronizacionCaja] PRIMARY KEY ([CajaId]),
+    CONSTRAINT [FK_EstadosSincronizacionCaja_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [MovimientosPuntos] (
+    [Id] int NOT NULL,
+    [Cedula] char(11) NOT NULL,
+    [Tipo] int NOT NULL,
+    [Origen] int NOT NULL,
+    [Puntos] int NOT NULL,
+    [Documento] nvarchar(40) NOT NULL,
+    [CajaId] int NULL,
+    [SucursalId] int NULL,
+    [Fecha] datetimeoffset(3) NOT NULL,
+    [VenceEn] date NULL,
+    [RegistradoEn] datetimeoffset(3) NOT NULL,
+    [Usuario] nvarchar(150) NULL,
+    [Motivo] nvarchar(500) NULL,
+    CONSTRAINT [PK_MovimientosPuntos] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_MovimientosPuntos_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_MovimientosPuntos_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [NotasCredito] (
+    [Id] int NOT NULL,
+    [Numero] nvarchar(40) NOT NULL,
+    [Encf] char(13) NULL,
+    [CajaId] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [ClienteDocumento] nvarchar(200) NOT NULL,
+    [ClienteNombre] nvarchar(200) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Total] decimal(18,4) NOT NULL,
+    [Consumido] decimal(18,4) NOT NULL,
+    [FechaEmision] date NOT NULL,
+    [EmitidaEn] datetimeoffset(3) NOT NULL,
+    [RegistradaEn] datetimeoffset(3) NOT NULL,
+    [EsInterna] bit NOT NULL,
+    CONSTRAINT [PK_NotasCredito] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_NotasCredito_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_NotasCredito_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [Parametros] (
+    [Id] int NOT NULL,
+    [Clave] nvarchar(100) NOT NULL,
+    [Valor] nvarchar(1000) NOT NULL,
+    [Descripcion] nvarchar(250) NULL,
+    [SucursalId] int NULL,
+    [CajaId] int NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_Parametros] PRIMARY KEY ([Id]),
+    CONSTRAINT [CK_Parametros_UnSoloAmbito] CHECK ([SucursalId] IS NULL OR [CajaId] IS NULL),
+    CONSTRAINT [FK_Parametros_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Parametros_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [PendientesEntrega] (
+    [Id] int NOT NULL,
+    [Numero] nvarchar(30) NOT NULL,
+    [VentaNumero] nvarchar(30) NOT NULL,
+    [SucursalId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [Metodo] int NOT NULL,
+    [Estado] int NOT NULL,
+    [AlmacenNombre] nvarchar(250) NULL,
+    [Ciudad] nvarchar(250) NULL,
+    [ClienteDocumento] nvarchar(250) NULL,
+    [ClienteNombre] nvarchar(250) NULL,
+    [Telefono] nvarchar(250) NULL,
+    [FechaComprometida] date NULL,
+    [Unidades] decimal(18,3) NOT NULL,
+    [UnidadesEntregadas] decimal(18,3) NOT NULL,
+    [CreadoEn] datetimeoffset(3) NOT NULL,
+    [ActualizadoEn] datetimeoffset(3) NOT NULL,
+    [RecibidoEn] datetimeoffset(3) NOT NULL,
+    [AvisoEnviadoEn] datetimeoffset(3) NULL,
+    [Contenido] nvarchar(max) NOT NULL,
+    [TextoBusqueda] nvarchar(600) NOT NULL,
+    CONSTRAINT [PK_PendientesEntrega] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_PendientesEntrega_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_PendientesEntrega_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [SecuenciasEcf] (
+    [Id] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TipoComprobante] int NOT NULL,
+    [Desde] bigint NOT NULL,
+    [Hasta] bigint NOT NULL,
+    [Ultimo] bigint NOT NULL,
+    [VenceEn] date NOT NULL,
+    [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_SecuenciasEcf] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_SecuenciasEcf_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [UsuariosCajaCajas] (
+    [UsuarioId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    CONSTRAINT [PK_UsuariosCajaCajas] PRIMARY KEY ([UsuarioId], [CajaId]),
+    CONSTRAINT [FK_UsuariosCajaCajas_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_UsuariosCajaCajas_UsuariosCaja_UsuarioId] FOREIGN KEY ([UsuarioId]) REFERENCES [UsuariosCaja] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [VentasCentral] (
+    [Id] int NOT NULL,
+    [Tipo] int NOT NULL,
+    [Numero] nvarchar(40) NOT NULL,
+    [SucursalId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TurnoNumero] bigint NULL,
+    [UsuarioNombre] nvarchar(200) NOT NULL,
+    [Fecha] datetimeoffset(3) NOT NULL,
+    [FechaOperacion] date NOT NULL,
+    [TipoComprobanteFiscal] int NOT NULL,
+    [Encf] char(13) NULL,
+    [EncfModificado] char(13) NULL,
+    [ClienteTipoDocumento] int NULL,
+    [ClienteDocumento] nvarchar(200) NULL,
+    [ClienteNombre] nvarchar(200) NULL,
+    [Moneda] char(3) NOT NULL,
+    [Subtotal] decimal(18,4) NOT NULL,
+    [Descuento] decimal(18,4) NOT NULL,
+    [Impuesto] decimal(18,4) NOT NULL,
+    [ImpuestoRetenido] decimal(18,4) NOT NULL,
+    [Total] decimal(18,4) NOT NULL,
+    [CantidadLineas] int NOT NULL,
+    [RegistradoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_VentasCentral] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_VentasCentral_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_VentasCentral_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [CierresSucursalFormaPago] (
+    [Id] int NOT NULL,
+    [CierreSucursalId] int NOT NULL,
+    [Tipo] int NOT NULL,
+    [Nombre] nvarchar(200) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Transacciones] int NOT NULL,
+    [Esperado] decimal(18,4) NOT NULL,
+    [Declarado] decimal(18,4) NOT NULL,
+    [Diferencia] decimal(18,4) NOT NULL,
+    CONSTRAINT [PK_CierresSucursalFormaPago] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresSucursalFormaPago_CierresSucursal_CierreSucursalId] FOREIGN KEY ([CierreSucursalId]) REFERENCES [CierresSucursal] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [DepositosCierreSucursal] (
+    [Id] int NOT NULL,
+    [CierreSucursalId] int NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [BancoCodigo] nvarchar(20) NOT NULL,
+    [BancoNombre] nvarchar(100) NOT NULL,
+    [NumeroBoleta] nvarchar(50) NOT NULL,
+    [Monto] decimal(18,4) NOT NULL,
+    [FechaDeposito] date NOT NULL,
+    CONSTRAINT [PK_DepositosCierreSucursal] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_DepositosCierreSucursal_CierresSucursal_CierreSucursalId] FOREIGN KEY ([CierreSucursalId]) REFERENCES [CierresSucursal] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [ArticulosListaBoda] (
+    [Id] int NOT NULL,
+    [ListaBodaId] int NOT NULL,
+    [ArticuloCodigo] varchar(30) NOT NULL,
+    [Descripcion] nvarchar(150) NOT NULL,
+    [Cantidad] decimal(18,3) NOT NULL,
+    [Comprado] decimal(18,3) NOT NULL,
+    CONSTRAINT [PK_ArticulosListaBoda] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ArticulosListaBoda_ListasBoda_ListaBodaId] FOREIGN KEY ([ListaBodaId]) REFERENCES [ListasBoda] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [ComprasListaBoda] (
+    [Id] int NOT NULL,
+    [ListaBodaId] int NOT NULL,
+    [VentaNumero] varchar(20) NOT NULL,
+    [CajaId] int NOT NULL,
+    [Monto] decimal(18,2) NOT NULL,
+    [Fecha] datetimeoffset(3) NOT NULL,
+    [RegistradaEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_ComprasListaBoda] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ComprasListaBoda_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_ComprasListaBoda_ListasBoda_ListaBodaId] FOREIGN KEY ([ListaBodaId]) REFERENCES [ListasBoda] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [CierresFormaPago] (
+    [Id] int NOT NULL,
+    [CierreId] int NOT NULL,
+    [Tipo] int NOT NULL,
+    [Nombre] nvarchar(200) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Transacciones] int NOT NULL,
+    [Esperado] decimal(18,4) NOT NULL,
+    [Declarado] decimal(18,4) NOT NULL,
+    [Diferencia] decimal(18,4) NOT NULL,
+    CONSTRAINT [PK_CierresFormaPago] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresFormaPago_CierresTurno_CierreId] FOREIGN KEY ([CierreId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [ComprobantesRecibidos] (
+    [Id] int NOT NULL,
+    [DocumentoId] int NOT NULL,
+    [Referencia] varchar(40) NOT NULL,
+    [CajaId] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [Encf] char(13) NOT NULL,
+    [TipoComprobante] int NOT NULL,
+    [XmlFirmado] nvarchar(max) NOT NULL,
+    [HashXml] char(64) NOT NULL,
+    [FechaFirma] datetimeoffset(3) NOT NULL,
+    [RecibidoEn] datetimeoffset(3) NOT NULL,
+    [EsResumenConsumo] bit NOT NULL,
+    [EstadoDgii] nvarchar(30) NOT NULL,
+    [EstadoDgiiEn] datetimeoffset(3) NULL,
+    [MensajeDgii] nvarchar(2000) NULL,
+    [TrackId] varchar(100) NULL,
+    [IntentosEnvio] int NOT NULL,
+    [EnviadoEn] datetimeoffset(3) NULL,
+    [ProximoIntentoEn] datetimeoffset(3) NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_ComprobantesRecibidos] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ComprobantesRecibidos_DocumentosRecibidos_DocumentoId] FOREIGN KEY ([DocumentoId]) REFERENCES [DocumentosRecibidos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [ReservasNotaCredito] (
+    [Id] int NOT NULL,
+    [NotaCreditoId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [VentaNumero] nvarchar(40) NOT NULL,
+    [Monto] decimal(18,4) NOT NULL,
+    [CreadaEn] datetimeoffset(3) NOT NULL,
+    [VenceEn] datetimeoffset(3) NOT NULL,
+    [CerradaEn] datetimeoffset(3) NULL,
+    [Cierre] nvarchar(40) NULL,
+    CONSTRAINT [PK_ReservasNotaCredito] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ReservasNotaCredito_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_ReservasNotaCredito_NotasCredito_NotaCreditoId] FOREIGN KEY ([NotaCreditoId]) REFERENCES [NotasCredito] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [ImpuestosVenta] (
+    [Id] int NOT NULL,
+    [ComprobanteId] int NOT NULL,
+    [Porcentaje] decimal(18,4) NOT NULL,
+    [Base] decimal(18,4) NOT NULL,
+    [Impuesto] decimal(18,4) NOT NULL,
+    CONSTRAINT [PK_ImpuestosVenta] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ImpuestosVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasVenta] (
+    [Id] int NOT NULL,
+    [ComprobanteId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [Codigo] varchar(30) NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [UnidadMedida] varchar(10) NULL,
+    [Cantidad] decimal(18,3) NOT NULL,
+    [PrecioUnitario] decimal(18,4) NOT NULL,
+    [Descuento] decimal(18,2) NOT NULL,
+    [Impuesto] decimal(18,2) NOT NULL,
+    [Importe] decimal(18,2) NOT NULL,
+    [Serial] nvarchar(200) NULL,
+    [PromocionCodigo] varchar(30) NULL,
+    CONSTRAINT [PK_LineasVenta] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [PagosVenta] (
+    [Id] int NOT NULL,
+    [ComprobanteId] int NOT NULL,
+    [Tipo] int NOT NULL,
+    [FormaPagoNombre] nvarchar(200) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Monto] decimal(18,4) NOT NULL,
+    CONSTRAINT [PK_PagosVenta] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_PagosVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Almacenes_Codigo] ON [Almacenes] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Almacenes_SucursalId] ON [Almacenes] ([SucursalId]);
+GO
+
+
+CREATE INDEX [IX_Almacenes_Version] ON [Almacenes] ([Version]);
+GO
+
+
+CREATE INDEX [IX_AnulacionesEcf_CajaId_TipoComprobante] ON [AnulacionesEcf] ([CajaId], [TipoComprobante]);
+GO
+
+
+CREATE INDEX [IX_Articulos_CategoriaId] ON [Articulos] ([CategoriaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Articulos_Codigo] ON [Articulos] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Articulos_DepartamentoId] ON [Articulos] ([DepartamentoId]);
+GO
+
+
+CREATE INDEX [IX_Articulos_Descripcion] ON [Articulos] ([Descripcion]);
+GO
+
+
+CREATE INDEX [IX_Articulos_ImpuestoId] ON [Articulos] ([ImpuestoId]);
+GO
+
+
+CREATE INDEX [IX_Articulos_MarcaId] ON [Articulos] ([MarcaId]);
+GO
+
+
+CREATE INDEX [IX_Articulos_UnidadMedidaId] ON [Articulos] ([UnidadMedidaId]);
+GO
+
+
+CREATE INDEX [IX_Articulos_Version] ON [Articulos] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_ArticulosListaBoda_ListaBodaId_ArticuloCodigo] ON [ArticulosListaBoda] ([ListaBodaId], [ArticuloCodigo]);
+GO
+
+
+CREATE INDEX [IX_Auditoria_Accion] ON [Auditoria] ([Accion]);
+GO
+
+
+CREATE INDEX [IX_Auditoria_OcurridoEn] ON [Auditoria] ([OcurridoEn]);
+GO
+
+
+CREATE INDEX [IX_Auditoria_TipoEntidad_EntidadId] ON [Auditoria] ([TipoEntidad], [EntidadId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Bancos_Codigo] ON [Bancos] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Bancos_Version] ON [Bancos] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Cajas_SucursalId_Codigo] ON [Cajas] ([SucursalId], [Codigo]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Categorias_Codigo] ON [Categorias] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Categorias_DepartamentoId] ON [Categorias] ([DepartamentoId]);
+GO
+
+
+CREATE INDEX [IX_Categorias_Version] ON [Categorias] ([Version]);
+GO
+
+
+CREATE INDEX [IX_CierresFormaPago_CierreId] ON [CierresFormaPago] ([CierreId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_CierresSucursal_SucursalId_FechaOperacion] ON [CierresSucursal] ([SucursalId], [FechaOperacion]);
+GO
+
+
+CREATE INDEX [IX_CierresSucursalFormaPago_CierreSucursalId] ON [CierresSucursalFormaPago] ([CierreSucursalId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_CierresTurno_CajaId_TurnoNumero] ON [CierresTurno] ([CajaId], [TurnoNumero]);
+GO
+
+
+CREATE INDEX [IX_CierresTurno_FechaOperacion_SucursalId_CajaId] ON [CierresTurno] ([FechaOperacion], [SucursalId], [CajaId]);
+GO
+
+
+CREATE INDEX [IX_CierresTurno_SucursalId] ON [CierresTurno] ([SucursalId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Clientes_Codigo] ON [Clientes] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Clientes_Nombre] ON [Clientes] ([Nombre]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Clientes_TipoDocumento_Documento] ON [Clientes] ([TipoDocumento], [Documento]);
+GO
+
+
+CREATE INDEX [IX_Clientes_Version] ON [Clientes] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_CodigosArticulo_Codigo] ON [CodigosArticulo] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_ComprasListaBoda_CajaId] ON [ComprasListaBoda] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_ComprasListaBoda_ListaBodaId_VentaNumero] ON [ComprasListaBoda] ([ListaBodaId], [VentaNumero]);
+GO
+
+
+CREATE INDEX [IX_ComprobantesRecibidos_DocumentoId] ON [ComprobantesRecibidos] ([DocumentoId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_ComprobantesRecibidos_Encf] ON [ComprobantesRecibidos] ([Encf]);
+GO
+
+
+CREATE INDEX [IX_ComprobantesRecibidos_EstadoDgii_ProximoIntentoEn] ON [ComprobantesRecibidos] ([EstadoDgii], [ProximoIntentoEn]);
+GO
+
+
+CREATE INDEX [IX_ComprobantesRecibidos_EstadoDgii_RecibidoEn] ON [ComprobantesRecibidos] ([EstadoDgii], [RecibidoEn]);
+GO
+
+
+CREATE INDEX [IX_ComprobantesRecibidos_Version] ON [ComprobantesRecibidos] ([Version]);
+GO
+
+
+CREATE INDEX [IX_ConflictosSincronizacion_CajaId_ResueltoEn] ON [ConflictosSincronizacion] ([CajaId], [ResueltoEn]);
+GO
+
+
+CREATE INDEX [IX_ConflictosSincronizacion_MensajeId_CajaId_Tipo] ON [ConflictosSincronizacion] ([MensajeId], [CajaId], [Tipo]);
+GO
+
+
+CREATE INDEX [IX_ConsumosNotaCredito_CajaId] ON [ConsumosNotaCredito] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_ConsumosNotaCredito_NotaCreditoNumero_VentaNumero] ON [ConsumosNotaCredito] ([NotaCreditoNumero], [VentaNumero]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_CredencialesDispositivo_CajaActiva] ON [CredencialesDispositivo] ([CajaId]) WHERE [RevocadaEn] IS NULL;
+GO
+
+
+CREATE UNIQUE INDEX [IX_Denominaciones_Moneda_Valor_Tipo] ON [Denominaciones] ([Moneda], [Valor], [Tipo]);
+GO
+
+
+CREATE INDEX [IX_Denominaciones_Version] ON [Denominaciones] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Departamentos_Codigo] ON [Departamentos] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Departamentos_Version] ON [Departamentos] ([Version]);
+GO
+
+
+CREATE INDEX [IX_DepositosCierreSucursal_CierreSucursalId] ON [DepositosCierreSucursal] ([CierreSucursalId]);
+GO
+
+
+CREATE INDEX [IX_DescuentosTarjeta_BancoId] ON [DescuentosTarjeta] ([BancoId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_DescuentosTarjeta_Codigo] ON [DescuentosTarjeta] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_DescuentosTarjeta_Version] ON [DescuentosTarjeta] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_DireccionesCliente_ClienteId_Alias] ON [DireccionesCliente] ([ClienteId], [Alias]);
+GO
+
+
+CREATE INDEX [IX_DocumentosRecibidos_CajaId_RecibidoEn] ON [DocumentosRecibidos] ([CajaId], [RecibidoEn]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_DocumentosRecibidos_MensajeId] ON [DocumentosRecibidos] ([MensajeId]);
+GO
+
+
+CREATE INDEX [IX_DocumentosRecibidos_Referencia] ON [DocumentosRecibidos] ([Referencia]);
+GO
+
+
+CREATE INDEX [IX_DocumentosRecibidos_SucursalId] ON [DocumentosRecibidos] ([SucursalId]);
+GO
+
+
+CREATE INDEX [IX_DocumentosRecibidos_TipoMensaje_RecibidoEn] ON [DocumentosRecibidos] ([TipoMensaje], [RecibidoEn]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Empresas_Rnc] ON [Empresas] ([Rnc]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_FormasPago_Codigo] ON [FormasPago] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_FormasPago_Version] ON [FormasPago] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Impuestos_Codigo] ON [Impuestos] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Impuestos_Version] ON [Impuestos] ([Version]);
+GO
+
+
+CREATE INDEX [IX_ImpuestosVenta_ComprobanteId] ON [ImpuestosVenta] ([ComprobanteId]);
+GO
+
+
+CREATE INDEX [IX_LineasVenta_Codigo] ON [LineasVenta] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_LineasVenta_ComprobanteId] ON [LineasVenta] ([ComprobanteId]);
+GO
+
+
+CREATE INDEX [IX_ListasBoda_ClienteDocumento] ON [ListasBoda] ([ClienteDocumento]);
+GO
+
+
+CREATE INDEX [IX_ListasBoda_FechaEvento] ON [ListasBoda] ([FechaEvento]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_ListasBoda_Numero] ON [ListasBoda] ([Numero]);
+GO
+
+
+CREATE INDEX [IX_ListasBoda_SucursalId] ON [ListasBoda] ([SucursalId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Marcas_Codigo] ON [Marcas] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Marcas_Version] ON [Marcas] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_MiembrosFidelidad_Cedula] ON [MiembrosFidelidad] ([Cedula]);
+GO
+
+
+CREATE INDEX [IX_MiembrosFidelidad_NivelId] ON [MiembrosFidelidad] ([NivelId]);
+GO
+
+
+CREATE INDEX [IX_MiembrosFidelidad_Nombre] ON [MiembrosFidelidad] ([Nombre]);
+GO
+
+
+CREATE INDEX [IX_MiembrosFidelidad_Version] ON [MiembrosFidelidad] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Monedas_Codigo] ON [Monedas] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Monedas_Version] ON [Monedas] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_MotivosDescuento_Codigo] ON [MotivosDescuento] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_MotivosDescuento_Version] ON [MotivosDescuento] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_MotivosDevolucion_Codigo] ON [MotivosDevolucion] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_MotivosDevolucion_Version] ON [MotivosDevolucion] ([Version]);
+GO
+
+
+CREATE INDEX [IX_MovimientosPuntos_CajaId] ON [MovimientosPuntos] ([CajaId]);
+GO
+
+
+CREATE INDEX [IX_MovimientosPuntos_Cedula_Fecha] ON [MovimientosPuntos] ([Cedula], [Fecha]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_MovimientosPuntos_Documento_Tipo] ON [MovimientosPuntos] ([Documento], [Tipo]) WHERE [Origen] = 0;
+GO
+
+
+CREATE INDEX [IX_MovimientosPuntos_SucursalId] ON [MovimientosPuntos] ([SucursalId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_NivelesFidelidad_Codigo] ON [NivelesFidelidad] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_NivelesFidelidad_Version] ON [NivelesFidelidad] ([Version]);
+GO
+
+
+CREATE INDEX [IX_NotasCredito_CajaId] ON [NotasCredito] ([CajaId]);
+GO
+
+
+CREATE INDEX [IX_NotasCredito_ClienteDocumento] ON [NotasCredito] ([ClienteDocumento]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_NotasCredito_Encf] ON [NotasCredito] ([Encf]) WHERE [Encf] IS NOT NULL;
+GO
+
+
+CREATE INDEX [IX_NotasCredito_FechaEmision] ON [NotasCredito] ([FechaEmision]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_NotasCredito_Numero] ON [NotasCredito] ([Numero]);
+GO
+
+
+CREATE INDEX [IX_NotasCredito_SucursalId] ON [NotasCredito] ([SucursalId]);
+GO
+
+
+CREATE INDEX [IX_PagosVenta_ComprobanteId] ON [PagosVenta] ([ComprobanteId]);
+GO
+
+
+CREATE INDEX [IX_Parametros_CajaId] ON [Parametros] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Parametros_Clave_SucursalId_CajaId] ON [Parametros] ([Clave], [SucursalId], [CajaId]);
+GO
+
+
+CREATE INDEX [IX_Parametros_SucursalId] ON [Parametros] ([SucursalId]);
+GO
+
+
+CREATE INDEX [IX_PendientesEntrega_CajaId] ON [PendientesEntrega] ([CajaId]);
+GO
+
+
+CREATE INDEX [IX_PendientesEntrega_Estado_FechaComprometida] ON [PendientesEntrega] ([Estado], [FechaComprometida]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_PendientesEntrega_Numero] ON [PendientesEntrega] ([Numero]);
+GO
+
+
+CREATE INDEX [IX_PendientesEntrega_SucursalId] ON [PendientesEntrega] ([SucursalId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Promociones_Codigo] ON [Promociones] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_Promociones_Version] ON [Promociones] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_ReglasAcumulacion_Codigo] ON [ReglasAcumulacion] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_ReglasAcumulacion_Version] ON [ReglasAcumulacion] ([Version]);
+GO
+
+
+CREATE INDEX [IX_ReservasNotaCredito_CajaId] ON [ReservasNotaCredito] ([CajaId]);
+GO
+
+
+CREATE INDEX [IX_ReservasNotaCredito_NotaCreditoId_CerradaEn_VenceEn] ON [ReservasNotaCredito] ([NotaCreditoId], [CerradaEn], [VenceEn]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_RolesCaja_Codigo] ON [RolesCaja] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_RolesCaja_Version] ON [RolesCaja] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_RolesCentral_Codigo] ON [RolesCentral] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_SaldosPuntos_ProximoVencimiento] ON [SaldosPuntos] ([ProximoVencimiento]);
+GO
+
+
+CREATE INDEX [IX_SecuenciasEcf_CajaId] ON [SecuenciasEcf] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_SecuenciasEcf_TipoComprobante_Desde] ON [SecuenciasEcf] ([TipoComprobante], [Desde]);
+GO
+
+
+CREATE INDEX [IX_SecuenciasEcf_Version] ON [SecuenciasEcf] ([Version]);
+GO
+
+
+CREATE INDEX [IX_SesionesCentral_Familia] ON [SesionesCentral] ([Familia]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_SesionesCentral_TokenHash] ON [SesionesCentral] ([TokenHash]);
+GO
+
+
+CREATE INDEX [IX_SesionesCentral_UsuarioId_RevocadaEn] ON [SesionesCentral] ([UsuarioId], [RevocadaEn]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_Sucursales_EmpresaId_Codigo] ON [Sucursales] ([EmpresaId], [Codigo]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_TasasCambio_Moneda_VigenteDesde] ON [TasasCambio] ([Moneda], [VigenteDesde]);
+GO
+
+
+CREATE INDEX [IX_TasasCambio_Version] ON [TasasCambio] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_TiposTarjeta_Codigo] ON [TiposTarjeta] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_TiposTarjeta_Version] ON [TiposTarjeta] ([Version]);
+GO
+
+
+CREATE INDEX [IX_TopesDescuento_ArticuloId] ON [TopesDescuento] ([ArticuloId]);
+GO
+
+
+CREATE INDEX [IX_TopesDescuento_CategoriaId] ON [TopesDescuento] ([CategoriaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_TopesDescuento_Codigo] ON [TopesDescuento] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_TopesDescuento_DepartamentoId] ON [TopesDescuento] ([DepartamentoId]);
+GO
+
+
+CREATE INDEX [IX_TopesDescuento_MarcaId] ON [TopesDescuento] ([MarcaId]);
+GO
+
+
+CREATE INDEX [IX_TopesDescuento_Version] ON [TopesDescuento] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_UnidadesMedida_Codigo] ON [UnidadesMedida] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_UnidadesMedida_Version] ON [UnidadesMedida] ([Version]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_UsuariosCaja_Codigo] ON [UsuariosCaja] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_UsuariosCaja_RolId] ON [UsuariosCaja] ([RolId]);
+GO
+
+
+CREATE INDEX [IX_UsuariosCaja_Version] ON [UsuariosCaja] ([Version]);
+GO
+
+
+CREATE INDEX [IX_UsuariosCajaCajas_CajaId] ON [UsuariosCajaCajas] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_UsuariosCentral_Codigo] ON [UsuariosCentral] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_UsuariosCentral_RolId] ON [UsuariosCentral] ([RolId]);
+GO
+
+
+CREATE INDEX [IX_VentasCentral_CajaId] ON [VentasCentral] ([CajaId]);
+GO
+
+
+CREATE INDEX [IX_VentasCentral_Encf] ON [VentasCentral] ([Encf]);
+GO
+
+
+CREATE INDEX [IX_VentasCentral_FechaOperacion_SucursalId_CajaId] ON [VentasCentral] ([FechaOperacion], [SucursalId], [CajaId]);
+GO
+
+
+CREATE INDEX [IX_VentasCentral_SucursalId] ON [VentasCentral] ([SucursalId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_VentasCentral_Tipo_Numero] ON [VentasCentral] ([Tipo], [Numero]);
+GO
+
+/* ------------------------------------------------------------------------
+   Datos iniciales: solo el administrador del sistema.
+   Todo lo demás (empresa, sucursales, cajas, maestros, artículos, precios,
+   promociones, usuarios de caja y los demás parámetros) se crea desde el
+   Central entrando con este usuario.
+
+        Usuario:    ADMIN
+        Contraseña: Admin.CGPOS#2026
+
+   El sistema exige cambiarla en el primer ingreso.
+   ------------------------------------------------------------------------ */
+
+INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo])
+VALUES (1, N'ADMINISTRADOR', N'Administrador', 1);
+GO
+
+INSERT INTO [RolesCentralPermisos] ([RolId], [PermisoCodigo])
+VALUES
+    (1, N'Central.Seguridad.Administrar'),
+    (1, N'Central.Auditoria.Consultar'),
+    (1, N'Central.Organizacion.Administrar'),
+    (1, N'Central.Dispositivos.Administrar'),
+    (1, N'Central.UsuariosCaja.Administrar'),
+    (1, N'Central.Maestros.Administrar'),
+    (1, N'Central.Clientes.CorregirDocumento'),
+    (1, N'Central.Precios.Administrar'),
+    (1, N'Central.Promociones.Administrar'),
+    (1, N'Central.Fiscal.Administrar'),
+    (1, N'Central.Sincronizacion.Monitorear'),
+    (1, N'Central.NotasCredito.Administrar'),
+    (1, N'Central.Fidelidad.Administrar'),
+    (1, N'Central.ListasBoda.Administrar'),
+    (1, N'Central.Despacho.Operar'),
+    (1, N'Central.Reportes.Consultar'),
+    (1, N'Central.CierresSucursal.Operar');
+GO
+
+INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
+                               [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
+                               [BloqueadoHasta], [UltimoIngresoEn])
+VALUES (2, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$ztJxZj0cPwY/wEpjuS9n1w==$O1x2h8fGMa44ZbuymluPoQn1EhMFVEW38RN1LPQGQlo=', 1, NULL, 0, NULL, NULL);
+GO
+
+/* Parámetros mínimos para poder entrar; los demás se configuran en el Central (Organización → Parámetros). */
+INSERT INTO [Parametros] ([Id], [Clave], [Valor], [Descripcion], [SucursalId], [CajaId])
+VALUES
+    (3, N'Central.Seguridad.IntentosMaximos', N'5', N'Intentos de contraseña fallidos que bloquean al usuario', NULL, NULL),
+    (4, N'Central.Seguridad.MinutosBloqueo', N'15', N'Minutos que dura el bloqueo por intentos fallidos', NULL, NULL),
+    (5, N'Central.Seguridad.MinutosToken', N'15', N'Minutos de vigencia del token de acceso', NULL, NULL),
+    (6, N'Central.Seguridad.MinutosInactividad', N'60', N'Minutos sin actividad tras los que vence la sesión', NULL, NULL),
+    (7, N'Central.Seguridad.HorasSesion', N'12', N'Horas máximas de una sesión', NULL, NULL),
+    (8, N'Central.Seguridad.LargoMinimoContrasena', N'10', N'Largo mínimo de las contraseñas del Central', NULL, NULL),
+    (9, N'Central.Seguridad.ContrasenaCompleja', N'true', N'Exige mayúscula, minúscula, número y símbolo', NULL, NULL),
+    (10, N'Central.Dispositivos.MinutosToken', N'30', N'Minutos de vigencia del token de una caja', NULL, NULL);
+GO
+
+/* Los Id de arriba se pusieron a mano: la secuencia arranca después, para que no se repitan. */
+ALTER SEQUENCE [EntityFrameworkHiLoSequence] RESTART WITH 101;
+GO
+
+PRINT 'Base del Central creada. Entre al Central con el usuario ADMIN y cambie su contraseña.';
+GO

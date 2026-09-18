@@ -111,18 +111,21 @@ viñeta('La CAJA, que se instala en cada punto de venta. Vende, cobra, emite la 
 viñeta('El CENTRAL, que está en el servidor de la empresa. Ahí se configuran los artículos, los precios, las promociones, '
        'los usuarios y todas las reglas del negocio; se reciben las facturas de todas las cajas; se envían los e-CF a la DGII '
        'y se sacan los reportes.')
+p('Este manual empieza por el CENTRAL y después explica la CAJA, porque ese es el orden real: una caja no puede vender si en '
+  'el Central no están creados antes la sucursal, la caja, los artículos con sus precios, los rangos de comprobantes fiscales '
+  'y los usuarios.')
 p('Todo lo que la caja necesita (artículos, precios, ofertas, usuarios, parámetros) baja del Central automáticamente. '
   'Todo lo que la caja hace (facturas, notas de crédito, cierres, puntos) sube al Central automáticamente.')
 
 titulo('1.1. Dónde se entra', 2)
 p('La caja se abre en el navegador del mismo equipo de la caja; el Central, desde cualquier computadora de la empresa.')
 tabla(['Pantalla', 'Dónde se entra', 'Quién la usa'],
-      [['Caja – venta', 'http://localhost:5180/', 'Cajero'],
+      [['Central – administración', 'La dirección del servidor (en pruebas, http://localhost:5280)', 'Administración, contabilidad, gerencia'],
+       ['Chequeador de precios', 'La dirección del servidor + /chequeador', 'El cliente, en el pasillo de la tienda'],
+       ['Caja – venta', 'http://localhost:5180/', 'Cajero'],
        ['Caja – pantalla del cliente (2.º monitor)', 'http://localhost:5180/cliente', 'El cliente la ve'],
        ['Caja – devoluciones', 'http://localhost:5180/devoluciones', 'Cajero o encargado de devoluciones'],
-       ['Caja – despacho de pendientes', 'http://localhost:5180/despacho', 'Personal de entrega'],
-       ['Central – administración', 'La dirección del servidor (en pruebas, http://localhost:5280)', 'Administración, contabilidad, gerencia'],
-       ['Chequeador de precios', 'La dirección del servidor + /chequeador', 'El cliente, en el pasillo de la tienda']],
+       ['Caja – despacho de pendientes', 'http://localhost:5180/despacho', 'Personal de entrega']],
       anchos=[6.0, 7.0, 4.0])
 nota('Las tres pantallas de la caja se abren solas, cada una en su monitor, con el acceso directo que deja instalado el técnico.')
 
@@ -137,15 +140,157 @@ tabla(['Rol', 'Qué hace', 'Dónde'],
 
 doc.add_page_break()
 
-# ---------------------------------------------------------------- PARTE 1: CAJA
-titulo('2. La caja, paso a paso')
+# ---------------------------------------------------------------- PARTE 1: EL CENTRAL
+titulo('2. El Central, módulo por módulo')
+p('Se entra con usuario y contraseña. El menú de la izquierda muestra solo lo que el rol de cada persona tiene permitido.')
+p('El menú viene agrupado: cada grupo (Organización, Maestros, Precios, Promociones, Ventas, Reportes…) arranca cerrado y se '
+  'abre al tocar su título. El grupo de la pantalla en la que usted está se abre solo, para que siempre vea dónde está parado.')
 
-titulo('2.1. Entrar a la caja', 2)
+titulo('2.1. Crear la base de datos del Central y entrar por primera vez', 2)
+p('El sistema no crea ni cambia bases de datos por su cuenta: la base se crea con el script que viene con el sistema. '
+  'Esto lo hace una sola vez el personal de tecnología.')
+paso('En el servidor, abra SQL Server Management Studio (o use sqlcmd) y ejecute el archivo '
+     'scripts/base-datos/central/structura_base_datos.sql. Crea la base CgPosCentral con todas sus tablas, llaves e índices.')
+paso('Ese mismo script deja creado el único dato inicial: el usuario administrador.')
+paso('Configure la conexión del Central a esa base (lo hace tecnología en el archivo de configuración del servidor) y levante el Central.')
+paso('Abra el Central en el navegador y entre con el administrador:')
+tabla(['Usuario', 'Contraseña', 'Qué pasa al entrar'],
+      [['ADMIN', 'Admin.CGPOS#2026', 'El sistema exige cambiarla de inmediato; esa nueva contraseña es la suya.']],
+      anchos=[3.5, 5.0, 8.5])
+nota('Si el Central avisa que la base no existe o le faltan tablas, es que no se ejecutó el script o se apuntó a otra base.')
+p('Con ese usuario ya puede crear todo lo demás, en el orden de la sección siguiente. Lo primero que conviene hacer es crear '
+  'su propio usuario y el de las demás personas (Seguridad → Usuarios), para que cada quien entre con el suyo.')
+
+titulo('2.2. Lo mínimo que debe existir antes de abrir una caja', 2)
+p('La caja no inventa nada: todo lo que usa baja del Central. Si el Central está vacío, la caja no puede ni abrir turno. '
+  'Antes de poner a vender una caja, en el Central debe estar creado y configurado esto:')
+tabla(['Qué', 'Dónde se hace', 'Por qué hace falta'],
+      [['Empresa, sucursal y caja', 'Organización', 'La caja se identifica por su sucursal y su número; sin eso no se conecta.'],
+       ['Credencial de la caja', 'Organización → Cajas', 'Es la clave con la que la caja se comunica con el Central.'],
+       ['Parámetros del negocio', 'Organización → Parámetros', 'Fondo de caja, redondeo, vigencia de notas de crédito, retención, plazos. Si falta uno obligatorio, la operación se rechaza.'],
+       ['Catálogos', 'Maestros → Catálogos', 'Moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, motivos de descuento y de devolución.'],
+       ['Artículos y precios', 'Maestros → Artículos y Precios', 'Sin artículos con precio no hay nada que vender.'],
+       ['Rangos de e-CF', 'Fiscal → Rangos de e-CF', 'Sin comprobantes fiscales disponibles la caja no puede facturar.'],
+       ['Usuarios y roles de caja', 'Usuarios de caja', 'El cajero, el supervisor y el gerente, con sus niveles y permisos.']],
+      anchos=[4.2, 4.8, 8.0])
+nota('Todo esto baja solo a las cajas en la siguiente sincronización: no hay que copiar nada a mano.')
+
+titulo('2.3. Organización', 2)
+tabla(['Opción', 'Ruta', 'Para qué sirve'],
+      [['Empresa', '/organizacion/empresa', 'Datos fiscales de la empresa (el RNC no se cambia).'],
+       ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal.'],
+       ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas y emitir la credencial con la que la caja se conecta al Central.'],
+       ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad… Se pueden fijar en general, por sucursal o por caja.'],
+       ['Actualizaciones', '/organizacion/actualizaciones', 'Versión publicada del programa de las cajas y en qué versión está cada una.']],
+      anchos=[3.8, 5.0, 8.2])
+
+titulo('2.4. Seguridad', 2)
+viñeta('Usuarios y roles del Central (/seguridad/usuarios y /seguridad/roles): quién entra al Central y qué puede ver o hacer.')
+viñeta('Usuarios y roles de caja (/cajas/usuarios y /cajas/roles): los cajeros y supervisores, con su nivel (1 a 9), sus '
+       'permisos y en qué cajas trabajan. Bajan solos a las cajas.')
+nota('El nivel se usa para las autorizaciones: un descuento que pasa el tope de un supervisor pide la clave de alguien de nivel superior.')
+
+titulo('2.5. Maestros, artículos y precios', 2)
+tabla(['Opción', 'Ruta', 'Para qué sirve'],
+      [['Catálogos', '/maestros', 'Monedas, tasas de cambio, departamentos, categorías, marcas, unidades, impuestos, formas de pago, denominaciones, bancos, tipos de tarjeta, motivos de descuento y devolución, almacenes, niveles y reglas de fidelidad y descuentos por tarjeta (BIN).'],
+       ['Artículos', '/articulos', 'Alta y edición de artículos, con sus códigos de barras y de proveedor.'],
+       ['Precios', '/precios/articulos', 'Precio de detalle, precio por mayor con su cantidad mínima, precio mínimo y costo; de inmediato o a partir de una fecha.'],
+       ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
+       ['Clientes', '/clientes', 'Clientes con su comprobante habitual, exoneraciones y direcciones de envío.']],
+      anchos=[3.8, 4.4, 8.8])
+
+titulo('2.6. Promociones', 2)
+viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde cierta cantidad; '
+       'por artículos, departamentos, categorías o marcas, en las sucursales que se elijan, con fechas, días y horario.')
+viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores.')
+viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
+viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron.')
+
+titulo('2.7. Facturación electrónica y DGII', 2)
+viñeta('Rangos de e-CF (/fiscal/secuencias): se asignan a cada caja por tipo de comprobante, con inicio, fin y vencimiento. '
+       'La lista muestra el último usado y cuánto queda.')
+viñeta('Comprobantes enviados a la DGII (/monitor/comprobantes): estado de cada e-CF (aceptado, rechazado, en cola), su '
+       'trackId, el mensaje de la DGII, la descarga del XML y el reenvío dirigido.')
+
+titulo('2.8. Facturas de las cajas', 2)
+p('Ruta: /facturas. Es la vista de todo lo que las cajas subieron al Central.')
+viñeta('Filtros por rango de días, sucursal, tipo (factura o nota de crédito) y búsqueda por número, e-NCF, documento o nombre del cliente.')
+viñeta('Cada fila muestra el documento, la sucursal, la caja, el turno, el cajero, el cliente, el total y el estado del e-CF.')
+viñeta('Al abrir una se ven sus líneas tal como se cobraron (código, descripción, cantidad, precio, descuento, ITBIS, importe, '
+       'serial y oferta), los totales, el ITBIS por tasa y las formas de pago.')
+
+titulo('2.9. Notas de crédito entre sucursales', 2)
+p('Ruta: /notas-credito. Todas las notas emitidas por cualquier caja, con su saldo, lo consumido y lo retenido mientras una '
+  'caja está cobrando. Sirve para responderle al cliente que quiere usar en una sucursal una nota emitida en otra. '
+  'Las notas vencidas se habilitan subiendo los días de vigencia en los parámetros.')
+
+titulo('2.10. Listas de boda y de regalos', 2)
+p('Ruta: /listas-boda.')
+paso('Nueva lista: datos de los festejados (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad.')
+paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
+paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
+paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
+
+titulo('2.11. Fidelidad', 2)
+p('Ruta: /fidelidad/miembros. Miembros con su nivel, saldo de puntos, movimientos y ajustes. Los niveles y las reglas de '
+  'acumulación se configuran en los catálogos.')
+
+titulo('2.12. Despacho', 2)
+p('Ruta: /despacho/pendientes. Todos los pendientes de entrega y envíos de todas las sucursales, con su estado y sus atrasos; '
+  'si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda preparado.')
+
+titulo('2.13. Cierre consolidado de sucursal', 2)
+p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
+paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta (si algún turno no ha cerrado, lo dice).')
+paso('El sistema calcula el efectivo a depositar por moneda (las tarjetas y transferencias no se depositan).')
+paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede ser más de uno.')
+paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
+nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
+
+titulo('2.14. Reportes', 2)
+p('Ruta: /reportes. Todos por rango de días y, si se quiere, por sucursal o caja. Cada uno se descarga en Excel y en PDF.')
+tabla(['Reporte', 'Qué muestra'],
+      [['Ventas', 'Por día, sucursal y caja: facturas, notas de crédito, subtotal, descuento, ITBIS y total.'],
+       ['ITBIS por tasa', 'Base e impuesto de cada tasa del período.'],
+       ['Formato 607', 'Un registro por comprobante para la DGII, con la descarga del archivo de envío.'],
+       ['Cuadres de caja', 'Turno, cajero, esperado, declarado y diferencia.'],
+       ['e-CF y DGII', 'Estado de cada comprobante enviado.'],
+       ['Sincronización', 'Última comunicación de cada caja, mensajes, rechazos y alertas.']],
+      anchos=[4.5, 12.5])
+
+titulo('2.15. Monitor de sincronización', 2)
+viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuántos documentos trae pendientes.')
+viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
+
+titulo('2.16. Chequeador de precios', 2)
+p('Ruta: /chequeador, en la pantalla que se pone en el pasillo de la tienda. El cliente pasa el producto por el lector y ve '
+  'la descripción, el precio grande, el precio por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos '
+  'segundos para el siguiente cliente.')
+nota('El chequeador viene apagado: se enciende en Parámetros, con Central.Chequeador.Habilitado.')
+
+doc.add_page_break()
+
+# ---------------------------------------------------------------- PARTE 2: LA CAJA
+titulo('3. La caja, paso a paso')
+
+titulo('3.1. Instalar una caja desde cero', 2)
+p('Cada caja tiene su propia base de datos en su propio equipo: por eso sigue vendiendo aunque se caiga la red. '
+  'La instalación la hace tecnología, una sola vez por caja.')
+paso('En el Central, cree la sucursal y la caja (Organización) y emita la credencial de esa caja. El secreto se muestra una sola vez: cópielo.')
+paso('En el equipo de la caja, instale SQL Server Express y ejecute scripts/base-datos/pos/structura_base_datos.sql. '
+     'Crea la base CgPosCaja vacía: no lleva datos, todo baja del Central.')
+paso('Instale el programa de la caja con scripts/caja/instalar-caja.ps1, indicando el número de sucursal, el de caja, '
+     'el secreto que copió y la dirección del Central.')
+paso('Copie el certificado digital de la empresa en el equipo. El PIN no se guarda: lo digita un supervisor en la caja.')
+paso('Arranque la caja: en el primer ciclo se conecta al Central y baja artículos, precios, usuarios, parámetros y sus rangos de comprobantes.')
+nota('Si la caja avisa que la base no existe o le faltan tablas, es que no se ejecutó el script en ese equipo.')
+
+titulo('3.2. Entrar a la caja', 2)
 paso('En la pantalla de ingreso digite su usuario y su clave (no hay PIN ni carné: siempre usuario y clave).')
 paso('Si se equivoca varias veces seguidas, el usuario se bloquea por unos minutos; un supervisor lo desbloquea desde el Central.')
 paso('Si la caja no tiene turno abierto, el sistema le pide abrirlo.')
 
-titulo('2.2. Abrir el turno', 2)
+titulo('3.3. Abrir el turno', 2)
 p('El turno es el período de trabajo de un cajero en esa caja. Solo puede haber un turno abierto por caja.')
 viñeta('Al abrir se digita el fondo de caja (el sistema sugiere el monto configurado).')
 viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno: con la autorización de un supervisor, '
@@ -153,7 +298,7 @@ viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno
 viñeta('Si el último cierre se hizo por error, aparece Reabrir el último cierre: pide motivo y la autorización de alguien '
        'de nivel superior, y queda registrado.')
 
-titulo('2.3. La pantalla de venta', 2)
+titulo('3.4. La pantalla de venta', 2)
 p('La pantalla está dividida en cinco zonas:')
 tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
@@ -165,7 +310,7 @@ tabla(['Zona', 'Para qué sirve'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],
       anchos=[5.0, 12.0])
 
-titulo('2.4. Las teclas de función', 2)
+titulo('3.5. Las teclas de función', 2)
 p('Primera página:')
 tabla(['Tecla', 'Qué hace'],
       [['F2', 'Buscar un artículo por descripción'],
@@ -183,7 +328,7 @@ p('Segunda página (se cambia con el botón de la misma barra): catálogo en mos
   'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, despacho, anular, suspender, gaveta, '
   'reimprimir, retiro de efectivo, cierre de turno y salir.')
 
-titulo('2.5. Hacer una venta', 2)
+titulo('3.6. Hacer una venta', 2)
 paso('Pase el código del artículo por el lector (o dígitelo y presione Enter). Para varias unidades: 12*CEM-425.')
 paso('Para cambiar una cantidad, toque la cantidad en la línea o use F4. Para ver el otro código del artículo, toque el código.')
 paso('Si el artículo se vende por peso, se toma el peso de la balanza (F5) o se digita.')
@@ -192,7 +337,7 @@ paso('Con F12 asigne el cliente si lleva comprobante fiscal, y su cédula del pr
 paso('Revise el total con el cliente y presione F8 para cobrar.')
 nota('Cada operación se guarda al instante: si la caja se apaga, al volver a entrar la venta aparece tal como estaba.')
 
-titulo('2.6. Cliente y tipo de comprobante (F12)', 2)
+titulo('3.7. Cliente y tipo de comprobante (F12)', 2)
 p('Se digita la cédula o el RNC; el sistema lo busca en el padrón de la DGII y en los clientes registrados. Si no aparece, '
   'se digita el nombre. El tipo de comprobante sale del cliente y cambiarlo a mano requiere permiso.')
 tabla(['Comprobante', 'Cuándo se usa'],
@@ -205,21 +350,21 @@ p('Retención de la Ley 32-23: en las facturas E44, el sistema calcula el porcen
   'descuentos y se lo descuenta a lo que el cliente paga en caja. La factura mantiene su total; el ticket muestra '
   '“RETENCIÓN LEY 32-23” y “TOTAL A PAGAR”.')
 
-titulo('2.7. Lista de boda (F6)', 2)
+titulo('3.8. Lista de boda (F6)', 2)
 paso('Pida al cliente el número de la lista (la crea la administración en el Central).')
 paso('Presione F6, digite el número y acepte: la lista queda en el encabezado de la venta y sale en el ticket.')
 paso('Al cobrar, la compra queda registrada en la lista y, si el negocio lo tiene configurado, baja las cantidades pedidas.')
 nota('La lista se consulta en el Central: si no hay comunicación, no se puede asociar. Una lista cerrada no se acepta.')
 
-titulo('2.8. Descuentos y ofertas', 2)
+titulo('3.9. Descuentos y ofertas', 2)
 viñeta('Ofertas: se aplican solas según lo configurado en el Central. La columna Promo muestra cuál se aplicó; al tocarla '
        'se ve el detalle y se puede desactivar (con permiso).')
 viñeta('Descuento a la línea: toque el precio de la línea. Descuento a la factura: segunda página de teclas. Ambos piden '
        'motivo y la autorización de quien tenga tope suficiente; si el descuento pasa su tope, se pide una clave de nivel superior.')
 viñeta('No se aplican descuentos manuales a artículos en oferta ni a departamentos que el negocio excluyó.')
-viñeta('Descuento del banco por tarjeta: se aplica solo, al pasar la tarjeta en el cobro (ver 2.9).')
+viñeta('Descuento del banco por tarjeta: se aplica solo, al pasar la tarjeta en el cobro (ver 3.10).')
 
-titulo('2.9. Cobrar (F8)', 2)
+titulo('3.10. Cobrar (F8)', 2)
 p('En la pantalla de cobro elija la forma de pago, digite el monto y agréguelo. Se puede combinar cuantas formas haga falta; '
   'arriba siempre se ve lo pagado, lo que falta o la devuelta.')
 tabla(['Forma de pago', 'Qué pide y qué hay que saber'],
@@ -236,21 +381,21 @@ p('Al terminar: se emite y firma la factura electrónica, se imprime el ticket, 
 nota('Si no hay e-NCF disponible o el certificado no está cargado, la venta NO se cobra: primero hay que resolverlo con '
      'administración. El sistema no permite facturar sin comprobante fiscal.')
 
-titulo('2.10. Facturas en espera, anular y suspender', 2)
+titulo('3.11. Facturas en espera, anular y suspender', 2)
 viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y retomarla después.')
 viñeta('Anular (segunda página): cancela la transacción en curso con motivo y autorización.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada y con su reverso en rojo, para que todo quede a la vista.')
 
-titulo('2.11. Entregas y envíos', 2)
+titulo('3.12. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')
 paso('En la segunda página de teclas, elija Entrega / envío.')
 paso('Marque qué líneas y qué cantidad quedan pendientes, y si es retiro en un almacén o envío a una dirección, con la fecha comprometida.')
 paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras.')
 paso('En la pantalla /despacho se escanea ese comprobante para preparar, entregar (total o parcial, con quien recibe) o anular.')
 
-titulo('2.12. Devoluciones y notas de crédito', 2)
+titulo('3.13. Devoluciones y notas de crédito', 2)
 p('Se entra con F10 o directamente a /devoluciones.')
 paso('Escanee el código de barras del ticket o digite el e-NCF de la factura.')
 paso('Indique qué se devuelve de cada línea (el sistema muestra lo vendido, lo ya devuelto y lo disponible).')
@@ -265,7 +410,7 @@ tabla(['Tipo', 'Para qué', 'Importante'],
 nota('La vigencia de las notas de crédito se cuenta desde su emisión con los días configurados HOY en el Central: si una nota '
      'se venció y el negocio decide aceptarla, se suben los días en el Central y vuelve a poder usarse.')
 
-titulo('2.13. Retiros, pre-cierre y cierre de turno', 2)
+titulo('3.14. Retiros, pre-cierre y cierre de turno', 2)
 viñeta('Retiro de efectivo: monto y motivo, autorización de supervisor, comprobante impreso con firmas. No se puede retirar '
        'más del efectivo que hay en la gaveta.')
 viñeta('Pre-cierre: imprime lo esperado, con clave de supervisor (útil antes de cuadrar).')
@@ -277,7 +422,7 @@ viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprob
 viñeta('Al cerrar se imprime el reporte del turno: esperado, declarado y diferencia por forma de pago, denominaciones, '
        'retiros, reembolsos y relevos.')
 
-titulo('2.14. La barra de estado', 2)
+titulo('3.15. La barra de estado', 2)
 p('Abajo de la pantalla, siempre a la vista:')
 viñeta('Sincronización: si la caja está comunicada con el Central y cuántos documentos están pendientes de enviar.')
 viñeta('e-CF: si el certificado está cargado, cuántos comprobantes quedan en el rango y si algo está por vencer. '
@@ -286,113 +431,13 @@ viñeta('Avisos de la base de datos, la hora del equipo y el respaldo.')
 
 doc.add_page_break()
 
-# ---------------------------------------------------------------- PARTE 2: CENTRAL
-titulo('3. El Central, módulo por módulo')
-p('Se entra con usuario y contraseña. El menú de la izquierda muestra solo lo que el rol de cada persona tiene permitido.')
-p('El menú viene agrupado: cada grupo (Organización, Maestros, Precios, Promociones, Ventas, Reportes…) arranca cerrado y se '
-  'abre al tocar su título. El grupo de la pantalla en la que usted está se abre solo, para que siempre vea dónde está parado.')
-
-titulo('3.1. Organización', 2)
-tabla(['Opción', 'Ruta', 'Para qué sirve'],
-      [['Empresa', '/organizacion/empresa', 'Datos fiscales de la empresa (el RNC no se cambia).'],
-       ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal.'],
-       ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas y emitir la credencial con la que la caja se conecta al Central.'],
-       ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad… Se pueden fijar en general, por sucursal o por caja.'],
-       ['Actualizaciones', '/organizacion/actualizaciones', 'Versión publicada del programa de las cajas y en qué versión está cada una.']],
-      anchos=[3.8, 5.0, 8.2])
-
-titulo('3.2. Seguridad', 2)
-viñeta('Usuarios y roles del Central (/seguridad/usuarios y /seguridad/roles): quién entra al Central y qué puede ver o hacer.')
-viñeta('Usuarios y roles de caja (/cajas/usuarios y /cajas/roles): los cajeros y supervisores, con su nivel (1 a 9), sus '
-       'permisos y en qué cajas trabajan. Bajan solos a las cajas.')
-nota('El nivel se usa para las autorizaciones: un descuento que pasa el tope de un supervisor pide la clave de alguien de nivel superior.')
-
-titulo('3.3. Maestros, artículos y precios', 2)
-tabla(['Opción', 'Ruta', 'Para qué sirve'],
-      [['Catálogos', '/maestros', 'Monedas, tasas de cambio, departamentos, categorías, marcas, unidades, impuestos, formas de pago, denominaciones, bancos, tipos de tarjeta, motivos de descuento y devolución, almacenes, niveles y reglas de fidelidad y descuentos por tarjeta (BIN).'],
-       ['Artículos', '/articulos', 'Alta y edición de artículos, con sus códigos de barras y de proveedor.'],
-       ['Precios', '/precios/articulos', 'Precio de detalle, precio por mayor con su cantidad mínima, precio mínimo y costo; de inmediato o a partir de una fecha.'],
-       ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
-       ['Clientes', '/clientes', 'Clientes con su comprobante habitual, exoneraciones y direcciones de envío.']],
-      anchos=[3.8, 4.4, 8.8])
-
-titulo('3.4. Promociones', 2)
-viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde cierta cantidad; '
-       'por artículos, departamentos, categorías o marcas, en las sucursales que se elijan, con fechas, días y horario.')
-viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores.')
-viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
-viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron.')
-
-titulo('3.5. Facturación electrónica y DGII', 2)
-viñeta('Rangos de e-CF (/fiscal/secuencias): se asignan a cada caja por tipo de comprobante, con inicio, fin y vencimiento. '
-       'La lista muestra el último usado y cuánto queda.')
-viñeta('Comprobantes enviados a la DGII (/monitor/comprobantes): estado de cada e-CF (aceptado, rechazado, en cola), su '
-       'trackId, el mensaje de la DGII, la descarga del XML y el reenvío dirigido.')
-
-titulo('3.6. Facturas de las cajas', 2)
-p('Ruta: /facturas. Es la vista de todo lo que las cajas subieron al Central.')
-viñeta('Filtros por rango de días, sucursal, tipo (factura o nota de crédito) y búsqueda por número, e-NCF, documento o nombre del cliente.')
-viñeta('Cada fila muestra el documento, la sucursal, la caja, el turno, el cajero, el cliente, el total y el estado del e-CF.')
-viñeta('Al abrir una se ven sus líneas tal como se cobraron (código, descripción, cantidad, precio, descuento, ITBIS, importe, '
-       'serial y oferta), los totales, el ITBIS por tasa y las formas de pago.')
-
-titulo('3.7. Notas de crédito entre sucursales', 2)
-p('Ruta: /notas-credito. Todas las notas emitidas por cualquier caja, con su saldo, lo consumido y lo retenido mientras una '
-  'caja está cobrando. Sirve para responderle al cliente que quiere usar en una sucursal una nota emitida en otra. '
-  'Las notas vencidas se habilitan subiendo los días de vigencia en los parámetros.')
-
-titulo('3.8. Listas de boda y de regalos', 2)
-p('Ruta: /listas-boda.')
-paso('Nueva lista: datos de los festejados (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad.')
-paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
-paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
-paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
-
-titulo('3.9. Fidelidad', 2)
-p('Ruta: /fidelidad/miembros. Miembros con su nivel, saldo de puntos, movimientos y ajustes. Los niveles y las reglas de '
-  'acumulación se configuran en los catálogos.')
-
-titulo('3.10. Despacho', 2)
-p('Ruta: /despacho/pendientes. Todos los pendientes de entrega y envíos de todas las sucursales, con su estado y sus atrasos; '
-  'si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda preparado.')
-
-titulo('3.11. Cierre consolidado de sucursal', 2)
-p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
-paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta (si algún turno no ha cerrado, lo dice).')
-paso('El sistema calcula el efectivo a depositar por moneda (las tarjetas y transferencias no se depositan).')
-paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede ser más de uno.')
-paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
-nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
-
-titulo('3.12. Reportes', 2)
-p('Ruta: /reportes. Todos por rango de días y, si se quiere, por sucursal o caja. Cada uno se descarga en Excel y en PDF.')
-tabla(['Reporte', 'Qué muestra'],
-      [['Ventas', 'Por día, sucursal y caja: facturas, notas de crédito, subtotal, descuento, ITBIS y total.'],
-       ['ITBIS por tasa', 'Base e impuesto de cada tasa del período.'],
-       ['Formato 607', 'Un registro por comprobante para la DGII, con la descarga del archivo de envío.'],
-       ['Cuadres de caja', 'Turno, cajero, esperado, declarado y diferencia.'],
-       ['e-CF y DGII', 'Estado de cada comprobante enviado.'],
-       ['Sincronización', 'Última comunicación de cada caja, mensajes, rechazos y alertas.']],
-      anchos=[4.5, 12.5])
-
-titulo('3.13. Monitor de sincronización', 2)
-viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuántos documentos trae pendientes.')
-viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
-
-titulo('3.14. Chequeador de precios', 2)
-p('Ruta: /chequeador, en la pantalla que se pone en el pasillo de la tienda. El cliente pasa el producto por el lector y ve '
-  'la descripción, el precio grande, el precio por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos '
-  'segundos para el siguiente cliente.')
-nota('El chequeador viene apagado: se enciende en Parámetros, con Central.Chequeador.Habilitado.')
-
-doc.add_page_break()
-
 # ---------------------------------------------------------------- Flujo completo
 titulo('4. Recorrido completo del sistema (para probarlo todo)')
 p('Este es el orden recomendado para recorrer el sistema de punta a punta y comprobar que todo funciona.')
 
 titulo('Primero, en el Central', 2)
-paso('Entre al Central y revise Organización: empresa, sucursal y caja creadas y habilitadas.')
+paso('Cree la base del Central con scripts/base-datos/central/structura_base_datos.sql y entre con el usuario ADMIN (cambie su contraseña).')
+paso('Revise Organización: cree la empresa, la sucursal y la caja, y emita la credencial de la caja.')
 paso('En Parámetros, configure lo que el negocio necesita: fondo de caja, redondeo, días de vigencia de notas de crédito, '
      'retención de la Ley 32-23 (si aplica), chequeador y listas de boda.')
 paso('En Catálogos, cargue lo mínimo: moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, '
@@ -403,6 +448,8 @@ paso('Cree los usuarios de caja: un cajero, un supervisor y un gerente, con sus 
 paso('Cree una lista de boda de prueba y anote su número.')
 
 titulo('Después, en la caja', 2)
+paso('Cree la base de la caja con scripts/base-datos/pos/structura_base_datos.sql e instale la caja con su sucursal, su número y el secreto.')
+paso('Espere el primer ciclo de sincronización: la caja baja artículos, precios, usuarios y parámetros del Central.')
 paso('Entre con el usuario del cajero y abra el turno con su fondo.')
 paso('Escanee artículos, cambie una cantidad y elimine una línea (le pedirá la clave del supervisor).')
 paso('Con F12 asigne un cliente con RNC y verifique que el comprobante cambia a crédito fiscal.')
@@ -430,7 +477,8 @@ doc.add_page_break()
 # ---------------------------------------------------------------- Qué hacer si
 titulo('5. Qué hacer si…')
 tabla(['Situación', 'Qué pasa y qué hacer'],
-      [['No hay internet', 'La caja sigue vendiendo, cobrando y facturando normal: todo se guarda y se envía cuando vuelva la comunicación. Solo quedan sin servicio las listas de boda, las notas de crédito de otra sucursal y el chequeador.'],
+      [['La caja o el Central avisan que falta la base de datos', 'No se ejecutó el script de creación en ese equipo, o el sistema está apuntando a otra base. Ejecute scripts/base-datos/central/structura_base_datos.sql en el servidor o scripts/base-datos/pos/structura_base_datos.sql en la caja.'],
+       ['No hay internet', 'La caja sigue vendiendo, cobrando y facturando normal: todo se guarda y se envía cuando vuelva la comunicación. Solo quedan sin servicio las listas de boda, las notas de crédito de otra sucursal y el chequeador.'],
        ['El terminal de tarjeta no responde', 'La caja lo avisa. Se puede registrar la aprobación manual del banco con autorización de supervisor, y queda marcada para conciliar.'],
        ['Se acabaron los e-NCF o venció el rango', 'No se puede facturar. Administración debe asignar un rango nuevo en el Central; la caja lo recibe en su próxima sincronización. La barra de estado avisa antes de que se acabe.'],
        ['El certificado pide PIN', 'Toque el indicador e-CF de la barra de estado y digite el PIN. Queda solo en memoria: si se reinicia el equipo, se vuelve a pedir.'],
