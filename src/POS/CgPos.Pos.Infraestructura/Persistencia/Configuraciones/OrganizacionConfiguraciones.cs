@@ -11,7 +11,7 @@ internal sealed class EmpresaConfiguracion : IEntityTypeConfiguration<Empresa>
         constructor.ToTable("Empresas");
         constructor.HasKey(e => e.Id);
 
-        constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoRnc).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoMaximoRnc).IsUnicode(false).IsRequired();
         constructor.Property(e => e.RazonSocial).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
         constructor.Property(e => e.NombreComercial).HasMaxLength(Empresa.LargoMaximoNombre);
         constructor.Property(e => e.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion);

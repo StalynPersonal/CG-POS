@@ -1,4 +1,4 @@
-using CgPos.Contratos.CargaInicial;
+﻿using CgPos.Contratos.CargaInicial;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
@@ -187,7 +187,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
             string intentosMaximos = "3",
             string claveCajero = "Cajero.1111") =>
             new(
-                new EmpresaCarga("999000002", "Empresa de Pruebas SRL"),
+                new EmpresaCarga("999000004", "Empresa de Pruebas SRL"),
                 Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de prueba")],
                 Cajas:
                 [

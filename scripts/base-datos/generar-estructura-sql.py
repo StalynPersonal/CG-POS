@@ -23,10 +23,10 @@ import sys
 RAIZ = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SALIDA = os.path.join(RAIZ, 'scripts', 'base-datos')
 
-# Datos de la empresa con los que nace la base. El RNC identifica a la empresa ante la DGII y NO se puede cambiar
-# después desde el Central: revise estos valores antes de ejecutar el script en el servidor de producción.
+# Datos de la empresa con los que nace la base. El RNC identifica a la empresa ante la DGII; el valor de aquí es un
+# marcador que se corrige luego desde el Central, en Organización → Empresa (admite RNC de 9 dígitos o cédula de 11).
 EMPRESA = {
-    'rnc': '000000000',
+    'rnc': '000000002',
     'razon_social': 'CONTRERAS GROUP SRL',
     'nombre_comercial': 'Contreras Group',
     'direccion': 'Indique la dirección de la empresa',
@@ -321,16 +321,17 @@ def datos_iniciales():
         Usuario:    {ADMIN_CODIGO}
         Contraseña: {ADMIN_CONTRASENA}
 
-   Revise antes de ejecutar: el RNC de la empresa ({rnc}).
+   El RNC sembrado ({rnc}) es un marcador: corríjalo al entrar, en
+   Organización -> Empresa.
 
    El sistema exige cambiarla en el primer ingreso.
    ------------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------------
    Empresa: es la que sale en las facturas y la que se identifica ante la DGII.
-   El RNC no se cambia desde el Central; si el de aquí no es el correcto,
-   corrija el script ANTES de ejecutarlo. La razón social, el nombre comercial,
-   la dirección y el teléfono sí se editan luego en Organización → Empresa.
+   Todos estos datos, el RNC incluido, se editan luego en el Central, en
+   Organización → Empresa. El RNC admite 9 dígitos (RNC) u 11 (cédula, si
+   factura una persona física) y se le valida el dígito verificador.
    ------------------------------------------------------------------------ */
 
 INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono])

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Organizacion;
+﻿using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -112,5 +112,14 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         contexto.Permisos.AddRange(CatalogoPermisos.Todos.Where(d => !existentes.Contains(d.Codigo)).Select(Permiso.Crear));
     }
 
-    private static string RncUnico() => Random.Shared.NextInt64(100_000_000, 999_999_999).ToString();
+    /// <summary>RNC distinto en cada prueba, con su dígito verificador, que es lo que exige el dominio.</summary>
+    private static string RncUnico()
+    {
+        var baseRnc = Random.Shared.Next(10_000_000, 99_999_999).ToString();
+        int[] pesos = [7, 9, 8, 6, 5, 4, 3, 2];
+        var suma = baseRnc.Select((digito, posicion) => (digito - '0') * pesos[posicion]).Sum();
+        var resto = suma % 11;
+        var verificador = resto switch { 0 => 2, 1 => 1, _ => 11 - resto };
+        return baseRnc + verificador;
+    }
 }

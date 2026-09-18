@@ -2,8 +2,8 @@ namespace CgPos.Contratos.Central;
 
 public sealed record DatosEmpresa(int Id, string Rnc, string RazonSocial, string? NombreComercial, string? Direccion, string? Telefono);
 
-/// <summary>El RNC no cambia desde el Central Manager.</summary>
-public sealed record SolicitudEmpresa(string RazonSocial, string? NombreComercial, string? Direccion, string? Telefono);
+/// <param name="Rnc">RNC con el que se factura; se valida su dígito verificador y el cambio queda en la auditoría.</param>
+public sealed record SolicitudEmpresa(string RazonSocial, string? NombreComercial, string? Direccion, string? Telefono, string? Rnc = null);
 
 public sealed record DatosSucursal(int Id, int Codigo, string Nombre, string? Direccion, string? Telefono, bool Activa, int Cajas);
 

@@ -1328,7 +1328,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var departamento = new DepartamentoCarga(Codigos.Siguiente(), "Departamento bajada del Central");
         var clave = $"Pruebas.Descarga{escenario.Sufijo}";
         var organizacion = new CgPos.Contratos.CargaInicial.PaqueteCargaInicial(
-            new CgPos.Contratos.CargaInicial.EmpresaCarga("999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
+            new CgPos.Contratos.CargaInicial.EmpresaCarga("999000004", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
             Parametros: [new CgPos.Contratos.CargaInicial.ParametroCarga(clave, "valor del Central", SucursalCodigo: escenario.CodigoSucursal, CajaCodigo: escenario.CodigoCajaUno)]);
 
         var aplicada = await DescargarAsync(new PaqueteBajadaMaestros(desde, desde + 500, organizacion, new PaqueteMaestros(Departamentos: [departamento])));

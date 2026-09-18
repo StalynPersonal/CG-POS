@@ -1,4 +1,4 @@
-@page "/organizacion/empresa"
+﻿@page "/organizacion/empresa"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
 @inject ClienteCentral Cliente
 @inject ISnackbar Avisos
@@ -8,7 +8,7 @@
 <div class="cg-central__encabezado">
     <div>
         <MudText Typo="Typo.h4" Class="cg-central__titulo">Empresa</MudText>
-        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Datos fiscales que usan las cajas en los e-CF y en los tickets. El RNC no se cambia desde aquí.</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Datos fiscales que usan las cajas en los e-CF y en los tickets. Corrija el RNC solo si se registró mal: los comprobantes ya emitidos conservan el anterior.</MudText>
     </div>
 </div>
 
@@ -23,7 +23,8 @@ else if (_empresa is null)
 else
 {
     <MudPaper Elevation="1" Class="pa-6 cg-central__formulario-angosto">
-        <MudTextField T="string" Value="@_empresa.Rnc" Label="RNC" Variant="Variant.Outlined" ReadOnly="true" />
+        <MudTextField T="string" @bind-Value="_rnc" Label="RNC o cédula" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio"
+                      MaxLength="11" HelperText="Documento con el que se factura y se reporta a la DGII: RNC de 9 dígitos o cédula de 11 si factura una persona física. Los comprobantes ya emitidos conservan el anterior." />
         <MudTextField T="string" @bind-Value="_razonSocial" Label="Razón social" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
         <MudTextField T="string" @bind-Value="_nombreComercial" Label="Nombre comercial" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
         <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Lines="2" />
@@ -40,6 +41,7 @@ else
 
 @code {
     private DatosEmpresa? _empresa;
+    private string? _rnc;
     private string? _razonSocial;
     private string? _nombreComercial;
     private string? _direccion;
@@ -53,6 +55,7 @@ else
         _empresa = await Cliente.ObtenerEmpresaAsync();
         if (_empresa is not null)
         {
+            _rnc = _empresa.Rnc;
             _razonSocial = _empresa.RazonSocial;
             _nombreComercial = _empresa.NombreComercial;
             _direccion = _empresa.Direccion;
@@ -66,7 +69,8 @@ else
     {
         _procesando = true;
         _mensaje = null;
-        var respuesta = await Cliente.ActualizarEmpresaAsync(new SolicitudEmpresa(_razonSocial ?? string.Empty, _nombreComercial, _direccion, _telefono));
+        var respuesta = await Cliente.ActualizarEmpresaAsync(
+            new SolicitudEmpresa(_razonSocial ?? string.Empty, _nombreComercial, _direccion, _telefono, _rnc));
         _procesando = false;
 
         if (respuesta.Exitosa)

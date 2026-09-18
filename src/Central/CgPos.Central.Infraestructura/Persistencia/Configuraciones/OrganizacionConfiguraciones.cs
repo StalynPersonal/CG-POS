@@ -1,4 +1,4 @@
-using CgPos.Dominio.Auditoria;
+﻿using CgPos.Dominio.Auditoria;
 using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -13,7 +13,7 @@ internal sealed class EmpresaConfiguracion : IEntityTypeConfiguration<Empresa>
         constructor.HasKey(e => e.Id);
 
         // En el Central todos los datos de la empresa y de las sucursales son obligatorios (salen en e-CF, tickets y reportes).
-        constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoRnc).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(e => e.Rnc).HasMaxLength(Empresa.LargoMaximoRnc).IsUnicode(false).IsRequired();
         constructor.Property(e => e.RazonSocial).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
         constructor.Property(e => e.NombreComercial).HasMaxLength(Empresa.LargoMaximoNombre).IsRequired();
         constructor.Property(e => e.Direccion).HasMaxLength(Empresa.LargoMaximoDireccion).IsRequired();

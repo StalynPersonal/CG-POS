@@ -24,8 +24,13 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (DatosObligatoriosOrganizacion.Empresa(solicitud.RazonSocial, solicitud.NombreComercial, solicitud.Direccion, solicitud.Telefono) is { } faltanEmpresa)
             return ResultadoAdministracion.Error(faltanEmpresa);
 
+        var rncAnterior = empresa.Rnc;
         try
         {
+            // El RNC se corrige si se registró mal al instalar; si no viene, se conserva el que hay.
+            if (solicitud.Rnc is { Length: > 0 } rnc && CgPos.Dominio.Fiscal.DocumentoIdentidad.Normalizar(rnc) != rncAnterior)
+                empresa.CambiarRnc(rnc);
+
             empresa.ActualizarDatos(solicitud.RazonSocial, solicitud.NombreComercial, solicitud.Direccion, solicitud.Telefono);
         }
         catch (ArgumentException excepcion)
@@ -33,6 +38,10 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
             contexto.ChangeTracker.Clear();
             return ResultadoAdministracion.Error(excepcion.Message);
         }
+
+        if (empresa.Rnc != rncAnterior)
+            auditoria.Registrar(new EntradaAuditoria("Organizacion.RncEmpresaCambiado", "Empresa", empresa.Rnc,
+                Detalle: new { Anterior = rncAnterior, Nuevo = empresa.Rnc }, Usuario: actor));
 
         return await GuardarAsync("Organizacion.EmpresaActualizada", "Empresa", empresa.Id, actor, solicitud, cancelacion);
     }

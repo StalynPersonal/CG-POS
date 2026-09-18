@@ -1,17 +1,20 @@
-using CgPos.Dominio.Organizacion;
+﻿using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Dominio.Pruebas.Organizacion;
 
 public class OrganizacionPruebas
 {
     [Theory]
-    [InlineData("101000000")]
+    [InlineData("401007551")]
     [InlineData(" 131246796 ")]
-    public void Empresa_acepta_rnc_de_9_digitos(string rnc)
+    [InlineData("131-24679-6")]
+    // Una persona física factura con su cédula, de 11 dígitos.
+    [InlineData("00100000001")]
+    public void Empresa_acepta_rnc_de_9_digitos_o_cedula_de_11(string rnc)
     {
         var empresa = Empresa.Crear(rnc, "Contreras Group SRL");
 
-        Assert.Equal(rnc.Trim(), empresa.Rnc);
+        Assert.Equal(rnc.Trim().Replace("-", ""), empresa.Rnc);
     }
 
     [Theory]
@@ -19,6 +22,8 @@ public class OrganizacionPruebas
     [InlineData("1234567890")]
     [InlineData("10100000A")]
     [InlineData("")]
+    // Formato de RNC correcto, pero el dígito verificador no corresponde.
+    [InlineData("101000000")]
     public void Empresa_rechaza_rnc_invalido(string rnc)
     {
         Assert.Throws<ArgumentException>(() => Empresa.Crear(rnc, "Contreras Group SRL"));

@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Pruebas.Soporte;
@@ -31,7 +31,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
 
         Assert.True(paquete.Hasta > 0);
         var organizacion = paquete.Organizacion!;
-        Assert.Equal("999000001", organizacion.Empresa.Rnc);
+        Assert.Equal("999000004", organizacion.Empresa.Rnc);
         // Otras pruebas de la colección crean sucursales y cajas: basta con que estén las de desarrollo.
         Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == 1 && c.Codigo == 1);
         Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == 1 && c.Codigo == 2);

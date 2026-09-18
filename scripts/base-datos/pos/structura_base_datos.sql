@@ -416,7 +416,7 @@ GO
 
 CREATE TABLE [Empresas] (
     [Id] int NOT NULL,
-    [Rnc] char(9) NOT NULL,
+    [Rnc] varchar(11) NOT NULL,
     [RazonSocial] nvarchar(150) NOT NULL,
     [NombreComercial] nvarchar(150) NULL,
     [Direccion] nvarchar(250) NULL,

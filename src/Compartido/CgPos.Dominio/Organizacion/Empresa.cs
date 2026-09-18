@@ -1,11 +1,12 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Organizacion;
 
 /// <summary>Empresa única del sistema (una empresa, múltiples sucursales).</summary>
 public sealed class Empresa : Entidad
 {
-    public const int LargoRnc = 9;
+    /// <summary>El documento de la empresa puede ser un RNC (9 dígitos) o una cédula (11), si factura una persona física.</summary>
+    public const int LargoMaximoRnc = Fiscal.DocumentoIdentidad.LargoCedula;
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoDireccion = 250;
     public const int LargoMaximoTelefono = 20;
@@ -26,10 +27,35 @@ public sealed class Empresa : Entidad
     {
         var empresa = new Empresa
         {
-            Rnc = Validar.Digitos(rnc, "RNC", LargoRnc),
+            Rnc = NormalizarRnc(rnc),
         };
         empresa.ActualizarDatos(razonSocial, nombreComercial, direccion, telefono);
         return empresa;
+    }
+
+    /// <summary>
+    /// Cambia el RNC con el que se factura. Se corrige cuando se registró mal al instalar; los comprobantes ya emitidos
+    /// conservan el que llevaban, así que el cambio queda en la auditoría.
+    /// </summary>
+    public void CambiarRnc(string rnc) => Rnc = NormalizarRnc(rnc);
+
+    /// <summary>
+    /// Acepta un RNC de 9 dígitos o una cédula de 11, con o sin guiones. Al RNC se le exige el dígito verificador de la
+    /// DGII; a la cédula no, porque hay cédulas antiguas legítimas que no lo cumplen.
+    /// </summary>
+    private static string NormalizarRnc(string rnc)
+    {
+        var documento = Fiscal.DocumentoIdentidad.Validar(rnc);
+        if (!documento.FormatoValido)
+            throw new ArgumentException(
+                $"El RNC o cédula '{documento.Documento}' no tiene el formato correcto: 9 dígitos si es RNC u 11 si es cédula.",
+                nameof(rnc));
+
+        if (documento.Tipo == Fiscal.TipoDocumentoIdentidad.Rnc && !documento.DigitoVerificadorValido)
+            throw new ArgumentException($"El RNC '{documento.Documento}' no es válido: su dígito verificador no corresponde.",
+                nameof(rnc));
+
+        return documento.Documento;
     }
 
     public void ActualizarDatos(string razonSocial, string? nombreComercial, string? direccion, string? telefono)

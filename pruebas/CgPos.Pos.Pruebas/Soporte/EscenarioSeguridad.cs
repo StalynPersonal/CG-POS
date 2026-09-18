@@ -125,7 +125,7 @@ public sealed class EscenarioSeguridad
 
     private PaqueteCargaInicial CrearPaquete(int empresaId) =>
         new(
-            new EmpresaCarga("999000003", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
+            new EmpresaCarga("999000004", "Empresa Seguridad SRL", Direccion: "Calle de prueba 1, Santo Domingo"),
             Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de seguridad")],
             Cajas:
             [

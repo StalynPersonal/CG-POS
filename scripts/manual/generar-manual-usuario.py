@@ -156,12 +156,13 @@ paso('En el servidor, abra SQL Server Management Studio (o use sqlcmd) y ejecute
      'scripts/base-datos/central/structura_base_datos.sql. Crea la base CgPosCentral con todas sus tablas, llaves e índices.')
 paso('Ese mismo script deja lo mínimo para arrancar: la empresa, el usuario administrador, los parámetros del negocio con '
      'valores razonables y los catálogos que son iguales en cualquier negocio dominicano.')
-nota('Antes de ejecutar el script en el servidor de la empresa, revise en él el RNC: es el que sale en las facturas y ante '
-     'la DGII, y después no se puede cambiar desde el Central. La razón social, el nombre comercial, la dirección y el '
-     'teléfono sí se corrigen luego en Organización → Empresa.')
+nota('El RNC que trae el script es un marcador: lo primero que debe hacer al entrar al Central es corregirlo en '
+     'Organización → Empresa, junto con la razón social, el nombre comercial, la dirección y el teléfono. Es el dato '
+     'que sale en las facturas y ante la DGII. Se admite un RNC de 9 dígitos o una cédula de 11, si quien factura es '
+     'una persona física; el sistema le valida el dígito verificador.')
 tabla(['La base recién creada trae', 'No trae (lo crea usted)'],
       [['Usuario administrador con todos los permisos', 'Sucursales y cajas'],
-       ['La empresa, con su RNC (revíselo antes de instalar)', 'Usuarios y roles de caja'],
+       ['La empresa, con un RNC de marcador que usted corrige al entrar', 'Usuarios y roles de caja'],
        ['Parámetros con valores de arranque (plazos, topes, fidelidad, cuadre…)', ''],
        ['Monedas: peso dominicano y dólar', 'Departamentos, categorías y marcas'],
        ['Impuestos: ITBIS 18 %, 16 %, 0 % y exento', 'Artículos y sus precios'],
@@ -184,7 +185,8 @@ titulo('2.2. Lo mínimo que debe existir antes de abrir una caja', 2)
 p('La caja no inventa nada: todo lo que usa baja del Central. Si el Central está vacío, la caja no puede ni abrir turno. '
   'Antes de poner a vender una caja, en el Central debe estar creado y configurado esto:')
 tabla(['Qué', 'Dónde se hace', 'Por qué hace falta'],
-      [['Sucursal y caja', 'Organización', 'La caja se identifica por su sucursal y su número; sin eso no se conecta. La empresa ya viene creada: revise sus datos.'],
+      [['Datos de la empresa', 'Organización → Empresa', 'El RNC (o la cédula) y la razón social con los que se factura. El script los siembra como marcador: corríjalos antes de emitir el primer comprobante.'],
+       ['Sucursal y caja', 'Organización', 'La caja se identifica por su sucursal y su número; sin eso no se conecta.'],
        ['Credencial de la caja', 'Organización → Cajas', 'Es la clave con la que la caja se comunica con el Central.'],
        ['Parámetros del negocio', 'Organización → Parámetros', 'Fondo de caja, redondeo, vigencia de notas de crédito, retención, plazos. Si falta uno obligatorio, la operación se rechaza.'],
        ['Catálogos', 'Maestros → Catálogos', 'Moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, motivos de descuento y de devolución.'],
@@ -196,7 +198,7 @@ nota('Todo esto baja solo a las cajas en la siguiente sincronización: no hay qu
 
 titulo('2.3. Organización', 2)
 tabla(['Opción', 'Ruta', 'Para qué sirve'],
-      [['Empresa', '/organizacion/empresa', 'Datos fiscales de la empresa (el RNC no se cambia).'],
+      [['Empresa', '/organizacion/empresa', 'Datos fiscales de la empresa, el RNC incluido: RNC de 9 dígitos o cédula de 11. Los comprobantes ya emitidos conservan el que llevaban y el cambio queda en la auditoría.'],
        ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal.'],
        ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas y emitir la credencial con la que la caja se conecta al Central.'],
        ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad… Se pueden fijar en general, por sucursal o por caja.'],

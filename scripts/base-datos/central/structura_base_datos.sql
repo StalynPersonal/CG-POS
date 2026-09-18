@@ -344,7 +344,7 @@ GO
 
 CREATE TABLE [Empresas] (
     [Id] int NOT NULL,
-    [Rnc] char(9) NOT NULL,
+    [Rnc] varchar(11) NOT NULL,
     [RazonSocial] nvarchar(150) NOT NULL,
     [NombreComercial] nvarchar(150) NOT NULL,
     [Direccion] nvarchar(250) NOT NULL,
@@ -1918,20 +1918,21 @@ GO
         Usuario:    ADMIN
         Contraseña: Admin.CGPOS#2026
 
-   Revise antes de ejecutar: el RNC de la empresa (000000000).
+   El RNC sembrado (000000002) es un marcador: corríjalo al entrar, en
+   Organización -> Empresa.
 
    El sistema exige cambiarla en el primer ingreso.
    ------------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------------
    Empresa: es la que sale en las facturas y la que se identifica ante la DGII.
-   El RNC no se cambia desde el Central; si el de aquí no es el correcto,
-   corrija el script ANTES de ejecutarlo. La razón social, el nombre comercial,
-   la dirección y el teléfono sí se editan luego en Organización → Empresa.
+   Todos estos datos, el RNC incluido, se editan luego en el Central, en
+   Organización → Empresa. El RNC admite 9 dígitos (RNC) u 11 (cédula, si
+   factura una persona física) y se le valida el dígito verificador.
    ------------------------------------------------------------------------ */
 
 INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono])
-VALUES (1, '000000000', N'CONTRERAS GROUP SRL', N'Contreras Group', N'Indique la dirección de la empresa', N'000-000-0000');
+VALUES (1, '000000002', N'CONTRERAS GROUP SRL', N'Contreras Group', N'Indique la dirección de la empresa', N'000-000-0000');
 ALTER SEQUENCE [SecuenciaEmpresas] RESTART WITH 11;
 GO
 
@@ -1964,7 +1965,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$FhVfcu/1cUQWFa2xdE23Pw==$xtwGW6nBNFM5utwvm72nr49QCraTTgn+YNcPe4FxIlk=', 1, NULL, 0, NULL, NULL);
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$NlTro9tqajc+84ViZEG2Zw==$4fTmWU7xY2MlsjDfZ4FjyfdFTK0NBwumBroT7vxDAFA=', 1, NULL, 0, NULL, NULL);
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO
 

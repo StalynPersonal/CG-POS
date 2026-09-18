@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 using CgPos.Central.Aplicacion.Organizacion;
@@ -140,14 +140,14 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
-    public async Task Empresa_se_actualiza_sin_cambiar_el_rnc_y_sin_permiso_no_se_administra()
+    public async Task Empresa_se_actualiza_incluido_su_rnc_y_sin_permiso_no_se_administra()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
         var empresa = await ObtenerEmpresaAsync(cliente, admin);
-        Assert.Equal("999000001", empresa.Rnc);
+        Assert.Equal("999000004", empresa.Rnc);
 
         var cambio = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
             new SolicitudEmpresa(empresa.RazonSocial, "Nombre comercial de prueba", empresa.Direccion, empresa.Telefono));
@@ -155,6 +155,31 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal("Nombre comercial de prueba", (await ObtenerEmpresaAsync(cliente, admin)).NombreComercial);
         await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
             new SolicitudEmpresa(empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono));
+
+        // El RNC se corrige si se registró mal, pero solo con un RNC válido.
+        var invalido = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
+            new SolicitudEmpresa(empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono, "123456789"));
+        Assert.False(invalido.Cuerpo!.Exitosa);
+        Assert.Contains("dígito verificador", invalido.Cuerpo.Mensaje);
+        Assert.Equal(empresa.Rnc, (await ObtenerEmpresaAsync(cliente, admin)).Rnc);
+
+        // También se acepta una cédula, para cuando factura una persona física.
+        var cedula = "00100000001";
+        var cambioCedula = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
+            new SolicitudEmpresa(empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono, cedula));
+        Assert.True(cambioCedula.Cuerpo!.Exitosa, cambioCedula.Cuerpo.Mensaje);
+        Assert.Equal(cedula, (await ObtenerEmpresaAsync(cliente, admin)).Rnc);
+
+        var nuevoRnc = "401007551";
+        var cambioRnc = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
+            new SolicitudEmpresa(empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono, nuevoRnc));
+        Assert.True(cambioRnc.Cuerpo!.Exitosa, cambioRnc.Cuerpo.Mensaje);
+        Assert.Equal(nuevoRnc, (await ObtenerEmpresaAsync(cliente, admin)).Rnc);
+
+        // Se devuelve el RNC original para no afectar a las demás pruebas.
+        await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
+            new SolicitudEmpresa(empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono, empresa.Rnc));
+        Assert.Equal(empresa.Rnc, (await ObtenerEmpresaAsync(cliente, admin)).Rnc);
 
         // Todos los datos de la empresa son obligatorios en el Central.
         var incompleta = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/organizacion/empresa",
