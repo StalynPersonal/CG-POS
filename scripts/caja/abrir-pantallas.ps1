@@ -4,6 +4,7 @@
 
 .DESCRIPTION
     - Cajero (/)                 : venta, cobro y turnos.
+    - Mostrador (/mostrador)     : pantalla táctil con el catálogo en mosaicos (opcional).
     - Cliente (/cliente)         : segundo monitor con artículos, total y publicidad.
     - Devoluciones (/devoluciones): opcional, tercer monitor o estación de devoluciones.
 
@@ -20,6 +21,7 @@ param(
     [int] $MonitorCajero = 1,
     [int] $MonitorCliente = 2,
     [int] $MonitorDevoluciones = 0,
+    [int] $MonitorMostrador = 0,
     [string] $Url = 'http://localhost:5180',
     [string] $Navegador = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
 )
@@ -60,3 +62,4 @@ function Abrir-Pantalla([string] $ruta, [int] $numero, [string] $perfil) {
 Abrir-Pantalla '/' $MonitorCajero 'cajero'
 Abrir-Pantalla '/cliente' $MonitorCliente 'cliente'
 Abrir-Pantalla '/devoluciones' $MonitorDevoluciones 'devoluciones'
+Abrir-Pantalla '/mostrador' $MonitorMostrador 'mostrador'

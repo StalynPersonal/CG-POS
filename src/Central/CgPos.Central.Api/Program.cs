@@ -127,10 +127,23 @@ try
 
     await aplicacion.Services.InicializarBaseDatosCentralAsync();
 
-    // Datos iniciales desde archivo (instalación o desarrollo). Cada archivo se aplica solo si cambió desde la última vez,
-    // para no pisar lo que se edita en el Manager al reiniciar.
-    string? RutaConfigurada(string clave) =>
-        aplicacion.Configuration[clave] is { Length: > 0 } ruta ? Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath) : null;
+    // Los datos del Central viven en su base: se crean con el script de estructura y se administran desde el Manager.
+    // Los archivos de carga solo sirven para armar un entorno de desarrollo o de pruebas; en producción se ignoran.
+    var datosDesdeArchivo = aplicacion.Environment.IsDevelopment() || aplicacion.Environment.IsEnvironment("Pruebas");
+
+    string? RutaConfigurada(string clave)
+    {
+        if (aplicacion.Configuration[clave] is not { Length: > 0 } ruta)
+            return null;
+
+        if (!datosDesdeArchivo)
+        {
+            Log.Warning("Se ignora {Clave}: los datos del Central se administran en su base, no por archivo", clave);
+            return null;
+        }
+
+        return Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath);
+    }
 
     if (RutaConfigurada("CargaInicial:Archivo") is { } archivoCarga)
         await aplicacion.Services.AplicarArchivoSiCambioAsync("CargaInicial:Archivo", archivoCarga,

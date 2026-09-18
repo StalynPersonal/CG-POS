@@ -122,7 +122,7 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         await aislada.InitializeAsync();
         try
         {
-            var ruta = Path.Combine(BuscarRaizRepositorio(), "datos", "carga-inicial.desarrollo.json");
+            var ruta = Path.Combine(BuscarRaizRepositorio(), "pruebas", "CgPos.Central.Pruebas", "Datos", "carga-inicial.pruebas.json");
 
             ResultadoCargaInicial primera, segunda;
             await using (var ambito = aislada.Servicios!.CreateAsyncScope())

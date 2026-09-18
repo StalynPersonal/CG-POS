@@ -22,7 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace CgPos.Central.Pruebas.Soporte;
 
 /// <summary>
-/// CG-POS Central completo en memoria con una base SQL Server temporal y <c>datos/central.desarrollo.json</c>
+/// CG-POS Central completo en memoria con una base SQL Server temporal y los datos de <c>Datos/</c> de este proyecto
 /// (ADMIN / Admin.Central2026). Exige HTTPS como en producción: los clientes usan https://localhost.
 /// Configuración: user-secrets compartidos con CgPos.Pos.Pruebas o variables de entorno CGPOS_; sin servidor, las pruebas se omiten.
 /// </summary>
@@ -68,9 +68,9 @@ public sealed class CentralEnPruebas : IAsyncLifetime
             anfitrion.UseEnvironment("Pruebas");
             anfitrion.UseSetting($"ConnectionStrings:{InyeccionDependencias.NombreConexion}", cadenaConexion);
             anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", configuracion["BaseDatos:NivelCompatibilidad"]);
-            anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "central.desarrollo.json"));
-            anfitrion.UseSetting("CargaInicialCajas:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "carga-inicial.desarrollo.json"));
-            anfitrion.UseSetting("Maestros:Archivo", Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "maestros.desarrollo.json"));
+            anfitrion.UseSetting("CargaInicial:Archivo", RutasPrueba.Datos("central.pruebas.json"));
+            anfitrion.UseSetting("CargaInicialCajas:Archivo", RutasPrueba.Datos("carga-inicial.pruebas.json"));
+            anfitrion.UseSetting("Maestros:Archivo", RutasPrueba.Datos("maestros.pruebas.json"));
             anfitrion.UseSetting(EmisorTokensCentral.ClaveConfiguracion, Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
             anfitrion.UseSetting(ExtensionesSeguridadCentral.ClaveExigirHttps, "true");
             anfitrion.UseSetting("Central:ServirManager", "false");
@@ -226,6 +226,10 @@ public sealed class ColeccionCentral : ICollectionFixture<CentralEnPruebas>
 
 public static class RutasPrueba
 {
+    /// <summary>Archivo de datos de las pruebas del Central (viven en este proyecto, no en el sistema).</summary>
+    public static string Datos(string archivo) =>
+        Path.Combine(RaizRepositorio(), "pruebas", "CgPos.Central.Pruebas", "Datos", archivo);
+
     public static string RaizRepositorio()
     {
         for (var carpeta = new DirectoryInfo(AppContext.BaseDirectory); carpeta is not null; carpeta = carpeta.Parent)

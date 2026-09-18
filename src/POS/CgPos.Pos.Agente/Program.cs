@@ -109,9 +109,23 @@ try
 
     await aplicacion.Services.InicializarBaseDatosPosAsync();
 
-    // Datos desde archivo (desarrollo o instalación sin Central todavía). Cada archivo se aplica solo si cambió desde la última vez.
-    string? RutaConfigurada(string clave) =>
-        aplicacion.Configuration[clave] is { Length: > 0 } ruta ? Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath) : null;
+    // La caja toma sus datos del Central; su base se crea con el script de estructura y arranca vacía.
+    // Los archivos de carga solo sirven para desarrollo o pruebas: fuera de ahí se ignoran.
+    var datosDesdeArchivo = aplicacion.Environment.IsDevelopment() || aplicacion.Environment.IsEnvironment("Pruebas");
+
+    string? RutaConfigurada(string clave)
+    {
+        if (aplicacion.Configuration[clave] is not { Length: > 0 } ruta)
+            return null;
+
+        if (!datosDesdeArchivo)
+        {
+            Log.Warning("Se ignora {Clave}: la caja toma sus datos del Central, no de archivos", clave);
+            return null;
+        }
+
+        return Path.GetFullPath(ruta, aplicacion.Environment.ContentRootPath);
+    }
 
     // Conectada al Central, la organización y los maestros vienen de él: los archivos no se aplican para no pisar lo que publicó.
     var conCentral = aplicacion.Configuration["Central:Url"] is { Length: > 0 };

@@ -277,7 +277,8 @@ public sealed record DatosArticuloResumen(
     string UnidadMedidaCodigo,
     decimal? PrecioDetalle,
     decimal? PrecioMayor,
-    string? RutaImagen);
+    string? RutaImagen,
+    string? CategoriaNombre = null);
 
 public sealed record DatosPrecioHistorico(
     ListaPrecio Lista,

@@ -41,6 +41,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
         if (MotivoOmision is not null)
             return;
 
+        // Los datos de prueba viven en el proyecto de pruebas del Central; el padrón sigue en datos/.
+        var datosPruebas = Path.Combine(RutasPrueba.RaizRepositorio(), "pruebas", "CgPos.Central.Pruebas", "Datos");
         var datos = Path.Combine(RutasPrueba.RaizRepositorio(), "datos");
         var archivoLogs = Path.Combine(Path.GetTempPath(), "cgpos-pruebas", "agente-.log");
 
@@ -49,8 +51,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseEnvironment("Pruebas");
             anfitrion.UseSetting($"ConnectionStrings:{InyeccionDependencias.NombreConexion}", _baseDatos.CadenaConexion);
             anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", _baseDatos.NivelCompatibilidad);
-            anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(datos, "carga-inicial.desarrollo.json"));
-            anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datos, "maestros.desarrollo.json"));
+            anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(datosPruebas, "carga-inicial.pruebas.json"));
+            anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datosPruebas, "maestros.pruebas.json"));
             anfitrion.UseSetting("Maestros:PadronDgii", Path.Combine(datos, "padron-dgii.desarrollo.txt"));
             anfitrion.UseSetting("Caja:Sucursal", SucursalDesarrollo.ToString());
             anfitrion.UseSetting("Caja:Codigo", CajaDesarrollo.ToString());

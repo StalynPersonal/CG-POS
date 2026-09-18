@@ -26,7 +26,8 @@ public class CatalogoParametrosCajaPruebas
     [Fact]
     public async Task Los_parametros_de_la_carga_inicial_de_desarrollo_son_validos_para_el_catalogo()
     {
-        await using var archivo = File.OpenRead(Path.Combine(RutasPrueba.RaizRepositorio(), "datos", "carga-inicial.desarrollo.json"));
+        await using var archivo = File.OpenRead(
+            Path.Combine(RutasPrueba.RaizRepositorio(), "pruebas", "CgPos.Central.Pruebas", "Datos", "carga-inicial.pruebas.json"));
         var paquete = await JsonSerializer.DeserializeAsync<PaqueteCargaInicial>(archivo, OpcionesJson.Predeterminadas);
 
         Assert.NotEmpty(paquete!.Parametros!);

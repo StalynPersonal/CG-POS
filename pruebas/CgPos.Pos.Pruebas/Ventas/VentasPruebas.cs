@@ -1394,7 +1394,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.Referencia == cobro.Venta.NumeroTransaccion && m.TipoMensaje == "Venta.Cobrada"));
         var documento = JsonSerializer.Deserialize<DocumentoVentaCobrada>(mensaje.Contenido, OpcionesJson.Predeterminadas)!;
         Assert.Equal(cobro.Venta.NumeroTransaccion, documento.Numero);
-        Assert.DoesNotContain(cobro.Venta.Id.ToString(), mensaje.Contenido, StringComparison.OrdinalIgnoreCase);
+        // Al Central no le viaja ningún Id de la base de la caja: todo va por número o por código.
+        Assert.Empty(PropiedadesId(JsonDocument.Parse(mensaje.Contenido).RootElement));
 
         // La venta no llega al monto de identificación: a la DGII va el resumen (RFCE), no el e-CF completo.
         Assert.NotNull(documento.Ecf);
@@ -1743,6 +1744,30 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoLoteTerminal> CerrarLoteAsync(CancellationToken cancelacion = default) =>
             Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoLoteTerminal(true, "Lote cerrado."));
+    }
+
+    /// <summary>Nombres de propiedades que parecen un Id en el documento que se le envía al Central.</summary>
+    private static IReadOnlyList<string> PropiedadesId(JsonElement elemento)
+    {
+        var encontrados = new List<string>();
+        switch (elemento.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var propiedad in elemento.EnumerateObject())
+                {
+                    if (propiedad.Name.EndsWith("id", StringComparison.OrdinalIgnoreCase))
+                        encontrados.Add(propiedad.Name);
+                    encontrados.AddRange(PropiedadesId(propiedad.Value));
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var hijo in elemento.EnumerateArray())
+                    encontrados.AddRange(PropiedadesId(hijo));
+                break;
+        }
+
+        return encontrados;
     }
 
     private sealed class CajaEnPruebas : IAsyncDisposable

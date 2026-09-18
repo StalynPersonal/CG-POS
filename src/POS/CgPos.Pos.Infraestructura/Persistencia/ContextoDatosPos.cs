@@ -89,9 +89,18 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
 
     protected override void OnModelCreating(ModelBuilder constructorModelo)
     {
-        // Los Id son enteros de esta base: EF los reserva por bloques de una secuencia (HiLo) al agregar cada entidad, sin ir a la base por cada una.
-        constructorModelo.UseHiLo();
+        // Cada tabla tiene su propia secuencia de Id, así sus números empiezan en 1 y no se mezclan con los de otra tabla.
+        // EF reserva bloques de la secuencia al agregar la entidad (HiLo), así que el Id está listo antes de guardar.
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosPos).Assembly);
+
+        foreach (var entidad in constructorModelo.Model.GetEntityTypes())
+        {
+            if (entidad.FindPrimaryKey()?.Properties is not [{ Name: "Id" } llave] || llave.ClrType != typeof(int))
+                continue;
+
+            var tabla = entidad.GetTableName() ?? entidad.ShortName();
+            constructorModelo.Entity(entidad.ClrType).Property(llave.Name).UseHiLo($"Secuencia{tabla}");
+        }
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder constructorConvenciones)

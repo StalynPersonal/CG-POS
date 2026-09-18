@@ -175,15 +175,20 @@ internal sealed class ConsultaArticulos(
         var departamentosIds = articulos.Select(a => a.DepartamentoId).Distinct().ToList();
         var unidadesIds = articulos.Select(a => a.UnidadMedidaId).Distinct().ToList();
 
+        var categoriasIds = articulos.Select(a => a.CategoriaId).OfType<int>().Distinct().ToList();
+
         var departamentos = await contexto.Departamentos.Where(f => departamentosIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Nombre, cancelacion);
         var unidades = await contexto.UnidadesMedida.Where(u => unidadesIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Abreviatura, cancelacion);
+        var categorias = await contexto.Categorias.Where(c => categoriasIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Nombre, cancelacion);
         var precios = await PreciosVigentesAsync(ids, cancelacion);
 
         return articulos
             .Select(a =>
             {
                 var vigentes = precios.GetValueOrDefault(a.Id);
-                return new DatosArticuloResumen(a.Id, a.Codigo, a.Descripcion, a.Referencia, departamentos[a.DepartamentoId], unidades[a.UnidadMedidaId], vigentes?.Detalle, vigentes?.Mayor, a.RutaImagen);
+                return new DatosArticuloResumen(a.Id, a.Codigo, a.Descripcion, a.Referencia, departamentos[a.DepartamentoId],
+                    unidades[a.UnidadMedidaId], vigentes?.Detalle, vigentes?.Mayor, a.RutaImagen,
+                    a.CategoriaId is { } categoria ? categorias.GetValueOrDefault(categoria) : null);
             })
             .ToList();
     }

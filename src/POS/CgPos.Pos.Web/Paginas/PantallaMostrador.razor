@@ -1,0 +1,397 @@
+@page "/mostrador"
+@attribute [Authorize]
+@using System.Globalization
+@inject ClienteAgente Cliente
+@inject AlmacenSesion Almacen
+@inject IDialogService Dialogos
+@inject ServicioAutorizacionPantalla Autorizaciones
+@inject NavigationManager Navegacion
+
+@* Pantalla secundaria (táctil): la venta a la izquierda y el catálogo en mosaicos a la derecha, para vender sin teclado. *@
+
+<PageTitle>CG-POS · Mostrador</PageTitle>
+
+@if (_venta is null)
+{
+    @* Mientras se pide la venta en curso al Agente. *@
+    <div class="cg-mostrador__cargando">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+    </div>
+}
+else
+{
+    @* Pantalla completa: ticket, catálogo y barra de acciones. *@
+    <div class="cg-mostrador">
+        @* Columna izquierda: la venta tal como va, con sus totales y el botón de cobrar. *@
+        <section class="cg-mostrador__venta">
+            @* Encabezado de la columna: transacción y cliente; al tocarlo se abre cliente y comprobante. *@
+            <div class="cg-mostrador__encabezado" @onclick="AbrirClienteAsync">
+                <span class="cg-mostrador__transaccion">@_venta.NumeroTransaccion</span>
+                <span class="cg-mostrador__cliente">@(_venta.Cliente?.Nombre ?? "Cliente contado")</span>
+                <span class="cg-mostrador__comprobante">E@((int)_venta.TipoComprobante)</span>
+            </div>
+
+            @* Líneas de la venta: tocar una la selecciona para cambiar cantidad o quitarla. *@
+            <div class="cg-mostrador__lineas">
+                @if (!_venta.Lineas.Any(l => !l.EsReverso))
+                {
+                    <div class="cg-mostrador__vacia">Toque un artículo del catálogo para empezar</div>
+                }
+                @foreach (var linea in _venta.Lineas.Where(l => !l.EsReverso).OrderByDescending(l => l.NumeroLinea))
+                {
+                    <button type="button" class="cg-mostrador__linea @(linea.NumeroLinea == _seleccionada ? "cg-mostrador__linea--activa" : null)"
+                            @onclick="() => _seleccionada = linea.NumeroLinea">
+                        <span class="cg-mostrador__linea-descripcion">@linea.Descripcion</span>
+                        <span class="cg-mostrador__linea-cantidad">@linea.Cantidad.ToString("0.###") × @linea.PrecioUnitario.ToString("N2")</span>
+                        <span class="cg-mostrador__linea-importe">@linea.Importe.ToString("N2")</span>
+                        @if (linea.DescuentoPromocion > 0)
+                        {
+                            <span class="cg-mostrador__linea-promo">@(linea.PromocionDescripcion ?? "Oferta")</span>
+                        }
+                    </button>
+                }
+            </div>
+
+            @* Acciones sobre la línea seleccionada. *@
+            <div class="cg-mostrador__acciones-linea">
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" Disabled="@(_seleccionada is null || _procesando)" OnClick="CambiarCantidadAsync">Cantidad</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" Color="Color.Error" Disabled="@(_seleccionada is null || _procesando)" OnClick="QuitarLineaAsync">Quitar</MudButton>
+            </div>
+
+            @* Totales de la venta, con la retención cuando aplica. *@
+            <div class="cg-mostrador__totales">
+                <div><span>Subtotal</span><span>@_venta.Totales.Subtotal.ToString("N2")</span></div>
+                <div><span>ITBIS</span><span>@_venta.Totales.Impuesto.ToString("N2")</span></div>
+                @if (_venta.Totales.Descuento > 0)
+                {
+                    <div class="cg-mostrador__ahorro"><span>Descuentos</span><span>−@_venta.Totales.Descuento.ToString("N2")</span></div>
+                }
+                @if (_venta.Totales.Retencion > 0)
+                {
+                    <div class="cg-mostrador__ahorro"><span>Retención Ley 32-23</span><span>−@_venta.Totales.Retencion.ToString("N2")</span></div>
+                }
+                <div class="cg-mostrador__total"><span>Total</span><span>@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
+            </div>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" Class="cg-mostrador__cobrar"
+                       StartIcon="@Icons.Material.Filled.PointOfSale" Disabled="_procesando" OnClick="CobrarAsync">Cobrar</MudButton>
+        </section>
+
+        @* Columna derecha: buscador, departamentos y mosaicos de artículos. *@
+        <section class="cg-mostrador__catalogo">
+            @* Buscador por descripción o código, para lo que no está en los mosaicos. *@
+            <div class="cg-mostrador__buscador">
+                <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Large" />
+                <input class="cg-mostrador__campo" placeholder="Buscar por descripción o código" autocomplete="off" spellcheck="false"
+                       value="@_busqueda" @oninput="AlBuscarAsync" />
+                @if (_busqueda.Length > 0)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Large" OnClick="LimpiarBusquedaAsync" aria-label="Limpiar búsqueda" />
+                }
+            </div>
+
+            @* Departamentos del catálogo, como pestañas táctiles. *@
+            <div class="cg-mostrador__departamentos">
+                <button type="button" class="cg-mostrador__departamento @(_departamento is null ? "cg-mostrador__departamento--activo" : null)"
+                        @onclick="ElegirTodos">Todos</button>
+                @foreach (var departamento in _departamentos)
+                {
+                    <button type="button" class="cg-mostrador__departamento @(departamento == _departamento ? "cg-mostrador__departamento--activo" : null)"
+                            @onclick="() => ElegirDepartamento(departamento)">@departamento</button>
+                }
+            </div>
+
+            @if (Categorias is { Count: > 1 })
+            {
+                @* Categorías del departamento elegido: la segunda fila de pestañas, como en un mostrador de cafetería. *@
+                <div class="cg-mostrador__categorias">
+                    <button type="button" class="cg-mostrador__categoria @(_categoria is null ? "cg-mostrador__categoria--activa" : null)"
+                            @onclick="() => _categoria = null">Todas</button>
+                    @foreach (var categoria in Categorias)
+                    {
+                        <button type="button" class="cg-mostrador__categoria @(categoria == _categoria ? "cg-mostrador__categoria--activa" : null)"
+                                @onclick="() => _categoria = categoria">@categoria</button>
+                    }
+                </div>
+            }
+
+            @* Mosaicos: un toque agrega el artículo a la venta. *@
+            <div class="cg-mostrador__mosaicos">
+                @if (_cargandoCatalogo)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                }
+                else if (!Visibles.Any())
+                {
+                    <div class="cg-mostrador__vacia">
+                        @(_busqueda.Length > 0 ? "No hay artículos que coincidan." : "No hay artículos marcados para el catálogo.")
+                    </div>
+                }
+                else
+                {
+                    @foreach (var articulo in Visibles)
+                    {
+                        <button type="button" class="cg-mostrador__mosaico" disabled="@_procesando" @onclick="() => AgregarAsync(articulo.Codigo)">
+                            <div class="cg-mostrador__imagen">
+                                @if (EsImagenWeb(articulo.RutaImagen))
+                                {
+                                    <img src="@articulo.RutaImagen" alt="" />
+                                }
+                                else
+                                {
+                                    <span>@Iniciales(articulo.Descripcion)</span>
+                                }
+                            </div>
+                            <div class="cg-mostrador__mosaico-descripcion">@articulo.Descripcion</div>
+                            <div class="cg-mostrador__mosaico-precio">@(articulo.PrecioDetalle?.ToString("N2") ?? "Sin precio")</div>
+                        </button>
+                    }
+                }
+            </div>
+        </section>
+
+        @* Barra inferior: lo que se necesita a mano sin teclado, y la vuelta a la pantalla con lector. *@
+        <footer class="cg-mostrador__barra">
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Person" OnClick="AbrirClienteAsync">Cliente</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.LocalOffer" OnClick="ConsultarPrecioAsync">Precio</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PanTool" OnClick="AbrirEsperaAsync">En espera</MudButton>
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Undo" OnClick="@(() => Navegacion.NavigateTo("/devoluciones"))">Devoluciones</MudButton>
+            <span class="cg-espaciador"></span>
+            <span class="cg-mostrador__usuario">@Almacen.Sesion?.Nombre · Caja @Almacen.Sesion?.CajaCodigo</span>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Keyboard"
+                       OnClick="@(() => Navegacion.NavigateTo("/"))">Pantalla con lector</MudButton>
+        </footer>
+    </div>
+
+    @if (_mensaje is not null)
+    {
+        @* Aviso de lo último que pasó (artículo sin precio, autorización, error del Agente). *@
+        <div class="cg-mostrador__aviso">
+            <MudAlert Severity="Severity.Warning" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
+        </div>
+    }
+}
+
+@code {
+    private DatosVenta? _venta;
+    private IReadOnlyList<DatosArticuloResumen> _catalogo = [];
+    private IReadOnlyList<DatosArticuloResumen> _encontrados = [];
+    private IReadOnlyList<string> _departamentos = [];
+    private string? _departamento;
+    private string? _categoria;
+    private string _busqueda = string.Empty;
+    private int? _seleccionada;
+    private string? _mensaje;
+    private bool _procesando;
+    private bool _cargandoCatalogo = true;
+    private bool _dialogoAbierto;
+
+    /// <summary>Lo que se muestra: el resultado de la búsqueda, o el catálogo del departamento y la categoría elegidos.</summary>
+    private IEnumerable<DatosArticuloResumen> Visibles
+    {
+        get
+        {
+            if (_busqueda.Length > 0)
+                return _encontrados;
+
+            var articulos = _departamento is null ? _catalogo : _catalogo.Where(a => a.DepartamentoNombre == _departamento);
+            return _categoria is null ? articulos : articulos.Where(a => a.CategoriaNombre == _categoria);
+        }
+    }
+
+    /// <summary>Categorías que tiene el departamento elegido (o todas, si no se eligió ninguno).</summary>
+    private IReadOnlyList<string> Categorias =>
+        (_departamento is null ? _catalogo : _catalogo.Where(a => a.DepartamentoNombre == _departamento))
+        .Select(a => a.CategoriaNombre)
+        .OfType<string>()
+        .Distinct()
+        .Order(StringComparer.CurrentCulture)
+        .ToList();
+
+    private void ElegirTodos()
+    {
+        _departamento = null;
+        _categoria = null;
+    }
+
+    private void ElegirDepartamento(string departamento)
+    {
+        _departamento = departamento;
+        _categoria = null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarVentaAsync();
+        _catalogo = await Cliente.ListarCatalogoAsync();
+        _departamentos = _catalogo.Select(a => a.DepartamentoNombre).Distinct().Order(StringComparer.CurrentCulture).ToList();
+        _cargandoCatalogo = false;
+    }
+
+    private async Task CargarVentaAsync()
+    {
+        var respuesta = await Cliente.ObtenerVentaActualAsync();
+        if (respuesta.Venta is { } venta)
+            _venta = venta;
+        else
+            _mensaje = respuesta.Mensaje;
+    }
+
+    /// <summary>Un toque en el mosaico agrega una unidad; si el artículo se pesa o pide serial, se atiende desde la pantalla con lector.</summary>
+    private async Task AgregarAsync(string codigo)
+    {
+        if (_venta is null || _procesando)
+            return;
+
+        _procesando = true;
+        AplicarRespuesta(await Cliente.AgregarArticuloAsync(_venta.Id, codigo));
+        _procesando = false;
+    }
+
+    private async Task CambiarCantidadAsync()
+    {
+        if (_venta is null || _seleccionada is not { } numeroLinea)
+            return;
+
+        var linea = _venta.Lineas.FirstOrDefault(l => l.NumeroLinea == numeroLinea);
+        var texto = await PedirTextoAsync("Cantidad", $"Cantidad de {linea?.Descripcion}",
+            linea?.Cantidad.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty);
+        if (texto is null || !decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var cantidad))
+            return;
+
+        _procesando = true;
+        AplicarRespuesta(await Cliente.CambiarCantidadAsync(_venta.Id, numeroLinea, cantidad));
+        _procesando = false;
+    }
+
+    private async Task QuitarLineaAsync()
+    {
+        if (_venta is null || _seleccionada is not { } numeroLinea)
+            return;
+
+        _procesando = true;
+        var respuesta = await Autorizaciones.EjecutarVentaAsync(
+            autorizacion => Cliente.EliminarLineaAsync(_venta!.Id, numeroLinea, autorizacion),
+            $"Quitar la línea {numeroLinea} de la transacción {_venta.NumeroTransaccion}", _venta.NumeroTransaccion);
+        _procesando = false;
+
+        if (respuesta is not null)
+            AplicarRespuesta(respuesta);
+        _seleccionada = null;
+    }
+
+    private async Task CobrarAsync()
+    {
+        if (_venta is null || !_venta.Lineas.Any(l => !l.EsReverso))
+        {
+            _mensaje = "No hay artículos que cobrar.";
+            return;
+        }
+
+        if (_venta.RequiereIdentificacion)
+        {
+            _mensaje = $"Antes de cobrar, asigne la cédula o el RNC del cliente (factura de consumo desde {_venta.MontoIdentificacion:C}).";
+            await AbrirClienteAsync();
+            return;
+        }
+
+        var parametros = new DialogParameters<DialogoCobro> { { dialogo => dialogo.Venta, _venta } };
+        var respuesta = await MostrarDialogoAsync<DialogoCobro, RespuestaCobro>($"Cobro · {_venta.NumeroTransaccion}", parametros, MaxWidth.ExtraLarge);
+        if (respuesta is not { Exitosa: true, NuevaVenta: { } nueva })
+            return;
+
+        _venta = nueva;
+        _seleccionada = null;
+        _mensaje = respuesta.Mensaje;
+    }
+
+    private async Task AbrirClienteAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var parametros = new DialogParameters<DialogoCliente> { { dialogo => dialogo.Venta, _venta } };
+        if (await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Medium) is { } venta)
+            _venta = venta;
+    }
+
+    private async Task ConsultarPrecioAsync()
+    {
+        var parametros = new DialogParameters<DialogoConsultaPrecio>();
+        await MostrarDialogoAsync<DialogoConsultaPrecio, object>("Consulta de precio", parametros, MaxWidth.Medium);
+    }
+
+    private async Task AbrirEsperaAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var parametros = new DialogParameters<DialogoEspera> { { dialogo => dialogo.Venta, _venta } };
+        if (await MostrarDialogoAsync<DialogoEspera, DatosVenta>("Facturas en espera", parametros, MaxWidth.Medium) is { } venta)
+        {
+            _venta = venta;
+            _seleccionada = null;
+        }
+    }
+
+    private async Task AlBuscarAsync(ChangeEventArgs evento)
+    {
+        _busqueda = evento.Value?.ToString() ?? string.Empty;
+        _encontrados = _busqueda.Trim().Length >= 2 ? await Cliente.BuscarArticulosAsync(_busqueda.Trim()) : [];
+    }
+
+    private Task LimpiarBusquedaAsync()
+    {
+        _busqueda = string.Empty;
+        _encontrados = [];
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Solo se muestran imágenes servidas por web; las rutas locales no son accesibles desde la pantalla.</summary>
+    private static bool EsImagenWeb(string? ruta) =>
+        ruta is not null && (ruta.StartsWith('/') || ruta.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                             || ruta.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Iniciales del artículo, para el mosaico que no tiene imagen.</summary>
+    private static string Iniciales(string descripcion) =>
+        string.Concat(descripcion.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(palabra => char.ToUpperInvariant(palabra[0])));
+
+    private void AplicarRespuesta(RespuestaVenta respuesta)
+    {
+        if (respuesta.Venta is { } venta)
+            _venta = venta;
+
+        _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+    }
+
+    private async Task<string?> PedirTextoAsync(string titulo, string etiqueta, string valorInicial)
+    {
+        var parametros = new DialogParameters<DialogoTeclado>
+        {
+            { dialogo => dialogo.Etiqueta, etiqueta },
+            { dialogo => dialogo.ValorInicial, valorInicial },
+        };
+        return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, MaxWidth.Small);
+    }
+
+    private async Task<TResultado?> MostrarDialogoAsync<TDialogo, TResultado>(string titulo, DialogParameters parametros, MaxWidth ancho)
+        where TDialogo : IComponent
+        where TResultado : class
+    {
+        if (_dialogoAbierto)
+            return null;
+
+        _dialogoAbierto = true;
+        try
+        {
+            var opciones = new DialogOptions { MaxWidth = ancho, FullWidth = true, BackdropClick = false, CloseOnEscapeKey = true };
+            var referencia = await Dialogos.ShowAsync<TDialogo>(titulo, parametros, opciones);
+            var resultado = await referencia.Result;
+            return resultado is { Canceled: false, Data: TResultado datos } ? datos : null;
+        }
+        finally
+        {
+            _dialogoAbierto = false;
+        }
+    }
+}

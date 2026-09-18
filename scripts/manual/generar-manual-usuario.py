@@ -151,7 +151,18 @@ p('El sistema no crea ni cambia bases de datos por su cuenta: la base se crea co
   'Esto lo hace una sola vez el personal de tecnología.')
 paso('En el servidor, abra SQL Server Management Studio (o use sqlcmd) y ejecute el archivo '
      'scripts/base-datos/central/structura_base_datos.sql. Crea la base CgPosCentral con todas sus tablas, llaves e índices.')
-paso('Ese mismo script deja creado el único dato inicial: el usuario administrador.')
+paso('Ese mismo script deja lo mínimo para arrancar: el usuario administrador, los parámetros del negocio con valores '
+     'razonables y los catálogos que son iguales en cualquier negocio dominicano.')
+tabla(['La base recién creada trae', 'No trae (lo crea usted)'],
+      [['Usuario administrador con todos los permisos', 'Empresa, sucursales y cajas'],
+       ['Parámetros con valores de arranque (plazos, topes, fidelidad, cuadre…)', 'Departamentos, categorías y marcas'],
+       ['Monedas: peso dominicano y dólar', 'Artículos y sus precios'],
+       ['Impuestos: ITBIS 18 %, 16 %, 0 % y exento', 'Clientes'],
+       ['Unidades de medida: unidad, libra, pie, yarda, galón', 'Bancos y almacenes'],
+       ['Denominaciones de billetes y monedas, para el cuadre', 'Promociones'],
+       ['Formas de pago: efectivo, tarjeta, transferencia, cheque, dólares, nota de crédito, bonos, puntos…', 'Rangos de comprobantes fiscales'],
+       ['Tipos de tarjeta y motivos de descuento y de devolución', 'Usuarios y roles de caja']],
+      anchos=[8.5, 8.5])
 paso('Configure la conexión del Central a esa base (lo hace tecnología en el archivo de configuración del servidor) y levante el Central.')
 paso('Abra el Central en el navegador y entre con el administrador:')
 tabla(['Usuario', 'Contraseña', 'Qué pasa al entrar'],
@@ -160,6 +171,7 @@ tabla(['Usuario', 'Contraseña', 'Qué pasa al entrar'],
 nota('Si el Central avisa que la base no existe o le faltan tablas, es que no se ejecutó el script o se apuntó a otra base.')
 p('Con ese usuario ya puede crear todo lo demás, en el orden de la sección siguiente. Lo primero que conviene hacer es crear '
   'su propio usuario y el de las demás personas (Seguridad → Usuarios), para que cada quien entre con el suyo.')
+nota('El sistema no carga datos de archivos: todo lo que ve en el Central se creó desde el Central y se guarda en su base de datos.')
 
 titulo('2.2. Lo mínimo que debe existir antes de abrir una caja', 2)
 p('La caja no inventa nada: todo lo que usa baja del Central. Si el Central está vacío, la caja no puede ni abrir turno. '
@@ -169,7 +181,7 @@ tabla(['Qué', 'Dónde se hace', 'Por qué hace falta'],
        ['Credencial de la caja', 'Organización → Cajas', 'Es la clave con la que la caja se comunica con el Central.'],
        ['Parámetros del negocio', 'Organización → Parámetros', 'Fondo de caja, redondeo, vigencia de notas de crédito, retención, plazos. Si falta uno obligatorio, la operación se rechaza.'],
        ['Catálogos', 'Maestros → Catálogos', 'Moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, motivos de descuento y de devolución.'],
-       ['Artículos y precios', 'Maestros → Artículos y Precios', 'Sin artículos con precio no hay nada que vender.'],
+       ['Artículos y precios', 'Maestros → Artículos y Precios', 'Sin artículos con precio no hay nada que vender. El sistema no trae productos: vea los sugeridos más adelante.'],
        ['Rangos de e-CF', 'Fiscal → Rangos de e-CF', 'Sin comprobantes fiscales disponibles la caja no puede facturar.'],
        ['Usuarios y roles de caja', 'Usuarios de caja', 'El cajero, el supervisor y el gerente, con sus niveles y permisos.']],
       anchos=[4.2, 4.8, 8.0])
@@ -199,47 +211,118 @@ tabla(['Opción', 'Ruta', 'Para qué sirve'],
        ['Clientes', '/clientes', 'Clientes con su comprobante habitual, exoneraciones y direcciones de envío.']],
       anchos=[3.8, 4.4, 8.8])
 
-titulo('2.6. Promociones', 2)
+titulo('2.6. Artículos para empezar (sugerencia)', 2)
+p('El sistema se instala sin productos: usted crea los suyos. Para arrancar y para probar todo el sistema, conviene cargar '
+  'primero unos pocos artículos que cubran cada caso, y después ya cargar el inventario completo.')
+p('Antes de los artículos cree lo que ellos necesitan: el impuesto (ITBIS 18 % y el exento), las unidades de medida '
+  '(unidad, libra, saco, galón) y los departamentos (por ejemplo Construcción, Ferretería, Pinturas, Eléctrico).')
+tabla(['Código', 'Descripción', 'Departamento', 'Unidad', 'ITBIS', 'Precio', 'Sirve para probar'],
+      [['CEM-425', 'Cemento gris 42.5 kg', 'Construcción', 'Saco', '18 %', '520.00', 'Venta normal y precio por mayor (desde 10 sacos a 495.00)'],
+       ['VAR-38', 'Varilla 3/8 x 30 pies', 'Construcción', 'Unidad', '18 %', '445.00', 'Venta por cantidad con el lector'],
+       ['BLK-6', 'Block de 6 pulgadas', 'Construcción', 'Unidad', '18 %', '38.00', 'Cantidades grandes (12*BLK-6)'],
+       ['PIN-BLA-GL', 'Pintura acrílica blanca, galón', 'Pinturas', 'Galón', '18 %', '1,250.00', 'Ofertas y descuentos'],
+       ['CLA-2', 'Clavos de 2 pulgadas', 'Ferretería', 'Libra', '18 %', '65.00', 'Artículo pesado: peso de la balanza o digitado'],
+       ['TAL-500', 'Taladro percutor 1/2', 'Ferretería', 'Unidad', '18 %', '8,900.00', 'Artículo serializado: pide el serial al vender'],
+       ['FOC-LED-9', 'Bombillo LED 9 W', 'Eléctrico', 'Unidad', '18 %', '185.00', 'Oferta lleva 3 paga 2'],
+       ['COM-BANO', 'Combo baño completo', 'Ferretería', 'Unidad', '18 %', '15,900.00', 'Combo: se vende como un artículo normal, sin precio por mayor'],
+       ['SRV-CORTE', 'Servicio de corte de madera', 'Ferretería', 'Unidad', 'Exento', '150.00', 'Artículo de servicio y comprobante con exento']],
+      anchos=[2.6, 4.4, 2.6, 1.8, 1.5, 1.8, 5.0])
+nota('Póngale a cada uno su código de barras real (el del empaque): en la caja se busca igual por el código interno, el de '
+     'barras, el del proveedor o la referencia.')
+p('Con esos nueve artículos ya puede probar venta normal, cantidades, precio por mayor, pesados, serializados, combos, '
+  'exentos, ofertas y descuentos. El inventario completo se carga después desde Artículos.')
+
+titulo('2.7. Los demás datos del negocio (sugerencia)', 2)
+p('Estos no vienen en el sistema porque son decisiones suyas. Esta es una sugerencia para empezar; ajústela a como trabaja '
+  'el negocio. El orden importa: cada cosa necesita la anterior.')
+
+p('1. Departamentos (Maestros → Catálogos). El departamento manda en los reportes y decide si admite descuento manual.')
+tabla(['Código', 'Departamento', 'Admite descuento manual'],
+      [['1', 'Construcción', 'Sí'], ['2', 'Ferretería', 'Sí'], ['3', 'Pinturas', 'Sí'],
+       ['4', 'Eléctrico', 'Sí'], ['5', 'Plomería', 'Sí'], ['6', 'Hogar', 'Sí'], ['7', 'Servicios', 'No']],
+      anchos=[2.2, 6.0, 5.0])
+
+p('2. Categorías (cada una dentro de un departamento) y marcas, para agrupar y para dirigir las ofertas.')
+tabla(['Categorías sugeridas', 'Marcas sugeridas'],
+      [['Cemento y agregados, Aceros, Blocks (Construcción)', 'Las marcas con las que trabaja: Cemex, Domicem, Truper, Stanley, Popular…'],
+       ['Herramientas manuales, Herramientas eléctricas (Ferretería)', ''],
+       ['Pintura de interiores, Pintura de exteriores (Pinturas)', ''],
+       ['Iluminación, Cables y accesorios (Eléctrico)', '']],
+      anchos=[8.5, 8.5])
+
+p('3. Bancos, para transferencias, cheques y los depósitos del cierre de sucursal.')
+tabla(['Código', 'Banco'],
+      [['BPD', 'Banco Popular Dominicano'], ['BRD', 'Banreservas'], ['BHD', 'Banco BHD'],
+       ['SCO', 'Scotiabank'], ['APA', 'Asociación Popular de Ahorros y Préstamos']],
+      anchos=[2.5, 10.0])
+
+p('4. Almacenes, para las entregas y los envíos: uno por sucursal y, si aplica, el depósito central.')
+tabla(['Código', 'Almacén', 'Para qué'],
+      [['ALM-01', 'Almacén de la sucursal', 'Retiro del cliente en la tienda'],
+       ['DEP-CEN', 'Depósito central', 'Mercancía que se despacha desde el depósito']],
+      anchos=[2.8, 5.0, 7.0])
+
+p('5. Programa de fidelidad (si lo van a usar): niveles y cómo se acumulan los puntos.')
+tabla(['Nivel', 'Factor', 'Regla de acumulación sugerida'],
+      [['Clásico', '1.0', '1 punto por cada RD$100 de compra'],
+       ['Oro', '1.5', 'El mismo acumulado, multiplicado por el factor del nivel']],
+      anchos=[3.0, 2.5, 9.5])
+
+p('6. Topes de descuento por nivel de quien autoriza, para que nadie descuente de más.')
+tabla(['Nivel', 'Tope sugerido'],
+      [['Supervisor (nivel 5)', 'Hasta 10 % o RD$2,000 por factura'],
+       ['Gerente (nivel 8)', 'Hasta 30 % o RD$20,000 por factura']],
+      anchos=[5.0, 9.0])
+
+p('7. Usuarios y roles de caja: al menos un cajero (solo vender y cobrar), un supervisor (autoriza descuentos, '
+  'devoluciones, retiros y notas internas) y un gerente (además reabre cierres y autoriza lo de mayor monto).')
+
+p('8. Rangos de comprobantes fiscales por caja (E31, E32, E34, E44 y E45), con los números que le asignó la DGII.')
+
+p('9. Clientes: no hace falta crearlos por adelantado. En la caja se buscan por cédula o RNC contra el padrón de la DGII; '
+  'se registran aquí los que tienen condiciones especiales (comprobante fijo, exoneración o direcciones de envío).')
+
+titulo('2.8. Promociones', 2)
 viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde cierta cantidad; '
        'por artículos, departamentos, categorías o marcas, en las sucursales que se elijan, con fechas, días y horario.')
 viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores.')
 viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
 viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron.')
 
-titulo('2.7. Facturación electrónica y DGII', 2)
+titulo('2.9. Facturación electrónica y DGII', 2)
 viñeta('Rangos de e-CF (/fiscal/secuencias): se asignan a cada caja por tipo de comprobante, con inicio, fin y vencimiento. '
        'La lista muestra el último usado y cuánto queda.')
 viñeta('Comprobantes enviados a la DGII (/monitor/comprobantes): estado de cada e-CF (aceptado, rechazado, en cola), su '
        'trackId, el mensaje de la DGII, la descarga del XML y el reenvío dirigido.')
 
-titulo('2.8. Facturas de las cajas', 2)
+titulo('2.10. Facturas de las cajas', 2)
 p('Ruta: /facturas. Es la vista de todo lo que las cajas subieron al Central.')
 viñeta('Filtros por rango de días, sucursal, tipo (factura o nota de crédito) y búsqueda por número, e-NCF, documento o nombre del cliente.')
 viñeta('Cada fila muestra el documento, la sucursal, la caja, el turno, el cajero, el cliente, el total y el estado del e-CF.')
 viñeta('Al abrir una se ven sus líneas tal como se cobraron (código, descripción, cantidad, precio, descuento, ITBIS, importe, '
        'serial y oferta), los totales, el ITBIS por tasa y las formas de pago.')
 
-titulo('2.9. Notas de crédito entre sucursales', 2)
+titulo('2.11. Notas de crédito entre sucursales', 2)
 p('Ruta: /notas-credito. Todas las notas emitidas por cualquier caja, con su saldo, lo consumido y lo retenido mientras una '
   'caja está cobrando. Sirve para responderle al cliente que quiere usar en una sucursal una nota emitida en otra. '
   'Las notas vencidas se habilitan subiendo los días de vigencia en los parámetros.')
 
-titulo('2.10. Listas de boda y de regalos', 2)
+titulo('2.12. Listas de boda y de regalos', 2)
 p('Ruta: /listas-boda.')
 paso('Nueva lista: datos de los festejados (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad.')
 paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
 paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
 paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
 
-titulo('2.11. Fidelidad', 2)
+titulo('2.13. Fidelidad', 2)
 p('Ruta: /fidelidad/miembros. Miembros con su nivel, saldo de puntos, movimientos y ajustes. Los niveles y las reglas de '
   'acumulación se configuran en los catálogos.')
 
-titulo('2.12. Despacho', 2)
+titulo('2.14. Despacho', 2)
 p('Ruta: /despacho/pendientes. Todos los pendientes de entrega y envíos de todas las sucursales, con su estado y sus atrasos; '
   'si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda preparado.')
 
-titulo('2.13. Cierre consolidado de sucursal', 2)
+titulo('2.15. Cierre consolidado de sucursal', 2)
 p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
 paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta (si algún turno no ha cerrado, lo dice).')
 paso('El sistema calcula el efectivo a depositar por moneda (las tarjetas y transferencias no se depositan).')
@@ -247,7 +330,7 @@ paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede se
 paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
 nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
 
-titulo('2.14. Reportes', 2)
+titulo('2.16. Reportes', 2)
 p('Ruta: /reportes. Todos por rango de días y, si se quiere, por sucursal o caja. Cada uno se descarga en Excel y en PDF.')
 tabla(['Reporte', 'Qué muestra'],
       [['Ventas', 'Por día, sucursal y caja: facturas, notas de crédito, subtotal, descuento, ITBIS y total.'],
@@ -258,11 +341,11 @@ tabla(['Reporte', 'Qué muestra'],
        ['Sincronización', 'Última comunicación de cada caja, mensajes, rechazos y alertas.']],
       anchos=[4.5, 12.5])
 
-titulo('2.15. Monitor de sincronización', 2)
+titulo('2.17. Monitor de sincronización', 2)
 viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuántos documentos trae pendientes.')
 viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
 
-titulo('2.16. Chequeador de precios', 2)
+titulo('2.18. Chequeador de precios', 2)
 p('Ruta: /chequeador, en la pantalla que se pone en el pasillo de la tienda. El cliente pasa el producto por el lector y ve '
   'la descripción, el precio grande, el precio por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos '
   'segundos para el siguiente cliente.')
@@ -298,7 +381,22 @@ viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno
 viñeta('Si el último cierre se hizo por error, aparece Reabrir el último cierre: pide motivo y la autorización de alguien '
        'de nivel superior, y queda registrado.')
 
-titulo('3.4. La pantalla de venta', 2)
+titulo('3.4. La pantalla secundaria (mostrador táctil)', 2)
+p('Además de la pantalla con lector, la caja tiene una pantalla táctil pensada para vender tocando, como en una cafetería. '
+  'Se entra por «Mostrador táctil» (segunda página de teclas) o directamente en /mostrador, y se vuelve con «Pantalla con lector». '
+  'Es la misma venta: lo que agregue en una aparece en la otra.')
+tabla(['Parte de la pantalla', 'Qué hace'],
+      [['Columna izquierda', 'La venta: sus líneas, los totales y el botón Cobrar. Al tocar el encabezado se abre cliente y comprobante.'],
+       ['Tocar una línea', 'La selecciona; con los botones de abajo se cambia la cantidad o se quita (la de quitar pide autorización).'],
+       ['Buscador (arriba a la derecha)', 'Busca por descripción o por código lo que no está en los mosaicos.'],
+       ['Pestañas de departamento y categoría', 'Filtran los mosaicos, como las secciones de un menú.'],
+       ['Mosaicos', 'Un toque agrega el artículo con su imagen y su precio. Aparecen los artículos marcados para el catálogo.'],
+       ['Barra de abajo', 'Cliente, consulta de precio, facturas en espera, devoluciones y la vuelta a la pantalla con lector.']],
+      anchos=[5.5, 11.5])
+nota('Los artículos que se pesan o que piden serial se atienden mejor en la pantalla con lector; desde el mostrador se agrega '
+     'una unidad y luego se ajusta la cantidad.')
+
+titulo('3.5. La pantalla de venta', 2)
 p('La pantalla está dividida en cinco zonas:')
 tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
@@ -310,7 +408,7 @@ tabla(['Zona', 'Para qué sirve'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],
       anchos=[5.0, 12.0])
 
-titulo('3.5. Las teclas de función', 2)
+titulo('3.6. Las teclas de función', 2)
 p('Primera página:')
 tabla(['Tecla', 'Qué hace'],
       [['F2', 'Buscar un artículo por descripción'],
@@ -328,7 +426,7 @@ p('Segunda página (se cambia con el botón de la misma barra): catálogo en mos
   'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, despacho, anular, suspender, gaveta, '
   'reimprimir, retiro de efectivo, cierre de turno y salir.')
 
-titulo('3.6. Hacer una venta', 2)
+titulo('3.7. Hacer una venta', 2)
 paso('Pase el código del artículo por el lector (o dígitelo y presione Enter). Para varias unidades: 12*CEM-425.')
 paso('Para cambiar una cantidad, toque la cantidad en la línea o use F4. Para ver el otro código del artículo, toque el código.')
 paso('Si el artículo se vende por peso, se toma el peso de la balanza (F5) o se digita.')
@@ -337,7 +435,7 @@ paso('Con F12 asigne el cliente si lleva comprobante fiscal, y su cédula del pr
 paso('Revise el total con el cliente y presione F8 para cobrar.')
 nota('Cada operación se guarda al instante: si la caja se apaga, al volver a entrar la venta aparece tal como estaba.')
 
-titulo('3.7. Cliente y tipo de comprobante (F12)', 2)
+titulo('3.8. Cliente y tipo de comprobante (F12)', 2)
 p('Se digita la cédula o el RNC; el sistema lo busca en el padrón de la DGII y en los clientes registrados. Si no aparece, '
   'se digita el nombre. El tipo de comprobante sale del cliente y cambiarlo a mano requiere permiso.')
 tabla(['Comprobante', 'Cuándo se usa'],
@@ -350,21 +448,21 @@ p('Retención de la Ley 32-23: en las facturas E44, el sistema calcula el porcen
   'descuentos y se lo descuenta a lo que el cliente paga en caja. La factura mantiene su total; el ticket muestra '
   '“RETENCIÓN LEY 32-23” y “TOTAL A PAGAR”.')
 
-titulo('3.8. Lista de boda (F6)', 2)
+titulo('3.9. Lista de boda (F6)', 2)
 paso('Pida al cliente el número de la lista (la crea la administración en el Central).')
 paso('Presione F6, digite el número y acepte: la lista queda en el encabezado de la venta y sale en el ticket.')
 paso('Al cobrar, la compra queda registrada en la lista y, si el negocio lo tiene configurado, baja las cantidades pedidas.')
 nota('La lista se consulta en el Central: si no hay comunicación, no se puede asociar. Una lista cerrada no se acepta.')
 
-titulo('3.9. Descuentos y ofertas', 2)
+titulo('3.10. Descuentos y ofertas', 2)
 viñeta('Ofertas: se aplican solas según lo configurado en el Central. La columna Promo muestra cuál se aplicó; al tocarla '
        'se ve el detalle y se puede desactivar (con permiso).')
 viñeta('Descuento a la línea: toque el precio de la línea. Descuento a la factura: segunda página de teclas. Ambos piden '
        'motivo y la autorización de quien tenga tope suficiente; si el descuento pasa su tope, se pide una clave de nivel superior.')
 viñeta('No se aplican descuentos manuales a artículos en oferta ni a departamentos que el negocio excluyó.')
-viñeta('Descuento del banco por tarjeta: se aplica solo, al pasar la tarjeta en el cobro (ver 3.10).')
+viñeta('Descuento del banco por tarjeta: se aplica solo, al pasar la tarjeta en el cobro (ver 3.11).')
 
-titulo('3.10. Cobrar (F8)', 2)
+titulo('3.11. Cobrar (F8)', 2)
 p('En la pantalla de cobro elija la forma de pago, digite el monto y agréguelo. Se puede combinar cuantas formas haga falta; '
   'arriba siempre se ve lo pagado, lo que falta o la devuelta.')
 tabla(['Forma de pago', 'Qué pide y qué hay que saber'],
@@ -381,21 +479,21 @@ p('Al terminar: se emite y firma la factura electrónica, se imprime el ticket, 
 nota('Si no hay e-NCF disponible o el certificado no está cargado, la venta NO se cobra: primero hay que resolverlo con '
      'administración. El sistema no permite facturar sin comprobante fiscal.')
 
-titulo('3.11. Facturas en espera, anular y suspender', 2)
+titulo('3.12. Facturas en espera, anular y suspender', 2)
 viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y retomarla después.')
 viñeta('Anular (segunda página): cancela la transacción en curso con motivo y autorización.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada y con su reverso en rojo, para que todo quede a la vista.')
 
-titulo('3.12. Entregas y envíos', 2)
+titulo('3.13. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')
 paso('En la segunda página de teclas, elija Entrega / envío.')
 paso('Marque qué líneas y qué cantidad quedan pendientes, y si es retiro en un almacén o envío a una dirección, con la fecha comprometida.')
 paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras.')
 paso('En la pantalla /despacho se escanea ese comprobante para preparar, entregar (total o parcial, con quien recibe) o anular.')
 
-titulo('3.13. Devoluciones y notas de crédito', 2)
+titulo('3.14. Devoluciones y notas de crédito', 2)
 p('Se entra con F10 o directamente a /devoluciones.')
 paso('Escanee el código de barras del ticket o digite el e-NCF de la factura.')
 paso('Indique qué se devuelve de cada línea (el sistema muestra lo vendido, lo ya devuelto y lo disponible).')
@@ -410,7 +508,7 @@ tabla(['Tipo', 'Para qué', 'Importante'],
 nota('La vigencia de las notas de crédito se cuenta desde su emisión con los días configurados HOY en el Central: si una nota '
      'se venció y el negocio decide aceptarla, se suben los días en el Central y vuelve a poder usarse.')
 
-titulo('3.14. Retiros, pre-cierre y cierre de turno', 2)
+titulo('3.15. Retiros, pre-cierre y cierre de turno', 2)
 viñeta('Retiro de efectivo: monto y motivo, autorización de supervisor, comprobante impreso con firmas. No se puede retirar '
        'más del efectivo que hay en la gaveta.')
 viñeta('Pre-cierre: imprime lo esperado, con clave de supervisor (útil antes de cuadrar).')
@@ -422,7 +520,7 @@ viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprob
 viñeta('Al cerrar se imprime el reporte del turno: esperado, declarado y diferencia por forma de pago, denominaciones, '
        'retiros, reembolsos y relevos.')
 
-titulo('3.15. La barra de estado', 2)
+titulo('3.16. La barra de estado', 2)
 p('Abajo de la pantalla, siempre a la vista:')
 viñeta('Sincronización: si la caja está comunicada con el Central y cuántos documentos están pendientes de enviar.')
 viñeta('e-CF: si el certificado está cargado, cuántos comprobantes quedan en el rango y si algo está por vencer. '
@@ -440,9 +538,9 @@ paso('Cree la base del Central con scripts/base-datos/central/structura_base_dat
 paso('Revise Organización: cree la empresa, la sucursal y la caja, y emita la credencial de la caja.')
 paso('En Parámetros, configure lo que el negocio necesita: fondo de caja, redondeo, días de vigencia de notas de crédito, '
      'retención de la Ley 32-23 (si aplica), chequeador y listas de boda.')
-paso('En Catálogos, cargue lo mínimo: moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, '
-     'motivos de descuento y de devolución.')
-paso('Cree algunos artículos con sus códigos de barras y precios, y al menos una promoción.')
+paso('Revise los catálogos que ya trae la base (monedas, impuestos, unidades, formas de pago, denominaciones, motivos) y '
+     'cree los suyos: departamentos, categorías, marcas, bancos y almacenes.')
+paso('Cree los artículos sugeridos en el manual (o los suyos) con sus códigos de barras y precios, y al menos una promoción.')
 paso('Asigne los rangos de e-CF a la caja (E31, E32, E34, E44, E45).')
 paso('Cree los usuarios de caja: un cajero, un supervisor y un gerente, con sus niveles.')
 paso('Cree una lista de boda de prueba y anote su número.')

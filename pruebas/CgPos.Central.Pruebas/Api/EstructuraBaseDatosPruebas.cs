@@ -43,10 +43,17 @@ public class EstructuraBaseDatosPruebas
             Assert.True(Verificar(Contrasena, hash), "La contraseña documentada en el script no coincide con el hash sembrado.");
             Assert.False(Verificar("otra cosa", hash));
 
-            // Los Id sembrados a mano no chocan con los que reparte la secuencia.
-            await using var secuencia = new SqlCommand(
-                "SELECT CAST(current_value AS int) FROM sys.sequences WHERE name = 'EntityFrameworkHiLoSequence'", conexion);
-            Assert.True((int)(await secuencia.ExecuteScalarAsync())! > 100);
+            // Cada tabla numera sus Id desde 1, con su propia secuencia, que queda después de lo sembrado.
+            await using var secuencias = new SqlCommand(
+                "SELECT (SELECT MIN(Id) FROM UsuariosCentral), (SELECT MIN(Id) FROM Monedas), "
+                + "(SELECT CAST(current_value AS int) FROM sys.sequences WHERE name = 'SecuenciaMonedas'), "
+                + "(SELECT COUNT(*) FROM sys.sequences WHERE name = 'EntityFrameworkHiLoSequence')", conexion);
+
+            await using var lector = await secuencias.ExecuteReaderAsync();
+            Assert.True(await lector.ReadAsync());
+            Assert.Equal((1, 1), (lector.GetInt32(0), lector.GetInt32(1)));
+            Assert.True(lector.GetInt32(2) > 2, "La secuencia de monedas debe quedar después de lo sembrado.");
+            Assert.Equal(0, lector.GetInt32(3));
         }
         finally
         {

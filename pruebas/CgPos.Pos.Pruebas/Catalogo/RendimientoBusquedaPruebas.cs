@@ -31,8 +31,8 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
             // Los Id salen de la secuencia HiLo de EF: se reserva un valor por artículo y cada valor cubre un bloque de Id que EF ya no entrega.
             await contexto.Database.ExecuteSqlInterpolatedAsync($"""
                 DECLARE @primero sql_variant;
-                EXEC sys.sp_sequence_get_range @sequence_name = N'EntityFrameworkHiLoSequence', @range_size = {CantidadArticulos}, @range_first_value = @primero OUTPUT;
-                DECLARE @incremento int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'EntityFrameworkHiLoSequence');
+                EXEC sys.sp_sequence_get_range @sequence_name = N'SecuenciaArticulos', @range_size = {CantidadArticulos}, @range_first_value = @primero OUTPUT;
+                DECLARE @incremento int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'SecuenciaArticulos');
 
                 WITH numeros AS (
                     SELECT TOP ({CantidadArticulos}) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
