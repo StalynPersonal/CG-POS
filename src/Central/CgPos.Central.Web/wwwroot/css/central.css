@@ -1,4 +1,4 @@
-/* CG-POS Central · complementa cgpos.css (tokens del verde institucional) para una aplicación de escritorio con mouse y teclado. */
+﻿/* CG-POS Central · complementa cgpos.css (tokens del verde institucional) para una aplicación de escritorio con mouse y teclado. */
 
 html, body {
     -webkit-user-select: text;
@@ -204,3 +204,29 @@ html, body {
 
 .cg-chequeador__vigencia { opacity: .7; font-size: 1rem; }
 .cg-chequeador__aviso { width: min(680px, 92vw); }
+
+/* Auditoría: el antes y el después de cada campo, dentro de la fila del movimiento. */
+.cg-auditoria__entidad { margin: 4px 0 10px; }
+
+.cg-auditoria__campos { font-size: .82rem; }
+
+.cg-auditoria__campos th {
+    color: #51605a;
+    font-weight: 600;
+    text-align: left;
+}
+
+.cg-auditoria__campos td { vertical-align: top; }
+
+/* El valor viejo se ve apagado y tachado; el nuevo, en el verde de la marca. */
+.cg-auditoria__antes {
+    color: #9a2f2f;
+    text-decoration: line-through;
+    word-break: break-word;
+}
+
+.cg-auditoria__despues {
+    color: var(--cg-primario);
+    font-weight: 600;
+    word-break: break-word;
+}

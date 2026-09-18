@@ -263,6 +263,7 @@ CREATE TABLE [Auditoria] (
     [TipoEntidad] nvarchar(100) NOT NULL,
     [EntidadId] nvarchar(64) NULL,
     [Detalle] nvarchar(max) NULL,
+    [Cambios] nvarchar(max) NULL,
     [Motivo] nvarchar(500) NULL,
     [UsuarioId] int NULL,
     [UsuarioNombre] nvarchar(150) NULL,

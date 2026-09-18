@@ -268,6 +268,7 @@ CREATE TABLE [Auditoria] (
     [TipoEntidad] nvarchar(100) NOT NULL,
     [EntidadId] nvarchar(64) NULL,
     [Detalle] nvarchar(max) NULL,
+    [Cambios] nvarchar(max) NULL,
     [Motivo] nvarchar(500) NULL,
     [UsuarioId] int NULL,
     [UsuarioNombre] nvarchar(150) NULL,
@@ -1965,7 +1966,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$NlTro9tqajc+84ViZEG2Zw==$4fTmWU7xY2MlsjDfZ4FjyfdFTK0NBwumBroT7vxDAFA=', 1, NULL, 0, NULL, NULL);
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$CKFe3D00EifnnPyczz3dGA==$tULcqYvy/PFDwTSlcZomPYzzznKMO+DjnFiaO5Wixfg=', 1, NULL, 0, NULL, NULL);
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO
 

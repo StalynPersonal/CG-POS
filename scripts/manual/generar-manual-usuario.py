@@ -209,7 +209,28 @@ titulo('2.4. Seguridad', 2)
 viñeta('Usuarios y roles del Central (/seguridad/usuarios y /seguridad/roles): quién entra al Central y qué puede ver o hacer.')
 viñeta('Usuarios y roles de caja (/cajas/usuarios y /cajas/roles): los cajeros y supervisores, con su nivel (1 a 9), sus '
        'permisos y en qué cajas trabajan. Bajan solos a las cajas.')
+viñeta('Auditoría (/seguridad/auditoria): todo lo que se ha hecho en el Central, con el valor que tenía antes y el que '
+       'quedó después de cada campo que cambió.')
 nota('El nivel se usa para las autorizaciones: un descuento que pasa el tope de un supervisor pide la clave de alguien de nivel superior.')
+
+titulo('2.4.1. Auditoría: el antes y el después', 3)
+p('Cada vez que alguien guarda algo en el Central, el sistema anota qué se hizo, quién lo hizo, cuándo, con qué motivo y, '
+  'campo por campo, qué valor había antes y cuál quedó después. No hay que activar nada: se anota solo. Los movimientos no '
+  'se editan ni se borran desde la aplicación.')
+tabla(['Columna', 'Qué muestra'],
+      [['Cuándo', 'Fecha y hora del movimiento, en la hora del servidor donde se consulta.'],
+       ['Acción', 'Qué se hizo (por ejemplo, actualizar la empresa), sobre qué entidad y con qué motivo, si lo lleva.'],
+       ['Usuario', 'Quién lo hizo y, en las operaciones que la piden, quién la autorizó.'],
+       ['Qué cambió', 'Cada campo con su valor anterior (tachado) y el que quedó. Una creación no tiene valor anterior y una eliminación no tiene valor nuevo.']],
+      anchos=[3.5, 10.5])
+p('Los filtros de arriba acotan la búsqueda: rango de fechas, acción, entidad, usuario, un texto libre (busca también dentro '
+  'de los valores que cambiaron) y el interruptor «Solo cambios de datos», que deja fuera los ingresos y las consultas. Abajo '
+  'se elige el tamaño de página (10, 25, 50, 100 o 200) y se pasa de una página a otra; el Central envía solo la página que '
+  'se está viendo, así que la consulta es rápida aunque haya años de movimientos.')
+nota('Las contraseñas, los certificados y las firmas se anotan como cambiados, pero su contenido nunca se muestra: en su lugar '
+     'aparece «(oculto)».')
+nota('Para entrar a esta pantalla hace falta el permiso «Consultar la auditoría del Central y de las cajas». Se puede dar a '
+     'contabilidad o a auditoría sin darles permiso para administrar nada.')
 
 titulo('2.5. Maestros, artículos y precios', 2)
 tabla(['Opción', 'Ruta', 'Para qué sirve'],

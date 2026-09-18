@@ -57,6 +57,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<Aplicacion.Devoluciones.IServicioNotasCreditoCentral, Devoluciones.ServicioNotasCreditoCentral>();
         servicios.AddScoped<Aplicacion.ListasBoda.IServicioListasBoda, ListasBoda.ServicioListasBoda>();
         servicios.AddScoped<Aplicacion.Ventas.IServicioComprobantesRecibidos, Ventas.ServicioComprobantesRecibidos>();
+        servicios.AddScoped<Aplicacion.Auditoria.IServicioConsultaAuditoria, Auditoria.ServicioConsultaAuditoria>();
         servicios.AddScoped<Aplicacion.Catalogo.IServicioChequeadorPrecios, Catalogo.ServicioChequeadorPrecios>();
 
         // Saldo central de puntos del programa de fidelidad (M11).

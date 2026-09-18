@@ -105,6 +105,7 @@ internal sealed class RegistroAuditoriaConfiguracion : IEntityTypeConfiguration<
         constructor.Property(r => r.EntidadId).HasMaxLength(RegistroAuditoria.LargoMaximoEntidadId);
         // Sin largo máximo (nvarchar(max)): se anula la convención de 256.
         constructor.Property(r => r.Detalle).Metadata.SetMaxLength(null);
+        constructor.Property(r => r.Cambios).Metadata.SetMaxLength(null);
         constructor.Property(r => r.Motivo).HasMaxLength(RegistroAuditoria.LargoMaximoMotivo);
         constructor.Property(r => r.UsuarioNombre).HasMaxLength(RegistroAuditoria.LargoMaximoNombre);
         constructor.Property(r => r.AutorizadoPorNombre).HasMaxLength(RegistroAuditoria.LargoMaximoNombre);

@@ -351,6 +351,40 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    // ---------- Auditoría (M02) ----------
+
+    public async Task<PaginaAuditoria?> BuscarAuditoriaAsync(DateOnly? desde, DateOnly? hasta, string? accion, string? tipoEntidad,
+        string? usuario, string? buscar, bool soloConCambios, int pagina, int tamano, CancellationToken cancelacion = default)
+    {
+        var ruta = $"api/manager/auditoria?pagina={pagina}&tamano={tamano}&soloConCambios={soloConCambios.ToString().ToLowerInvariant()}"
+                   + (desde is { } inicio ? $"&desde={inicio:yyyy-MM-dd}" : string.Empty)
+                   + (hasta is { } fin ? $"&hasta={fin:yyyy-MM-dd}" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(accion) ? string.Empty : $"&accion={Uri.EscapeDataString(accion)}")
+                   + (string.IsNullOrWhiteSpace(tipoEntidad) ? string.Empty : $"&tipoEntidad={Uri.EscapeDataString(tipoEntidad)}")
+                   + (string.IsNullOrWhiteSpace(usuario) ? string.Empty : $"&usuario={Uri.EscapeDataString(usuario)}")
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<PaginaAuditoria>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<OpcionesAuditoria?> ObtenerOpcionesAuditoriaAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<OpcionesAuditoria>("api/manager/auditoria/opciones", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
     // ---------- Listas de boda (RF-73) ----------
 
     public async Task<IReadOnlyList<DatosListaBoda>?> ListarListasBodaAsync(string? buscar, CgPos.Dominio.ListasBoda.EstadoListaBoda? estado,

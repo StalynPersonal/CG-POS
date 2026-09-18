@@ -1,0 +1,163 @@
+@page "/seguridad/auditoria"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.ConsultarAuditoria)]
+@inject ClienteCentral Cliente
+
+<PageTitle>Auditoría · CG-POS Central</PageTitle>
+
+@* Encabezado: qué muestra la pantalla (todo lo que se hizo en el Central, con el antes y el después de cada campo). *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Auditoría</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Qué se hizo, quién lo hizo y cuándo, con el valor que tenía antes y el que quedó después de cada campo que cambió.
+            Los registros no se editan ni se borran.
+        </MudText>
+    </div>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudo cargar la auditoría. Verifique la comunicación con el Central.</MudAlert>
+}
+
+@* Tabla de movimientos: se pide al Central una página a la vez, con el tamaño de página que elija el usuario. *@
+<MudPaper Elevation="1">
+    <MudTable @ref="_tabla" T="DatosRegistroAuditoria" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+              Elevation="0" RowsPerPage="25" RowsPerPageOptions="@(new[] { 10, 25, 50, 100, 200 })">
+        <ToolBarContent>
+            @* Filtros: rango de días, acción, entidad, usuario, solo lo que cambió datos y búsqueda libre. *@
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudDatePicker Date="_desde" DateChanged="@(valor => FiltrarAsync(() => _desde = valor))" Label="Desde" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Clearable="true" Style="max-width: 170px" />
+                <MudDatePicker Date="_hasta" DateChanged="@(valor => FiltrarAsync(() => _hasta = valor))" Label="Hasta" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Clearable="true" Style="max-width: 170px" />
+                <MudSelect T="string" Value="_accion" ValueChanged="@(valor => FiltrarAsync(() => _accion = valor))" Label="Acción" Dense="true"
+                           Clearable="true" Style="min-width: 210px">
+                    @foreach (var accion in _opciones.Acciones)
+                    {
+                        <MudSelectItem T="string" Value="@accion">@accion</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" Value="_tipoEntidad" ValueChanged="@(valor => FiltrarAsync(() => _tipoEntidad = valor))" Label="Entidad"
+                           Dense="true" Clearable="true" Style="min-width: 180px">
+                    @foreach (var entidad in _opciones.TiposEntidad)
+                    {
+                        <MudSelectItem T="string" Value="@entidad">@entidad</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" Value="_usuario" ValueChanged="@(valor => FiltrarAsync(() => _usuario = valor))" Label="Usuario" Dense="true"
+                           Clearable="true" Style="min-width: 180px">
+                    @foreach (var usuario in _opciones.Usuarios)
+                    {
+                        <MudSelectItem T="string" Value="@usuario">@usuario</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(valor => FiltrarAsync(() => _buscar = valor))" DebounceInterval="400"
+                              Placeholder="Entidad, motivo o valor" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="min-width: 240px" />
+                <MudSwitch T="bool" Value="_soloConCambios" ValueChanged="@(valor => FiltrarAsync(() => _soloConCambios = valor))"
+                           Color="Color.Secondary" Label="Solo cambios de datos" />
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Cuándo</MudTh>
+            <MudTh>Acción</MudTh>
+            <MudTh>Usuario</MudTh>
+            <MudTh>Qué cambió</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Cuándo">@context.OcurridoEn.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+            <MudTd DataLabel="Acción">
+                <strong>@context.Accion</strong>
+                <div class="cg-central__detalle">@context.TipoEntidad@(context.EntidadId is { Length: > 0 } id ? $" · {id}" : string.Empty)</div>
+                @if (context.Motivo is { Length: > 0 } motivo)
+                {
+                    <div class="cg-central__detalle">Motivo: @motivo</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Usuario">
+                @(context.UsuarioNombre ?? "Sistema")
+                @if (context.AutorizadoPorNombre is { Length: > 0 } autorizador)
+                {
+                    <div class="cg-central__detalle">Autorizó: @autorizador</div>
+                }
+            </MudTd>
+            <MudTd DataLabel="Qué cambió">
+                @if (context.Cambios.Count == 0)
+                {
+                    <span class="cg-central__detalle">No cambió datos</span>
+                }
+                else
+                {
+                    @* Antes y después, campo por campo, tal como quedó en la base. *@
+                    foreach (var entidad in context.Cambios)
+                    {
+                        <div class="cg-auditoria__entidad">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@ColorOperacion(entidad.Operacion)">
+                                @entidad.Operacion: @entidad.Entidad@(entidad.EntidadId is { Length: > 0 } clave ? $" #{clave}" : string.Empty)
+                            </MudChip>
+                            <MudSimpleTable Dense="true" Elevation="0" Class="cg-auditoria__campos">
+                                <thead>
+                                    <tr><th>Campo</th><th>Antes</th><th>Después</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var campo in entidad.Campos)
+                                    {
+                                        <tr>
+                                            <td>@campo.Campo</td>
+                                            <td class="cg-auditoria__antes">@(campo.Antes ?? "—")</td>
+                                            <td class="cg-auditoria__despues">@(campo.Despues ?? "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </div>
+                    }
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>No hay movimientos con esos filtros.</NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<DatosRegistroAuditoria>? _tabla;
+    private OpcionesAuditoria _opciones = new([], [], []);
+    private DateTime? _desde = DateTime.Today.AddDays(-7);
+    private DateTime? _hasta = DateTime.Today;
+    private string? _accion;
+    private string? _tipoEntidad;
+    private string? _usuario;
+    private string? _buscar;
+    private bool _soloConCambios;
+    private bool _error;
+
+    protected override async Task OnInitializedAsync() =>
+        _opciones = await Cliente.ObtenerOpcionesAuditoriaAsync() ?? new OpcionesAuditoria([], [], []);
+
+    private async Task<TableData<DatosRegistroAuditoria>> CargarAsync(TableState estado, CancellationToken cancelacion)
+    {
+        var pagina = await Cliente.BuscarAuditoriaAsync(
+            _desde is { } desde ? DateOnly.FromDateTime(desde) : null,
+            _hasta is { } hasta ? DateOnly.FromDateTime(hasta) : null,
+            _accion, _tipoEntidad, _usuario, _buscar, _soloConCambios, estado.Page, estado.PageSize, cancelacion);
+
+        _error = pagina is null;
+        return new TableData<DatosRegistroAuditoria> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    /// <summary>Cualquier filtro que cambie vuelve a pedir la primera página al Central.</summary>
+    private async Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        if (_tabla is not null)
+            await _tabla.ReloadServerData();
+    }
+
+    private static Color ColorOperacion(string operacion) => operacion switch
+    {
+        "Creado" => Color.Success,
+        "Eliminado" => Color.Error,
+        _ => Color.Info,
+    };
+}

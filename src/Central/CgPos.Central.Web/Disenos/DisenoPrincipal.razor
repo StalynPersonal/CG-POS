@@ -114,12 +114,19 @@
                     <MudNavLink Href="cierres-sucursal" Icon="@Icons.Material.Filled.FactCheck">Cierre y depósitos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
-            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
-                <MudNavGroup Title="Seguridad del Central" Icon="@Icons.Material.Filled.Security" Expanded="@EnRuta("seguridad/")">
+            @* Seguridad: usuarios y roles del Central, y la auditoría de todo lo que se hace en él. *@
+            @if (TieneAlguno(CatalogoPermisosCentral.AdministrarSeguridad, CatalogoPermisosCentral.ConsultarAuditoria))
+            {
+            <MudNavGroup Title="Seguridad" Icon="@Icons.Material.Filled.Security" Expanded="@EnRuta("seguridad/")">
+                <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarSeguridad">
                     <MudNavLink Href="seguridad/usuarios" Icon="@Icons.Material.Filled.People">Usuarios</MudNavLink>
                     <MudNavLink Href="seguridad/roles" Icon="@Icons.Material.Filled.AdminPanelSettings">Roles y permisos</MudNavLink>
-                </MudNavGroup>
-            </AuthorizeView>
+                </AuthorizeView>
+                <AuthorizeView Policy="@CatalogoPermisosCentral.ConsultarAuditoria">
+                    <MudNavLink Href="seguridad/auditoria" Icon="@Icons.Material.Filled.History">Auditoría</MudNavLink>
+                </AuthorizeView>
+            </MudNavGroup>
+            }
         </MudNavMenu>
     </MudDrawer>
 
@@ -137,6 +144,10 @@
     /// El menú se muestra agrupado: cada grupo arranca cerrado y solo queda abierto el de la página en la que se está, para
     /// que no haya que desplazarse por todas las opciones.
     /// </summary>
+    /// <summary>El grupo se muestra si el usuario tiene al menos uno de sus permisos; cada opción se filtra por el suyo.</summary>
+    private bool TieneAlguno(params string[] permisos) =>
+        Almacen.Sesion is { DebeCambiarContrasena: false, Permisos: { } suyos } && permisos.Any(suyos.Contains);
+
     private bool EnRuta(params string[] prefijos)
     {
         var ruta = Navegacion.ToBaseRelativePath(Navegacion.Uri).Split('?')[0].TrimStart('/');

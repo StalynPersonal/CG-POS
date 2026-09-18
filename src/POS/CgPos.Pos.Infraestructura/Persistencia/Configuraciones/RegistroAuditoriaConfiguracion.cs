@@ -1,4 +1,4 @@
-using CgPos.Dominio.Auditoria;
+﻿using CgPos.Dominio.Auditoria;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,6 +17,7 @@ internal sealed class RegistroAuditoriaConfiguracion : IEntityTypeConfiguration<
         constructor.Property(r => r.EntidadId).HasMaxLength(RegistroAuditoria.LargoMaximoEntidadId);
         // Sin largo máximo (nvarchar(maximo)): se anula la convención de 256.
         constructor.Property(r => r.Detalle).Metadata.SetMaxLength(null);
+        constructor.Property(r => r.Cambios).Metadata.SetMaxLength(null);
         constructor.Property(r => r.Motivo).HasMaxLength(RegistroAuditoria.LargoMaximoMotivo);
         constructor.Property(r => r.UsuarioNombre).HasMaxLength(RegistroAuditoria.LargoMaximoNombre);
         constructor.Property(r => r.AutorizadoPorNombre).HasMaxLength(RegistroAuditoria.LargoMaximoNombre);

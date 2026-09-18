@@ -103,6 +103,22 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
             constructorModelo.Entity(tipo).Property<long>(ColumnaVersion).IsRowVersion().HasConversion<byte[]>();
     }
 
+    /// <summary>
+    /// Antes de guardar, cada registro de auditoría de esta operación recibe el antes y el después de lo que cambió en la
+    /// base, para que la pantalla de Auditoría lo muestre sin que cada servicio tenga que armarlo a mano.
+    /// </summary>
+    public override int SaveChanges(bool aceptarTodosLosCambios)
+    {
+        CgPos.Central.Infraestructura.Auditoria.CambiosAuditoria.Adjuntar(this);
+        return base.SaveChanges(aceptarTodosLosCambios);
+    }
+
+    public override Task<int> SaveChangesAsync(bool aceptarTodosLosCambios, CancellationToken cancelacion = default)
+    {
+        CgPos.Central.Infraestructura.Auditoria.CambiosAuditoria.Adjuntar(this);
+        return base.SaveChangesAsync(aceptarTodosLosCambios, cancelacion);
+    }
+
     protected override void ConfigureConventions(ModelConfigurationBuilder constructorConvenciones)
     {
         // Mismas convenciones que la base de la caja: los documentos viajan entre ambas sin perder precisión.

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Auditoria;
 
@@ -22,6 +22,12 @@ public sealed class RegistroAuditoria : Entidad
 
     /// <summary>Datos adicionales en JSON.</summary>
     public string? Detalle { get; private set; }
+
+    /// <summary>
+    /// Qué cambió en la base con esta acción, en JSON: por cada entidad tocada, el valor de antes y el de después de cada
+    /// campo. Lo llena sola la base de datos al guardar, comparando lo que había con lo que se guarda.
+    /// </summary>
+    public string? Cambios { get; private set; }
 
     public string? Motivo { get; private set; }
     public int? UsuarioId { get; private set; }
@@ -57,5 +63,12 @@ public sealed class RegistroAuditoria : Entidad
             AutorizadoPorId = autorizadoPorId,
             AutorizadoPorNombre = autorizadoPorNombre,
         };
+    }
+
+    /// <summary>Adjunta el antes y el después de los campos que cambiaron. Solo se adjunta una vez, al guardar.</summary>
+    public void AdjuntarCambios(string cambiosJson)
+    {
+        if (Cambios is null && !string.IsNullOrWhiteSpace(cambiosJson))
+            Cambios = cambiosJson;
     }
 }
