@@ -298,7 +298,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 
 ### Pantalla de ventas secundaria
 
-La caja tiene tres pantallas, cada una en su monitor: **ventas principal** (`/`), **ventas secundaria** (`/venta-secundaria`) y **cliente** (`/cliente`). Se abren con `scripts/caja/abrir-pantallas.ps1`; ninguna navega a otra.
+La caja tiene tres pantallas, cada una en su monitor: **ventas principal** (`/`), **ventas secundaria** (`/venta-secundaria`) y **cliente** (`/cliente`). Se abren con `scripts/caja/abrir-pantallas.ps1`; ninguna navega a otra. Cada pantalla que pide sesión lleva al ingreso **sabiendo a cuál se iba** (`/ingreso?pantalla=principal|secundaria|devoluciones|despacho`), y al entrar abre esa; la del cliente no pide sesión.
 
 - **Ruta `/venta-secundaria`**, táctil, estilo mostrador de cafetería: a la izquierda la venta con sus líneas, totales y el botón de cobrar; a la derecha el buscador, las pestañas de **departamento** y **categoría**, y los artículos en **mosaicos con imagen y precio**. Un toque agrega el artículo; tocar una línea la selecciona para cambiar cantidad o quitarla (con autorización, igual que en la principal).
 - Es **la misma venta** que la principal: el Agente publica cada cambio por SignalR (el mismo canal de la pantalla del cliente) y las dos pantallas se mantienen iguales. Tiene a mano cliente, consulta de precio, facturas en espera y devoluciones.

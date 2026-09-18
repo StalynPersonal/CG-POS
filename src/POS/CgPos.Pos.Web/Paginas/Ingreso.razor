@@ -92,10 +92,10 @@
         Clave,
     }
 
-    /// <summary>Pantalla a la que se entra (?pantalla=devoluciones|despacho); sin indicar es la caja.</summary>
-    [SupplyParameterFromQuery(Name = "pantalla")] public string? RutaPantalla { get; set; }
+    /// <summary>Pantalla a la que se entra (?pantalla=principal|secundaria|devoluciones|despacho); sin indicar, la principal.</summary>
+    [SupplyParameterFromQuery(Name = "pantalla")] public string? ClavePantalla { get; set; }
 
-    private PantallaCaja _pantalla = PantallasCaja.Caja;
+    private PantallaCaja _pantalla = PantallasCaja.Principal;
     private DatosEstadoCaja? _estado;
     private bool _cargando = true;
     private bool _procesando;
@@ -115,7 +115,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _pantalla = PantallasCaja.PorRuta(RutaPantalla);
+        _pantalla = PantallasCaja.PorClave(ClavePantalla);
         if (Almacen.Activa)
         {
             Navegacion.NavigateTo(_pantalla.Ruta, replace: true);

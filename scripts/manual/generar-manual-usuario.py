@@ -122,14 +122,15 @@ p('La caja se abre en el navegador del mismo equipo de la caja; el Central, desd
 tabla(['Pantalla', 'Dónde se entra', 'Quién la usa'],
       [['Central – administración', 'La dirección del servidor (en pruebas, http://localhost:5280)', 'Administración, contabilidad, gerencia'],
        ['Chequeador de precios', 'La dirección del servidor + /chequeador', 'El cliente, en el pasillo de la tienda'],
-       ['Caja – pantalla de ventas principal', 'http://localhost:5180/', 'Cajero, con lector y teclado'],
-       ['Caja – pantalla de ventas secundaria', 'http://localhost:5180/venta-secundaria', 'Cajero, tocando el catálogo'],
-       ['Caja – pantalla de clientes', 'http://localhost:5180/cliente', 'El cliente la ve'],
-       ['Caja – devoluciones', 'http://localhost:5180/devoluciones', 'Cajero o encargado de devoluciones'],
-       ['Caja – despacho de pendientes', 'http://localhost:5180/despacho', 'Personal de entrega']],
+       ['Caja – pantalla de ventas principal', 'http://localhost:5180/ingreso?pantalla=principal', 'Cajero, con lector y teclado'],
+       ['Caja – pantalla de ventas secundaria', 'http://localhost:5180/ingreso?pantalla=secundaria', 'Cajero, tocando el catálogo'],
+       ['Caja – pantalla de clientes', 'http://localhost:5180/cliente', 'El cliente la ve (no pide usuario)'],
+       ['Caja – devoluciones', 'http://localhost:5180/ingreso?pantalla=devoluciones', 'Cajero o encargado de devoluciones'],
+       ['Caja – despacho de pendientes', 'http://localhost:5180/ingreso?pantalla=despacho', 'Personal de entrega']],
       anchos=[6.0, 7.0, 4.0])
 nota('Las pantallas de la caja se abren solas al encender el equipo, cada una en su monitor, con el acceso directo que deja '
-     'instalado el técnico. Ninguna lleva a otra: cada monitor muestra siempre la suya.')
+     'instalado el técnico. Ninguna lleva a otra: cada monitor muestra siempre la suya. Cada dirección pide el usuario y, al '
+     'entrar, abre su pantalla; la del cliente no pide usuario.')
 
 titulo('1.2. Quién hace qué', 2)
 tabla(['Rol', 'Qué hace', 'Dónde'],

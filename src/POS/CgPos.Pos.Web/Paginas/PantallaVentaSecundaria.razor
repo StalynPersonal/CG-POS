@@ -161,6 +161,7 @@ else
             <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.LocalOffer" OnClick="ConsultarPrecioAsync">Precio</MudButton>
             <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PanTool" OnClick="AbrirEsperaAsync">En espera</MudButton>
             <span class="cg-espaciador"></span>
+            <NombrePantalla Pantalla="PantallasCaja.Secundaria" />
             <span class="cg-venta2__usuario">@Almacen.Sesion?.Nombre · Caja @Almacen.Sesion?.CajaCodigo</span>
         </footer>
     </div>

@@ -20,7 +20,8 @@
             return;
         }
 
+        // Se lleva la pantalla a la que se iba, para volver a ella al entrar: /ingreso?pantalla=secundaria.
         var pantalla = PantallasCaja.PorRuta(Navegacion.ToBaseRelativePath(Navegacion.Uri));
-        Navegacion.NavigateTo(pantalla == PantallasCaja.Caja ? "ingreso" : $"ingreso?pantalla={pantalla.Ruta}", replace: true);
+        Navegacion.NavigateTo($"ingreso?pantalla={pantalla.Clave}", replace: true);
     }
 }
