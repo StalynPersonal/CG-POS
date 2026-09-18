@@ -4,7 +4,7 @@ Genera el manual de usuario de CG-POS en Word.
 
     python scripts/manual/generar-manual-usuario.py
 
-Deja el documento en «documentos referencia/Manual de usuario CG-POS.docx» (esa carpeta no se versiona).
+Deja el documento en «scripts/manual/Manual de usuario CG-POS.docx», junto a este script.
 El manual NO se edita a mano: se edita este script y se vuelve a generar, para que no se pierda el cambio.
 Cada vez que cambie una pantalla, una ruta, una tecla, un permiso o un paso de un flujo, hay que actualizarlo aquí.
 """
@@ -599,7 +599,7 @@ viñeta('La caja es la que manda sobre sus ventas: el Central refleja lo que las
 nota('Documento generado para CG-POS. Las direcciones de ejemplo (localhost) corresponden a la instalación de pruebas; '
      'en producción se usa la dirección del servidor del Central que indique el equipo de tecnología.')
 
-destino = os.path.join('documentos referencia', 'Manual de usuario CG-POS.docx')
+destino = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Manual de usuario CG-POS.docx')
 try:
     doc.save(destino)
     print('generado:', destino)
