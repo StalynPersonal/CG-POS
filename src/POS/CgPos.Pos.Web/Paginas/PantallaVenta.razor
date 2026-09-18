@@ -298,7 +298,6 @@ else
             </PaginaPrincipal>
             <PaginaSecundaria>
                 <TeclaFuncion Texto="Catálogo" Icono="@Icons.Material.Filled.GridView" AlPresionar="AbrirCatalogoAsync" />
-                <TeclaFuncion Texto="Mostrador táctil" Icono="@Icons.Material.Filled.TouchApp" AlPresionar="IrAlMostradorAsync" />
                 <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="EliminarSeleccionadaAsync" />
                 <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="AlternarModoEliminar" />
                 <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="LimpiarAsync" />
@@ -949,13 +948,6 @@ else
             _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
             _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
         });
-    }
-
-    /// <summary>Pasa a la pantalla secundaria: la misma venta, pero para trabajarla tocando mosaicos.</summary>
-    private Task IrAlMostradorAsync()
-    {
-        Navegacion.NavigateTo("/mostrador");
-        return Task.CompletedTask;
     }
 
     private async Task AbrirEsperaAsync()

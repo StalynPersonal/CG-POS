@@ -296,10 +296,12 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 - **Mantenimiento** (cada `Mantenimiento:IntervaloMinutos`): verificación de la hora contra `Reloj:ServidorNtp`; respaldo diario de la base desde `Respaldo:Hora` en `Respaldo:Carpeta` (vacía = carpeta de respaldos de la instancia; la cuenta del servicio de SQL Server debe poder escribir en ella); purga de XML enviados, mensajes confirmados y respaldos según los parámetros de retención.
 - **Alertas en la barra de estado:** tamaño de la base, documentos atrasados sin sincronizar, hora desfasada y respaldo fallido.
 
-### Pantalla secundaria (mostrador táctil)
+### Pantalla de ventas secundaria
 
-- **Ruta `/mostrador`**, pensada para el equipo con pantalla táctil (estilo cafetería, como la referencia): a la izquierda la venta con sus líneas, totales y el botón de cobrar; a la derecha el buscador, las pestañas de **departamento** y **categoría**, y los artículos en **mosaicos con imagen y precio**. Un toque agrega el artículo; tocar una línea la selecciona para cambiar cantidad o quitarla (con autorización, igual que en la otra pantalla).
-- Es la misma venta y las mismas reglas de la pantalla con lector: se puede pasar de una a otra cuando se quiera (*Mostrador táctil* en la segunda página de teclas, y *Pantalla con lector* desde el mostrador). Debajo tiene a mano cliente, consulta de precio, facturas en espera y devoluciones.
+La caja tiene tres pantallas, cada una en su monitor: **ventas principal** (`/`), **ventas secundaria** (`/venta-secundaria`) y **cliente** (`/cliente`). Se abren con `scripts/caja/abrir-pantallas.ps1`; ninguna navega a otra.
+
+- **Ruta `/venta-secundaria`**, táctil, estilo mostrador de cafetería: a la izquierda la venta con sus líneas, totales y el botón de cobrar; a la derecha el buscador, las pestañas de **departamento** y **categoría**, y los artículos en **mosaicos con imagen y precio**. Un toque agrega el artículo; tocar una línea la selecciona para cambiar cantidad o quitarla (con autorización, igual que en la principal).
+- Es **la misma venta** que la principal: el Agente publica cada cambio por SignalR (el mismo canal de la pantalla del cliente) y las dos pantallas se mantienen iguales. Tiene a mano cliente, consulta de precio, facturas en espera y devoluciones.
 - Muestra en mosaico los artículos marcados con `mostrarEnCatalogo`; lo demás se encuentra con el buscador por descripción o código.
 
 ### Pantalla del cliente y monitores

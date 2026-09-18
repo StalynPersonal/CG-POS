@@ -1,88 +1,93 @@
-@page "/mostrador"
+@page "/venta-secundaria"
 @attribute [Authorize]
 @using System.Globalization
+@using System.Text.Json
+@using CgPos.Contratos.Serializacion
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 @inject ClienteAgente Cliente
 @inject AlmacenSesion Almacen
 @inject IDialogService Dialogos
 @inject ServicioAutorizacionPantalla Autorizaciones
 @inject NavigationManager Navegacion
 
-@* Pantalla secundaria (táctil): la venta a la izquierda y el catálogo en mosaicos a la derecha, para vender sin teclado. *@
+@* Pantalla de ventas secundaria (táctil): la venta a la izquierda y el catálogo en mosaicos a la derecha, para vender sin teclado.
+   Es otra vista de la misma venta de la caja: se abre en su propio monitor, junto a la principal y a la del cliente. *@
 
-<PageTitle>CG-POS · Mostrador</PageTitle>
+<PageTitle>CG-POS · Venta secundaria</PageTitle>
 
 @if (_venta is null)
 {
     @* Mientras se pide la venta en curso al Agente. *@
-    <div class="cg-mostrador__cargando">
+    <div class="cg-venta2__cargando">
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
     </div>
 }
 else
 {
     @* Pantalla completa: ticket, catálogo y barra de acciones. *@
-    <div class="cg-mostrador">
+    <div class="cg-venta2">
         @* Columna izquierda: la venta tal como va, con sus totales y el botón de cobrar. *@
-        <section class="cg-mostrador__venta">
+        <section class="cg-venta2__venta">
             @* Encabezado de la columna: transacción y cliente; al tocarlo se abre cliente y comprobante. *@
-            <div class="cg-mostrador__encabezado" @onclick="AbrirClienteAsync">
-                <span class="cg-mostrador__transaccion">@_venta.NumeroTransaccion</span>
-                <span class="cg-mostrador__cliente">@(_venta.Cliente?.Nombre ?? "Cliente contado")</span>
-                <span class="cg-mostrador__comprobante">E@((int)_venta.TipoComprobante)</span>
+            <div class="cg-venta2__encabezado" @onclick="AbrirClienteAsync">
+                <span class="cg-venta2__transaccion">@_venta.NumeroTransaccion</span>
+                <span class="cg-venta2__cliente">@(_venta.Cliente?.Nombre ?? "Cliente contado")</span>
+                <span class="cg-venta2__comprobante">E@((int)_venta.TipoComprobante)</span>
             </div>
 
             @* Líneas de la venta: tocar una la selecciona para cambiar cantidad o quitarla. *@
-            <div class="cg-mostrador__lineas">
+            <div class="cg-venta2__lineas">
                 @if (!_venta.Lineas.Any(l => !l.EsReverso))
                 {
-                    <div class="cg-mostrador__vacia">Toque un artículo del catálogo para empezar</div>
+                    <div class="cg-venta2__vacia">Toque un artículo del catálogo para empezar</div>
                 }
                 @foreach (var linea in _venta.Lineas.Where(l => !l.EsReverso).OrderByDescending(l => l.NumeroLinea))
                 {
-                    <button type="button" class="cg-mostrador__linea @(linea.NumeroLinea == _seleccionada ? "cg-mostrador__linea--activa" : null)"
+                    <button type="button" class="cg-venta2__linea @(linea.NumeroLinea == _seleccionada ? "cg-venta2__linea--activa" : null)"
                             @onclick="() => _seleccionada = linea.NumeroLinea">
-                        <span class="cg-mostrador__linea-descripcion">@linea.Descripcion</span>
-                        <span class="cg-mostrador__linea-cantidad">@linea.Cantidad.ToString("0.###") × @linea.PrecioUnitario.ToString("N2")</span>
-                        <span class="cg-mostrador__linea-importe">@linea.Importe.ToString("N2")</span>
+                        <span class="cg-venta2__linea-descripcion">@linea.Descripcion</span>
+                        <span class="cg-venta2__linea-cantidad">@linea.Cantidad.ToString("0.###") × @linea.PrecioUnitario.ToString("N2")</span>
+                        <span class="cg-venta2__linea-importe">@linea.Importe.ToString("N2")</span>
                         @if (linea.DescuentoPromocion > 0)
                         {
-                            <span class="cg-mostrador__linea-promo">@(linea.PromocionDescripcion ?? "Oferta")</span>
+                            <span class="cg-venta2__linea-promo">@(linea.PromocionDescripcion ?? "Oferta")</span>
                         }
                     </button>
                 }
             </div>
 
             @* Acciones sobre la línea seleccionada. *@
-            <div class="cg-mostrador__acciones-linea">
+            <div class="cg-venta2__acciones-linea">
                 <MudButton Variant="Variant.Outlined" Size="Size.Large" Disabled="@(_seleccionada is null || _procesando)" OnClick="CambiarCantidadAsync">Cantidad</MudButton>
                 <MudButton Variant="Variant.Outlined" Size="Size.Large" Color="Color.Error" Disabled="@(_seleccionada is null || _procesando)" OnClick="QuitarLineaAsync">Quitar</MudButton>
             </div>
 
             @* Totales de la venta, con la retención cuando aplica. *@
-            <div class="cg-mostrador__totales">
+            <div class="cg-venta2__totales">
                 <div><span>Subtotal</span><span>@_venta.Totales.Subtotal.ToString("N2")</span></div>
                 <div><span>ITBIS</span><span>@_venta.Totales.Impuesto.ToString("N2")</span></div>
                 @if (_venta.Totales.Descuento > 0)
                 {
-                    <div class="cg-mostrador__ahorro"><span>Descuentos</span><span>−@_venta.Totales.Descuento.ToString("N2")</span></div>
+                    <div class="cg-venta2__ahorro"><span>Descuentos</span><span>−@_venta.Totales.Descuento.ToString("N2")</span></div>
                 }
                 @if (_venta.Totales.Retencion > 0)
                 {
-                    <div class="cg-mostrador__ahorro"><span>Retención Ley 32-23</span><span>−@_venta.Totales.Retencion.ToString("N2")</span></div>
+                    <div class="cg-venta2__ahorro"><span>Retención Ley 32-23</span><span>−@_venta.Totales.Retencion.ToString("N2")</span></div>
                 }
-                <div class="cg-mostrador__total"><span>Total</span><span>@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
+                <div class="cg-venta2__total"><span>Total</span><span>@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
             </div>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" Class="cg-mostrador__cobrar"
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true" Class="cg-venta2__cobrar"
                        StartIcon="@Icons.Material.Filled.PointOfSale" Disabled="_procesando" OnClick="CobrarAsync">Cobrar</MudButton>
         </section>
 
         @* Columna derecha: buscador, departamentos y mosaicos de artículos. *@
-        <section class="cg-mostrador__catalogo">
+        <section class="cg-venta2__catalogo">
             @* Buscador por descripción o código, para lo que no está en los mosaicos. *@
-            <div class="cg-mostrador__buscador">
+            <div class="cg-venta2__buscador">
                 <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Large" />
-                <input class="cg-mostrador__campo" placeholder="Buscar por descripción o código" autocomplete="off" spellcheck="false"
+                <input class="cg-venta2__campo" placeholder="Buscar por descripción o código" autocomplete="off" spellcheck="false"
                        value="@_busqueda" @oninput="AlBuscarAsync" />
                 @if (_busqueda.Length > 0)
                 {
@@ -91,12 +96,12 @@ else
             </div>
 
             @* Departamentos del catálogo, como pestañas táctiles. *@
-            <div class="cg-mostrador__departamentos">
-                <button type="button" class="cg-mostrador__departamento @(_departamento is null ? "cg-mostrador__departamento--activo" : null)"
+            <div class="cg-venta2__departamentos">
+                <button type="button" class="cg-venta2__departamento @(_departamento is null ? "cg-venta2__departamento--activo" : null)"
                         @onclick="ElegirTodos">Todos</button>
                 @foreach (var departamento in _departamentos)
                 {
-                    <button type="button" class="cg-mostrador__departamento @(departamento == _departamento ? "cg-mostrador__departamento--activo" : null)"
+                    <button type="button" class="cg-venta2__departamento @(departamento == _departamento ? "cg-venta2__departamento--activo" : null)"
                             @onclick="() => ElegirDepartamento(departamento)">@departamento</button>
                 }
             </div>
@@ -104,26 +109,26 @@ else
             @if (Categorias is { Count: > 1 })
             {
                 @* Categorías del departamento elegido: la segunda fila de pestañas, como en un mostrador de cafetería. *@
-                <div class="cg-mostrador__categorias">
-                    <button type="button" class="cg-mostrador__categoria @(_categoria is null ? "cg-mostrador__categoria--activa" : null)"
+                <div class="cg-venta2__categorias">
+                    <button type="button" class="cg-venta2__categoria @(_categoria is null ? "cg-venta2__categoria--activa" : null)"
                             @onclick="() => _categoria = null">Todas</button>
                     @foreach (var categoria in Categorias)
                     {
-                        <button type="button" class="cg-mostrador__categoria @(categoria == _categoria ? "cg-mostrador__categoria--activa" : null)"
+                        <button type="button" class="cg-venta2__categoria @(categoria == _categoria ? "cg-venta2__categoria--activa" : null)"
                                 @onclick="() => _categoria = categoria">@categoria</button>
                     }
                 </div>
             }
 
             @* Mosaicos: un toque agrega el artículo a la venta. *@
-            <div class="cg-mostrador__mosaicos">
+            <div class="cg-venta2__mosaicos">
                 @if (_cargandoCatalogo)
                 {
                     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
                 }
                 else if (!Visibles.Any())
                 {
-                    <div class="cg-mostrador__vacia">
+                    <div class="cg-venta2__vacia">
                         @(_busqueda.Length > 0 ? "No hay artículos que coincidan." : "No hay artículos marcados para el catálogo.")
                     </div>
                 }
@@ -131,8 +136,8 @@ else
                 {
                     @foreach (var articulo in Visibles)
                     {
-                        <button type="button" class="cg-mostrador__mosaico" disabled="@_procesando" @onclick="() => AgregarAsync(articulo.Codigo)">
-                            <div class="cg-mostrador__imagen">
+                        <button type="button" class="cg-venta2__mosaico" disabled="@_procesando" @onclick="() => AgregarAsync(articulo.Codigo)">
+                            <div class="cg-venta2__imagen">
                                 @if (EsImagenWeb(articulo.RutaImagen))
                                 {
                                     <img src="@articulo.RutaImagen" alt="" />
@@ -142,8 +147,8 @@ else
                                     <span>@Iniciales(articulo.Descripcion)</span>
                                 }
                             </div>
-                            <div class="cg-mostrador__mosaico-descripcion">@articulo.Descripcion</div>
-                            <div class="cg-mostrador__mosaico-precio">@(articulo.PrecioDetalle?.ToString("N2") ?? "Sin precio")</div>
+                            <div class="cg-venta2__mosaico-descripcion">@articulo.Descripcion</div>
+                            <div class="cg-venta2__mosaico-precio">@(articulo.PrecioDetalle?.ToString("N2") ?? "Sin precio")</div>
                         </button>
                     }
                 }
@@ -151,28 +156,26 @@ else
         </section>
 
         @* Barra inferior: lo que se necesita a mano sin teclado, y la vuelta a la pantalla con lector. *@
-        <footer class="cg-mostrador__barra">
+        <footer class="cg-venta2__barra">
             <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Person" OnClick="AbrirClienteAsync">Cliente</MudButton>
             <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.LocalOffer" OnClick="ConsultarPrecioAsync">Precio</MudButton>
             <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PanTool" OnClick="AbrirEsperaAsync">En espera</MudButton>
-            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Undo" OnClick="@(() => Navegacion.NavigateTo("/devoluciones"))">Devoluciones</MudButton>
             <span class="cg-espaciador"></span>
-            <span class="cg-mostrador__usuario">@Almacen.Sesion?.Nombre · Caja @Almacen.Sesion?.CajaCodigo</span>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Keyboard"
-                       OnClick="@(() => Navegacion.NavigateTo("/"))">Pantalla con lector</MudButton>
+            <span class="cg-venta2__usuario">@Almacen.Sesion?.Nombre · Caja @Almacen.Sesion?.CajaCodigo</span>
         </footer>
     </div>
 
     @if (_mensaje is not null)
     {
         @* Aviso de lo último que pasó (artículo sin precio, autorización, error del Agente). *@
-        <div class="cg-mostrador__aviso">
+        <div class="cg-venta2__aviso">
             <MudAlert Severity="Severity.Warning" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
         </div>
     }
 }
 
 @code {
+    private HubConnection? _conexion;
     private DatosVenta? _venta;
     private IReadOnlyList<DatosArticuloResumen> _catalogo = [];
     private IReadOnlyList<DatosArticuloResumen> _encontrados = [];
@@ -226,6 +229,37 @@ else
         _catalogo = await Cliente.ListarCatalogoAsync();
         _departamentos = _catalogo.Select(a => a.DepartamentoNombre).Distinct().Order(StringComparer.CurrentCulture).ToList();
         _cargandoCatalogo = false;
+
+        // La venta es la misma de la pantalla principal: el Agente publica cada cambio y aquí se refleja.
+        _conexion = new HubConnectionBuilder()
+            .WithUrl(Navegacion.ToAbsoluteUri(ContratoPantallaCliente.RutaHub))
+            .WithAutomaticReconnect()
+            .AddJsonProtocol(opciones => opciones.PayloadSerializerOptions = new JsonSerializerOptions(OpcionesJson.Predeterminadas))
+            .Build();
+
+        _conexion.On<DatosVenta?>(ContratoPantallaCliente.MetodoVentaActualizada, venta => InvokeAsync(() =>
+        {
+            if (venta is not null)
+                _venta = venta;
+
+            _seleccionada = null;
+            StateHasChanged();
+        }));
+
+        try
+        {
+            await _conexion.StartAsync();
+        }
+        catch (Exception)
+        {
+            // Sin la publicación en vivo la pantalla sigue sirviendo: se actualiza con lo que se haga en ella.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_conexion is not null)
+            await _conexion.DisposeAsync();
     }
 
     private async Task CargarVentaAsync()

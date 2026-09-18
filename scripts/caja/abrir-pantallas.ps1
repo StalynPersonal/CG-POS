@@ -1,27 +1,28 @@
-<#
+﻿<#
 .SYNOPSIS
     Abre las pantallas de la caja en modo kiosco, cada una en su monitor.
 
 .DESCRIPTION
-    - Cajero (/)                 : venta, cobro y turnos.
-    - Mostrador (/mostrador)     : pantalla táctil con el catálogo en mosaicos (opcional).
-    - Cliente (/cliente)         : segundo monitor con artículos, total y publicidad.
-    - Devoluciones (/devoluciones): opcional, tercer monitor o estación de devoluciones.
+    Las pantallas de la caja, cada una en su monitor:
+    - Ventas principal   (/)                  : venta con lector, cobro y turnos.
+    - Ventas secundaria  (/venta-secundaria)  : táctil, con el catálogo en mosaicos (opcional).
+    - Cliente            (/cliente)           : lo que el cliente ve: artículos, total y publicidad.
+    - Devoluciones       (/devoluciones)      : opcional, para una estación dedicada.
 
     Los monitores se numeran de izquierda a derecha empezando en 1; 0 significa "no abrir".
     Cada pantalla usa su propio perfil de Edge para que las ventanas no se mezclen.
     Se puede programar al iniciar sesión de Windows (Programador de tareas o carpeta Inicio).
 
 .EXAMPLE
-    .\abrir-pantallas.ps1 -MonitorCajero 1 -MonitorCliente 2
+    .\abrir-pantallas.ps1 -MonitorVentaPrincipal 1 -MonitorCliente 2
 .EXAMPLE
-    .\abrir-pantallas.ps1 -MonitorCajero 2 -MonitorCliente 1 -MonitorDevoluciones 3
+    .\abrir-pantallas.ps1 -MonitorVentaPrincipal 1 -MonitorVentaSecundaria 2 -MonitorCliente 3
 #>
 param(
-    [int] $MonitorCajero = 1,
+    [int] $MonitorVentaPrincipal = 1,
     [int] $MonitorCliente = 2,
     [int] $MonitorDevoluciones = 0,
-    [int] $MonitorMostrador = 0,
+    [int] $MonitorVentaSecundaria = 0,
     [string] $Url = 'http://localhost:5180',
     [string] $Navegador = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
 )
@@ -59,7 +60,7 @@ function Abrir-Pantalla([string] $ruta, [int] $numero, [string] $perfil) {
     Write-Host "Pantalla '$ruta' abierta en el monitor $numero ($($area.Width)x$($area.Height))."
 }
 
-Abrir-Pantalla '/' $MonitorCajero 'cajero'
+Abrir-Pantalla '/' $MonitorVentaPrincipal 'venta-principal'
 Abrir-Pantalla '/cliente' $MonitorCliente 'cliente'
 Abrir-Pantalla '/devoluciones' $MonitorDevoluciones 'devoluciones'
-Abrir-Pantalla '/mostrador' $MonitorMostrador 'mostrador'
+Abrir-Pantalla '/venta-secundaria' $MonitorVentaSecundaria 'venta-secundaria'

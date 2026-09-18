@@ -122,12 +122,14 @@ p('La caja se abre en el navegador del mismo equipo de la caja; el Central, desd
 tabla(['Pantalla', 'Dónde se entra', 'Quién la usa'],
       [['Central – administración', 'La dirección del servidor (en pruebas, http://localhost:5280)', 'Administración, contabilidad, gerencia'],
        ['Chequeador de precios', 'La dirección del servidor + /chequeador', 'El cliente, en el pasillo de la tienda'],
-       ['Caja – venta', 'http://localhost:5180/', 'Cajero'],
-       ['Caja – pantalla del cliente (2.º monitor)', 'http://localhost:5180/cliente', 'El cliente la ve'],
+       ['Caja – pantalla de ventas principal', 'http://localhost:5180/', 'Cajero, con lector y teclado'],
+       ['Caja – pantalla de ventas secundaria', 'http://localhost:5180/venta-secundaria', 'Cajero, tocando el catálogo'],
+       ['Caja – pantalla de clientes', 'http://localhost:5180/cliente', 'El cliente la ve'],
        ['Caja – devoluciones', 'http://localhost:5180/devoluciones', 'Cajero o encargado de devoluciones'],
        ['Caja – despacho de pendientes', 'http://localhost:5180/despacho', 'Personal de entrega']],
       anchos=[6.0, 7.0, 4.0])
-nota('Las tres pantallas de la caja se abren solas, cada una en su monitor, con el acceso directo que deja instalado el técnico.')
+nota('Las pantallas de la caja se abren solas al encender el equipo, cada una en su monitor, con el acceso directo que deja '
+     'instalado el técnico. Ninguna lleva a otra: cada monitor muestra siempre la suya.')
 
 titulo('1.2. Quién hace qué', 2)
 tabla(['Rol', 'Qué hace', 'Dónde'],
@@ -381,22 +383,7 @@ viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno
 viñeta('Si el último cierre se hizo por error, aparece Reabrir el último cierre: pide motivo y la autorización de alguien '
        'de nivel superior, y queda registrado.')
 
-titulo('3.4. La pantalla secundaria (mostrador táctil)', 2)
-p('Además de la pantalla con lector, la caja tiene una pantalla táctil pensada para vender tocando, como en una cafetería. '
-  'Se entra por «Mostrador táctil» (segunda página de teclas) o directamente en /mostrador, y se vuelve con «Pantalla con lector». '
-  'Es la misma venta: lo que agregue en una aparece en la otra.')
-tabla(['Parte de la pantalla', 'Qué hace'],
-      [['Columna izquierda', 'La venta: sus líneas, los totales y el botón Cobrar. Al tocar el encabezado se abre cliente y comprobante.'],
-       ['Tocar una línea', 'La selecciona; con los botones de abajo se cambia la cantidad o se quita (la de quitar pide autorización).'],
-       ['Buscador (arriba a la derecha)', 'Busca por descripción o por código lo que no está en los mosaicos.'],
-       ['Pestañas de departamento y categoría', 'Filtran los mosaicos, como las secciones de un menú.'],
-       ['Mosaicos', 'Un toque agrega el artículo con su imagen y su precio. Aparecen los artículos marcados para el catálogo.'],
-       ['Barra de abajo', 'Cliente, consulta de precio, facturas en espera, devoluciones y la vuelta a la pantalla con lector.']],
-      anchos=[5.5, 11.5])
-nota('Los artículos que se pesan o que piden serial se atienden mejor en la pantalla con lector; desde el mostrador se agrega '
-     'una unidad y luego se ajusta la cantidad.')
-
-titulo('3.5. La pantalla de venta', 2)
+titulo('3.4. La pantalla de ventas principal', 2)
 p('La pantalla está dividida en cinco zonas:')
 tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
@@ -407,6 +394,23 @@ tabla(['Zona', 'Para qué sirve'],
        ['Barra de teclas F', 'Las funciones, en dos páginas.'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],
       anchos=[5.0, 12.0])
+
+titulo('3.5. La pantalla de ventas secundaria', 2)
+p('La caja tiene tres pantallas, cada una en su monitor: la de ventas principal (con lector y teclado), la de ventas '
+  'secundaria (táctil, con el catálogo en mosaicos, como el mostrador de una cafetería) y la del cliente. Las abre el '
+  'equipo al encenderse; no hay que navegar de una a otra.')
+p('La pantalla de ventas secundaria trabaja la misma venta que la principal: lo que se agrega en una aparece en la otra al '
+  'instante, y se cobra desde cualquiera de las dos.')
+tabla(['Parte de la pantalla', 'Qué hace'],
+      [['Columna izquierda', 'La venta: sus líneas, los totales y el botón Cobrar. Al tocar el encabezado se abre cliente y comprobante.'],
+       ['Tocar una línea', 'La selecciona; con los botones de abajo se cambia la cantidad o se quita (la de quitar pide autorización).'],
+       ['Buscador (arriba a la derecha)', 'Busca por descripción o por código lo que no está en los mosaicos.'],
+       ['Pestañas de departamento y categoría', 'Filtran los mosaicos, como las secciones de un menú.'],
+       ['Mosaicos', 'Un toque agrega el artículo con su imagen y su precio. Aparecen los artículos marcados para el catálogo.'],
+       ['Barra de abajo', 'Cliente, consulta de precio, facturas en espera y devoluciones.']],
+      anchos=[5.5, 11.5])
+nota('Los artículos que se pesan o que piden serial se atienden mejor en la pantalla principal; desde la secundaria se agrega '
+     'una unidad y luego se ajusta la cantidad.')
 
 titulo('3.6. Las teclas de función', 2)
 p('Primera página:')
