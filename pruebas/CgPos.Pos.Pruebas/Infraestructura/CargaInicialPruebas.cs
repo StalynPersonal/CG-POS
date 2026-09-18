@@ -172,9 +172,11 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
         private static int _pruebas;
 
         public string Sufijo { get; } = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-        public int CodigoSucursal { get; } = Interlocked.Increment(ref _pruebas);
-        public int CodigoCajaUno => 1;
-        public int CodigoCajaDos => 2;
+        public string CodigoSucursal { get; } =
+            Interlocked.Increment(ref _pruebas).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+
+        public string CodigoCajaUno => "01";
+        public string CodigoCajaDos => "02";
         public string CodigoRolCajero => $"CAJ{Sufijo}";
         public string CodigoRolGerente => $"GER{Sufijo}";
         public string CodigoCajero => $"C{Sufijo}";

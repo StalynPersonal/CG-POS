@@ -5,18 +5,18 @@ public sealed record DatosEmpresa(int Id, string Rnc, string RazonSocial, string
 /// <param name="Rnc">RNC con el que se factura; se valida su dígito verificador y el cambio queda en la auditoría.</param>
 public sealed record SolicitudEmpresa(string RazonSocial, string? NombreComercial, string? Direccion, string? Telefono, string? Rnc = null);
 
-public sealed record DatosSucursal(int Id, int Codigo, string Nombre, string? Direccion, string? Telefono, bool Activa, int Cajas);
+public sealed record DatosSucursal(int Id, string Codigo, string Nombre, string? Direccion, string? Telefono, bool Activa, int Cajas);
 
 /// <param name="Codigo">No cambia después de crear la sucursal.</param>
-public sealed record SolicitudSucursal(int Codigo, string Nombre, string? Direccion, string? Telefono);
+public sealed record SolicitudSucursal(string Codigo, string Nombre, string? Direccion, string? Telefono);
 
 /// <param name="CredencialEmitidaEn">Cuándo se emitió la credencial activa; nulo si la caja no tiene.</param>
 public sealed record DatosCaja(
     int Id,
     int SucursalId,
-    int SucursalCodigo,
+    string SucursalCodigo,
     string SucursalNombre,
-    int Codigo,
+    string Codigo,
     string Nombre,
     bool Habilitada,
     DateTimeOffset? CredencialEmitidaEn,
@@ -24,7 +24,7 @@ public sealed record DatosCaja(
     DateTimeOffset? UltimaRecepcionEn,
     DateTimeOffset? UltimaDescargaEn);
 
-public sealed record SolicitudCaja(int SucursalId, int Codigo, string Nombre);
+public sealed record SolicitudCaja(int SucursalId, string Codigo, string Nombre);
 
 public sealed record SolicitudActualizarCaja(string Nombre);
 

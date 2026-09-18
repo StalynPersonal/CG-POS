@@ -48,8 +48,8 @@ internal sealed class ServicioActualizacionesCaja(ContextoDatosCentral contexto,
         var cajas = await contexto.Cajas.AsNoTracking().ToListAsync(cancelacion);
 
         return cajas
-            .Select(c => new DatosVersionCaja(c.Id, sucursales.GetValueOrDefault(c.SucursalId)?.Codigo.ToString("00") ?? string.Empty,
-                sucursales.GetValueOrDefault(c.SucursalId)?.Nombre ?? string.Empty, c.Codigo.ToString("00"), c.Nombre, c.Habilitada, c.VersionAgente, c.VersionReportadaEn,
+            .Select(c => new DatosVersionCaja(c.Id, sucursales.GetValueOrDefault(c.SucursalId)?.Codigo ?? string.Empty,
+                sucursales.GetValueOrDefault(c.SucursalId)?.Nombre ?? string.Empty, c.Codigo, c.Nombre, c.Habilitada, c.VersionAgente, c.VersionReportadaEn,
                 publicada is { Length: > 0 } && string.Equals(c.VersionAgente, publicada, StringComparison.Ordinal)))
             .OrderBy(c => c.SucursalCodigo, StringComparer.Ordinal)
             .ThenBy(c => c.CajaCodigo, StringComparer.Ordinal)

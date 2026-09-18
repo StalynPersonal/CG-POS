@@ -28,11 +28,13 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
             contexto.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
             var cronometroCarga = Stopwatch.StartNew();
-            // Los Id salen de la secuencia HiLo de EF: se reserva un valor por artículo y cada valor cubre un bloque de Id que EF ya no entrega.
+            // Los Id salen de las mismas secuencias que usa EF: se reserva un rango por tabla, así no chocan con los que entrega EF.
             await contexto.Database.ExecuteSqlInterpolatedAsync($"""
-                DECLARE @primero sql_variant;
+                DECLARE @primero sql_variant, @primerPrecio sql_variant;
                 EXEC sys.sp_sequence_get_range @sequence_name = N'SecuenciaArticulos', @range_size = {CantidadArticulos}, @range_first_value = @primero OUTPUT;
                 DECLARE @incremento int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'SecuenciaArticulos');
+                EXEC sys.sp_sequence_get_range @sequence_name = N'SecuenciaPreciosArticulo', @range_size = {CantidadArticulos}, @range_first_value = @primerPrecio OUTPUT;
+                DECLARE @incrementoPrecio int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'SecuenciaPreciosArticulo');
 
                 WITH numeros AS (
                     SELECT TOP ({CantidadArticulos}) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
@@ -47,7 +49,8 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
                 FROM Articulos WHERE Codigo LIKE CONCAT('R', {escenario.Sufijo}, '-%');
 
                 INSERT INTO PreciosArticulo (Id, ArticuloId, Lista, Precio, VigenteDesde, RegistradoEn, Origen)
-                SELECT Id + 1, Id, 0, 25.00, '2020-01-01T00:00:00+00:00', SYSDATETIMEOFFSET(), 'Rendimiento'
+                SELECT CAST(@primerPrecio AS int) + (ROW_NUMBER() OVER (ORDER BY Id) - 1) * @incrementoPrecio, Id, 0, 25.00,
+                       '2020-01-01T00:00:00+00:00', SYSDATETIMEOFFSET(), 'Rendimiento'
                 FROM Articulos WHERE Codigo LIKE CONCAT('R', {escenario.Sufijo}, '-%');
                 """);
             salida.WriteLine($"Carga de {CantidadArticulos} artículos: {cronometroCarga.ElapsedMilliseconds} ms");

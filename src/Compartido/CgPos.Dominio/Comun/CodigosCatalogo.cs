@@ -10,4 +10,7 @@ public static class CodigosCatalogo
 
     /// <summary>Sucursal y caja: dos dígitos cada una, porque forman el número de los documentos (sucursal + caja + tipo + secuencia).</summary>
     public const int MaximoSucursalCaja = 99;
+
+    /// <summary>Los códigos de sucursal y de caja se guardan como texto de dos dígitos (01, 02… 99).</summary>
+    public const int LargoSucursalCaja = 2;
 }

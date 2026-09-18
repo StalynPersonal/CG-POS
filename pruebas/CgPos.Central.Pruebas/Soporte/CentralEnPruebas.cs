@@ -92,9 +92,9 @@ public sealed class CentralEnPruebas : IAsyncLifetime
 
         (Sucursal, CajaUno, CajaDos) = await UsarContextoAsync(async contexto =>
         {
-            var sucursal = await contexto.Sucursales.Where(s => s.Codigo == 1).Select(s => s.Id).SingleAsync();
+            var sucursal = await contexto.Sucursales.Where(s => s.Codigo == "01").Select(s => s.Id).SingleAsync();
             var cajas = await contexto.Cajas.Where(c => c.SucursalId == sucursal).ToDictionaryAsync(c => c.Codigo, c => c.Id);
-            return (sucursal, cajas[1], cajas[2]);
+            return (sucursal, cajas["01"], cajas["02"]);
         });
     }
 
@@ -183,7 +183,7 @@ public sealed class CentralEnPruebas : IAsyncLifetime
     }
 
     /// <summary>Códigos de sucursal y caja con que se identifica una caja del Central (así viajan sus mensajes).</summary>
-    public static (int Sucursal, int Caja) CodigosCaja(int cajaId) =>
+    public static (string Sucursal, string Caja) CodigosCaja(int cajaId) =>
         _instancia!.UsarContextoAsync(async contexto =>
         {
             var caja = await contexto.Cajas.AsNoTracking().SingleAsync(c => c.Id == cajaId);

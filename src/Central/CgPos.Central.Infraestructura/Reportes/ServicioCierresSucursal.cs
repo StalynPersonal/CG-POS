@@ -27,7 +27,7 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
             .Select(c => (int?)c.Id)
             .SingleOrDefaultAsync(cancelacion);
 
-        return new DatosPreparacionCierreSucursal(sucursal.Id, sucursal.Codigo.ToString("00", CultureInfo.InvariantCulture), sucursal.Nombre, fechaOperacion,
+        return new DatosPreparacionCierreSucursal(sucursal.Id, sucursal.Codigo, sucursal.Nombre, fechaOperacion,
             cierres.OrderBy(c => cajas.GetValueOrDefault(c.CajaId), StringComparer.Ordinal).ThenBy(c => c.TurnoNumero)
                 .Select(c => new DatosCierreTurnoSucursal(cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.TurnoNumero, c.UsuarioNombre, c.CantidadVentas,
                     c.TotalVentas, c.TotalEsperado, c.TotalDeclarado, c.Diferencia, c.CerradoEn))
@@ -178,7 +178,7 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
         {
             var (codigo, nombre) = sucursales.GetValueOrDefault(cierre.SucursalId);
             var posteriores = registros.Count(r => r.SucursalId == cierre.SucursalId && r.FechaOperacion == cierre.FechaOperacion && r.RegistradoEn > cierre.CerradoEn);
-            return new DatosCierreSucursal(cierre.Id, cierre.SucursalId, codigo.ToString("00", CultureInfo.InvariantCulture), nombre ?? string.Empty,
+            return new DatosCierreSucursal(cierre.Id, cierre.SucursalId, codigo, nombre ?? string.Empty,
                 cierre.FechaOperacion, cierre.CantidadCierres, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalEsperado, cierre.TotalDeclarado,
                 cierre.Diferencia,
                 cierre.FormasPago.OrderBy(f => f.Tipo).ThenBy(f => f.Nombre, StringComparer.Ordinal)
@@ -201,5 +201,5 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
     }
 
     private async Task<IReadOnlyDictionary<int, string>> CodigosCajasAsync(CancellationToken cancelacion) =>
-        await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00", CultureInfo.InvariantCulture), cancelacion);
+        await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
 }

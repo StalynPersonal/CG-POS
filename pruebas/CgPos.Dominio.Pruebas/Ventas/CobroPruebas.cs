@@ -22,7 +22,7 @@ public class CobroPruebas
 
     private static Venta VentaCon(int cinceles = 1)
     {
-        var venta = Venta.Iniciar(Ids.Siguiente(), 1, Ids.Siguiente(), 1, Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora);
+        var venta = Venta.Iniciar(Ids.Siguiente(), "01", Ids.Siguiente(), "01", Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora);
         venta.AgregarArticulo(Cincel, cinceles, Ahora);
         return venta;
     }

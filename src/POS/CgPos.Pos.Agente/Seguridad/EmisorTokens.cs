@@ -100,7 +100,7 @@ public sealed class EmisorTokens
             nivel,
             usuario.FindAll(AtributosToken.Permiso).Select(c => c.Value).ToFrozenSet(StringComparer.Ordinal),
             cajaId,
-            int.TryParse(Valor(AtributosToken.CajaCodigo), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var cajaCodigo) ? cajaCodigo : 0,
+            Valor(AtributosToken.CajaCodigo) ?? string.Empty,
             Valor(AtributosToken.CajaNombre) ?? string.Empty,
             sucursalId);
     }

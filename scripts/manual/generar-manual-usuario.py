@@ -186,7 +186,7 @@ p('La caja no inventa nada: todo lo que usa baja del Central. Si el Central est�
   'Antes de poner a vender una caja, en el Central debe estar creado y configurado esto:')
 tabla(['Qué', 'Dónde se hace', 'Por qué hace falta'],
       [['Datos de la empresa', 'Organización → Empresa', 'El RNC (o la cédula) y la razón social con los que se factura. El script los siembra como marcador: corríjalos antes de emitir el primer comprobante.'],
-       ['Sucursal y caja', 'Organización', 'La caja se identifica por su sucursal y su número; sin eso no se conecta.'],
+       ['Sucursal y caja', 'Organización', 'La caja se identifica por el código de su sucursal y el suyo, ambos de dos dígitos (01, 02…); sin eso no se conecta.'],
        ['Credencial de la caja', 'Organización → Cajas', 'Es la clave con la que la caja se comunica con el Central.'],
        ['Parámetros del negocio', 'Organización → Parámetros', 'Fondo de caja, redondeo, vigencia de notas de crédito, retención, plazos. Si falta uno obligatorio, la operación se rechaza.'],
        ['Catálogos', 'Maestros → Catálogos', 'Moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, motivos de descuento y de devolución.'],
@@ -199,8 +199,8 @@ nota('Todo esto baja solo a las cajas en la siguiente sincronización: no hay qu
 titulo('2.3. Organización', 2)
 tabla(['Opción', 'Ruta', 'Para qué sirve'],
       [['Empresa', '/organizacion/empresa', 'Datos fiscales de la empresa, el RNC incluido: RNC de 9 dígitos o cédula de 11. Los comprobantes ya emitidos conservan el que llevaban y el cambio queda en la auditoría.'],
-       ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal.'],
-       ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas y emitir la credencial con la que la caja se conecta al Central.'],
+       ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal. El código es de dos dígitos (01 a 99), no cambia después de crearla y es el que sale en los números de documento.'],
+       ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas y emitir la credencial con la que la caja se conecta al Central. El código también es de dos dígitos (01 a 99) y único dentro de su sucursal.'],
        ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad… Se pueden fijar en general, por sucursal o por caja.'],
        ['Actualizaciones', '/organizacion/actualizaciones', 'Versión publicada del programa de las cajas y en qué versión está cada una.']],
       anchos=[3.8, 5.0, 8.2])

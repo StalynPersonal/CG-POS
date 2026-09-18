@@ -56,8 +56,8 @@ internal sealed class ServicioFidelidadCentral(
         var idsCajas = movimientos.Select(m => m.CajaId).OfType<int>().Distinct().ToList();
         var cajas = idsCajas.Count == 0
             ? []
-            : await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion);
+            : await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
 
         return movimientos.Select(m => new DatosMovimientoPuntosCentral(m.Id, m.Tipo, m.Origen, m.Puntos, m.Documento,
             m.SucursalId is { } sucursal ? sucursales.GetValueOrDefault(sucursal) : null,

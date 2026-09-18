@@ -108,11 +108,11 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="int" @bind-SelectedValues="_sucursales" MultiSelection="true" Label="Sucursales" Variant="Variant.Outlined" HelperText="Ninguna = todas."
+                <MudSelect T="string" @bind-SelectedValues="_sucursales" MultiSelection="true" Label="Sucursales" Variant="Variant.Outlined" HelperText="Ninguna = todas."
                            ToStringFunc="@(codigo => Sucursales.FirstOrDefault(s => s.Codigo == codigo)?.Nombre ?? string.Empty)">
                     @foreach (var sucursal in Sucursales)
                     {
-                        <MudSelectItem T="int" Value="@sucursal.Codigo">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                        <MudSelectItem T="string" Value="@sucursal.Codigo">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -181,7 +181,7 @@
     private IReadOnlyCollection<int> _departamentos = [];
     private IReadOnlyCollection<int> _categorias = [];
     private IReadOnlyCollection<int> _marcas = [];
-    private IReadOnlyCollection<int> _sucursales = [];
+    private IReadOnlyCollection<string> _sucursales = [];
     private ArticuloCarga? _articuloBuscado;
     private bool _soloFidelidad;
     private bool _activa = true;

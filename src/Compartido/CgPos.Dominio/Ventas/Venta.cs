@@ -255,7 +255,7 @@ public sealed class Venta : Entidad
     public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
 
     /// <summary>Menor cantidad de dígitos que admite la secuencia de un número de documento.</summary>
-    public static Venta Iniciar(int sucursalId, int codigoSucursal, int cajaId, int codigoCaja, int turnoId, long secuencia, int digitosSecuencia,
+    public static Venta Iniciar(int sucursalId, string codigoSucursal, int cajaId, string codigoCaja, int turnoId, long secuencia, int digitosSecuencia,
         int usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);

@@ -27,6 +27,23 @@ internal static class Validar
         return texto;
     }
 
+    /// <summary>
+    /// Código de sucursal o de caja: siempre dos dígitos (01 a 99). Se acepta escrito con o sin el cero delante y se guarda
+    /// con él, para que «1» y «01» sean la misma caja y los números de documento salgan siempre igual.
+    /// </summary>
+    public static string CodigoDosDigitos(string? valor, string campo)
+    {
+        var texto = Texto(valor, campo, CodigosCatalogo.LargoSucursalCaja);
+        if (texto.Length > CodigosCatalogo.LargoSucursalCaja || !texto.All(char.IsAsciiDigit))
+            throw new ArgumentException($"{campo} debe ser un número de dos dígitos, entre 01 y 99.", campo);
+
+        var numero = int.Parse(texto, System.Globalization.CultureInfo.InvariantCulture);
+        if (numero is < 1 or > CodigosCatalogo.MaximoSucursalCaja)
+            throw new ArgumentException($"{campo} debe ser un número de dos dígitos, entre 01 y 99.", campo);
+
+        return numero.ToString("00", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     /// <summary>Código numérico de un catálogo (lo sugiere el Central y no cambia después de crear el registro).</summary>
     public static int Codigo(int valor, string campo, int maximo = CodigosCatalogo.Maximo)
     {

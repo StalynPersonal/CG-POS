@@ -1,4 +1,4 @@
-﻿{
+{
   "empresa": {
     "rnc": "999000004",
     "razonSocial": "CONTRERAS GROUP SRL (DESARROLLO)",
@@ -8,19 +8,19 @@
   },
   "sucursales": [
     {
-      "codigo": 1,
+      "codigo": "01",
       "nombre": "Sucursal Principal (desarrollo)"
     }
   ],
   "cajas": [
     {
-      "sucursalCodigo": 1,
-      "codigo": 1,
+      "sucursalCodigo": "01",
+      "codigo": "01",
       "nombre": "Caja 01"
     },
     {
-      "sucursalCodigo": 1,
-      "codigo": 2,
+      "sucursalCodigo": "01",
+      "codigo": "02",
       "nombre": "Caja 02"
     }
   ],
@@ -85,12 +85,12 @@
       "rolCodigo": "CAJERO",
       "cajas": [
         {
-          "sucursalCodigo": 1,
-          "cajaCodigo": 1
+          "sucursalCodigo": "01",
+          "cajaCodigo": "01"
         },
         {
-          "sucursalCodigo": 1,
-          "cajaCodigo": 2
+          "sucursalCodigo": "01",
+          "cajaCodigo": "02"
         }
       ],
       "clave": "Cajero.2026"
@@ -101,12 +101,12 @@
       "rolCodigo": "SUPERVISOR",
       "cajas": [
         {
-          "sucursalCodigo": 1,
-          "cajaCodigo": 1
+          "sucursalCodigo": "01",
+          "cajaCodigo": "01"
         },
         {
-          "sucursalCodigo": 1,
-          "cajaCodigo": 2
+          "sucursalCodigo": "01",
+          "cajaCodigo": "02"
         }
       ],
       "clave": "Supervisor.2026"
@@ -117,12 +117,12 @@
       "rolCodigo": "GERENTE",
       "cajas": [
         {
-          "sucursalCodigo": 1,
-          "cajaCodigo": 1
+          "sucursalCodigo": "01",
+          "cajaCodigo": "01"
         },
         {
-          "sucursalCodigo": 1,
-          "cajaCodigo": 2
+          "sucursalCodigo": "01",
+          "cajaCodigo": "02"
         }
       ],
       "clave": "Gerente.2026"

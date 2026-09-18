@@ -102,8 +102,8 @@ internal sealed class DescargaMaestros(
         var idsSucursales = await contexto.Sucursales.ToDictionaryAsync(s => s.Codigo, s => s.Id, cancelacion);
         var idsCajas = await CargaInicial.ServicioCargaInicial.IdsCajasAsync(contexto, cancelacion);
         var claves = vigentes
-            .Where(v => (v.SucursalCodigo is null || idsSucursales.ContainsKey(v.SucursalCodigo.Value))
-                        && (v.CajaCodigo is null || (v.SucursalCodigo is { } s && idsCajas.ContainsKey((s, v.CajaCodigo.Value)))))
+            .Where(v => (v.SucursalCodigo is null || idsSucursales.ContainsKey(v.SucursalCodigo))
+                        && (v.CajaCodigo is null || (v.SucursalCodigo is { } s && idsCajas.ContainsKey((s, v.CajaCodigo)))))
             .Select(v => (v.Clave.Trim(), CargaInicial.ServicioCargaInicial.AmbitoLocal(v.SucursalCodigo, v.CajaCodigo, idsSucursales, idsCajas)))
             .ToHashSet();
 

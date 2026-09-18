@@ -100,7 +100,7 @@ internal sealed class ServicioCargaInicial(
     }
 
     /// <summary>Id local de cada caja por el código de su sucursal y el suyo.</summary>
-    internal static async Task<Dictionary<(int Sucursal, int Caja), int>> IdsCajasAsync(ContextoDatosPos contexto, CancellationToken cancelacion) =>
+    internal static async Task<Dictionary<(string Sucursal, string Caja), int>> IdsCajasAsync(ContextoDatosPos contexto, CancellationToken cancelacion) =>
         (await contexto.Cajas.Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, c.Codigo, c.Id }).ToListAsync(cancelacion))
         .ToDictionary(c => (c.Sucursal, c.Codigo), c => c.Id);
 
@@ -124,7 +124,7 @@ internal sealed class ServicioCargaInicial(
             errores.Add($"La caja ya pertenece a otra empresa ({otraEmpresa}).");
 
         Duplicados(sucursales.Select(s => s.Codigo), "Código de sucursal", errores);
-        Duplicados(cajas.Select(c => $"{c.SucursalCodigo:00}-{c.Codigo:00}"), "Caja (sucursal-caja)", errores);
+        Duplicados(cajas.Select(c => $"{c.SucursalCodigo}-{c.Codigo:00}"), "Caja (sucursal-caja)", errores);
         Duplicados(roles.Select(r => r.Codigo.Trim().ToUpperInvariant()), "Código de rol", errores);
         Duplicados(usuarios.Select(u => u.Codigo.Trim().ToUpperInvariant()), "Código de usuario", errores);
         Duplicados(parametros.Select(p => $"{p.Clave.Trim()} ({p.SucursalCodigo}/{p.CajaCodigo})"), "Parámetro", errores);
@@ -137,7 +137,7 @@ internal sealed class ServicioCargaInicial(
         codigosRoles.UnionWith(await contexto.Roles.Select(r => r.Codigo).ToListAsync(cancelacion));
 
         foreach (var caja in cajas.Where(c => !codigosSucursales.Contains(c.SucursalCodigo)))
-            errores.Add($"La caja {caja.Codigo:00} referencia una sucursal inexistente ({caja.SucursalCodigo:00}).");
+            errores.Add($"La caja {caja.Codigo} referencia una sucursal inexistente ({caja.SucursalCodigo}).");
 
         foreach (var rol in roles)
             foreach (var codigo in (rol.Permisos ?? []).Where(p => p != TodosLosPermisos && !CatalogoPermisos.Existe(p)))
@@ -150,7 +150,7 @@ internal sealed class ServicioCargaInicial(
             if (!codigosRoles.Contains(usuario.RolCodigo?.Trim() ?? string.Empty))
                 errores.Add($"{etiqueta} referencia un rol inexistente ({usuario.RolCodigo}).");
             foreach (var caja in (usuario.Cajas ?? []).Where(c => !codigosCajas.Contains((c.SucursalCodigo, c.CajaCodigo))))
-                errores.Add($"{etiqueta} referencia una caja inexistente ({caja.SucursalCodigo:00}-{caja.CajaCodigo:00}).");
+                errores.Add($"{etiqueta} referencia una caja inexistente ({caja.SucursalCodigo}-{caja.CajaCodigo}).");
 
             if (usuario.Clave is not null && usuario.ClaveHash is not null)
                 errores.Add($"{etiqueta} trae 'clave' y 'claveHash'; use solo uno.");
@@ -165,7 +165,7 @@ internal sealed class ServicioCargaInicial(
         foreach (var parametro in parametros)
         {
             if (parametro.SucursalCodigo is { } sucursal && !codigosSucursales.Contains(sucursal))
-                errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursal:00}).");
+                errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursal}).");
             if (parametro.CajaCodigo is not null && parametro.SucursalCodigo is null)
                 errores.Add($"El parámetro '{parametro.Clave}' de caja debe indicar también la sucursal de la caja.");
             if (parametro is { SucursalCodigo: { } s, CajaCodigo: { } c } && !codigosCajas.Contains((s, c)))
@@ -245,7 +245,7 @@ internal sealed class ServicioCargaInicial(
         return sucursal.Id;
     }
 
-    private async Task<int> AplicarCajaAsync(CajaCarga dato, IReadOnlyDictionary<int, int> idsSucursales, CancellationToken cancelacion)
+    private async Task<int> AplicarCajaAsync(CajaCarga dato, IReadOnlyDictionary<string, int> idsSucursales, CancellationToken cancelacion)
     {
         var sucursalId = idsSucursales[dato.SucursalCodigo];
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.SucursalId == sucursalId && c.Codigo == dato.Codigo, cancelacion);
@@ -295,7 +295,7 @@ internal sealed class ServicioCargaInicial(
         return rol.Id;
     }
 
-    private async Task AplicarUsuarioAsync(UsuarioCarga dato, IReadOnlyDictionary<string, int> idsRoles, IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas,
+    private async Task AplicarUsuarioAsync(UsuarioCarga dato, IReadOnlyDictionary<string, int> idsRoles, IReadOnlyDictionary<(string Sucursal, string Caja), int> idsCajas,
         CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
@@ -334,8 +334,8 @@ internal sealed class ServicioCargaInicial(
         if (dato.Activo) usuario.Activar(); else usuario.Desactivar();
     }
 
-    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, int> idsSucursales,
-        IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas, CancellationToken cancelacion)
+    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<string, int> idsSucursales,
+        IReadOnlyDictionary<(string Sucursal, string Caja), int> idsCajas, CancellationToken cancelacion)
     {
         var (sucursalId, cajaId) = AmbitoLocal(dato.SucursalCodigo, dato.CajaCodigo, idsSucursales, idsCajas);
         var clave = dato.Clave.Trim();
@@ -352,8 +352,8 @@ internal sealed class ServicioCargaInicial(
     }
 
     /// <summary>Sucursal y caja locales de un parámetro: el de caja se guarda solo con la caja (la sucursal va implícita en ella).</summary>
-    internal static (int? SucursalId, int? CajaId) AmbitoLocal(int? sucursalCodigo, int? cajaCodigo, IReadOnlyDictionary<int, int> idsSucursales,
-        IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas) =>
+    internal static (int? SucursalId, int? CajaId) AmbitoLocal(string? sucursalCodigo, string? cajaCodigo, IReadOnlyDictionary<string, int> idsSucursales,
+        IReadOnlyDictionary<(string Sucursal, string Caja), int> idsCajas) =>
         (sucursalCodigo, cajaCodigo) switch
         {
             ({ } s, { } c) => (null, idsCajas[(s, c)]),

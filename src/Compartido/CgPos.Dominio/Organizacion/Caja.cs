@@ -13,8 +13,8 @@ public sealed class Caja : Entidad
 
     public int SucursalId { get; private set; }
 
-    /// <summary>Código de la caja (1 a 99), único dentro de su sucursal; en los números de documento va con dos dígitos (ej. 01).</summary>
-    public int Codigo { get; private set; }
+    /// <summary>Código de la caja, de dos dígitos (01 a 99) y único dentro de su sucursal. Es el que va en los documentos.</summary>
+    public string Codigo { get; private set; } = string.Empty;
 
     public string Nombre { get; private set; } = string.Empty;
     public bool Habilitada { get; private set; } = true;
@@ -24,11 +24,11 @@ public sealed class Caja : Entidad
 
     public DateTimeOffset? VersionReportadaEn { get; private set; }
 
-    public static Caja Crear(int sucursalId, int codigo, string nombre) =>
+    public static Caja Crear(int sucursalId, string codigo, string nombre) =>
         new()
         {
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
-            Codigo = Validar.Codigo(codigo, "Código de caja", CodigosCatalogo.MaximoSucursalCaja),
+            Codigo = Validar.CodigoDosDigitos(codigo, "Código de caja"),
             Nombre = Validar.Texto(nombre, "Nombre de caja", LargoMaximoNombre),
         };
 

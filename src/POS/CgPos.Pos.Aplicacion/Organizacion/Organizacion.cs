@@ -10,8 +10,8 @@ namespace CgPos.Pos.Aplicacion.Organizacion;
 /// </summary>
 public interface IContextoCaja
 {
-    int? SucursalCodigo { get; }
-    int? CajaCodigo { get; }
+    string? SucursalCodigo { get; }
+    string? CajaCodigo { get; }
     int? CajaId { get; }
 }
 

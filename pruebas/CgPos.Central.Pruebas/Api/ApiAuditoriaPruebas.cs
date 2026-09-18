@@ -23,7 +23,7 @@ public class ApiAuditoriaPruebas(CentralEnPruebas central)
 
         // Se hace un cambio real: se renombra una sucursal recién creada.
         // El nombre lleva una marca única: la base de pruebas conserva lo de corridas anteriores.
-        var codigo = Random.Shared.Next(70, 99);
+        var codigo = Random.Shared.Next(70, 99).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
         var marca = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         var nombreOriginal = $"Sucursal auditoría {marca}";
         var nombreNuevo = $"Sucursal auditoría {marca} renombrada";

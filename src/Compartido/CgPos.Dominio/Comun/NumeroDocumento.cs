@@ -25,36 +25,48 @@ public static class NumeroDocumento
     /// <summary>Largo de sucursal, caja y tipo antes de la secuencia.</summary>
     public const int LargoPrefijo = 5;
 
-    public static string Formatear(int codigoSucursal, int codigoCaja, TipoDocumentoNumerado tipo, long secuencia, int digitos)
+    public static string Formatear(string codigoSucursal, string codigoCaja, TipoDocumentoNumerado tipo, long secuencia, int digitos)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(codigoSucursal, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(codigoSucursal, CodigosCatalogo.MaximoSucursalCaja);
-        ArgumentOutOfRangeException.ThrowIfLessThan(codigoCaja, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(codigoCaja, CodigosCatalogo.MaximoSucursalCaja);
+        var sucursal = Codigo(codigoSucursal, nameof(codigoSucursal));
+        var caja = Codigo(codigoCaja, nameof(codigoCaja));
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de documento desconocido.");
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(digitos, DigitosMinimosSecuencia);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(digitos, DigitosMaximosSecuencia);
 
-        return codigoSucursal.ToString("00", CultureInfo.InvariantCulture) + codigoCaja.ToString("00", CultureInfo.InvariantCulture)
-            + ((int)tipo).ToString(CultureInfo.InvariantCulture) + secuencia.ToString(new string('0', digitos), CultureInfo.InvariantCulture);
+        return sucursal + caja + ((int)tipo).ToString(CultureInfo.InvariantCulture)
+            + secuencia.ToString(new string('0', digitos), CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Un código de sucursal o de caja entra con sus dos dígitos; se acepta «1» y se usa como «01».</summary>
+    private static string Codigo(string valor, string campo)
+    {
+        var texto = (valor ?? string.Empty).Trim();
+        if (texto.Length is 0 or > CodigosCatalogo.LargoSucursalCaja || !texto.All(char.IsAsciiDigit))
+            throw new ArgumentException($"El código debe ser de dos dígitos, entre 01 y 99.", campo);
+
+        var numero = int.Parse(texto, CultureInfo.InvariantCulture);
+        ArgumentOutOfRangeException.ThrowIfLessThan(numero, 1, campo);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(numero, CodigosCatalogo.MaximoSucursalCaja, campo);
+        return numero.ToString("00", CultureInfo.InvariantCulture);
     }
 
     /// <summary>Lee sucursal, caja y tipo de un número; <c>false</c> si no tiene el formato de un documento de caja.</summary>
-    public static bool TryLeer(string? numero, out int codigoSucursal, out int codigoCaja, out TipoDocumentoNumerado tipo)
+    public static bool TryLeer(string? numero, out string codigoSucursal, out string codigoCaja, out TipoDocumentoNumerado tipo)
     {
-        codigoSucursal = 0;
-        codigoCaja = 0;
+        codigoSucursal = string.Empty;
+        codigoCaja = string.Empty;
         tipo = default;
         var texto = numero?.Trim();
         if (texto is null || texto.Length < LargoPrefijo + DigitosMinimosSecuencia || !texto.All(char.IsAsciiDigit))
             return false;
 
-        codigoSucursal = int.Parse(texto[..2], CultureInfo.InvariantCulture);
-        codigoCaja = int.Parse(texto[2..4], CultureInfo.InvariantCulture);
+        codigoSucursal = texto[..2];
+        codigoCaja = texto[2..4];
         tipo = (TipoDocumentoNumerado)(texto[4] - '0');
-        return codigoSucursal >= 1 && codigoCaja >= 1 && Enum.IsDefined(tipo) && long.Parse(texto[LargoPrefijo..], CultureInfo.InvariantCulture) >= 1;
+        return codigoSucursal != "00" && codigoCaja != "00" && Enum.IsDefined(tipo)
+            && long.Parse(texto[LargoPrefijo..], CultureInfo.InvariantCulture) >= 1;
     }
 
     /// <summary><c>true</c> si el número es de un documento de ese tipo.</summary>

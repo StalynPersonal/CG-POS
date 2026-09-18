@@ -99,6 +99,10 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
                 continue;
 
             var tabla = entidad.GetTableName() ?? entidad.ShortName();
+
+            // La secuencia avanza de uno en uno: los Id quedan consecutivos, sin huecos. A cambio, cada alta le pide su
+            // número a la base (una ida y vuelta más), lo que solo se nota en las cargas masivas de artículos.
+            constructorModelo.HasSequence<int>($"Secuencia{tabla}").IncrementsBy(1);
             constructorModelo.Entity(entidad.ClrType).Property(llave.Name).UseHiLo($"Secuencia{tabla}");
         }
     }

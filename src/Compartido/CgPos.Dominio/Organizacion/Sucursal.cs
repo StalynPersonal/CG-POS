@@ -11,21 +11,21 @@ public sealed class Sucursal : Entidad
 
     public int EmpresaId { get; private set; }
 
-    /// <summary>Código de la sucursal (1 a 99), único en la empresa; en los números de documento va con dos dígitos (ej. 01).</summary>
-    public int Codigo { get; private set; }
+    /// <summary>Código de la sucursal, de dos dígitos (01 a 99) y único en la empresa. Es el que va en los documentos.</summary>
+    public string Codigo { get; private set; } = string.Empty;
 
     public string Nombre { get; private set; } = string.Empty;
     public string? Direccion { get; private set; }
     public string? Telefono { get; private set; }
     public bool Activa { get; private set; } = true;
 
-    public static Sucursal Crear(int empresaId, int codigo, string nombre,
+    public static Sucursal Crear(int empresaId, string codigo, string nombre,
         string? direccion = null, string? telefono = null)
     {
         var sucursal = new Sucursal
         {
             EmpresaId = Validar.Id(empresaId, "Empresa"),
-            Codigo = Validar.Codigo(codigo, "Código de sucursal", CodigosCatalogo.MaximoSucursalCaja),
+            Codigo = Validar.CodigoDosDigitos(codigo, "Código de sucursal"),
         };
         sucursal.ActualizarDatos(nombre, direccion, telefono);
         return sucursal;

@@ -8,11 +8,11 @@
                        Disabled="@(Caja is not null)" ToStringFunc="NombreSucursal">
                 @foreach (var sucursal in Sucursales.Where(s => s.Activa || s.Id == Caja?.SucursalId))
                 {
-                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
-            <MudNumericField T="int?" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Caja is not null)" Min="1" Max="99"
-                             HelperText="De 1 a 99, único en la sucursal; forma parte del número de los documentos (ej. 01)." />
+            <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Caja is not null)" MaxLength="2"
+                          HelperText="Dos dígitos, de 01 a 99 y único en la sucursal; forma parte del número de los documentos." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
             @if (_mensaje is not null)
             {
@@ -33,13 +33,13 @@
     [Parameter] public IReadOnlyList<DatosSucursal> Sucursales { get; set; } = [];
 
     private int? _sucursalId;
-    private int? _codigo;
+    private string? _codigo;
     private string? _nombre;
     private string? _mensaje;
     private bool _procesando;
 
     private string NombreSucursal(int? sucursalId) =>
-        Sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo:00} · {sucursal.Nombre}" : string.Empty;
+        Sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : string.Empty;
 
     protected override void OnInitialized()
     {
@@ -62,7 +62,7 @@
         _procesando = true;
         _mensaje = null;
         var respuesta = Caja is null
-            ? await Cliente.CrearCajaAsync(new SolicitudCaja(sucursalId, _codigo ?? 0, _nombre ?? string.Empty))
+            ? await Cliente.CrearCajaAsync(new SolicitudCaja(sucursalId, _codigo ?? string.Empty, _nombre ?? string.Empty))
             : await Cliente.ActualizarCajaAsync(Caja.Id, new SolicitudActualizarCaja(_nombre ?? string.Empty));
         _procesando = false;
 

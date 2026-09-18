@@ -29,9 +29,9 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
             // Cada entidad recibe su Id al agregarla al contexto, antes de crear la que la referencia.
             empresa = Empresa.Crear(RncUnico(), "Contreras Group SRL");
             contexto.Add(empresa);
-            sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Principal");
+            sucursal = Sucursal.Crear(empresa.Id, "01", "Sucursal Principal");
             contexto.Add(sucursal);
-            caja = Caja.Crear(sucursal.Id, 1, "Caja 01");
+            caja = Caja.Crear(sucursal.Id, "01", "Caja 01");
             contexto.Add(caja);
             rol = Rol.Crear($"SUP{sufijo}", "Supervisor", nivel: 2);
             rol.AsignarPermiso(CatalogoPermisos.AutorizarOperaciones);
@@ -92,9 +92,9 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         // Cada entidad recibe su Id al agregarla al contexto, antes de crear la que la referencia.
         var empresa = Empresa.Crear(RncUnico(), "Empresa Ámbito");
         contexto.Add(empresa);
-        var sucursal = Sucursal.Crear(empresa.Id, 1, "Sucursal Ámbito");
+        var sucursal = Sucursal.Crear(empresa.Id, "01", "Sucursal Ámbito");
         contexto.Add(sucursal);
-        var caja = Caja.Crear(sucursal.Id, 1, "Caja Ámbito");
+        var caja = Caja.Crear(sucursal.Id, "01", "Caja Ámbito");
         contexto.Add(caja);
         await contexto.SaveChangesAsync();
 

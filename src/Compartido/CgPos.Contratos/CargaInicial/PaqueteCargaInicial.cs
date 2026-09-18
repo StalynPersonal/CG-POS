@@ -21,7 +21,7 @@ public sealed record EmpresaCarga(
     string? Telefono = null);
 
 public sealed record SucursalCarga(
-    int Codigo,
+    string Codigo,
     string Nombre,
     string? Direccion = null,
     string? Telefono = null,
@@ -29,13 +29,13 @@ public sealed record SucursalCarga(
 
 /// <param name="Codigo">Único dentro de la sucursal.</param>
 public sealed record CajaCarga(
-    int SucursalCodigo,
-    int Codigo,
+    string SucursalCodigo,
+    string Codigo,
     string Nombre,
     bool Habilitada = true);
 
 /// <summary>Una caja se identifica por el código de su sucursal y el suyo.</summary>
-public sealed record CajaReferencia(int SucursalCodigo, int CajaCodigo);
+public sealed record CajaReferencia(string SucursalCodigo, string CajaCodigo);
 
 /// <param name="Permisos">Códigos del catálogo de permisos; <c>"*"</c> asigna todos.</param>
 public sealed record RolCarga(
@@ -61,8 +61,8 @@ public sealed record ParametroCarga(
     string Clave,
     string Valor,
     string? Descripcion = null,
-    int? SucursalCodigo = null,
-    int? CajaCodigo = null);
+    string? SucursalCodigo = null,
+    string? CajaCodigo = null);
 
 /// <summary>Clave y ámbito de un parámetro, para saber cuáles siguen vigentes.</summary>
-public sealed record ParametroReferencia(string Clave, int? SucursalCodigo = null, int? CajaCodigo = null);
+public sealed record ParametroReferencia(string Clave, string? SucursalCodigo = null, string? CajaCodigo = null);

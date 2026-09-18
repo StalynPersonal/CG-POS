@@ -25,7 +25,7 @@ internal static class ConsultasTicket
 
         var mensajePie = await parametros.ObtenerAsync(ClavesParametros.MensajePieTicket, cajaId, cancelacion);
         var moneda = await contexto.MonedaLocalAsync(parametros, cajaId, cancelacion);
-        return new EncabezadoTicket(datos.Empresa, datos.Rnc, datos.EmpresaDireccion, datos.Telefono, datos.Sucursal, datos.SucursalDireccion, datos.Caja.ToString("00"),
+        return new EncabezadoTicket(datos.Empresa, datos.Rnc, datos.EmpresaDireccion, datos.Telefono, datos.Sucursal, datos.SucursalDireccion, datos.Caja,
             string.IsNullOrWhiteSpace(mensajePie) ? null : mensajePie, zonaHoraria, moneda);
     }
 }

@@ -17,8 +17,8 @@ public sealed class ResolutorValidacion : IResolutorCodigos
     public int UnidadMedida(int codigo) => Id("UnidadMedida", codigo.ToString());
     public int Impuesto(string codigo) => Id("Impuesto", codigo);
     public int Articulo(string codigo) => Id("Articulo", codigo);
-    public int Sucursal(int codigo) => Id("Sucursal", codigo.ToString());
-    public int Caja(int sucursalCodigo, int cajaCodigo) => Id("Caja", $"{sucursalCodigo}:{cajaCodigo}");
+    public int Sucursal(string codigo) => Id("Sucursal", codigo);
+    public int Caja(string sucursalCodigo, string cajaCodigo) => Id("Caja", $"{sucursalCodigo}:{cajaCodigo}");
     public int Banco(string codigo) => Id("Banco", codigo);
     public int NivelFidelidad(int codigo) => Id("NivelFidelidad", codigo.ToString());
     public int Promocion(string codigo) => Id("Promocion", codigo);

@@ -16,8 +16,8 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
     private readonly Mapa<int> _unidades = new("la unidad de medida");
     private readonly Mapa<string> _impuestos = new("el impuesto", StringComparer.OrdinalIgnoreCase);
     private readonly Mapa<string> _articulos = new("el artículo", StringComparer.Ordinal);
-    private readonly Mapa<int> _sucursales = new("la sucursal");
-    private readonly Mapa<(int, int)> _cajas = new("la caja");
+    private readonly Mapa<string> _sucursales = new("la sucursal", StringComparer.Ordinal);
+    private readonly Mapa<(string, string)> _cajas = new("la caja");
     private readonly Mapa<string> _bancos = new("el banco", StringComparer.OrdinalIgnoreCase);
     private readonly Mapa<int> _niveles = new("el nivel de fidelidad");
     private readonly Mapa<string> _promociones = new("la promoción", StringComparer.OrdinalIgnoreCase);
@@ -80,8 +80,8 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
     public int UnidadMedida(int codigo) => _unidades.Id(codigo);
     public int Impuesto(string codigo) => _impuestos.Id(codigo?.Trim() ?? string.Empty);
     public int Articulo(string codigo) => _articulos.Id(codigo?.Trim() ?? string.Empty);
-    public int Sucursal(int codigo) => _sucursales.Id(codigo);
-    public int Caja(int sucursalCodigo, int cajaCodigo) => _cajas.Id((sucursalCodigo, cajaCodigo));
+    public int Sucursal(string codigo) => _sucursales.Id(codigo?.Trim() ?? string.Empty);
+    public int Caja(string sucursalCodigo, string cajaCodigo) => _cajas.Id((sucursalCodigo?.Trim() ?? string.Empty, cajaCodigo?.Trim() ?? string.Empty));
     public int Banco(string codigo) => _bancos.Id(codigo?.Trim() ?? string.Empty);
     public int NivelFidelidad(int codigo) => _niveles.Id(codigo);
     public int Promocion(string codigo) => _promociones.Id(codigo?.Trim() ?? string.Empty);
@@ -94,8 +94,8 @@ internal sealed class ResolutorCodigosCentral(ContextoDatosCentral contexto) : I
     public int CodigoUnidad(int id) => _unidades.Codigo(id);
     public string CodigoImpuesto(int id) => _impuestos.Codigo(id);
     public string CodigoArticulo(int id) => _articulos.Codigo(id);
-    public int CodigoSucursal(int id) => _sucursales.Codigo(id);
-    public (int Sucursal, int Caja) CodigoCaja(int id) => _cajas.Codigo(id);
+    public string CodigoSucursal(int id) => _sucursales.Codigo(id);
+    public (string Sucursal, string Caja) CodigoCaja(int id) => _cajas.Codigo(id);
     public string CodigoBanco(int id) => _bancos.Codigo(id);
     public int CodigoNivel(int id) => _niveles.Codigo(id);
     public string CodigoPromocion(int id) => _promociones.Codigo(id);

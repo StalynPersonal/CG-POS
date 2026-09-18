@@ -93,7 +93,7 @@ internal sealed class ServicioComprobantesRecibidos(ContextoDatosCentral context
             return [];
 
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Nombre, cancelacion);
-        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
+        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
 
         // El estado en la DGII sale del e-CF recibido, que se guarda aparte con su XML firmado.
         var encf = comprobantes.Select(c => c.Encf).OfType<string>().Distinct().ToList();

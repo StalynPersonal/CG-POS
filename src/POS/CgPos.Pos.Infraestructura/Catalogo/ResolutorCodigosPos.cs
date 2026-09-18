@@ -16,8 +16,8 @@ internal sealed class ResolutorCodigosPos(ContextoDatosPos contexto) : IResoluto
     private Dictionary<int, int> _unidades = [];
     private Dictionary<string, int> _impuestos = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, int> _articulos = new(StringComparer.Ordinal);
-    private Dictionary<int, int> _sucursales = [];
-    private Dictionary<(int, int), int> _cajas = [];
+    private Dictionary<string, int> _sucursales = [];
+    private Dictionary<(string, string), int> _cajas = [];
     private Dictionary<string, int> _bancos = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<int, int> _niveles = [];
     private Dictionary<string, int> _promociones = new(StringComparer.OrdinalIgnoreCase);
@@ -75,15 +75,15 @@ internal sealed class ResolutorCodigosPos(ContextoDatosPos contexto) : IResoluto
     public int UnidadMedida(int codigo) => Buscar(_unidades, codigo, "la unidad de medida");
     public int Impuesto(string codigo) => Buscar(_impuestos, codigo?.Trim() ?? string.Empty, "el impuesto");
     public int Articulo(string codigo) => Buscar(_articulos, codigo?.Trim() ?? string.Empty, "el artículo");
-    public int Sucursal(int codigo) => Buscar(_sucursales, codigo, "la sucursal");
+    public int Sucursal(string codigo) => Buscar(_sucursales, codigo?.Trim() ?? string.Empty, "la sucursal");
     public int Banco(string codigo) => Buscar(_bancos, codigo?.Trim() ?? string.Empty, "el banco");
     public int NivelFidelidad(int codigo) => Buscar(_niveles, codigo, "el nivel de fidelidad");
     public int Promocion(string codigo) => Buscar(_promociones, codigo?.Trim() ?? string.Empty, "la promoción");
 
-    public int Caja(int sucursalCodigo, int cajaCodigo) =>
-        _cajas.TryGetValue((sucursalCodigo, cajaCodigo), out var id)
+    public int Caja(string sucursalCodigo, string cajaCodigo) =>
+        _cajas.TryGetValue((sucursalCodigo?.Trim() ?? string.Empty, cajaCodigo?.Trim() ?? string.Empty), out var id)
             ? id
-            : throw new InvalidOperationException($"No existe en la caja la caja {cajaCodigo:00} de la sucursal {sucursalCodigo:00}.");
+            : throw new InvalidOperationException($"No existe en la caja la caja {cajaCodigo} de la sucursal {sucursalCodigo}.");
 
     private static int Buscar<T>(Dictionary<T, int> mapa, T codigo, string nombre) where T : notnull =>
         mapa.TryGetValue(codigo, out var id) ? id : throw new InvalidOperationException($"No existe en la caja {nombre} con código '{codigo}'.");

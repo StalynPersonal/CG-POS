@@ -74,7 +74,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var inicio = await caja.VentaActualAsync();
 
-        Assert.Matches($@"^{caja.Escenario.CodigoSucursal:00}{caja.Escenario.CodigoCajaUno:00}1\d{{7}}$", inicio.NumeroTransaccion);
+        Assert.Matches($@"^{caja.Escenario.CodigoSucursal}{caja.Escenario.CodigoCajaUno}1\d{{7}}$", inicio.NumeroTransaccion);
 
         await caja.AgregarAsync(inicio.Id, caja.Catalogo.BarrasCincel);
         var conMayor = await caja.AgregarAsync(inicio.Id, $"12*{caja.Catalogo.CodigoCemento}");

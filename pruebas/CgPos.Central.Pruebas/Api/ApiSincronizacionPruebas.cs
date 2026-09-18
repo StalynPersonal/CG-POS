@@ -143,14 +143,14 @@ public class ApiSincronizacionPruebas(CentralEnPruebas central)
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var http = central.CrearCliente();
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(http, CentralEnPruebas.CajaUno);
-        var caja = new ClienteCentralHttp(http, 1, 1, secreto, TimeProvider.System);
+        var caja = new ClienteCentralHttp(http, "01", "01", secreto, TimeProvider.System);
         var mensaje = MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf());
 
         var enviado = await caja.EnviarAsync(mensaje);
         Assert.True(enviado.Confirmado, enviado.Error);
         Assert.True((await caja.EnviarAsync(mensaje)).Confirmado);
 
-        var conOtroSecreto = await new ClienteCentralHttp(http, 1, 1, secreto + "x", TimeProvider.System).EnviarAsync(MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf()));
+        var conOtroSecreto = await new ClienteCentralHttp(http, "01", "01", secreto + "x", TimeProvider.System).EnviarAsync(MensajeVenta(CentralEnPruebas.CajaUno, NuevoEncf()));
         Assert.Equal((false, true), (conOtroSecreto.Confirmado, conOtroSecreto.CentralRespondio));
         Assert.Contains("no autenticó", conOtroSecreto.Error);
 

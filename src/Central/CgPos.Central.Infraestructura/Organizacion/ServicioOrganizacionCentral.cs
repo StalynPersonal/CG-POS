@@ -65,8 +65,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
             return ResultadoAdministracion.Error("Configure la empresa antes de crear sucursales.");
 
         var codigo = solicitud.Codigo;
-        if (codigo > 0 && await contexto.Sucursales.AnyAsync(s => s.Codigo == codigo, cancelacion))
-            return ResultadoAdministracion.Error($"Ya existe la sucursal con código {codigo:00}.");
+        if (codigo is { Length: > 0 } && await contexto.Sucursales.AnyAsync(s => s.Codigo == codigo, cancelacion))
+            return ResultadoAdministracion.Error($"Ya existe la sucursal con código {codigo}.");
         if (DatosObligatoriosOrganizacion.Sucursal(codigo, solicitud.Nombre, solicitud.Direccion, solicitud.Telefono) is { } faltanSucursal)
             return ResultadoAdministracion.Error(faltanSucursal);
 
@@ -144,8 +144,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
             return ResultadoAdministracion.Error("Seleccione una sucursal existente.");
 
         var codigo = solicitud.Codigo;
-        if (codigo > 0 && await contexto.Cajas.AnyAsync(c => c.SucursalId == solicitud.SucursalId && c.Codigo == codigo, cancelacion))
-            return ResultadoAdministracion.Error($"La sucursal ya tiene la caja {codigo:00}.");
+        if (codigo is { Length: > 0 } && await contexto.Cajas.AnyAsync(c => c.SucursalId == solicitud.SucursalId && c.Codigo == codigo, cancelacion))
+            return ResultadoAdministracion.Error($"La sucursal ya tiene la caja {codigo}.");
 
         Caja caja;
         try
@@ -198,8 +198,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         string Ambito(Parametro parametro) => parametro switch
         {
             { CajaId: { } cajaId } when cajas.TryGetValue(cajaId, out var caja) =>
-                $"Caja {caja.Codigo:00} · Sucursal {sucursales.GetValueOrDefault(caja.SucursalId)?.Codigo:00}",
-            { SucursalId: { } sucursalId } when sucursales.TryGetValue(sucursalId, out var sucursal) => $"Sucursal {sucursal.Codigo:00} · {sucursal.Nombre}",
+                $"Caja {caja.Codigo} · Sucursal {sucursales.GetValueOrDefault(caja.SucursalId)?.Codigo}",
+            { SucursalId: { } sucursalId } when sucursales.TryGetValue(sucursalId, out var sucursal) => $"Sucursal {sucursal.Codigo} · {sucursal.Nombre}",
             _ => "General",
         };
 

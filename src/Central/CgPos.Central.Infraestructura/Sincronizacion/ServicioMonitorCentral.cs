@@ -21,7 +21,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
         var limiteComunicacion = ahora.AddMinutes(-minutosSinComunicacion);
         var limiteDgii = ahora.AddMinutes(-minutosAlertaDgii);
 
-        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion);
+        var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
         var cajas = await contexto.Cajas.AsNoTracking().ToListAsync(cancelacion);
         var estados = await contexto.EstadosSincronizacionCaja.AsNoTracking().ToDictionaryAsync(e => e.CajaId, cancelacion);
         var comprobantes = await contexto.ComprobantesRecibidos.AsNoTracking()
@@ -68,7 +68,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
                 if (abiertos > 0)
                     alertas.Add($"{abiertos} conflicto(s) de sincronización abierto(s)");
 
-                return new DatosEstadoCaja(caja.Id, caja.Codigo.ToString("00"), caja.Nombre, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty, caja.Habilitada, ultima,
+                return new DatosEstadoCaja(caja.Id, caja.Codigo, caja.Nombre, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty, caja.Habilitada, ultima,
                     estado?.UltimaRecepcionEn, estado?.UltimaDescargaEn, estado?.MensajesRecibidos ?? 0, estado?.Duplicados ?? 0, estado?.Rechazados ?? 0,
                     estado?.UltimoRechazoEn, estado?.UltimoError, pendientes, rechazados, abiertos, alertas);
             })
@@ -125,8 +125,8 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, cancelacion);
 
         return new PaginaComprobantesDgii(
-            filas.Select(f => new DatosComprobanteDgii(f.Id, f.Encf, f.TipoComprobante, f.CajaId, cajas.GetValueOrDefault(f.CajaId)?.Codigo.ToString("00") ?? string.Empty,
-                cajas.GetValueOrDefault(f.CajaId)?.Nombre ?? string.Empty, sucursales.GetValueOrDefault(f.SucursalId)?.Codigo.ToString("00") ?? string.Empty,
+            filas.Select(f => new DatosComprobanteDgii(f.Id, f.Encf, f.TipoComprobante, f.CajaId, cajas.GetValueOrDefault(f.CajaId)?.Codigo ?? string.Empty,
+                cajas.GetValueOrDefault(f.CajaId)?.Nombre ?? string.Empty, sucursales.GetValueOrDefault(f.SucursalId)?.Codigo ?? string.Empty,
                 sucursales.GetValueOrDefault(f.SucursalId)?.Nombre ?? string.Empty, f.FechaFirma, f.RecibidoEn, f.EstadoDgii, f.EstadoDgiiEn, f.MensajeDgii, f.TrackId,
                 f.IntentosEnvio, f.ProximoIntentoEn)).ToList(),
             total);
@@ -163,7 +163,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             .OrderByDescending(c => c.UltimaOcurrenciaEn)
             .Take(IServicioMonitorCentral.MaximoConflictos)
             .ToListAsync(cancelacion);
-        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
+        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
 
         return conflictos
             .Select(c => new DatosConflictoSincronizacion(c.Id, c.CajaId, cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.MensajeId, c.TipoMensaje, c.Tipo, c.Detalle,

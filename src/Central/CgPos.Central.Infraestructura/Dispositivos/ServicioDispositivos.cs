@@ -56,7 +56,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         return true;
     }
 
-    public async Task<ResultadoDispositivo> AutenticarAsync(int sucursalCodigo, int cajaCodigo, string secreto, OrigenSolicitud origen, CancellationToken cancelacion = default)
+    public async Task<ResultadoDispositivo> AutenticarAsync(string sucursalCodigo, string cajaCodigo, string secreto, OrigenSolicitud origen, CancellationToken cancelacion = default)
     {
         var cajaId = await contexto.Cajas.AsNoTracking()
             .Where(c => c.Codigo == cajaCodigo && contexto.Sucursales.Any(s => s.Id == c.SucursalId && s.Codigo == sucursalCodigo))

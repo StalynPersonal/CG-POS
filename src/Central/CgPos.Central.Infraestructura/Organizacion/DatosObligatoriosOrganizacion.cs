@@ -11,8 +11,8 @@ internal static class DatosObligatoriosOrganizacion
         Faltantes("la empresa", ("razón social", razonSocial), ("nombre comercial", nombreComercial), ("dirección", direccion), ("teléfono", telefono));
 
     /// <returns>El mensaje con los campos que faltan, o <c>null</c> si están todos.</returns>
-    public static string? Sucursal(int codigo, string? nombre, string? direccion, string? telefono) =>
-        Faltantes("la sucursal", ("código", codigo > 0 ? "sí" : null), ("nombre", nombre), ("dirección", direccion), ("teléfono", telefono));
+    public static string? Sucursal(string? codigo, string? nombre, string? direccion, string? telefono) =>
+        Faltantes("la sucursal", ("código", codigo), ("nombre", nombre), ("dirección", direccion), ("teléfono", telefono));
 
     private static string? Faltantes(string entidad, params (string Campo, string? Valor)[] campos)
     {

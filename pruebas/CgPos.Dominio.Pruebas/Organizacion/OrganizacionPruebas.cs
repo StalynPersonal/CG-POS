@@ -32,7 +32,7 @@ public class OrganizacionPruebas
     [Fact]
     public void Caja_nace_habilitada_y_se_puede_deshabilitar()
     {
-        var caja = Caja.Crear(Ids.Siguiente(), 1, "Caja 01");
+        var caja = Caja.Crear(Ids.Siguiente(), "01", "Caja 01");
         Assert.True(caja.Habilitada);
 
         caja.Deshabilitar();

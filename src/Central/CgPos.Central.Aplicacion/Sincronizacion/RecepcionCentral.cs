@@ -4,7 +4,7 @@ namespace CgPos.Central.Aplicacion.Sincronizacion;
 
 /// <summary>Caja autenticada que envía el mensaje (sale de su token de dispositivo, no del mensaje).</summary>
 /// <summary>La caja autenticada: sus Id en el Central y los códigos con que se identifica.</summary>
-public sealed record CajaRemitente(int CajaId, int SucursalId, int SucursalCodigo = 0, int CajaCodigo = 0);
+public sealed record CajaRemitente(int CajaId, int SucursalId, string SucursalCodigo = "", string CajaCodigo = "");
 
 public interface IServicioRecepcion
 {

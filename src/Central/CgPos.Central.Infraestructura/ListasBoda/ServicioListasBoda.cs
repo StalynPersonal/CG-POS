@@ -171,7 +171,7 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
     private async Task<IReadOnlyList<DatosListaBoda>> DatosAsync(IReadOnlyList<ListaBoda> listas, CancellationToken cancelacion)
     {
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Nombre, cancelacion);
-        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion);
+        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
 
         return listas.Select(lista => new DatosListaBoda(
             lista.Id,

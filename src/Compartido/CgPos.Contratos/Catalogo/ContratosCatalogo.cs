@@ -52,7 +52,7 @@ public sealed record DescuentoTarjetaCarga(
     bool Activo = true);
 
 /// <summary>Almacén o sucursal donde se retira mercancía pendiente (RF-140).</summary>
-public sealed record AlmacenCarga(string Codigo, string Nombre, int SucursalCodigo, string? Direccion = null, bool Activo = true);
+public sealed record AlmacenCarga(string Codigo, string Nombre, string SucursalCodigo, string? Direccion = null, bool Activo = true);
 
 /// <summary>Nivel del programa de fidelidad (RF-241): el factor multiplica los puntos que acumula.</summary>
 public sealed record NivelFidelidadCarga(int Codigo, string Nombre, int Orden, decimal FactorAcumulacion, bool Activo = true);
@@ -98,7 +98,7 @@ public sealed record MotivoDevolucionCarga(int Codigo, string Nombre, bool Activ
 /// Rango de e-CF que el Central asigna a una caja (RF-28). Se identifica por su tipo y su inicio: un e-NCF es único en la empresa y los rangos no se
 /// solapan. Ampliar el mismo rango extiende su final.
 /// </summary>
-public sealed record SecuenciaEcfCarga(int SucursalCodigo, int CajaCodigo, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, bool Activa = true);
+public sealed record SecuenciaEcfCarga(string SucursalCodigo, string CajaCodigo, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, bool Activa = true);
 
 /// <summary>Tasa del día de SAP B1: pesos por unidad de la moneda (RF-212). Se identifica por la moneda y desde cuándo rige.</summary>
 public sealed record TasaCambioCarga(string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);
@@ -115,7 +115,7 @@ public sealed record PromocionCarga(
     DateTimeOffset VigenteHasta,
     IReadOnlyList<string>? Articulos = null,
     IReadOnlyList<int>? Departamentos = null,
-    IReadOnlyList<int>? Sucursales = null,
+    IReadOnlyList<string>? Sucursales = null,
     int? CantidadLleva = null,
     int? CantidadPaga = null,
     decimal? CantidadMinima = null,

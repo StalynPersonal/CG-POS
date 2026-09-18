@@ -34,9 +34,11 @@ public sealed class EscenarioSeguridad
     private readonly int _numero = Interlocked.Increment(ref _escenarios) - 1;
 
     /// <summary>Sucursal y cajas con códigos que no se repiten entre escenarios (hasta 99 sucursales con 49 pares de cajas cada una).</summary>
-    public int CodigoSucursal => _numero % 99 + 1;
-    public int CodigoCajaUno => _numero / 99 * 2 + 1;
-    public int CodigoCajaDos => _numero / 99 * 2 + 2;
+    public string CodigoSucursal => DosDigitos(_numero % 99 + 1);
+    public string CodigoCajaUno => DosDigitos(_numero / 99 * 2 + 1);
+    public string CodigoCajaDos => DosDigitos(_numero / 99 * 2 + 2);
+
+    private static string DosDigitos(int numero) => numero.ToString("00", System.Globalization.CultureInfo.InvariantCulture);
     public string CodigoRolCajero => $"CAJ{Sufijo}";
     public string CodigoRolSupervisor => $"SUP{Sufijo}";
 
@@ -91,7 +93,7 @@ public sealed class EscenarioSeguridad
         var proveedor = _baseDatos.CrearProveedor(servicios =>
         {
             servicios.AddSingleton<TimeProvider>(reloj);
-            var codigos = cajaId == CajaUno ? ((int?)CodigoSucursal, (int?)CodigoCajaUno) : cajaId == CajaDos ? (CodigoSucursal, CodigoCajaDos) : (null, null);
+            var codigos = cajaId == CajaUno ? ((string?)CodigoSucursal, (string?)CodigoCajaUno) : cajaId == CajaDos ? (CodigoSucursal, CodigoCajaDos) : (null, null);
             servicios.AddSingleton<IContextoCaja>(new ContextoCajaFijo(cajaId, codigos.Item1, codigos.Item2));
             extras?.Invoke(servicios);
         });
@@ -129,8 +131,8 @@ public sealed class EscenarioSeguridad
             Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de seguridad")],
             Cajas:
             [
-                new CajaCarga(CodigoSucursal, CodigoCajaUno, $"Caja {CodigoCajaUno:00}"),
-                new CajaCarga(CodigoSucursal, CodigoCajaDos, $"Caja {CodigoCajaDos:00}", Habilitada: false),
+                new CajaCarga(CodigoSucursal, CodigoCajaUno, $"Caja {CodigoCajaUno}"),
+                new CajaCarga(CodigoSucursal, CodigoCajaDos, $"Caja {CodigoCajaDos}", Habilitada: false),
             ],
             Roles:
             [

@@ -11,7 +11,7 @@ public class VentaPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Ids.Siguiente(), 1, Ids.Siguiente(), 2, Ids.Siguiente(), 123, 7, Ids.Siguiente(), "Cajera Prueba", "DOP", "RD$", Ahora);
+        Venta.Iniciar(Ids.Siguiente(), "01", Ids.Siguiente(), "02", Ids.Siguiente(), 123, 7, Ids.Siguiente(), "Cajera Prueba", "DOP", "RD$", Ahora);
 
     private static ArticuloParaVenta Cincel() => new(
         Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
@@ -41,24 +41,24 @@ public class VentaPruebas
     [Fact]
     public void Numero_de_documento_usa_los_digitos_configurados_y_crece_sin_repetirse()
     {
-        Assert.Equal("0101100001", NumeroDocumento.Formatear(1, 1, TipoDocumentoNumerado.Factura, 1, 5));
-        Assert.Equal("0201200002", NumeroDocumento.Formatear(2, 1, TipoDocumentoNumerado.NotaCredito, 2, 5));
-        Assert.Equal("010130000001", NumeroDocumento.Formatear(1, 1, TipoDocumentoNumerado.PendienteEntrega, 1, 7));
-        Assert.Equal("01011000000001", NumeroDocumento.Formatear(1, 1, TipoDocumentoNumerado.Factura, 1, 9));
+        Assert.Equal("0101100001", NumeroDocumento.Formatear("01", "01", TipoDocumentoNumerado.Factura, 1, 5));
+        Assert.Equal("0201200002", NumeroDocumento.Formatear("02", "01", TipoDocumentoNumerado.NotaCredito, 2, 5));
+        Assert.Equal("010130000001", NumeroDocumento.Formatear("01", "01", TipoDocumentoNumerado.PendienteEntrega, 1, 7));
+        Assert.Equal("01011000000001", NumeroDocumento.Formatear("01", "01", TipoDocumentoNumerado.Factura, 1, 9));
 
         // Pasado el máximo de los dígitos configurados el número se alarga en vez de reiniciar.
-        Assert.Equal("01011100000", NumeroDocumento.Formatear(1, 1, TipoDocumentoNumerado.Factura, 100_000, 5));
+        Assert.Equal("01011100000", NumeroDocumento.Formatear("01", "01", TipoDocumentoNumerado.Factura, 100_000, 5));
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => NumeroDocumento.Formatear(1, 1, TipoDocumentoNumerado.Factura, 1, NumeroDocumento.DigitosMinimosSecuencia - 1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => NumeroDocumento.Formatear(1, 1, TipoDocumentoNumerado.Factura, 0, 7));
-        Assert.Throws<ArgumentOutOfRangeException>(() => NumeroDocumento.Formatear(1, 1, (TipoDocumentoNumerado)9, 1, 7));
+        Assert.Throws<ArgumentOutOfRangeException>(() => NumeroDocumento.Formatear("01", "01", TipoDocumentoNumerado.Factura, 1, NumeroDocumento.DigitosMinimosSecuencia - 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => NumeroDocumento.Formatear("01", "01", TipoDocumentoNumerado.Factura, 0, 7));
+        Assert.Throws<ArgumentOutOfRangeException>(() => NumeroDocumento.Formatear("01", "01", (TipoDocumentoNumerado)9, 1, 7));
     }
 
     [Fact]
     public void Del_numero_se_leen_la_sucursal_la_caja_y_el_tipo()
     {
         Assert.True(NumeroDocumento.TryLeer("120320000045", out var sucursal, out var caja, out var tipo));
-        Assert.Equal((12, 3, TipoDocumentoNumerado.NotaCredito), (sucursal, caja, tipo));
+        Assert.Equal(("12", "03", TipoDocumentoNumerado.NotaCredito), (sucursal, caja, tipo));
         Assert.True(NumeroDocumento.EsDeTipo("010130000001", TipoDocumentoNumerado.PendienteEntrega));
         Assert.False(NumeroDocumento.EsDeTipo("010130000001", TipoDocumentoNumerado.Factura));
 

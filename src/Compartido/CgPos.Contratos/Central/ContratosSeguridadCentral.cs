@@ -33,7 +33,7 @@ public sealed record DatosSesionCentral(
     Guid SesionId);
 
 /// <summary>La caja cambia su credencial (el código de su sucursal, el suyo y el secreto) por un token de dispositivo de pocos minutos.</summary>
-public sealed record SolicitudTokenDispositivo(int SucursalCodigo, int CajaCodigo, string Secreto);
+public sealed record SolicitudTokenDispositivo(string SucursalCodigo, string CajaCodigo, string Secreto);
 
 public sealed record RespuestaTokenDispositivo(bool Exitoso, string? Mensaje = null, string? Token = null, DateTimeOffset? ExpiraEn = null);
 
@@ -41,11 +41,11 @@ public sealed record RespuestaTokenDispositivo(bool Exitoso, string? Mensaje = n
 /// Credencial recién emitida. El secreto solo se entrega en esta respuesta: el Central guarda su hash. En la caja se configuran
 /// <c>Caja:Sucursal</c>, <c>Caja:Codigo</c> y <c>Central:Secreto</c>.
 /// </summary>
-public sealed record DatosCredencialDispositivo(int CajaId, int SucursalCodigo, int CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
+public sealed record DatosCredencialDispositivo(int CajaId, string SucursalCodigo, string CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
 
 public sealed record SolicitudRevocacionCredencial(string Motivo);
 
-public sealed record DatosDispositivo(int CajaId, int CajaCodigo, string CajaNombre, int SucursalId, int SucursalCodigo);
+public sealed record DatosDispositivo(int CajaId, string CajaCodigo, string CajaNombre, int SucursalId, string SucursalCodigo);
 
 /// <summary>Nombres de los atributos de los tokens emitidos por el Central.</summary>
 public static class AtributosTokenCentral

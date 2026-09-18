@@ -21,8 +21,8 @@ public interface IResolutorCodigos
     int UnidadMedida(int codigo);
     int Impuesto(string codigo);
     int Articulo(string codigo);
-    int Sucursal(int codigo);
-    int Caja(int sucursalCodigo, int cajaCodigo);
+    int Sucursal(string codigo);
+    int Caja(string sucursalCodigo, string cajaCodigo);
     int Banco(string codigo);
     int NivelFidelidad(int codigo);
     int Promocion(string codigo);

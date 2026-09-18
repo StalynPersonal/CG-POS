@@ -119,10 +119,10 @@ internal sealed class ServicioCargaInicialCentral(
         var codigosSucursales = (await contexto.Sucursales.Select(s => s.Codigo).ToListAsync(cancelacion)).ToHashSet();
         foreach (var sucursal in sucursales.Where(s => !codigosSucursales.Contains(s.Codigo)))
             if (Organizacion.DatosObligatoriosOrganizacion.Sucursal(sucursal.Codigo, sucursal.Nombre, sucursal.Direccion, sucursal.Telefono) is { } faltanSucursal)
-                errores.Add($"{faltanSucursal} ({sucursal.Codigo:00})");
+                errores.Add($"{faltanSucursal} ({sucursal.Codigo})");
 
         Duplicados(sucursales.Select(s => s.Codigo), "Código de sucursal", errores);
-        Duplicados(cajas.Select(c => $"{c.SucursalCodigo:00}-{c.Codigo:00}"), "Caja (sucursal-caja)", errores);
+        Duplicados(cajas.Select(c => $"{c.SucursalCodigo}-{c.Codigo:00}"), "Caja (sucursal-caja)", errores);
         Duplicados(parametros.Select(p => $"{p.Clave.Trim()} ({p.SucursalCodigo}/{p.CajaCodigo})"), "Parámetro", errores);
         Duplicados(roles.Select(r => r.Codigo.Trim().ToUpperInvariant()), "Código de rol", errores);
         Duplicados(usuarios.Select(u => u.Codigo.Trim().ToUpperInvariant()), "Usuario", errores);
@@ -138,7 +138,7 @@ internal sealed class ServicioCargaInicialCentral(
         var codigosUsuarios = (await contexto.UsuariosCentral.Select(u => u.Codigo).ToListAsync(cancelacion)).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var caja in cajas.Where(c => !codigosSucursales.Contains(c.SucursalCodigo)))
-            errores.Add($"La caja {caja.Codigo:00} referencia una sucursal inexistente ({caja.SucursalCodigo:00}).");
+            errores.Add($"La caja {caja.Codigo} referencia una sucursal inexistente ({caja.SucursalCodigo}).");
 
         foreach (var parametro in parametros)
         {
@@ -150,7 +150,7 @@ internal sealed class ServicioCargaInicialCentral(
                 errores.Add($"El parámetro '{parametro.Clave}' es del Central y solo puede ser general.");
 
             if (parametro.SucursalCodigo is { } sucursal && !codigosSucursales.Contains(sucursal))
-                errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursal:00}).");
+                errores.Add($"El parámetro '{parametro.Clave}' referencia una sucursal inexistente ({sucursal}).");
             if (parametro.CajaCodigo is not null && parametro.SucursalCodigo is null)
                 errores.Add($"El parámetro '{parametro.Clave}' de caja debe indicar también la sucursal de la caja.");
             if (parametro is { SucursalCodigo: { } s, CajaCodigo: { } c } && !codigosCajas.Contains((s, c)))
@@ -235,7 +235,7 @@ internal sealed class ServicioCargaInicialCentral(
         return caja.Id;
     }
 
-    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<int, int> idsSucursales, IReadOnlyDictionary<(int Sucursal, int Caja), int> idsCajas,
+    private async Task AplicarParametroAsync(ParametroCarga dato, IReadOnlyDictionary<string, int> idsSucursales, IReadOnlyDictionary<(string Sucursal, string Caja), int> idsCajas,
         CancellationToken cancelacion)
     {
         int? sucursalId = null;

@@ -3,7 +3,7 @@ using CgPos.Central.Aplicacion.Abstracciones;
 namespace CgPos.Central.Aplicacion.Dispositivos;
 
 /// <summary>Caja autenticada con su credencial de dispositivo.</summary>
-public sealed record DispositivoAutenticado(int CajaId, int CajaCodigo, string CajaNombre, int SucursalId, int SucursalCodigo, int CredencialId);
+public sealed record DispositivoAutenticado(int CajaId, string CajaCodigo, string CajaNombre, int SucursalId, string SucursalCodigo, int CredencialId);
 
 public enum MotivoRechazoDispositivo
 {
@@ -21,7 +21,7 @@ public sealed record ResultadoDispositivo(DispositivoAutenticado? Dispositivo, M
     public static ResultadoDispositivo Rechazo(MotivoRechazoDispositivo motivo) => new(null, motivo);
 }
 
-public sealed record CredencialEmitida(int CajaId, int SucursalCodigo, int CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
+public sealed record CredencialEmitida(int CajaId, string SucursalCodigo, string CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
 
 public interface IServicioDispositivos
 {
@@ -33,7 +33,7 @@ public interface IServicioDispositivos
     Task<bool> RevocarCredencialAsync(int cajaId, string motivo, UsuarioAuditoria usuario, CancellationToken cancelacion = default);
 
     /// <summary>Valida la credencial de la caja y que la caja y su sucursal estén habilitadas. Los rechazos quedan en auditoría.</summary>
-    Task<ResultadoDispositivo> AutenticarAsync(int sucursalCodigo, int cajaCodigo, string secreto, OrigenSolicitud origen, CancellationToken cancelacion = default);
+    Task<ResultadoDispositivo> AutenticarAsync(string sucursalCodigo, string cajaCodigo, string secreto, OrigenSolicitud origen, CancellationToken cancelacion = default);
 
     /// <summary>La credencial sigue activa y la caja habilitada: se consulta con cada token de dispositivo.</summary>
     Task<bool> EsCredencialActivaAsync(int credencialId, int cajaId, CancellationToken cancelacion = default);

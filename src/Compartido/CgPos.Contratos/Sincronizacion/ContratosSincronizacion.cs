@@ -43,8 +43,8 @@ public sealed record MensajeSincronizacion(
     string Referencia,
     string Contenido,
     string HashContenido,
-    int SucursalCodigo,
-    int CajaCodigo,
+    string SucursalCodigo,
+    string CajaCodigo,
     DateTimeOffset CreadoEn);
 
 public enum EstadoRecepcion

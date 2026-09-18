@@ -42,7 +42,7 @@ internal sealed class ServicioRecepcion(
 
         if (mensaje.SucursalCodigo != remitente.SucursalCodigo || mensaje.CajaCodigo != remitente.CajaCodigo)
             return await RechazarAsync(mensaje, remitente, estado, TipoConflictoSincronizacion.CajaNoCoincide,
-                $"El mensaje indica la caja {mensaje.SucursalCodigo:00}-{mensaje.CajaCodigo:00}, pero lo envió la caja autenticada {remitente.SucursalCodigo:00}-{remitente.CajaCodigo:00}.",
+                $"El mensaje indica la caja {mensaje.SucursalCodigo}-{mensaje.CajaCodigo}, pero lo envió la caja autenticada {remitente.SucursalCodigo}-{remitente.CajaCodigo}.",
                 ahora, cancelacion);
 
         if (!HashSincronizacion.Coincide(mensaje.Contenido, mensaje.HashContenido))
@@ -445,7 +445,7 @@ internal sealed class ServicioRecepcion(
         !NumeroDocumento.TryLeer(numero, out var sucursal, out var caja, out var leido) || leido != tipo
             ? $"El número '{numero}' no es de un documento de tipo {tipo}; el mensaje se guardó sin procesarlo."
             : sucursal != remitente.SucursalCodigo || caja != remitente.CajaCodigo
-                ? $"El documento {numero} es de la caja {sucursal:00}-{caja:00}, pero lo envió la caja {remitente.SucursalCodigo:00}-{remitente.CajaCodigo:00}; el mensaje se guardó sin procesarlo."
+                ? $"El documento {numero} es de la caja {sucursal}-{caja}, pero lo envió la caja {remitente.SucursalCodigo}-{remitente.CajaCodigo}; el mensaje se guardó sin procesarlo."
                 : null;
 
     private async Task<string> CodigoCajaAsync(DocumentoRecibido documento, CancellationToken cancelacion)
@@ -453,7 +453,7 @@ internal sealed class ServicioRecepcion(
         var codigos = await contexto.Cajas.AsNoTracking().Where(c => c.Id == documento.CajaId)
             .Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, Caja = c.Codigo })
             .SingleOrDefaultAsync(cancelacion);
-        return codigos is null ? documento.CajaId.ToString() : $"{codigos.Sucursal:00}-{codigos.Caja:00}";
+        return codigos is null ? documento.CajaId.ToString() : $"{codigos.Sucursal}-{codigos.Caja}";
     }
 
     private async Task<RespuestaRecepcionCentral> RechazarAsync(MensajeSincronizacion mensaje, CajaRemitente remitente, EstadoSincronizacionCaja estado,

@@ -24,11 +24,11 @@
                     {
                         @foreach (var sucursal in Sucursales)
                         {
-                            <MudSelectItem T="string" Value="@($"s:{sucursal.Id}")">Sucursal @sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                            <MudSelectItem T="string" Value="@($"s:{sucursal.Id}")">Sucursal @sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                         }
                         @foreach (var caja in Cajas)
                         {
-                            <MudSelectItem T="string" Value="@($"c:{caja.Id}")">Caja @caja.Codigo.ToString("00") · Sucursal @caja.SucursalCodigo.ToString("00")</MudSelectItem>
+                            <MudSelectItem T="string" Value="@($"c:{caja.Id}")">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
                         }
                     }
                 </MudSelect>
@@ -122,9 +122,9 @@
     {
         null or AmbitoGeneral => "General",
         _ when ambito.StartsWith("s:", StringComparison.Ordinal) && Sucursales.FirstOrDefault(s => $"s:{s.Id}" == ambito) is { } sucursal =>
-            $"Sucursal {sucursal.Codigo:00} · {sucursal.Nombre}",
+            $"Sucursal {sucursal.Codigo} · {sucursal.Nombre}",
         _ when ambito.StartsWith("c:", StringComparison.Ordinal) && Cajas.FirstOrDefault(c => $"c:{c.Id}" == ambito) is { } caja =>
-            $"Caja {caja.Codigo:00} · Sucursal {caja.SucursalCodigo:00}",
+            $"Caja {caja.Codigo} · Sucursal {caja.SucursalCodigo}",
         _ => ambito,
     };
 

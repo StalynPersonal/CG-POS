@@ -18,7 +18,7 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
         var administrador = await TokenAdministradorAsync(cliente);
         var credencial = await EmitirAsync(cliente, administrador, CentralEnPruebas.CajaUno);
 
-        Assert.Equal((1, 1), (credencial.SucursalCodigo, credencial.CajaCodigo));
+        Assert.Equal(("01", "01"), (credencial.SucursalCodigo, credencial.CajaCodigo));
 
         var (estado, token) = await PedirTokenAsync(cliente, CentralEnPruebas.CajaUno, credencial.Secreto);
         Assert.Equal(HttpStatusCode.OK, estado);
@@ -28,7 +28,7 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
         {
             var dispositivo = await identidad.Content.ReadFromJsonAsync<DatosDispositivo>(OpcionesJson.Predeterminadas);
             Assert.Equal(CentralEnPruebas.CajaUno, dispositivo!.CajaId);
-            Assert.Equal(1, dispositivo.SucursalCodigo);
+            Assert.Equal("01", dispositivo.SucursalCodigo);
         }
 
         using (var cajaComoUsuario = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/sesion/actual", token.Token)))

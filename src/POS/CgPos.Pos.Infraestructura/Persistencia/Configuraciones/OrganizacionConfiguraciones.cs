@@ -34,6 +34,8 @@ internal sealed class SucursalConfiguracion : IEntityTypeConfiguration<Sucursal>
         constructor.Property(s => s.Telefono).HasMaxLength(Empresa.LargoMaximoTelefono);
 
         constructor.HasOne<Empresa>().WithMany().HasForeignKey(s => s.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        // El código es texto de dos dígitos (01 a 99): char(2), así sale igual en documentos y pantallas.
+        constructor.Property(s => s.Codigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.HasIndex(s => new { s.EmpresaId, s.Codigo }).IsUnique();
     }
 }
@@ -53,6 +55,7 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
         constructor.Ignore(c => c.VersionReportadaEn);
 
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
+        constructor.Property(c => c.Codigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.HasIndex(c => new { c.SucursalId, c.Codigo }).IsUnique();
     }
 }

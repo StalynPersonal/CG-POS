@@ -35,7 +35,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
             {
                 var caja = cajas[s.CajaId];
                 long? ultimo = ultimos.TryGetValue((s.CajaId, s.TipoComprobante), out var secuencia) && secuencia >= s.Desde && secuencia <= s.Hasta ? secuencia : null;
-                return new DatosSecuenciaEcfCentral(s.Id, s.CajaId, caja.Codigo.ToString("00"), sucursales.GetValueOrDefault(caja.SucursalId).ToString("00"),
+                return new DatosSecuenciaEcfCentral(s.Id, s.CajaId, caja.Codigo, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty,
                     s.TipoComprobante, s.Desde, s.Hasta, s.VenceEn, s.Activa, ultimo);
             })
             .OrderBy(s => s.SucursalCodigo, StringComparer.Ordinal)
@@ -50,7 +50,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         if (!TiposEcfCaja.Asignables.Contains(solicitud.TipoComprobante))
             return ResultadoAdministracion.Error("A una caja solo se le asignan rangos de los e-CF que emite (E31, E32, E34, E44 y E45).");
         var (sucursal, caja) = await CodigosCajaAsync(solicitud.CajaId, cancelacion);
-        if (sucursal == 0)
+        if (sucursal.Length == 0)
             return ResultadoAdministracion.Error("La caja no existe.");
         if (await contexto.SecuenciasEcf.AnyAsync(s => s.TipoComprobante == solicitud.TipoComprobante && s.Desde == solicitud.Desde, cancelacion))
             return ResultadoAdministracion.Error("Ya hay un rango de ese tipo que empieza en ese número.");
@@ -148,7 +148,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         foreach (var cajaId in (solicitud.Cajas ?? []).Distinct())
         {
             var (sucursal, caja) = await CodigosCajaAsync(cajaId, cancelacion);
-            if (sucursal == 0)
+            if (sucursal.Length == 0)
                 return ResultadoAdministracion.Error("Una de las cajas no existe.");
             cajas.Add(new CajaReferencia(sucursal, caja));
         }
@@ -158,13 +158,13 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
             async () => await contexto.UsuariosCaja.Where(u => u.Codigo == codigo).Select(u => (int?)u.Id).SingleOrDefaultAsync(cancelacion));
     }
 
-    /// <summary>Códigos de sucursal y caja; (0, 0) si la caja no existe.</summary>
-    private async Task<(int Sucursal, int Caja)> CodigosCajaAsync(int cajaId, CancellationToken cancelacion)
+    /// <summary>Códigos de sucursal y caja; vacíos si la caja no existe.</summary>
+    private async Task<(string Sucursal, string Caja)> CodigosCajaAsync(int cajaId, CancellationToken cancelacion)
     {
         var codigos = await contexto.Cajas.AsNoTracking().Where(c => c.Id == cajaId)
             .Join(contexto.Sucursales, c => c.SucursalId, s => s.Id, (c, s) => new { Sucursal = s.Codigo, Caja = c.Codigo })
             .SingleOrDefaultAsync(cancelacion);
-        return codigos is null ? (0, 0) : (codigos.Sucursal, codigos.Caja);
+        return codigos is null ? (string.Empty, string.Empty) : (codigos.Sucursal, codigos.Caja);
     }
 
     private static async Task<ResultadoAdministracion> PublicarAsync(Func<Task<ResultadoPublicacion>> publicar, Func<Task<int?>> id)

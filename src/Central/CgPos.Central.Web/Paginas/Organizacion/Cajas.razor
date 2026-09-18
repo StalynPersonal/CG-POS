@@ -27,7 +27,7 @@
             <MudSelect T="int?" @bind-Value="_sucursalFiltro" Label="Sucursal" Clearable="true" Dense="true" Style="max-width: 320px" ToStringFunc="NombreSucursal">
                 @foreach (var sucursal in _sucursales)
                 {
-                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
         </ToolBarContent>
@@ -41,7 +41,7 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Sucursal">@context.SucursalCodigo<div class="cg-central__detalle">@context.SucursalNombre</div></MudTd>
-            <MudTd DataLabel="Caja"><strong>@context.Codigo.ToString("00")</strong><div class="cg-central__detalle">@context.Nombre</div></MudTd>
+            <MudTd DataLabel="Caja"><strong>@context.Codigo</strong><div class="cg-central__detalle">@context.Nombre</div></MudTd>
             <MudTd DataLabel="Estado">
                 @if (context.Habilitada)
                 {
@@ -105,7 +105,7 @@
     private IEnumerable<DatosCaja> Filtradas => _sucursalFiltro is { } sucursalId ? _cajas.Where(c => c.SucursalId == sucursalId) : _cajas;
 
     private string NombreSucursal(int? sucursalId) =>
-        _sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo:00} · {sucursal.Nombre}" : string.Empty;
+        _sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : string.Empty;
 
     private static string Fecha(DateTimeOffset momento) => momento.ToLocalTime().ToString("dd/MM/yyyy h:mm tt");
 
@@ -141,7 +141,7 @@
     private async Task AbrirDialogoAsync(DatosCaja? caja)
     {
         var parametros = new DialogParameters<DialogoCaja> { { d => d.Caja, caja }, { d => d.Sucursales, _sucursales } };
-        var referencia = await Dialogos.ShowAsync<DialogoCaja>(caja is null ? "Nueva caja" : $"Editar caja {caja.Codigo:00} de {caja.SucursalNombre}", parametros);
+        var referencia = await Dialogos.ShowAsync<DialogoCaja>(caja is null ? "Nueva caja" : $"Editar caja {caja.Codigo} de {caja.SucursalNombre}", parametros);
         if (await referencia.Result is not { Canceled: false })
             return;
 
@@ -152,7 +152,7 @@
     private async Task CambiarEstadoAsync(DatosCaja caja, bool habilitada)
     {
         if (!habilitada && !await Dialogos.ConfirmarAsync("Deshabilitar caja",
-                $"La caja {caja.Codigo:00} de {caja.SucursalNombre} no podrá abrir turno ni sincronizar con el Central.", "Deshabilitar", esPeligrosa: true))
+                $"La caja {caja.Codigo} de {caja.SucursalNombre} no podrá abrir turno ni sincronizar con el Central.", "Deshabilitar", esPeligrosa: true))
             return;
 
         await EjecutarAsync(() => Cliente.CambiarEstadoCajaAsync(caja.Id, habilitada), habilitada ? "Caja habilitada." : "Caja deshabilitada.");
@@ -161,7 +161,7 @@
     private async Task EmitirCredencialAsync(DatosCaja caja)
     {
         if (caja.CredencialEmitidaEn is not null && !await Dialogos.ConfirmarAsync("Emitir credencial nueva",
-                $"La credencial actual de la caja {caja.Codigo:00} dejará de funcionar: la caja no sincronizará hasta configurar el secreto nuevo.", "Emitir", esPeligrosa: true))
+                $"La credencial actual de la caja {caja.Codigo} dejará de funcionar: la caja no sincronizará hasta configurar el secreto nuevo.", "Emitir", esPeligrosa: true))
             return;
 
         var (credencial, error) = await Cliente.EmitirCredencialAsync(caja.Id);
@@ -173,7 +173,7 @@
 
         var parametros = new DialogParameters<DialogoCredencialCaja> { { d => d.Credencial, credencial }, { d => d.Caja, caja } };
         var opciones = new DialogOptions { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        await (await Dialogos.ShowAsync<DialogoCredencialCaja>($"Credencial de la caja {caja.Codigo:00}", parametros, opciones)).Result;
+        await (await Dialogos.ShowAsync<DialogoCredencialCaja>($"Credencial de la caja {caja.Codigo}", parametros, opciones)).Result;
         await CargarAsync();
     }
 
@@ -181,7 +181,7 @@
     {
         var parametros = new DialogParameters<DialogoMotivo>
         {
-            { d => d.Mensaje, $"La caja {caja.Codigo:00} de {caja.SucursalNombre} dejará de comunicarse con el Central hasta que se le emita una credencial nueva." },
+            { d => d.Mensaje, $"La caja {caja.Codigo} de {caja.SucursalNombre} dejará de comunicarse con el Central hasta que se le emita una credencial nueva." },
             { d => d.Etiqueta, "Motivo de la revocación" },
             { d => d.TextoConfirmar, "Revocar" },
         };

@@ -33,8 +33,8 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var organizacion = paquete.Organizacion!;
         Assert.Equal("999000004", organizacion.Empresa.Rnc);
         // Otras pruebas de la colección crean sucursales y cajas: basta con que estén las de desarrollo.
-        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == 1 && c.Codigo == 1);
-        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == 1 && c.Codigo == 2);
+        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == "01" && c.Codigo == "01");
+        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == "01" && c.Codigo == "02");
         Assert.Contains(organizacion.Parametros!, p => p.Clave == "General.MonedaLocal");
         Assert.DoesNotContain(organizacion.Parametros!, p => p.Clave.StartsWith("Central.", StringComparison.Ordinal));
 
@@ -43,11 +43,11 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         Assert.Null(cajero.Clave);
         Assert.True(new HashCredenciales().VerificarClave("Cajero.2026", cajero.ClaveHash!));
         Assert.Equal("CAJERO", cajero.RolCodigo);
-        Assert.Contains(cajero.Cajas!, c => c == new CgPos.Contratos.CargaInicial.CajaReferencia(1, 1));
+        Assert.Contains(cajero.Cajas!, c => c == new CgPos.Contratos.CargaInicial.CajaReferencia("01", "01"));
 
         Assert.NotEmpty(paquete.Maestros!.Articulos!);
         Assert.NotEmpty(paquete.Maestros.SecuenciasEcf!);
-        Assert.All(paquete.Maestros.SecuenciasEcf!, s => Assert.Equal((1, 1), (s.SucursalCodigo, s.CajaCodigo)));
+        Assert.All(paquete.Maestros.SecuenciasEcf!, s => Assert.Equal(("01", "01"), (s.SucursalCodigo, s.CajaCodigo)));
     }
 
     [SkippableFact]
@@ -96,7 +96,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
 
         // Los rangos del mismo tipo no se solapan en la empresa: uno alto y aleatorio no choca con los de desarrollo ni con otras pruebas.
         var desde = Random.Shared.NextInt64(1_000_000, 9_000_000_000);
-        var secuencia = new SecuenciaEcfCarga(1, 2, TipoComprobante.FacturaConsumo, desde, desde + 999, new DateOnly(2027, 12, 31));
+        var secuencia = new SecuenciaEcfCarga("01", "02", TipoComprobante.FacturaConsumo, desde, desde + 999, new DateOnly(2027, 12, 31));
         await PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]));
         var clave = $"Pruebas.SoloCajaDos{Guid.NewGuid():N}";
         await central.UsarContextoAsync(async contexto =>
@@ -110,7 +110,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var paraDos = await BajarAsync(cliente, tokenDos, marcaDos);
         Assert.Equal(desde, Assert.Single(paraDos.Maestros!.SecuenciasEcf!).Desde);
         var parametro = Assert.Single(paraDos.Organizacion!.Parametros!);
-        Assert.Equal((clave, 1, 2), (parametro.Clave, parametro.SucursalCodigo, parametro.CajaCodigo));
+        Assert.Equal((clave, "01", "02"), (parametro.Clave, parametro.SucursalCodigo, parametro.CajaCodigo));
     }
 
     [SkippableFact]
@@ -243,7 +243,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         using var http = central.CrearCliente();
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(http, CentralEnPruebas.CajaUno);
 
-        var resultado = await new ClienteCentralHttp(http, 1, 1, secreto, TimeProvider.System).DescargarMaestrosAsync(0);
+        var resultado = await new ClienteCentralHttp(http, "01", "01", secreto, TimeProvider.System).DescargarMaestrosAsync(0);
 
         Assert.True(resultado.CentralRespondio, resultado.Error);
         Assert.NotNull(resultado.Paquete!.Organizacion);
@@ -274,7 +274,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         var contenido = JsonSerializer.Serialize(new DocumentoInscripcionFidelidad(cedula, "Miembro de Prueba", null, null, "Cajero Desarrollo", DateTimeOffset.UtcNow),
             OpcionesJson.Predeterminadas);
         return (cedula, new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.InscripcionFidelidad, cedula, contenido, HashSincronizacion.Calcular(contenido),
-            1, 1, DateTimeOffset.UtcNow));
+            "01", "01", DateTimeOffset.UtcNow));
     }
 
     /// <summary>Una cédula nueva que pasa la validación del dominio (dígito verificador incluido).</summary>

@@ -14,7 +14,7 @@ public sealed record SesionUsuario(
     int Nivel,
     IReadOnlySet<string> Permisos,
     int CajaId,
-    int CajaCodigo,
+    string CajaCodigo,
     string CajaNombre,
     int SucursalId)
 {

@@ -53,10 +53,19 @@ internal static class FabricaClienteCentral
         if (!Uri.TryCreate(configuracion[ClavesSincronizacion.UrlCentral], UriKind.Absolute, out var url))
             return new CentralNoConfigurado();
 
-        var sucursal = int.TryParse(configuracion[ClavesSincronizacion.CajaSucursal], out var s) ? s : 0;
-        var caja = int.TryParse(configuracion[ClavesSincronizacion.CajaCodigo], out var c) ? c : 0;
+        // Los códigos van con sus dos dígitos: así los espera el Central.
+        var sucursal = CodigoConfigurado.Codigo(configuracion[ClavesSincronizacion.CajaSucursal]);
+        var caja = CodigoConfigurado.Codigo(configuracion[ClavesSincronizacion.CajaCodigo]);
         return new ClienteCentralHttp(url, OpcionesSincronizacion.Leer(configuracion).TiempoEspera, sucursal, caja, configuracion[ClavesSincronizacion.SecretoCaja]);
     }
+}
+
+internal static class CodigoConfigurado
+{
+    public static string Codigo(string? valor) =>
+        int.TryParse(valor, out var numero) && numero is >= 1 and <= CgPos.Dominio.Comun.CodigosCatalogo.MaximoSucursalCaja
+            ? numero.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
 }
 
 internal sealed class CentralNoConfigurado : IClienteCentral
@@ -171,20 +180,20 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     private static readonly TimeSpan MargenRenovacion = TimeSpan.FromMinutes(1);
 
     private readonly HttpClient _http;
-    private readonly int _sucursalCodigo;
-    private readonly int _cajaCodigo;
+    private readonly string _sucursalCodigo;
+    private readonly string _cajaCodigo;
     private readonly string? _secreto;
     private readonly TimeProvider _reloj;
     private readonly SemaphoreSlim _bloqueoToken = new(1, 1);
     private string? _token;
     private DateTimeOffset _tokenVence;
 
-    public ClienteCentralHttp(Uri url, TimeSpan tiempoEspera, int sucursalCodigo, int cajaCodigo, string? secreto)
+    public ClienteCentralHttp(Uri url, TimeSpan tiempoEspera, string sucursalCodigo, string cajaCodigo, string? secreto)
         : this(new HttpClient(Manejador, disposeHandler: false) { BaseAddress = url, Timeout = tiempoEspera }, sucursalCodigo, cajaCodigo, secreto, TimeProvider.System)
     {
     }
 
-    internal ClienteCentralHttp(HttpClient http, int sucursalCodigo, int cajaCodigo, string? secreto, TimeProvider reloj)
+    internal ClienteCentralHttp(HttpClient http, string sucursalCodigo, string cajaCodigo, string? secreto, TimeProvider reloj)
     {
         _http = http;
         _sucursalCodigo = sucursalCodigo;
@@ -402,7 +411,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
 
     private async Task<(HttpResponseMessage? Respuesta, ResultadoEnvioCentral? Fallo)> SolicitarAsync(Func<HttpRequestMessage> crearSolicitud, CancellationToken cancelacion)
     {
-        if (_sucursalCodigo <= 0 || _cajaCodigo <= 0 || _secreto is null)
+        if (_sucursalCodigo.Length == 0 || _cajaCodigo.Length == 0 || _secreto is null)
             return (null, ResultadoEnvioCentral.SinConexion(
                 $"La caja no tiene credencial del Central ({ClavesSincronizacion.CajaSucursal}, {ClavesSincronizacion.CajaCodigo} y {ClavesSincronizacion.SecretoCaja})."));
 

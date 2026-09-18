@@ -21,7 +21,7 @@
                    ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id) is { } s ? $"{s.Codigo:00} · {s.Nombre}" : string.Empty)">
             @foreach (var sucursal in _sucursales)
             {
-                <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo.ToString("00") · @sucursal.Nombre</MudSelectItem>
+                <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
             }
         </MudSelect>
         <MudDatePicker @bind-Date="_fecha" Label="Día de operación" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 190px" />

@@ -218,8 +218,8 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
     }
 
     private async Task<(Dictionary<int, string> Sucursales, Dictionary<int, string> Cajas)> CodigosAsync(CancellationToken cancelacion) =>
-        (await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo.ToString("00"), cancelacion),
-            await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo.ToString("00"), cancelacion));
+        (await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion),
+            await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion));
 
     private static string Monto(decimal valor) => valor.ToString("N2", Cultura);
 

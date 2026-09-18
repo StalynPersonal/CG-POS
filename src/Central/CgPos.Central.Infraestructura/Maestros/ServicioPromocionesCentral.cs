@@ -104,7 +104,9 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
                 var valor = LeerDecimal(V("valor"), "valor") ?? (tipo == TipoPromocion.LlevaPaga ? 0m : throw new FormatException("Falta el valor."));
                 var articulosLinea = Lista(V("articulos")).ToList();
                 var departamentosLinea = Numeros(V("departamentos"), "departamentos");
-                var sucursalesLinea = Numeros(V("sucursales"), "sucursales");
+                // Los códigos de sucursal viajan como texto de dos dígitos, igual que en el resto del sistema.
+                var sucursalesLinea = Numeros(V("sucursales"), "sucursales")
+                    .Select(s => s.ToString("00", System.Globalization.CultureInfo.InvariantCulture)).ToList();
                 var categoriasLinea = Numeros(V("categorias"), "categorias");
                 var marcasLinea = Numeros(V("marcas"), "marcas");
                 if (articulosLinea.Count == 0 && departamentosLinea.Count == 0 && categoriasLinea.Count == 0 && marcasLinea.Count == 0)

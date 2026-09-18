@@ -15,12 +15,12 @@
     {
       "codigo": "PRINCIPAL",
       "nombre": "Almacén principal",
-      "sucursalCodigo": 1
+      "sucursalCodigo": "01"
     },
     {
       "codigo": "KENNEDY",
       "nombre": "Almacén Kennedy",
-      "sucursalCodigo": 1,
+      "sucursalCodigo": "01",
       "direccion": "Av. John F. Kennedy, Santo Domingo"
     }
   ],
@@ -753,48 +753,48 @@
   ],
   "secuenciasEcf": [
     {
-      "sucursalCodigo": 1,
-      "cajaCodigo": 1,
+      "sucursalCodigo": "01",
+      "cajaCodigo": "01",
       "tipoComprobante": "FacturaConsumo",
       "desde": 1,
       "hasta": 50000,
       "venceEn": "2027-12-31"
     },
     {
-      "sucursalCodigo": 1,
-      "cajaCodigo": 1,
+      "sucursalCodigo": "01",
+      "cajaCodigo": "01",
       "tipoComprobante": "FacturaCreditoFiscal",
       "desde": 1,
       "hasta": 5000,
       "venceEn": "2027-12-31"
     },
     {
-      "sucursalCodigo": 1,
-      "cajaCodigo": 1,
+      "sucursalCodigo": "01",
+      "cajaCodigo": "01",
       "tipoComprobante": "RegimenesEspeciales",
       "desde": 1,
       "hasta": 500,
       "venceEn": "2027-12-31"
     },
     {
-      "sucursalCodigo": 1,
-      "cajaCodigo": 1,
+      "sucursalCodigo": "01",
+      "cajaCodigo": "01",
       "tipoComprobante": "Gubernamental",
       "desde": 1,
       "hasta": 500,
       "venceEn": "2027-12-31"
     },
     {
-      "sucursalCodigo": 1,
-      "cajaCodigo": 1,
+      "sucursalCodigo": "01",
+      "cajaCodigo": "01",
       "tipoComprobante": "NotaCredito",
       "desde": 1,
       "hasta": 5000,
       "venceEn": "2027-12-31"
     },
     {
-      "sucursalCodigo": 1,
-      "cajaCodigo": 2,
+      "sucursalCodigo": "01",
+      "cajaCodigo": "02",
       "tipoComprobante": "FacturaConsumo",
       "desde": 50001,
       "hasta": 100000,

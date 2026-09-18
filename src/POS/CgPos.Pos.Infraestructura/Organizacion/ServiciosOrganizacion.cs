@@ -15,9 +15,9 @@ internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, ISer
 {
     private int? _cajaId;
 
-    public int? SucursalCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaSucursal);
+    public string? SucursalCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaSucursal);
 
-    public int? CajaCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaCodigo);
+    public string? CajaCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaCodigo);
 
     /// <summary>Se busca por los códigos y se recuerda una vez encontrada: la caja no cambia de Id en su base.</summary>
     public int? CajaId
@@ -37,7 +37,14 @@ internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, ISer
         }
     }
 
-    private int? Leer(string clave) => int.TryParse(configuracion[clave], out var valor) && valor > 0 ? valor : null;
+    /// <summary>
+    /// El código se configura como texto de dos dígitos («01»); se acepta escrito sin el cero delante y se usa con él, para
+    /// que coincida con el de la base.
+    /// </summary>
+    private string? Leer(string clave) =>
+        int.TryParse(configuracion[clave], out var valor) && valor is >= 1 and <= CgPos.Dominio.Comun.CodigosCatalogo.MaximoSucursalCaja
+            ? valor.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
+            : null;
 }
 
 internal sealed class ServicioParametros(ContextoDatosPos contexto) : IParametros
@@ -109,6 +116,6 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
         {
         }
 
-        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo.ToString("00"), datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
+        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
     }
 }

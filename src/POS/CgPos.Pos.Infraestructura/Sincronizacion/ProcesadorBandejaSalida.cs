@@ -32,7 +32,7 @@ internal sealed class ProcesadorBandejaSalida(
         if (!central.Configurado)
             return new ResultadoProcesoBandeja(0, 0, 0);
 
-        var (sucursalCodigo, cajaCodigo) = (contextoCaja.SucursalCodigo ?? 0, contextoCaja.CajaCodigo ?? 0);
+        var (sucursalCodigo, cajaCodigo) = (contextoCaja.SucursalCodigo ?? string.Empty, contextoCaja.CajaCodigo ?? string.Empty);
         var ahora = reloj.GetUtcNow();
 
         // Mensajes que quedaron en proceso por un cierre inesperado de la caja: se vuelven a enviar (el Central no los duplica).

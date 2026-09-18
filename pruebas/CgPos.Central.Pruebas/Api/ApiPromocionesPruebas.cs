@@ -26,14 +26,14 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var sufijo = articulo.Codigo[1..];
 
         var promocion = new PromocionCarga($"P{sufijo}", "Diez por ciento", TipoPromocion.Porcentaje, 10m, Inicio, Fin,
-            Articulos: [articulo.Codigo], Sucursales: [1]);
+            Articulos: [articulo.Codigo], Sucursales: ["01"]);
         var guardada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion);
         Assert.True(guardada.Cuerpo!.Exitosa, guardada.Cuerpo.Mensaje);
 
         Assert.Contains("No existe el artículo", (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones",
             promocion with { Articulos = [$"NOEXISTE{sufijo}"] })).Cuerpo!.Mensaje);
         Assert.Contains("No existe la sucursal", (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones",
-            promocion with { Sucursales = [99] })).Cuerpo!.Mensaje);
+            promocion with { Sucursales = ["99"] })).Cuerpo!.Mensaje);
         Assert.Contains("Ya existe", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion)).Cuerpo!.Mensaje);
 
         var listada = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
