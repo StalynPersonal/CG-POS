@@ -12,8 +12,8 @@ public static class EsquemaBaseDatosPruebas
     /// <param name="cadenaConexion">Conexión a la base temporal que se va a crear (su catálogo aún no existe).</param>
     /// <param name="script">Ruta del structura_base_datos.sql que corresponde a esa base.</param>
     /// <param name="sinAdministrador">
-    /// Quita el administrador que siembra el script, para que la prueba use los usuarios de su propia carga inicial.
-    /// El administrador del script se prueba aparte.
+    /// Quita la empresa y el administrador que siembra el script, para que la prueba use los de su propia carga inicial.
+    /// Lo que siembra el script se prueba aparte.
     /// </param>
     public static async Task CrearAsync(string cadenaConexion, string script, bool sinAdministrador = false,
         CancellationToken cancelacion = default)
@@ -45,7 +45,8 @@ public static class EsquemaBaseDatosPruebas
             return;
 
         await using var limpieza = new SqlCommand(
-            $"USE [{baseDatos}]; DELETE FROM [RolesCentralPermisos]; DELETE FROM [UsuariosCentral]; DELETE FROM [RolesCentral];", conexion);
+            $"USE [{baseDatos}]; DELETE FROM [RolesCentralPermisos]; DELETE FROM [UsuariosCentral]; DELETE FROM [RolesCentral]; DELETE FROM [Empresas];",
+            conexion);
         await limpieza.ExecuteNonQueryAsync(cancelacion);
     }
 

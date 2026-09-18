@@ -1918,8 +1918,22 @@ GO
         Usuario:    ADMIN
         Contraseña: Admin.CGPOS#2026
 
+   Revise antes de ejecutar: el RNC de la empresa (000000000).
+
    El sistema exige cambiarla en el primer ingreso.
    ------------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------------
+   Empresa: es la que sale en las facturas y la que se identifica ante la DGII.
+   El RNC no se cambia desde el Central; si el de aquí no es el correcto,
+   corrija el script ANTES de ejecutarlo. La razón social, el nombre comercial,
+   la dirección y el teléfono sí se editan luego en Organización → Empresa.
+   ------------------------------------------------------------------------ */
+
+INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono])
+VALUES (1, '000000000', N'CONTRERAS GROUP SRL', N'Contreras Group', N'Indique la dirección de la empresa', N'000-000-0000');
+ALTER SEQUENCE [SecuenciaEmpresas] RESTART WITH 11;
+GO
 
 INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo])
 VALUES (1, N'ADMINISTRADOR', N'Administrador', 1);
@@ -1950,7 +1964,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$Vfycww9dAJUqOf2hrjsG+g==$49+ysWQZQZDuZWhZU1oHumHpajGYi1YdMaeAMNHsHcE=', 1, NULL, 0, NULL, NULL);
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$FhVfcu/1cUQWFa2xdE23Pw==$xtwGW6nBNFM5utwvm72nr49QCraTTgn+YNcPe4FxIlk=', 1, NULL, 0, NULL, NULL);
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO
 
@@ -2115,4 +2129,3 @@ GO
 
 PRINT 'Base del Central creada. Entre al Central con el usuario ADMIN y cambie su contraseña.';
 GO
-use master;

@@ -23,6 +23,16 @@ import sys
 RAIZ = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SALIDA = os.path.join(RAIZ, 'scripts', 'base-datos')
 
+# Datos de la empresa con los que nace la base. El RNC identifica a la empresa ante la DGII y NO se puede cambiar
+# después desde el Central: revise estos valores antes de ejecutar el script en el servidor de producción.
+EMPRESA = {
+    'rnc': '000000000',
+    'razon_social': 'CONTRERAS GROUP SRL',
+    'nombre_comercial': 'Contreras Group',
+    'direccion': 'Indique la dirección de la empresa',
+    'telefono': '000-000-0000',
+}
+
 # Usuario administrador con el que se entra la primera vez al Central. La contraseña se cambia al ingresar.
 ADMIN_CODIGO = 'ADMIN'
 ADMIN_NOMBRE = 'Administrador del sistema'
@@ -290,6 +300,11 @@ def datos_iniciales():
     hash_admin = hash_contrasena(ADMIN_CONTRASENA)
     catalogos = catalogos_tecnicos()
     siguiente_parametros = siguiente_bloque(len(PARAMETROS_INICIALES))
+    rnc = EMPRESA['rnc']
+    razon_social = escapar(EMPRESA['razon_social'])
+    nombre_comercial = escapar(EMPRESA['nombre_comercial'])
+    direccion = escapar(EMPRESA['direccion'])
+    telefono = escapar(EMPRESA['telefono'])
     permisos = ',\n    '.join(f"(1, N'{permiso}')" for permiso in permisos_central())
     parametros = ',\n    '.join(
         f"({indice + 1}, N'{clave}', N'{valor}', N'{escapar(descripcion)}', NULL, NULL)"
@@ -306,8 +321,22 @@ def datos_iniciales():
         Usuario:    {ADMIN_CODIGO}
         Contraseña: {ADMIN_CONTRASENA}
 
+   Revise antes de ejecutar: el RNC de la empresa ({rnc}).
+
    El sistema exige cambiarla en el primer ingreso.
    ------------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------------
+   Empresa: es la que sale en las facturas y la que se identifica ante la DGII.
+   El RNC no se cambia desde el Central; si el de aquí no es el correcto,
+   corrija el script ANTES de ejecutarlo. La razón social, el nombre comercial,
+   la dirección y el teléfono sí se editan luego en Organización → Empresa.
+   ------------------------------------------------------------------------ */
+
+INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono])
+VALUES (1, '{rnc}', N'{razon_social}', N'{nombre_comercial}', N'{direccion}', N'{telefono}');
+ALTER SEQUENCE [SecuenciaEmpresas] RESTART WITH 11;
+GO
 
 INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo])
 VALUES (1, N'{ROL_CODIGO}', N'{ROL_NOMBRE}', 1);

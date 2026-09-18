@@ -1702,4 +1702,3 @@ GO
 
 PRINT 'Base de la caja creada. Configure la caja con su sucursal, su número y el secreto que emitió el Central.';
 GO
-use master;

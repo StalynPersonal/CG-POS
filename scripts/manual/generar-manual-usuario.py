@@ -153,17 +153,21 @@ p('El sistema no crea ni cambia bases de datos por su cuenta: la base se crea co
   'Esto lo hace una sola vez el personal de tecnología.')
 paso('En el servidor, abra SQL Server Management Studio (o use sqlcmd) y ejecute el archivo '
      'scripts/base-datos/central/structura_base_datos.sql. Crea la base CgPosCentral con todas sus tablas, llaves e índices.')
-paso('Ese mismo script deja lo mínimo para arrancar: el usuario administrador, los parámetros del negocio con valores '
-     'razonables y los catálogos que son iguales en cualquier negocio dominicano.')
+paso('Ese mismo script deja lo mínimo para arrancar: la empresa, el usuario administrador, los parámetros del negocio con '
+     'valores razonables y los catálogos que son iguales en cualquier negocio dominicano.')
+nota('Antes de ejecutar el script en el servidor de la empresa, revise en él el RNC: es el que sale en las facturas y ante '
+     'la DGII, y después no se puede cambiar desde el Central. La razón social, el nombre comercial, la dirección y el '
+     'teléfono sí se corrigen luego en Organización → Empresa.')
 tabla(['La base recién creada trae', 'No trae (lo crea usted)'],
-      [['Usuario administrador con todos los permisos', 'Empresa, sucursales y cajas'],
-       ['Parámetros con valores de arranque (plazos, topes, fidelidad, cuadre…)', 'Departamentos, categorías y marcas'],
-       ['Monedas: peso dominicano y dólar', 'Artículos y sus precios'],
-       ['Impuestos: ITBIS 18 %, 16 %, 0 % y exento', 'Clientes'],
-       ['Unidades de medida: unidad, libra, pie, yarda, galón', 'Bancos y almacenes'],
-       ['Denominaciones de billetes y monedas, para el cuadre', 'Promociones'],
-       ['Formas de pago: efectivo, tarjeta, transferencia, cheque, dólares, nota de crédito, bonos, puntos…', 'Rangos de comprobantes fiscales'],
-       ['Tipos de tarjeta y motivos de descuento y de devolución', 'Usuarios y roles de caja']],
+      [['Usuario administrador con todos los permisos', 'Sucursales y cajas'],
+       ['La empresa, con su RNC (revíselo antes de instalar)', 'Usuarios y roles de caja'],
+       ['Parámetros con valores de arranque (plazos, topes, fidelidad, cuadre…)', ''],
+       ['Monedas: peso dominicano y dólar', 'Departamentos, categorías y marcas'],
+       ['Impuestos: ITBIS 18 %, 16 %, 0 % y exento', 'Artículos y sus precios'],
+       ['Unidades de medida: unidad, libra, pie, yarda, galón', 'Clientes'],
+       ['Denominaciones de billetes y monedas, para el cuadre', 'Bancos y almacenes'],
+       ['Formas de pago: efectivo, tarjeta, transferencia, cheque, dólares, nota de crédito, bonos, puntos…', 'Promociones'],
+       ['Tipos de tarjeta y motivos de descuento y de devolución', 'Rangos de comprobantes fiscales']],
       anchos=[8.5, 8.5])
 paso('Configure la conexión del Central a esa base (lo hace tecnología en el archivo de configuración del servidor) y levante el Central.')
 paso('Abra el Central en el navegador y entre con el administrador:')
@@ -179,7 +183,7 @@ titulo('2.2. Lo mínimo que debe existir antes de abrir una caja', 2)
 p('La caja no inventa nada: todo lo que usa baja del Central. Si el Central está vacío, la caja no puede ni abrir turno. '
   'Antes de poner a vender una caja, en el Central debe estar creado y configurado esto:')
 tabla(['Qué', 'Dónde se hace', 'Por qué hace falta'],
-      [['Empresa, sucursal y caja', 'Organización', 'La caja se identifica por su sucursal y su número; sin eso no se conecta.'],
+      [['Sucursal y caja', 'Organización', 'La caja se identifica por su sucursal y su número; sin eso no se conecta. La empresa ya viene creada: revise sus datos.'],
        ['Credencial de la caja', 'Organización → Cajas', 'Es la clave con la que la caja se comunica con el Central.'],
        ['Parámetros del negocio', 'Organización → Parámetros', 'Fondo de caja, redondeo, vigencia de notas de crédito, retención, plazos. Si falta uno obligatorio, la operación se rechaza.'],
        ['Catálogos', 'Maestros → Catálogos', 'Moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, motivos de descuento y de devolución.'],

@@ -33,6 +33,10 @@ public class EstructuraBaseDatosPruebas
             await using var conexion = new SqlConnection(cadena);
             await conexion.OpenAsync();
 
+            // La empresa queda creada, para que el Central tenga con qué facturar desde el primer día.
+            await using var empresa = new SqlCommand("SELECT COUNT(*) FROM Empresas WHERE LEN(Rnc) = 9", conexion);
+            Assert.Equal(1, (int)(await empresa.ExecuteScalarAsync())!);
+
             // El usuario administrador queda activo, obligado a cambiar su contraseña y con el rol que tiene todos los permisos.
             var (activo, debeCambiar, hash, permisos) = await LeerAdministradorAsync(conexion);
             Assert.True(activo);
