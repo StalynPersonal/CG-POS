@@ -5,16 +5,19 @@
     <DialogContent>
         <div class="cg-central__dialogo">
             <MudSelect T="int?" @bind-Value="_sucursalId" Label="Sucursal" Placeholder="Seleccione la sucursal" Variant="Variant.Outlined"
-                       Disabled="@(Caja is not null)" ToStringFunc="NombreSucursal">
+                       Disabled="@(Caja is not null)" ToStringFunc="NombreSucursal" Required="true" RequiredError="Seleccione la sucursal de la caja.">
                 @foreach (var sucursal in Sucursales.Where(s => s.Activa || s.Id == Caja?.SucursalId))
                 {
                     <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
             <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Caja is not null)" MaxLength="2"
+                          Required="true" RequiredError="Indique el código de la caja." Immediate="true"
                           HelperText="Dos dígitos, de 01 a 99 y único en la sucursal; forma parte del número de los documentos." />
-            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined"
+                          Required="true" RequiredError="Indique el nombre de la caja." Immediate="true" />
             <MudTextField T="string" @bind-Value="_direccionIp" Label="Dirección IP" Variant="Variant.Outlined" MaxLength="45"
+                          Required="true" RequiredError="Indique la dirección IP de la caja." Immediate="true"
                           HelperText="La IP fija del equipo de esta caja (por ejemplo 10.12.1.101). Debe ser la misma que se configure en la caja." />
             @if (_mensaje is not null)
             {
@@ -24,7 +27,8 @@
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="GuardarAsync"
+                   Disabled="@(_procesando || _sucursalId is null || Faltante() is not null)">Guardar</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -40,6 +44,13 @@
     private string? _direccionIp;
     private string? _mensaje;
     private bool _procesando;
+
+    /// <returns>Qué falta por llenar, o nulo si está completo.</returns>
+    private string? Faltante() =>
+        _codigo is not { Length: > 0 } ? "Indique el código de la caja."
+        : _nombre is not { Length: > 0 } ? "Indique el nombre de la caja."
+        : _direccionIp is not { Length: > 0 } ? "Indique la dirección IP de la caja."
+        : null;
 
     private string NombreSucursal(int? sucursalId) =>
         Sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : string.Empty;
@@ -60,6 +71,13 @@
         if (_sucursalId is not { } sucursalId)
         {
             _mensaje = "Seleccione la sucursal de la caja.";
+            return;
+        }
+
+        // Los cuatro datos son obligatorios: sin ellos la caja no se puede identificar ante el Central.
+        if (Faltante() is { Length: > 0 } falta)
+        {
+            _mensaje = falta;
             return;
         }
 

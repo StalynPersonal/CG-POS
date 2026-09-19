@@ -1,4 +1,4 @@
-@page "/configurar"
+﻿@page "/configurar"
 @inject ClienteAgente Cliente
 @inject NavigationManager Navegacion
 
@@ -36,20 +36,21 @@
 
             <div class="cg-configurar__fila">
                 <MudTextField T="string" @bind-Value="_sucursal" Label="Código de sucursal" Variant="Variant.Outlined" MaxLength="2"
-                              Placeholder="01" Immediate="true" />
+                              Placeholder="01" Immediate="true" Required="true" RequiredError="Indique el código de la sucursal." />
                 <MudTextField T="string" @bind-Value="_caja" Label="Código de caja" Variant="Variant.Outlined" MaxLength="2"
-                              Placeholder="01" Immediate="true" />
+                              Placeholder="01" Immediate="true" Required="true" RequiredError="Indique el código de la caja." />
             </div>
 
             <MudTextField T="string" @bind-Value="_direccionIp" Label="IP de esta caja" Variant="Variant.Outlined" MaxLength="45"
-                          Placeholder="10.12.1.101" Immediate="true" Class="mt-3"
+                          Placeholder="10.12.1.101" Immediate="true" Class="mt-3" Required="true" RequiredError="Indique la IP de esta caja."
                           HelperText="La misma que está registrada en el Central para esta caja." />
 
             <MudTextField T="string" @bind-Value="_urlCentral" Label="Servidor Central" Variant="Variant.Outlined" MaxLength="250"
-                          Placeholder="https://central.empresa.com.do" Immediate="true" Class="mt-3" />
+                          Placeholder="https://central.empresa.com.do" Immediate="true" Class="mt-3"
+                          Required="true" RequiredError="Indique la dirección del Central." />
 
             <MudTextField T="string" @bind-Value="_secreto" Label="Credencial" Variant="Variant.Outlined" MaxLength="500"
-                          InputType="InputType.Password" Immediate="true" Class="mt-3"
+                          InputType="InputType.Password" Immediate="true" Class="mt-3" Required="true" RequiredError="Escriba la credencial que emitió el Central."
                           HelperText="Se guarda cifrada en este equipo; no se vuelve a mostrar." />
 
             <MudTextField T="string" @bind-Value="_configuradaPor" Label="Quién configura (opcional)" Variant="Variant.Outlined" MaxLength="150"
