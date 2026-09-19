@@ -15,10 +15,18 @@ namespace CgPos.Pos.Infraestructura.Sincronizacion;
 
 /// <summary>Valores técnicos de la sincronización; cada instalación los ajusta en appsettings.</summary>
 /// <param name="CarpetaXml">Carpeta base de los XML de e-CF (Pendientes y Enviados).</param>
-internal sealed record OpcionesSincronizacion(TimeSpan Intervalo, int TamanoLote, TimeSpan EsperaInicial, TimeSpan EsperaMaxima, TimeSpan TiempoEspera, string CarpetaXml)
+internal sealed record OpcionesSincronizacion(
+    TimeSpan Intervalo,
+    TimeSpan IntervaloMaestros,
+    int TamanoLote,
+    TimeSpan EsperaInicial,
+    TimeSpan EsperaMaxima,
+    TimeSpan TiempoEspera,
+    string CarpetaXml)
 {
     public static OpcionesSincronizacion Leer(IConfiguration configuracion) => new(
         TimeSpan.FromSeconds(Math.Max(1, Entero(configuracion, ClavesSincronizacion.IntervaloSegundos, 30))),
+        TimeSpan.FromSeconds(Math.Max(1, Entero(configuracion, ClavesSincronizacion.IntervaloMaestrosSegundos, 300))),
         Math.Clamp(Entero(configuracion, ClavesSincronizacion.TamanoLote, 50), 1, 500),
         TimeSpan.FromSeconds(Math.Max(1, Entero(configuracion, ClavesSincronizacion.EsperaInicialSegundos, 30))),
         TimeSpan.FromSeconds(Math.Max(1, Entero(configuracion, ClavesSincronizacion.EsperaMaximaSegundos, 3600))),
@@ -28,18 +36,6 @@ internal sealed record OpcionesSincronizacion(TimeSpan Intervalo, int TamanoLote
     private static int Entero(IConfiguration configuracion, string clave, int predeterminado) =>
         int.TryParse(configuracion[clave], NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor) ? valor : predeterminado;
 
-    /// <summary>
-    /// Espera antes del próximo intento: se duplica con cada fallo sin conexión hasta el máximo. Un rechazo explícito del Central espera el máximo:
-    /// no se resuelve reintentando enseguida.
-    /// </summary>
-    public TimeSpan Espera(int intentos, bool rechazado)
-    {
-        if (rechazado)
-            return EsperaMaxima;
-
-        var segundos = EsperaInicial.TotalSeconds * Math.Pow(2, Math.Max(0, intentos - 1));
-        return TimeSpan.FromSeconds(Math.Min(segundos, EsperaMaxima.TotalSeconds));
-    }
 }
 
 internal static class FabricaClienteCentral

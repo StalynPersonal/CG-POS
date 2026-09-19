@@ -1,4 +1,4 @@
-namespace CgPos.Pos.Aplicacion.Sincronizacion;
+﻿namespace CgPos.Pos.Aplicacion.Sincronizacion;
 
 /// <summary>Claves de configuración del mantenimiento de la caja (por instalación, en appsettings).</summary>
 public static class ClavesMantenimiento
@@ -46,5 +46,5 @@ public interface IServicioMantenimiento
     Task<IReadOnlyList<string>> ObtenerAlertasAsync(CancellationToken cancelacion = default);
 
     /// <summary>Toca el respaldo diario: está activo, ya pasó la hora configurada y hoy no hay uno correcto.</summary>
-    bool CorrespondeRespaldo(DateTimeOffset ahoraLocal);
+    Task<bool> CorrespondeRespaldoAsync(DateTimeOffset ahoraLocal, CancellationToken cancelacion = default);
 }

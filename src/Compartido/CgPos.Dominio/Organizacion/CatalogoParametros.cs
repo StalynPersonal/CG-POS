@@ -143,6 +143,15 @@ public static class CatalogoParametros
 
         new("Entregas.PoliticaPendiente", "Entregas", "Política impresa en el voucher de pendiente de entrega o envío", Texto, false),
 
+        new("Sincronizacion.IntervaloSegundos", "Sincronización y mantenimiento", "Segundos entre ciclos de sincronización de la caja con el Central", Entero, false, Minimo: 5, Maximo: 3600),
+        new("Sincronizacion.IntervaloMaestrosSegundos", "Sincronización y mantenimiento", "Segundos entre descargas de maestros del Central", Entero, false, Minimo: 30, Maximo: 86400),
+        new("Sincronizacion.TamanoLote", "Sincronización y mantenimiento", "Mensajes que la caja envía al Central por ciclo", Entero, false, Minimo: 1, Maximo: 500),
+        new("Sincronizacion.EsperaInicialSegundos", "Sincronización y mantenimiento", "Espera tras el primer fallo de comunicación; se duplica con cada intento", Entero, false, Minimo: 1, Maximo: 3600),
+        new("Sincronizacion.EsperaMaximaSegundos", "Sincronización y mantenimiento", "Tope de la espera entre reintentos de sincronización", Entero, false, Minimo: 1, Maximo: 86400),
+        new("Sincronizacion.TiempoEsperaSegundos", "Sincronización y mantenimiento", "Segundos que la caja espera una respuesta del Central antes de darla por perdida", Entero, false, Minimo: 1, Maximo: 300),
+        new("Mantenimiento.IntervaloMinutos", "Sincronización y mantenimiento", "Minutos entre ciclos de mantenimiento de la caja (respaldo, purga y hora)", Entero, false, Minimo: 1, Maximo: 1440),
+        new("Respaldo.Hora", "Sincronización y mantenimiento", "Hora del día (0 a 23) desde la que la caja hace su respaldo diario", Entero, false, Minimo: 0, Maximo: 23),
+        new("Reloj.ServidorNtp", "Sincronización y mantenimiento", "Servidor de hora contra el que la caja compara su reloj", Texto, false),
         new("Sincronizacion.DiasRetencionXmlEnviados", "Sincronización y mantenimiento", "Días que la caja conserva los XML ya confirmados por el Central", Entero, false, Minimo: 1),
         new("Sincronizacion.DiasRetencionMensajesConfirmados", "Sincronización y mantenimiento", "Días que la caja conserva los mensajes ya confirmados de la bandeja de salida", Entero, false, Minimo: 1),
         new("Sincronizacion.AlertaTamanoBaseDatosMb", "Sincronización y mantenimiento", "Tamaño de la base de la caja (MB) desde el que se alerta", Entero, false, Minimo: 1),

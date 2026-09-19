@@ -21,6 +21,7 @@ internal sealed class ProcesadorBandejaSalida(
     IClienteCentral central,
     IEstadoConexionCentral conexion,
     IContextoCaja contextoCaja,
+    IRitmosOperacion ritmos,
     OpcionesSincronizacion opciones,
     TimeProvider reloj,
     ILogger<ProcesadorBandejaSalida> registro) : IProcesadorBandejaSalida
@@ -34,6 +35,7 @@ internal sealed class ProcesadorBandejaSalida(
             return new ResultadoProcesoBandeja(0, 0, 0);
 
         var (sucursalCodigo, cajaCodigo) = (contextoCaja.SucursalCodigo ?? string.Empty, contextoCaja.CajaCodigo ?? string.Empty);
+        var esperas = await ritmos.EsperasAsync(cancelacion);
         var ahora = reloj.Ahora();
 
         // Mensajes que quedaron en proceso por un cierre inesperado de la caja: se vuelven a enviar (el Central no los duplica).
@@ -46,7 +48,7 @@ internal sealed class ProcesadorBandejaSalida(
         var mensajes = await contexto.BandejaSalida
             .Where(m => (m.Estado == EstadoMensajeSalida.Pendiente || m.Estado == EstadoMensajeSalida.Error) && m.ProximoIntentoEn <= ahora)
             .OrderBy(m => m.CreadoEn)
-            .Take(opciones.TamanoLote)
+            .Take(await ritmos.TamanoLoteAsync(cancelacion))
             .ToListAsync(cancelacion);
 
         var confirmados = 0;
@@ -81,7 +83,7 @@ internal sealed class ProcesadorBandejaSalida(
             }
 
             var error = resultado.Error ?? "El Central no confirmó la recepción.";
-            mensaje.RegistrarFallo(error, momento + opciones.Espera(mensaje.Intentos, rechazado: resultado.CentralRespondio));
+            mensaje.RegistrarFallo(error, momento + esperas.Para(mensaje.Intentos, rechazado: resultado.CentralRespondio));
             await contexto.SaveChangesAsync(cancelacion);
             fallidos++;
 

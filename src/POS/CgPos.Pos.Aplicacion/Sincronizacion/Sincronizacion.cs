@@ -52,6 +52,44 @@ public sealed record ResultadoEnvioCentral(bool Confirmado, bool CentralRespondi
 /// <param name="Mensaje">Qué falta, en palabras, para el registro y la pantalla de estado.</param>
 public sealed record EstadoCredencialCaja(bool Lista, string? Mensaje = null);
 
+/// <summary>Cuánto espera la caja entre reintentos cuando el Central no responde.</summary>
+/// <param name="Inicial">Espera tras el primer fallo; se duplica con cada intento hasta la máxima.</param>
+public sealed record OpcionesEspera(TimeSpan Inicial, TimeSpan Maxima)
+{
+    /// <summary>
+    /// Espera antes del próximo intento. Un rechazo explícito del Central espera el máximo: no se resuelve reintentando
+    /// enseguida, porque el mensaje no va a cambiar.
+    /// </summary>
+    public TimeSpan Para(int intentos, bool rechazado) =>
+        rechazado
+            ? Maxima
+            : TimeSpan.FromSeconds(Math.Min(Inicial.TotalSeconds * Math.Pow(2, Math.Max(0, intentos - 1)), Maxima.TotalSeconds));
+}
+
+/// <summary>
+/// Cada cuánto trabaja la caja por dentro. Son reglas del negocio: se configuran en el Central (en general, por sucursal o
+/// por caja) y se leen en cada ciclo, así que cambiarlas allá las cambia aquí sin reiniciar nada.
+/// </summary>
+public interface IRitmosOperacion
+{
+    Task<TimeSpan> IntervaloSincronizacionAsync(CancellationToken cancelacion = default);
+
+    Task<TimeSpan> IntervaloMaestrosAsync(CancellationToken cancelacion = default);
+
+    Task<TimeSpan> IntervaloMantenimientoAsync(CancellationToken cancelacion = default);
+
+    /// <summary>Mensajes que se envían al Central por ciclo.</summary>
+    Task<int> TamanoLoteAsync(CancellationToken cancelacion = default);
+
+    Task<OpcionesEspera> EsperasAsync(CancellationToken cancelacion = default);
+
+    /// <summary>Hora del día desde la que toca el respaldo diario; nula si el negocio no lo activó.</summary>
+    Task<int?> HoraRespaldoAsync(CancellationToken cancelacion = default);
+
+    /// <summary>Servidor de hora contra el que se compara el reloj; nulo si no se verifica.</summary>
+    Task<string?> ServidorHoraAsync(CancellationToken cancelacion = default);
+}
+
 public interface IClienteCentral
 {
     bool Configurado { get; }

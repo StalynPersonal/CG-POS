@@ -105,10 +105,11 @@ public class CentralPruebas : IDisposable
             [ClavesSincronizacion.EsperaMaximaSegundos] = "300",
         }).Build());
 
-        Assert.Equal(TimeSpan.FromSeconds(30), opciones.Espera(1, rechazado: false));
-        Assert.Equal(TimeSpan.FromSeconds(120), opciones.Espera(3, rechazado: false));
-        Assert.Equal(TimeSpan.FromSeconds(300), opciones.Espera(10, rechazado: false));
-        Assert.Equal(TimeSpan.FromSeconds(300), opciones.Espera(1, rechazado: true));
+        var esperas = new OpcionesEspera(opciones.EsperaInicial, opciones.EsperaMaxima);
+        Assert.Equal(TimeSpan.FromSeconds(30), esperas.Para(1, rechazado: false));
+        Assert.Equal(TimeSpan.FromSeconds(120), esperas.Para(3, rechazado: false));
+        Assert.Equal(TimeSpan.FromSeconds(300), esperas.Para(10, rechazado: false));
+        Assert.Equal(TimeSpan.FromSeconds(300), esperas.Para(1, rechazado: true));
     }
 
     [Fact]

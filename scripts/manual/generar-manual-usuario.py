@@ -202,7 +202,7 @@ tabla(['Opción', 'Ruta', 'Para qué sirve'],
        ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal. El código es de dos dígitos (01 a 99), no cambia después de crearla y es el que sale en los números de documento.'],
        ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas, ver a qué equipo está atada cada una y liberar el equipo cuando la caja se muda a otra máquina. El código también es de dos dígitos (01 a 99) y único dentro de su sucursal.'],
        ['Solicitudes de cajas', '/organizacion/solicitudes-cajas', 'Cajas recién instaladas que piden entrar al Central. Al aceptar una se le entrega su credencial y queda atada a ese equipo.'],
-       ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad… Se pueden fijar en general, por sucursal o por caja.'],
+       ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad, y también cada cuánto la caja sincroniza, se mantiene y respalda. Se pueden fijar en general, por sucursal o por caja.'],
        ['Actualizaciones', '/organizacion/actualizaciones', 'Versión publicada del programa de las cajas y en qué versión está cada una.']],
       anchos=[3.8, 5.0, 8.2])
 
@@ -418,6 +418,10 @@ tabla(['Parámetro', 'Valor sugerido', 'Por qué'],
       anchos=[5.0, 3.0, 9.0])
 nota('Los parámetros obligatorios que no tengan valor se avisan arriba en la pantalla de Parámetros, y la operación que los '
      'necesita se rechaza hasta configurarlos.')
+nota('En el módulo «Sincronización y mantenimiento» también se configura el ritmo de la caja: cada cuántos segundos sincroniza, '
+     'cada cuánto baja los maestros, desde qué hora respalda y contra qué servidor verifica su reloj. Se leen en cada ciclo, así '
+     'que cambiarlos aquí se nota en las cajas sin reinstalar ni reiniciar nada. Si no los configura, cada caja usa los valores '
+     'con que fue instalada.')
 
 titulo('2.8. Promociones', 2)
 viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde cierta cantidad; '

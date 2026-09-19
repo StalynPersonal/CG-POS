@@ -1,4 +1,4 @@
-using CgPos.Pos.Aplicacion.Sincronizacion;
+﻿using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Agente.Sincronizacion;
@@ -7,13 +7,15 @@ namespace CgPos.Pos.Agente.Sincronizacion;
 /// Mantenimiento periódico dentro del Agente: verifica la hora con el servidor NTP, toma el respaldo diario de la base cuando corresponde y
 /// purga lo que el Central ya confirmó. Un fallo se registra y se reintenta en el próximo ciclo.
 /// </summary>
-public sealed class TrabajadorMantenimiento(IServiceScopeFactory ambitos, IConfiguration configuracion, TimeProvider reloj, ILogger<TrabajadorMantenimiento> registro)
+public sealed class TrabajadorMantenimiento(IServiceScopeFactory ambitos, TimeProvider reloj, ILogger<TrabajadorMantenimiento> registro)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken detener)
     {
-        var intervalo = TimeSpan.FromMinutes(Math.Max(1, configuracion.GetValue(ClavesMantenimiento.IntervaloMinutos, 60)));
-        using var temporizador = new PeriodicTimer(intervalo);
+        // El ciclo se mide corto y el intervalo real se consulta en cada vuelta: así, cambiarlo en el Central se nota
+        // enseguida en las cajas, sin reiniciar el servicio.
+        using var temporizador = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        var proximo = DateTimeOffset.MinValue;
 
         do
         {
@@ -21,12 +23,19 @@ public sealed class TrabajadorMantenimiento(IServiceScopeFactory ambitos, IConfi
             {
                 await using var ambito = ambitos.CreateAsyncScope();
                 var mantenimiento = ambito.ServiceProvider.GetRequiredService<IServicioMantenimiento>();
+                var ritmos = ambito.ServiceProvider.GetRequiredService<IRitmosOperacion>();
+
+                var ahora = reloj.Ahora();
+                if (ahora < proximo)
+                    continue;
+
+                proximo = ahora + await ritmos.IntervaloMantenimientoAsync(detener);
 
                 var hora = await mantenimiento.VerificarHoraAsync(detener);
                 if (!hora.Verificada && hora.Servidor is not null)
                     registro.LogInformation("Hora no verificada: {Error}", hora.Error);
 
-                if (mantenimiento.CorrespondeRespaldo(reloj.Ahora()))
+                if (await mantenimiento.CorrespondeRespaldoAsync(reloj.Ahora(), detener))
                     await mantenimiento.RespaldarAsync(detener);
 
                 await mantenimiento.PurgarAsync(detener);

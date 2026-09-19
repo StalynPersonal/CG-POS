@@ -61,6 +61,33 @@ public static class ClavesParametros
     /// <summary>Código ISO de la moneda local de la caja; debe existir activa en el maestro de monedas.</summary>
     public const string MonedaLocal = "General.MonedaLocal";
 
+    /// <summary>Segundos entre ciclos de sincronización con el Central. Opcional: sin él, el valor de la instalación.</summary>
+    public const string IntervaloSincronizacionSegundos = "Sincronizacion.IntervaloSegundos";
+
+    /// <summary>Segundos entre descargas de maestros del Central. Opcional: sin él, el valor de la instalación.</summary>
+    public const string IntervaloMaestrosSegundos = "Sincronizacion.IntervaloMaestrosSegundos";
+
+    /// <summary>Mensajes que la caja envía al Central por ciclo. Opcional: sin él, el valor de la instalación.</summary>
+    public const string TamanoLoteSincronizacion = "Sincronizacion.TamanoLote";
+
+    /// <summary>Segundos de espera tras el primer fallo de comunicación; se duplica con cada intento. Opcional.</summary>
+    public const string EsperaInicialSegundos = "Sincronizacion.EsperaInicialSegundos";
+
+    /// <summary>Tope de la espera entre reintentos, en segundos. Opcional.</summary>
+    public const string EsperaMaximaSegundos = "Sincronizacion.EsperaMaximaSegundos";
+
+    /// <summary>Segundos que la caja espera una respuesta del Central antes de darla por perdida. Opcional.</summary>
+    public const string TiempoEsperaCentralSegundos = "Sincronizacion.TiempoEsperaSegundos";
+
+    /// <summary>Minutos entre ciclos de mantenimiento (respaldo, purga y verificación de la hora). Opcional.</summary>
+    public const string IntervaloMantenimientoMinutos = "Mantenimiento.IntervaloMinutos";
+
+    /// <summary>Hora del día (0 a 23) a partir de la cual se hace el respaldo diario. Opcional: sin él no se respalda solo.</summary>
+    public const string HoraRespaldo = "Respaldo.Hora";
+
+    /// <summary>Servidor de hora contra el que se compara el reloj de la caja. Opcional: sin él no se verifica.</summary>
+    public const string ServidorHora = "Reloj.ServidorNtp";
+
     /// <summary>Días que la caja conserva los XML de e-CF ya confirmados por el Central (carpeta Enviados). Opcional: sin él no se purgan.</summary>
     public const string DiasRetencionXmlEnviados = "Sincronizacion.DiasRetencionXmlEnviados";
 

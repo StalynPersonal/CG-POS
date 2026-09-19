@@ -36,14 +36,15 @@ internal sealed class ServicioMantenimiento(
     IContextoCaja contextoCaja,
     OpcionesSincronizacion opcionesSincronizacion,
     OpcionesMantenimiento opciones,
+    IRitmosOperacion ritmos,
     EstadoMantenimiento estado,
     TimeProvider reloj,
     ILogger<ServicioMantenimiento> registro) : IServicioMantenimiento
 {
     private string NombreBaseDatos => contexto.Database.GetDbConnection().Database;
 
-    public bool CorrespondeRespaldo(DateTimeOffset ahoraLocal) =>
-        opciones.HoraRespaldo is { } hora
+    public async Task<bool> CorrespondeRespaldoAsync(DateTimeOffset ahoraLocal, CancellationToken cancelacion = default) =>
+        await ritmos.HoraRespaldoAsync(cancelacion) is { } hora
         && ahoraLocal.Hour >= hora
         && (estado.UltimoRespaldoCorrecto is not { } ultimo || TimeZoneInfo.ConvertTime(ultimo, reloj.LocalTimeZone).Date < ahoraLocal.Date);
 
