@@ -908,7 +908,7 @@ CREATE TABLE [Cajas] (
     [SucursalId] int NOT NULL,
     [Codigo] char(2) NOT NULL,
     [Nombre] nvarchar(100) NOT NULL,
-    [DireccionIp] varchar(45) NULL,
+    [DireccionIp] varchar(45) NOT NULL,
     [Habilitada] bit NOT NULL,
     [ModificadoEn] datetimeoffset(3) NOT NULL,
     [ModificadoPor] nvarchar(150) NOT NULL,

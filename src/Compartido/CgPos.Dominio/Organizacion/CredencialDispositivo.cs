@@ -9,8 +9,6 @@ namespace CgPos.Dominio.Organizacion;
 public sealed class CredencialDispositivo : Entidad
 {
     public const int LargoHashSecreto = 64;
-    public const int LargoHuella = 64;
-    public const int LargoMaximoNombreEquipo = 100;
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoMotivo = 250;
     public const int LargoMaximoIp = 45;
@@ -31,18 +29,7 @@ public sealed class CredencialDispositivo : Entidad
     public DateTimeOffset? UltimoUsoEn { get; private set; }
     public string? UltimaIp { get; private set; }
 
-    /// <summary>Equipo al que quedó atada la credencial. Nula mientras no se haya fijado: la primera caja que la use se queda con ella.</summary>
-    public string? HuellaEquipo { get; private set; }
-
-    /// <summary>Nombre del equipo cuando se fijó, para que en el Central se sepa de qué máquina se trata.</summary>
-    public string? NombreEquipo { get; private set; }
-
-    public DateTimeOffset? EquipoFijadoEn { get; private set; }
-
     public bool Activa => RevocadaEn is null;
-
-    /// <summary>Ya está atada a un equipo: cualquier otro que presente esta credencial se rechaza.</summary>
-    public bool TieneEquipo => HuellaEquipo is { Length: > 0 };
 
     public static CredencialDispositivo Emitir(int cajaId, string secretoHash, DateTimeOffset ahora, string emitidaPor)
     {
@@ -66,33 +53,6 @@ public sealed class CredencialDispositivo : Entidad
         MotivoRevocacion = Validar.Texto(motivo, "Motivo de revocación", LargoMaximoMotivo);
         RevocadaEn = ahora;
     }
-
-    /// <summary>Ata la credencial a un equipo. Solo se hace una vez: para cambiar de equipo hay que liberarla primero.</summary>
-    public void FijarEquipo(string huellaEquipo, string nombreEquipo, DateTimeOffset ahora)
-    {
-        if (TieneEquipo)
-            throw new InvalidOperationException("La credencial ya está fijada a un equipo: libérela antes de fijarla a otro.");
-
-        var huella = (huellaEquipo ?? string.Empty).Trim();
-        if (huella.Length != LargoHuella || !huella.All(char.IsAsciiHexDigit))
-            throw new ArgumentException($"La huella del equipo debe ser hexadecimal de {LargoHuella} caracteres.", nameof(huellaEquipo));
-
-        HuellaEquipo = huella.ToUpperInvariant();
-        NombreEquipo = Validar.Texto(nombreEquipo, "Nombre del equipo", LargoMaximoNombreEquipo);
-        EquipoFijadoEn = ahora;
-    }
-
-    /// <summary>Suelta la credencial del equipo, para poder instalar la caja en otro sin emitir una credencial nueva.</summary>
-    public void LiberarEquipo()
-    {
-        HuellaEquipo = null;
-        NombreEquipo = null;
-        EquipoFijadoEn = null;
-    }
-
-    /// <summary>Sin equipo fijado, cualquiera pasa; con equipo fijado, solo ese. Una caja que no manda huella nunca coincide.</summary>
-    public bool CoincideEquipo(string? huellaEquipo) =>
-        !TieneEquipo || string.Equals(HuellaEquipo, huellaEquipo?.Trim().ToUpperInvariant(), StringComparison.Ordinal);
 
     public void RegistrarUso(DateTimeOffset ahora, string? direccionIp)
     {
