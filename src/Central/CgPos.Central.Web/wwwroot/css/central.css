@@ -154,10 +154,13 @@ html, body {
     background: var(--cg-fondo, #f6f8f6);
 }
 
+/* La dirección trae una sucursal que no existe: se centra el aviso y no se dibuja nada más. */
+.cg-chequeador--error { justify-content: center; text-align: center; }
+
 .cg-chequeador__encabezado { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
 /* Nombre de la sucursal del equipo: se lee, no se elige. */
-.cg-chequeador__sucursal { color: var(--cg-textoo-secundario); }
+.cg-chequeador__sucursal { color: var(--cg-texto-secundario); }
 
 .cg-chequeador__escaneo {
     display: flex;

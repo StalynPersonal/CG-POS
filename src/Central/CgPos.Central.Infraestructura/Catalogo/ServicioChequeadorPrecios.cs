@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Central.Aplicacion.Catalogo;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -30,41 +30,54 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
             return null;
 
         // Se busca por código interno, de barras, de proveedor o referencia: el cliente escanea lo que trae el empaque.
-        // Los precios son propiedades sombra del artículo, así que se proyectan en la misma consulta.
+        // Todo va en una sola consulta —incluida la unidad de medida y los precios, que son propiedades sombra— y se
+        // proyecta solo lo que la pantalla usa: el cliente está parado frente al equipo esperando el precio.
         var encontrado = await contexto.Articulos.AsNoTracking()
             .Where(a => a.Activo && a.VentaEnPos
                 && (a.Codigo == buscado || a.Referencia == buscado || a.Codigos.Any(c => c.Codigo == buscado)))
-            .Select(a => new
-            {
-                Articulo = a,
-                Precio = EF.Property<decimal>(a, ArticuloConfiguracion.PrecioDetalle),
-                PrecioMayor = EF.Property<decimal?>(a, ArticuloConfiguracion.PrecioMayor),
-            })
+            .Select(a => new DatosArticuloChequeador(
+                a.Id,
+                a.Codigo,
+                a.Descripcion,
+                contexto.UnidadesMedida.Where(u => u.Id == a.UnidadMedidaId).Select(u => u.Nombre).FirstOrDefault() ?? string.Empty,
+                EF.Property<decimal>(a, ArticuloConfiguracion.PrecioDetalle),
+                a.AplicaPrecioMayor ? EF.Property<decimal?>(a, ArticuloConfiguracion.PrecioMayor) : null,
+                a.AplicaPrecioMayor ? a.CantidadMinimaMayor : null,
+                a.RutaImagen,
+                a.DepartamentoId,
+                a.CategoriaId,
+                a.MarcaId))
             .FirstOrDefaultAsync(cancelacion);
         if (encontrado is null)
             return null;
 
-        var articulo = encontrado.Articulo;
-        var precio = encontrado.Precio;
-        var precioMayor = encontrado.PrecioMayor;
-        var unidad = await contexto.UnidadesMedida.AsNoTracking()
-            .Where(u => u.Id == articulo.UnidadMedidaId)
-            .Select(u => u.Nombre)
-            .FirstOrDefaultAsync(cancelacion) ?? string.Empty;
-
         return new DatosPrecioChequeador(
-            articulo.Codigo,
-            articulo.Descripcion,
-            unidad,
-            precio,
-            articulo.AplicaPrecioMayor ? precioMayor : null,
-            articulo.AplicaPrecioMayor ? articulo.CantidadMinimaMayor : null,
-            articulo.RutaImagen,
-            await OfertasAsync(articulo, sucursalId, precio, cancelacion));
+            encontrado.Codigo,
+            encontrado.Descripcion,
+            encontrado.UnidadMedida,
+            encontrado.Precio,
+            encontrado.PrecioMayor,
+            encontrado.CantidadMinimaMayor,
+            encontrado.RutaImagen,
+            await OfertasAsync(encontrado, sucursalId, encontrado.Precio, cancelacion));
     }
 
+    /// <summary>Lo que se trae de la base para responder: nada más que lo que se muestra o decide qué ofertas aplican.</summary>
+    private sealed record DatosArticuloChequeador(
+        int Id,
+        string Codigo,
+        string Descripcion,
+        string UnidadMedida,
+        decimal Precio,
+        decimal? PrecioMayor,
+        decimal? CantidadMinimaMayor,
+        string? RutaImagen,
+        int DepartamentoId,
+        int? CategoriaId,
+        int? MarcaId);
+
     /// <summary>Ofertas vigentes ahora que alcanzan al artículo; las de fidelidad no se anuncian porque no son para todo el mundo.</summary>
-    private async Task<IReadOnlyList<DatosOfertaChequeador>> OfertasAsync(Articulo articulo, int? sucursalId, decimal precio, CancellationToken cancelacion)
+    private async Task<IReadOnlyList<DatosOfertaChequeador>> OfertasAsync(DatosArticuloChequeador articulo, int? sucursalId, decimal precio, CancellationToken cancelacion)
     {
         var ahora = reloj.Ahora();
         var candidatas = await contexto.Promociones.AsNoTracking()

@@ -521,6 +521,8 @@ p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla q
   'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '
   'por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos segundos para el siguiente cliente.')
 nota('El chequeador viene apagado: se enciende en Parámetros, con Central.Chequeador.Habilitado.')
+nota('Si la dirección trae un código de sucursal que no existe o está inactiva, la pantalla dice «Página no encontrada» y no '
+     'consulta nada: mostrar el precio de otra sucursal sería engañar al cliente.')
 
 doc.add_page_break()
 

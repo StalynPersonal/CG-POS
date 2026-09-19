@@ -1,4 +1,4 @@
-/* CG-POS · Layout Verde Institucional
+﻿/* CG-POS · Layout Verde Institucional
    Tokens y estilos táctiles compartidos por las pantallas de cajero, cliente y devoluciones. */
 
 :root {
@@ -8,7 +8,7 @@
     --cg-superficie: #e8f5e9;
     --cg-fondo: #f4f7f5;
     --cg-texto: #1f2a26;
-    --cg-textoo-secundario: #51605a;
+    --cg-texto-secundario: #51605a;
     --cg-linea: #cfd8d3;
     --cg-campo-bloqueado: #eef1ef;  /* fondo de los campos que no se pueden escribir */
     --cg-peligro: #b3261e;

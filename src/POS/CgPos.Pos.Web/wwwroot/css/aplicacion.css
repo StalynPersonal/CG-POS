@@ -1,4 +1,4 @@
-/* Estilos propios de la app de caja. Los tokens y componentes están en _content/CgPos.Interfaz/cgpos.css */
+﻿/* Estilos propios de la app de caja. Los tokens y componentes están en _content/CgPos.Interfaz/cgpos.css */
 
 #blazor-error-ui {
     color-scheme: light only;
@@ -254,7 +254,7 @@
     border-right: 6px solid var(--cg-primario-oscuro);
 }
 
-.cg-venta__etiqueta { font-size: .95rem; color: var(--cg-textoo-secundario); }
+.cg-venta__etiqueta { font-size: .95rem; color: var(--cg-texto-secundario); }
 .cg-venta__valor { font-size: 1.15rem; font-weight: 700; }
 .cg-venta__cliente-nombre { font-size: 1.5rem; font-weight: 700; color: #6d7a74; text-transform: uppercase; }
 .cg-venta__transaccion { text-align: right; }
@@ -320,7 +320,7 @@
 .cg-catalogo__imagen img { width: 100%; height: 100%; object-fit: cover; }
 .cg-catalogo__descripcion { font-weight: 600; font-size: 1rem; line-height: 1.2; min-height: 2.4em; }
 .cg-catalogo__precio { font-size: 1.25rem; font-weight: 800; color: var(--cg-primario); font-variant-numeric: tabular-nums; }
-.cg-catalogo__precio small { font-size: .8rem; font-weight: 600; color: var(--cg-textoo-secundario); }
+.cg-catalogo__precio small { font-size: .8rem; font-weight: 600; color: var(--cg-texto-secundario); }
 
 /* ---------- Pantalla del cliente (segundo monitor) ---------- */
 .cg-pantalla-cliente { height: 100vh; display: flex; flex-direction: column; background: var(--cg-fondo); overflow: hidden; }
@@ -355,7 +355,7 @@
 }
 
 .cg-pantalla-cliente__descripcion { font-size: 1.5rem; font-weight: 600; }
-.cg-pantalla-cliente__calculo { font-size: 1.1rem; color: var(--cg-textoo-secundario); }
+.cg-pantalla-cliente__calculo { font-size: 1.1rem; color: var(--cg-texto-secundario); }
 .cg-pantalla-cliente__etiqueta { margin-left: 10px; padding: 2px 10px; border-radius: 10px; background: var(--cg-superficie); color: var(--cg-accion); font-weight: 700; }
 .cg-pantalla-cliente__importe { font-size: 1.6rem; font-weight: 700; }
 
@@ -389,7 +389,7 @@
 .cg-cobro__cifra--devuelta strong { font-size: 2.6rem; color: var(--cg-accion); }
 .cg-cobro__pagos { display: flex; flex-direction: column; gap: 6px; max-height: 38vh; overflow-y: auto; margin-top: 8px; }
 .cg-cobro__pago { display: grid; grid-template-columns: 1fr auto 44px; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--cg-radio); background: #fff; }
-.cg-cobro__pago small { display: block; color: var(--cg-textoo-secundario); }
+.cg-cobro__pago small { display: block; color: var(--cg-texto-secundario); }
 
 .cg-cobro__formas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; }
 

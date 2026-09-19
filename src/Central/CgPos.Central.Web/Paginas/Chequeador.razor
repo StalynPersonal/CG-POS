@@ -1,14 +1,26 @@
-@page "/chequeador"
+﻿@page "/chequeador"
 @page "/chequeador/{Sucursal}"
 @layout DisenoIngreso
 @using CgPos.Contratos.Serializacion
 @using System.Net.Http.Json
 @inject IHttpClientFactory FabricaHttp
 @inject IJSRuntime Js
+@implements IDisposable
 
 <PageTitle>Chequeador de precios · CG-POS</PageTitle>
 
 @* Pantalla del chequeador de la tienda: el cliente escanea y ve descripción, precio y ofertas. No pide sesión. *@
+@if (_sucursalNoEncontrada)
+{
+    @* La dirección del equipo trae un código de sucursal que no existe o está inactiva: no se consulta nada, porque
+       el precio y las ofertas dependen de la sucursal y mostrar los de otra sería engañar al cliente. *@
+    <div class="cg-chequeador cg-chequeador--error">
+        <MudText Typo="Typo.h3">Página no encontrada</MudText>
+        <MudAlert Severity="Severity.Error">No existe la sucursal @Sucursal. Revise la dirección de esta pantalla con el departamento de tecnología.</MudAlert>
+    </div>
+}
+else
+{
 <div class="cg-chequeador">
     @* Encabezado con la instrucción para el cliente y la sucursal en la que está el equipo. *@
     <div class="cg-chequeador__encabezado">
@@ -78,6 +90,7 @@
         </div>
     }
 </div>
+}
 
 @code {
     private static readonly TimeSpan TiempoEnPantalla = TimeSpan.FromSeconds(20);
@@ -92,6 +105,8 @@
 
     private int? _sucursalId;
     private string? _nombreSucursal;
+    /// <summary>La dirección trae un código de sucursal que no existe: la pantalla no sirve para nada aquí.</summary>
+    private bool _sucursalNoEncontrada;
     private bool _habilitado = true;
     private CancellationTokenSource? _limpieza;
 
@@ -111,6 +126,8 @@
                 ? _sucursales.FirstOrDefault(s => string.Equals(s.Codigo, codigo.Trim().PadLeft(2, '0'), StringComparison.Ordinal))
                 : null;
 
+            _sucursalNoEncontrada = Sucursal is { Length: > 0 } && deLaDireccion is null;
+
             var elegida = deLaDireccion ?? (_sucursales.Count == 1 ? _sucursales[0] : null);
             _sucursalId = elegida?.Id;
             _nombreSucursal = elegida?.Nombre;
@@ -124,7 +141,8 @@
     protected override async Task OnAfterRenderAsync(bool primeraVez)
     {
         // El lector escribe en el campo enfocado: el foco vuelve solo después de cada consulta.
-        await _campo.FocusAsync();
+        if (!_sucursalNoEncontrada)
+            await _campo.FocusAsync();
     }
 
     private async Task AlTeclearAsync(KeyboardEventArgs evento)
@@ -163,7 +181,9 @@
             _mensaje = "No hay comunicación con el sistema. Intente de nuevo en un momento.";
         }
 
-        await LimpiarLuegoAsync();
+        // El temporizador de limpieza no se espera aquí: si se esperara, la pantalla no pintaría el precio hasta
+        // que venciera, y el cliente vería el del producto anterior.
+        _ = LimpiarLuegoAsync();
     }
 
     /// <summary>La consulta se borra sola para que la siguiente persona encuentre la pantalla en blanco.</summary>
@@ -181,9 +201,15 @@
             _mensaje = null;
             await InvokeAsync(StateHasChanged);
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
-            // Llegó otra consulta antes: esa maneja su propio tiempo.
+            // Llegó otra consulta antes, o se cerró la pantalla: esa maneja su propio tiempo.
         }
+    }
+
+    public void Dispose()
+    {
+        _limpieza?.Cancel();
+        _limpieza?.Dispose();
     }
 }
