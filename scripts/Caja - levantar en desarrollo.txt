@@ -1,0 +1,157 @@
+﻿===============================================================================
+ CG-POS - LEVANTAR UNA CAJA EN DESARROLLO
+ Contreras Group
+===============================================================================
+
+ Esto es para trabajar en su propia máquina: la caja corre desde el código, sin
+ instalarse como servicio. Para una caja de verdad en una tienda, vea
+ "Caja - instalar en produccion.txt".
+
+ Levante primero el Central, porque la caja le pide permiso para entrar.
+
+
+-------------------------------------------------------------------------------
+ LO QUE HACE FALTA
+-------------------------------------------------------------------------------
+
+   1. SDK de .NET 10.
+   2. SQL Server (vale Express) en la misma máquina.
+   3. El Central corriendo (vea "Central - levantar en desarrollo.txt").
+
+
+-------------------------------------------------------------------------------
+ PASO 1. CREAR LA BASE DE LA CAJA
+-------------------------------------------------------------------------------
+
+     sqlcmd -S . -i "scripts\base-datos\pos\structura_base_datos.sql"
+
+ Crea CgPosCaja con todas sus tablas y SIN datos: los artículos, los precios,
+ los usuarios y los parámetros bajan del Central en la primera sincronización.
+
+
+-------------------------------------------------------------------------------
+ PASO 2. DECIRLE QUÉ CAJA ES
+-------------------------------------------------------------------------------
+
+ En src\POS\CgPos.Pos.Agente\appsettings.Development.json:
+
+     "Caja": { "Sucursal": "01", "Codigo": "01" }
+
+ Esos códigos son de dos dígitos y tienen que existir en el Central. No se
+ configura ninguna clave: la caja la pide sola.
+
+ Si su SQL Server no acepta autenticación de Windows:
+
+     dotnet user-secrets set "ConnectionStrings:BaseDatosPos" "Server=localhost;Database=CgPosCaja;User Id=USUARIO;Password=CLAVE;TrustServerCertificate=True" --project src\POS\CgPos.Pos.Agente
+
+ Si usa SQL Server 2014:
+
+     dotnet user-secrets set "BaseDatos:NivelCompatibilidad" "120" --project src\POS\CgPos.Pos.Agente
+
+
+-------------------------------------------------------------------------------
+ PASO 3. CONECTARLA AL CENTRAL
+-------------------------------------------------------------------------------
+
+ En el mismo appsettings.Development.json:
+
+     "Central": { "Url": "http://localhost:5280" }
+
+ Si prefiere trabajar sin Central, use el modo simulado, que guarda los envíos
+ en una carpeta:
+
+     "Central": { "Modo": "Simulado", "CarpetaSimulada": "C:\\CGPOS\\CentralSimulado" }
+
+ Con el modo simulado no bajan maestros: hay que cargarlos desde los archivos
+ de datos\ de desarrollo.
+
+
+-------------------------------------------------------------------------------
+ PASO 4. ARRANCARLA
+-------------------------------------------------------------------------------
+
+     cd src\POS\CgPos.Pos.Agente
+     dotnet run
+
+ Queda escuchando en:
+
+     http://localhost:5180
+
+ La primera vez, en el registro verá que la caja pidió entrar al Central y que
+ está esperando. Eso es lo normal.
+
+
+-------------------------------------------------------------------------------
+ PASO 5. ACEPTARLA EN EL CENTRAL
+-------------------------------------------------------------------------------
+
+ Entre al Central (http://localhost:5280) con ADMIN y vaya a:
+
+     Organización -> Solicitudes de cajas
+
+ Ahí está su caja, con el nombre de su equipo. Acéptela. En el siguiente ciclo
+ la caja recoge su credencial sola y empieza a bajar los maestros. En el
+ registro de la caja verá algo como:
+
+     Caja 01 (Caja01) habilitada en Sucursal Boca Chica
+
+ La credencial queda guardada cifrada en su equipo, así que esto se hace una
+ sola vez.
+
+
+-------------------------------------------------------------------------------
+ PASO 6. USARLA
+-------------------------------------------------------------------------------
+
+ Las pantallas de la caja, cada una en su dirección:
+
+     Cajero               http://localhost:5180/ingreso?pantalla=principal
+     Catálogo táctil      http://localhost:5180/ingreso?pantalla=secundaria
+     Pantalla del cliente http://localhost:5180/cliente
+     Devoluciones         http://localhost:5180/ingreso?pantalla=devoluciones
+     Despacho             http://localhost:5180/ingreso?pantalla=despacho
+
+ Entre con uno de los usuarios de caja que creó en el Central. Se entra siempre
+ con usuario y clave.
+
+ En desarrollo la caja simula la balanza, el terminal de tarjetas y la
+ impresora (los tickets salen como archivos en logs\impresiones), y crea un
+ certificado digital de prueba para firmar los e-CF.
+
+
+-------------------------------------------------------------------------------
+ PROBAR CON DOS CAJAS
+-------------------------------------------------------------------------------
+
+ Si quiere simular dos cajas en la misma máquina, cada una necesita SU PROPIA
+ BASE, o se mezclan los turnos y las ventas:
+
+   1. Cree otra base con el mismo script, con otro nombre (CgPosCaja02).
+   2. Copie la carpeta del Agente o use otro perfil, y cambie en su
+      configuración: el número de caja, la cadena de conexión y el puerto
+      (5181, por ejemplo).
+   3. Arránquela y acepte su solicitud en el Central.
+
+
+-------------------------------------------------------------------------------
+ SI ALGO FALLA
+-------------------------------------------------------------------------------
+
+ "La caja no está configurada en este equipo"
+     Faltan Caja:Sucursal y Caja:Codigo, o esa caja todavía no existe en el
+     Central, o nadie ha aceptado su solicitud.
+
+ "La base de datos local no existe" o "le faltan tablas"
+     Falta el paso 1.
+
+ "Caja sin credencial del Central"
+     Está esperando que la acepten. Vaya a Solicitudes de cajas.
+
+ "La credencial de esta caja está atada a otro equipo"
+     Ya se enroló desde otra máquina (o desde otra carpeta de credencial). En
+     el Central, Organización -> Cajas -> Liberar equipo, y vuelva a arrancar.
+
+ El puerto 5180 está ocupado
+     Cámbielo en appsettings.Development.json, en Kestrel.
+
+ Los registros quedan en src\POS\CgPos.Pos.Agente\logs.

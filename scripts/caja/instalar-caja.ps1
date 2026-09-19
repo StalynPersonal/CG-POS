@@ -12,7 +12,7 @@
          La credencial queda cifrada en este equipo y solo sirve aquí.
       4. Copia el certificado .p12 de la empresa (el PIN no se guarda: lo digita el supervisor en la caja).
       5. Instala el servicio con instalar-agente.ps1, lo arranca y comprueba /salud.
-    La base de datos la crea y migra el propio Agente al arrancar.
+    La base de datos NO la crea este script: créela antes con scripts\base-datos\pos\structura_base_datos.sql.
 
 .EXAMPLE
     .\instalar-caja.ps1 -Paquete C:\temp\cgpos-agente-1.0.0.zip -Sucursal 1 -Caja 1 `
@@ -26,7 +26,7 @@ param(
     [string] $Certificado,
     [string] $InstanciaSql = '.\SQLEXPRESS',
     [string] $ServicioSql = 'MSSQL$SQLEXPRESS',
-    [string] $BaseDatos = 'CgPos',
+    [string] $BaseDatos = 'CgPosCaja',
     [string] $Raiz = 'C:\CGPOS',
     [int] $Puerto = 5180
 )
@@ -61,12 +61,15 @@ if ($Certificado) {
 # La configuración de producción: la caja, su credencial ante el Central y dónde viven XML y respaldos.
 $configuracion = [ordered]@{
     ConnectionStrings = [ordered]@{
-        Pos = "Server=$InstanciaSql;Database=$BaseDatos;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False"
+        BaseDatosPos = "Server=$InstanciaSql;Database=$BaseDatos;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False"
     }
     Kestrel           = [ordered]@{ Endpoints = [ordered]@{ Http = [ordered]@{ Url = "http://localhost:$Puerto" } } }
     Caja              = [ordered]@{ Sucursal = $Sucursal; Codigo = $Caja }
     Central           = [ordered]@{ Url = $UrlCentral; ArchivoCredencial = (Join-Path $Raiz 'credencial-caja.dat') }
-    Ecf               = [ordered]@{ Certificado = (Join-Path $Raiz 'Certificado\empresa.p12'); CarpetaXml = (Join-Path $Raiz 'Xml') }
+    Ecf               = [ordered]@{
+        Certificado = [ordered]@{ Ruta = (Join-Path $Raiz 'Certificado\empresa.p12') }
+        CarpetaXml  = (Join-Path $Raiz 'Xml')
+    }
     Respaldo          = [ordered]@{ Carpeta = (Join-Path $Raiz 'Respaldos') }
 }
 

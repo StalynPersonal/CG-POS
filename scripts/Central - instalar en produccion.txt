@@ -1,0 +1,225 @@
+﻿===============================================================================
+ CG-POS - INSTALAR Y CONFIGURAR EL CENTRAL
+ Contreras Group
+===============================================================================
+
+ El Central es el servidor de la empresa: ahí viven los artículos, los precios,
+ los clientes, los usuarios y las reglas del negocio, y ahí llega todo lo que
+ venden las cajas. Se instala UNA vez, antes que cualquier caja.
+
+ Esta guía es para tecnología. Lleva una hora la primera vez.
+
+
+-------------------------------------------------------------------------------
+ ANTES DE EMPEZAR
+-------------------------------------------------------------------------------
+
+ En el servidor hace falta:
+
+   1. Windows Server (o Windows 10/11 para pruebas).
+   2. SQL Server 2014 o superior (no Express: el Central guarda el histórico de
+      todas las sucursales).
+   3. El runtime de ASP.NET Core 10.
+   4. Una IP fija en la red de la empresa, y que las cajas la alcancen.
+   5. Un certificado TLS para HTTPS. El Central rechaza las conexiones de las
+      cajas por HTTP: los documentos fiscales no viajan sin cifrar.
+
+ Tenga a mano:
+
+   - El RNC de la empresa y su razón social.
+   - Los rangos de comprobantes que le asignó la DGII.
+   - El certificado digital .p12 de la empresa y su PIN (para enviar los e-CF).
+
+
+-------------------------------------------------------------------------------
+ PASO 1. CREAR LA BASE DE DATOS
+-------------------------------------------------------------------------------
+
+ Abra SQL Server Management Studio, conéctese al servidor y ejecute:
+
+     scripts\base-datos\central\structura_base_datos.sql
+
+ O desde una consola:
+
+     sqlcmd -S .\SQLSERVER -E -i "scripts\base-datos\central\structura_base_datos.sql"
+
+ Ese archivo crea la base CgPosCentral con todas sus tablas y con los datos con
+ los que arranca el sistema: monedas, impuestos (ITBIS 18 %, 16 %, 0 % y
+ exento), unidades de medida, formas de pago, tipos de tarjeta, denominaciones,
+ motivos de descuento y de devolución, los parámetros, el rol de administrador
+ y el usuario ADMIN.
+
+ Es el ÚNICO script de estructura que existe. Si más adelante hay un cambio en
+ la base, se le entregará el ALTER aparte para que lo ejecute usted.
+
+ NO trae artículos, clientes ni promociones: eso lo carga usted (paso 5).
+
+
+-------------------------------------------------------------------------------
+ PASO 2. PUBLICAR EL PROGRAMA
+-------------------------------------------------------------------------------
+
+ Desde una máquina con el SDK de .NET 10 y el código fuente:
+
+     dotnet publish src\Central\CgPos.Central.Api -c Release -o C:\CGPOS-CENTRAL
+
+ Copie esa carpeta al servidor si la publicó en otra máquina.
+
+
+-------------------------------------------------------------------------------
+ PASO 3. CONFIGURAR EL CENTRAL
+-------------------------------------------------------------------------------
+
+ En la carpeta del programa, cree el archivo appsettings.Production.json:
+
+ {
+   "ConnectionStrings": {
+     "BaseDatosCentral": "Server=.;Database=CgPosCentral;Trusted_Connection=True;TrustServerCertificate=True"
+   },
+   "Seguridad": {
+     "ClaveFirmaJwt": "AQUI-LA-CLAVE-GENERADA"
+   },
+   "Kestrel": {
+     "Endpoints": {
+       "Principal": {
+         "Url": "https://*:7280",
+         "Certificate": { "Path": "C:\\CGPOS-CENTRAL\\certificado-web.pfx", "Password": "la-clave-del-pfx" }
+       }
+     }
+   }
+ }
+
+ La ClaveFirmaJwt firma las sesiones. Genere una al azar, distinta en cada
+ empresa, y no la comparta. Con esta línea en PowerShell:
+
+     [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random -Maximum 256 }))
+
+ Como el archivo lleva claves, déjelo solo para el sistema y los
+ administradores:
+
+     icacls C:\CGPOS-CENTRAL\appsettings.Production.json /inheritance:r /grant:r "SYSTEM:(R)" "Administrators:(F)"
+
+ Si el certificado TLS ya está instalado en Windows y no en un .pfx, quite el
+ bloque "Certificate" y enlace el certificado al puerto con netsh.
+
+
+-------------------------------------------------------------------------------
+ PASO 4. ARRANCARLO
+-------------------------------------------------------------------------------
+
+ Para probar, en la carpeta del programa:
+
+     set ASPNETCORE_ENVIRONMENT=Production
+     CgPos.Central.Api.exe
+
+ Debe decir "Base de datos del Central lista" y quedarse escuchando. Compruebe
+ desde otra máquina de la red:
+
+     https://EL-SERVIDOR:7280/salud
+
+ Si responde "Healthy", el Central está arriba.
+
+ Para dejarlo funcionando siempre, instálelo como servicio de Windows:
+
+     sc.exe create CgPosCentral binPath= "C:\CGPOS-CENTRAL\CgPos.Central.Api.exe" start= auto
+     sc.exe description CgPosCentral "CG-POS Central"
+     sc.exe start CgPosCentral
+
+ Abra el puerto 7280 en el firewall del servidor, solo para la red interna.
+
+
+-------------------------------------------------------------------------------
+ PASO 5. PRIMEROS PASOS EN LA PANTALLA
+-------------------------------------------------------------------------------
+
+ Entre desde cualquier computadora de la empresa a https://EL-SERVIDOR:7280
+
+   Usuario:    ADMIN
+   Contraseña: Admin.CGPOS#2026
+
+ LO PRIMERO: cambie esa contraseña. Es pública, está en este documento.
+
+ Después, en este orden, porque cada cosa necesita la anterior:
+
+   1. Organización -> Empresa: RNC, razón social, nombre comercial, dirección.
+   2. Organización -> Sucursales: cree cada tienda con su código de dos
+      dígitos (01, 02...).
+   3. Organización -> Cajas: cree las cajas de cada sucursal, también con
+      código de dos dígitos. NO hay que emitirles ninguna clave: cada caja la
+      pide sola cuando se instala.
+   4. Organización -> Parámetros: las reglas del negocio (fondo de caja,
+      redondeo, vigencia de las notas de crédito, retención de la Ley 32-23,
+      montos que exigen identificación, fidelidad) y también el ritmo de las
+      cajas (cada cuánto sincronizan, desde qué hora respaldan).
+   5. Maestros -> Catálogos: departamentos, categorías, marcas, bancos,
+      almacenes. Los catálogos técnicos ya vienen cargados.
+   6. Maestros -> Artículos y Precios: sus productos, con su código interno,
+      sus códigos de barras y sus precios.
+   7. Maestros -> Clientes: los que facturan con crédito fiscal. Si quiere
+      cargar todos los contribuyentes del país, use
+      scripts\base-datos\central\cargar-clientes-dgii.sql con el archivo
+      DGII_RNC.TXT que publica la DGII.
+   8. Fiscal -> Rangos de e-CF: reparta por caja los números que le asignó la
+      DGII (E31, E32, E34, E44, E45). Sin esto una caja no puede facturar.
+   9. Usuarios de caja: cree al menos un cajero, un supervisor y un gerente,
+      con sus niveles.
+
+ Ya puede instalar las cajas (vea "Instalar una caja.txt").
+
+
+-------------------------------------------------------------------------------
+ PASO 6. ACEPTAR LAS CAJAS
+-------------------------------------------------------------------------------
+
+ Cuando alguien instale una caja, esta se anuncia sola al Central y queda
+ esperando permiso. Usted la acepta en:
+
+     Organización -> Solicitudes de cajas
+
+ Verá qué caja pide entrar, desde qué equipo y desde qué dirección. Revise que
+ sea el equipo que se acaba de instalar y acéptela. Ahí se le entrega su
+ credencial y queda atada a ESE equipo.
+
+ Si un día ve una solicitud que nadie pidió, es que alguien copió la
+ configuración de una caja a otra máquina. No la acepte.
+
+
+-------------------------------------------------------------------------------
+ MANTENIMIENTO
+-------------------------------------------------------------------------------
+
+ RESPALDOS. Lo más importante de todo. El Central guarda el histórico de toda
+ la empresa. Programe en SQL Server un respaldo completo diario de CgPosCentral
+ y respaldos de registro cada pocas horas, y llévelos a otro disco o a otro
+ edificio. Un respaldo que se quema junto con el servidor no sirve de nada.
+
+ MONITOR. En Monitor se ve cada caja: cuándo se comunicó por última vez y
+ cuántos documentos trae pendientes. Si una caja lleva horas sin aparecer,
+ revísela: sigue vendiendo, pero lo que vendió todavía no llegó.
+
+ DGII. En Monitor -> Comprobantes se ve qué e-CF fueron aceptados y cuáles
+ rechazó la DGII. Un rechazo se corrige entre tecnología y contabilidad.
+
+
+-------------------------------------------------------------------------------
+ SI ALGO FALLA
+-------------------------------------------------------------------------------
+
+ "La base de datos del Central no existe"
+     No se ejecutó el script del paso 1, o la cadena de conexión apunta a otro
+     servidor.
+
+ "A la base le faltan tablas"
+     El script se ejecutó a medias. Ejecútelo de nuevo completo sobre una base
+     vacía.
+
+ Las cajas no se conectan
+     Compruebe desde la propia caja que abre https://EL-SERVIDOR:7280/salud. Si
+     no abre, es el firewall o el certificado. El Central rechaza HTTP a
+     propósito: revise que la caja tenga la dirección con https.
+
+ Nadie puede entrar a la pantalla
+     Si olvidó la contraseña de ADMIN y no hay otro administrador, hay que
+     restablecerla en la base. Pida ayuda a quien desarrolló el sistema.
+
+ Los registros del Central están en C:\CGPOS-CENTRAL\Logs.

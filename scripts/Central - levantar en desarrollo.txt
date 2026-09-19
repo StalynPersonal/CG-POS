@@ -1,0 +1,112 @@
+﻿===============================================================================
+ CG-POS - LEVANTAR EL CENTRAL EN DESARROLLO
+ Contreras Group
+===============================================================================
+
+ Esto es para trabajar en su propia máquina: el Central corre desde el código,
+ sin instalarse como servicio y sin HTTPS. Para el servidor de la empresa, vea
+ "Central - instalar en produccion.txt".
+
+
+-------------------------------------------------------------------------------
+ LO QUE HACE FALTA
+-------------------------------------------------------------------------------
+
+   1. SDK de .NET 10.
+   2. SQL Server (vale Express o Developer) en la misma máquina.
+   3. El código del proyecto.
+
+
+-------------------------------------------------------------------------------
+ PASO 1. CREAR LA BASE
+-------------------------------------------------------------------------------
+
+     sqlcmd -S . -i "scripts\base-datos\central\structura_base_datos.sql"
+
+ Crea CgPosCentral con sus tablas y sus datos de arranque (monedas, impuestos,
+ unidades, formas de pago, denominaciones, motivos, parámetros, el rol de
+ administrador y el usuario ADMIN).
+
+ Si ya existía y quiere empezar de cero, bórrela primero desde SQL Server
+ Management Studio y vuelva a ejecutar el script. OJO: eso borra todo lo que
+ tenga cargado.
+
+
+-------------------------------------------------------------------------------
+ PASO 2. LOS SECRETOS
+-------------------------------------------------------------------------------
+
+ Las claves NO van en el appsettings, porque ese archivo se versiona. Van en
+ los user-secrets, que se guardan en su perfil de Windows:
+
+     dotnet user-secrets set "Seguridad:ClaveFirmaJwt" "una-clave-larga-al-azar" --project src\Central\CgPos.Central.Api
+
+ Para generar la clave:
+
+     [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random -Maximum 256 }))
+
+ Si su SQL Server no acepta la autenticación de Windows, o la base está en otra
+ instancia, agregue también la cadena de conexión:
+
+     dotnet user-secrets set "ConnectionStrings:BaseDatosCentral" "Server=localhost;Database=CgPosCentral;User Id=USUARIO;Password=CLAVE;TrustServerCertificate=True" --project src\Central\CgPos.Central.Api
+
+ Si usa SQL Server 2014:
+
+     dotnet user-secrets set "BaseDatos:NivelCompatibilidad" "120" --project src\Central\CgPos.Central.Api
+
+
+-------------------------------------------------------------------------------
+ PASO 3. ARRANCARLO
+-------------------------------------------------------------------------------
+
+     cd src\Central\CgPos.Central.Api
+     dotnet run
+
+ Queda escuchando en:
+
+     http://localhost:5280
+
+ En desarrollo no exige HTTPS y la DGII está simulada: nada se envía de verdad.
+
+ Entre con:
+
+     Usuario:    ADMIN
+     Contraseña: Admin.CGPOS#2026
+
+ Para detenerlo, Ctrl+C en esa consola.
+
+
+-------------------------------------------------------------------------------
+ PASO 4. DATOS PARA PROBAR
+-------------------------------------------------------------------------------
+
+ La base arranca sin artículos ni clientes. Cree lo mínimo en este orden:
+
+   1. Organización -> Empresa (RNC y razón social).
+   2. Organización -> Sucursales (por ejemplo 01).
+   3. Organización -> Cajas (por ejemplo 01 de la sucursal 01).
+   4. Maestros -> Catálogos: un departamento, una categoría, una marca.
+   5. Maestros -> Artículos: unos pocos con su código de barras y su precio.
+   6. Fiscal -> Rangos de e-CF para esa caja (E31, E32, E34 al menos).
+   7. Usuarios de caja: un cajero, un supervisor y un gerente.
+
+ En el manual de usuario hay una lista de artículos, categorías, marcas y
+ promociones ya pensados para un negocio de bebidas, con precios y códigos,
+ para copiarlos tal cual.
+
+
+-------------------------------------------------------------------------------
+ SI ALGO FALLA
+-------------------------------------------------------------------------------
+
+ "La base de datos del Central no existe"
+     Falta el paso 1, o la cadena de conexión apunta a otra instancia.
+
+ "A la base le faltan tablas"
+     El script quedó a medias. Borre la base y ejecútelo completo.
+
+ No arranca por el puerto 5280 ocupado
+     Otra cosa lo está usando. Cámbielo en
+     src\Central\CgPos.Central.Api\appsettings.Development.json.
+
+ Los registros quedan en src\Central\CgPos.Central.Api\logs.

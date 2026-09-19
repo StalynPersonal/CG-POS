@@ -1,0 +1,223 @@
+﻿===============================================================================
+ CG-POS - INSTALAR UNA CAJA EN UNA TIENDA
+ Contreras Group
+===============================================================================
+
+ Cada caja tiene su propio programa y su propia base de datos en su propio
+ equipo. Por eso sigue vendiendo aunque se caiga la red: lo que venda se guarda
+ y sube al Central cuando vuelva la comunicación.
+
+ Esta guía es para tecnología. Se hace una vez por caja, y toma media hora.
+
+ ANTES: el Central tiene que estar instalado, y la sucursal y la caja tienen
+ que estar creadas allá (vea "Central - instalar en produccion.txt").
+
+
+-------------------------------------------------------------------------------
+ ANTES DE EMPEZAR
+-------------------------------------------------------------------------------
+
+ En el equipo de la caja hace falta:
+
+   1. Windows 10 u 11.
+   2. SQL Server Express instalado (instancia SQLEXPRESS).
+   3. El runtime de ASP.NET Core 10.
+   4. Red hacia el servidor del Central.
+
+ Y tenga a mano:
+
+   - El paquete publicado del Agente (cgpos-agente-x.y.z.zip).
+   - El código de la sucursal y el de la caja, tal como están en el Central
+     (dos dígitos: 01, 02...).
+   - La dirección del Central (https://central.laempresa.com.do, por ejemplo).
+   - El certificado digital .p12 de la empresa, si esta caja va a facturar.
+
+ NO hace falta ninguna clave ni secreto: la caja la pide sola.
+
+
+-------------------------------------------------------------------------------
+ PASO 1. CREAR LA BASE DE LA CAJA
+-------------------------------------------------------------------------------
+
+ En el equipo de la caja:
+
+     sqlcmd -S .\SQLEXPRESS -E -i "structura_base_datos.sql"
+
+ (el archivo es scripts\base-datos\pos\structura_base_datos.sql; cópielo al
+ equipo con una memoria o por la red)
+
+ Crea la base CgPosCaja vacía. No lleva datos: los artículos, los precios, los
+ usuarios y los parámetros bajan del Central en la primera sincronización.
+
+
+-------------------------------------------------------------------------------
+ PASO 2. INSTALAR EL PROGRAMA
+-------------------------------------------------------------------------------
+
+ Abra PowerShell COMO ADMINISTRADOR y ejecute:
+
+     .\instalar-caja.ps1 -Paquete C:\temp\cgpos-agente-1.0.0.zip `
+                         -Sucursal 1 -Caja 1 `
+                         -UrlCentral https://central.laempresa.com.do `
+                         -Certificado C:\temp\empresa.p12
+
+ Eso hace todo lo demás: crea C:\CGPOS con sus carpetas (Agente, Logs, Xml,
+ Respaldos, Certificado), copia el programa, escribe la configuración, copia el
+ certificado, instala el servicio de Windows, lo arranca y comprueba que
+ responda.
+
+ El PIN del certificado NO se guarda en ninguna parte: lo digita un supervisor
+ en la caja la primera vez que se factura, y queda solo en memoria.
+
+ Si SQL Server está en otra instancia, agregue -InstanciaSql y -ServicioSql.
+
+
+-------------------------------------------------------------------------------
+ PASO 3. ACEPTARLA EN EL CENTRAL
+-------------------------------------------------------------------------------
+
+ Al arrancar, la caja se anuncia al Central y queda esperando permiso. En el
+ registro de la caja se ve:
+
+     Caja sin credencial del Central: La solicitud quedó registrada: acéptela
+     en el Central.
+
+ En el Central, entre a:
+
+     Organización -> Solicitudes de cajas
+
+ Verá la solicitud con el nombre del equipo, su dirección y la hora. COMPRUEBE
+ QUE SEA EL EQUIPO QUE ACABA DE INSTALAR y acéptela.
+
+ En cuanto la acepte, la caja recoge su credencial sola y baja artículos,
+ precios, usuarios, parámetros y sus rangos de comprobantes. En el registro de
+ la caja aparecerá:
+
+     Caja 01 (Caja01) habilitada en Sucursal Boca Chica
+
+ La credencial queda guardada cifrada en ese equipo y solo sirve ahí. Si
+ alguien copia la configuración a otra máquina, el Central lo rechaza y queda
+ registrado el intento.
+
+
+-------------------------------------------------------------------------------
+ PASO 4. DEJAR LAS PANTALLAS LISTAS
+-------------------------------------------------------------------------------
+
+ Cada pantalla se abre en modo kiosco en su monitor con:
+
+     .\abrir-pantallas.ps1
+
+ Las direcciones, por si prefiere configurarlas a mano:
+
+     Cajero               http://localhost:5180/ingreso?pantalla=principal
+     Catálogo táctil      http://localhost:5180/ingreso?pantalla=secundaria
+     Pantalla del cliente http://localhost:5180/cliente
+     Devoluciones         http://localhost:5180/ingreso?pantalla=devoluciones
+     Despacho             http://localhost:5180/ingreso?pantalla=despacho
+
+ Deje el atajo en el escritorio o en el arranque de Windows, para que el cajero
+ solo tenga que encender el equipo.
+
+ PUBLICIDAD DE LA PANTALLA DEL CLIENTE: ponga las imágenes en
+ C:\CGPOS\Publicidad. Se muestran en orden alfabético, así que conviene
+ nombrarlas 01-..., 02-... Se pueden cambiar con la caja encendida.
+
+
+-------------------------------------------------------------------------------
+ PASO 5. COMPROBAR
+-------------------------------------------------------------------------------
+
+   1. http://localhost:5180/salud responde Healthy.
+   2. Un cajero puede entrar con su usuario y su clave.
+   3. Abre turno con su fondo.
+   4. Escanea un artículo y aparece con su precio.
+   5. Cobra en efectivo e imprime el ticket con su e-CF.
+   6. En el Central, en Monitor, esa caja aparece comunicada y sin pendientes.
+
+ Si los seis pasos salen bien, la caja está lista para vender.
+
+
+-------------------------------------------------------------------------------
+ LO QUE QUEDA CONFIGURADO
+-------------------------------------------------------------------------------
+
+ En C:\CGPOS\Agente\appsettings.Production.json, que solo pueden leer el
+ sistema y los administradores:
+
+   ConnectionStrings   la base CgPosCaja de este equipo
+   Caja                el código de su sucursal y el suyo
+   Central             la dirección del Central y dónde guarda su credencial
+   Ecf                 el certificado y la carpeta de los XML
+   Respaldo            la carpeta de los respaldos
+   Kestrel             el puerto, 5180
+
+ Ahí NO hay ninguna clave. La credencial vive cifrada en
+ C:\CGPOS\credencial-caja.dat, que solo se puede descifrar en ese equipo.
+
+ Cada cuánto sincroniza, cada cuánto baja maestros y desde qué hora respalda NO
+ se configuran aquí: son parámetros del Central, y se cambian allá para todas
+ las cajas, para una sucursal o para una caja sola.
+
+
+-------------------------------------------------------------------------------
+ CAMBIAR UNA CAJA DE EQUIPO
+-------------------------------------------------------------------------------
+
+ Si el equipo se dañó o se reemplaza:
+
+   1. En el Central: Organización -> Cajas -> menú de esa caja -> Liberar
+      equipo, con el motivo.
+   2. Instale la caja en el equipo nuevo igual que arriba, con la MISMA
+      sucursal y el MISMO número.
+   3. Acepte su solicitud en Solicitudes de cajas.
+
+ Si el equipo se perdió o se lo robaron, no libere: REVOQUE la credencial. Así
+ la anterior deja de servir aunque alguien tenga el equipo.
+
+ Si el técnico olvida liberar, la caja nueva no se comunica y su registro lo
+ dice: la credencial está atada a otro equipo. No se pierde nada.
+
+
+-------------------------------------------------------------------------------
+ ACTUALIZAR UNA CAJA
+-------------------------------------------------------------------------------
+
+ Cuando el Central publique una versión nueva, en el equipo de la caja y como
+ administrador:
+
+     .\actualizar-caja.ps1
+
+ Pregunta al Central qué versión hay, la descarga, verifica su firma, respalda
+ la versión actual, la reemplaza y comprueba que arranque. Si algo falla,
+ restaura sola la versión anterior. La configuración, la base de datos y los
+ XML no se tocan.
+
+
+-------------------------------------------------------------------------------
+ SI ALGO FALLA
+-------------------------------------------------------------------------------
+
+ "La base de datos local no existe" o "le faltan tablas"
+     No se ejecutó el script del paso 1 en ESE equipo.
+
+ "La caja no está configurada en este equipo"
+     Los códigos de sucursal y caja no coinciden con los del Central, o la caja
+     todavía no ha sido aceptada.
+
+ "Caja sin credencial del Central"
+     Está esperando permiso. Vaya a Solicitudes de cajas en el Central.
+
+ "La credencial de esta caja está atada a otro equipo"
+     Se cambió de equipo sin liberar. Vea "Cambiar una caja de equipo".
+
+ La caja vende pero no sube nada
+     Es lo esperado sin red: todo se guarda y sube después. Revise en la barra
+     de estado de la caja y en el Monitor del Central. Si lleva horas así,
+     compruebe desde el equipo que abre la dirección del Central.
+
+ No imprime
+     Revise la impresora configurada y que esté encendida y con papel. El cobro
+     ya quedó registrado aunque no imprima: se reimprime desde la caja.
+
+ Los registros de la caja están en C:\CGPOS\Logs.
