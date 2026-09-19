@@ -102,7 +102,7 @@ public sealed record MotivoDevolucionCarga(int Codigo, string Nombre, bool Activ
 public sealed record SecuenciaEcfCarga(string SucursalCodigo, string CajaCodigo, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn,
     bool Activa = true, long? Proximo = null);
 
-/// <summary>Tasa del día de SAP B1: pesos por unidad de la moneda (RF-212). Se identifica por la moneda y desde cuándo rige.</summary>
+/// <summary>Tasa del día que publica el Central: pesos por unidad de la moneda (RF-212). Se identifica por la moneda y desde cuándo rige.</summary>
 public sealed record TasaCambioCarga(string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);
 
 public sealed record DatosTasaCambio(string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Catalogo;
 
@@ -12,7 +12,7 @@ public enum TipoArticulo
     /// <summary>Requiere capturar el serial al venderlo (RF-17).</summary>
     Serializado,
 
-    /// <summary>Combo o kit creado en SAP B1; no aplica precio por mayor (RN-04).</summary>
+    /// <summary>Combo o kit armado en el Central; no aplica precio por mayor (RN-04).</summary>
     ComboKit,
 }
 
@@ -36,7 +36,7 @@ public sealed class Articulo : Entidad
     {
     }
 
-    /// <summary>Código interno del artículo (el de SAP B1).</summary>
+    /// <summary>Código interno del artículo: es obligatorio y con él se busca en todas las pantallas.</summary>
     public string Codigo { get; private set; } = string.Empty;
 
     public string Descripcion { get; private set; } = string.Empty;

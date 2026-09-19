@@ -1,8 +1,8 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Pagos;
 
-/// <summary>Tasa del día de una moneda extranjera, recibida de SAP B1 por el Central (RF-25, RF-212).</summary>
+/// <summary>Tasa del día de una moneda extranjera, publicada por el Central (RF-25, RF-212).</summary>
 public sealed class TasaCambio : Entidad
 {
     private TasaCambio()

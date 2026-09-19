@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Pagos;
 
 namespace CgPos.Dominio.Ventas;
@@ -17,7 +17,7 @@ public sealed record FormaPagoParaCobro(
     bool AbreGaveta);
 
 /// <param name="MontoRecibido">En la moneda de la forma de pago.</param>
-/// <param name="TasaCambio">Pesos por unidad de moneda extranjera, la tasa del día recibida de SAP B1 (RF-212).</param>
+/// <param name="TasaCambio">Pesos por unidad de moneda extranjera, la tasa del día que publica el Central (RF-212).</param>
 /// <param name="Referencia">Aprobación de tarjeta, número de transferencia o cheque, serial del bono (RF-32).</param>
 /// <param name="AprobacionManual">Tarjeta aprobada a mano por contingencia de la pasarela; queda para conciliar (RF-213).</param>
 public sealed record PagoSolicitado(

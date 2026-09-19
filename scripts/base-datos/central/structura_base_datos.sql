@@ -1422,6 +1422,10 @@ CREATE INDEX [IX_Articulos_MarcaId] ON [Articulos] ([MarcaId]);
 GO
 
 
+CREATE INDEX [IX_Articulos_Referencia] ON [Articulos] ([Referencia]);
+GO
+
+
 CREATE INDEX [IX_Articulos_UnidadMedidaId] ON [Articulos] ([UnidadMedidaId]);
 GO
 
@@ -2017,7 +2021,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$AhLg39vtyU/JtgUuoaPndw==$qQ7J/r60kBEmIxWv6QXlw/5SP3VUU+vHSvdO3nWY1cU=', 1, NULL, 0, NULL, NULL,
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$Kav9LVwkxU8EKlzGjYxExw==$PDUAgvw871/ZlKqO5MicmrCDhmPvTG2j6+mnrO40R4o=', 1, NULL, 0, NULL, NULL,
         SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -131,6 +131,10 @@ internal sealed class ArticuloConfiguracion : IEntityTypeConfiguration<Articulo>
 
         constructor.HasIndex(a => a.Codigo).IsUnique();
         constructor.HasIndex(a => a.Descripcion);
+
+        // El chequeador de la tienda busca lo que el cliente escanea por código interno, por código de barras y por esta
+        // referencia, todo en una consulta: sin índice aquí habría que recorrer los artículos enteros en cada consulta.
+        constructor.HasIndex(a => a.Referencia);
 
         constructor.HasOne<Departamento>().WithMany().HasForeignKey(a => a.DepartamentoId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Categoria>().WithMany().HasForeignKey(a => a.CategoriaId).OnDelete(DeleteBehavior.Restrict);

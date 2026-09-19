@@ -4,7 +4,7 @@ Sistema de punto de venta **offline-first** para Contreras Group, con facturaci�
 
 Se construye por fases: primero la **caja** (fases C0–C11) y luego el **Central** (fases H1–H7).
 
-**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). También están hechas H5 (notas de crédito entre sucursales, saldo central de puntos y despacho), H6 (reportes con exportación a Excel y PDF) y H7 (instalación y actualización remota de las cajas). La integración con SAP B1 queda fuera del alcance por decisión del cliente.
+**Estado actual:** la caja está completa (C0 a C11: fundaciones, seguridad local, maestros, venta, descuentos, cobro, e-CF offline, turnos, devoluciones, fidelidad, pendientes de entrega y sincronización). Del Central están hechas las fases H1 (fundaciones y seguridad), H2 (sincronización con las cajas), H3 (Central Manager: seguridad, organización, cajas, maestros, precios y promociones) y H4 (envío de e-CF a la DGII y monitor de sincronización). También están hechas H5 (notas de crédito entre sucursales, saldo central de puntos y despacho), H6 (reportes con exportación a Excel y PDF) y H7 (instalación y actualización remota de las cajas).
 
 ## Stack
 

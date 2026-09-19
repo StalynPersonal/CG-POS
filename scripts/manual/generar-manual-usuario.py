@@ -793,7 +793,7 @@ p('Los documentos (ventas, notas de crédito, devoluciones, cierres) no llevan e
   'fecha del documento y el cajero que lo hizo son datos del negocio, no del sistema. Y el detalle completo de cada cambio, '
   'con el antes y el después, está siempre en Seguridad → Auditoría.')
 nota('En una base que venía de antes, las filas anteriores al cambio aparecen como «Migración»: ese dato no se podía '
-     'reconstruir hacia atrás. Las columnas se agregan con scripts/base-datos/central/agregar-modificado-en-por.sql.')
+     'reconstruir hacia atrás.')
 
 titulo('5.2. La hora de los datos', 2)
 p('El sistema guarda las fechas con la hora de aquí y su desfase del meridiano (por ejemplo 2026-09-18 11:41:21 -04:00). '

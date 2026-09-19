@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Catalogo;
 
@@ -30,7 +30,7 @@ public sealed class PrecioArticulo : Entidad
     public DateTimeOffset VigenteDesde { get; private set; }
     public DateTimeOffset RegistradoEn { get; private set; }
 
-    /// <summary>De dónde vino el cambio: "SAP B1", "Central", "Carga inicial", "Importación CSV"…</summary>
+    /// <summary>De dónde vino el cambio: "Central", "Carga inicial", "Importación CSV"…</summary>
     public string Origen { get; private set; } = string.Empty;
 
     public int? UsuarioId { get; private set; }

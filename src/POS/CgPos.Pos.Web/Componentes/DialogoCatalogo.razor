@@ -1,4 +1,4 @@
-@* Catálogo visual en mosaicos para artículos sin código a mano (vegetales, panadería…). Devuelve el código elegido. *@
+﻿@* Catálogo visual en mosaicos para artículos sin código a mano (vegetales, panadería…). Devuelve el código elegido. *@
 @inject ClienteAgente Cliente
 
 <MudDialog>
@@ -66,7 +66,7 @@
         _cargando = false;
     }
 
-    /// <summary>Solo se muestran imágenes servidas por web; las rutas locales de SAP no son accesibles desde la pantalla.</summary>
+    /// <summary>Solo se muestran imágenes servidas por web; una ruta de un disco local no es accesible desde la pantalla.</summary>
     private static bool EsImagenWeb(string? ruta) =>
         ruta is not null && (ruta.StartsWith('/') || ruta.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || ruta.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
