@@ -65,11 +65,6 @@ try
     if (aplicacion.Environment.IsDevelopment())
         aplicacion.UseWebAssemblyDebugging();
 
-    // El enrutamiento va primero, antes de cualquier otro middleware: si no, una ruta de la pantalla (de las que se
-    // resuelven entregando el index.html) llega al final del camino sin que nadie ejecute su endpoint y la petición
-    // muere con un error del servidor. En desarrollo se nota más, porque el depurador de WebAssembly abre su propia rama.
-    aplicacion.UseRouting();
-
     // Una regla de negocio sin configurar no se reemplaza por un valor fijo: la operación se rechaza con el motivo (422, texto).
     aplicacion.Use(async (contexto, siguiente) =>
     {
@@ -94,6 +89,13 @@ try
         aplicacion.UseStaticFiles();
     }
 
+    // El enrutamiento va después de servir los archivos y antes de autenticar, que es su sitio en una aplicación
+    // WebAssembly hospedada. Si se pone antes, el fallback que entrega el index.html queda elegido desde el principio
+    // y una petición a un archivo inexistente de /_framework muere dentro de esa rama, sin que nadie ejecute el
+    // endpoint ya elegido: ahí sale «The request reached the end of the pipeline». Después de los archivos, esa
+    // petición termina en un 404 normal, que es lo que corresponde.
+    aplicacion.UseRouting();
+
     aplicacion.UseAuthentication();
     aplicacion.UseAuthorization();
 
@@ -108,9 +110,13 @@ try
     aplicacion.MapearApiDespacho();
     aplicacion.MapearPantallaCliente();
 
-    // Cualquier ruta de las pantallas (cajero, cliente, devoluciones, despacho) la resuelve la propia aplicación.
+    // Cualquier ruta de las pantallas (cajero, cliente, devoluciones, despacho) la resuelve la propia aplicación;
+    // las rutas /api desconocidas dan 404 y no el index.html, que confundiría a quien consume la API.
     if (servirPantallas)
-        aplicacion.MapFallbackToFile("index.html");
+    {
+        aplicacion.MapFallbackToFile("/", "index.html");
+        aplicacion.MapFallbackToFile("{*ruta:nonfile:regex(^(?!api/).*$)}", "index.html");
+    }
 
     await aplicacion.Services.InicializarBaseDatosPosAsync();
 
