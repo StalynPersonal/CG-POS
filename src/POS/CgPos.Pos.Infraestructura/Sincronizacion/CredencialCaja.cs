@@ -41,8 +41,10 @@ internal interface ICredencialCaja
 /// identificador que esta instalación genera la primera vez. Así, dos cajas en el mismo equipo (desarrollo o pruebas) no se
 /// confunden, y restaurar el respaldo de una caja en otra máquina no la suplanta, porque el pedazo del equipo cambia.
 /// </remarks>
-internal sealed class CredencialCajaProtegida : ICredencialCaja
+internal sealed class CredencialCajaProtegida : ICredencialCaja, Aplicacion.Sincronizacion.IEstadoCredencialCaja
 {
+    public bool TieneCredencial => Secreto is { Length: > 0 };
+
     private const string ClaveWindows = @"SOFTWARE\Microsoft\Cryptography";
     private const string ValorWindows = "MachineGuid";
 
@@ -166,8 +168,11 @@ internal sealed class CredencialCajaProtegida : ICredencialCaja
 }
 
 /// <summary>Credencial que solo vive en memoria: para pruebas y para el Central simulado, sin tocar el equipo.</summary>
-internal sealed class CredencialCajaEnMemoria(string? secreto = null, string? huellaEquipo = null) : ICredencialCaja
+internal sealed class CredencialCajaEnMemoria(string? secreto = null, string? huellaEquipo = null)
+    : ICredencialCaja, Aplicacion.Sincronizacion.IEstadoCredencialCaja
 {
+    public bool TieneCredencial => Secreto is { Length: > 0 };
+
     public string HuellaEquipo { get; } = huellaEquipo ?? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("credencial-en-memoria")));
 
     public string NombreEquipo => Environment.MachineName;

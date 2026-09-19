@@ -91,6 +91,8 @@ public static class InyeccionDependencias
         servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoConexionCentral, EstadoConexionCentral>();
         servicios.AddSingleton<ICredencialCaja>(proveedor =>
             new CredencialCajaProtegida(configuracion, proveedor.GetRequiredService<ILoggerFactory>().CreateLogger<CredencialCajaProtegida>()));
+        servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoCredencialCaja>(proveedor =>
+            (CredencialCajaProtegida)proveedor.GetRequiredService<ICredencialCaja>());
         servicios.AddSingleton(proveedor => FabricaClienteCentral.Crear(configuracion, proveedor.GetRequiredService<ICredencialCaja>()));
         servicios.AddScoped<Aplicacion.Sincronizacion.IRitmosOperacion, RitmosOperacion>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();

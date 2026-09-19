@@ -67,6 +67,20 @@ public sealed record OpcionesEspera(TimeSpan Inicial, TimeSpan Maxima)
 }
 
 /// <summary>
+/// Lo que se puede contar de la credencial de la caja sin revelarla: si ya la tiene y a qué equipo corresponde. Sirve para el
+/// diagnóstico de /salud, que no debe ver el secreto.
+/// </summary>
+public interface IEstadoCredencialCaja
+{
+    bool TieneCredencial { get; }
+
+    /// <summary>Huella del equipo, en hexadecimal. El Central la ata a la credencial al aceptar la caja.</summary>
+    string HuellaEquipo { get; }
+
+    string NombreEquipo { get; }
+}
+
+/// <summary>
 /// Cada cuánto trabaja la caja por dentro. Son reglas del negocio: se configuran en el Central (en general, por sucursal o
 /// por caja) y se leen en cada ciclo, así que cambiarlas allá las cambia aquí sin reiniciar nada.
 /// </summary>

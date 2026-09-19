@@ -1,5 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using CgPos.Central.Api.Api;
+using CgPos.Central.Api.Salud;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using CgPos.Central.Api.Seguridad;
 using CgPos.Central.ECF;
 using CgPos.Central.Infraestructura;
@@ -105,7 +107,7 @@ try
     aplicacion.UseAuthentication();
     aplicacion.UseAuthorization();
 
-    aplicacion.MapHealthChecks("/salud");
+    aplicacion.MapHealthChecks("/salud", new HealthCheckOptions { ResponseWriter = EscritorSaludCentral.EscribirAsync });
     aplicacion.MapearApiSesion();
     aplicacion.MapearApiDispositivos();
     aplicacion.MapearApiSincronizacion();

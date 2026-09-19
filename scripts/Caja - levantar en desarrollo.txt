@@ -53,17 +53,31 @@
  PASO 3. CONECTARLA AL CENTRAL
 -------------------------------------------------------------------------------
 
- En el mismo appsettings.Development.json:
+ Ya viene puesto en el mismo appsettings.Development.json:
 
-     "Central": { "Url": "http://localhost:5280" }
+     "Central": {
+       "Url": "http://localhost:5280"
+     }
+
+ Solo cámbielo si su Central escucha en otro puerto o está en otra máquina.
+
+ OJO con estas dos claves, que se parecen y no son lo mismo:
+
+     "Url"    la dirección del Central. Es la que hay que llenar.
+     "Modo"   solo admite "Simulado", o vacío. NO es para direcciones: si
+              escribe la dirección aquí, la caja se queda sin Central y no
+              sincroniza, sin avisar por qué.
 
  Si prefiere trabajar sin Central, use el modo simulado, que guarda los envíos
- en una carpeta:
+ en una carpeta en vez de mandarlos:
 
-     "Central": { "Modo": "Simulado", "CarpetaSimulada": "C:\\CGPOS\\CentralSimulado" }
+     "Central": {
+       "Modo": "Simulado",
+       "CarpetaSimulada": "C:\\CGPOS\\CentralSimulado"
+     }
 
- Con el modo simulado no bajan maestros: hay que cargarlos desde los archivos
- de datos\ de desarrollo.
+ Con el modo simulado no bajan maestros ni credenciales: la caja se carga desde
+ los archivos de la carpeta datos\.
 
 
 -------------------------------------------------------------------------------
