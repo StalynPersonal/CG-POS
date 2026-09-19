@@ -121,7 +121,7 @@ titulo('1.1. Dónde se entra', 2)
 p('La caja se abre en el navegador del mismo equipo de la caja; el Central, desde cualquier computadora de la empresa.')
 tabla(['Pantalla', 'Dónde se entra', 'Quién la usa'],
       [['Central – administración', 'La dirección del servidor (en pruebas, http://localhost:5280)', 'Administración, contabilidad, gerencia'],
-       ['Chequeador de precios', 'La dirección del servidor + /chequeador', 'El cliente, en el pasillo de la tienda'],
+       ['Chequeador de precios', 'La dirección del servidor + /chequeador/01, con el código de la sucursal al final', 'El cliente, en el pasillo de la tienda'],
        ['Caja – pantalla de ventas principal', 'http://localhost:5180/ingreso?pantalla=principal', 'Cajero, con lector y teclado'],
        ['Caja – pantalla de ventas secundaria', 'http://localhost:5180/ingreso?pantalla=secundaria', 'Cajero, tocando el catálogo'],
        ['Caja – pantalla de clientes', 'http://localhost:5180/cliente', 'El cliente la ve (no pide usuario)'],
@@ -516,9 +516,10 @@ viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuánt
 viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
 
 titulo('2.18. Chequeador de precios', 2)
-p('Ruta: /chequeador, en la pantalla que se pone en el pasillo de la tienda. El cliente pasa el producto por el lector y ve '
-  'la descripción, el precio grande, el precio por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos '
-  'segundos para el siguiente cliente.')
+p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla que se pone en el pasillo de la tienda. Tecnología '
+  'deja cada pantalla con la dirección de su sucursal, así el cliente nunca elige sucursal y siempre ve el precio y las ofertas '
+  'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '
+  'por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos segundos para el siguiente cliente.')
 nota('El chequeador viene apagado: se enciende en Parámetros, con Central.Chequeador.Habilitado.')
 
 doc.add_page_break()
@@ -608,8 +609,8 @@ paso('Revise el total con el cliente y presione F8 para cobrar.')
 nota('Cada operación se guarda al instante: si la caja se apaga, al volver a entrar la venta aparece tal como estaba.')
 
 titulo('3.8. Cliente y tipo de comprobante (F12)', 2)
-p('Se digita la cédula o el RNC; el sistema lo busca en el padrón de la DGII y en los clientes registrados. Si no aparece, '
-  'se digita el nombre. El tipo de comprobante sale del cliente y cambiarlo a mano requiere permiso.')
+p('Se digita la cédula o el RNC; la caja lo busca en los clientes, que bajan del Central. Si no aparece, se digita el nombre. '
+  'El tipo de comprobante sale del cliente y cambiarlo a mano requiere permiso.')
 tabla(['Comprobante', 'Cuándo se usa'],
       [['E32 – Consumo', 'Cliente común. Desde el monto configurado (RD$250,000 por defecto) exige cédula o RNC.'],
        ['E31 – Crédito fiscal', 'Empresa que necesita el ITBIS. Exige RNC o cédula.'],

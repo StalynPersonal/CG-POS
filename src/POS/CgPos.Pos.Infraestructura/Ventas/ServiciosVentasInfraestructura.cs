@@ -929,8 +929,8 @@ internal sealed class ServicioVentas(
         if (!consulta.FormatoValido || consulta.Tipo is null)
             return new RespuestaVenta(CodigoResultadoVenta.DocumentoInvalido, "Digite un RNC (9 dígitos) o una cédula (11 dígitos).", Datos(venta!));
 
-        // Hay cédulas antiguas que no cumplen el dígito verificador: se aceptan si el padrón o el maestro de clientes las conocen.
-        if (!consulta.DigitoVerificadorValido && !consulta.EnPadron && consulta.Cliente is null)
+        // Hay cédulas antiguas que no cumplen el dígito verificador: se aceptan si el maestro de clientes las conoce.
+        if (!consulta.DigitoVerificadorValido && consulta.Cliente is null)
             return new RespuestaVenta(CodigoResultadoVenta.DocumentoInvalido, $"El documento {consulta.Documento} no es válido (dígito verificador).", Datos(venta!));
 
         ClienteVenta cliente;
@@ -940,12 +940,12 @@ internal sealed class ServicioVentas(
         }
         else
         {
-            var nombreFinal = string.IsNullOrWhiteSpace(nombre) ? consulta.RazonSocial : nombre.Trim();
+            var nombreFinal = string.IsNullOrWhiteSpace(nombre) ? null : nombre.Trim();
             if (string.IsNullOrWhiteSpace(nombreFinal))
                 return new RespuestaVenta(CodigoResultadoVenta.NombreRequerido,
-                    $"El documento {consulta.Documento} no está en el padrón DGII ni registrado. Indique el nombre del cliente.", Datos(venta!));
+                    $"El documento {consulta.Documento} no está registrado. Indique el nombre del cliente.", Datos(venta!));
 
-            // Un RNC del padrón factura a crédito fiscal por defecto; una cédula, a consumo.
+            // Un RNC factura a crédito fiscal por defecto; una cédula, a consumo.
             var comprobante = consulta.Tipo == TipoDocumentoIdentidad.Rnc ? TipoComprobante.FacturaCreditoFiscal : TipoComprobante.FacturaConsumo;
             cliente = new ClienteVenta(null, consulta.Tipo, consulta.Documento, nombreFinal, comprobante);
         }

@@ -121,12 +121,11 @@ En desarrollo, el Agente aplica al arrancar `datos/carga-inicial.desarrollo.json
 
 En la caja se entra solo con usuario y clave; las autorizaciones de supervisor también se dan con usuario y clave.
 
-### Maestros y padrón DGII
+### Maestros
 
 En desarrollo también se aplican al arrancar:
 
 - `datos/maestros.desarrollo.json`: departamentos, categorías, marcas, unidades, impuestos (ITBIS 18 %, 16 %, 0 % y exento), artículos de ferretería y construcción ficticios, clientes, formas de pago, bancos, tipos de tarjeta y denominaciones.
-- `datos/padron-dgii.desarrollo.txt`: padrón de ejemplo con el formato de la DGII (`RNC|razón social|nombre comercial|…|ESTADO|RÉGIMEN`).
 
 Ejemplos para probar la API (todas requieren sesión):
 
@@ -135,13 +134,12 @@ Ejemplos para probar la API (todas requieren sesión):
 | `GET /api/articulos/codigo/7891114119695` | Artículo por código de barras, proveedor, interno o etiqueta de balanza |
 | `GET /api/articulos?texto=cemento gris` | Búsqueda por palabras |
 | `GET /api/articulos/no-codificados` | Vegetales y especias en orden alfabético |
-| `GET /api/documentos/131-24679-6` | RNC/cédula: validez, padrón DGII y cliente registrado |
+| `GET /api/documentos/131-24679-6` | RNC/cédula: formato, dígito verificador y cliente registrado |
 | `GET /api/catalogos/cobro` | Formas de pago, bancos, tipos de tarjeta y denominaciones |
 
 Importaciones manuales (permiso `Seguridad.AdministrarConfiguracion`, usuario G001 en desarrollo):
 
 - `POST /api/maestros/articulos/csv`: CSV con `;` o `,`. Columnas obligatorias `codigo`, `descripcion`, `departamento`, `unidad`, `impuesto`, `precio_detalle`. Opcionales: `categoria` (del mismo departamento), `marca`, `precio_mayor`, `cantidad_minima_mayor`, `precio_minimo`, `costo`, `tipo`, `referencia`, `codigos_barras` y `codigos_proveedor` (separados por `|`), `ruta_imagen`, `mostrar_en_catalogo` y `activo`. Los números usan punto decimal; las líneas con errores se informan y se omiten.
-- `POST /api/maestros/padron-dgii`: el archivo del padrón completo; inserta los nuevos y actualiza los que cambiaron.
 
 Etiquetas de balanza: por defecto EAN-13 con prefijo `21` (peso, 3 decimales) o `22` (precio, 2 decimales), 5 dígitos de artículo y 5 de valor. Se ajusta con los parámetros `Balanza.*`.
 
@@ -175,7 +173,7 @@ Los rechazos de negocio responden 422 (409 si ya hay turno abierto) con `resulta
 
 ### Venta avanzada
 
-- **Cliente y comprobante (F12 o tocar el encabezado):** RNC o cédula contra el padrón DGII y los clientes registrados. Si no está en ninguno se pide el nombre. El comprobante toma el habitual del cliente (E31/E32/E44/E45); cambiarlo a mano requiere permiso. E31 y E44 exigen RNC o cédula; E45, RNC.
+- **Cliente y comprobante (F12 o tocar el encabezado):** RNC o cédula contra los clientes, que bajan del Central. Si no está registrado se pide el nombre. El comprobante toma el habitual del cliente (E31/E32/E44/E45); cambiarlo a mano requiere permiso. E31 y E44 exigen RNC o cédula; E45, RNC.
 - **Identificación obligatoria:** una factura de consumo desde `Fiscal.MontoIdentificacionConsumo` (RD$250,000 por defecto) muestra el aviso hasta asignar cédula o RNC.
 - **Retención de la Ley 32-23:** con `Fiscal.PorcentajeRetencionLey3223` configurado (ej. 5), una factura de **régimen especial (E44)** calcula la retención **sobre el subtotal ya con descuentos** y se la descuenta a lo que el cliente paga en caja; el total de la factura no cambia. Se ve en la pantalla de venta, en la del cliente y en el ticket ("RETENCIÓN LEY 32-23" y "TOTAL A PAGAR"), y en el e-CF va como `ValorPagar` junto al `MontoTotal` (las formas de pago cuadran con lo pagado). Al cambiar el comprobante a otro tipo la retención se quita sola; el porcentaje que manda es el vigente al cobrar.
 - **Límite de compra (F3):** avisa cuando el total supera el monto que pidió el cliente.
@@ -256,7 +254,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 ### Devoluciones y notas de crédito
 
 - **Pantalla `/devoluciones`:** F10 desde la venta (la venta en curso queda guardada) o una estación dedicada en un tercer monitor. Se escanea el código de barras del ticket (número de transacción) o se digita el e-NCF.
-- **Devolución parcial o total:** por línea se ve lo vendido, lo ya devuelto y lo disponible; no se puede devolver más de lo vendido. Los serializados piden el serial vendido. Si la factura no tiene cliente se pide cédula o RNC (el nombre sale del padrón DGII o se digita).
+- **Devolución parcial o total:** por línea se ve lo vendido, lo ya devuelto y lo disponible; no se puede devolver más de lo vendido. Los serializados piden el serial vendido. Si la factura no tiene cliente se pide cédula o RNC (el nombre sale del cliente registrado o se digita).
 - **Motivo y autorización:** motivo seleccionable (`motivosDevolucion` en los maestros) y clave del encargado (permiso `Devoluciones.Autorizar`), que sale impreso en la nota.
 - **Plazo:** pasados `Devoluciones.DiasRetencionImpuesto` días (30 por defecto) se retiene el ITBIS y la nota acredita solo la base.
 - **Nota de crédito E34:** se firma en la caja en la misma transacción, con referencia al e-CF de la factura (código 1 si completa la factura, 3 si es parcial), y viaja al Central en `Devolucion.NotaCreditoEmitida`. Se imprimen la copia del cliente (código de barras y política `Devoluciones.PoliticaNotaCredito`) y la de contabilidad.
@@ -542,7 +540,7 @@ dotnet run --project src/Central/CgPos.Central.Api
 - **Bajada incremental:** `GET /api/sincronizacion/maestros?desde={versión}` (token de dispositivo) entrega lo cambiado por versión de fila (rowversion) hasta la última versión confirmada; publicar lo mismo no genera versión nueva. Desde 0 es el aprovisionamiento completo de una caja nueva. La respuesta se comprime.
 - **Alcance por caja:** baja la organización completa, los parámetros generales, los de su sucursal y los suyos (nunca los `Central.*`) y solo sus rangos de e-CF. El estado de cada caja guarda su última descarga y la versión confirmada y entregada.
 - **Inscripciones de fidelidad hechas en caja:** se publican como miembros para todas las cajas; si la cédula ya estaba inscrita en el Central se conserva la del Central y queda un conflicto *MiembroDuplicado*.
-- **Padrón de la DGII:** el archivo se carga una sola vez en el Central (parámetros `Central.Padron.Archivo` y `Central.Padron.Version`) y cada caja lo descarga e importa cuando cambia, comparando el SHA-256 con el que ya tiene; si la importación falla, el próximo ciclo la reintenta. También se puede seguir importando a mano en una caja.
+- **Clientes de la DGII:** el archivo del padrón se carga en el Central como clientes, con `scripts/base-datos/central/cargar-clientes-dgii.sql`. De ahí en adelante son clientes como cualquier otro y bajan a las cajas con los maestros: la caja no maneja padrón.
 - **Bajas:** un parámetro borrado en el Central se borra en la caja: como una baja no viaja en el rango de versiones, cada descarga trae todos los parámetros que hoy aplican a esa caja y la caja elimina lo que sobre.
 
 ```powershell

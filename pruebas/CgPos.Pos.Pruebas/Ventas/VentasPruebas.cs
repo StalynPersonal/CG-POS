@@ -1566,41 +1566,6 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task El_padron_de_la_dgii_se_baja_del_central_y_no_se_reimporta_si_no_cambio()
-    {
-        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-
-        var rnc = CgPos.Pos.Pruebas.Soporte.EscenarioCatalogo.RncAleatorioValido();
-        var contenido = System.Text.Encoding.Latin1.GetBytes($"{rnc}|EMPRESA DEL PADRON SRL|PADRON|COMERCIO|||||01/01/2015|ACTIVO|NORMAL");
-        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(contenido));
-        caja.Central.Padron = (new DatosPadronPublicado("2026-09", "padron.txt", hash, contenido.LongLength, DateTimeOffset.UtcNow), contenido);
-
-        Task<int> ActualizarAsync() =>
-            caja.EjecutarAsync<IServiceProvider, int>(proveedor =>
-                ActivatorUtilities.CreateInstance<CgPos.Pos.Infraestructura.Sincronizacion.ActualizacionPadron>(proveedor, (IClienteCentral)caja.Central)
-                    .ActualizarAsync());
-
-        Assert.Equal(1, await ActualizarAsync());
-        Assert.Equal("EMPRESA DEL PADRON SRL", await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
-            contexto.ContribuyentesDgii.AsNoTracking().Where(c => c.Documento == rnc).Select(c => c.RazonSocial).SingleAsync()));
-
-        // El mismo padrón no se vuelve a bajar ni a importar.
-        Assert.Equal(0, await ActualizarAsync());
-        Assert.Equal(1, caja.Central.DescargasPadron);
-
-        // Una versión nueva sí se importa.
-        var otro = CgPos.Pos.Pruebas.Soporte.EscenarioCatalogo.RncAleatorioValido();
-        var nuevo = System.Text.Encoding.Latin1.GetBytes($"{otro}|EMPRESA NUEVA SRL|NUEVA|COMERCIO|||||01/01/2016|ACTIVO|NORMAL");
-        caja.Central.Padron = (new DatosPadronPublicado("2026-10", "padron.txt", Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(nuevo)),
-            nuevo.LongLength, DateTimeOffset.UtcNow), nuevo);
-
-        Assert.Equal(1, await ActualizarAsync());
-        Assert.Equal(2, caja.Central.DescargasPadron);
-        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.ContribuyentesDgii.AnyAsync(c => c.Documento == otro)));
-    }
-
-    [SkippableFact]
     public async Task Mantenimiento_purga_solo_lo_confirmado_vencido_alerta_y_respalda_la_base()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

@@ -51,7 +51,7 @@ public interface IServicioVentas
     Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, int ventaId, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>
-    /// Asigna el cliente por RNC/cédula: registrado, del padrón DGII o, si no está en ninguno, con el nombre indicado (RF-13, RF-181).
+    /// Asigna el cliente por RNC/cédula: el registrado en el maestro o, si no está, el documento con el nombre indicado (RF-13, RF-181).
     /// El comprobante pasa al habitual del cliente sin pedir autorización.
     /// </summary>
     Task<RespuestaVenta> AsignarClienteAsync(SesionUsuario sesion, int ventaId, string documento, string? nombre, CancellationToken cancelacion = default);

@@ -203,9 +203,6 @@ public static class CatalogoParametros
         new("Central.Actualizaciones.CarpetaPaquetes", "Actualización de cajas", "Carpeta del servidor con los paquetes del Agente que descargan las cajas", Texto, false, Central),
         new("Central.Actualizaciones.VersionPublicada", "Actualización de cajas", "Versión del Agente que deben instalar las cajas", Texto, false, Central),
 
-        new("Central.Padron.Archivo", "Padrón DGII", "Archivo del padrón de la DGII en el servidor, que las cajas descargan", Texto, false, Central),
-        new("Central.Padron.Version", "Padrón DGII", "Versión del padrón publicado; la caja lo importa solo si cambió", Texto, false, Central),
-
         new("Central.Correo.Servidor", "Correo", "Servidor SMTP de la empresa desde el que el Central envía correos", Texto, false, Central),
         new("Central.Correo.Puerto", "Correo", "Puerto del servidor SMTP", Entero, false, Central, Minimo: 1, Maximo: 65535),
         new("Central.Correo.UsarTls", "Correo", "Cifra la conexión con el servidor de correo", Booleano, false, Central),

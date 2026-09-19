@@ -62,7 +62,6 @@ public static class InyeccionDependencias
         // Maestros, catálogos y precios (M03, M04)
         servicios.AddScoped<ICargaMaestros, ServicioCargaMaestros>();
         servicios.AddScoped<IImportadorArticulos, ImportadorArticulosCsv>();
-        servicios.AddScoped<IImportadorPadronDgii, ImportadorPadronDgii>();
         servicios.AddScoped<IConsultaArticulos, ConsultaArticulos>();
         servicios.AddScoped<IConsultaDocumentos, ConsultaDocumentos>();
         servicios.AddScoped<IConsultaCatalogoCobro, ConsultaCatalogoCobro>();
@@ -92,7 +91,6 @@ public static class InyeccionDependencias
         servicios.AddSingleton(_ => FabricaClienteCentral.Crear(configuracion));
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IDescargaMaestros, DescargaMaestros>();
-        servicios.AddScoped<Aplicacion.Sincronizacion.IActualizacionPadron, ActualizacionPadron>();
         servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();
 
         // Mantenimiento de la caja: respaldo, purga controlada, hora y alertas.

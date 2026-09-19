@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Entregas;
@@ -98,7 +98,7 @@ public sealed record VistaPreviaDescuento(decimal Monto, decimal Porcentaje, dec
 /// <param name="LineasExcluidas">Líneas elegidas que no toman el descuento (en oferta o de departamentos sin descuento manual, RF-204).</param>
 public sealed record ResultadoDescuentoFactura(decimal Monto, decimal Porcentaje, IReadOnlyList<int> LineasExcluidas);
 
-/// <summary>Cliente asignado a la venta: registrado, del padrón DGII o solo con documento.</summary>
+/// <summary>Cliente asignado a la venta: registrado en el maestro o solo con su documento y nombre.</summary>
 public sealed record ClienteVenta(
     int? ClienteId,
     TipoDocumentoIdentidad? TipoDocumento,

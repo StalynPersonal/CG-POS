@@ -1,4 +1,4 @@
-using CgPos.Dominio.Fidelidad;
+﻿using CgPos.Dominio.Fidelidad;
 
 namespace CgPos.Contratos.Fidelidad;
 
@@ -19,7 +19,7 @@ public sealed record DatosMiembroFidelidad(
     DateTimeOffset? SaldoSincronizadoEn,
     bool PendienteDeConfirmar);
 
-/// <param name="Nombre">Si se omite se toma del padrón DGII.</param>
+/// <param name="Nombre">Si se omite se toma del cliente registrado con esa cédula.</param>
 public sealed record SolicitudInscripcionFidelidad(string Cedula, string? Nombre, string? Telefono, string? Correo);
 
 public enum CodigoResultadoFidelidad

@@ -35,19 +35,6 @@ public static class RutasApiActualizaciones
             return Results.NoContent();
         });
 
-        // Padrón de la DGII: se publica una vez en el Central y lo bajan todas las cajas.
-        var padron = aplicacion.MapGroup("/api/padron").RequireAuthorization(PoliticasCentral.Dispositivo);
-
-        padron.MapGet("/", async (CgPos.Central.Aplicacion.Padron.IServicioPadronCentral servicio, CancellationToken cancelacion) =>
-            await servicio.PublicadoAsync(cancelacion) is { } publicado ? Results.Ok(publicado) : Results.NoContent());
-
-        padron.MapGet("/archivo", async (CgPos.Central.Aplicacion.Padron.IServicioPadronCentral servicio, CancellationToken cancelacion) =>
-        {
-            var publicado = await servicio.PublicadoAsync(cancelacion);
-            var archivo = publicado is null ? null : await servicio.AbrirArchivoAsync(cancelacion);
-            return archivo is null ? Results.NotFound() : Results.File(archivo, "text/plain", publicado!.Archivo);
-        });
-
         // Avance del despliegue, para el Central Manager.
         aplicacion.MapGet("/api/manager/actualizaciones/cajas", async (IServicioActualizacionesCaja servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.VersionesAsync(cancelacion)))

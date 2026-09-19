@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -19,7 +19,7 @@ namespace CgPos.Pos.Pruebas.Api;
 
 /// <summary>
 /// CG-POS Agente completo en memoria, con base temporal y los archivos de desarrollo: carga inicial
-/// (usuarios C001/1111 cajero, S001/2222 supervisor, G001/3333 gerente), maestros y padrón DGII.
+/// (usuarios C001/1111 cajero, S001/2222 supervisor, G001/3333 gerente) y maestros.
 /// </summary>
 public sealed class AgenteEnPruebas : IAsyncLifetime
 {
@@ -41,7 +41,7 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
         if (MotivoOmision is not null)
             return;
 
-        // Los datos de prueba viven en el proyecto de pruebas del Central; el padrón sigue en datos/.
+        // Los datos de prueba viven en el proyecto de pruebas del Central.
         var datosPruebas = Path.Combine(RutasPrueba.RaizRepositorio(), "pruebas", "CgPos.Central.Pruebas", "Datos");
         var datos = Path.Combine(RutasPrueba.RaizRepositorio(), "datos");
         var archivoLogs = Path.Combine(Path.GetTempPath(), "cgpos-pruebas", "agente-.log");
@@ -53,7 +53,6 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", _baseDatos.NivelCompatibilidad);
             anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(datosPruebas, "carga-inicial.pruebas.json"));
             anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datosPruebas, "maestros.pruebas.json"));
-            anfitrion.UseSetting("Maestros:PadronDgii", Path.Combine(datos, "padron-dgii.desarrollo.txt"));
             anfitrion.UseSetting("Caja:Sucursal", SucursalDesarrollo.ToString());
             anfitrion.UseSetting("Caja:Codigo", CajaDesarrollo.ToString());
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
@@ -67,7 +66,7 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("Serilog:WriteTo:1:Args:path", archivoLogs);
         });
 
-        // Arranca el Agente: aplica migraciones, carga inicial, maestros y padrón.
+        // Arranca el Agente: aplica migraciones, carga inicial y maestros.
         _ = Fabrica.Server;
     }
 

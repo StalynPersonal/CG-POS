@@ -447,7 +447,7 @@ internal sealed class ServicioDevoluciones(
             previas.Select(d => new DatosNotaCreditoResumen(d.Id, d.Numero, d.Encf, d.Total, d.CreadaEn)).ToList());
     }
 
-    /// <summary>El cliente de la factura; si no tiene, el documento digitado con el nombre del padrón DGII o el digitado (RF-160).</summary>
+    /// <summary>El cliente de la factura; si no tiene, el documento digitado con el nombre del cliente registrado o el digitado (RF-160).</summary>
     private async Task<ClienteDevolucion?> ClienteAsync(Venta venta, SolicitudDevolucion solicitud, CancellationToken cancelacion)
     {
         if (venta.ClienteDocumento is { } documentoFactura)
@@ -457,8 +457,9 @@ internal sealed class ServicioDevoluciones(
         if (!validacion.EsValido)
             return null;
 
+        // El nombre sale del maestro de clientes; si el documento no está registrado, lo digita el cajero.
         var nombre = string.IsNullOrWhiteSpace(solicitud.ClienteNombre)
-            ? (await consultaDocumentos.ConsultarAsync(validacion.Documento, cancelacion)).RazonSocial
+            ? (await consultaDocumentos.ConsultarAsync(validacion.Documento, cancelacion)).Cliente?.Nombre
             : solicitud.ClienteNombre.Trim();
 
         return nombre is null ? null : new ClienteDevolucion(validacion.Tipo, validacion.Documento, nombre);

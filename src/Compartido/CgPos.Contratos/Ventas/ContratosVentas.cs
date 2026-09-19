@@ -170,7 +170,7 @@ public sealed record SolicitudConAutorizacion(Guid? AutorizacionId = null);
 
 public sealed record SolicitudEliminarPorCodigo(string Codigo, Guid? AutorizacionId = null);
 
-/// <param name="Nombre">Solo si el documento no está en el padrón DGII ni registrado como cliente.</param>
+/// <param name="Nombre">Solo si el documento no corresponde a un cliente registrado.</param>
 public sealed record SolicitudAsignarCliente(string Documento, string? Nombre = null);
 
 public sealed record SolicitudCambiarComprobante(TipoComprobante TipoComprobante, Guid? AutorizacionId = null);

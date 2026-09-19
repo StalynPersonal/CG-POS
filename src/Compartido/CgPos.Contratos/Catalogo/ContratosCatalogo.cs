@@ -315,17 +315,15 @@ public sealed record DatosClienteResumen(
     string? Correo,
     IReadOnlyList<DatosDireccionCliente> Direcciones);
 
-/// <summary>Resultado de digitar un RNC/cédula: validez, padrón DGII local y cliente registrado (RF-181, RF-182).</summary>
+/// <summary>
+/// Lo que la caja sabe de un documento que digitó el cajero: si tiene formato válido, si su dígito verificador cuadra y,
+/// si es un cliente del maestro, sus datos. Los clientes bajan del Central: la caja no los crea ni consulta padrón alguno.
+/// </summary>
 public sealed record DatosConsultaDocumento(
     string Documento,
     TipoDocumentoIdentidad? Tipo,
     bool FormatoValido,
     bool DigitoVerificadorValido,
-    bool EnPadron,
-    string? RazonSocial,
-    string? NombreComercial,
-    string? EstadoDgii,
-    bool? ContribuyenteActivo,
     DatosClienteResumen? Cliente);
 
 public sealed record DatosFormaPago(

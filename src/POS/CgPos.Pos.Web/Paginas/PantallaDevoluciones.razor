@@ -93,7 +93,7 @@
                     {
                         <MudText Typo="Typo.body2" Color="Color.Secondary">La factura no tiene cliente: digite la cédula o el RNC de quien devuelve.</MudText>
                         <MudTextField T="string" @bind-Value="_clienteDocumento" Label="Cédula o RNC" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                        <MudTextField T="string" @bind-Value="_clienteNombre" Label="Nombre (si no está en el padrón DGII)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" @bind-Value="_clienteNombre" Label="Nombre (si no es un cliente registrado)" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     }
                 </div>
 

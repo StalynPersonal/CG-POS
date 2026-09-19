@@ -131,12 +131,6 @@ public static class ClavesParametrosCentral
     /// <summary>Versión del Agente que deben instalar las cajas; el paquete se llama "cgpos-agente-{versión}.zip".</summary>
     public const string ActualizacionesVersionPublicada = "Central.Actualizaciones.VersionPublicada";
 
-    /// <summary>Archivo del padrón de la DGII en el servidor, que las cajas descargan e importan. Opcional.</summary>
-    public const string PadronArchivo = "Central.Padron.Archivo";
-
-    /// <summary>Versión del padrón publicado (ej. la fecha de la DGII); la caja solo lo importa si cambió.</summary>
-    public const string PadronVersion = "Central.Padron.Version";
-
     /// <summary>Servidor SMTP de la empresa desde el que el Central envía correos. Opcional: sin él no se envía nada.</summary>
     public const string CorreoServidor = "Central.Correo.Servidor";
 

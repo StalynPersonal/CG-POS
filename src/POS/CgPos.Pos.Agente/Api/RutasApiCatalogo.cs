@@ -6,7 +6,6 @@ namespace CgPos.Pos.Agente.Api;
 
 public static class RutasApiCatalogo
 {
-    private const long TamanoMaximoPadron = 500L * 1024 * 1024;
 
     public static IEndpointRouteBuilder MapearApiCatalogo(this IEndpointRouteBuilder aplicacion)
     {
@@ -49,11 +48,6 @@ public static class RutasApiCatalogo
                 }
             })
             .RequireAuthorization(CatalogoPermisos.AdministrarConfiguracion);
-
-        api.MapPost("/maestros/padron-dgii", async (HttpRequest solicitud, IImportadorPadronDgii importador, CancellationToken cancelacion) =>
-                Results.Ok(await importador.ImportarAsync(solicitud.Body, cancelacion)))
-            .RequireAuthorization(CatalogoPermisos.AdministrarConfiguracion)
-            .WithMetadata(new RequestSizeLimitAttribute(TamanoMaximoPadron));
 
         return aplicacion;
     }

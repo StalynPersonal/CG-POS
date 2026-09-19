@@ -1,4 +1,5 @@
 @page "/chequeador"
+@page "/chequeador/{Sucursal}"
 @layout DisenoIngreso
 @using CgPos.Contratos.Serializacion
 @using System.Net.Http.Json
@@ -13,12 +14,18 @@
     <div class="cg-chequeador__encabezado">
         <MudText Typo="Typo.h3">Consulte su precio</MudText>
         <MudText Typo="Typo.h6">Pase el código de barras del producto por el lector</MudText>
-        @if (_sucursales.Count > 1)
+        @* La sucursal viene en la dirección del equipo (…/chequeador/01), así el cliente no tiene que elegirla. El
+           selector solo aparece si el equipo no la trae y hay más de una: es para que tecnología la ajuste. *@
+        @if (_sucursalId is not null && _nombreSucursal is { Length: > 0 })
+        {
+            <MudText Typo="Typo.subtitle1" Class="cg-chequeador__sucursal">@_nombreSucursal</MudText>
+        }
+        else if (_sucursales.Count > 1)
         {
             <MudSelect T="int?" @bind-Value="_sucursalId" Label="Sucursal" Dense="true" Variant="Variant.Outlined" Style="max-width: 280px">
                 @foreach (var sucursal in _sucursales)
                 {
-                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
         }
@@ -80,7 +87,11 @@
     private DatosPrecioChequeador? _articulo;
     private string _entrada = string.Empty;
     private string? _mensaje;
+    /// <summary>Código de la sucursal en la que está este equipo, tomado de la dirección (…/chequeador/01).</summary>
+    [Parameter] public string? Sucursal { get; set; }
+
     private int? _sucursalId;
+    private string? _nombreSucursal;
     private bool _habilitado = true;
     private CancellationTokenSource? _limpieza;
 
@@ -94,7 +105,15 @@
             var configuracion = await Http.GetFromJsonAsync<DatosConfiguracionChequeador>("api/chequeador/configuracion", OpcionesJson.Predeterminadas);
             _habilitado = configuracion?.Habilitado ?? false;
             _sucursales.AddRange(configuracion?.Sucursales ?? []);
-            _sucursalId = _sucursales.Count == 1 ? _sucursales[0].Id : null;
+
+            // La sucursal de la dirección manda; si no viene y hay una sola, se toma esa.
+            var deLaDireccion = Sucursal is { Length: > 0 } codigo
+                ? _sucursales.FirstOrDefault(s => string.Equals(s.Codigo, codigo.Trim().PadLeft(2, '0'), StringComparison.Ordinal))
+                : null;
+
+            var elegida = deLaDireccion ?? (_sucursales.Count == 1 ? _sucursales[0] : null);
+            _sucursalId = elegida?.Id;
+            _nombreSucursal = elegida?.Nombre;
         }
         catch (HttpRequestException)
         {

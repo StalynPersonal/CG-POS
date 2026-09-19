@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Pos.Aplicacion.Seguridad;
 
@@ -37,17 +37,6 @@ public sealed record ResultadoImportacionArticulos(int Creados, int Actualizados
 
 public sealed record ErrorImportacion(int Linea, string Mensaje);
 
-/// <summary>
-/// Importa el padrón de RNC de la DGII (archivo de texto separado por |): documento, razón social, nombre comercial, …,
-/// estado y régimen de pago en las dos últimas columnas. Inserta los nuevos y actualiza los que cambiaron.
-/// </summary>
-public interface IImportadorPadronDgii
-{
-    Task<ResultadoImportacionPadron> ImportarAsync(Stream contenido, CancellationToken cancelacion = default);
-}
-
-public sealed record ResultadoImportacionPadron(int LineasLeidas, int RegistrosValidos, int LineasDescartadas);
-
 public interface IConsultaArticulos
 {
     /// <summary>
@@ -73,7 +62,7 @@ public interface IConsultaArticulos
 
 public interface IConsultaDocumentos
 {
-    /// <summary>Valida el RNC/cédula, lo busca en el padrón DGII local y en los clientes registrados (RF-181, RF-182).</summary>
+    /// <summary>Valida el RNC/cédula y lo busca en los clientes, que bajan del Central (RF-181, RF-182).</summary>
     Task<DatosConsultaDocumento> ConsultarAsync(string documento, CancellationToken cancelacion = default);
 }
 

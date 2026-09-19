@@ -156,6 +156,9 @@ html, body {
 
 .cg-chequeador__encabezado { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
+/* Nombre de la sucursal del equipo: se lee, no se elige. */
+.cg-chequeador__sucursal { color: var(--cg-textoo-secundario); }
+
 .cg-chequeador__escaneo {
     display: flex;
     align-items: center;

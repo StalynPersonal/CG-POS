@@ -342,18 +342,6 @@ CREATE TABLE [Clientes] (
 GO
 
 
-CREATE TABLE [ContribuyentesDgii] (
-    [Documento] varchar(11) NOT NULL,
-    [RazonSocial] nvarchar(250) NOT NULL,
-    [NombreComercial] nvarchar(250) NULL,
-    [Estado] nvarchar(50) NULL,
-    [RegimenPago] nvarchar(50) NULL,
-    [ActualizadoEn] datetimeoffset(3) NOT NULL,
-    CONSTRAINT [PK_ContribuyentesDgii] PRIMARY KEY ([Documento])
-);
-GO
-
-
 CREATE TABLE [Denominaciones] (
     [Id] int NOT NULL,
     [Moneda] char(3) NOT NULL,

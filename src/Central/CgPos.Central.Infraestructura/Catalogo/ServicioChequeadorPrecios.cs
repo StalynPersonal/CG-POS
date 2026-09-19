@@ -20,7 +20,7 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
         await contexto.Sucursales.AsNoTracking()
             .Where(s => s.Activa)
             .OrderBy(s => s.Codigo)
-            .Select(s => new DatosSucursalChequeador(s.Id, s.Nombre))
+            .Select(s => new DatosSucursalChequeador(s.Id, s.Codigo, s.Nombre))
             .ToListAsync(cancelacion);
 
     public async Task<DatosPrecioChequeador?> ConsultarAsync(string codigo, int? sucursalId, CancellationToken cancelacion = default)

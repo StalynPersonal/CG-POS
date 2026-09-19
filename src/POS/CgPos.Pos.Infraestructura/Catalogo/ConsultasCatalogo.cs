@@ -233,10 +233,6 @@ internal sealed class ConsultaDocumentos(ContextoDatosPos contexto) : IConsultaD
         var validacion = DocumentoIdentidad.Validar(documento);
         var normalizado = validacion.Documento;
 
-        var contribuyente = validacion.FormatoValido
-            ? await contexto.ContribuyentesDgii.AsNoTracking().SingleOrDefaultAsync(c => c.Documento == normalizado, cancelacion)
-            : null;
-
         var cliente = normalizado.Length == 0
             ? null
             : await contexto.Clientes.AsNoTracking().Include(c => c.Direcciones)
@@ -267,11 +263,6 @@ internal sealed class ConsultaDocumentos(ContextoDatosPos contexto) : IConsultaD
             validacion.Tipo ?? cliente?.TipoDocumento,
             validacion.FormatoValido || cliente is not null,
             validacion.DigitoVerificadorValido,
-            contribuyente is not null,
-            contribuyente?.RazonSocial,
-            contribuyente?.NombreComercial,
-            contribuyente?.Estado,
-            contribuyente?.EstaActivo,
             datosCliente);
     }
 }

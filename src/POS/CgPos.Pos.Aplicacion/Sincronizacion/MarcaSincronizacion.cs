@@ -10,9 +10,6 @@ public sealed class MarcaSincronizacion
     /// <summary>Versión de maestros del Central aplicada en la caja.</summary>
     public const string VersionMaestros = "Maestros.Version";
 
-    /// <summary>Padrón de la DGII importado: el texto guarda el hash del archivo, para no reimportar el mismo.</summary>
-    public const string PadronDgii = "Padron.Dgii";
-
     private MarcaSincronizacion()
     {
     }
@@ -20,7 +17,7 @@ public sealed class MarcaSincronizacion
     public string Clave { get; private set; } = string.Empty;
     public long Valor { get; private set; }
 
-    /// <summary>Marca en texto cuando un número no basta (ej. el hash del padrón importado).</summary>
+    /// <summary>Marca en texto cuando un número no basta (ej. la huella del archivo de arranque aplicado).</summary>
     public string? Texto { get; private set; }
 
     public DateTimeOffset ActualizadaEn { get; private set; }

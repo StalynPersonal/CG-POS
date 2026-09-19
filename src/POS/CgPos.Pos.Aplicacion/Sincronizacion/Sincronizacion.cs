@@ -70,23 +70,8 @@ public interface IClienteCentral
 
     /// <summary>Devuelve el saldo retenido para esa factura cuando no llegó a cobrarse.</summary>
     Task LiberarReservaNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, CancellationToken cancelacion = default);
-
-    /// <summary>Consulta qué padrón de la DGII publicó el Central; nulo si no hay ninguno o el Central no responde.</summary>
-    Task<DatosPadronPublicado?> ConsultarPadronAsync(CancellationToken cancelacion = default);
-
-    /// <summary>Descarga el archivo del padrón publicado; nulo si no hay ninguno o el Central no responde.</summary>
-    Task<Stream?> DescargarPadronAsync(CancellationToken cancelacion = default);
 }
 
-/// <summary>
-/// Trae del Central el padrón de la DGII y lo importa en la caja cuando cambió (RF-33). Así el archivo de la DGII se carga
-/// una vez en el Central y no caja por caja.
-/// </summary>
-public interface IActualizacionPadron
-{
-    /// <returns>Cuántos contribuyentes se importaron; 0 si ya estaba al día o no había padrón publicado.</returns>
-    Task<int> ActualizarAsync(CancellationToken cancelacion = default);
-}
 
 /// <summary>Resultado de pedir maestros al Central.</summary>
 /// <param name="CentralRespondio">Falso si no hubo comunicación: se reintenta en el próximo ciclo.</param>

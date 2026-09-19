@@ -21,4 +21,4 @@ public sealed record DatosPrecioChequeador(
 /// <param name="Habilitado">El Central tiene encendido el chequeador (`Central.Chequeador.Habilitado`).</param>
 public sealed record DatosConfiguracionChequeador(bool Habilitado, IReadOnlyList<DatosSucursalChequeador> Sucursales);
 
-public sealed record DatosSucursalChequeador(int Id, string Nombre);
+public sealed record DatosSucursalChequeador(int Id, string Codigo, string Nombre);

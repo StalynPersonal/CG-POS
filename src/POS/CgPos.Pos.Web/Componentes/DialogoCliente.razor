@@ -1,4 +1,4 @@
-@* Cliente, comprobante y programa de fidelidad de la venta (F12): RNC o cédula contra el padrón DGII y los clientes registrados (RF-13, RF-127);
+﻿@* Cliente, comprobante y programa de fidelidad de la venta (F12): RNC o cédula contra los clientes, que bajan del Central (RF-13, RF-127);
    la cédula del miembro como ID/PIN, con inscripción sin interrumpir la venta (RF-126, RF-236, RF-237). *@
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
@@ -88,7 +88,7 @@
                     @if (_inscribir)
                     {
                         <div @onclick="() => _campo = Campo.NombreMiembro" @onfocusin="() => _campo = Campo.NombreMiembro">
-                            <MudTextField T="string" @bind-Value="_nombreMiembro" Label="Nombre (vacío = padrón DGII)" Variant="Variant.Outlined" Immediate="true"
+                            <MudTextField T="string" @bind-Value="_nombreMiembro" Label="Nombre (vacío = el del cliente registrado)" Variant="Variant.Outlined" Immediate="true"
                                           Class="@ClaseCampo(Campo.NombreMiembro)" />
                         </div>
                         <div @onclick="() => _campo = Campo.Telefono" @onfocusin="() => _campo = Campo.Telefono">

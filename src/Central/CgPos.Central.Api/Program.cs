@@ -58,6 +58,11 @@ try
     if (aplicacion.Environment.IsDevelopment())
         aplicacion.UseWebAssemblyDebugging();
 
+    // El enrutamiento va primero, antes de cualquier otro middleware: si no, una ruta de la pantalla (de las que se
+    // resuelven entregando el index.html) llega al final del camino sin que nadie ejecute su endpoint y la petición
+    // muere con un error del servidor. En desarrollo se nota más, porque el depurador de WebAssembly abre su propia rama.
+    aplicacion.UseRouting();
+
     // Encabezados básicos del Central Manager: sin incrustarlo en otros sitios ni adivinar tipos de contenido.
     aplicacion.Use(async (contexto, siguiente) =>
     {

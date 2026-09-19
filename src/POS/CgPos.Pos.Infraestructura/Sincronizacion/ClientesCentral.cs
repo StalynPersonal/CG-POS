@@ -92,10 +92,6 @@ internal sealed class CentralNoConfigurado : IClienteCentral
         Task.FromResult(ResultadoReservaNotaCredito.SinConexion(Motivo));
 
     public Task LiberarReservaNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, CancellationToken cancelacion = default) => Task.CompletedTask;
-
-    public Task<DatosPadronPublicado?> ConsultarPadronAsync(CancellationToken cancelacion = default) => Task.FromResult<DatosPadronPublicado?>(null);
-
-    public Task<Stream?> DescargarPadronAsync(CancellationToken cancelacion = default) => Task.FromResult<Stream?>(null);
 }
 
 /// <summary>
@@ -133,10 +129,6 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 
     public Task LiberarReservaNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, CancellationToken cancelacion = default) => Task.CompletedTask;
 
-    public Task<DatosPadronPublicado?> ConsultarPadronAsync(CancellationToken cancelacion = default) => Task.FromResult<DatosPadronPublicado?>(null);
-
-    public Task<Stream?> DescargarPadronAsync(CancellationToken cancelacion = default) => Task.FromResult<Stream?>(null);
-
     public async Task<RespuestaRecepcionCentral> RecibirAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {
         if (!string.Equals(MensajeSalida.CalcularHash(mensaje.Contenido), mensaje.HashContenido, StringComparison.OrdinalIgnoreCase))
@@ -169,7 +161,6 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     public const string RutaToken = "api/dispositivos/token";
     public const string RutaNotasCredito = "api/notas-credito";
     public const string RutaListasBoda = "api/listas-boda";
-    public const string RutaPadron = "api/padron";
 
     private static readonly SocketsHttpHandler Manejador = new()
     {
@@ -371,44 +362,6 @@ internal sealed class ClienteCentralHttp : IClienteCentral
         }
     }
 
-    /// <summary>Padrón de la DGII publicado en el Central (RF-33): se descarga una vez por caja, cuando cambia.</summary>
-    public async Task<DatosPadronPublicado?> ConsultarPadronAsync(CancellationToken cancelacion = default)
-    {
-        var (respuesta, fallo) = await SolicitarAsync(() => new HttpRequestMessage(HttpMethod.Get, RutaPadron), cancelacion);
-        if (fallo is not null)
-            return null;
-
-        ArgumentNullException.ThrowIfNull(respuesta);
-        using (respuesta)
-        {
-            try
-            {
-                return respuesta.StatusCode == HttpStatusCode.NoContent || !respuesta.IsSuccessStatusCode
-                    ? null
-                    : await respuesta.Content.ReadFromJsonAsync<DatosPadronPublicado>(OpcionesJson.Predeterminadas, cancelacion);
-            }
-            catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
-            {
-                return null;
-            }
-        }
-    }
-
-    public async Task<Stream?> DescargarPadronAsync(CancellationToken cancelacion = default)
-    {
-        var (respuesta, fallo) = await SolicitarAsync(() => new HttpRequestMessage(HttpMethod.Get, $"{RutaPadron}/archivo"), cancelacion);
-        if (fallo is not null || respuesta is null)
-            return null;
-
-        if (!respuesta.IsSuccessStatusCode)
-        {
-            respuesta.Dispose();
-            return null;
-        }
-
-        // El archivo puede pesar cientos de MB: se entrega como flujo y quien lo consume lo libera.
-        return await respuesta.Content.ReadAsStreamAsync(cancelacion);
-    }
 
     private async Task<(HttpResponseMessage? Respuesta, ResultadoEnvioCentral? Fallo)> SolicitarAsync(Func<HttpRequestMessage> crearSolicitud, CancellationToken cancelacion)
     {

@@ -74,14 +74,14 @@ internal sealed class ServicioFidelidad(
             return new RespuestaFidelidad(CodigoResultadoFidelidad.YaInscrito, $"La cédula {validacion.Documento} ya está inscrita a nombre de {existente.Nombre}.",
                 await contexto.DatosMiembroAsync(parametros, existente, sesion.CajaId, Hoy, cancelacion));
 
-        // Hay cédulas antiguas que no cumplen el dígito verificador: se aceptan si el padrón DGII las conoce.
+        // Hay cédulas antiguas que no cumplen el dígito verificador: se aceptan si el maestro de clientes las conoce.
         var consulta = await consultaDocumentos.ConsultarAsync(validacion.Documento, cancelacion);
-        if (!validacion.DigitoVerificadorValido && !consulta.EnPadron)
+        if (!validacion.DigitoVerificadorValido && consulta.Cliente is null)
             return new RespuestaFidelidad(CodigoResultadoFidelidad.CedulaInvalida, $"La cédula {validacion.Documento} no es válida (dígito verificador).", null);
 
-        var nombre = string.IsNullOrWhiteSpace(solicitud.Nombre) ? consulta.Cliente?.Nombre ?? consulta.RazonSocial : solicitud.Nombre.Trim();
+        var nombre = string.IsNullOrWhiteSpace(solicitud.Nombre) ? consulta.Cliente?.Nombre : solicitud.Nombre.Trim();
         if (string.IsNullOrWhiteSpace(nombre))
-            return new RespuestaFidelidad(CodigoResultadoFidelidad.NombreRequerido, "La cédula no está en el padrón DGII: indique el nombre del cliente.", null);
+            return new RespuestaFidelidad(CodigoResultadoFidelidad.NombreRequerido, "La cédula no está registrada: indique el nombre del cliente.", null);
 
         MiembroFidelidad miembro;
         try

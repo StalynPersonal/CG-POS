@@ -47,27 +47,14 @@ public class ApiCatalogoPruebas(AgenteEnPruebas agente)
         var busqueda = await cliente.GetFromJsonAsync<List<DatosArticuloResumen>>("/api/articulos?texto=cemento%20gris", OpcionesJson.Predeterminadas);
         Assert.Contains(busqueda!, a => a.Codigo == "CEM-425");
 
+        // El documento se valida y, si es un cliente del maestro que bajó del Central, llega con sus datos.
         var documento = await cliente.GetFromJsonAsync<DatosConsultaDocumento>("/api/documentos/131-24679-6", OpcionesJson.Predeterminadas);
-        Assert.True(documento!.EnPadron);
-        Assert.Equal("CONSTRUCTORA EJEMPLO SRL", documento.RazonSocial);
+        Assert.True(documento!.DigitoVerificadorValido);
         Assert.Equal("Constructora Ejemplo SRL", documento.Cliente!.Nombre);
 
         var cobro = await cliente.GetFromJsonAsync<DatosCatalogoCobro>("/api/catalogos/cobro", OpcionesJson.Predeterminadas);
         Assert.Equal("EFE", cobro!.FormasPago[0].Codigo);
         Assert.Contains(cobro.Denominaciones, d => d.Moneda == "DOP" && d.Valor == 2000m);
-    }
-
-    [SkippableFact]
-    public async Task Importar_padron_requiere_permiso_de_administracion()
-    {
-        Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
-        using var cliente = agente.Fabrica!.CreateClient();
-        await IniciarSesionAsync(cliente, "C001", "Cajero.2026");
-
-        using var contenido = new StringContent("131246796|CONSTRUCTORA EJEMPLO SRL||||||||ACTIVO|NORMAL");
-        using var respuesta = await cliente.PostAsync("/api/maestros/padron-dgii", contenido);
-
-        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
     private static async Task IniciarSesionAsync(HttpClient cliente, string codigo, string clave)

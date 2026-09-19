@@ -75,7 +75,6 @@ public static class InyeccionDependencias
 
         // Actualización remota del Agente de las cajas (H7).
         servicios.AddScoped<Aplicacion.Actualizaciones.IServicioActualizacionesCaja, Actualizaciones.ServicioActualizacionesCaja>();
-        servicios.AddScoped<Aplicacion.Padron.IServicioPadronCentral, Padron.ServicioPadronCentral>();
 
         // Correo de la empresa y aviso al cliente cuando su pedido está listo (RF-256).
         servicios.AddSingleton(new Notificaciones.OpcionesCorreo(configuracion["Correo:Contrasena"]));

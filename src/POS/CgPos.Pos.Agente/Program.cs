@@ -65,6 +65,11 @@ try
     if (aplicacion.Environment.IsDevelopment())
         aplicacion.UseWebAssemblyDebugging();
 
+    // El enrutamiento va primero, antes de cualquier otro middleware: si no, una ruta de la pantalla (de las que se
+    // resuelven entregando el index.html) llega al final del camino sin que nadie ejecute su endpoint y la petición
+    // muere con un error del servidor. En desarrollo se nota más, porque el depurador de WebAssembly abre su propia rama.
+    aplicacion.UseRouting();
+
     // Una regla de negocio sin configurar no se reemplaza por un valor fijo: la operación se rechaza con el motivo (422, texto).
     aplicacion.Use(async (contexto, siguiente) =>
     {
@@ -139,13 +144,6 @@ try
     if (!conCentral && RutaConfigurada("Maestros:Archivo") is { } archivoMaestros)
         await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:Archivo", archivoMaestros,
             (servicios, ruta, cancelacion) => CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.AplicarMaestrosAsync(servicios, ruta, cancelacion));
-
-    if (RutaConfigurada("Maestros:PadronDgii") is { } archivoPadron)
-        await aplicacion.Services.AplicarArchivoSiCambioAsync("Maestros:PadronDgii", archivoPadron, async (servicios, ruta, cancelacion) =>
-        {
-            var padron = await CgPos.Pos.Infraestructura.Catalogo.ExtensionesCatalogo.ImportarPadronDgiiAsync(servicios, ruta, cancelacion);
-            Log.Information("Padrón DGII importado: {Validos} registros válidos de {Leidas} líneas", padron.RegistrosValidos, padron.LineasLeidas);
-        });
 
     // Solo desarrollo: certificado autofirmado cargado con un PIN de configuración. En producción el PIN lo digita un usuario.
     if (aplicacion.Configuration[CgPos.Pos.Aplicacion.Ecf.ClavesEcf.PinDesarrollo] is { Length: > 0 } pinDesarrollo)

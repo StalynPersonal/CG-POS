@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CgPos.Pos.Pruebas.Catalogo;
 
-/// <summary>Maestros, precios, búsqueda, padrón DGII e importaciones contra SQL Server real.</summary>
+/// <summary>Maestros, precios, búsqueda e importaciones contra SQL Server real.</summary>
 public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
     [SkippableFact]
@@ -213,71 +213,33 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     }
 
     [SkippableFact]
-    public async Task Consulta_de_documento_combina_padron_dgii_y_cliente_registrado()
+    public async Task Consulta_de_documento_devuelve_el_cliente_del_maestro_o_solo_su_validacion()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
         await AplicarYResolverAsync(escenario);
-        var rncSinCliente = EscenarioCatalogo.RncAleatorioValido();
-        await ImportarPadronAsync(
-            $"{escenario.RncCliente}|CONSTRUCTORA {escenario.Sufijo} SRL|CONSTRUCTORA|CONSTRUCCION|||||01/01/2010|ACTIVO|NORMAL",
-            $"{rncSinCliente}|EMPRESA SUSPENDIDA {escenario.Sufijo}||COMERCIO|||||01/01/2015|SUSPENDIDO|NORMAL");
 
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
         var consulta = ambito.ServiceProvider.GetRequiredService<IConsultaDocumentos>();
 
+        // Un cliente del maestro llega con todos sus datos, aunque el documento venga con guiones.
         var conCliente = await consulta.ConsultarAsync($"{escenario.RncCliente[..3]}-{escenario.RncCliente[3..8]}-{escenario.RncCliente[8..]}");
         Assert.Equal(TipoDocumentoIdentidad.Rnc, conCliente.Tipo);
         Assert.True(conCliente.DigitoVerificadorValido);
-        Assert.True(conCliente.EnPadron);
-        Assert.True(conCliente.ContribuyenteActivo);
         Assert.NotNull(conCliente.Cliente);
         Assert.Equal(TipoComprobante.FacturaCreditoFiscal, conCliente.Cliente.TipoComprobante);
         Assert.Equal(ListaPrecio.Mayor, conCliente.Cliente.ListaPrecio);
         Assert.Equal("Oficina", conCliente.Cliente.Direcciones[0].Alias); // la principal primero
         Assert.Equal(2, conCliente.Cliente.Direcciones.Count);
 
-        var suspendido = await consulta.ConsultarAsync(rncSinCliente);
-        Assert.True(suspendido.EnPadron);
-        Assert.False(suspendido.ContribuyenteActivo);
-        Assert.Null(suspendido.Cliente);
-
-        var noEnPadron = await consulta.ConsultarAsync(EscenarioCatalogo.RncAleatorioValido());
-        Assert.True(noEnPadron.DigitoVerificadorValido);
-        Assert.False(noEnPadron.EnPadron);
+        // Un RNC válido que no está en el maestro: la caja lo valida, pero no tiene cliente que ofrecer.
+        var sinCliente = await consulta.ConsultarAsync(EscenarioCatalogo.RncAleatorioValido());
+        Assert.True(sinCliente.FormatoValido);
+        Assert.True(sinCliente.DigitoVerificadorValido);
+        Assert.Null(sinCliente.Cliente);
 
         var invalido = await consulta.ConsultarAsync("123");
         Assert.False(invalido.FormatoValido);
-    }
-
-    [SkippableFact]
-    public async Task Importador_de_padron_inserta_actualiza_y_descarta_lineas_invalidas()
-    {
-        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        var rncUno = EscenarioCatalogo.RncAleatorioValido();
-        var rncDos = EscenarioCatalogo.RncAleatorioValido();
-
-        var primera = await ImportarPadronAsync(
-            $"{rncUno}|EMPRESA UNO SRL|UNO|COMERCIO|||||01/01/2010|ACTIVO|NORMAL",
-            $"{rncDos}|EMPRESA DOS SRL||SERVICIOS|||||01/01/2011|ACTIVO|NORMAL",
-            $"{rncDos}|EMPRESA DOS SRL (REPETIDA)||SERVICIOS|||||01/01/2011|ACTIVO|NORMAL",
-            "ESTO-NO-ES-UN-RNC|LINEA INVALIDA");
-
-        Assert.Equal(4, primera.LineasLeidas);
-        Assert.Equal(3, primera.RegistrosValidos);
-        Assert.Equal(1, primera.LineasDescartadas);
-
-        await ImportarPadronAsync($"{rncUno}|EMPRESA UNO SRL|UNO|COMERCIO|||||01/01/2010|DADO DE BAJA|NORMAL");
-
-        await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
-        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
-        var uno = await contexto.ContribuyentesDgii.SingleAsync(c => c.Documento == rncUno);
-        var dos = await contexto.ContribuyentesDgii.SingleAsync(c => c.Documento == rncDos);
-
-        Assert.Equal("DADO DE BAJA", uno.Estado);
-        Assert.False(uno.EstaActivo);
-        Assert.Equal("EMPRESA DOS SRL (REPETIDA)", dos.RazonSocial); // ante repetidos gana la última línea
-        Assert.Equal("NORMAL", dos.RegimenPago);
     }
 
     [SkippableFact]
@@ -383,10 +345,4 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         return await ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>().BuscarPorCodigoAsync(codigo);
     }
 
-    private async Task<ResultadoImportacionPadron> ImportarPadronAsync(params string[] lineas)
-    {
-        await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
-        await using var contenido = new MemoryStream(Encoding.Latin1.GetBytes(string.Join("\n", lineas)));
-        return await ambito.ServiceProvider.GetRequiredService<IImportadorPadronDgii>().ImportarAsync(contenido);
-    }
 }

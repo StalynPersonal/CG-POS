@@ -163,21 +163,6 @@ internal sealed class DireccionClienteConfiguracion : IEntityTypeConfiguration<D
     }
 }
 
-internal sealed class ContribuyenteDgiiConfiguracion : IEntityTypeConfiguration<ContribuyenteDgii>
-{
-    public void Configure(EntityTypeBuilder<ContribuyenteDgii> constructor)
-    {
-        constructor.ToTable("ContribuyentesDgii");
-        constructor.HasKey(c => c.Documento);
-        constructor.Property(c => c.Documento).HasMaxLength(DocumentoIdentidad.LargoCedula).IsUnicode(false);
-        constructor.Property(c => c.RazonSocial).HasMaxLength(ContribuyenteDgii.LargoMaximoNombre).IsRequired();
-        constructor.Property(c => c.NombreComercial).HasMaxLength(ContribuyenteDgii.LargoMaximoNombre);
-        constructor.Property(c => c.Estado).HasMaxLength(ContribuyenteDgii.LargoMaximoEstado);
-        constructor.Property(c => c.RegimenPago).HasMaxLength(ContribuyenteDgii.LargoMaximoEstado);
-        constructor.Ignore(c => c.EstaActivo);
-    }
-}
-
 internal sealed class MonedaConfiguracion : IEntityTypeConfiguration<Moneda>
 {
     public void Configure(EntityTypeBuilder<Moneda> constructor)

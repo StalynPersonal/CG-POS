@@ -1,4 +1,4 @@
-namespace CgPos.Dominio.Fiscal;
+﻿namespace CgPos.Dominio.Fiscal;
 
 public enum TipoDocumentoIdentidad
 {
@@ -34,7 +34,7 @@ public sealed record ResultadoValidacionDocumento(
 /// <summary>
 /// Validación de RNC (9 dígitos) y cédula (11 dígitos) con los algoritmos de dígito verificador de la DGII.
 /// Hay cédulas antiguas que no cumplen el dígito verificador: por eso el resultado separa formato y dígito,
-/// y la consulta al padrón local tiene la última palabra.
+/// y quien llama decide si el dígito basta para rechazar el documento.
 /// </summary>
 public static class DocumentoIdentidad
 {
