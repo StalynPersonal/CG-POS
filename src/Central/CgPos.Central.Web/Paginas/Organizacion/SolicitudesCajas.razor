@@ -41,12 +41,12 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Caja">
-                <strong>@context.SucursalCodigo · @context.CajaCodigo</strong>
+                <strong>Sucursal @context.SucursalCodigo · Caja @context.CajaCodigo</strong>
                 <div class="cg-central__detalle">@(context.CajaNombre ?? "No existe en el Central")</div>
             </MudTd>
             <MudTd DataLabel="Equipo">
                 @context.NombreEquipo
-                <div class="cg-central__detalle">@(context.DireccionIp ?? "sin dirección") · @context.HuellaEquipo[..12].ToLowerInvariant()</div>
+                <div class="cg-central__detalle">@Direccion(context.DireccionIp) · @context.HuellaEquipo[..12].ToLowerInvariant()</div>
             </MudTd>
             <MudTd DataLabel="Solicitada">@Fecha(context.SolicitadaEn)</MudTd>
             <MudTd DataLabel="Estado">
@@ -90,6 +90,14 @@
         _soloPendientes ? _solicitudes.Where(s => s.Estado == EsperandoDecision) : _solicitudes;
 
     private static string Fecha(DateTimeOffset momento) => momento.ToLocalTime().ToString("dd/MM/yyyy h:mm tt");
+
+    /// <summary>La dirección desde la que pidió entrar. Cuando es el propio servidor llega como ::1, que no le dice nada a nadie.</summary>
+    private static string Direccion(string? direccionIp) => direccionIp switch
+    {
+        null or "" => "sin dirección",
+        "::1" or "127.0.0.1" => "este mismo servidor",
+        var otra => otra,
+    };
 
     private static string Estado(string estado) => estado switch
     {
@@ -135,8 +143,8 @@
         }
 
         if (!await Dialogos.ConfirmarAsync("Aceptar la caja",
-                $"La caja {solicitud.SucursalCodigo}-{solicitud.CajaCodigo} quedará atada al equipo «{solicitud.NombreEquipo}» " +
-                $"({solicitud.DireccionIp ?? "sin dirección"}) y recibirá su credencial. ¿Es el equipo que acaba de instalar?", "Aceptar"))
+                $"La caja {solicitud.CajaCodigo} de la sucursal {solicitud.SucursalCodigo} quedará atada al equipo «{solicitud.NombreEquipo}» " +
+                $"({Direccion(solicitud.DireccionIp)}) y recibirá su credencial. ¿Es el equipo que acaba de instalar?", "Aceptar"))
             return;
 
         var respuesta = await Cliente.AprobarSolicitudEnrolamientoAsync(solicitud.Id);
@@ -150,7 +158,7 @@
     {
         var parametros = new DialogParameters<DialogoMotivo>
         {
-            { d => d.Mensaje, $"La caja {solicitud.SucursalCodigo}-{solicitud.CajaCodigo} del equipo «{solicitud.NombreEquipo}» no recibirá credencial." },
+            { d => d.Mensaje, $"La caja {solicitud.CajaCodigo} de la sucursal {solicitud.SucursalCodigo}, del equipo «{solicitud.NombreEquipo}», no recibirá credencial." },
             { d => d.Etiqueta, "Motivo del rechazo" },
             { d => d.TextoConfirmar, "Rechazar" },
         };

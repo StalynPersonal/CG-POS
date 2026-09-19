@@ -552,7 +552,19 @@ nota('Si la caja avisa que la base no existe o le faltan tablas, es que no se ej
 nota('La credencial queda guardada cifrada en ese equipo y solo sirve ahí: si alguien copia la configuración a otra máquina, el '
      'Central la rechaza y el intento queda registrado. Por eso, cuando una caja cambia de equipo, hay que usar «Liberar equipo».')
 
-titulo('3.1.1. Cambiar una caja de equipo', 3)
+titulo('3.1.1. La impresora de tickets', 3)
+p('La caja imprime en la impresora térmica del mostrador. Se indica una sola vez, al instalarla, y hay tres formas según '
+  'cómo esté conectada:')
+tabla(['Tipo', 'Cuándo se usa', 'Qué se indica'],
+      [['Windows', 'La impresora está instalada en el equipo (USB o serie). Es lo más común.', 'El nombre exacto con el que aparece en Dispositivos e impresoras de Windows.'],
+       ['Red', 'La impresora tiene su propio puerto de red y su dirección.', 'Su dirección y su puerto (normalmente 9100).'],
+       ['Archivo', 'Todavía no hay impresora: sirve para probar la caja.', 'La carpeta donde se van guardando los tickets.']],
+      anchos=[2.2, 7.0, 7.6])
+nota('La gaveta del dinero se conecta a la impresora, no al equipo: se abre con un pulso que viaja por el mismo cable. Por eso '
+     'no se configura aparte.')
+nota('Si cambia la impresora de una caja, hay que reiniciar el servicio de la caja para que lo tome.')
+
+titulo('3.1.2. Cambiar una caja de equipo', 3)
 p('El equipo de la caja se dañó, se reinstaló Windows o se reemplaza por otro. La caja es la misma; lo que cambia es la máquina.')
 paso('En el Central, Organización → Cajas, en el menú de esa caja, elija «Liberar equipo» e indique el motivo. Queda registrado quién lo hizo.')
 paso('Instale la caja en el equipo nuevo, con la misma sucursal y el mismo número.')

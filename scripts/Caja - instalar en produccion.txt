@@ -124,6 +124,45 @@
  nombrarlas 01-..., 02-... Se pueden cambiar con la caja encendida.
 
 
+
+-------------------------------------------------------------------------------
+ LA IMPRESORA DE TICKETS
+-------------------------------------------------------------------------------
+
+ El instalador no la configura: hay que indicarla en C:\CGPOS\Agente\
+ appsettings.Production.json, en Perifericos:Impresora. Hay tres tipos:
+
+ 1) Windows  -  lo normal en una caja: la térmica USB o serie ya instalada en
+    el equipo. El nombre va EXACTAMENTE como aparece en Windows, en
+    Dispositivos e impresoras.
+
+     "Perifericos": {
+       "Impresora": { "Tipo": "Windows", "Nombre": "EPSON TM-T20III" }
+     }
+
+ 2) Red  -  si la térmica tiene puerto de red y su propia dirección.
+
+     "Perifericos": {
+       "Impresora": { "Tipo": "Red", "Host": "192.168.1.50", "Puerto": 9100 }
+     }
+
+ 3) Archivo  -  no imprime: deja cada ticket como archivo en una carpeta. Sirve
+    para probar la caja antes de conectar la impresora.
+
+     "Perifericos": {
+       "Impresora": { "Tipo": "Archivo", "Carpeta": "C:\\CGPOS\\Impresiones" }
+     }
+
+ La gaveta de dinero se abre por la misma impresora, con su pulso, así que no
+ se configura aparte: conéctela al conector RJ11 de la impresora.
+
+ Después de cambiarlo hay que reiniciar el servicio:
+
+     Restart-Service CgPosAgente
+
+ Para comprobar que imprime, haga una venta de prueba y reimprima el ticket
+ desde la caja.
+
 -------------------------------------------------------------------------------
  PASO 5. COMPROBAR
 -------------------------------------------------------------------------------

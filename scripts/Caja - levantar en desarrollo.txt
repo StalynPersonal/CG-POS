@@ -133,6 +133,39 @@
  certificado digital de prueba para firmar los e-CF.
 
 
+
+-------------------------------------------------------------------------------
+ LA IMPRESORA
+-------------------------------------------------------------------------------
+
+ En desarrollo la caja no imprime: deja cada ticket como archivo. Eso se cambia
+ en appsettings.Development.json, en Perifericos:Impresora. Hay tres tipos:
+
+ 1) Archivo  -  no imprime, guarda el ticket en una carpeta. Es lo que trae.
+
+     "Impresora": { "Tipo": "Archivo", "Carpeta": "logs/impresiones" }
+
+     Deja dos archivos por ticket: .txt para leerlo y .escpos con los bytes
+     que se le habrían mandado a la impresora.
+
+ 2) Red  -  para las térmicas con puerto de red. Les manda los bytes directo.
+
+     "Impresora": { "Tipo": "Red", "Host": "192.168.1.50", "Puerto": 9100 }
+
+     El puerto 9100 es el normal en estas impresoras; si es ese, puede omitirlo.
+
+ 3) Windows  -  para las térmicas USB, serie o compartidas, ya instaladas en
+    Windows. El nombre va EXACTAMENTE como aparece en Dispositivos e impresoras.
+
+     "Impresora": { "Tipo": "Windows", "Nombre": "EPSON TM-T20III" }
+
+ En los tres casos la gaveta se abre por la misma impresora, con su pulso.
+
+ Lo demás que se simula en desarrollo, en la misma sección Perifericos:
+
+     BalanzaSimulada    devuelve siempre el peso que usted le ponga.
+     TerminalSimulado   aprueba las tarjetas sin conectarse a nada.
+
 -------------------------------------------------------------------------------
  PROBAR CON DOS CAJAS
 -------------------------------------------------------------------------------

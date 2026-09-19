@@ -12,6 +12,7 @@ namespace CgPos.Pos.Infraestructura.Perifericos;
 /// <list type="bullet">
 /// <item><c>Archivo</c> (predeterminado): deja el ticket en texto y en ESC/POS en <c>Carpeta</c> (sin impresora conectada).</item>
 /// <item><c>Red</c>: envía los bytes ESC/POS a <c>Host</c>:<c>Puerto</c> (9100), el modo de las térmicas de red.</item>
+/// <item><c>Windows</c>: manda el trabajo a la impresora instalada con ese <c>Nombre</c> (USB, serie o compartida), en crudo.</item>
 /// </list>
 /// La gaveta se abre con el pulso ESC/POS a través de la misma impresora.
 /// </summary>
@@ -40,6 +41,22 @@ internal sealed class ImpresoraTicket(IConfiguration configuracion, TimeProvider
                 await cliente.ConnectAsync(seccion["Host"] ?? throw new InvalidOperationException("Falta Perifericos:Impresora:Host."), puerto, limite.Token);
                 await using var flujo = cliente.GetStream();
                 await flujo.WriteAsync(bytes, limite.Token);
+                return new ResultadoImpresion(true, null);
+            }
+
+            if (string.Equals(seccion["Tipo"], "Windows", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!OperatingSystem.IsWindows())
+                    throw new InvalidOperationException("La impresora de Windows solo funciona sobre Windows.");
+
+                var impresora = seccion["Nombre"] ?? throw new InvalidOperationException("Falta Perifericos:Impresora:Nombre.");
+
+                // Imprimir puede tardar, así que no se hace en el hilo que atiende la venta.
+                await Task.Run(() =>
+                {
+                    if (OperatingSystem.IsWindows())
+                        ColaImpresionWindows.Enviar(impresora, nombre, bytes);
+                }, cancelacion);
                 return new ResultadoImpresion(true, null);
             }
 
