@@ -113,6 +113,21 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> RevocarCredencialAsync(int cajaId, string motivo) =>
         EnviarAsync(HttpMethod.Post, $"api/cajas/{cajaId}/credencial/revocar", new SolicitudRevocacionCredencial(motivo));
 
+    /// <summary>Suelta la credencial del equipo al que está atada, para poder instalar la caja en otra máquina.</summary>
+    public Task<RespuestaAdministracion> LiberarEquipoAsync(int cajaId, string motivo) =>
+        EnviarAsync(HttpMethod.Post, $"api/cajas/{cajaId}/credencial/liberar-equipo", new SolicitudMotivo(motivo));
+
+    // ---------- Solicitudes de las cajas para entrar al Central ----------
+
+    public Task<IReadOnlyList<DatosSolicitudEnrolamiento>?> ListarSolicitudesEnrolamientoAsync(bool soloPendientes = false) =>
+        ListarAsync<DatosSolicitudEnrolamiento>($"api/enrolamiento?pendientes={(soloPendientes ? "true" : "false")}");
+
+    public Task<RespuestaAdministracion> AprobarSolicitudEnrolamientoAsync(int solicitudId) =>
+        EnviarAsync(HttpMethod.Post, $"api/enrolamiento/{solicitudId}/aprobar", null);
+
+    public Task<RespuestaAdministracion> RechazarSolicitudEnrolamientoAsync(int solicitudId, string motivo) =>
+        EnviarAsync(HttpMethod.Post, $"api/enrolamiento/{solicitudId}/rechazar", new SolicitudMotivo(motivo));
+
     // ---------- Rangos de e-CF ----------
 
     public Task<IReadOnlyList<DatosSecuenciaEcfCentral>?> ListarSecuenciasAsync() => ListarAsync<DatosSecuenciaEcfCentral>("api/fiscal/secuencias");

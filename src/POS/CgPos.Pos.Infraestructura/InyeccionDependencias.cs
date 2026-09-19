@@ -17,6 +17,7 @@ using CgPos.Pos.Infraestructura.Seguridad;
 using CgPos.Pos.Infraestructura.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -88,7 +89,9 @@ public static class InyeccionDependencias
         // Sincronización con el Central (M14): HTTP, simulado o sin Central según la configuración de la instalación.
         servicios.AddSingleton(OpcionesSincronizacion.Leer(configuracion));
         servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoConexionCentral, EstadoConexionCentral>();
-        servicios.AddSingleton(_ => FabricaClienteCentral.Crear(configuracion));
+        servicios.AddSingleton<ICredencialCaja>(proveedor =>
+            new CredencialCajaProtegida(configuracion, proveedor.GetRequiredService<ILoggerFactory>().CreateLogger<CredencialCajaProtegida>()));
+        servicios.AddSingleton(proveedor => FabricaClienteCentral.Crear(configuracion, proveedor.GetRequiredService<ICredencialCaja>()));
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IDescargaMaestros, DescargaMaestros>();
         servicios.AddScoped<IEstadoSincronizacion, ServicioEstadoSincronizacion>();

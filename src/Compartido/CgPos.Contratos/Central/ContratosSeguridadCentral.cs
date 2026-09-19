@@ -1,4 +1,4 @@
-using CgPos.Contratos.CargaInicial;
+﻿using CgPos.Contratos.CargaInicial;
 
 namespace CgPos.Contratos.Central;
 
@@ -33,7 +33,8 @@ public sealed record DatosSesionCentral(
     Guid SesionId);
 
 /// <summary>La caja cambia su credencial (el código de su sucursal, el suyo y el secreto) por un token de dispositivo de pocos minutos.</summary>
-public sealed record SolicitudTokenDispositivo(string SucursalCodigo, string CajaCodigo, string Secreto);
+/// <param name="HuellaEquipo">Identifica al equipo donde corre la caja; el Central comprueba que sea el mismo de siempre.</param>
+public sealed record SolicitudTokenDispositivo(string SucursalCodigo, string CajaCodigo, string Secreto, string? HuellaEquipo = null);
 
 public sealed record RespuestaTokenDispositivo(bool Exitoso, string? Mensaje = null, string? Token = null, DateTimeOffset? ExpiraEn = null);
 
@@ -44,6 +45,51 @@ public sealed record RespuestaTokenDispositivo(bool Exitoso, string? Mensaje = n
 public sealed record DatosCredencialDispositivo(int CajaId, string SucursalCodigo, string CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
 
 public sealed record SolicitudRevocacionCredencial(string Motivo);
+
+public sealed record SolicitudMotivo(string Motivo);
+
+public enum EstadoEnrolamientoCaja
+{
+    /// <summary>La solicitud quedó registrada y espera que alguien la acepte en el Central.</summary>
+    Pendiente,
+
+    /// <summary>Aceptada: en esta misma respuesta viaja la credencial, y solo en esta.</summary>
+    Entregada,
+
+    Rechazada,
+
+    /// <summary>La caja que se pide no existe en el Central, o su credencial ya está atada a otro equipo.</summary>
+    NoDisponible,
+}
+
+/// <summary>
+/// La caja pide entrar al Central por primera vez. No lleva secreto: eso es lo que viene a buscar.
+/// </summary>
+/// <param name="HuellaEquipo">Identificador del equipo, en hexadecimal; el Central lo ata a la credencial al aceptarla.</param>
+/// <param name="Token">Secreto que la caja se inventa y guarda: sin él nadie más puede recoger la credencial aprobada.</param>
+public sealed record SolicitudEnrolamientoCaja(string SucursalCodigo, string CajaCodigo, string HuellaEquipo, string NombreEquipo, string Token);
+
+/// <summary>Respuesta a la solicitud. El secreto solo viaja cuando el estado es <see cref="EstadoEnrolamientoCaja.Entregada"/>.</summary>
+public sealed record RespuestaEnrolamientoCaja(EstadoEnrolamientoCaja Estado, string? Secreto = null, string? Mensaje = null);
+
+/// <summary>Solicitud de enrolamiento tal como se ve en el Central, para decidir si se acepta.</summary>
+public sealed record DatosSolicitudEnrolamiento(
+    int Id,
+    string SucursalCodigo,
+    string CajaCodigo,
+    string? CajaNombre,
+    string NombreEquipo,
+    string HuellaEquipo,
+    string? DireccionIp,
+    DateTimeOffset SolicitadaEn,
+    string Estado,
+    DateTimeOffset? ResueltaEn,
+    string? ResueltaPor,
+    string? Motivo,
+    /// <summary>La caja existe en el Central: si no, no hay nada que aceptar hasta crearla.</summary>
+    bool CajaExiste,
+    /// <summary>La credencial de esa caja ya está atada a otro equipo: hay que liberarlo antes de aceptar.</summary>
+    bool CajaConEquipoFijado);
 
 public sealed record DatosDispositivo(int CajaId, string CajaCodigo, string CajaNombre, int SucursalId, string SucursalCodigo);
 

@@ -1,4 +1,4 @@
-#requires -RunAsAdministrator
+﻿#requires -RunAsAdministrator
 <#
 .SYNOPSIS
     Actualiza el Agente de esta caja con la versión que publicó el Central, y avisa qué versión quedó instalada.
@@ -33,12 +33,27 @@ $configuracion = Get-Content $rutaConfiguracion -Raw | ConvertFrom-Json
 $urlCentral = $configuracion.Central.Url.TrimEnd('/')
 $sucursal = $configuracion.Caja.Sucursal
 $caja = $configuracion.Caja.Codigo
-$secreto = $configuracion.Central.Secreto
-if (-not $urlCentral -or -not $sucursal -or -not $caja -or -not $secreto) { throw 'La configuración no tiene la caja o la credencial del Central.' }
+if (-not $urlCentral -or -not $sucursal -or -not $caja) { throw 'La configuración no tiene la caja ni la dirección del Central.' }
 
-# Token de dispositivo: la misma credencial con la que la caja sincroniza.
+# La credencial no está en la configuración: vive cifrada con DPAPI en este equipo, atada a esta máquina. Se descifra aquí
+# igual que lo hace el Agente, por eso este script corre como administrador en la propia caja.
+$rutaCredencial = if ($configuracion.Central.ArchivoCredencial) { $configuracion.Central.ArchivoCredencial } else { Join-Path $Raiz 'credencial-caja.dat' }
+if (-not (Test-Path $rutaCredencial)) { throw "La caja todavía no tiene credencial ($rutaCredencial). Acepte su solicitud en el Central." }
+
+Add-Type -AssemblyName System.Security
+$claro = [System.Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($rutaCredencial), $null, 'LocalMachine')
+$credencial = [Text.Encoding]::UTF8.GetString($claro) | ConvertFrom-Json
+$secreto = $credencial.secreto
+if (-not $secreto) { throw 'La caja todavía no recibió su credencial del Central.' }
+
+# La huella se calcula igual que en el Agente: lo que identifica al equipo más el identificador de esta instalación.
+$idWindows = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Cryptography' -Name MachineGuid).MachineGuid
+$sha = [System.Security.Cryptography.SHA256]::Create()
+$huella = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes("$idWindows|$env:COMPUTERNAME|$($credencial.instalacion)")) | ForEach-Object { $_.ToString('X2') })
+
+# Token de dispositivo: la misma credencial con la que la caja sincroniza, y la huella de este equipo.
 $token = (Invoke-RestMethod -Method Post -Uri "$urlCentral/api/dispositivos/token" -ContentType 'application/json' `
-    -Body (@{ sucursalCodigo = $sucursal; cajaCodigo = $caja; secreto = $secreto } | ConvertTo-Json)).token
+    -Body (@{ sucursalCodigo = $sucursal; cajaCodigo = $caja; secreto = $secreto; huellaEquipo = $huella } | ConvertTo-Json)).token
 $encabezados = @{ Authorization = "Bearer $token" }
 
 $publicada = Invoke-RestMethod -Uri "$urlCentral/api/actualizaciones/caja" -Headers $encabezados

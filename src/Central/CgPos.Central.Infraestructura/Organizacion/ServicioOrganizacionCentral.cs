@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -131,7 +131,8 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
                 credenciales.TryGetValue(caja.Id, out var credencial);
                 estados.TryGetValue(caja.Id, out var estado);
                 return new DatosCaja(caja.Id, caja.SucursalId, sucursal.Codigo, sucursal.Nombre, caja.Codigo, caja.Nombre, caja.Habilitada,
-                    credencial?.EmitidaEn, credencial?.UltimoUsoEn, estado?.UltimaRecepcionEn, estado?.UltimaDescargaEn);
+                    credencial?.EmitidaEn, credencial?.UltimoUsoEn, estado?.UltimaRecepcionEn, estado?.UltimaDescargaEn,
+                    credencial?.NombreEquipo, credencial?.EquipoFijadoEn);
             })
             .OrderBy(c => c.SucursalCodigo)
             .ThenBy(c => c.Codigo)

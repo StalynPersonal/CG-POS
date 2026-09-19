@@ -1,8 +1,9 @@
-using CgPos.Contratos.Pantallas;
+﻿using CgPos.Contratos.Pantallas;
 using CgPos.Contratos.Ventas;
 using CgPos.Pos.Aplicacion.Organizacion;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Logging;
 
 namespace CgPos.Pos.Agente.Pantallas;
 
@@ -66,7 +67,19 @@ public static class RutasPantallaCliente
     {
         aplicacion.MapHub<HubPantallaCliente>(ContratoPantallaCliente.RutaHub);
 
+        // La carpeta se crea si no existe: instalar una caja no debe depender de que alguien se acuerde de crearla, ni del
+        // orden en que lo haga. Si no se puede crear (ruta de red caída, sin permisos), la caja arranca igual y solo se
+        // queda sin publicidad: la pantalla del cliente sigue mostrando la venta, que es lo que no puede faltar.
         var carpeta = CarpetaPublicidad(aplicacion);
+        try
+        {
+            Directory.CreateDirectory(carpeta);
+        }
+        catch (Exception excepcion) when (excepcion is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            aplicacion.Logger.LogWarning(excepcion, "No se pudo preparar la carpeta de publicidad {Carpeta}", carpeta);
+        }
+
         if (Directory.Exists(carpeta))
         {
             aplicacion.UseStaticFiles(new StaticFileOptions

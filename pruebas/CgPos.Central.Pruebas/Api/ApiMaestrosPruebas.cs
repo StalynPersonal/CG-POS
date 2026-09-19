@@ -243,7 +243,7 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         using var http = central.CrearCliente();
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(http, CentralEnPruebas.CajaUno);
 
-        var resultado = await new ClienteCentralHttp(http, "01", "01", secreto, TimeProvider.System).DescargarMaestrosAsync(0);
+        var resultado = await new ClienteCentralHttp(http, "01", "01", new CredencialCajaEnMemoria(secreto), TimeProvider.System).DescargarMaestrosAsync(0);
 
         Assert.True(resultado.CentralRespondio, resultado.Error);
         Assert.NotNull(resultado.Paquete!.Organizacion);

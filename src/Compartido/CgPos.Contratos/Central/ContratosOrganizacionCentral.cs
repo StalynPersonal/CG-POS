@@ -1,4 +1,4 @@
-namespace CgPos.Contratos.Central;
+﻿namespace CgPos.Contratos.Central;
 
 public sealed record DatosEmpresa(int Id, string Rnc, string RazonSocial, string? NombreComercial, string? Direccion, string? Telefono);
 
@@ -22,7 +22,10 @@ public sealed record DatosCaja(
     DateTimeOffset? CredencialEmitidaEn,
     DateTimeOffset? CredencialUltimoUsoEn,
     DateTimeOffset? UltimaRecepcionEn,
-    DateTimeOffset? UltimaDescargaEn);
+    DateTimeOffset? UltimaDescargaEn,
+    /// <summary>Equipo al que está atada su credencial; nulo si todavía no se ató a ninguno.</summary>
+    string? EquipoNombre = null,
+    DateTimeOffset? EquipoFijadoEn = null);
 
 public sealed record SolicitudCaja(int SucursalId, string Codigo, string Nombre);
 

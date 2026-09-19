@@ -56,7 +56,7 @@ public class CentralPruebas : IDisposable
 
                 recibida = solicitud;
                 return respuesta();
-            })) { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", secreto, TimeProvider.System);
+            })) { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", new CredencialCajaEnMemoria(secreto), TimeProvider.System);
 
         var cliente = Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Duplicado"}"""));
         Assert.True((await cliente.EnviarAsync(mensaje)).Confirmado);
@@ -83,16 +83,16 @@ public class CentralPruebas : IDisposable
 
         var sinCredencial = await Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Recibido"}"""), secreto: null).EnviarAsync(mensaje);
         Assert.Equal((false, false), (sinCredencial.Confirmado, sinCredencial.CentralRespondio));
-        Assert.Contains(ClavesSincronizacion.SecretoCaja, sinCredencial.Error);
+        Assert.Contains("todavía no tiene credencial", sinCredencial.Error);
 
         var credencialRechazada = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ =>
                 Json(HttpStatusCode.Unauthorized, """{"exitoso":false,"mensaje":"Credencial de caja no válida."}""")))
-            { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", "otro", TimeProvider.System).EnviarAsync(mensaje);
+            { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", new CredencialCajaEnMemoria("otro"), TimeProvider.System).EnviarAsync(mensaje);
         Assert.Equal((false, true), (credencialRechazada.Confirmado, credencialRechazada.CentralRespondio));
         Assert.Contains("Credencial de caja no válida.", credencialRechazada.Error);
 
         var sinRed = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ => throw new HttpRequestException("sin red")))
-            { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", "secreto", TimeProvider.System).EnviarAsync(mensaje);
+            { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", new CredencialCajaEnMemoria("secreto"), TimeProvider.System).EnviarAsync(mensaje);
         Assert.False(sinRed.CentralRespondio);
     }
 
@@ -115,7 +115,8 @@ public class CentralPruebas : IDisposable
     public void La_fabrica_elige_simulado_http_o_sin_central_segun_la_configuracion()
     {
         IClienteCentral Crear(params (string Clave, string Valor)[] valores) =>
-            FabricaClienteCentral.Crear(new ConfigurationBuilder().AddInMemoryCollection(valores.ToDictionary(v => v.Clave, v => (string?)v.Valor)).Build());
+            FabricaClienteCentral.Crear(new ConfigurationBuilder().AddInMemoryCollection(valores.ToDictionary(v => v.Clave, v => (string?)v.Valor)).Build(),
+                new CredencialCajaEnMemoria("secreto-caja"));
 
         Assert.IsType<CentralSimulado>(Crear((ClavesSincronizacion.ModoCentral, "Simulado"), (ClavesSincronizacion.CarpetaSimulada, _carpeta)));
         Assert.IsType<ClienteCentralHttp>(Crear((ClavesSincronizacion.UrlCentral, "https://central.contreras.do/")));
@@ -145,6 +146,9 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
     public int Recibidos { get; private set; }
 
     public bool Configurado => true;
+
+    public Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default) =>
+        Task.FromResult(new EstadoCredencialCaja(true));
 
     public Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {

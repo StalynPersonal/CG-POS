@@ -220,6 +220,10 @@ CREATE SEQUENCE [SecuenciaSecuenciasEcf] AS int START WITH 1 INCREMENT BY 1 NO C
 GO
 
 
+CREATE SEQUENCE [SecuenciaSolicitudesEnrolamiento] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaSucursales] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -999,6 +1003,9 @@ CREATE TABLE [CredencialesDispositivo] (
     [MotivoRevocacion] nvarchar(250) NULL,
     [UltimoUsoEn] datetimeoffset(3) NULL,
     [UltimaIp] varchar(45) NULL,
+    [HuellaEquipo] char(64) NULL,
+    [NombreEquipo] nvarchar(100) NULL,
+    [EquipoFijadoEn] datetimeoffset(3) NULL,
     CONSTRAINT [PK_CredencialesDispositivo] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_CredencialesDispositivo_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
 );
@@ -1146,6 +1153,26 @@ CREATE TABLE [SecuenciasEcf] (
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_SecuenciasEcf] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_SecuenciasEcf_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [SolicitudesEnrolamiento] (
+    [Id] int NOT NULL,
+    [SucursalCodigo] char(2) NOT NULL,
+    [CajaCodigo] char(2) NOT NULL,
+    [CajaId] int NULL,
+    [HuellaEquipo] char(64) NOT NULL,
+    [NombreEquipo] nvarchar(100) NOT NULL,
+    [TokenHash] char(64) NOT NULL,
+    [DireccionIp] varchar(45) NULL,
+    [SolicitadaEn] datetimeoffset(3) NOT NULL,
+    [Estado] varchar(20) NOT NULL,
+    [ResueltaEn] datetimeoffset(3) NULL,
+    [ResueltaPor] nvarchar(150) NULL,
+    [Motivo] nvarchar(250) NULL,
+    CONSTRAINT [PK_SolicitudesEnrolamiento] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_SolicitudesEnrolamiento_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
 );
 GO
 
@@ -1831,6 +1858,14 @@ CREATE INDEX [IX_SesionesCentral_UsuarioId_RevocadaEn] ON [SesionesCentral] ([Us
 GO
 
 
+CREATE INDEX [IX_SolicitudesEnrolamiento_CajaId] ON [SolicitudesEnrolamiento] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_SolicitudesEnrolamiento_Equipo] ON [SolicitudesEnrolamiento] ([SucursalCodigo], [CajaCodigo], [HuellaEquipo]);
+GO
+
+
 CREATE UNIQUE INDEX [IX_Sucursales_EmpresaId_Codigo] ON [Sucursales] ([EmpresaId], [Codigo]);
 GO
 
@@ -1982,7 +2017,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$Uv5PpNb1YqXEPN0rUgWqUw==$11LGqwO5QrUzS71bN92d9tKn0u9Ci7SybdrPoRs/Egk=', 1, NULL, 0, NULL, NULL,
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$AhLg39vtyU/JtgUuoaPndw==$qQ7J/r60kBEmIxWv6QXlw/5SP3VUU+vHSvdO3nWY1cU=', 1, NULL, 0, NULL, NULL,
         SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO

@@ -1,0 +1,166 @@
+﻿@page "/organizacion/solicitudes-cajas"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarDispositivos)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+@using CgPos.Dominio.Organizacion
+
+<PageTitle>Solicitudes de cajas · CG-POS Central</PageTitle>
+
+@* Encabezado: qué son estas solicitudes y qué significa aceptarlas. *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Solicitudes de cajas</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Una caja recién instalada pide entrar al Central. Al aceptarla se le entrega su credencial y queda atada a ese equipo:
+            esa misma credencial no sirve en otra máquina.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="CargarAsync">
+        Actualizar
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    @* Sin comunicación con el Central no hay nada que mostrar, y conviene decirlo en vez de dejar la tabla vacía. *@
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las solicitudes. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosSolicitudEnrolamiento" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <ToolBarContent>
+            <MudSwitch T="bool" @bind-Value="_soloPendientes" Color="Color.Secondary" Label="Solo las que esperan decisión" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Caja</MudTh>
+            <MudTh>Equipo</MudTh>
+            <MudTh>Solicitada</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width: 56px"></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Caja">
+                <strong>@context.SucursalCodigo · @context.CajaCodigo</strong>
+                <div class="cg-central__detalle">@(context.CajaNombre ?? "No existe en el Central")</div>
+            </MudTd>
+            <MudTd DataLabel="Equipo">
+                @context.NombreEquipo
+                <div class="cg-central__detalle">@(context.DireccionIp ?? "sin dirección") · @context.HuellaEquipo[..12].ToLowerInvariant()</div>
+            </MudTd>
+            <MudTd DataLabel="Solicitada">@Fecha(context.SolicitadaEn)</MudTd>
+            <MudTd DataLabel="Estado">
+                @* El estado dice si hay algo que hacer, y cuando ya se decidió, quién lo hizo. *@
+                <MudChip T="string" Size="Size.Small" Color="@ColorEstado(context.Estado)" Variant="Variant.Outlined">@Estado(context.Estado)</MudChip>
+                @if (context.ResueltaPor is { Length: > 0 } quien && context.Estado != EsperandoDecision)
+                {
+                    <div class="cg-central__detalle">@quien @(context.ResueltaEn is { } cuando ? $"· {Fecha(cuando)}" : string.Empty)</div>
+                }
+                @if (context.Motivo is { Length: > 0 } motivo)
+                {
+                    <div class="cg-central__detalle">@motivo</div>
+                }
+            </MudTd>
+            <MudTd>
+                @if (context.Estado == EsperandoDecision)
+                {
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="() => DesdeMenu(() => AceptarAsync(context))">Aceptar</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Block" OnClick="() => DesdeMenu(() => RechazarAsync(context))">Rechazar</MudMenuItem>
+                    </MudMenu>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay solicitudes de cajas.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    /// <summary>Nombre del estado que el Central manda cuando la solicitud todavía no se ha resuelto.</summary>
+    private const string EsperandoDecision = nameof(EstadoSolicitudEnrolamiento.Pendiente);
+
+    private IReadOnlyList<DatosSolicitudEnrolamiento> _solicitudes = [];
+    private bool _soloPendientes = true;
+    private bool _cargando = true;
+    private bool _error;
+
+    private IEnumerable<DatosSolicitudEnrolamiento> Filtradas =>
+        _soloPendientes ? _solicitudes.Where(s => s.Estado == EsperandoDecision) : _solicitudes;
+
+    private static string Fecha(DateTimeOffset momento) => momento.ToLocalTime().ToString("dd/MM/yyyy h:mm tt");
+
+    private static string Estado(string estado) => estado switch
+    {
+        EsperandoDecision => "Espera decisión",
+        nameof(EstadoSolicitudEnrolamiento.Aprobada) => "Aceptada, sin recoger",
+        nameof(EstadoSolicitudEnrolamiento.Entregada) => "Credencial entregada",
+        _ => "Rechazada",
+    };
+
+    private static Color ColorEstado(string estado) => estado switch
+    {
+        EsperandoDecision => Color.Warning,
+        nameof(EstadoSolicitudEnrolamiento.Rechazada) => Color.Error,
+        _ => Color.Success,
+    };
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var solicitudes = await Cliente.ListarSolicitudesEnrolamientoAsync();
+        _error = solicitudes is null;
+        _solicitudes = solicitudes ?? [];
+        _cargando = false;
+    }
+
+    private void DesdeMenu(Func<Task> accion) => _ = accion();
+
+    private async Task AceptarAsync(DatosSolicitudEnrolamiento solicitud)
+    {
+        // Aceptar es lo que ata la caja al equipo, así que se confirma diciendo exactamente qué equipo se está aceptando.
+        if (!solicitud.CajaExiste)
+        {
+            Avisos.Add($"La caja {solicitud.CajaCodigo} de la sucursal {solicitud.SucursalCodigo} no existe: créela antes de aceptar.", Severity.Warning);
+            return;
+        }
+
+        if (solicitud.CajaConEquipoFijado)
+        {
+            Avisos.Add("Esa caja ya está atada a otro equipo: libere el equipo en Cajas antes de aceptar esta solicitud.", Severity.Warning);
+            return;
+        }
+
+        if (!await Dialogos.ConfirmarAsync("Aceptar la caja",
+                $"La caja {solicitud.SucursalCodigo}-{solicitud.CajaCodigo} quedará atada al equipo «{solicitud.NombreEquipo}» " +
+                $"({solicitud.DireccionIp ?? "sin dirección"}) y recibirá su credencial. ¿Es el equipo que acaba de instalar?", "Aceptar"))
+            return;
+
+        var respuesta = await Cliente.AprobarSolicitudEnrolamientoAsync(solicitud.Id);
+        Avisos.Add(respuesta.Exitosa ? "Solicitud aceptada: la caja recogerá su credencial en su próximo intento." : respuesta.Mensaje ?? "No se pudo aceptar la solicitud.",
+            respuesta.Exitosa ? Severity.Success : Severity.Error);
+        await CargarAsync();
+        StateHasChanged();
+    }
+
+    private async Task RechazarAsync(DatosSolicitudEnrolamiento solicitud)
+    {
+        var parametros = new DialogParameters<DialogoMotivo>
+        {
+            { d => d.Mensaje, $"La caja {solicitud.SucursalCodigo}-{solicitud.CajaCodigo} del equipo «{solicitud.NombreEquipo}» no recibirá credencial." },
+            { d => d.Etiqueta, "Motivo del rechazo" },
+            { d => d.TextoConfirmar, "Rechazar" },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoMotivo>("Rechazar la solicitud", parametros);
+        if (await referencia.Result is not { Canceled: false, Data: string motivo })
+            return;
+
+        var respuesta = await Cliente.RechazarSolicitudEnrolamientoAsync(solicitud.Id, motivo);
+        Avisos.Add(respuesta.Exitosa ? "Solicitud rechazada." : respuesta.Mensaje ?? "No se pudo rechazar la solicitud.", respuesta.Exitosa ? Severity.Success : Severity.Error);
+        await CargarAsync();
+        StateHasChanged();
+    }
+}

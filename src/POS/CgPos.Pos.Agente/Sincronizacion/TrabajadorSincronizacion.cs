@@ -1,4 +1,4 @@
-using CgPos.Pos.Aplicacion.Organizacion;
+﻿using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Dominio.Comun;
 ﻿using CgPos.Pos.Aplicacion.Sincronizacion;
 
@@ -18,8 +18,30 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, IConf
         var proximaDescarga = DateTimeOffset.MinValue;
         using var temporizador = new PeriodicTimer(intervalo);
 
+        // Mientras la caja no tenga credencial no hay nada que sincronizar: lo único que corresponde es pedirla y esperar a
+        // que la acepten en el Central. El aviso se repite solo cuando cambia, para no llenar el registro.
+        string? ultimoAviso = null;
+
         do
         {
+            var credencial = await CredencialAsync(detener);
+            if (!credencial.Lista)
+            {
+                if (credencial.Mensaje is { Length: > 0 } aviso && aviso != ultimoAviso)
+                {
+                    registro.LogWarning("Caja sin credencial del Central: {Mensaje}", aviso);
+                    ultimoAviso = aviso;
+                }
+
+                continue;
+            }
+
+            if (ultimoAviso is not null)
+            {
+                registro.LogInformation("La caja ya tiene su credencial del Central: comienza a sincronizar.");
+                ultimoAviso = null;
+            }
+
             // Primero bajan los maestros: una caja nueva se aprovisiona en el primer ciclo (RF-281).
             if (reloj.Ahora() >= proximaDescarga)
             {
@@ -41,6 +63,20 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, IConf
             }, "La sincronización con el Central falló", detener);
         }
         while (await temporizador.WaitForNextTickAsync(detener));
+    }
+
+    /// <summary>Pide la credencial si falta. Un fallo aquí no detiene el servicio: el próximo ciclo vuelve a intentarlo.</summary>
+    private async Task<EstadoCredencialCaja> CredencialAsync(CancellationToken detener)
+    {
+        try
+        {
+            await using var ambito = ambitos.CreateAsyncScope();
+            return await ambito.ServiceProvider.GetRequiredService<IClienteCentral>().AsegurarCredencialAsync(detener);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException || !detener.IsCancellationRequested)
+        {
+            return new EstadoCredencialCaja(false, excepcion.Message);
+        }
     }
 
     private async Task EjecutarAsync<TServicio>(Func<TServicio, Task> accion, string mensajeError, CancellationToken detener) where TServicio : notnull

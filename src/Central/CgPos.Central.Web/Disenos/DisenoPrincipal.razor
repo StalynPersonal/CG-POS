@@ -37,6 +37,9 @@
                     <MudNavLink Href="organizacion/empresa" Icon="@Icons.Material.Filled.Apartment">Empresa</MudNavLink>
                     <MudNavLink Href="organizacion/sucursales" Icon="@Icons.Material.Filled.Store">Sucursales</MudNavLink>
                     <MudNavLink Href="organizacion/cajas" Icon="@Icons.Material.Filled.PointOfSale">Cajas</MudNavLink>
+                    <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarDispositivos" Context="dispositivos">
+                        <MudNavLink Href="organizacion/solicitudes-cajas" Icon="@Icons.Material.Filled.HowToReg">Solicitudes de cajas</MudNavLink>
+                    </AuthorizeView>
                     <MudNavLink Href="organizacion/parametros" Icon="@Icons.Material.Filled.Tune">Parámetros</MudNavLink>
                     <MudNavLink Href="organizacion/actualizaciones" Icon="@Icons.Material.Filled.SystemUpdate">Actualización de cajas</MudNavLink>
                 </MudNavGroup>

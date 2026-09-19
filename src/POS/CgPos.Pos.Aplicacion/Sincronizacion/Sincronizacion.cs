@@ -47,9 +47,20 @@ public sealed record ResultadoEnvioCentral(bool Confirmado, bool CentralRespondi
 }
 
 /// <summary>Canal hacia el Central: HTTP en producción o simulado mientras no exista (Fase C11, H2).</summary>
+/// <summary>En qué punto está la caja para poder hablar con el Central.</summary>
+/// <param name="Lista">Tiene credencial: puede sincronizar.</param>
+/// <param name="Mensaje">Qué falta, en palabras, para el registro y la pantalla de estado.</param>
+public sealed record EstadoCredencialCaja(bool Lista, string? Mensaje = null);
+
 public interface IClienteCentral
 {
     bool Configurado { get; }
+
+    /// <summary>
+    /// Si la caja todavía no tiene credencial, se anuncia al Central y queda esperando que la acepten. No se escribe ningún
+    /// secreto a mano: la caja lo recibe cuando alguien aprueba su solicitud y lo guarda cifrada en el equipo.
+    /// </summary>
+    Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default);
 
     Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default);
 

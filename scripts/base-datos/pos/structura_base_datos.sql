@@ -1699,5 +1699,5 @@ GO
 CREATE INDEX [IX_Ventas_TurnoId_UsuarioId_Estado] ON [Ventas] ([TurnoId], [UsuarioId], [Estado]);
 GO
 
-PRINT 'Base de la caja creada. Configure la caja con su sucursal, su número y el secreto que emitió el Central.';
+PRINT 'Base de la caja creada. Configure su sucursal y su número: la credencial la pide sola al Central.';
 GO
