@@ -50,7 +50,7 @@ try
     });
 
     constructor.Services.AddHealthChecks()
-        .AddDbContextCheck<ContextoDatosCentral>("base-datos");
+        .AddDbContextCheck<ContextoDatosCentral>("Base de datos");
 
     var aplicacion = constructor.Build();
 

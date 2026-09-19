@@ -13,12 +13,21 @@ public static class EscritorSalud
     private static readonly string? Version =
         typeof(EscritorSalud).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
+
+    /// <summary>El semáforo en palabras del negocio: nadie tiene que saber inglés para leer esta respuesta.</summary>
+    private static string EnPalabras(HealthStatus estado) => estado switch
+    {
+        HealthStatus.Healthy => "Correcto",
+        HealthStatus.Degraded => "Con pendientes",
+        _ => "Con fallas",
+    };
+
     public static Task EscribirAsync(HttpContext contexto, HealthReport reporte)
     {
         var servicios = contexto.RequestServices;
         var cuerpo = new
         {
-            estado = reporte.Status.ToString(),
+            estado = EnPalabras(reporte.Status),
             version = Version,
             ambiente = servicios.GetRequiredService<IHostEnvironment>().EnvironmentName,
             equipo = Environment.MachineName,
@@ -40,7 +49,7 @@ public static class EscritorSalud
                 e => e.Key,
                 e => new
                 {
-                    estado = e.Value.Status.ToString(),
+                    estado = EnPalabras(e.Value.Status),
                     detalle = e.Value.Description,
                     duracionMs = (int)e.Value.Duration.TotalMilliseconds,
                     error = e.Value.Exception?.Message,

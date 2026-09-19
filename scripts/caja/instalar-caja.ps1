@@ -100,5 +100,6 @@ do {
 
 if (-not $salud) { throw "El Agente no respondió en http://localhost:$Puerto/salud. Revise C:\CGPOS\Logs." }
 
-Escribir "Caja instalada. Salud: $($salud.status ?? $salud)"
+Escribir "Caja instalada. Estado: $($salud.estado)"
+if ($salud.pendientes) { $salud.pendientes | ForEach-Object { Escribir "  PENDIENTE - $_" } }
 Escribir "Siguiente paso: abrir las pantallas con abrir-pantallas.ps1 y cargar el certificado con su PIN desde la caja."

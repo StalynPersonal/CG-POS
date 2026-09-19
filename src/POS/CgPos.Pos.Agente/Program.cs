@@ -59,11 +59,11 @@ try
 
     // /salud es el diagnóstico de la caja: dice qué le falta y qué hacer, para revisarla antes de ponerla a vender.
     constructor.Services.AddHealthChecks()
-        .AddDbContextCheck<ContextoDatosPos>("base-datos")
-        .AddCheck<VerificacionesCaja.Caja>("caja")
-        .AddCheck<VerificacionesCaja.Credencial>("credencial")
-        .AddCheck<VerificacionesCaja.Central>("central")
-        .AddCheck<VerificacionesCaja.Certificado>("certificado-ecf");
+        .AddDbContextCheck<ContextoDatosPos>("Base de datos")
+        .AddCheck<VerificacionesCaja.Caja>("Caja")
+        .AddCheck<VerificacionesCaja.Credencial>("Credencial")
+        .AddCheck<VerificacionesCaja.Central>("Central")
+        .AddCheck<VerificacionesCaja.Certificado>("Certificado e-CF");
 
     var aplicacion = constructor.Build();
 
