@@ -144,9 +144,10 @@
    1. Organización -> Empresa: RNC, razón social, nombre comercial, dirección.
    2. Organización -> Sucursales: cree cada tienda con su código de dos
       dígitos (01, 02...).
-   3. Organización -> Cajas: cree las cajas de cada sucursal, también con
-      código de dos dígitos. NO hay que emitirles ninguna clave: cada caja la
-      pide sola cuando se instala.
+   3. Organización -> Cajas: cree las cajas de cada sucursal, con su código de
+      dos dígitos y la IP fija del equipo donde va a correr cada una. Después,
+      en el menú de cada caja, "Emitir credencial": el secreto se muestra una
+      sola vez y es lo que se escribe en la pantalla de esa caja.
    4. Organización -> Parámetros: las reglas del negocio (fondo de caja,
       redondeo, vigencia de las notas de crédito, retención de la Ley 32-23,
       montos que exigen identificación, fidelidad) y también el ritmo de las
@@ -168,20 +169,24 @@
 
 
 -------------------------------------------------------------------------------
- PASO 6. ACEPTAR LAS CAJAS
+ PASO 6. LAS CREDENCIALES DE LAS CAJAS
 -------------------------------------------------------------------------------
 
- Cuando alguien instale una caja, esta se anuncia sola al Central y queda
- esperando permiso. Usted la acepta en:
+ Cada caja se identifica con cuatro datos juntos: su sucursal, su código, su
+ IP y su credencial. Los cuatro se validan en cada comunicación, así que la
+ misma credencial no sirve desde otro equipo.
 
-     Organización -> Solicitudes de cajas
+ En Organización -> Cajas puede:
 
- Verá qué caja pide entrar, desde qué equipo y desde qué dirección. Revise que
- sea el equipo que se acaba de instalar y acéptela. Ahí se le entrega su
- credencial y queda atada a ESE equipo.
+   - Emitir credencial: genera una nueva y anula la anterior. Se muestra una
+     sola vez; hay que escribirla en la pantalla de esa caja.
+   - Revocar credencial: la caja deja de comunicarse de inmediato. Es lo que
+     se hace si se pierde o se roban un equipo.
+   - Cambiar la IP: la caja deja de comunicarse hasta que se configure con la
+     nueva. Dos cajas no pueden tener la misma.
 
- Si un día ve una solicitud que nadie pidió, es que alguien copió la
- configuración de una caja a otra máquina. No la acepte.
+ Una caja rechazada sigue vendiendo con lo que tiene en su base: lo que no
+ hace es sincronizar, y lo pendiente sube cuando se resuelva.
 
 
 -------------------------------------------------------------------------------

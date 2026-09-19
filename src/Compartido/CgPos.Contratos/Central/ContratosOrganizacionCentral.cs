@@ -23,13 +23,12 @@ public sealed record DatosCaja(
     DateTimeOffset? CredencialUltimoUsoEn,
     DateTimeOffset? UltimaRecepcionEn,
     DateTimeOffset? UltimaDescargaEn,
-    /// <summary>Equipo al que está atada su credencial; nulo si todavía no se ató a ninguno.</summary>
-    string? EquipoNombre = null,
-    DateTimeOffset? EquipoFijadoEn = null);
+    /// <summary>Dirección de red fija de la caja; se comprueba en cada comunicación con el Central.</summary>
+    string? DireccionIp = null);
 
-public sealed record SolicitudCaja(int SucursalId, string Codigo, string Nombre);
+public sealed record SolicitudCaja(int SucursalId, string Codigo, string Nombre, string? DireccionIp = null);
 
-public sealed record SolicitudActualizarCaja(string Nombre);
+public sealed record SolicitudActualizarCaja(string Nombre, string? DireccionIp = null);
 
 /// <param name="Ambito">Descripción del ámbito: general, una sucursal o una caja.</param>
 public sealed record DatosParametro(int Id, string Clave, string Valor, string? Descripcion, int? SucursalId, int? CajaId, string Ambito);

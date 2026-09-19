@@ -193,8 +193,8 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
                 Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de prueba")],
                 Cajas:
                 [
-                    new CajaCarga(CodigoSucursal, CodigoCajaUno, "Caja 01"),
-                    new CajaCarga(CodigoSucursal, CodigoCajaDos, "Caja 02", cajaDosHabilitada),
+                    new CajaCarga(CodigoSucursal, CodigoCajaUno, "Caja 01", DireccionIp: "10.12.1.101"),
+                    new CajaCarga(CodigoSucursal, CodigoCajaDos, "Caja 02", cajaDosHabilitada, "10.12.1.102"),
                 ],
                 Roles:
                 [

@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using CgPos.Central.Api.Seguridad;
@@ -183,12 +183,19 @@ public sealed class CentralEnPruebas : IAsyncLifetime
     }
 
     /// <summary>Códigos de sucursal y caja con que se identifica una caja del Central (así viajan sus mensajes).</summary>
-    public static (string Sucursal, string Caja) CodigosCaja(int cajaId) =>
+    public static (string Sucursal, string Caja) CodigosCaja(int cajaId)
+    {
+        var (sucursal, caja, _) = IdentidadCaja(cajaId);
+        return (sucursal, caja);
+    }
+
+    /// <summary>Los tres datos con los que una caja se identifica ante el Central, además de su credencial.</summary>
+    public static (string Sucursal, string Caja, string DireccionIp) IdentidadCaja(int cajaId) =>
         _instancia!.UsarContextoAsync(async contexto =>
         {
             var caja = await contexto.Cajas.AsNoTracking().SingleAsync(c => c.Id == cajaId);
             var sucursal = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId).Select(s => s.Codigo).SingleAsync();
-            return (sucursal, caja.Codigo);
+            return (sucursal, caja.Codigo, caja.DireccionIp);
         }).GetAwaiter().GetResult();
 
     /// <summary>Número de documento nuevo de esa caja (sucursal + caja + tipo + secuencia aleatoria), como los que numera la caja.</summary>
@@ -201,8 +208,9 @@ public sealed class CentralEnPruebas : IAsyncLifetime
     public static async Task<string> TokenCajaAsync(HttpClient cliente, int cajaId)
     {
         var secreto = await EmitirCredencialAsync(cliente, cajaId);
-        var (sucursal, caja) = CodigosCaja(cajaId);
-        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);
+        var (sucursal, caja, direccionIp) = IdentidadCaja(cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto, direccionIp),
+            OpcionesJson.Predeterminadas);
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaTokenDispositivo>(OpcionesJson.Predeterminadas))!.Token!;
     }
 

@@ -849,3 +849,10 @@
 }
 
 .cg-venta2__categoria--activa { border-color: var(--cg-accion); color: var(--cg-accion); font-weight: 600; }
+
+/* Pantalla de configuración inicial de la caja: los dos códigos van juntos, el resto uno debajo del otro. */
+.cg-configurar__fila { display: flex; gap: 12px; }
+.cg-configurar__fila > * { flex: 1; }
+
+/* Lo que hay que tener a mano antes de empezar. */
+.cg-configurar__lista { margin: 12px 0 0; padding-left: 20px; line-height: 1.7; }

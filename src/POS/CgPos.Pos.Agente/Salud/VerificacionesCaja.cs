@@ -55,24 +55,26 @@ internal static class VerificacionesCaja
         }
     }
 
-    /// <summary>Si ya le entregaron su credencial o sigue esperando que la acepten.</summary>
-    internal sealed class Credencial(IEstadoCredencialCaja credencial, IClienteCentral central) : IHealthCheck
+    /// <summary>Qué caja es este equipo, dónde está su Central y si su configuración sirve.</summary>
+    internal sealed class Configuracion(IConfiguracionCaja configuracion) : IHealthCheck
     {
-        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext contexto, CancellationToken cancelacion = default)
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext contexto, CancellationToken cancelacion = default)
         {
-            var datos = new Dictionary<string, object>
+            if (await configuracion.ObtenerAsync(cancelacion) is not { } datos)
+                return Aviso("Esta caja todavía no está configurada: ábrala y llene sus datos.", new Dictionary<string, object>());
+
+            var valores = new Dictionary<string, object>
             {
-                ["equipo"] = credencial.NombreEquipo,
-                ["huellaEquipo"] = credencial.HuellaEquipo[..12].ToLowerInvariant(),
-                ["tieneCredencial"] = credencial.TieneCredencial,
+                ["sucursal"] = datos.SucursalCodigo,
+                ["caja"] = datos.CajaCodigo,
+                ["direccionIp"] = datos.DireccionIp,
+                ["central"] = datos.UrlCentral,
+                ["configuradaEn"] = datos.ConfiguradaEn,
             };
 
-            if (!central.Configurado)
-                return Task.FromResult(Aviso("La caja no tiene Central configurado: ponga su dirección en Central:Url.", datos));
-
-            return Task.FromResult(credencial.TieneCredencial
-                ? Bien("La caja tiene su credencial y está atada a este equipo.", datos)
-                : Aviso("Esperando que acepten esta caja en el Central: Organización > Solicitudes de cajas.", datos));
+            return datos.Sirve
+                ? Bien($"Caja {datos.CajaCodigo} de la sucursal {datos.SucursalCodigo}, en {datos.DireccionIp}.", valores)
+                : Aviso($"{datos.Problema} Vuelva a configurar la caja en su pantalla.", valores);
         }
     }
 

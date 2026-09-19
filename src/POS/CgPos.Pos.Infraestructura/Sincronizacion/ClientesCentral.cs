@@ -42,27 +42,13 @@ internal static class FabricaClienteCentral
 {
     public const string CarpetaSimuladaPredeterminada = @"C:\CGPOS\CentralSimulado";
 
-    public static IClienteCentral Crear(IConfiguration configuracion, ICredencialCaja credencial)
+    public static IClienteCentral Crear(IConfiguration configuracion, IConfiguracionCaja configuracionCaja)
     {
         if (string.Equals(configuracion[ClavesSincronizacion.ModoCentral], ClavesSincronizacion.ModoSimulado, StringComparison.OrdinalIgnoreCase))
             return new CentralSimulado(configuracion[ClavesSincronizacion.CarpetaSimulada] is { Length: > 0 } carpeta ? carpeta : CarpetaSimuladaPredeterminada);
 
-        if (!Uri.TryCreate(configuracion[ClavesSincronizacion.UrlCentral], UriKind.Absolute, out var url))
-            return new CentralNoConfigurado();
-
-        // Los códigos van con sus dos dígitos: así los espera el Central.
-        var sucursal = CodigoConfigurado.Codigo(configuracion[ClavesSincronizacion.CajaSucursal]);
-        var caja = CodigoConfigurado.Codigo(configuracion[ClavesSincronizacion.CajaCodigo]);
-        return new ClienteCentralHttp(url, OpcionesSincronizacion.Leer(configuracion).TiempoEspera, sucursal, caja, credencial);
+        return new ClienteCentralHttp(OpcionesSincronizacion.Leer(configuracion).TiempoEspera, configuracionCaja);
     }
-}
-
-internal static class CodigoConfigurado
-{
-    public static string Codigo(string? valor) =>
-        int.TryParse(valor, out var numero) && numero is >= 1 and <= CgPos.Dominio.Comun.CodigosCatalogo.MaximoSucursalCaja
-            ? numero.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
-            : string.Empty;
 }
 
 internal sealed class CentralNoConfigurado : IClienteCentral
@@ -70,9 +56,6 @@ internal sealed class CentralNoConfigurado : IClienteCentral
     private const string Motivo = "La caja no tiene un Central configurado.";
 
     public bool Configurado => false;
-
-    public Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default) =>
-        Task.FromResult(new EstadoCredencialCaja(false, Motivo));
 
     public Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoEnvioCentral.SinConexion(Motivo));
@@ -104,9 +87,6 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
     public string Carpeta { get; } = carpeta;
 
     public bool Configurado => true;
-
-    public Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default) =>
-        Task.FromResult(new EstadoCredencialCaja(true));
 
     public async Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {
@@ -161,7 +141,6 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     public const string RutaRecepcion = "api/sincronizacion/mensajes";
     public const string RutaMaestros = "api/sincronizacion/maestros";
     public const string RutaToken = "api/dispositivos/token";
-    public const string RutaEnrolamiento = "api/dispositivos/solicitud";
     public const string RutaNotasCredito = "api/notas-credito";
     public const string RutaListasBoda = "api/listas-boda";
 
@@ -175,64 +154,25 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     private static readonly TimeSpan MargenRenovacion = TimeSpan.FromMinutes(1);
 
     private readonly HttpClient _http;
-    private readonly string _sucursalCodigo;
-    private readonly string _cajaCodigo;
-    private readonly ICredencialCaja _credencial;
+    private readonly IConfiguracionCaja _configuracion;
     private readonly TimeProvider _reloj;
     private readonly SemaphoreSlim _bloqueoToken = new(1, 1);
     private string? _token;
     private DateTimeOffset _tokenVence;
 
-    public ClienteCentralHttp(Uri url, TimeSpan tiempoEspera, string sucursalCodigo, string cajaCodigo, ICredencialCaja credencial)
-        : this(new HttpClient(Manejador, disposeHandler: false) { BaseAddress = url, Timeout = tiempoEspera }, sucursalCodigo, cajaCodigo, credencial,
-            TimeProvider.System)
+    public ClienteCentralHttp(TimeSpan tiempoEspera, IConfiguracionCaja configuracion)
+        : this(new HttpClient(Manejador, disposeHandler: false) { Timeout = tiempoEspera }, configuracion, TimeProvider.System)
     {
     }
 
-    internal ClienteCentralHttp(HttpClient http, string sucursalCodigo, string cajaCodigo, ICredencialCaja credencial, TimeProvider reloj)
+    internal ClienteCentralHttp(HttpClient http, IConfiguracionCaja configuracion, TimeProvider reloj)
     {
         _http = http;
-        _sucursalCodigo = sucursalCodigo;
-        _cajaCodigo = cajaCodigo;
-        _credencial = credencial;
+        _configuracion = configuracion;
         _reloj = reloj;
     }
 
     public bool Configurado => true;
-
-    public async Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default)
-    {
-        if (_credencial.Secreto is { Length: > 0 })
-            return new EstadoCredencialCaja(true);
-
-        var solicitud = new SolicitudEnrolamientoCaja(_sucursalCodigo, _cajaCodigo, _credencial.HuellaEquipo, _credencial.NombreEquipo,
-            _credencial.TokenSolicitud);
-
-        HttpResponseMessage respuesta;
-        try
-        {
-            respuesta = await _http.PostAsJsonAsync(RutaEnrolamiento, solicitud, OpcionesJson.Predeterminadas, cancelacion);
-        }
-        catch (Exception excepcion) when (excepcion is HttpRequestException or TaskCanceledException && !cancelacion.IsCancellationRequested)
-        {
-            return new EstadoCredencialCaja(false, $"No hay comunicación con el Central para pedir la credencial: {excepcion.Message}");
-        }
-
-        using (respuesta)
-        {
-            var cuerpo = await LeerJsonAsync<RespuestaEnrolamientoCaja>(respuesta, cancelacion);
-            if (cuerpo is { Estado: EstadoEnrolamientoCaja.Entregada, Secreto: { Length: > 0 } secreto })
-            {
-                _credencial.Guardar(secreto);
-                return new EstadoCredencialCaja(true, "El Central aceptó esta caja y le entregó su credencial.");
-            }
-
-            var mensaje = cuerpo?.Mensaje ?? await respuesta.Content.ReadAsStringAsync(cancelacion);
-            return new EstadoCredencialCaja(false, string.IsNullOrWhiteSpace(mensaje)
-                ? $"El Central respondió {(int)respuesta.StatusCode} a la solicitud de la caja."
-                : mensaje);
-        }
-    }
 
     public async Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {
@@ -403,23 +343,24 @@ internal sealed class ClienteCentralHttp : IClienteCentral
 
     private async Task<(HttpResponseMessage? Respuesta, ResultadoEnvioCentral? Fallo)> SolicitarAsync(Func<HttpRequestMessage> crearSolicitud, CancellationToken cancelacion)
     {
-        if (_sucursalCodigo.Length == 0 || _cajaCodigo.Length == 0)
-            return (null, ResultadoEnvioCentral.SinConexion(
-                $"La caja no sabe qué caja es ({ClavesSincronizacion.CajaSucursal} y {ClavesSincronizacion.CajaCodigo})."));
-        if (_credencial.Secreto is null)
-            return (null, ResultadoEnvioCentral.SinConexion("La caja todavía no tiene credencial: acepte su solicitud en el Central."));
+        var configuracion = await _configuracion.ObtenerAsync(cancelacion);
+        if (configuracion is null)
+            return (null, ResultadoEnvioCentral.SinConexion("Esta caja todavía no está configurada: hágalo en su pantalla."));
+        if (!configuracion.Sirve)
+            return (null, ResultadoEnvioCentral.Rechazado(configuracion.Problema ?? "La configuración de esta caja no sirve."));
 
         try
         {
             for (var intento = 1; ; intento++)
             {
-                var (token, fallo) = await ObtenerTokenAsync(renovar: intento > 1, cancelacion);
+                var (token, fallo) = await ObtenerTokenAsync(configuracion, renovar: intento > 1, cancelacion);
                 if (fallo is not null)
                     return (null, fallo);
 
                 HttpResponseMessage respuesta;
                 using (var solicitud = crearSolicitud())
                 {
+                    solicitud.RequestUri = new Uri(new Uri(configuracion.UrlCentral), solicitud.RequestUri!.ToString());
                     solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                     respuesta = await _http.SendAsync(solicitud, cancelacion);
                 }
@@ -439,7 +380,8 @@ internal sealed class ClienteCentralHttp : IClienteCentral
         }
     }
 
-    private async Task<(string? Token, ResultadoEnvioCentral? Fallo)> ObtenerTokenAsync(bool renovar, CancellationToken cancelacion)
+    private async Task<(string? Token, ResultadoEnvioCentral? Fallo)> ObtenerTokenAsync(DatosConfiguracionCaja configuracion, bool renovar,
+        CancellationToken cancelacion)
     {
         await _bloqueoToken.WaitAsync(cancelacion);
         try
@@ -448,8 +390,12 @@ internal sealed class ClienteCentralHttp : IClienteCentral
                 return (_token, null);
 
             _token = null;
-            var credencial = new SolicitudTokenDispositivo(_sucursalCodigo, _cajaCodigo, _credencial.Secreto ?? string.Empty, _credencial.HuellaEquipo);
-            using var respuesta = await _http.PostAsJsonAsync(RutaToken, credencial, OpcionesJson.Predeterminadas, cancelacion);
+
+            // La caja se identifica con los cuatro datos juntos: su sucursal, su caja, su dirección y su credencial.
+            var credencial = new SolicitudTokenDispositivo(configuracion.SucursalCodigo, configuracion.CajaCodigo, configuracion.Secreto!,
+                configuracion.DireccionIp);
+            using var respuesta = await _http.PostAsJsonAsync(new Uri(new Uri(configuracion.UrlCentral), RutaToken), credencial,
+                OpcionesJson.Predeterminadas, cancelacion);
             if ((int)respuesta.StatusCode >= 500)
                 return (null, ResultadoEnvioCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al autenticar la caja."));
 
@@ -458,10 +404,10 @@ internal sealed class ClienteCentralHttp : IClienteCentral
             {
                 var motivo = cuerpo?.Mensaje ?? await respuesta.Content.ReadAsStringAsync(cancelacion);
 
-                // El Central no reconoce esta credencial: se descarta para que la caja vuelva a pedir una. Si el equipo
-                // cambió, aparecerá como una solicitud nueva y bastará con aceptarla.
+                // El Central no acepta estos datos (credencial revocada, caja eliminada o dirección que no cuadra): la
+                // configuración queda marcada para que la caja lo avise y pida configurarse de nuevo. Sigue vendiendo.
                 if (respuesta.StatusCode == HttpStatusCode.Unauthorized)
-                    _credencial.Olvidar();
+                    await _configuracion.RechazarAsync(string.IsNullOrWhiteSpace(motivo) ? "El Central no acepta esta caja." : motivo, cancelacion);
 
                 return (null, ResultadoEnvioCentral.Rechazado(
                     $"El Central no autenticó la caja: {(string.IsNullOrWhiteSpace(motivo) ? ((int)respuesta.StatusCode).ToString(CultureInfo.InvariantCulture) : motivo)}"));
@@ -469,6 +415,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
 
             _token = token;
             _tokenVence = cuerpo.ExpiraEn ?? _reloj.Ahora() + MargenRenovacion;
+            await _configuracion.AceptarAsync(cancelacion);
             return (token, null);
         }
         finally

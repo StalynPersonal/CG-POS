@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.CargaInicial;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -228,7 +228,7 @@ internal sealed class ServicioCargaInicialCentral(
             return caja.Id;
         }
 
-        caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre);
+        caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre, dato.DireccionIp ?? string.Empty);
         if (dato.Habilitada) caja.Habilitar(); else caja.Deshabilitar();
         contexto.Cajas.Add(caja);
         _creados++;

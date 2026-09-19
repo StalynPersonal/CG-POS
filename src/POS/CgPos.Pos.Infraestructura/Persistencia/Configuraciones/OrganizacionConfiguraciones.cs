@@ -1,4 +1,5 @@
-﻿using CgPos.Dominio.Organizacion;
+﻿using CgPos.Dominio.Comun;
+using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -40,6 +41,24 @@ internal sealed class SucursalConfiguracion : IEntityTypeConfiguration<Sucursal>
     }
 }
 
+/// <summary>Una sola fila: qué caja es este equipo. La escribe el técnico desde la pantalla de la caja.</summary>
+internal sealed class ConfiguracionCajaConfiguracion : IEntityTypeConfiguration<ConfiguracionCaja>
+{
+    public void Configure(EntityTypeBuilder<ConfiguracionCaja> constructor)
+    {
+        constructor.ToTable("ConfiguracionCaja");
+        constructor.HasKey(c => c.Id);
+
+        constructor.Property(c => c.SucursalCodigo).HasMaxLength(CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(c => c.CajaCodigo).HasMaxLength(CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(c => c.DireccionIp).HasMaxLength(ConfiguracionCaja.LargoMaximoIp).IsUnicode(false).IsRequired();
+        constructor.Property(c => c.UrlCentral).HasMaxLength(ConfiguracionCaja.LargoMaximoUrl).IsUnicode(false).IsRequired();
+        constructor.Property(c => c.SecretoCifrado).HasMaxLength(ConfiguracionCaja.LargoMaximoSecreto).IsUnicode(false).IsRequired();
+        constructor.Property(c => c.ConfiguradaPor).HasMaxLength(ConfiguracionCaja.LargoMaximoMotivo);
+        constructor.Property(c => c.MotivoRechazo).HasMaxLength(ConfiguracionCaja.LargoMaximoMotivo);
+    }
+}
+
 internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
 {
     public void Configure(EntityTypeBuilder<Caja> constructor)
@@ -49,6 +68,7 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
 
 
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
+        constructor.Property(c => c.DireccionIp).HasMaxLength(Caja.LargoMaximoIp).IsUnicode(false).IsRequired();
 
         // La versión del Agente instalada la lleva el Central para seguir el despliegue; la caja no la guarda.
         constructor.Ignore(c => c.VersionAgente);

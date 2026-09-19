@@ -46,11 +46,11 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.BadRequest,
             (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/sucursales", new SolicitudSucursal(codigoSucursal, "Otra", null, null))).Estado);
 
-        var caja = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja 01 de prueba"));
+        var caja = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja 01 de prueba", DireccionUnica()));
         Assert.True(caja.Cuerpo!.Exitosa, caja.Cuerpo.Mensaje);
         var cajaId = caja.Cuerpo.Id!.Value;
         Assert.Equal(HttpStatusCode.BadRequest,
-            (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Repetida"))).Estado);
+            (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Repetida", DireccionUnica()))).Estado);
 
         // Todos los datos de la sucursal son obligatorios en el Central.
         var incompleta = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}",
@@ -59,7 +59,12 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
         var cambioCodigo = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/sucursales/{sucursalId}", new SolicitudSucursal(codigoSucursal + 1, "Sucursal", "Calle 1", "809-555-0000"));
         Assert.Equal("El código de la sucursal no se puede cambiar.", cambioCodigo.Cuerpo!.Mensaje);
-        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/cajas/{cajaId}", new SolicitudActualizarCaja("Caja renombrada"))).Cuerpo!.Exitosa);
+        // La dirección es obligatoria también al editar: sin ella la caja no podría comunicarse.
+        var sinDireccion = await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/cajas/{cajaId}", new SolicitudActualizarCaja("Caja renombrada"));
+        Assert.Equal("Indique la dirección IP de la caja. (Parameter 'direccionIp')", sinDireccion.Cuerpo!.Mensaje);
+
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, $"/api/organizacion/cajas/{cajaId}",
+            new SolicitudActualizarCaja("Caja renombrada", DireccionUnica()))).Cuerpo!.Exitosa);
 
         var listada = Assert.Single(await ListarAsync<DatosCaja>(cliente, admin, "/api/organizacion/cajas"), c => c.Id == cajaId);
         Assert.Equal((codigoSucursal, "Caja renombrada"), (listada.SucursalCodigo, listada.Nombre));
@@ -120,7 +125,7 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
         var sucursalId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/sucursales",
             new SolicitudSucursal(CodigoSucursal(), "Sucursal para deshabilitar", "Calle 2, Santiago", "809-555-0001"))).Cuerpo!.Id!.Value;
-        var cajaId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja"))).Cuerpo!.Id!.Value;
+        var cajaId = (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/cajas", new SolicitudCaja(sucursalId, "01", "Caja", DireccionUnica()))).Cuerpo!.Id!.Value;
         var secreto = await CentralEnPruebas.EmitirCredencialAsync(cliente, cajaId);
 
         Assert.Equal(HttpStatusCode.OK, await PedirTokenAsync(cliente, cajaId, secreto));
@@ -193,6 +198,9 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Equal(HttpStatusCode.Forbidden, sinPermiso.StatusCode);
     }
 
+    /// <summary>Una dirección distinta por caja creada: el Central no admite dos cajas con la misma.</summary>
+    private static string DireccionUnica() => $"10.{Random.Shared.Next(1, 250)}.{Random.Shared.Next(1, 250)}.{Random.Shared.Next(1, 250)}";
+
     private static int _sucursales = 10;
 
     /// <summary>Código de sucursal que ninguna otra prueba usa (la 01 es de los datos de desarrollo).</summary>
@@ -208,8 +216,9 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
 
     private static async Task<HttpStatusCode> PedirTokenAsync(HttpClient cliente, int cajaId, string secreto)
     {
-        var (sucursal, caja) = CentralEnPruebas.CodigosCaja(cajaId);
-        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);
+        var (sucursal, caja, direccionIp) = CentralEnPruebas.IdentidadCaja(cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token",
+            new SolicitudTokenDispositivo(sucursal, caja, secreto, direccionIp), OpcionesJson.Predeterminadas);
         return respuesta.StatusCode;
     }
 

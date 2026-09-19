@@ -1,4 +1,4 @@
-@page "/ingreso"
+﻿@page "/ingreso"
 @implements IDisposable
 @inject ClienteAgente Cliente
 @inject AlmacenSesion Almacen
@@ -119,6 +119,14 @@
         if (Almacen.Activa)
         {
             Navegacion.NavigateTo(_pantalla.Ruta, replace: true);
+            return;
+        }
+
+        // Una caja recién instalada no sabe cuál es: antes de pedir usuario hay que decirle qué caja es y dónde está su
+        // Central. Se entra por aquí sea cual sea la pantalla desde la que se abrió.
+        if (await Cliente.ObtenerConfiguracionAsync() is not { Configurada: true })
+        {
+            Navegacion.NavigateTo($"/configurar?pantalla={ClavePantalla}", replace: true);
             return;
         }
 

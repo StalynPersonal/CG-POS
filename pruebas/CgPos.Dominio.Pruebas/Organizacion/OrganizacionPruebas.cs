@@ -32,7 +32,7 @@ public class OrganizacionPruebas
     [Fact]
     public void Caja_nace_habilitada_y_se_puede_deshabilitar()
     {
-        var caja = Caja.Crear(Ids.Siguiente(), "01", "Caja 01");
+        var caja = Caja.Crear(Ids.Siguiente(), "01", "Caja 01", "10.12.1.101");
         Assert.True(caja.Habilitada);
 
         caja.Deshabilitar();
@@ -40,6 +40,25 @@ public class OrganizacionPruebas
 
         caja.Habilitar();
         Assert.True(caja.Habilitada);
+    }
+
+    [Fact]
+    public void Caja_exige_su_direccion_y_solo_reconoce_la_suya()
+    {
+        var sucursal = Ids.Siguiente();
+
+        // Sin dirección no hay caja: es parte de lo que la identifica al comunicarse con el Central.
+        Assert.Throws<ArgumentException>(() => Caja.Crear(sucursal, "01", "Caja 01", string.Empty));
+        Assert.Throws<ArgumentException>(() => Caja.Crear(sucursal, "01", "Caja 01", "no-es-una-ip"));
+
+        var caja = Caja.Crear(sucursal, "01", "Caja 01", " 10.12.1.101 ");
+        Assert.Equal("10.12.1.101", caja.DireccionIp);
+        Assert.True(caja.CoincideDireccionIp("10.12.1.101"));
+        Assert.False(caja.CoincideDireccionIp("10.12.1.102"));
+        Assert.False(caja.CoincideDireccionIp(null));
+
+        caja.CambiarDireccionIp("10.12.1.150");
+        Assert.True(caja.CoincideDireccionIp("10.12.1.150"));
     }
 
     [Fact]

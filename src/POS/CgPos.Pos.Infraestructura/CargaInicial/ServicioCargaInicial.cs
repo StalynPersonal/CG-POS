@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Contratos.CargaInicial;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Organizacion;
@@ -251,13 +251,15 @@ internal sealed class ServicioCargaInicial(
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.SucursalId == sucursalId && c.Codigo == dato.Codigo, cancelacion);
         if (caja is null)
         {
-            caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre);
+            caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre, dato.DireccionIp ?? string.Empty);
             contexto.Cajas.Add(caja);
             _creados++;
         }
         else
         {
             caja.CambiarNombre(dato.Nombre);
+            if (dato.DireccionIp is { Length: > 0 } direccion)
+                caja.CambiarDireccionIp(direccion);
             _actualizados++;
         }
 

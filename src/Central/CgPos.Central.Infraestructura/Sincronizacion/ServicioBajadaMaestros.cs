@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Sincronizacion;
+﻿using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Maestros;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
@@ -45,7 +45,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
                 organizacion = new PaqueteCargaInicial(
                     new EmpresaCarga(empresa.Rnc, empresa.RazonSocial, empresa.NombreComercial, empresa.Direccion, empresa.Telefono),
                     sucursales.Select(s => new SucursalCarga(s.Codigo, s.Nombre, s.Direccion, s.Telefono, s.Activa)).ToList(),
-                    cajas.Select(c => new CajaCarga(resolutor.CodigoSucursal(c.SucursalId), c.Codigo, c.Nombre, c.Habilitada)).ToList(),
+                    cajas.Select(c => new CajaCarga(resolutor.CodigoSucursal(c.SucursalId), c.Codigo, c.Nombre, c.Habilitada, c.DireccionIp)).ToList(),
                     roles,
                     usuarios,
                     parametros.Select(p => Carga(p, resolutor)).ToList());

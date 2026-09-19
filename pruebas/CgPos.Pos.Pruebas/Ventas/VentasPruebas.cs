@@ -1665,8 +1665,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var ambitoLectura = baseDatos.Servicios!.CreateAsyncScope();
         var estado = await ambitoLectura.ServiceProvider.GetRequiredService<IEstadoSincronizacion>().ObtenerAsync();
         Assert.Equal(antes + 1, estado.DocumentosPendientes);
+        // Sin configurar la caja no hay Central al que hablarle, y se dice por qué: son las credenciales, no la red.
         Assert.False(estado.CentralConfigurado);
         Assert.False(estado.EnLinea);
+        Assert.Equal(MotivosSinConexion.Credenciales, estado.SinConexionPor);
     }
 
     private static string CedulaAleatoriaValida()

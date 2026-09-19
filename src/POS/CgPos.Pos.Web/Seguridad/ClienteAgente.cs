@@ -33,6 +33,33 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
+    /// <summary>Qué caja es este equipo. Nulo si el Agente no responde.</summary>
+    public async Task<DatosConfiguracionPantalla?> ObtenerConfiguracionAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosConfiguracionPantalla>("api/configuracion", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<RespuestaConfiguracion> ConfigurarCajaAsync(SolicitudConfigurarCajaPantalla solicitud, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.PostAsJsonAsync("api/configuracion", solicitud, OpcionesJson.Predeterminadas, cancelacion);
+            return await respuesta.Content.ReadFromJsonAsync<RespuestaConfiguracion>(OpcionesJson.Predeterminadas, cancelacion)
+                ?? new RespuestaConfiguracion(false, SinComunicacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or System.Text.Json.JsonException)
+        {
+            return new RespuestaConfiguracion(false, SinComunicacion);
+        }
+    }
+
     public Task<RespuestaIngreso> IngresarAsync(string codigoUsuario, string clave, CancellationToken cancelacion = default) =>
         IngresarAsync("api/sesion/ingreso", new SolicitudIngreso(codigoUsuario, clave), cancelacion);
 

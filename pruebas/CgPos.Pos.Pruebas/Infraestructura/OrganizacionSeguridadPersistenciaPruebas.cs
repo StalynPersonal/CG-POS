@@ -31,7 +31,7 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
             contexto.Add(empresa);
             sucursal = Sucursal.Crear(empresa.Id, "01", "Sucursal Principal");
             contexto.Add(sucursal);
-            caja = Caja.Crear(sucursal.Id, "01", "Caja 01");
+            caja = Caja.Crear(sucursal.Id, "01", "Caja 01", "10.12.1.101");
             contexto.Add(caja);
             rol = Rol.Crear($"SUP{sufijo}", "Supervisor", nivel: 2);
             rol.AsignarPermiso(CatalogoPermisos.AutorizarOperaciones);
@@ -94,7 +94,7 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
         contexto.Add(empresa);
         var sucursal = Sucursal.Crear(empresa.Id, "01", "Sucursal Ámbito");
         contexto.Add(sucursal);
-        var caja = Caja.Crear(sucursal.Id, "01", "Caja Ámbito");
+        var caja = Caja.Crear(sucursal.Id, "01", "Caja Ámbito", "10.12.1.102");
         contexto.Add(caja);
         await contexto.SaveChangesAsync();
 

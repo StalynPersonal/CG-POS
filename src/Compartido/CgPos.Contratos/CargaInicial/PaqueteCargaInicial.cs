@@ -1,4 +1,4 @@
-namespace CgPos.Contratos.CargaInicial;
+﻿namespace CgPos.Contratos.CargaInicial;
 
 /// <summary>
 /// Datos de organización y seguridad para una caja: los envía el Central por sincronización (o un archivo en desarrollo).
@@ -32,7 +32,9 @@ public sealed record CajaCarga(
     string SucursalCodigo,
     string Codigo,
     string Nombre,
-    bool Habilitada = true);
+    bool Habilitada = true,
+    /// <summary>Dirección de red fija de la caja, la misma que se configura en ella.</summary>
+    string? DireccionIp = null);
 
 /// <summary>Una caja se identifica por el código de su sucursal y el suyo.</summary>
 public sealed record CajaReferencia(string SucursalCodigo, string CajaCodigo);

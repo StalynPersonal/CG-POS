@@ -47,11 +47,6 @@ public sealed record ResultadoEnvioCentral(bool Confirmado, bool CentralRespondi
 }
 
 /// <summary>Canal hacia el Central: HTTP en producción o simulado mientras no exista (Fase C11, H2).</summary>
-/// <summary>En qué punto está la caja para poder hablar con el Central.</summary>
-/// <param name="Lista">Tiene credencial: puede sincronizar.</param>
-/// <param name="Mensaje">Qué falta, en palabras, para el registro y la pantalla de estado.</param>
-public sealed record EstadoCredencialCaja(bool Lista, string? Mensaje = null);
-
 /// <summary>Cuánto espera la caja entre reintentos cuando el Central no responde.</summary>
 /// <param name="Inicial">Espera tras el primer fallo; se duplica con cada intento hasta la máxima.</param>
 public sealed record OpcionesEspera(TimeSpan Inicial, TimeSpan Maxima)
@@ -66,18 +61,54 @@ public sealed record OpcionesEspera(TimeSpan Inicial, TimeSpan Maxima)
             : TimeSpan.FromSeconds(Math.Min(Inicial.TotalSeconds * Math.Pow(2, Math.Max(0, intentos - 1)), Maxima.TotalSeconds));
 }
 
-/// <summary>
-/// Lo que se puede contar de la credencial de la caja sin revelarla: si ya la tiene y a qué equipo corresponde. Sirve para el
-/// diagnóstico de /salud, que no debe ver el secreto.
-/// </summary>
-public interface IEstadoCredencialCaja
+/// <summary>Configuración de esta caja, tal como está guardada en su base.</summary>
+/// <param name="Secreto">La credencial ya descifrada; nula si no se pudo leer en este equipo.</param>
+/// <param name="Problema">Por qué no sirve para comunicarse, o nulo si está bien.</param>
+public sealed record DatosConfiguracionCaja(
+    string SucursalCodigo,
+    string CajaCodigo,
+    string DireccionIp,
+    string UrlCentral,
+    string? Secreto,
+    DateTimeOffset ConfiguradaEn,
+    string? Problema)
 {
-    bool TieneCredencial { get; }
+    /// <summary>Se puede usar para hablar con el Central.</summary>
+    public bool Sirve => Problema is null && Secreto is { Length: > 0 };
+}
 
-    /// <summary>Huella del equipo, en hexadecimal. El Central la ata a la credencial al aceptar la caja.</summary>
-    string HuellaEquipo { get; }
+/// <summary>Los cinco datos que el técnico escribe en la pantalla de la caja la primera vez.</summary>
+public sealed record SolicitudConfigurarCaja(
+    string SucursalCodigo,
+    string CajaCodigo,
+    string DireccionIp,
+    string UrlCentral,
+    string Secreto,
+    string? ConfiguradaPor = null);
 
-    string NombreEquipo { get; }
+/// <summary>Qué caja es este equipo. Se llena desde la propia pantalla de la caja y se guarda en su base.</summary>
+public interface IConfiguracionCaja
+{
+    /// <summary>Nula si la caja todavía no se ha configurado: entonces hay que pedir los datos en pantalla.</summary>
+    Task<DatosConfiguracionCaja?> ObtenerAsync(CancellationToken cancelacion = default);
+
+    /// <returns>El motivo por el que no se pudo guardar, o nulo si quedó configurada.</returns>
+    Task<string?> GuardarAsync(SolicitudConfigurarCaja solicitud, CancellationToken cancelacion = default);
+
+    /// <summary>El Central no acepta estos datos: se marca para que la caja avise y pida configurarse de nuevo.</summary>
+    Task RechazarAsync(string motivo, CancellationToken cancelacion = default);
+
+    /// <summary>El Central volvió a aceptarla.</summary>
+    Task AceptarAsync(CancellationToken cancelacion = default);
+}
+
+/// <summary>Cifra la credencial de la caja contra este equipo: copiar la base a otra máquina no la deja legible.</summary>
+public interface IProteccionSecreto
+{
+    string Proteger(string secreto);
+
+    /// <summary>Nulo si el texto no se puede descifrar en este equipo.</summary>
+    string? Desproteger(string protegido);
 }
 
 /// <summary>
@@ -107,12 +138,6 @@ public interface IRitmosOperacion
 public interface IClienteCentral
 {
     bool Configurado { get; }
-
-    /// <summary>
-    /// Si la caja todavía no tiene credencial, se anuncia al Central y queda esperando que la acepten. No se escribe ningún
-    /// secreto a mano: la caja lo recibe cuando alguien aprueba su solicitud y lo guarda cifrada en el equipo.
-    /// </summary>
-    Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default);
 
     Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default);
 

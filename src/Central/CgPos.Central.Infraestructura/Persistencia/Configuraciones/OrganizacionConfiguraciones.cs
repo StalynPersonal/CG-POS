@@ -50,6 +50,10 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
         constructor.HasKey(c => c.Id);
 
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
+        constructor.Property(c => c.DireccionIp).HasMaxLength(Caja.LargoMaximoIp).IsUnicode(false).IsRequired();
+
+        // Dos cajas no pueden compartir dirección: es parte de lo que las distingue al comunicarse.
+        constructor.HasIndex(c => c.DireccionIp).IsUnique();
 
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
         constructor.Property(c => c.Codigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
@@ -88,38 +92,11 @@ internal sealed class CredencialDispositivoConfiguracion : IEntityTypeConfigurat
         constructor.Property(c => c.EmitidaPor).HasMaxLength(CredencialDispositivo.LargoMaximoNombre).IsRequired();
         constructor.Property(c => c.MotivoRevocacion).HasMaxLength(CredencialDispositivo.LargoMaximoMotivo);
         constructor.Property(c => c.UltimaIp).HasMaxLength(CredencialDispositivo.LargoMaximoIp).IsUnicode(false);
-        constructor.Property(c => c.HuellaEquipo).HasMaxLength(CredencialDispositivo.LargoHuella).IsFixedLength().IsUnicode(false);
-        constructor.Property(c => c.NombreEquipo).HasMaxLength(CredencialDispositivo.LargoMaximoNombreEquipo);
 
         constructor.HasOne<Caja>().WithMany().HasForeignKey(c => c.CajaId).OnDelete(DeleteBehavior.Restrict);
 
         // Una sola credencial activa por caja.
         constructor.HasIndex(c => c.CajaId).IsUnique().HasFilter("[RevocadaEn] IS NULL").HasDatabaseName("IX_CredencialesDispositivo_CajaActiva");
-    }
-}
-
-internal sealed class SolicitudEnrolamientoConfiguracion : IEntityTypeConfiguration<SolicitudEnrolamiento>
-{
-    public void Configure(EntityTypeBuilder<SolicitudEnrolamiento> constructor)
-    {
-        constructor.ToTable("SolicitudesEnrolamiento");
-        constructor.HasKey(s => s.Id);
-
-        constructor.Property(s => s.SucursalCodigo).HasMaxLength(CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
-        constructor.Property(s => s.CajaCodigo).HasMaxLength(CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
-        constructor.Property(s => s.HuellaEquipo).HasMaxLength(SolicitudEnrolamiento.LargoHuella).IsFixedLength().IsUnicode(false).IsRequired();
-        constructor.Property(s => s.TokenHash).HasMaxLength(SolicitudEnrolamiento.LargoHashToken).IsFixedLength().IsUnicode(false).IsRequired();
-        constructor.Property(s => s.NombreEquipo).HasMaxLength(SolicitudEnrolamiento.LargoMaximoNombreEquipo).IsRequired();
-        constructor.Property(s => s.DireccionIp).HasMaxLength(SolicitudEnrolamiento.LargoMaximoIp).IsUnicode(false);
-        constructor.Property(s => s.ResueltaPor).HasMaxLength(SolicitudEnrolamiento.LargoMaximoNombre);
-        constructor.Property(s => s.Motivo).HasMaxLength(SolicitudEnrolamiento.LargoMaximoMotivo);
-        constructor.Property(s => s.Estado).HasConversion<string>().HasMaxLength(20).IsUnicode(false).IsRequired();
-
-        constructor.HasOne<Caja>().WithMany().HasForeignKey(s => s.CajaId).OnDelete(DeleteBehavior.Restrict);
-
-        // El mismo equipo pidiendo la misma caja es la misma solicitud: se refresca, no se acumula.
-        constructor.HasIndex(s => new { s.SucursalCodigo, s.CajaCodigo, s.HuellaEquipo }).IsUnique()
-            .HasDatabaseName("IX_SolicitudesEnrolamiento_Equipo");
     }
 }
 

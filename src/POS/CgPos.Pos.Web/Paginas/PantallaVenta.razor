@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @attribute [Authorize]
 @implements IDisposable
 @using System.Globalization
@@ -1245,12 +1245,17 @@ else
 
     private string IconoSincronizacion => _sincronizacion is { EnLinea: true } ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudOff;
 
+    /// <summary>
+    /// Se distingue quedarse sin red de que el Central no acepte esta caja: lo primero se arregla solo cuando vuelva la
+    /// comunicación, lo segundo hay que ir a resolverlo. En los dos casos la caja sigue vendiendo.
+    /// </summary>
     private string TextoSincronizacion => _sincronizacion switch
     {
         null => "Agente sin respuesta",
         { EnLinea: true } estado => $"En línea · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
-        { CentralConfigurado: false } estado => $"Sin Central · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
-        var estado => $"Fuera de línea · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
+        { SinConexionPor: MotivosSinConexion.Credenciales } estado =>
+            $"Sin conexión (credenciales) · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
+        var estado => $"Sin conexión (red) · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
     };
 
     private string? AvisoAlertas => _sincronizacion?.Alertas is { Count: > 0 } alertas ? $" · {alertas.Count} alerta(s)" : null;

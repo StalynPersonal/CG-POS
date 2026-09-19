@@ -56,7 +56,7 @@ public class CentralPruebas : IDisposable
 
                 recibida = solicitud;
                 return respuesta();
-            })) { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", new CredencialCajaEnMemoria(secreto), TimeProvider.System);
+            })), ConfiguracionDePrueba(secreto), TimeProvider.System);
 
         var cliente = Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Duplicado"}"""));
         Assert.True((await cliente.EnviarAsync(mensaje)).Confirmado);
@@ -81,18 +81,18 @@ public class CentralPruebas : IDisposable
         var caido = await Cliente(() => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)).EnviarAsync(mensaje);
         Assert.Equal((false, false), (caido.Confirmado, caido.CentralRespondio));
 
-        var sinCredencial = await Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Recibido"}"""), secreto: null).EnviarAsync(mensaje);
-        Assert.Equal((false, false), (sinCredencial.Confirmado, sinCredencial.CentralRespondio));
-        Assert.Contains("todavía no tiene credencial", sinCredencial.Error);
+        var sinConfigurar = await Cliente(() => Json(HttpStatusCode.OK, """{"estado":"Recibido"}"""), secreto: null).EnviarAsync(mensaje);
+        Assert.Equal((false, false), (sinConfigurar.Confirmado, sinConfigurar.CentralRespondio));
+        Assert.Contains("no está configurada", sinConfigurar.Error);
 
         var credencialRechazada = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ =>
                 Json(HttpStatusCode.Unauthorized, """{"exitoso":false,"mensaje":"Credencial de caja no válida."}""")))
-            { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", new CredencialCajaEnMemoria("otro"), TimeProvider.System).EnviarAsync(mensaje);
+            , ConfiguracionDePrueba("otro"), TimeProvider.System).EnviarAsync(mensaje);
         Assert.Equal((false, true), (credencialRechazada.Confirmado, credencialRechazada.CentralRespondio));
         Assert.Contains("Credencial de caja no válida.", credencialRechazada.Error);
 
         var sinRed = await new ClienteCentralHttp(new HttpClient(new ManejadorPrueba(_ => throw new HttpRequestException("sin red")))
-            { BaseAddress = new Uri("https://central.prueba/") }, "01", "01", new CredencialCajaEnMemoria("secreto"), TimeProvider.System).EnviarAsync(mensaje);
+            , ConfiguracionDePrueba("secreto"), TimeProvider.System).EnviarAsync(mensaje);
         Assert.False(sinRed.CentralRespondio);
     }
 
@@ -117,11 +117,11 @@ public class CentralPruebas : IDisposable
     {
         IClienteCentral Crear(params (string Clave, string Valor)[] valores) =>
             FabricaClienteCentral.Crear(new ConfigurationBuilder().AddInMemoryCollection(valores.ToDictionary(v => v.Clave, v => (string?)v.Valor)).Build(),
-                new CredencialCajaEnMemoria("secreto-caja"));
+                ConfiguracionDePrueba("secreto-caja"));
 
+        // Solo el modo simulado cambia de cliente: la dirección del Central vive en la configuración de la caja, no aquí.
         Assert.IsType<CentralSimulado>(Crear((ClavesSincronizacion.ModoCentral, "Simulado"), (ClavesSincronizacion.CarpetaSimulada, _carpeta)));
-        Assert.IsType<ClienteCentralHttp>(Crear((ClavesSincronizacion.UrlCentral, "https://central.contreras.do/")));
-        Assert.False(Crear().Configurado);
+        Assert.IsType<ClienteCentralHttp>(Crear());
     }
 
     public void Dispose()
@@ -130,6 +130,8 @@ public class CentralPruebas : IDisposable
             Directory.Delete(_carpeta, recursive: true);
         GC.SuppressFinalize(this);
     }
+
+    private static ConfiguracionCajaEnMemoria ConfiguracionDePrueba(string? secreto) => new(secreto);
 
     private static HttpResponseMessage Json(HttpStatusCode codigo, string cuerpo) =>
         new(codigo) { Content = new StringContent(cuerpo, Encoding.UTF8, "application/json") };
@@ -147,9 +149,6 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
     public int Recibidos { get; private set; }
 
     public bool Configurado => true;
-
-    public Task<EstadoCredencialCaja> AsegurarCredencialAsync(CancellationToken cancelacion = default) =>
-        Task.FromResult(new EstadoCredencialCaja(true));
 
     public Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default)
     {

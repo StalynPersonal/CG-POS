@@ -72,6 +72,10 @@ CREATE SEQUENCE [SecuenciaClientes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
+CREATE SEQUENCE [SecuenciaConfiguracionCaja] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaConsumosNotaCredito] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -338,6 +342,22 @@ CREATE TABLE [Clientes] (
     [Contacto] nvarchar(150) NULL,
     [Activo] bit NOT NULL,
     CONSTRAINT [PK_Clientes] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [ConfiguracionCaja] (
+    [Id] int NOT NULL,
+    [SucursalCodigo] char(2) NOT NULL,
+    [CajaCodigo] char(2) NOT NULL,
+    [DireccionIp] varchar(45) NOT NULL,
+    [UrlCentral] varchar(250) NOT NULL,
+    [SecretoCifrado] varchar(500) NOT NULL,
+    [ConfiguradaEn] datetimeoffset(3) NOT NULL,
+    [ConfiguradaPor] nvarchar(250) NULL,
+    [RechazadaEn] datetimeoffset(3) NULL,
+    [MotivoRechazo] nvarchar(250) NULL,
+    CONSTRAINT [PK_ConfiguracionCaja] PRIMARY KEY ([Id])
 );
 GO
 
@@ -888,6 +908,7 @@ CREATE TABLE [Cajas] (
     [SucursalId] int NOT NULL,
     [Codigo] char(2) NOT NULL,
     [Nombre] nvarchar(100) NOT NULL,
+    [DireccionIp] varchar(45) NULL,
     [Habilitada] bit NOT NULL,
     [ModificadoEn] datetimeoffset(3) NOT NULL,
     [ModificadoPor] nvarchar(150) NOT NULL,

@@ -89,11 +89,15 @@ public static class InyeccionDependencias
         // Sincronización con el Central (M14): HTTP, simulado o sin Central según la configuración de la instalación.
         servicios.AddSingleton(OpcionesSincronizacion.Leer(configuracion));
         servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoConexionCentral, EstadoConexionCentral>();
-        servicios.AddSingleton<ICredencialCaja>(proveedor =>
-            new CredencialCajaProtegida(configuracion, proveedor.GetRequiredService<ILoggerFactory>().CreateLogger<CredencialCajaProtegida>()));
-        servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoCredencialCaja>(proveedor =>
-            (CredencialCajaProtegida)proveedor.GetRequiredService<ICredencialCaja>());
-        servicios.AddSingleton(proveedor => FabricaClienteCentral.Crear(configuracion, proveedor.GetRequiredService<ICredencialCaja>()));
+        servicios.AddSingleton<Aplicacion.Sincronizacion.IProteccionSecreto, ProteccionSecretoEquipo>();
+        servicios.AddSingleton<Aplicacion.Sincronizacion.IConfiguracionCaja>(proveedor => new ConfiguracionCajaLocal(
+            proveedor.GetRequiredService<IServiceScopeFactory>(),
+            proveedor.GetRequiredService<Aplicacion.Sincronizacion.IProteccionSecreto>(),
+            configuracion,
+            proveedor.GetRequiredService<TimeProvider>(),
+            proveedor.GetRequiredService<ILoggerFactory>().CreateLogger<ConfiguracionCajaLocal>()));
+        servicios.AddSingleton(proveedor =>
+            FabricaClienteCentral.Crear(configuracion, proveedor.GetRequiredService<Aplicacion.Sincronizacion.IConfiguracionCaja>()));
         servicios.AddScoped<Aplicacion.Sincronizacion.IRitmosOperacion, RitmosOperacion>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IProcesadorBandejaSalida, ProcesadorBandejaSalida>();
         servicios.AddScoped<Aplicacion.Sincronizacion.IDescargaMaestros, DescargaMaestros>();

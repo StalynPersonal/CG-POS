@@ -1,4 +1,4 @@
-@* Alta o edición de una caja. La sucursal y el código no cambian después de crearla. *@
+﻿@* Alta o edición de una caja. La sucursal y el código no cambian después de crearla. *@
 @inject ClienteCentral Cliente
 
 <MudDialog>
@@ -14,6 +14,8 @@
             <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Caja is not null)" MaxLength="2"
                           HelperText="Dos dígitos, de 01 a 99 y único en la sucursal; forma parte del número de los documentos." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
+            <MudTextField T="string" @bind-Value="_direccionIp" Label="Dirección IP" Variant="Variant.Outlined" MaxLength="45"
+                          HelperText="La IP fija del equipo de esta caja (por ejemplo 10.12.1.101). Debe ser la misma que se configure en la caja." />
             @if (_mensaje is not null)
             {
                 <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
@@ -35,6 +37,7 @@
     private int? _sucursalId;
     private string? _codigo;
     private string? _nombre;
+    private string? _direccionIp;
     private string? _mensaje;
     private bool _procesando;
 
@@ -49,6 +52,7 @@
         _sucursalId = caja.SucursalId;
         _codigo = caja.Codigo;
         _nombre = caja.Nombre;
+        _direccionIp = caja.DireccionIp;
     }
 
     private async Task GuardarAsync()
@@ -62,8 +66,8 @@
         _procesando = true;
         _mensaje = null;
         var respuesta = Caja is null
-            ? await Cliente.CrearCajaAsync(new SolicitudCaja(sucursalId, _codigo ?? string.Empty, _nombre ?? string.Empty))
-            : await Cliente.ActualizarCajaAsync(Caja.Id, new SolicitudActualizarCaja(_nombre ?? string.Empty));
+            ? await Cliente.CrearCajaAsync(new SolicitudCaja(sucursalId, _codigo ?? string.Empty, _nombre ?? string.Empty, _direccionIp))
+            : await Cliente.ActualizarCajaAsync(Caja.Id, new SolicitudActualizarCaja(_nombre ?? string.Empty, _direccionIp));
         _procesando = false;
 
         if (respuesta.Exitosa)

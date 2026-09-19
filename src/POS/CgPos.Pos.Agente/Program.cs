@@ -60,8 +60,7 @@ try
     // /salud es el diagnóstico de la caja: dice qué le falta y qué hacer, para revisarla antes de ponerla a vender.
     constructor.Services.AddHealthChecks()
         .AddDbContextCheck<ContextoDatosPos>("Base de datos")
-        .AddCheck<VerificacionesCaja.Caja>("Caja")
-        .AddCheck<VerificacionesCaja.Credencial>("Credencial")
+                .AddCheck<VerificacionesCaja.Configuracion>("Configuración")
         .AddCheck<VerificacionesCaja.Central>("Central")
         .AddCheck<VerificacionesCaja.Certificado>("Certificado e-CF");
 
@@ -105,6 +104,7 @@ try
     aplicacion.UseAuthorization();
 
     aplicacion.MapHealthChecks("/salud", new HealthCheckOptions { ResponseWriter = EscritorSalud.EscribirAsync });
+    aplicacion.MapearApiConfiguracion();
     aplicacion.MapearApiSeguridad();
     aplicacion.MapearApiCatalogo();
     aplicacion.MapearApiVentas();

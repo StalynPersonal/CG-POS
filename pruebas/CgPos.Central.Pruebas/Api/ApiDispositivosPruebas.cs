@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Central;
@@ -131,8 +131,9 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
 
     private static async Task<(HttpStatusCode Estado, RespuestaTokenDispositivo? Cuerpo)> PedirTokenAsync(HttpClient cliente, int cajaId, string secreto)
     {
-        var (sucursal, caja) = CentralEnPruebas.CodigosCaja(cajaId);
-        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token", new SolicitudTokenDispositivo(sucursal, caja, secreto), OpcionesJson.Predeterminadas);
+        var (sucursal, caja, direccionIp) = CentralEnPruebas.IdentidadCaja(cajaId);
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/token",
+            new SolicitudTokenDispositivo(sucursal, caja, secreto, direccionIp), OpcionesJson.Predeterminadas);
         return (respuesta.StatusCode, await respuesta.Content.ReadFromJsonAsync<RespuestaTokenDispositivo>(OpcionesJson.Predeterminadas));
     }
 }

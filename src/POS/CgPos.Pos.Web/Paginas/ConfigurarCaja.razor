@@ -1,0 +1,113 @@
+@page "/configurar"
+@inject ClienteAgente Cliente
+@inject NavigationManager Navegacion
+
+<PageTitle>CG-POS · Configurar la caja</PageTitle>
+
+@* Primera pantalla de una caja recién instalada: aquí se le dice qué caja es y cómo hablarle al Central. *@
+<div class="cg-ingreso">
+    <section class="cg-ingreso__marca">
+        <div>
+            <div class="cg-ingreso__logo">CG-POS</div>
+            <div class="cg-ingreso__empresa">Configuración de la caja</div>
+        </div>
+
+        @* Lo que hay que tener a mano antes de empezar, para no ir y volver al Central. *@
+        <div>
+            <MudText Typo="Typo.body1">Esta caja todavía no sabe cuál es. Pida al Central estos datos:</MudText>
+            <ul class="cg-configurar__lista">
+                <li>El código de su sucursal y el de la caja, de dos dígitos.</li>
+                <li>La dirección IP fija de este equipo, la misma que registraron en el Central.</li>
+                <li>La dirección del servidor Central.</li>
+                <li>La credencial que se emite en Organización → Cajas → Emitir credencial.</li>
+            </ul>
+        </div>
+    </section>
+
+    @* Formulario: los cinco datos, y nada más. *@
+    <section class="cg-ingreso__formulario">
+        <MudPaper Elevation="0" Class="cg-ingreso__tarjeta">
+            <MudText Typo="Typo.h5" Class="mb-4">Datos de la caja</MudText>
+
+            @if (_problema is { Length: > 0 })
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-4">@_problema</MudAlert>
+            }
+
+            <div class="cg-configurar__fila">
+                <MudTextField T="string" @bind-Value="_sucursal" Label="Código de sucursal" Variant="Variant.Outlined" MaxLength="2"
+                              Placeholder="01" Immediate="true" />
+                <MudTextField T="string" @bind-Value="_caja" Label="Código de caja" Variant="Variant.Outlined" MaxLength="2"
+                              Placeholder="01" Immediate="true" />
+            </div>
+
+            <MudTextField T="string" @bind-Value="_direccionIp" Label="IP de esta caja" Variant="Variant.Outlined" MaxLength="45"
+                          Placeholder="10.12.1.101" Immediate="true" Class="mt-3"
+                          HelperText="La misma que está registrada en el Central para esta caja." />
+
+            <MudTextField T="string" @bind-Value="_urlCentral" Label="Servidor Central" Variant="Variant.Outlined" MaxLength="250"
+                          Placeholder="https://central.empresa.com.do" Immediate="true" Class="mt-3" />
+
+            <MudTextField T="string" @bind-Value="_secreto" Label="Credencial" Variant="Variant.Outlined" MaxLength="500"
+                          InputType="InputType.Password" Immediate="true" Class="mt-3"
+                          HelperText="Se guarda cifrada en este equipo; no se vuelve a mostrar." />
+
+            <MudTextField T="string" @bind-Value="_configuradaPor" Label="Quién configura (opcional)" Variant="Variant.Outlined" MaxLength="150"
+                          Immediate="true" Class="mt-3" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-6"
+                       Disabled="@(_guardando || !Completo)" OnClick="GuardarAsync">
+                @(_guardando ? "Guardando…" : "Guardar y continuar")
+            </MudButton>
+        </MudPaper>
+    </section>
+</div>
+
+@code {
+    private string? _sucursal;
+    private string? _caja;
+    private string? _direccionIp;
+    private string? _urlCentral;
+    private string? _secreto;
+    private string? _configuradaPor;
+    private string? _problema;
+    private bool _guardando;
+
+    /// <summary>Volver aquí después de guardar: la pantalla desde la que se entró.</summary>
+    [SupplyParameterFromQuery(Name = "pantalla")] private string? Pantalla { get; set; }
+
+    private bool Completo =>
+        _sucursal is { Length: > 0 } && _caja is { Length: > 0 } && _direccionIp is { Length: > 0 }
+        && _urlCentral is { Length: > 0 } && _secreto is { Length: > 0 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Si ya estaba configurada y el Central la rechazó, se muestran los datos anteriores para corregir lo que cambió.
+        if (await Cliente.ObtenerConfiguracionAsync() is not { Configurada: true } configuracion)
+            return;
+
+        _sucursal = configuracion.SucursalCodigo;
+        _caja = configuracion.CajaCodigo;
+        _direccionIp = configuracion.DireccionIp;
+        _urlCentral = configuracion.UrlCentral;
+        _problema = configuracion.Problema;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _guardando = true;
+        _problema = null;
+
+        var respuesta = await Cliente.ConfigurarCajaAsync(new SolicitudConfigurarCajaPantalla(
+            _sucursal, _caja, _direccionIp, _urlCentral, _secreto, _configuradaPor));
+
+        _guardando = false;
+        if (!respuesta.Exitosa)
+        {
+            _problema = respuesta.Mensaje;
+            return;
+        }
+
+        Navegacion.NavigateTo(Pantalla is { Length: > 0 } pantalla ? $"/ingreso?pantalla={pantalla}" : "/ingreso", forceLoad: true);
+    }
+}

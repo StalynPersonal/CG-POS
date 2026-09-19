@@ -18,7 +18,6 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<Caja> Cajas => Set<Caja>();
     public DbSet<Parametro> Parametros => Set<Parametro>();
     public DbSet<CredencialDispositivo> CredencialesDispositivo => Set<CredencialDispositivo>();
-    public DbSet<SolicitudEnrolamiento> SolicitudesEnrolamiento => Set<SolicitudEnrolamiento>();
 
     // Seguridad del Central Manager (M02)
     public DbSet<RolCentral> RolesCentral => Set<RolCentral>();

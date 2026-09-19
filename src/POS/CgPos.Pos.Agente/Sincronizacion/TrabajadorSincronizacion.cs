@@ -32,12 +32,13 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, TimeP
 
             proximoCiclo = reloj.Ahora() + await RitmoAsync(r => r.IntervaloSincronizacionAsync(detener), TimeSpan.FromSeconds(30), detener);
 
-            var credencial = await CredencialAsync(detener);
-            if (!credencial.Lista)
+            var configuracion = await ConfiguracionAsync(detener);
+            if (configuracion is not { Sirve: true })
             {
-                if (credencial.Mensaje is { Length: > 0 } aviso && aviso != ultimoAviso)
+                var aviso = configuracion?.Problema ?? "Esta caja todavía no está configurada: hágalo en su pantalla.";
+                if (aviso != ultimoAviso)
                 {
-                    registro.LogWarning("Caja sin credencial del Central: {Mensaje}", aviso);
+                    registro.LogWarning("Sin comunicación con el Central: {Mensaje}", aviso);
                     ultimoAviso = aviso;
                 }
 
@@ -46,7 +47,8 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, TimeP
 
             if (ultimoAviso is not null)
             {
-                registro.LogInformation("La caja ya tiene su credencial del Central: comienza a sincronizar.");
+                registro.LogInformation("La caja {Sucursal}-{Caja} ya puede comunicarse con el Central.",
+                    configuracion.SucursalCodigo, configuracion.CajaCodigo);
                 ultimoAviso = null;
             }
 
@@ -88,17 +90,18 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, TimeP
         }
     }
 
-    /// <summary>Pide la credencial si falta. Un fallo aquí no detiene el servicio: el próximo ciclo vuelve a intentarlo.</summary>
-    private async Task<EstadoCredencialCaja> CredencialAsync(CancellationToken detener)
+    /// <summary>Qué caja es este equipo. Un fallo aquí no detiene el servicio: el próximo ciclo vuelve a mirar.</summary>
+    private async Task<DatosConfiguracionCaja?> ConfiguracionAsync(CancellationToken detener)
     {
         try
         {
             await using var ambito = ambitos.CreateAsyncScope();
-            return await ambito.ServiceProvider.GetRequiredService<IClienteCentral>().AsegurarCredencialAsync(detener);
+            return await ambito.ServiceProvider.GetRequiredService<IConfiguracionCaja>().ObtenerAsync(detener);
         }
         catch (Exception excepcion) when (excepcion is not OperationCanceledException || !detener.IsCancellationRequested)
         {
-            return new EstadoCredencialCaja(false, excepcion.Message);
+            registro.LogWarning(excepcion, "No se pudo leer la configuración de la caja.");
+            return null;
         }
     }
 

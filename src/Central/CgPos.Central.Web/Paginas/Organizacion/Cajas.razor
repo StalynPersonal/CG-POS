@@ -41,7 +41,11 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Sucursal">@context.SucursalCodigo<div class="cg-central__detalle">@context.SucursalNombre</div></MudTd>
-            <MudTd DataLabel="Caja"><strong>@context.Codigo</strong><div class="cg-central__detalle">@context.Nombre</div></MudTd>
+            <MudTd DataLabel="Caja">
+                <strong>@context.Codigo</strong>
+                <div class="cg-central__detalle">@context.Nombre</div>
+                <div class="cg-central__detalle">@(context.DireccionIp is { Length: > 0 } ip ? ip : "sin IP configurada")</div>
+            </MudTd>
             <MudTd DataLabel="Estado">
                 @if (context.Habilitada)
                 {
@@ -57,9 +61,6 @@
                 {
                     <div>Emitida @Fecha(emitida)</div>
                     <div class="cg-central__detalle">Último uso: @(context.CredencialUltimoUsoEn is { } uso ? Fecha(uso) : "nunca")</div>
-                    <div class="cg-central__detalle">
-                        @(context.EquipoNombre is { Length: > 0 } equipo ? $"Equipo: {equipo}" : "Sin equipo: lo toma la primera caja que la use")
-                    </div>
                 }
                 else
                 {
@@ -87,10 +88,6 @@
                         @if (context.CredencialEmitidaEn is not null)
                         {
                             <MudMenuItem Icon="@Icons.Material.Filled.KeyOff" OnClick="() => DesdeMenu(() => RevocarCredencialAsync(context))">Revocar credencial</MudMenuItem>
-                        }
-                        @if (context.EquipoFijadoEn is not null)
-                        {
-                            <MudMenuItem Icon="@Icons.Material.Filled.PhonelinkSetup" OnClick="() => DesdeMenu(() => LiberarEquipoAsync(context))">Liberar equipo</MudMenuItem>
                         }
                     </AuthorizeView>
                 </MudMenu>
@@ -197,22 +194,6 @@
             return;
 
         await EjecutarAsync(() => Cliente.RevocarCredencialAsync(caja.Id, motivo), "Credencial revocada.");
-    }
-
-    private async Task LiberarEquipoAsync(DatosCaja caja)
-    {
-        var parametros = new DialogParameters<DialogoMotivo>
-        {
-            { d => d.Mensaje, $"La caja {caja.Codigo} de {caja.SucursalNombre} dejará de estar atada al equipo «{caja.EquipoNombre}». " +
-                "El próximo equipo que la instale pedirá entrar y usted lo acepta en Solicitudes de cajas." },
-            { d => d.Etiqueta, "Motivo (por ejemplo, equipo dañado)" },
-            { d => d.TextoConfirmar, "Liberar" },
-        };
-        var referencia = await Dialogos.ShowAsync<DialogoMotivo>("Liberar equipo", parametros);
-        if (await referencia.Result is not { Canceled: false, Data: string motivo })
-            return;
-
-        await EjecutarAsync(() => Cliente.LiberarEquipoAsync(caja.Id, motivo), "Equipo liberado: la caja puede instalarse en otra máquina.");
     }
 
     private async Task EjecutarAsync(Func<Task<RespuestaAdministracion>> operacion, string textoExito)

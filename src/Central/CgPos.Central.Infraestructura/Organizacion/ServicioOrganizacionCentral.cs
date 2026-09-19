@@ -132,7 +132,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
                 estados.TryGetValue(caja.Id, out var estado);
                 return new DatosCaja(caja.Id, caja.SucursalId, sucursal.Codigo, sucursal.Nombre, caja.Codigo, caja.Nombre, caja.Habilitada,
                     credencial?.EmitidaEn, credencial?.UltimoUsoEn, estado?.UltimaRecepcionEn, estado?.UltimaDescargaEn,
-                    credencial?.NombreEquipo, credencial?.EquipoFijadoEn);
+                    caja.DireccionIp);
             })
             .OrderBy(c => c.SucursalCodigo)
             .ThenBy(c => c.Codigo)
@@ -148,10 +148,14 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (codigo is { Length: > 0 } && await contexto.Cajas.AnyAsync(c => c.SucursalId == solicitud.SucursalId && c.Codigo == codigo, cancelacion))
             return ResultadoAdministracion.Error($"La sucursal ya tiene la caja {codigo}.");
 
+        // Dos cajas con la misma dirección no se podrían distinguir al comunicarse, así que se avisa aquí y no en la base.
+        if (await DireccionRepetidaAsync(solicitud.DireccionIp, null, cancelacion) is { } repetida)
+            return ResultadoAdministracion.Error(repetida);
+
         Caja caja;
         try
         {
-            caja = Caja.Crear(solicitud.SucursalId, codigo, solicitud.Nombre);
+            caja = Caja.Crear(solicitud.SucursalId, codigo, solicitud.Nombre, solicitud.DireccionIp ?? string.Empty);
         }
         catch (ArgumentException excepcion)
         {
@@ -168,9 +172,15 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (caja is null)
             return ResultadoAdministracion.Inexistente("La caja no existe.");
 
+        if (await DireccionRepetidaAsync(solicitud.DireccionIp, cajaId, cancelacion) is { } repetida)
+            return ResultadoAdministracion.Error(repetida);
+
         try
         {
             caja.CambiarNombre(solicitud.Nombre);
+
+            // Cambiar la dirección deja fuera a la caja hasta que se configure con la nueva: es la señal de que se mudó.
+            caja.CambiarDireccionIp(solicitud.DireccionIp ?? string.Empty);
         }
         catch (ArgumentException excepcion)
         {
@@ -179,6 +189,24 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         }
 
         return await GuardarAsync("Organizacion.CajaActualizada", "Caja", caja.Id, actor, solicitud, cancelacion);
+    }
+
+    /// <returns>El motivo, si otra caja ya tiene esa dirección; nulo si se puede usar.</returns>
+    private async Task<string?> DireccionRepetidaAsync(string? direccionIp, int? exceptoCajaId, CancellationToken cancelacion)
+    {
+        var direccion = direccionIp?.Trim();
+        if (direccion is not { Length: > 0 })
+            return null;
+
+        var otra = await (
+                from caja in contexto.Cajas
+                join sucursal in contexto.Sucursales on caja.SucursalId equals sucursal.Id
+                where caja.DireccionIp == direccion && (exceptoCajaId == null || caja.Id != exceptoCajaId)
+                select new { caja.Codigo, Sucursal = sucursal.Codigo })
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancelacion);
+
+        return otra is null ? null : $"La dirección {direccion} ya es de la caja {otra.Codigo} de la sucursal {otra.Sucursal}.";
     }
 
     public async Task<ResultadoAdministracion> CambiarEstadoCajaAsync(int cajaId, bool habilitada, UsuarioAuditoria actor, CancellationToken cancelacion = default)

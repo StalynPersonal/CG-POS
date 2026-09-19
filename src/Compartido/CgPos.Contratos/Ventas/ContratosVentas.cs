@@ -248,6 +248,31 @@ public sealed record RespuestaVenta(
 /// <summary>Indicador permanente de conexión con el Central y documentos pendientes (RF-192).</summary>
 /// <param name="UltimoError">Último motivo por el que no se pudo sincronizar, mientras la caja está sin conexión.</param>
 /// <param name="Alertas">Tamaño de la base, documentos atrasados, hora desfasada o respaldo fallido.</param>
+/// <summary>Lo que la pantalla de la caja necesita saber de su propia configuración. Nunca incluye la credencial.</summary>
+/// <param name="Configurada">Ya tiene los datos de qué caja es.</param>
+/// <param name="Sirve">Además el Central los acepta: la caja puede comunicarse.</param>
+public sealed record DatosConfiguracionPantalla(
+    bool Configurada,
+    bool Sirve,
+    string? SucursalCodigo,
+    string? CajaCodigo,
+    string? DireccionIp,
+    string? UrlCentral,
+    string? Problema);
+
+/// <summary>Los datos que el técnico escribe en la pantalla de la caja la primera vez.</summary>
+public sealed record SolicitudConfigurarCajaPantalla(
+    string? SucursalCodigo,
+    string? CajaCodigo,
+    string? DireccionIp,
+    string? UrlCentral,
+    string? Secreto,
+    string? ConfiguradaPor = null);
+
+public sealed record RespuestaConfiguracion(bool Exitosa, string Mensaje);
+
+/// <param name="CentralConfigurado">La caja tiene su configuración y el Central la acepta.</param>
+/// <param name="SinConexionPor">Por qué no hay comunicación: <c>Red</c> o <c>Credenciales</c>; nulo si está en línea.</param>
 public sealed record DatosEstadoSincronizacion(
     bool CentralConfigurado,
     bool EnLinea,
@@ -255,4 +280,15 @@ public sealed record DatosEstadoSincronizacion(
     DateTimeOffset? UltimaSincronizacion,
     string? UltimoError = null,
     IReadOnlyList<string>? Alertas = null,
-    DateTimeOffset? UltimoRespaldo = null);
+    DateTimeOffset? UltimoRespaldo = null,
+    string? SinConexionPor = null);
+
+/// <summary>Por qué la caja no está comunicada. La caja vende igual en los dos casos.</summary>
+public static class MotivosSinConexion
+{
+    /// <summary>No hay comunicación con el Central: se reintenta solo y lo pendiente sube después.</summary>
+    public const string Red = "Red";
+
+    /// <summary>El Central no acepta esta caja: credencial revocada, caja eliminada o dirección que no cuadra.</summary>
+    public const string Credenciales = "Credenciales";
+}

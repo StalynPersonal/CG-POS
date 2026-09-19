@@ -1,4 +1,4 @@
-{
+﻿{
   "empresa": {
     "rnc": "999000004",
     "razonSocial": "CONTRERAS GROUP SRL (DESARROLLO)",
@@ -18,12 +18,14 @@
     {
       "sucursalCodigo": "01",
       "codigo": "01",
-      "nombre": "Caja 01"
+      "nombre": "Caja 01",
+      "direccionIp": "10.12.1.101"
     },
     {
       "sucursalCodigo": "01",
       "codigo": "02",
-      "nombre": "Caja 02"
+      "nombre": "Caja 02",
+      "direccionIp": "10.12.1.102"
     }
   ],
   "parametros": [

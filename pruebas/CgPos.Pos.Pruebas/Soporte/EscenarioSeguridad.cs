@@ -131,8 +131,8 @@ public sealed class EscenarioSeguridad
             Sucursales: [new SucursalCarga(CodigoSucursal, "Sucursal de seguridad")],
             Cajas:
             [
-                new CajaCarga(CodigoSucursal, CodigoCajaUno, $"Caja {CodigoCajaUno}"),
-                new CajaCarga(CodigoSucursal, CodigoCajaDos, $"Caja {CodigoCajaDos}", Habilitada: false),
+                new CajaCarga(CodigoSucursal, CodigoCajaUno, $"Caja {CodigoCajaUno}", DireccionIp: "10.12.1.101"),
+                new CajaCarga(CodigoSucursal, CodigoCajaDos, $"Caja {CodigoCajaDos}", Habilitada: false, DireccionIp: "10.12.1.102"),
             ],
             Roles:
             [

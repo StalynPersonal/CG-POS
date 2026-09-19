@@ -187,7 +187,7 @@ p('La caja no inventa nada: todo lo que usa baja del Central. Si el Central est�
 tabla(['Qué', 'Dónde se hace', 'Por qué hace falta'],
       [['Datos de la empresa', 'Organización → Empresa', 'El RNC (o la cédula) y la razón social con los que se factura. El script los siembra como marcador: corríjalos antes de emitir el primer comprobante.'],
        ['Sucursal y caja', 'Organización', 'La caja se identifica por el código de su sucursal y el suyo, ambos de dos dígitos (01, 02…); sin eso no se conecta.'],
-       ['Credencial de la caja', 'Organización → Solicitudes de cajas', 'La caja la pide al instalarse y usted la acepta. Nadie copia claves a mano.'],
+       ['Credencial de la caja', 'Organización → Cajas', 'Se emite desde el Central y se escribe una vez en la pantalla de la caja, junto con su IP.'],
        ['Parámetros del negocio', 'Organización → Parámetros', 'Fondo de caja, redondeo, vigencia de notas de crédito, retención, plazos. Si falta uno obligatorio, la operación se rechaza.'],
        ['Catálogos', 'Maestros → Catálogos', 'Moneda, impuestos, departamentos, unidades, formas de pago, denominaciones, bancos, motivos de descuento y de devolución.'],
        ['Artículos y precios', 'Maestros → Artículos y Precios', 'Sin artículos con precio no hay nada que vender. El sistema no trae productos: vea los sugeridos más adelante.'],
@@ -200,8 +200,7 @@ titulo('2.3. Organización', 2)
 tabla(['Opción', 'Ruta', 'Para qué sirve'],
       [['Empresa', '/organizacion/empresa', 'Datos fiscales de la empresa, el RNC incluido: RNC de 9 dígitos o cédula de 11. Los comprobantes ya emitidos conservan el que llevaban y el cambio queda en la auditoría.'],
        ['Sucursales', '/organizacion/sucursales', 'Alta y datos de cada sucursal. El código es de dos dígitos (01 a 99), no cambia después de crearla y es el que sale en los números de documento.'],
-       ['Cajas', '/organizacion/cajas', 'Alta de cajas, habilitarlas, ver a qué equipo está atada cada una y liberar el equipo cuando la caja se muda a otra máquina. El código también es de dos dígitos (01 a 99) y único dentro de su sucursal.'],
-       ['Solicitudes de cajas', '/organizacion/solicitudes-cajas', 'Cajas recién instaladas que piden entrar al Central. Al aceptar una se le entrega su credencial y queda atada a ese equipo.'],
+       ['Cajas', '/organizacion/cajas', 'Alta de cajas con su código de dos dígitos (01 a 99) y su IP fija, habilitarlas, y emitir o revocar su credencial. El código es único en la sucursal y la IP es única en toda la empresa.'],
        ['Parámetros', '/organizacion/parametros', 'Todas las reglas del negocio: vigencia de notas de crédito, retención de la Ley 32-23, redondeo, fondo de caja, chequeador, listas de boda, fidelidad, y también cada cuánto la caja sincroniza, se mantiene y respalda. Se pueden fijar en general, por sucursal o por caja.'],
        ['Actualizaciones', '/organizacion/actualizaciones', 'Versión publicada del programa de las cajas y en qué versión está cada una.']],
       anchos=[3.8, 5.0, 8.2])
@@ -537,20 +536,20 @@ titulo('3. La caja, paso a paso')
 titulo('3.1. Instalar una caja desde cero', 2)
 p('Cada caja tiene su propia base de datos en su propio equipo: por eso sigue vendiendo aunque se caiga la red. '
   'La instalación la hace tecnología, una sola vez por caja.')
-paso('En el Central, cree la sucursal y la caja (Organización). No hay que emitir ninguna clave: la caja la pedirá sola.')
+paso('En el Central, cree la sucursal y la caja (Organización → Cajas), con la IP fija del equipo donde va a correr. Después, '
+     'en el menú de esa caja, «Emitir credencial»: el secreto se muestra una sola vez, cópielo.')
 paso('En el equipo de la caja, instale SQL Server Express y ejecute scripts/base-datos/pos/structura_base_datos.sql. '
      'Crea la base CgPosCaja vacía: no lleva datos, todo baja del Central.')
 paso('Instale el programa de la caja con scripts/caja/instalar-caja.ps1, indicando el número de sucursal, el de caja y '
      'la dirección del Central. No se le pide ninguna clave.')
-paso('Arranque la caja. Al no tener credencial, se anuncia al Central y queda esperando; en su registro dirá que la solicitud '
-     'quedó registrada.')
-paso('En el Central, entre a Organización → Solicitudes de cajas, revise que el equipo que pide sea el que acaba de instalar '
-     '(verá su nombre, su dirección y la hora) y acéptela. La caja recoge su credencial sola en el siguiente intento.')
+paso('Arranque la caja y abra cualquiera de sus pantallas. Como todavía no sabe cuál es, le pedirá cinco datos: el código de '
+     'su sucursal, el de la caja, la IP de ese equipo, la dirección del Central y la credencial que copió.')
 paso('Copie el certificado digital de la empresa en el equipo. El PIN no se guarda: lo digita un supervisor en la caja.')
 paso('Ya con su credencial, la caja baja artículos, precios, usuarios, parámetros y sus rangos de comprobantes.')
 nota('Si la caja avisa que la base no existe o le faltan tablas, es que no se ejecutó el script en ese equipo.')
-nota('La credencial queda guardada cifrada en ese equipo y solo sirve ahí: si alguien copia la configuración a otra máquina, el '
-     'Central la rechaza y el intento queda registrado. Por eso, cuando una caja cambia de equipo, hay que usar «Liberar equipo».')
+nota('La credencial queda cifrada en la base de esa caja: no se vuelve a ver y copiarla a otra máquina no sirve. En cada '
+     'comunicación el Central comprueba los cuatro datos juntos —sucursal, caja, IP y credencial—, así que dos cajas no pueden '
+     'usar lo mismo.')
 
 titulo('3.1.1. La impresora de tickets', 3)
 p('La caja imprime en la impresora térmica del mostrador. Se indica una sola vez, al instalarla, y hay tres formas según '
@@ -566,13 +565,13 @@ nota('Si cambia la impresora de una caja, hay que reiniciar el servicio de la ca
 
 titulo('3.1.2. Cambiar una caja de equipo', 3)
 p('El equipo de la caja se dañó, se reinstaló Windows o se reemplaza por otro. La caja es la misma; lo que cambia es la máquina.')
-paso('En el Central, Organización → Cajas, en el menú de esa caja, elija «Liberar equipo» e indique el motivo. Queda registrado quién lo hizo.')
+paso('En el Central, Organización → Cajas, edite la caja y ponga la IP del equipo nuevo; después emítale una credencial nueva.')
 paso('Instale la caja en el equipo nuevo, con la misma sucursal y el mismo número.')
-paso('Arránquela y acepte su solicitud en Solicitudes de cajas, comprobando que el equipo sea el que acaba de instalar.')
-nota('Si el equipo se perdió o se lo robaron, en vez de liberar conviene revocar la credencial: así la anterior deja de servir '
-     'aunque alguien tenga el equipo.')
-nota('Si el técnico olvida liberar el equipo, la caja nueva no podrá comunicarse y su registro lo dirá con todas las letras: la '
-     'credencial está atada a otro equipo. Nada se pierde: se libera y se acepta.')
+paso('Arránquela y llene su pantalla de configuración con los mismos códigos, la IP nueva y la credencial nueva.')
+nota('Si el equipo se perdió o se lo robaron, revoque la credencial de inmediato: la anterior deja de servir aunque enciendan '
+     'el equipo.')
+nota('Mientras los datos no cuadren, la caja sigue vendiendo con lo que tiene en su base; lo que no hace es sincronizar. En su '
+     'barra de estado dirá «Sin conexión (credenciales)», para distinguirlo de quedarse sin red.')
 
 titulo('3.2. Entrar a la caja', 2)
 paso('En la pantalla de ingreso digite su usuario y su clave (no hay PIN ni carné: siempre usuario y clave).')
@@ -755,7 +754,7 @@ paso('Cree una lista de boda de prueba y anote su número.')
 
 titulo('Después, en la caja', 2)
 paso('Cree la base de la caja con scripts/base-datos/pos/structura_base_datos.sql e instale la caja con su sucursal, su número y la dirección del Central.')
-paso('Acepte la solicitud de esa caja en el Central (Organización → Solicitudes de cajas).')
+paso('Llene la pantalla de configuración de la caja con su sucursal, su código, su IP, la dirección del Central y la credencial.')
 paso('Espere el primer ciclo de sincronización: la caja baja artículos, precios, usuarios y parámetros del Central.')
 paso('Entre con el usuario del cajero y abra el turno con su fondo.')
 paso('Escanee artículos, cambie una cantidad y elimine una línea (le pedirá la clave del supervisor).')

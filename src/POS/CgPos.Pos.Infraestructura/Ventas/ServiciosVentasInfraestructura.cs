@@ -1727,6 +1727,7 @@ internal sealed class ServicioEstadoSincronizacion(
     ContextoDatosPos contexto,
     CgPos.Pos.Aplicacion.Sincronizacion.IClienteCentral central,
     CgPos.Pos.Aplicacion.Sincronizacion.IEstadoConexionCentral conexion,
+    CgPos.Pos.Aplicacion.Sincronizacion.IConfiguracionCaja configuracionCaja,
     Sincronizacion.OpcionesSincronizacion opciones,
     CgPos.Pos.Aplicacion.Sincronizacion.IServicioMantenimiento mantenimiento,
     CgPos.Pos.Aplicacion.Sincronizacion.EstadoMantenimiento estadoMantenimiento,
@@ -1739,19 +1740,29 @@ internal sealed class ServicioEstadoSincronizacion(
             .Where(m => m.Estado == EstadoMensajeSalida.Confirmado)
             .MaxAsync(m => m.ConfirmadoEn, cancelacion);
 
+        // La caja está configurada cuando sabe qué caja es y el Central no la ha rechazado.
+        var configuracion = await configuracionCaja.ObtenerAsync(cancelacion);
+        var configurado = central.Configurado && configuracion is { Sirve: true };
+
         var intervalo = opciones.Intervalo;
-        var enLinea = central.Configurado
+        var enLinea = configurado
             && conexion.UltimoContacto is { } contacto
             && contacto >= reloj.Ahora() - intervalo * 3
             && (conexion.UltimoFallo is null || conexion.UltimoFallo < contacto);
 
+        // Se distingue quedarse sin red de que el Central no acepte esta caja: se resuelven de forma distinta.
+        var sinConexionPor = enLinea ? null
+            : configuracion is null or { Sirve: false } ? MotivosSinConexion.Credenciales
+            : MotivosSinConexion.Red;
+
         return new DatosEstadoSincronizacion(
-            CentralConfigurado: central.Configurado,
+            CentralConfigurado: configurado,
             EnLinea: enLinea,
             DocumentosPendientes: pendientes,
             UltimaSincronizacion: ultima,
-            UltimoError: enLinea ? null : conexion.UltimoError,
+            UltimoError: enLinea ? null : configuracion?.Problema ?? conexion.UltimoError,
             Alertas: await mantenimiento.ObtenerAlertasAsync(cancelacion),
-            UltimoRespaldo: estadoMantenimiento.UltimoRespaldoCorrecto);
+            UltimoRespaldo: estadoMantenimiento.UltimoRespaldoCorrecto,
+            SinConexionPor: sinConexionPor);
     }
 }
