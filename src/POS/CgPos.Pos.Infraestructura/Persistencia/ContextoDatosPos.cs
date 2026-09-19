@@ -105,6 +105,28 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
             constructorModelo.HasSequence<int>($"Secuencia{tabla}").IncrementsBy(1);
             constructorModelo.Entity(entidad.ClrType).Property(llave.Name).UseHiLo($"Secuencia{tabla}");
         }
+
+        // Quién y cuándo dejó así la organización de esta caja. Los maestros no las llevan: en la caja no se editan,
+        // bajan del Central, y allá queda registrado quién los cambió.
+        foreach (var tipo in new[] { typeof(CgPos.Dominio.Organizacion.Empresa), typeof(CgPos.Dominio.Organizacion.Sucursal),
+                     typeof(CgPos.Dominio.Organizacion.Caja), typeof(CgPos.Dominio.Organizacion.Parametro) })
+        {
+            constructorModelo.Entity(tipo).Property<DateTimeOffset>(MarcasModificacion.ModificadoEn).HasPrecision(3);
+            constructorModelo.Entity(tipo).Property<string>(MarcasModificacion.ModificadoPor)
+                .HasMaxLength(MarcasModificacion.LargoMaximoUsuario).IsRequired();
+        }
+    }
+
+    public override int SaveChanges(bool aceptarTodosLosCambios)
+    {
+        MarcasModificacion.Aplicar(this, TimeProvider.System);
+        return base.SaveChanges(aceptarTodosLosCambios);
+    }
+
+    public override Task<int> SaveChangesAsync(bool aceptarTodosLosCambios, CancellationToken cancelacion = default)
+    {
+        MarcasModificacion.Aplicar(this, TimeProvider.System);
+        return base.SaveChangesAsync(aceptarTodosLosCambios, cancelacion);
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder constructorConvenciones)

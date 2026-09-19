@@ -6,6 +6,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Fidelidad;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Fidelidad;
 
@@ -75,7 +76,7 @@ internal sealed class ServicioFidelidadCentral(
         var miembro = await contexto.MiembrosFidelidad.AsNoTracking().SingleOrDefaultAsync(m => m.Id == miembroId, cancelacion);
         if (miembro is null)
             return new RespuestaAjustePuntos(false, "El miembro del programa no existe.");
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var saldoActual = await contexto.SaldosPuntos.AsNoTracking().Where(s => s.MiembroId == miembroId).Select(s => s.Puntos).FirstOrDefaultAsync(cancelacion);
         if (puntos < 0 && saldoActual + puntos < 0)
             return new RespuestaAjustePuntos(false, $"El miembro solo tiene {saldoActual} puntos.");
@@ -100,7 +101,7 @@ internal sealed class ServicioFidelidadCentral(
 
     public async Task<int> VencerPuntosAsync(int maximo, CancellationToken cancelacion = default)
     {
-        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        var hoy = reloj.Ahora().Dia();
         var pendientes = await contexto.SaldosPuntos
             .Where(s => s.ProximoVencimiento != null && s.ProximoVencimiento < hoy)
             .OrderBy(s => s.ProximoVencimiento)

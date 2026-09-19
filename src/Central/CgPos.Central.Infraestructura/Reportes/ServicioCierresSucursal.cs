@@ -8,6 +8,7 @@ using CgPos.Contratos.Central;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Reportes;
 
@@ -63,7 +64,7 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
             cierre = CierreSucursal.Consolidar(solicitud.SucursalId, solicitud.FechaOperacion, cierres,
                 (solicitud.Depositos ?? []).Select(d => new DepositoSolicitado(d.Moneda, d.BancoCodigo, bancos.GetValueOrDefault(d.BancoCodigo?.Trim().ToUpperInvariant() ?? string.Empty) ?? string.Empty,
                     d.NumeroBoleta, d.Monto, d.FechaDeposito)),
-                solicitud.Observacion, actor.Nombre, reloj.GetUtcNow());
+                solicitud.Observacion, actor.Nombre, reloj.Ahora());
         }
         catch (ArgumentException excepcion)
         {

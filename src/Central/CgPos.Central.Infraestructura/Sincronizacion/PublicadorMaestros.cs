@@ -12,6 +12,7 @@ using CgPos.Dominio.Seguridad;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Sincronizacion;
 
@@ -48,7 +49,7 @@ internal sealed class PublicadorMaestros(
                 .Concat((paquete.ReglasAcumulacion ?? []).Where(r => r.Tipo == Dominio.Fidelidad.TipoReglaAcumulacion.Articulo).Select(r => r.Referencia).OfType<string>()),
             null, cancelacion);
 
-        var opciones = new OpcionesPublicacion(reloj.GetUtcNow(), usuario, corregirDocumentoCliente);
+        var opciones = new OpcionesPublicacion(reloj.Ahora(), usuario, corregirDocumentoCliente);
         var (publicados, sinCambios) = await AplicarAsync(Registros(paquete), resolutor, opciones, errores, cancelacion);
 
         if (errores.Count == 0)
@@ -139,7 +140,7 @@ internal sealed class PublicadorMaestros(
         if (errores.Count > 0)
             throw new PublicacionInvalidaExcepcion(errores);
 
-        var opciones = new OpcionesPublicacion(reloj.GetUtcNow(), usuario);
+        var opciones = new OpcionesPublicacion(reloj.Ahora(), usuario);
         var registros = roles.Select(r => ((TablaMaestro)TablasMaestros.RolesCaja, (object)r, $"Rol de caja '{r.Codigo}'"))
             .Concat(usuariosConHash.Select(u => ((TablaMaestro)TablasMaestros.UsuariosCaja, (object)u, $"Usuario de caja '{u.Codigo}'")));
         var (publicados, sinCambios) = await AplicarAsync(registros, resolutor, opciones, errores, cancelacion);

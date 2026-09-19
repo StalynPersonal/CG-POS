@@ -5,6 +5,7 @@ using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Seguridad;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Seguridad;
 
@@ -193,7 +194,7 @@ internal sealed class ServicioAdministracionSeguridad(
         if (await ValidarContrasenaAsync(contrasenaTemporal, usuario.Codigo, cancelacion) is { } problema)
             return ResultadoAdministracion.Error(problema);
 
-        usuario.CambiarContrasena(hashContrasenas.Hash(contrasenaTemporal), debeCambiar: true, reloj.GetUtcNow());
+        usuario.CambiarContrasena(hashContrasenas.Hash(contrasenaTemporal), debeCambiar: true, reloj.Ahora());
         usuario.Desbloquear();
         await RevocarSesionesAsync(usuario.Id, "Contraseña restablecida por un administrador", cancelacion);
 
@@ -270,7 +271,7 @@ internal sealed class ServicioAdministracionSeguridad(
 
     private async Task RevocarSesionesAsync(int usuarioId, string motivo, CancellationToken cancelacion)
     {
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         foreach (var sesion in await contexto.SesionesCentral.Where(s => s.UsuarioId == usuarioId && s.RevocadaEn == null).ToListAsync(cancelacion))
             sesion.Revocar(ahora, motivo);
     }

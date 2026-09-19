@@ -7,7 +7,10 @@ public sealed record DatosCampoAuditoria(string Campo, string? Antes, string? De
 public sealed record DatosEntidadAuditoria(string Entidad, string Tabla, string? EntidadId, string Operacion,
     IReadOnlyList<DatosCampoAuditoria> Campos);
 
-/// <summary>Fila de la auditoría: quién hizo qué, sobre qué, cuándo, con qué motivo y qué cambió.</summary>
+/// <summary>
+/// Fila de la auditoría: quién hizo qué, sobre qué, cuándo y con qué motivo. El antes y el después no viajan aquí, solo
+/// su resumen: una publicación de maestros puede tocar cientos de filas y no tiene sentido traerlas todas al listado.
+/// </summary>
 public sealed record DatosRegistroAuditoria(
     int Id,
     DateTimeOffset OcurridoEn,
@@ -17,6 +20,13 @@ public sealed record DatosRegistroAuditoria(
     string? Motivo,
     string? UsuarioNombre,
     string? AutorizadoPorNombre,
+    int EntidadesCambiadas,
+    int CamposCambiados,
+    string? ResumenCambios);
+
+/// <summary>Un movimiento con todo su detalle: lo que muestra la ventana al abrir una fila.</summary>
+public sealed record DatosAuditoriaDetalle(
+    DatosRegistroAuditoria Registro,
     string? Detalle,
     IReadOnlyList<DatosEntidadAuditoria> Cambios);
 

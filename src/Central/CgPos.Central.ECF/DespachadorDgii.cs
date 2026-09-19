@@ -5,6 +5,7 @@ using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.ECF;
 
@@ -32,7 +33,7 @@ internal sealed class DespachadorDgii(
             if (estado == EstadoEnvioDgii.Rechazado) rechazados++; else aceptados++;
         }
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var pendientes = await contexto.ComprobantesRecibidos
             .Where(c => c.EstadoDgii == EstadoEnvioDgii.Pendiente && (c.ProximoIntentoEn == null || c.ProximoIntentoEn <= ahora))
             .OrderBy(c => c.RecibidoEn)
@@ -53,7 +54,7 @@ internal sealed class DespachadorDgii(
             }
 
             var respuesta = recuperada ?? await LlamarAsync(() => cliente.EnviarAsync(datos, cancelacion), cancelacion);
-            ahora = reloj.GetUtcNow();
+            ahora = reloj.Ahora();
 
             switch (respuesta.Resultado)
             {
@@ -80,7 +81,7 @@ internal sealed class DespachadorDgii(
             await contexto.SaveChangesAsync(cancelacion);
         }
 
-        ahora = reloj.GetUtcNow();
+        ahora = reloj.Ahora();
         var porConsultar = await contexto.ComprobantesRecibidos
             .Where(c => c.EstadoDgii == EstadoEnvioDgii.Enviado && c.TrackId != null && (c.ProximoIntentoEn == null || c.ProximoIntentoEn <= ahora))
             .OrderBy(c => c.EnviadoEn)
@@ -90,7 +91,7 @@ internal sealed class DespachadorDgii(
         foreach (var comprobante in porConsultar)
         {
             var respuesta = await LlamarAsync(() => cliente.ConsultarAsync(comprobante.TrackId!, cancelacion), cancelacion);
-            ahora = reloj.GetUtcNow();
+            ahora = reloj.Ahora();
 
             switch (respuesta.Resultado)
             {

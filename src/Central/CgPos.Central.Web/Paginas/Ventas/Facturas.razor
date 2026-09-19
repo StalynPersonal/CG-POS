@@ -91,14 +91,18 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>No hay facturas en ese rango con esos filtros.</NoRecordsContent>
+        <PagerContent>
+            @* Paginación con tamaño de página: el Central envía solo la página que se está viendo. *@
+            <MudTablePager PageSizeOptions="@(new[] { 10, 25, 50, 100, 200 })" RowsPerPageString="Filas por página:"
+                           InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
     </MudTable>
 </MudPaper>
 
 @if (_detalle is { } detalle)
 {
     @* Detalle de la factura: sus líneas, impuestos y formas de pago tal como la cobró la caja. *@
-    <MudDialog Visible="true" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true })"
-               VisibleChanged="@(visible => { if (!visible) _detalle = null; })">
+    <MudDialog @bind-Visible="_abierto" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true })">
         <TitleContent>
             <MudText Typo="Typo.h6">@(detalle.Comprobante.Encf ?? detalle.Comprobante.Numero)</MudText>
             <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
@@ -212,7 +216,7 @@
             }
         </DialogContent>
         <DialogActions>
-            <MudButton OnClick="() => _detalle = null">Cerrar</MudButton>
+            <MudButton OnClick="Cerrar">Cerrar</MudButton>
         </DialogActions>
     </MudDialog>
 }
@@ -221,6 +225,7 @@
     private MudTable<DatosComprobanteRecibido>? _tabla;
     private IReadOnlyList<DatosSucursal> _sucursales = [];
     private DatosComprobanteRecibidoDetalle? _detalle;
+    private bool _abierto;
     private DateTime? _desde = DateTime.Today.AddDays(-7);
     private DateTime? _hasta = DateTime.Today;
     private int? _sucursalId;
@@ -249,8 +254,14 @@
             await _tabla.ReloadServerData();
     }
 
-    private async Task AbrirAsync(DatosComprobanteRecibido comprobante) =>
+    private async Task AbrirAsync(DatosComprobanteRecibido comprobante)
+    {
         _detalle = await Cliente.ObtenerComprobanteRecibidoAsync(comprobante.Id);
+        _abierto = _detalle is not null;
+    }
+
+    /// <summary>Solo se oculta: vaciar el contenido quita el diálogo del árbol y su fondo se queda pegado.</summary>
+    private void Cerrar() => _abierto = false;
 
     private static Color ColorEstado(EstadoEnvioDgii estado) => estado switch
     {

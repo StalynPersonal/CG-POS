@@ -65,7 +65,7 @@ internal sealed class ServicioDevoluciones(
 {
     private const string TipoEntidadDevolucion = "Devolucion";
 
-    private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+    private DateOnly Hoy => reloj.Ahora().Dia();
 
     /// <summary>Días de vigencia de las notas de crédito configurados hoy: se aplican al usarlas, no al emitirlas.</summary>
     private Task<int> DiasVigenciaAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
@@ -107,7 +107,7 @@ internal sealed class ServicioDevoluciones(
         var diasVigencia = await DiasVigenciaAsync(sesion, cancelacion);
         var encfOrigen = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.Encf).FirstOrDefaultAsync(cancelacion);
         var lineas = solicitud.Lineas.Select(l => new LineaSolicitadaDevolucion(l.NumeroLinea, l.Cantidad, l.Serial)).ToList();
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         // La mercancía pendiente de entrega no se devuelve: primero se anula el pendiente (RF-233).
         var porEntregar = await PorEntregarAsync(venta.Id, cancelacion);

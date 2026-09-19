@@ -51,7 +51,7 @@
             }
 
             <MudNumericField T="int" @bind-Value="_nivel" Label="Nivel del autorizador" Variant="Variant.Outlined" Min="1" Max="9"
-                             HelperText="1 cajero, 2 supervisor, 3 gerente… según los roles de caja." />
+                             HelperText="El mismo nivel de los roles de caja: 1 cajero, 5 supervisor, 8 gerente." />
             <div class="d-flex gap-3">
                 <MudNumericField T="decimal?" @bind-Value="_porcentaje" Label="% máximo" Variant="Variant.Outlined" HideSpinButtons="true" />
                 <MudNumericField T="decimal?" @bind-Value="_monto" Label="Monto máximo" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />

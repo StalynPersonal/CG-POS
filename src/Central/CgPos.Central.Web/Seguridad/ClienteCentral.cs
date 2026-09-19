@@ -373,6 +373,18 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    public async Task<DatosAuditoriaDetalle?> ObtenerAuditoriaAsync(int registroId, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosAuditoriaDetalle>($"api/manager/auditoria/{registroId}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
     public async Task<OpcionesAuditoria?> ObtenerOpcionesAuditoriaAsync(CancellationToken cancelacion = default)
     {
         try

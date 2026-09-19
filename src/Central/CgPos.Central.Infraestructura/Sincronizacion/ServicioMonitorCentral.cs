@@ -7,6 +7,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Sincronizacion;
 
@@ -17,7 +18,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
     {
         var minutosSinComunicacion = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.MonitorMinutosSinComunicacion, cancelacion);
         var minutosAlertaDgii = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.MonitorMinutosAlertaDgii, cancelacion);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var limiteComunicacion = ahora.AddMinutes(-minutosSinComunicacion);
         var limiteDgii = ahora.AddMinutes(-minutosAlertaDgii);
 
@@ -143,7 +144,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
         var estadoAnterior = comprobante.EstadoDgii;
         try
         {
-            comprobante.PrepararReenvio(reloj.GetUtcNow());
+            comprobante.PrepararReenvio(reloj.Ahora());
         }
         catch (InvalidOperationException excepcion)
         {
@@ -178,7 +179,7 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
 
         try
         {
-            conflicto.Resolver(reloj.GetUtcNow(), actor.Nombre, resolucion);
+            conflicto.Resolver(reloj.Ahora(), actor.Nombre, resolucion);
         }
         catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
         {

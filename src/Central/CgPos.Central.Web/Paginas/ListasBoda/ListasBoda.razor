@@ -1,5 +1,6 @@
 @page "/listas-boda"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarListasBoda)]
+@using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.ListasBoda
 @inject ClienteCentral Cliente
 @inject ISnackbar Avisos
@@ -83,7 +84,7 @@
 @if (_editando is { } lista)
 {
     @* Formulario de la lista: datos del cliente, del evento y los artículos pedidos. *@
-    <MudDialog Visible="true" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true })" VisibleChanged="Cerrar">
+    <MudDialog @bind-Visible="_abierto" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true })">
         <TitleContent>
             <MudText Typo="Typo.h6">@(_listaId is null ? "Nueva lista" : $"Lista {lista.Numero}")</MudText>
         </TitleContent>
@@ -106,7 +107,7 @@
 
             <MudTextField @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
-            @* Artículos pedidos: código del maestro, descripción y cantidad; lo comprado se muestra al editar. *@
+            @* Artículos pedidos: se eligen del maestro buscando por su código interno o su descripción; lo comprado se muestra al editar. *@
             <div class="mt-4">
                 <MudText Typo="Typo.subtitle1">Artículos pedidos</MudText>
                 <MudTable T="ArticuloEnEdicion" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None">
@@ -118,8 +119,13 @@
                         <MudTh Style="width: 60px"></MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd><MudTextField @bind-Value="context.Codigo" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudTd>
-                        <MudTd><MudTextField @bind-Value="context.Descripcion" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudTd>
+                        <MudTd>
+                            <MudAutocomplete T="ArticuloCarga" Value="@BuscadoDe(context)" ValueChanged="@(articulo => Elegir(context, articulo))"
+                                             SearchFunc="BuscarArticulosAsync" ToStringFunc="@(a => a?.Codigo ?? string.Empty)" Variant="Variant.Outlined"
+                                             Margin="Margin.Dense" ResetValueOnEmptyText="false" CoerceText="true" Placeholder="Código o descripción"
+                                             MinCharacters="2" MaxItems="20" />
+                        </MudTd>
+                        <MudTd>@context.Descripcion</MudTd>
                         <MudTd><MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" /></MudTd>
                         <MudTd>@context.Comprado.ToString("0.###")</MudTd>
                         <MudTd>
@@ -160,7 +166,7 @@
                     @(lista.Estado == EstadoListaBoda.Abierta ? "Cerrar lista" : "Reabrir lista")
                 </MudButton>
             }
-            <MudButton OnClick="() => Cerrar(false)">Cancelar</MudButton>
+            <MudButton OnClick="Cerrar">Cancelar</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando" OnClick="GuardarAsync">Guardar</MudButton>
         </DialogActions>
     </MudDialog>
@@ -186,6 +192,7 @@
     private string? _correo;
     private string? _observacion;
     private readonly List<ArticuloEnEdicion> _articulos = [];
+    private bool _abierto;
 
     protected override async Task OnInitializedAsync()
     {
@@ -211,6 +218,7 @@
     /// <summary>Abre el formulario con una lista existente o en blanco para crear una nueva.</summary>
     private void Editar(DatosListaBoda? lista)
     {
+        _abierto = true;
         _editando = lista ?? new DatosListaBoda(0, string.Empty, string.Empty, DateOnly.FromDateTime(DateTime.Today), null, string.Empty, string.Empty,
             null, null, null, null, null, EstadoListaBoda.Abierta, 0m, DateTimeOffset.Now, [], []);
         _listaId = lista?.Id;
@@ -229,11 +237,9 @@
             _articulos.Add(new ArticuloEnEdicion());
     }
 
-    private void Cerrar(bool visible)
-    {
-        if (!visible)
-            _editando = null;
-    }
+    /// <summary>El diálogo se oculta con su interruptor; quitarlo del árbol mientras está abierto deja el fondo pegado.</summary>
+    /// <summary>Solo se oculta: vaciar el contenido quita el diálogo del árbol y su fondo se queda pegado.</summary>
+    private void Cerrar() => _abierto = false;
 
     private async Task GuardarAsync()
     {
@@ -258,7 +264,7 @@
         }
 
         Avisos.Add(_listaId is null ? "Lista creada." : "Lista actualizada.", Severity.Success);
-        _editando = null;
+        Cerrar();
         await CargarAsync();
     }
 
@@ -271,11 +277,26 @@
             return;
         }
 
-        _editando = null;
+        Cerrar();
         await CargarAsync();
     }
 
     /// <summary>Fila del formulario de artículos, mientras se edita.</summary>
+    /// <summary>Artículos del maestro que coinciden con lo que se escribe: se busca por código interno o por descripción.</summary>
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Cliente.BuscarArticulosAsync("manager/listas-boda", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    /// <summary>Lo ya elegido, para que el buscador muestre el código del artículo de esa línea.</summary>
+    private static ArticuloCarga? BuscadoDe(ArticuloEnEdicion linea) =>
+        linea.Codigo.Length == 0 ? null : new ArticuloCarga(linea.Codigo, linea.Descripcion, 0, 0, string.Empty, 0m);
+
+    /// <summary>Al elegir el artículo, la línea toma su código y su descripción del maestro: no se digitan a mano.</summary>
+    private static void Elegir(ArticuloEnEdicion linea, ArticuloCarga? articulo)
+    {
+        linea.Codigo = articulo?.Codigo ?? string.Empty;
+        linea.Descripcion = articulo?.Descripcion ?? string.Empty;
+    }
+
     private sealed class ArticuloEnEdicion
     {
         public string Codigo { get; set; } = string.Empty;

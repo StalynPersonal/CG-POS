@@ -8,6 +8,7 @@ using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Notificaciones;
 
@@ -36,7 +37,7 @@ internal sealed class AvisosDespacho(
         var correos = await CorreosAsync(pendientes.Select(p => p.ClienteDocumento!), cancelacion);
         var empresa = await contexto.Empresas.AsNoTracking().SingleOrDefaultAsync(cancelacion);
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Nombre, cancelacion);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var enviados = 0;
 
         foreach (var pendiente in pendientes)

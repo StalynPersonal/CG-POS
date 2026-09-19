@@ -11,7 +11,6 @@
                 <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Cliente is not null)"
                               HelperText="Identifica al cliente en las cajas; no cambia después de crearlo." />
             </MudItem>
-            <MudItem xs="12" sm="8"></MudItem>
             <MudItem xs="12" sm="4">
                 <MudSelect T="TipoDocumentoIdentidad" @bind-Value="_tipoDocumento" Label="Tipo de documento" Variant="Variant.Outlined"
                            ToStringFunc="EtiquetasCliente.Documento">
@@ -21,7 +20,7 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="8">
+            <MudItem xs="12" sm="4">
                 <MudTextField T="string" @bind-Value="_documento" Label="Documento" Variant="Variant.Outlined" Immediate="true"
                               HelperText="Cédula de 11 dígitos o RNC de 9, con o sin guiones." />
             </MudItem>
@@ -41,10 +40,17 @@
                 <MudTextField T="string" @bind-Value="_nombre" Label="Nombre o razón social" Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+                <MudTextField T="string" @bind-Value="_contacto" Label="Contacto" Variant="Variant.Outlined"
+                              HelperText="Persona con la que se trata en este cliente." />
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" InputType="InputType.Email" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_telefonoAlterno" Label="Otro teléfono" Variant="Variant.Outlined" />
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudSelect T="TipoComprobante" @bind-Value="_comprobante" Label="Comprobante predeterminado" Variant="Variant.Outlined" ToStringFunc="EtiquetasCliente.Comprobante">
@@ -162,6 +168,8 @@
     private bool _exonerado;
     private bool _retencion;
     private bool _activo = true;
+    private string? _contacto;
+    private string? _telefonoAlterno;
     private Guid? _principalId;
     private string? _mensaje;
     private bool _procesando;
@@ -172,6 +180,7 @@
             return;
 
         (_codigo, _tipoDocumento, _documento, _nombre, _telefono, _correo) = (c.Codigo, c.TipoDocumento, c.Documento, c.Nombre, c.Telefono, c.Correo);
+        (_contacto, _telefonoAlterno) = (c.Contacto, c.TelefonoAlterno);
         (_comprobante, _lista, _exonerado, _retencion, _activo) = (c.TipoComprobante, c.ListaPrecio, c.ExoneradoItbis, c.AplicaRetencion, c.Activo);
         foreach (var d in c.Direcciones ?? [])
             _direcciones.Add(new DireccionEditable { Alias = d.Alias, Direccion = d.Direccion, Sector = d.Sector, Ciudad = d.Ciudad, Referencia = d.Referencia, Telefono = d.Telefono });
@@ -211,7 +220,8 @@
                 Opcional(d.Referencia), Opcional(d.Telefono), d.Id == _principalId))
             .ToList();
         var cliente = new ClienteCarga(_codigo!.Trim(), _tipoDocumento, _documento?.Trim() ?? string.Empty, _nombre?.Trim() ?? string.Empty,
-            _comprobante, _exonerado, _retencion, _lista, Opcional(_telefono), Opcional(_correo), direcciones, _activo);
+            _comprobante, _exonerado, _retencion, _lista, Opcional(_telefono), Opcional(_correo), direcciones, _activo,
+            Opcional(_contacto), Opcional(_telefonoAlterno));
 
         _procesando = true;
         _mensaje = null;

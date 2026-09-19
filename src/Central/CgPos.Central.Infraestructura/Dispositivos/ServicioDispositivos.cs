@@ -4,6 +4,7 @@ using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Central.Infraestructura.Seguridad;
 using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Dispositivos;
 
@@ -19,7 +20,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         if (caja is null)
             return null;
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
 
         // Primero se revoca la anterior: el índice único solo admite una credencial activa por caja.
@@ -49,7 +50,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         if (activa is null)
             return false;
 
-        activa.Revocar(reloj.GetUtcNow(), motivo);
+        activa.Revocar(reloj.Ahora(), motivo);
         auditoria.Registrar(new EntradaAuditoria("Dispositivos.CredencialRevocada", TipoEntidad, cajaId.ToString(), new { Credencial = activa.Id },
             motivo.Trim(), usuario));
         await contexto.SaveChangesAsync(cancelacion);
@@ -82,7 +83,7 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         if (!datos.SucursalActiva)
             return await RechazarAsync(cajaId, MotivoRechazoDispositivo.SucursalInactiva, origen, cancelacion);
 
-        credencial.RegistrarUso(reloj.GetUtcNow(), origen.DireccionIp);
+        credencial.RegistrarUso(reloj.Ahora(), origen.DireccionIp);
         await contexto.SaveChangesAsync(cancelacion);
 
         return ResultadoDispositivo.Exito(new DispositivoAutenticado(cajaId, datos.Codigo, datos.Nombre, datos.SucursalId, datos.SucursalCodigo, credencial.Id));

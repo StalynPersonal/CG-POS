@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.ECF;
 
@@ -121,11 +122,11 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado,
                 "El certificado digital de la caja no está cargado. Digite su PIN para poder emitir comprobantes.");
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         if (certificado.VenceEn is { } vence && vence < ahora)
             throw new EmisionEcfExcepcion(CodigoResultadoVenta.CertificadoNoCargado, "El certificado digital de la caja está vencido. Solicite uno nuevo.");
 
-        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        var hoy = reloj.Ahora().Dia();
         var asignada = await SiguienteSecuenciaAsync(cajaId, tipo, hoy, cancelacion)
             ?? throw new EmisionEcfExcepcion(CodigoResultadoVenta.ComprobanteNoDisponible,
                 $"No hay secuencia de e-CF disponible para {ReglasComprobante.Nombre(tipo)} (E{(int)tipo}) en esta caja: " +
@@ -135,7 +136,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         var emisor = await EmisorAsync(sucursalId, cancelacion);
         var tipoIngresos = await parametros.ObtenerEnteroAsync(ClavesParametros.TipoIngresos, cajaId, cancelacion);
         // Las fechas del e-CF van en la hora local configurada en el equipo de la caja.
-        var documentoEcf = armar(encf, asignada.VenceEn, emisor, reloj.GetLocalNow(), tipoIngresos);
+        var documentoEcf = armar(encf, asignada.VenceEn, emisor, reloj.Ahora(), tipoIngresos);
 
         var montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, cajaId, cancelacion);
         var xml = GeneradorXmlEcf.Generar(documentoEcf);
@@ -156,7 +157,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
             await parametros.ObtenerRequeridoAsync(ClavesParametros.UrlConsultaTimbreConsumo, cajaId, cancelacion), documentoEcf, codigoSeguridad, montoIdentificacion);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(firmado)));
 
-        var ruta = RutaXml(RutasXmlEcf.Pendientes, reloj.GetLocalNow(), emisor.Rnc, encf);
+        var ruta = RutaXml(RutasXmlEcf.Pendientes, reloj.Ahora(), emisor.Rnc, encf);
         Directory.CreateDirectory(Path.GetDirectoryName(ruta)!);
         await File.WriteAllTextAsync(ruta, firmado, new UTF8Encoding(false), cancelacion);
 
@@ -429,7 +430,7 @@ internal sealed class ServicioEcf(
 
     public async Task<DatosEstadoEcf> ObtenerEstadoAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
     {
-        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        var hoy = reloj.Ahora().Dia();
 
         // Sin umbrales configurados no se inventan: el estado informa qué falta configurar y sigue mostrando lo demás.
         var faltantes = new List<string>();
@@ -494,7 +495,7 @@ internal sealed class ServicioEcf(
         else if (!certificado.Cargado)
             alertas.Add("Digite el PIN del certificado digital para poder facturar.");
 
-        int? diasParaVencer = certificado.VenceEn is { } vence ? (int)Math.Floor((vence - reloj.GetUtcNow()).TotalDays) : null;
+        int? diasParaVencer = certificado.VenceEn is { } vence ? (int)Math.Floor((vence - reloj.Ahora()).TotalDays) : null;
         if (diasParaVencer is { } dias && diasAlerta is { } diasLimite && dias <= diasLimite)
             alertas.Add(dias < 0 ? "El certificado digital de la caja está vencido." : $"El certificado digital de la caja vence en {dias} días.");
 

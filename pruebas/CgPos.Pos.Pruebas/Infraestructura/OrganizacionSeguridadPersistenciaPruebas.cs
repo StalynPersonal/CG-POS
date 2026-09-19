@@ -100,7 +100,7 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
 
         // El dominio ya lo impide; se verifica que la base también lo garantice (defensa en profundidad).
         var insertar = () => contexto.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT INTO Parametros (Id, Clave, Valor, SucursalId, CajaId) VALUES (NEXT VALUE FOR SecuenciaParametros, 'Prueba.Ambito', '1', {sucursal.Id}, {caja.Id})");
+            $"INSERT INTO Parametros (Id, Clave, Valor, SucursalId, CajaId, ModificadoEn, ModificadoPor) VALUES (NEXT VALUE FOR SecuenciaParametros, 'Prueba.Ambito', '1', {sucursal.Id}, {caja.Id}, SYSDATETIMEOFFSET(), 'Prueba')");
 
         var error = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(insertar);
         Assert.Contains("CK_Parametros_UnSoloAmbito", error.Message);

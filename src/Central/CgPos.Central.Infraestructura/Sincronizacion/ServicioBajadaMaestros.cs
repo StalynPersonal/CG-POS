@@ -7,6 +7,7 @@ using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Sincronizacion;
 
@@ -72,7 +73,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
             contexto.EstadosSincronizacionCaja.Add(estado);
         }
 
-        estado.RegistrarDescarga(reloj.GetUtcNow(), desde, hasta);
+        estado.RegistrarDescarga(reloj.Ahora(), desde, hasta);
         await contexto.SaveChangesAsync(cancelacion);
 
         return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null, vigentes);

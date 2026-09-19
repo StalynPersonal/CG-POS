@@ -4,6 +4,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Seguridad;
 
@@ -35,7 +36,7 @@ internal sealed class VerificadorCredenciales(
     public async Task<VerificacionCredencial> VerificarAsync(CredencialUsuario credencial, int? cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(credencial);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         var codigo = credencial.CodigoUsuario?.Trim();
         var usuario = string.IsNullOrEmpty(codigo)

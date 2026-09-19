@@ -317,7 +317,7 @@ internal static class TablasMaestros
             e.ListaPrecioPredeterminada, e.Telefono, e.Correo,
             e.Direcciones.OrderBy(x => x.Alias, StringComparer.OrdinalIgnoreCase)
                 .Select(x => new DireccionClienteCarga(x.Alias, x.Direccion, x.Sector, x.Ciudad, x.Referencia, x.Telefono, x.EsPrincipal)).ToList(),
-            e.Activo),
+            e.Activo, e.Contacto, e.TelefonoAlterno),
         q => q.OrderBy(e => e.Codigo),
         incluir: q => q.Include(e => e.Direcciones),
         filtro: texto => e => e.Codigo.Contains(texto) || e.Documento.Contains(texto) || e.Nombre.Contains(texto)

@@ -304,7 +304,9 @@ CREATE TABLE [Clientes] (
     [AplicaRetencion] bit NOT NULL,
     [ListaPrecioPredeterminada] int NOT NULL,
     [Telefono] nvarchar(20) NULL,
+    [TelefonoAlterno] nvarchar(20) NULL,
     [Correo] nvarchar(150) NULL,
+    [Contacto] nvarchar(150) NULL,
     [Activo] bit NOT NULL,
     [ModificadoEn] datetimeoffset(3) NOT NULL,
     [ModificadoPor] nvarchar(150) NOT NULL,
@@ -350,6 +352,8 @@ CREATE TABLE [Empresas] (
     [NombreComercial] nvarchar(150) NOT NULL,
     [Direccion] nvarchar(250) NOT NULL,
     [Telefono] nvarchar(20) NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_Empresas] PRIMARY KEY ([Id])
 );
@@ -529,6 +533,8 @@ CREATE TABLE [RolesCentral] (
     [Codigo] nvarchar(30) NOT NULL,
     [Nombre] nvarchar(100) NOT NULL,
     [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_RolesCentral] PRIMARY KEY ([Id])
 );
 GO
@@ -650,6 +656,8 @@ CREATE TABLE [Sucursales] (
     [Direccion] nvarchar(250) NOT NULL,
     [Telefono] nvarchar(20) NOT NULL,
     [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_Sucursales] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Sucursales_Empresas_EmpresaId] FOREIGN KEY ([EmpresaId]) REFERENCES [Empresas] ([Id]) ON DELETE NO ACTION
@@ -727,6 +735,8 @@ CREATE TABLE [UsuariosCentral] (
     [IntentosFallidos] int NOT NULL,
     [BloqueadoHasta] datetimeoffset(3) NULL,
     [UltimoIngresoEn] datetimeoffset(3) NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_UsuariosCentral] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_UsuariosCentral_RolesCentral_RolId] FOREIGN KEY ([RolId]) REFERENCES [RolesCentral] ([Id]) ON DELETE NO ACTION
 );
@@ -793,6 +803,8 @@ CREATE TABLE [Cajas] (
     [Habilitada] bit NOT NULL,
     [VersionAgente] nvarchar(256) NULL,
     [VersionReportadaEn] datetimeoffset(3) NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_Cajas] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Cajas_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
@@ -834,6 +846,8 @@ CREATE TABLE [ListasBoda] (
     [Estado] varchar(20) NOT NULL,
     [CreadaEn] datetimeoffset(3) NOT NULL,
     [ActualizadaEn] datetimeoffset(3) NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_ListasBoda] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_ListasBoda_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
 );
@@ -1078,6 +1092,8 @@ CREATE TABLE [Parametros] (
     [Descripcion] nvarchar(250) NULL,
     [SucursalId] int NULL,
     [CajaId] int NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_Parametros] PRIMARY KEY ([Id]),
     CONSTRAINT [CK_Parametros_UnSoloAmbito] CHECK ([SucursalId] IS NULL OR [CajaId] IS NULL),
@@ -1932,13 +1948,13 @@ GO
    factura una persona física) y se le valida el dígito verificador.
    ------------------------------------------------------------------------ */
 
-INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono])
-VALUES (1, '000000002', N'CONTRERAS GROUP SRL', N'Contreras Group', N'Indique la dirección de la empresa', N'000-000-0000');
+INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono], [ModificadoEn], [ModificadoPor])
+VALUES (1, '000000002', N'CONTRERAS GROUP SRL', N'Contreras Group', N'Indique la dirección de la empresa', N'000-000-0000', SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaEmpresas] RESTART WITH 11;
 GO
 
-INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo])
-VALUES (1, N'ADMINISTRADOR', N'Administrador', 1);
+INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo], [ModificadoEn], [ModificadoPor])
+VALUES (1, N'ADMINISTRADOR', N'Administrador', 1, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaRolesCentral] RESTART WITH 11;
 GO
 
@@ -1965,68 +1981,69 @@ GO
 
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
-                               [BloqueadoHasta], [UltimoIngresoEn])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$uPWTxmQ/MgrrBgc0aE+e4w==$xNnk5ZebYj9kGm/NLAqc6Qiq87uhThXTjqsctnMZIxo=', 1, NULL, 0, NULL, NULL);
+                               [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$yZPUFyt4c2UvD+jQpZXNeg==$KEQPaICyERs/BLBrNA6zD8hsWah8JP8wQiit+JP+xlI=', 1, NULL, 0, NULL, NULL,
+        SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO
 
 /* Parámetros con los que el sistema arranca usable; se cambian en el Central (Organización → Parámetros).
    Los que dependen de la empresa o del ambiente (direcciones de la DGII, tipo de ingresos, textos y políticas)
    quedan sin valor a propósito: el Central avisa cuáles faltan. */
-INSERT INTO [Parametros] ([Id], [Clave], [Valor], [Descripcion], [SucursalId], [CajaId])
+INSERT INTO [Parametros] ([Id], [Clave], [Valor], [Descripcion], [SucursalId], [CajaId], [ModificadoEn], [ModificadoPor])
 VALUES
-    (1, N'Central.Seguridad.IntentosMaximos', N'5', N'Intentos de contraseña fallidos que bloquean al usuario', NULL, NULL),
-    (2, N'Central.Seguridad.MinutosBloqueo', N'15', N'Minutos que dura el bloqueo por intentos fallidos', NULL, NULL),
-    (3, N'Central.Seguridad.MinutosToken', N'15', N'Minutos de vigencia del token de acceso', NULL, NULL),
-    (4, N'Central.Seguridad.MinutosInactividad', N'60', N'Minutos sin actividad tras los que vence la sesión', NULL, NULL),
-    (5, N'Central.Seguridad.HorasSesion', N'12', N'Horas máximas de una sesión', NULL, NULL),
-    (6, N'Central.Seguridad.LargoMinimoContrasena', N'10', N'Largo mínimo de las contraseñas del Central', NULL, NULL),
-    (7, N'Central.Seguridad.ContrasenaCompleja', N'true', N'Exige mayúscula, minúscula, número y símbolo', NULL, NULL),
-    (8, N'Central.Dispositivos.MinutosToken', N'30', N'Minutos de vigencia del token de una caja', NULL, NULL),
-    (9, N'Central.Dgii.SegundosCiclo', N'30', N'Segundos entre envíos de e-CF a la DGII', NULL, NULL),
-    (10, N'Central.Dgii.LoteEnvio', N'50', N'Comprobantes por lote de envío a la DGII', NULL, NULL),
-    (11, N'Central.Dgii.MinutosReintento', N'5', N'Minutos antes de reintentar un envío fallido', NULL, NULL),
-    (12, N'Central.Dgii.MinutosMaximoReintento', N'120', N'Tope de espera entre reintentos', NULL, NULL),
-    (13, N'Central.Dgii.SegundosConsultaEstado', N'60', N'Segundos entre consultas del resultado a la DGII', NULL, NULL),
-    (14, N'Central.Monitor.MinutosSinComunicacion', N'30', N'Minutos sin comunicación tras los que una caja es alerta', NULL, NULL),
-    (15, N'Central.Monitor.MinutosAlertaDgii', N'60', N'Minutos sin resultado de la DGII tras los que un e-CF es alerta', NULL, NULL),
-    (16, N'Central.NotasCredito.MinutosReserva', N'10', N'Minutos que se retiene el saldo de una nota mientras la caja cobra', NULL, NULL),
-    (17, N'Central.Fidelidad.MinutosCicloVencimiento', N'60', N'Minutos entre revisiones de los puntos vencidos', NULL, NULL),
-    (18, N'Central.Fidelidad.LoteVencimiento', N'500', N'Miembros por lote al vencer puntos', NULL, NULL),
-    (19, N'Central.Despacho.MinutosCicloAvisos', N'15', N'Minutos entre avisos de pedidos preparados', NULL, NULL),
-    (20, N'Central.Despacho.LoteAvisos', N'50', N'Avisos por lote', NULL, NULL),
-    (21, N'Seguridad.IntentosMaximosClave', N'3', N'Intentos de clave fallidos que bloquean al usuario de la caja', NULL, NULL),
-    (22, N'Seguridad.MinutosBloqueo', N'5', N'Minutos que dura el bloqueo del usuario de la caja', NULL, NULL),
-    (23, N'Seguridad.MinutosVigenciaAutorizacion', N'5', N'Minutos para usar una autorización de supervisor', NULL, NULL),
-    (24, N'Seguridad.HorasSesion', N'12', N'Horas que dura la sesión en la caja', NULL, NULL),
-    (25, N'General.MonedaLocal', N'DOP', N'Moneda local del negocio', NULL, NULL),
-    (26, N'Caja.FondoPredeterminado', N'0.00', N'Fondo sugerido al abrir turno', NULL, NULL),
-    (27, N'Caja.PasoRedondeoEfectivo', N'0', N'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)', NULL, NULL),
-    (28, N'Caja.CierreCiego', N'true', N'El cajero declara el cierre sin ver lo esperado', NULL, NULL),
-    (29, N'Caja.FondoEnCuadre', N'false', N'El fondo forma parte del efectivo esperado en el cierre', NULL, NULL),
-    (30, N'Numeracion.DigitosSecuencia', N'7', N'Dígitos de la secuencia en el número de los documentos', NULL, NULL),
-    (31, N'Fiscal.MontoIdentificacionConsumo', N'250000', N'Total desde el cual la factura de consumo exige cédula o RNC', NULL, NULL),
-    (32, N'Fiscal.PorcentajeAlertaSecuenciaEcf', N'10', N'Porcentaje restante de un rango de e-CF desde el cual se alerta', NULL, NULL),
-    (33, N'Fiscal.DiasAlertaCertificado', N'30', N'Días antes del vencimiento del certificado para alertar', NULL, NULL),
-    (34, N'Fiscal.PorcentajeRetencionLey3223', N'0', N'Retención de la Ley 32-23 en facturas E44 (0 = sin retención)', NULL, NULL),
-    (35, N'Devoluciones.DiasRetencionImpuesto', N'30', N'Días desde la factura tras los cuales la devolución retiene el ITBIS', NULL, NULL),
-    (36, N'Devoluciones.DiasVigenciaNotaCredito', N'180', N'Días desde la emisión en que se puede consumir una nota de crédito', NULL, NULL),
-    (37, N'Fidelidad.ValorPunto', N'1', N'Valor en dinero de cada punto al canjearlo', NULL, NULL),
-    (38, N'Fidelidad.MesesVigenciaPuntos', N'12', N'Meses que duran los puntos acumulados', NULL, NULL),
-    (39, N'Fidelidad.MinimoPuntosCanje', N'50', N'Puntos mínimos para poder canjear', NULL, NULL),
-    (40, N'Fidelidad.MaximoPuntosCanjeSinConexion', N'2000', N'Tope de puntos a canjear sin conexión con el Central', NULL, NULL),
-    (41, N'Sincronizacion.DiasRetencionXmlEnviados', N'90', N'Días que se conservan los XML ya enviados', NULL, NULL),
-    (42, N'Sincronizacion.DiasRetencionMensajesConfirmados', N'60', N'Días que se conservan los mensajes confirmados', NULL, NULL),
-    (43, N'Sincronizacion.AlertaTamanoBaseDatosMb', N'8000', N'Tamaño de la base de la caja que dispara alerta', NULL, NULL),
-    (44, N'Sincronizacion.HorasAlertaPendientes', N'24', N'Horas con documentos sin sincronizar que disparan alerta', NULL, NULL),
-    (45, N'Respaldo.DiasRetencion', N'7', N'Días que se conservan los respaldos de la caja', NULL, NULL),
-    (46, N'Reloj.ToleranciaSegundos', N'60', N'Diferencia de hora tolerada contra el servidor NTP', NULL, NULL),
-    (47, N'Balanza.PrefijoPeso', N'21', N'Prefijo de las etiquetas de balanza con peso', NULL, NULL),
-    (48, N'Balanza.PrefijoPrecio', N'22', N'Prefijo de las etiquetas de balanza con precio', NULL, NULL),
-    (49, N'Balanza.DigitosCodigoArticulo', N'5', N'Dígitos del código del artículo en la etiqueta', NULL, NULL),
-    (50, N'Balanza.DigitosValor', N'5', N'Dígitos del valor en la etiqueta', NULL, NULL),
-    (51, N'Balanza.DecimalesPeso', N'3', N'Decimales del peso en la etiqueta', NULL, NULL),
-    (52, N'Balanza.DecimalesPrecio', N'2', N'Decimales del precio en la etiqueta', NULL, NULL);
+    (1, N'Central.Seguridad.IntentosMaximos', N'5', N'Intentos de contraseña fallidos que bloquean al usuario', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (2, N'Central.Seguridad.MinutosBloqueo', N'15', N'Minutos que dura el bloqueo por intentos fallidos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (3, N'Central.Seguridad.MinutosToken', N'15', N'Minutos de vigencia del token de acceso', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (4, N'Central.Seguridad.MinutosInactividad', N'60', N'Minutos sin actividad tras los que vence la sesión', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (5, N'Central.Seguridad.HorasSesion', N'12', N'Horas máximas de una sesión', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (6, N'Central.Seguridad.LargoMinimoContrasena', N'10', N'Largo mínimo de las contraseñas del Central', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (7, N'Central.Seguridad.ContrasenaCompleja', N'true', N'Exige mayúscula, minúscula, número y símbolo', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (8, N'Central.Dispositivos.MinutosToken', N'30', N'Minutos de vigencia del token de una caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (9, N'Central.Dgii.SegundosCiclo', N'30', N'Segundos entre envíos de e-CF a la DGII', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (10, N'Central.Dgii.LoteEnvio', N'50', N'Comprobantes por lote de envío a la DGII', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (11, N'Central.Dgii.MinutosReintento', N'5', N'Minutos antes de reintentar un envío fallido', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (12, N'Central.Dgii.MinutosMaximoReintento', N'120', N'Tope de espera entre reintentos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (13, N'Central.Dgii.SegundosConsultaEstado', N'60', N'Segundos entre consultas del resultado a la DGII', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (14, N'Central.Monitor.MinutosSinComunicacion', N'30', N'Minutos sin comunicación tras los que una caja es alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (15, N'Central.Monitor.MinutosAlertaDgii', N'60', N'Minutos sin resultado de la DGII tras los que un e-CF es alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (16, N'Central.NotasCredito.MinutosReserva', N'10', N'Minutos que se retiene el saldo de una nota mientras la caja cobra', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (17, N'Central.Fidelidad.MinutosCicloVencimiento', N'60', N'Minutos entre revisiones de los puntos vencidos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (18, N'Central.Fidelidad.LoteVencimiento', N'500', N'Miembros por lote al vencer puntos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (19, N'Central.Despacho.MinutosCicloAvisos', N'15', N'Minutos entre avisos de pedidos preparados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (20, N'Central.Despacho.LoteAvisos', N'50', N'Avisos por lote', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (21, N'Seguridad.IntentosMaximosClave', N'3', N'Intentos de clave fallidos que bloquean al usuario de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (22, N'Seguridad.MinutosBloqueo', N'5', N'Minutos que dura el bloqueo del usuario de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (23, N'Seguridad.MinutosVigenciaAutorizacion', N'5', N'Minutos para usar una autorización de supervisor', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (24, N'Seguridad.HorasSesion', N'12', N'Horas que dura la sesión en la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (25, N'General.MonedaLocal', N'DOP', N'Moneda local del negocio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (26, N'Caja.FondoPredeterminado', N'0.00', N'Fondo sugerido al abrir turno', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (27, N'Caja.PasoRedondeoEfectivo', N'0', N'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (28, N'Caja.CierreCiego', N'true', N'El cajero declara el cierre sin ver lo esperado', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (29, N'Caja.FondoEnCuadre', N'false', N'El fondo forma parte del efectivo esperado en el cierre', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (30, N'Numeracion.DigitosSecuencia', N'7', N'Dígitos de la secuencia en el número de los documentos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (31, N'Fiscal.MontoIdentificacionConsumo', N'250000', N'Total desde el cual la factura de consumo exige cédula o RNC', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (32, N'Fiscal.PorcentajeAlertaSecuenciaEcf', N'10', N'Porcentaje restante de un rango de e-CF desde el cual se alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (33, N'Fiscal.DiasAlertaCertificado', N'30', N'Días antes del vencimiento del certificado para alertar', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (34, N'Fiscal.PorcentajeRetencionLey3223', N'0', N'Retención de la Ley 32-23 en facturas E44 (0 = sin retención)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (35, N'Devoluciones.DiasRetencionImpuesto', N'30', N'Días desde la factura tras los cuales la devolución retiene el ITBIS', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (36, N'Devoluciones.DiasVigenciaNotaCredito', N'180', N'Días desde la emisión en que se puede consumir una nota de crédito', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (37, N'Fidelidad.ValorPunto', N'1', N'Valor en dinero de cada punto al canjearlo', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (38, N'Fidelidad.MesesVigenciaPuntos', N'12', N'Meses que duran los puntos acumulados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (39, N'Fidelidad.MinimoPuntosCanje', N'50', N'Puntos mínimos para poder canjear', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (40, N'Fidelidad.MaximoPuntosCanjeSinConexion', N'2000', N'Tope de puntos a canjear sin conexión con el Central', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (41, N'Sincronizacion.DiasRetencionXmlEnviados', N'90', N'Días que se conservan los XML ya enviados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (42, N'Sincronizacion.DiasRetencionMensajesConfirmados', N'60', N'Días que se conservan los mensajes confirmados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (43, N'Sincronizacion.AlertaTamanoBaseDatosMb', N'8000', N'Tamaño de la base de la caja que dispara alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (44, N'Sincronizacion.HorasAlertaPendientes', N'24', N'Horas con documentos sin sincronizar que disparan alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (45, N'Respaldo.DiasRetencion', N'7', N'Días que se conservan los respaldos de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (46, N'Reloj.ToleranciaSegundos', N'60', N'Diferencia de hora tolerada contra el servidor NTP', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (47, N'Balanza.PrefijoPeso', N'21', N'Prefijo de las etiquetas de balanza con peso', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (48, N'Balanza.PrefijoPrecio', N'22', N'Prefijo de las etiquetas de balanza con precio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (49, N'Balanza.DigitosCodigoArticulo', N'5', N'Dígitos del código del artículo en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (50, N'Balanza.DigitosValor', N'5', N'Dígitos del valor en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (51, N'Balanza.DecimalesPeso', N'3', N'Decimales del peso en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (52, N'Balanza.DecimalesPrecio', N'2', N'Decimales del precio en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaParametros] RESTART WITH 61;
 GO
 

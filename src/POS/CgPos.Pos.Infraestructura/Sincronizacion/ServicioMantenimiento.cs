@@ -12,6 +12,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Sincronizacion;
 
@@ -48,7 +49,7 @@ internal sealed class ServicioMantenimiento(
 
     public async Task<ResultadoRespaldo> RespaldarAsync(CancellationToken cancelacion = default)
     {
-        var fecha = reloj.GetUtcNow();
+        var fecha = reloj.Ahora();
         var carpeta = opciones.CarpetaRespaldo ?? await CarpetaRespaldoInstanciaAsync(cancelacion);
         if (carpeta is null)
             return Registrar(new ResultadoRespaldo(false, null, $"No hay carpeta de respaldos: configure {ClavesMantenimiento.CarpetaRespaldo}.", fecha));
@@ -81,7 +82,7 @@ internal sealed class ServicioMantenimiento(
     public async Task<ResultadoPurga> PurgarAsync(CancellationToken cancelacion = default)
     {
         var cajaId = contextoCaja.CajaId;
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         var xmlEliminados = 0;
         if (await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.DiasRetencionXmlEnviados, cajaId, cancelacion) is { } diasXml)
@@ -125,7 +126,7 @@ internal sealed class ServicioMantenimiento(
 
     public async Task<ResultadoHora> VerificarHoraAsync(CancellationToken cancelacion = default)
     {
-        var fecha = reloj.GetUtcNow();
+        var fecha = reloj.Ahora();
         if (opciones.ServidorHora is not { } servidor)
             return estado.UltimaHora = new ResultadoHora(false, null, null, "No hay servidor de hora configurado.", fecha);
 
@@ -145,7 +146,7 @@ internal sealed class ServicioMantenimiento(
     {
         var alertas = new List<string>();
         var cajaId = contextoCaja.CajaId;
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         if (await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.AlertaTamanoBaseDatosMb, cajaId, cancelacion) is { } limiteMb)
         {
@@ -236,10 +237,10 @@ internal static class HoraNtp
         using var udp = new UdpClient();
         udp.Connect(servidor, 123);
 
-        var enviado = reloj.GetUtcNow();
+        var enviado = reloj.Ahora();
         await udp.SendAsync(solicitud, limite.Token);
         var respuesta = await udp.ReceiveAsync(limite.Token);
-        var recibido = reloj.GetUtcNow();
+        var recibido = reloj.Ahora();
 
         return CalcularDesfase(enviado, LeerMarca(respuesta.Buffer, 32), LeerMarca(respuesta.Buffer, 40), recibido);
     }

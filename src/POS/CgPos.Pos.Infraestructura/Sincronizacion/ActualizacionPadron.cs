@@ -3,6 +3,7 @@ using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Sincronizacion;
 
@@ -33,7 +34,7 @@ internal sealed class ActualizacionPadron(
             resultado = await importador.ImportarAsync(archivo, cancelacion);
         }
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         if (marca is null)
         {
             marca = MarcaSincronizacion.Crear(MarcaSincronizacion.PadronDgii, 0, ahora);

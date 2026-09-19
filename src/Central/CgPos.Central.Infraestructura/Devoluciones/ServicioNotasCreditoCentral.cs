@@ -8,13 +8,14 @@ using CgPos.Contratos.Central;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Devoluciones;
 
 internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto, IParametrosCentral parametros, TimeProvider reloj)
     : IServicioNotasCreditoCentral
 {
-    private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+    private DateOnly Hoy => reloj.Ahora().Dia();
 
     /// <summary>Días de vigencia configurados hoy: una nota vence a esos días de su emisión, así que subirlos habilita las vencidas (RF-40).</summary>
     private Task<int> DiasVigenciaAsync(CancellationToken cancelacion) =>
@@ -42,7 +43,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         var factura = ventaNumero.Trim();
 
         var minutos = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.NotasCreditoMinutosReserva, cancelacion);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         // La fila de la nota se bloquea mientras se calcula el disponible: dos cajas no pueden reservar el mismo saldo.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
@@ -94,7 +95,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
             return false;
 
         foreach (var reserva in reservas)
-            reserva.Cerrar("Liberada", reloj.GetUtcNow());
+            reserva.Cerrar("Liberada", reloj.Ahora());
         await contexto.SaveChangesAsync(cancelacion);
         return true;
     }
@@ -138,7 +139,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         var consumos = await contexto.ConsumosNotaCredito.AsNoTracking().Where(c => c.NotaCreditoNumero == numero).ToListAsync(cancelacion);
         var reservas = await contexto.ReservasNotaCredito.AsNoTracking().Where(r => r.NotaCreditoId == notaCreditoId).ToListAsync(cancelacion);
         var cajas = await CodigosCajasAsync(consumos.Select(c => c.CajaId).Concat(reservas.Select(r => r.CajaId)), cancelacion);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         var movimientos = consumos
             .Select(c => new DatosMovimientoNotaCredito(c.Fecha, "Consumo", cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.Monto, $"Venta {c.VentaNumero}"))
@@ -154,7 +155,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         if (notas.Count == 0)
             return [];
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var hoy = Hoy;
         var diasVigencia = await DiasVigenciaAsync(cancelacion);
         var ids = notas.Select(n => n.Id).ToList();

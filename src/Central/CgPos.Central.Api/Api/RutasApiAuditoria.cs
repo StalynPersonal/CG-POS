@@ -16,6 +16,10 @@ public static class RutasApiAuditoria
                 new FiltroAuditoria(desde, hasta, accion, tipoEntidad, usuario, buscar, soloConCambios ?? false, pagina ?? 0, tamano ?? 25),
                 cancelacion)));
 
+        // El antes y el después de un movimiento: se piden al abrirlo, no en el listado.
+        manager.MapGet("/{registroId:int}", async (int registroId, IServicioConsultaAuditoria servicio, CancellationToken cancelacion) =>
+            await servicio.ObtenerAsync(registroId, cancelacion) is { } detalle ? Results.Ok(detalle) : Results.NotFound());
+
         manager.MapGet("/opciones", async (IServicioConsultaAuditoria servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.OpcionesAsync(cancelacion)));
 

@@ -41,9 +41,13 @@
             <MudTd DataLabel="Documento"><strong>@context.Dato.Documento</strong><div class="cg-central__detalle">@EtiquetasCliente.Documento(context.Dato.TipoDocumento)</div></MudTd>
             <MudTd DataLabel="Nombre">
                 @context.Dato.Nombre
-                @if (context.Dato.Telefono is not null || context.Dato.Correo is not null)
+                @if (context.Dato.Telefono is not null || context.Dato.TelefonoAlterno is not null || context.Dato.Correo is not null
+                     || context.Dato.Contacto is not null)
                 {
-                    <div class="cg-central__detalle">@string.Join(" · ", new[] { context.Dato.Telefono, context.Dato.Correo }.Where(t => t is not null))</div>
+                    <div class="cg-central__detalle">
+                        @string.Join(" · ", new[] { context.Dato.Contacto, context.Dato.Telefono, context.Dato.TelefonoAlterno, context.Dato.Correo }
+                            .Where(t => !string.IsNullOrWhiteSpace(t)))
+                    </div>
                 }
             </MudTd>
             <MudTd DataLabel="Comprobante">

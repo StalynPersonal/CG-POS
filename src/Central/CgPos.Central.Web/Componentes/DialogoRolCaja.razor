@@ -7,7 +7,7 @@
             <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Rol is not null)" HelperText="Ej. CAJERO, SUPERVISOR." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
             <MudNumericField T="int" @bind-Value="_nivel" Label="Nivel" Variant="Variant.Outlined" Min="1" Max="9"
-                             HelperText="1 cajero, 2 supervisor, 3 gerente… Autoriza a niveles iguales o menores." />
+                             HelperText="Del 1 al 9: quien autoriza necesita un nivel igual o mayor. Sugerido 1 cajero, 5 supervisor y 8 gerente, dejando huecos para roles intermedios." />
             <MudSwitch T="bool" @bind-Value="_activo" Label="@(_activo ? "Activo" : "Inactivo")" Color="Color.Secondary" />
 
             <MudText Typo="Typo.subtitle1" Class="mt-2">Permisos (@_seleccionados.Count de @Permisos.Count)</MudText>

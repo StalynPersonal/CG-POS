@@ -133,6 +133,8 @@ internal sealed class ClienteConfiguracion : IEntityTypeConfiguration<Cliente>
         constructor.Property(c => c.Nombre).HasMaxLength(Cliente.LargoMaximoNombre).IsRequired();
         constructor.Property(c => c.Telefono).HasMaxLength(Cliente.LargoMaximoTelefono);
         constructor.Property(c => c.Correo).HasMaxLength(Cliente.LargoMaximoCorreo);
+        constructor.Property(c => c.Contacto).HasMaxLength(Cliente.LargoMaximoNombre);
+        constructor.Property(c => c.TelefonoAlterno).HasMaxLength(Cliente.LargoMaximoTelefono);
 
         constructor.HasIndex(c => new { c.TipoDocumento, c.Documento }).IsUnique();
         constructor.HasIndex(c => c.Documento);

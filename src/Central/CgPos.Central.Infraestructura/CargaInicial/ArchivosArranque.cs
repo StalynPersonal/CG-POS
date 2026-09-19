@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.CargaInicial;
 
@@ -79,7 +80,7 @@ public static class ExtensionesArchivosArranque
             contexto.ArchivosArranqueAplicados.Add(marca);
         }
 
-        marca.Marcar(huella, ambito.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow());
+        marca.Marcar(huella, ambito.ServiceProvider.GetRequiredService<TimeProvider>().Ahora());
         await contexto.SaveChangesAsync(cancelacion);
         registro.LogInformation("{Clave}: {Archivo} aplicado", clave, Path.GetFileName(ruta));
     }

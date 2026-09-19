@@ -32,7 +32,7 @@ internal sealed class ServicioRecepcion(
         ArgumentNullException.ThrowIfNull(mensaje);
         ArgumentNullException.ThrowIfNull(remitente);
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var estado = await EstadoCajaAsync(remitente.CajaId, cancelacion);
 
         if (mensaje.Id == Guid.Empty || string.IsNullOrWhiteSpace(mensaje.Referencia) || mensaje.Referencia.Trim().Length > DocumentoRecibido.LargoMaximoReferencia

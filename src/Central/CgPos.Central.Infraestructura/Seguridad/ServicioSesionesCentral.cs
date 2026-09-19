@@ -5,6 +5,7 @@ using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Dominio.Seguridad;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Seguridad;
 
@@ -24,7 +25,7 @@ internal sealed class ServicioSesionesCentral(
     {
         var codigoLimpio = codigo?.Trim() ?? string.Empty;
         contrasena ??= string.Empty;
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         var usuario = codigoLimpio.Length == 0 ? null : await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Codigo == codigoLimpio, cancelacion);
         if (usuario is null)
@@ -64,7 +65,7 @@ internal sealed class ServicioSesionesCentral(
         if (string.IsNullOrWhiteSpace(tokenRenovacion))
             return ResultadoSesionCentral.Rechazo(MotivoRechazoCentral.SesionInvalida);
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var tokenHash = TokensSeguros.Hash(tokenRenovacion.Trim());
         var actual = await contexto.SesionesCentral.SingleOrDefaultAsync(s => s.TokenHash == tokenHash, cancelacion);
         if (actual is null)
@@ -118,7 +119,7 @@ internal sealed class ServicioSesionesCentral(
 
     public async Task CerrarAsync(Guid sesionId, int usuarioId, CancellationToken cancelacion = default)
     {
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         await RevocarAsync(s => s.Familia == sesionId && s.UsuarioId == usuarioId, ahora, "Sesión cerrada por el usuario", cancelacion);
 
         var nombre = await contexto.UsuariosCentral.Where(u => u.Id == usuarioId).Select(u => u.Nombre).SingleOrDefaultAsync(cancelacion);
@@ -129,7 +130,7 @@ internal sealed class ServicioSesionesCentral(
 
     public async Task<bool> EsSesionActivaAsync(Guid sesionId, int usuarioId, CancellationToken cancelacion = default)
     {
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         return await contexto.SesionesCentral.AnyAsync(s => s.Familia == sesionId && s.UsuarioId == usuarioId
                 && s.UsadaEn == null && s.RevocadaEn == null && s.FinSesion > ahora, cancelacion)
             && await contexto.UsuariosCentral.AnyAsync(u => u.Id == usuarioId && u.Activo, cancelacion);
@@ -138,7 +139,7 @@ internal sealed class ServicioSesionesCentral(
     public async Task<ResultadoSesionCentral> CambiarContrasenaAsync(int usuarioId, string actual, string nueva, OrigenSolicitud origen,
         CancellationToken cancelacion = default)
     {
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var usuario = await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Id == usuarioId, cancelacion);
         if (usuario is not { Activo: true })
             return ResultadoSesionCentral.Rechazo(MotivoRechazoCentral.UsuarioInactivo);

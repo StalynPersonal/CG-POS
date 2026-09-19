@@ -7,6 +7,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Fiscal;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
@@ -50,7 +51,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             return ResultadoAdministracion.Inexistente("El artículo no existe.");
 
         var publicar = anterior is null
-            ? articulo with { PreciosVigentesDesde = articulo.PreciosVigentesDesde ?? reloj.GetUtcNow() }
+            ? articulo with { PreciosVigentesDesde = articulo.PreciosVigentesDesde ?? reloj.Ahora() }
             : articulo with
             {
                 PrecioDetalle = anterior.PrecioDetalle,
@@ -120,7 +121,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             CantidadMinimaMayor = solicitud.CantidadMinimaMayor,
             PrecioMinimo = solicitud.PrecioMinimo,
             Costo = solicitud.Costo,
-            PreciosVigentesDesde = solicitud.VigenteDesde ?? reloj.GetUtcNow(),
+            PreciosVigentesDesde = solicitud.VigenteDesde ?? reloj.Ahora(),
         };
 
         return await GuardarAsync(articulo, nuevo: false, actor, cancelacion);

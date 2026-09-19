@@ -1,4 +1,5 @@
 using CgPos.Pos.Aplicacion.Sincronizacion;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Agente.Sincronizacion;
 
@@ -25,7 +26,7 @@ public sealed class TrabajadorMantenimiento(IServiceScopeFactory ambitos, IConfi
                 if (!hora.Verificada && hora.Servidor is not null)
                     registro.LogInformation("Hora no verificada: {Error}", hora.Error);
 
-                if (mantenimiento.CorrespondeRespaldo(reloj.GetLocalNow()))
+                if (mantenimiento.CorrespondeRespaldo(reloj.Ahora()))
                     await mantenimiento.RespaldarAsync(detener);
 
                 await mantenimiento.PurgarAsync(detener);

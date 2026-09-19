@@ -7,6 +7,7 @@ using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Catalogo;
 
@@ -62,7 +63,7 @@ internal sealed class ServicioCargaMaestros(
 
         try
         {
-            var ahora = reloj.GetUtcNow();
+            var ahora = reloj.Ahora();
 
             // Lo referido antes que lo que lo refiere: monedas, clasificación, unidades e impuestos, luego artículos y lo que los usa.
             foreach (var d in paquete.Monedas ?? [])

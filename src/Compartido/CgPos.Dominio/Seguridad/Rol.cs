@@ -4,7 +4,7 @@ namespace CgPos.Dominio.Seguridad;
 
 /// <summary>
 /// Rol de usuario: agrupa permisos granulares y define un nivel de autorización
-/// (1 cajero, 2 supervisor, 3 gerente…) usado para topes y jerarquía de autorizaciones.
+/// (del 1 al 9; se sugiere 1 cajero, 5 supervisor y 8 gerente) usado para topes y jerarquía de autorizaciones.
 /// </summary>
 public sealed class Rol : Entidad
 {

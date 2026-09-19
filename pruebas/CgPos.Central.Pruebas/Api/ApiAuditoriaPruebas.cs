@@ -40,7 +40,13 @@ public class ApiAuditoriaPruebas(CentralEnPruebas central)
         var pagina = await ConsultarAsync(cliente, admin, $"?buscar={Uri.EscapeDataString(nombreNuevo)}&soloConCambios=true&tamano=25");
         var registro = Assert.Single(pagina.Elementos, movimiento => movimiento.TipoEntidad == "Sucursal");
         Assert.False(string.IsNullOrWhiteSpace(registro.UsuarioNombre), "El movimiento debe decir quién lo hizo.");
-        var entidad = Assert.Single(registro.Cambios);
+
+        // El listado solo trae el resumen; el antes y el después se piden al abrir el movimiento.
+        Assert.Equal(1, registro.EntidadesCambiadas);
+        Assert.Contains("Sucursal", registro.ResumenCambios);
+
+        var detalle = await ObtenerAsync<DatosAuditoriaDetalle>(cliente, admin, $"/api/manager/auditoria/{registro.Id}");
+        var entidad = Assert.Single(detalle.Cambios);
         Assert.Equal("Modificado", entidad.Operacion);
         var nombre = Assert.Single(entidad.Campos, campo => campo.Campo == "Nombre");
         Assert.Equal(nombreOriginal, nombre.Antes);
@@ -48,7 +54,11 @@ public class ApiAuditoriaPruebas(CentralEnPruebas central)
 
         // La creación de la sucursal aparece con todos sus campos como valores nuevos.
         var creaciones = await ConsultarAsync(cliente, admin, $"?buscar={Uri.EscapeDataString(nombreOriginal)}&soloConCambios=true&tamano=50");
-        Assert.Contains(creaciones.Elementos,
+        var creacionesDetalladas = new List<DatosAuditoriaDetalle>();
+        foreach (var movimiento in creaciones.Elementos)
+            creacionesDetalladas.Add(await ObtenerAsync<DatosAuditoriaDetalle>(cliente, admin, $"/api/manager/auditoria/{movimiento.Id}"));
+
+        Assert.Contains(creacionesDetalladas,
             movimiento => movimiento.Cambios.Any(cambios => cambios.Operacion == "Creado"
                 && cambios.Campos.Any(campo => campo.Campo == "Nombre" && campo.Antes is null && campo.Despues == nombreOriginal)));
 
@@ -86,13 +96,23 @@ public class ApiAuditoriaPruebas(CentralEnPruebas central)
 
         // El hash de la contraseña se audita como cambiado, pero nunca se muestra su contenido.
         var usuarios = await ConsultarAsync(cliente, admin, "?tipoEntidad=UsuarioCentral&soloConCambios=true&tamano=50");
-        var campos = usuarios.Elementos.SelectMany(movimiento => movimiento.Cambios).SelectMany(cambio => cambio.Campos).ToList();
+        var campos = new List<DatosCampoAuditoria>();
+        foreach (var movimiento in usuarios.Elementos)
+            campos.AddRange((await ObtenerAsync<DatosAuditoriaDetalle>(cliente, admin, $"/api/manager/auditoria/{movimiento.Id}"))
+                .Cambios.SelectMany(cambio => cambio.Campos));
         Assert.All(campos.Where(campo => campo.Campo.Contains("Contrasena", StringComparison.OrdinalIgnoreCase)),
             campo => Assert.All(new[] { campo.Antes, campo.Despues }, valor => Assert.True(valor is null or "(oculto)", $"Se mostró '{valor}'.")));
 
         var token = (await CentralEnPruebas.IngresarAsync(cliente, codigo, "Sin.Auditoria#2026")).Cuerpo!.TokenAcceso;
         using var sinPermiso = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/manager/auditoria", token));
         Assert.Equal(HttpStatusCode.Forbidden, sinPermiso.StatusCode);
+    }
+
+    private static async Task<T> ObtenerAsync<T>(HttpClient cliente, string token, string ruta)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, ruta, token));
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.Content.ReadFromJsonAsync<T>(OpcionesJson.Predeterminadas))!;
     }
 
     private static async Task<PaginaAuditoria> ConsultarAsync(HttpClient cliente, string token, string consulta)

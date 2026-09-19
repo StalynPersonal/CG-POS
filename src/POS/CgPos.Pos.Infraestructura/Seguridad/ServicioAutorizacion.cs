@@ -4,6 +4,7 @@ using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Seguridad;
 
@@ -61,7 +62,7 @@ internal sealed class ServicioAutorizacion(
                 verificacion.Usuario.Id,
                 verificacion.Usuario.Nombre,
                 motivo,
-                reloj.GetUtcNow(),
+                reloj.Ahora(),
                 TimeSpan.FromMinutes(minutosVigencia)));
         }
 

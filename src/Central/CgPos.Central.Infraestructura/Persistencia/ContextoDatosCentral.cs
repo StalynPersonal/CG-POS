@@ -105,6 +105,15 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
         // La de los maestros publicados se define en su configuración, junto con su índice.
         foreach (var tipo in new[] { typeof(Empresa), typeof(Sucursal), typeof(Caja), typeof(Parametro) })
             constructorModelo.Entity(tipo).Property<long>(ColumnaVersion).IsRowVersion().HasConversion<byte[]>();
+
+        // Quién y cuándo tocó por última vez lo que se administra a mano y no es un maestro de los que bajan a las cajas.
+        // Los documentos (ventas, notas, cierres) no entran: llevan su fecha y su usuario como datos del negocio.
+        foreach (var tipo in new[]
+                 {
+                     typeof(Empresa), typeof(Sucursal), typeof(Caja), typeof(Parametro),
+                     typeof(UsuarioCentral), typeof(RolCentral), typeof(CgPos.Dominio.ListasBoda.ListaBoda),
+                 })
+            Configuraciones.ColumnasMaestro.ConfigurarMarcas(constructorModelo.Entity(tipo));
     }
 
     /// <summary>
@@ -113,12 +122,14 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     /// </summary>
     public override int SaveChanges(bool aceptarTodosLosCambios)
     {
+        MarcasModificacion.Aplicar(this, TimeProvider.System);
         CgPos.Central.Infraestructura.Auditoria.CambiosAuditoria.Adjuntar(this);
         return base.SaveChanges(aceptarTodosLosCambios);
     }
 
     public override Task<int> SaveChangesAsync(bool aceptarTodosLosCambios, CancellationToken cancelacion = default)
     {
+        MarcasModificacion.Aplicar(this, TimeProvider.System);
         CgPos.Central.Infraestructura.Auditoria.CambiosAuditoria.Adjuntar(this);
         return base.SaveChangesAsync(aceptarTodosLosCambios, cancelacion);
     }

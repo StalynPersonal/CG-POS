@@ -221,14 +221,19 @@ tabla(['Columna', 'Qué muestra'],
       [['Cuándo', 'Fecha y hora del movimiento, en la hora del servidor donde se consulta.'],
        ['Acción', 'Qué se hizo (por ejemplo, actualizar la empresa), sobre qué entidad y con qué motivo, si lo lleva.'],
        ['Usuario', 'Quién lo hizo y, en las operaciones que la piden, quién la autorizó.'],
-       ['Qué cambió', 'Cada campo con su valor anterior (tachado) y el que quedó. Una creación no tiene valor anterior y una eliminación no tiene valor nuevo.']],
+       ['Qué cambió', 'Un resumen de lo que se tocó, por ejemplo «Modificado: Sucursal #12 · 3 campos». Se hace clic ahí y se abre el detalle.']],
       anchos=[3.5, 10.5])
-p('Los filtros de arriba acotan la búsqueda: rango de fechas, acción, entidad, usuario, un texto libre (busca también dentro '
+p('Los filtros de arriba acotan la búsqueda: rango de fechas, entidad, usuario, un texto libre (busca también dentro '
   'de los valores que cambiaron) y el interruptor «Solo cambios de datos», que deja fuera los ingresos y las consultas. Abajo '
   'se elige el tamaño de página (10, 25, 50, 100 o 200) y se pasa de una página a otra; el Central envía solo la página que '
   'se está viendo, así que la consulta es rápida aunque haya años de movimientos.')
+p('Al hacer clic en el resumen se abre una ventana con el detalle: cada campo con su valor anterior (tachado, en rojo) y el '
+  'que quedó (en verde). Una creación no tiene valor anterior y una eliminación no tiene valor nuevo. El detalle se pide al '
+  'abrirlo, así el listado se mantiene liviano aunque un movimiento haya tocado cientos de filas.')
 nota('Las contraseñas, los certificados y las firmas se anotan como cambiados, pero su contenido nunca se muestra: en su lugar '
      'aparece «(oculto)».')
+nota('Entrar al sistema no cuenta como modificar al usuario, así que la auditoría no se llena con la fecha del último ingreso '
+     'de cada quien.')
 nota('Para entrar a esta pantalla hace falta el permiso «Consultar la auditoría del Central y de las cajas». Se puede dar a '
      'contabilidad o a auditoría sin darles permiso para administrar nada.')
 
@@ -238,79 +243,180 @@ tabla(['Opción', 'Ruta', 'Para qué sirve'],
        ['Artículos', '/articulos', 'Alta y edición de artículos, con sus códigos de barras y de proveedor.'],
        ['Precios', '/precios/articulos', 'Precio de detalle, precio por mayor con su cantidad mínima, precio mínimo y costo; de inmediato o a partir de una fecha.'],
        ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
-       ['Clientes', '/clientes', 'Clientes con su comprobante habitual, exoneraciones y direcciones de envío.']],
+       ['Clientes', '/clientes', 'Clientes con su contacto, sus dos teléfonos, su comprobante habitual, exoneraciones y direcciones de envío.']],
       anchos=[3.8, 4.4, 8.8])
+
+titulo('2.5.1. Cargar los clientes desde el archivo de la DGII', 3)
+p('La DGII publica un archivo con todos los contribuyentes registrados del país (DGII_RNC.TXT). Ese archivo se puede cargar '
+  'de una vez en los clientes del Central, y de ahí bajan solos a las cajas. Sirve para que, cuando un cliente dicte su RNC '
+  'en la caja, su razón social aparezca escrita exactamente como la tiene la DGII.')
+paso('Descargue el archivo del portal de la DGII y déjelo en una carpeta del servidor de base de datos.')
+paso('Abra scripts/base-datos/central/cargar-clientes-dgii.sql, cambie la ruta del archivo arriba y ejecútelo.')
+paso('Al terminar informa cuántos clientes creó y cuántos actualizó. Las cajas los reciben en su próxima sincronización.')
+tabla(['Qué hace', 'Detalle'],
+      [['Si el cliente ya existe', 'Le actualiza la razón social y lo deja activo. El teléfono, el correo, el contacto, el tipo de comprobante, la lista de precios y las direcciones no se tocan: eso lo llenó usted.'],
+       ['Si no existe', 'Lo crea. Un RNC de 9 dígitos nace con crédito fiscal (E31) y una cédula de 11 con consumo (E32). El código del cliente es su propio documento.'],
+       ['Estado', 'Solo se cargan los contribuyentes ACTIVO. Un cliente que usted había desactivado vuelve a quedar activo si la DGII lo reporta activo.'],
+       ['Lo que no hace', 'No borra clientes: lo que ya no venga en el archivo se queda como está.']],
+      anchos=[4.0, 12.0])
+nota('La ruta la abre SQL Server, no su equipo: el archivo debe estar en el servidor o en una carpeta compartida a la que '
+     'tenga acceso la cuenta del servicio de SQL Server. Haga un respaldo antes y ejecútelo fuera del horario de venta.')
 
 titulo('2.6. Artículos para empezar (sugerencia)', 2)
 p('El sistema se instala sin productos: usted crea los suyos. Para arrancar y para probar todo el sistema, conviene cargar '
-  'primero unos pocos artículos que cubran cada caso, y después ya cargar el inventario completo.')
-p('Antes de los artículos cree lo que ellos necesitan: el impuesto (ITBIS 18 % y el exento), las unidades de medida '
-  '(unidad, libra, saco, galón) y los departamentos (por ejemplo Construcción, Ferretería, Pinturas, Eléctrico).')
-tabla(['Código', 'Descripción', 'Departamento', 'Unidad', 'ITBIS', 'Precio', 'Sirve para probar'],
-      [['CEM-425', 'Cemento gris 42.5 kg', 'Construcción', 'Saco', '18 %', '520.00', 'Venta normal y precio por mayor (desde 10 sacos a 495.00)'],
-       ['VAR-38', 'Varilla 3/8 x 30 pies', 'Construcción', 'Unidad', '18 %', '445.00', 'Venta por cantidad con el lector'],
-       ['BLK-6', 'Block de 6 pulgadas', 'Construcción', 'Unidad', '18 %', '38.00', 'Cantidades grandes (12*BLK-6)'],
-       ['PIN-BLA-GL', 'Pintura acrílica blanca, galón', 'Pinturas', 'Galón', '18 %', '1,250.00', 'Ofertas y descuentos'],
-       ['CLA-2', 'Clavos de 2 pulgadas', 'Ferretería', 'Libra', '18 %', '65.00', 'Artículo pesado: peso de la balanza o digitado'],
-       ['TAL-500', 'Taladro percutor 1/2', 'Ferretería', 'Unidad', '18 %', '8,900.00', 'Artículo serializado: pide el serial al vender'],
-       ['FOC-LED-9', 'Bombillo LED 9 W', 'Eléctrico', 'Unidad', '18 %', '185.00', 'Oferta lleva 3 paga 2'],
-       ['COM-BANO', 'Combo baño completo', 'Ferretería', 'Unidad', '18 %', '15,900.00', 'Combo: se vende como un artículo normal, sin precio por mayor'],
-       ['SRV-CORTE', 'Servicio de corte de madera', 'Ferretería', 'Unidad', 'Exento', '150.00', 'Artículo de servicio y comprobante con exento']],
-      anchos=[2.6, 4.4, 2.6, 1.8, 1.5, 1.8, 5.0])
-nota('Póngale a cada uno su código de barras real (el del empaque): en la caja se busca igual por el código interno, el de '
-     'barras, el del proveedor o la referencia.')
-p('Con esos nueve artículos ya puede probar venta normal, cantidades, precio por mayor, pesados, serializados, combos, '
-  'exentos, ofertas y descuentos. El inventario completo se carga después desde Artículos.')
+  'primero unos pocos artículos que cubran cada caso del negocio de bebidas, y después ya cargar el catálogo completo.')
+p('Antes de los artículos cree lo que ellos necesitan, en este orden: impuestos (ITBIS 18 % y exento), unidades de medida '
+  '(unidad, caja, libra), departamentos, categorías y marcas. Los departamentos, las categorías y las marcas sugeridas '
+  'están en la sección siguiente; los artículos de aquí abajo ya usan esos mismos nombres.')
+
+p('Ficha del artículo: esto es lo que se llena en Maestros → Artículos.')
+tabla(['Código', 'Descripción', 'Departamento', 'Categoría', 'Marca', 'Unidad', 'Tipo'],
+      [['CER-PRE-650', 'Cerveza Presidente 650 ml', 'Cervezas', 'Nacionales', 'Presidente', 'Unidad', 'Normal'],
+       ['CER-PRE-CJ', 'Cerveza Presidente 650 ml, caja de 12', 'Cervezas', 'Nacionales', 'Presidente', 'Caja', 'Normal'],
+       ['CER-COR-355', 'Cerveza Corona 355 ml', 'Cervezas', 'Importadas', 'Corona', 'Unidad', 'Normal'],
+       ['RON-BRU-AN', 'Ron Brugal Añejo 750 ml', 'Licores', 'Ron', 'Brugal', 'Unidad', 'Normal'],
+       ['WHI-JWB-750', 'Whisky Johnnie Walker Black 750 ml', 'Licores', 'Whisky', 'Johnnie Walker', 'Unidad', 'Normal'],
+       ['VIN-TIN-750', 'Vino tinto reserva 750 ml', 'Vinos', 'Tintos', 'Marqués de Riscal', 'Unidad', 'Normal'],
+       ['REF-COLA-2L', 'Refresco de cola 2 litros', 'Refrescos y aguas', 'Gaseosas', 'Coca-Cola', 'Unidad', 'Normal'],
+       ['HIE-LB', 'Hielo a granel', 'Hielo y desechables', 'Hielo', '(sin marca)', 'Libra', 'Pesado'],
+       ['BAR-PRE-50', 'Barril de cerveza 50 litros', 'Cervezas', 'Nacionales', 'Presidente', 'Unidad', 'Serializado'],
+       ['COM-FIESTA', 'Combo fiesta (ron, refrescos y hielo)', 'Licores', 'Ron', '(sin marca)', 'Unidad', 'Combo'],
+       ['CAS-CER-CJ', 'Casco retornable de caja de cerveza', 'Cervezas', 'Nacionales', 'Presidente', 'Unidad', 'Normal'],
+       ['SRV-ENTREGA', 'Servicio de entrega a domicilio', 'Servicios', 'Entregas', '(sin marca)', 'Unidad', 'Normal']],
+      anchos=[2.4, 4.4, 2.6, 2.2, 2.4, 1.5, 1.9])
+nota('La marca es opcional: un artículo genérico como el hielo o un servicio puede quedarse sin ella. La categoría sí la '
+     'exige el Central al publicar, y siempre pertenece a un departamento.')
+
+p('Precios, impuesto y código de barras del mismo artículo. El precio de detalle y el de mayor se cargan con impuesto '
+  'incluido; el precio por mayor se aplica solo, desde la cantidad indicada.')
+tabla(['Código', 'ITBIS', 'Precio detalle', 'Precio mayor', 'Desde', 'Código de barras (ejemplo)', 'Sirve para probar'],
+      [['CER-PRE-650', '18 %', '230.00', '205.00', '12', '7401000000011', 'Venta normal y precio por mayor automático'],
+       ['CER-PRE-CJ', '18 %', '2,460.00', '2,400.00', '5', '7401000000028', 'Venta por caja y segundo código del mismo empaque'],
+       ['CER-COR-355', '18 %', '180.00', '165.00', '12', '7501000000035', 'Oferta lleva 3 paga 2'],
+       ['RON-BRU-AN', '18 %', '490.00', '470.00', '6', '7401000000042', 'Descuento por línea con motivo'],
+       ['WHI-JWB-750', '18 %', '3,200.00', '—', '—', '5000267000059', 'Descuento que pasa el tope y pide autorización'],
+       ['VIN-TIN-750', '18 %', '850.00', '800.00', '6', '8410000000066', 'Oferta por categoría (todos los tintos)'],
+       ['REF-COLA-2L', '18 %', '130.00', '120.00', '6', '7401000000073', 'Cantidades grandes con el lector (6*REF-COLA-2L)'],
+       ['HIE-LB', '18 %', '18.00', '—', '—', '(sin código)', 'Artículo pesado: peso de la balanza o digitado'],
+       ['BAR-PRE-50', '18 %', '9,500.00', '—', '—', '7401000000097', 'Serializado: pide el número del barril al venderlo'],
+       ['COM-FIESTA', '18 %', '1,190.00', '—', '—', '7401000000103', 'Combo: se vende como uno solo y nunca toma precio por mayor'],
+       ['CAS-CER-CJ', '18 %', '350.00', '—', '—', '7401000000110', 'Depósito de envase: se cobra y se devuelve al retornarlo'],
+       ['SRV-ENTREGA', 'Exento', '250.00', '—', '—', '(sin código)', 'Servicio y comprobante con línea exenta']],
+      anchos=[2.4, 1.3, 2.2, 2.0, 1.2, 3.4, 5.0])
+nota('Los códigos de barras de la tabla son de ejemplo: use el real del empaque. En bebidas conviene registrarle a la unidad '
+     'su código y a la caja el suyo, porque el empaque trae los dos y el cajero escanea cualquiera de ellos. Un artículo '
+     'admite varios códigos de barras y también el del proveedor.')
+p('Con esos doce artículos ya puede probar venta por unidad y por caja, precio por mayor, pesados, serializados, combos, '
+  'cascos retornables, exentos, ofertas y descuentos con autorización. El catálogo completo se carga después desde '
+  'Artículos, uno por uno o importando el archivo.')
+nota('El casco retornable se maneja como un artículo más: se le cobra al cliente que se lleva la caja y se le devuelve con '
+     'una devolución cuando trae los envases. Así queda en la factura y en el cuadre del turno.')
 
 titulo('2.7. Los demás datos del negocio (sugerencia)', 2)
-p('Estos no vienen en el sistema porque son decisiones suyas. Esta es una sugerencia para empezar; ajústela a como trabaja '
-  'el negocio. El orden importa: cada cosa necesita la anterior.')
+p('Estos no vienen en el sistema porque son decisiones suyas. Esta es una sugerencia para un negocio de venta de bebidas; '
+  'ajústela a como trabaja. El orden importa: cada cosa necesita la anterior.')
 
 p('1. Departamentos (Maestros → Catálogos). El departamento manda en los reportes y decide si admite descuento manual.')
 tabla(['Código', 'Departamento', 'Admite descuento manual'],
-      [['1', 'Construcción', 'Sí'], ['2', 'Ferretería', 'Sí'], ['3', 'Pinturas', 'Sí'],
-       ['4', 'Eléctrico', 'Sí'], ['5', 'Plomería', 'Sí'], ['6', 'Hogar', 'Sí'], ['7', 'Servicios', 'No']],
+      [['1', 'Licores', 'Sí'], ['2', 'Vinos', 'Sí'], ['3', 'Cervezas', 'Sí'],
+       ['4', 'Refrescos y aguas', 'Sí'], ['5', 'Snacks y picaderas', 'Sí'],
+       ['6', 'Hielo y desechables', 'Sí'], ['7', 'Servicios', 'No']],
       anchos=[2.2, 6.0, 5.0])
 
-p('2. Categorías (cada una dentro de un departamento) y marcas, para agrupar y para dirigir las ofertas.')
-tabla(['Categorías sugeridas', 'Marcas sugeridas'],
-      [['Cemento y agregados, Aceros, Blocks (Construcción)', 'Las marcas con las que trabaja: Cemex, Domicem, Truper, Stanley, Popular…'],
-       ['Herramientas manuales, Herramientas eléctricas (Ferretería)', ''],
-       ['Pintura de interiores, Pintura de exteriores (Pinturas)', ''],
-       ['Iluminación, Cables y accesorios (Eléctrico)', '']],
-      anchos=[8.5, 8.5])
+p('2. Categorías. Cada una vive dentro de un departamento y es lo que después permite dirigir una oferta.')
+tabla(['Código', 'Categoría', 'Departamento'],
+      [['1', 'Whisky', 'Licores'], ['2', 'Ron', 'Licores'], ['3', 'Vodka', 'Licores'],
+       ['4', 'Tequila', 'Licores'], ['5', 'Ginebra', 'Licores'],
+       ['6', 'Tintos', 'Vinos'], ['7', 'Blancos', 'Vinos'], ['8', 'Rosados', 'Vinos'], ['9', 'Espumosos', 'Vinos'],
+       ['10', 'Nacionales', 'Cervezas'], ['11', 'Importadas', 'Cervezas'], ['12', 'Artesanales', 'Cervezas'],
+       ['13', 'Gaseosas', 'Refrescos y aguas'], ['14', 'Jugos', 'Refrescos y aguas'],
+       ['15', 'Agua', 'Refrescos y aguas'], ['16', 'Energizantes', 'Refrescos y aguas'],
+       ['17', 'Hielo', 'Hielo y desechables'], ['18', 'Desechables', 'Hielo y desechables'],
+       ['19', 'Picaderas', 'Snacks y picaderas'], ['20', 'Entregas', 'Servicios']],
+      anchos=[2.0, 5.0, 6.0])
 
-p('3. Bancos, para transferencias, cheques y los depósitos del cierre de sucursal.')
+p('3. Marcas, para agrupar y para dirigir ofertas por marca.')
+tabla(['Código', 'Marca', 'Código', 'Marca'],
+      [['1', 'Presidente', '7', 'Absolut'],
+       ['2', 'Corona', '8', 'Don Julio'],
+       ['3', 'Heineken', '9', 'Marqués de Riscal'],
+       ['4', 'Brugal', '10', 'Coca-Cola'],
+       ['5', 'Barceló', '11', 'Pepsi'],
+       ['6', 'Johnnie Walker', '12', 'Red Bull']],
+      anchos=[2.0, 5.5, 2.0, 5.5])
+
+p('4. Bancos, para transferencias, cheques y los depósitos del cierre de sucursal.')
 tabla(['Código', 'Banco'],
       [['BPD', 'Banco Popular Dominicano'], ['BRD', 'Banreservas'], ['BHD', 'Banco BHD'],
        ['SCO', 'Scotiabank'], ['APA', 'Asociación Popular de Ahorros y Préstamos']],
       anchos=[2.5, 10.0])
 
-p('4. Almacenes, para las entregas y los envíos: uno por sucursal y, si aplica, el depósito central.')
+p('5. Almacenes, para las entregas y los envíos: uno por sucursal y, si aplica, el depósito desde donde se despacha.')
 tabla(['Código', 'Almacén', 'Para qué'],
-      [['ALM-01', 'Almacén de la sucursal', 'Retiro del cliente en la tienda'],
-       ['DEP-CEN', 'Depósito central', 'Mercancía que se despacha desde el depósito']],
+      [['ALM-01', 'Almacén de la sucursal', 'Retiro del cliente en el local'],
+       ['DEP-CEN', 'Depósito central', 'Pedidos grandes que salen del depósito (cajas, barriles)']],
       anchos=[2.8, 5.0, 7.0])
 
-p('5. Programa de fidelidad (si lo van a usar): niveles y cómo se acumulan los puntos.')
+p('6. Programa de fidelidad (si lo van a usar): niveles y cómo se acumulan los puntos.')
 tabla(['Nivel', 'Factor', 'Regla de acumulación sugerida'],
       [['Clásico', '1.0', '1 punto por cada RD$100 de compra'],
        ['Oro', '1.5', 'El mismo acumulado, multiplicado por el factor del nivel']],
       anchos=[3.0, 2.5, 9.5])
 
-p('6. Topes de descuento por nivel de quien autoriza, para que nadie descuente de más.')
+p('7. Topes de descuento por nivel de quien autoriza, para que nadie descuente de más.')
 tabla(['Nivel', 'Tope sugerido'],
       [['Supervisor (nivel 5)', 'Hasta 10 % o RD$2,000 por factura'],
        ['Gerente (nivel 8)', 'Hasta 30 % o RD$20,000 por factura']],
       anchos=[5.0, 9.0])
 
-p('7. Usuarios y roles de caja: al menos un cajero (solo vender y cobrar), un supervisor (autoriza descuentos, '
+p('8. Usuarios y roles de caja: al menos un cajero (solo vender y cobrar), un supervisor (autoriza descuentos, '
   'devoluciones, retiros y notas internas) y un gerente (además reabre cierres y autoriza lo de mayor monto).')
 
-p('8. Rangos de comprobantes fiscales por caja (E31, E32, E34, E44 y E45), con los números que le asignó la DGII.')
+p('9. Rangos de comprobantes fiscales por caja (E31, E32, E34, E44 y E45), con los números que le asignó la DGII.')
 
-p('9. Clientes: no hace falta crearlos por adelantado. En la caja se buscan por cédula o RNC contra el padrón de la DGII; '
-  'se registran aquí los que tienen condiciones especiales (comprobante fijo, exoneración o direcciones de envío).')
+p('10. Clientes: los colmados, bares y restaurantes a los que les factura con crédito fiscal conviene registrarlos, con su '
+  'contacto, sus teléfonos y su dirección de entrega. Los demás se buscan en la caja por cédula o RNC, y el listado de la '
+  'DGII se puede cargar completo como se explica en 2.5.1.')
+
+titulo('2.7.1. Usuarios y roles de caja (sugerencia)', 3)
+p('Los roles dicen qué puede hacer cada quien y el nivel decide quién autoriza a quién: para autorizar hay que tener el '
+  'permiso y un nivel igual o mayor al que lo pide.')
+tabla(['Código', 'Rol', 'Nivel', 'Qué puede hacer'],
+      [['CAJERO', 'Cajero', '1', 'Abrir turno, vender, cobrar, imprimir y cerrar su turno. No descuenta ni anula.'],
+       ['SUPERVISOR', 'Supervisor', '5', 'Todo lo del cajero y además autoriza descuentos hasta su tope, anulaciones, devoluciones, retiros de efectivo, notas de crédito internas y apertura de gaveta.'],
+       ['GERENTE', 'Gerente', '8', 'Todo lo anterior, más reabrir un cierre, autorizar lo que pasa el tope del supervisor y cambiar el comprobante de una factura.']],
+      anchos=[2.4, 2.6, 1.4, 10.0])
+tabla(['Usuario', 'Nombre', 'Rol', 'Cajas asignadas'],
+      [['C001', 'Cajero de la caja 01', 'CAJERO', 'Caja 01'],
+       ['C002', 'Cajero de la caja 02', 'CAJERO', 'Caja 02'],
+       ['S001', 'Supervisor de turno', 'SUPERVISOR', 'Caja 01 y Caja 02'],
+       ['G001', 'Gerente de la sucursal', 'GERENTE', 'Todas las de su sucursal']],
+      anchos=[2.2, 5.0, 3.0, 6.0])
+nota('El nivel va del 1 al 9 y solo se usa para las autorizaciones: quien autoriza necesita el permiso y un nivel igual o '
+     'mayor al de quien lo pide. Se sugieren 1, 5 y 8, y no 1, 2 y 3, para dejar huecos e intercalar después un rol '
+     'intermedio (por ejemplo un encargado en el 6) sin tener que renumerar los que ya existen.')
+nota('Cada persona con su propio usuario: el ticket, el cuadre y la auditoría dicen quién vendió y quién autorizó. Un usuario '
+     'compartido hace imposible saberlo.')
+
+titulo('2.7.2. Parámetros recomendados para el negocio (sugerencia)', 3)
+p('Los parámetros vienen con un valor de arranque razonable; estos son los que conviene revisar según cómo trabaje el '
+  'negocio de bebidas. Se cambian en Organización → Parámetros y pueden fijarse en general, por sucursal o por caja.')
+tabla(['Parámetro', 'Valor sugerido', 'Por qué'],
+      [['Fondo de caja', '3,000.00', 'Efectivo con el que abre el turno, para dar devuelta desde el primer cliente.'],
+       ['Redondeo del efectivo', '0', 'Sin redondeo. Póngalo en 1 si no quiere entregar monedas de menos de un peso.'],
+       ['Cierre ciego', 'Sí', 'El cajero declara lo que contó sin ver lo esperado: es lo que hace útil el cuadre.'],
+       ['Vigencia de la nota de crédito', '180 días', 'Medio año para que el cliente use su saldo a favor.'],
+       ['Días de retención del ITBIS en devoluciones', '30 días', 'Pasado ese plazo la devolución retiene el ITBIS, como manda la norma.'],
+       ['Monto que exige identificación', '250,000.00', 'Desde ese total la factura de consumo exige cédula o RNC.'],
+       ['Retención de la Ley 32-23', '0 %', 'Solo se cambia si le factura a quien la aplica (E44).'],
+       ['Dígitos de la secuencia de documentos', '7', 'Diez millones de documentos por caja y tipo antes de crecer el número.'],
+       ['Tipo de ingresos del e-CF', '01', 'Ingresos por operaciones: es lo que corresponde a la venta de mercancía.'],
+       ['Valor del punto de fidelidad', '1.00', 'Cada punto vale un peso al canjearlo.'],
+       ['Puntos mínimos para canjear', '50', 'Evita canjes de montos ínfimos.'],
+       ['Meses de vigencia de los puntos', '12', 'Los puntos vencen al año de ganados.']],
+      anchos=[5.0, 3.0, 9.0])
+nota('Los parámetros obligatorios que no tengan valor se avisan arriba en la pantalla de Parámetros, y la operación que los '
+     'necesita se rechaza hasta configurarlos.')
 
 titulo('2.8. Promociones', 2)
 viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde cierta cantidad; '
@@ -319,11 +425,38 @@ viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se
 viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
 viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron.')
 
+titulo('2.8.1. Promociones para empezar (sugerencia)', 3)
+p('Estas son promociones típicas del rubro, con los artículos y las categorías sugeridas más arriba. Antes de publicarlas '
+  'conviene simularlas en Promociones → Simular.')
+tabla(['Código', 'Promoción', 'Tipo', 'Alcance', 'Detalle'],
+      [['PROM-3X2CER', 'Lleva 3 paga 2 en Corona', 'Lleva X paga Y', 'Artículo CER-COR-355', 'Lleva 3, paga 2. Fin de semana, viernes a domingo.'],
+       ['PROM-VINO10', '10 % en vinos tintos', 'Porcentaje', 'Categoría Tintos', '10 % de descuento, todo el mes.'],
+       ['PROM-CJPRE', 'Caja de Presidente a precio especial', 'Precio especial', 'Artículo CER-PRE-CJ', 'Precio fijo de 2,350.00 mientras dure la promoción.'],
+       ['PROM-RON6', 'Ron por cantidad', 'Precio por cantidad', 'Artículo RON-BRU-AN', 'Desde 6 unidades, a 460.00 cada una.'],
+       ['PROM-HAPPY', 'Happy hour de cervezas', 'Monto por unidad', 'Departamento Cervezas', 'RD$20 menos por unidad, de lunes a viernes de 5 a 8 de la tarde.']],
+      anchos=[2.6, 4.4, 2.6, 3.4, 6.0])
+nota('Cuando dos promociones alcanzan al mismo artículo, la caja aplica la más favorable para el cliente, y solo reemplaza al '
+     'precio por mayor si mejora el precio. Los combos nunca toman precio por mayor.')
+
 titulo('2.9. Facturación electrónica y DGII', 2)
 viñeta('Rangos de e-CF (/fiscal/secuencias): se asignan a cada caja por tipo de comprobante, con inicio, fin y vencimiento. '
        'La lista muestra el último usado y cuánto queda.')
 viñeta('Comprobantes enviados a la DGII (/monitor/comprobantes): estado de cada e-CF (aceptado, rechazado, en cola), su '
        'trackId, el mensaje de la DGII, la descarga del XML y el reenvío dirigido.')
+
+titulo('2.9.1. Rangos de comprobantes (ejemplo)', 3)
+p('Los números se los asigna la DGII a la empresa; aquí se reparten por caja y por tipo, para que dos cajas no usen el mismo. '
+  'Este es el formato con el que se cargan en Fiscal → Rangos de e-CF.')
+tabla(['Caja', 'Tipo', 'Desde', 'Hasta', 'Vence'],
+      [['01', 'E32 · Consumo', '1', '10000', '31/12/2027'],
+       ['01', 'E31 · Crédito fiscal', '1', '2000', '31/12/2027'],
+       ['01', 'E34 · Nota de crédito', '1', '1000', '31/12/2027'],
+       ['02', 'E32 · Consumo', '10001', '20000', '31/12/2027'],
+       ['02', 'E31 · Crédito fiscal', '2001', '4000', '31/12/2027'],
+       ['02', 'E34 · Nota de crédito', '1001', '2000', '31/12/2027']],
+      anchos=[1.6, 4.4, 2.4, 2.4, 3.0])
+nota('Los rangos de una caja no se solapan con los de otra. El sistema avisa en la barra de estado cuando queda poco del rango '
+     'o está por vencer, y no deja facturar si se agota: por eso conviene pedir el próximo con tiempo.')
 
 titulo('2.10. Facturas de las cajas', 2)
 p('Ruta: /facturas. Es la vista de todo lo que las cajas subieron al Central.')
@@ -339,7 +472,9 @@ p('Ruta: /notas-credito. Todas las notas emitidas por cualquier caja, con su sal
 
 titulo('2.12. Listas de boda y de regalos', 2)
 p('Ruta: /listas-boda.')
-paso('Nueva lista: datos de los festejados (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad.')
+paso('Nueva lista: datos de los festejados (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos '
+     'pedidos con su cantidad. Los artículos se buscan por su código interno o su descripción y se eligen del maestro: no se '
+     'escriben a mano, para que lo pedido sea exactamente lo que la caja cobra.')
 paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
 paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
 paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
@@ -616,8 +751,27 @@ tabla(['Situación', 'Qué pasa y qué hacer'],
        ['El cliente quiere su dinero de vuelta', 'En la devolución se elige efectivo, tarjeta o cheque, según lo que el negocio tenga habilitado; la nota de crédito se emite igual pero sin saldo.'],
        ['Se cerró el turno por error', 'Desde la apertura, Reabrir el último cierre con motivo y autorización de nivel superior.'],
        ['Un usuario quedó bloqueado', 'Se desbloquea desde el Central, en Usuarios de caja.'],
-       ['Falta un parámetro', 'La operación se rechaza con el mensaje “Falta configurar el parámetro…”. Se configura en el Central, en Parámetros.']],
+       ['Falta un parámetro', 'La operación se rechaza con el mensaje “Falta configurar el parámetro…”. Se configura en el Central, en Parámetros.'],
+       ['Al revisar la base de datos, las horas se ven adelantadas', 'No están mal: las fechas se guardan en UTC, que va cuatro horas adelante de la hora dominicana. Para verlas en hora de aquí consulte las vistas del esquema «local» (por ejemplo SELECT * FROM local.Auditoria) o use dbo.HoraRd(fecha).']],
       anchos=[4.5, 12.5])
+
+titulo('5.1. Quién cambió cada cosa', 2)
+p('Las tablas que se administran a mano guardan en la propia fila quién las dejó así y cuándo: la empresa, las sucursales, '
+  'las cajas, los parámetros, los usuarios y roles del Central, las listas de boda y todos los maestros. Es lo primero que '
+  'se mira en un soporte, sin tener que buscar en otro lado.')
+p('Los documentos (ventas, notas de crédito, devoluciones, cierres) no llevan esas columnas porque ya tienen las suyas: la '
+  'fecha del documento y el cajero que lo hizo son datos del negocio, no del sistema. Y el detalle completo de cada cambio, '
+  'con el antes y el después, está siempre en Seguridad → Auditoría.')
+nota('En una base que venía de antes, las filas anteriores al cambio aparecen como «Migración»: ese dato no se podía '
+     'reconstruir hacia atrás. Las columnas se agregan con scripts/base-datos/central/agregar-modificado-en-por.sql.')
+
+titulo('5.2. La hora de los datos', 2)
+p('El sistema guarda las fechas con la hora de aquí y su desfase del meridiano (por ejemplo 2026-09-18 11:41:21 -04:00). '
+  'Quien consulte la base directamente ve la hora real del negocio, sin tener que convertir nada.')
+p('El «-04:00» que acompaña a cada fecha es el desfase de República Dominicana, y va guardado junto al dato. Eso permite '
+  'que el sistema ordene y compare operaciones de cualquier caja sin ambigüedad, aunque el reloj de un equipo esté mal '
+  'puesto. No hay que quitarlo ni cambiarlo.')
+nota('El país no tiene horario de verano desde el año 2000, por eso el desfase es siempre -04:00.')
 
 titulo('6. Reglas que conviene recordar')
 viñeta('Sin factura electrónica no se cobra: el sistema no permite facturar sin e-NCF disponible.')

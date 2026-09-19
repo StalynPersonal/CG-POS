@@ -136,7 +136,7 @@ public static class MapeoMaestros
             e.CorregirDocumento(d.TipoDocumento, d.Documento);
         }
 
-        e.ActualizarContacto(d.Nombre, d.Telefono, d.Correo);
+        e.ActualizarContacto(d.Nombre, d.Telefono, d.Correo, d.Contacto, d.TelefonoAlterno);
         e.ConfigurarFacturacion(d.TipoComprobante, d.ExoneradoItbis, d.AplicaRetencion, d.ListaPrecio);
 
         // Las direcciones se identifican por su alias dentro del cliente.

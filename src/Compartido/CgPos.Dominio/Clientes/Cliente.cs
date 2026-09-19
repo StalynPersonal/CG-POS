@@ -38,7 +38,14 @@ public sealed class Cliente : Entidad
     public ListaPrecio ListaPrecioPredeterminada { get; private set; } = ListaPrecio.Detalle;
 
     public string? Telefono { get; private set; }
+
+    /// <summary>Segundo teléfono del cliente (celular, oficina): muchos dan más de uno.</summary>
+    public string? TelefonoAlterno { get; private set; }
+
     public string? Correo { get; private set; }
+
+    /// <summary>Persona con la que se trata en este cliente (opcional): a quién preguntar cuando se llama a la empresa.</summary>
+    public string? Contacto { get; private set; }
     public bool Activo { get; private set; } = true;
 
     public IReadOnlyCollection<DireccionCliente> Direcciones => _direcciones;
@@ -51,7 +58,7 @@ public sealed class Cliente : Entidad
             TipoDocumento = tipoDocumento,
             Documento = ValidarDocumento(tipoDocumento, documento),
         };
-        cliente.ActualizarContacto(nombre, null, null);
+        cliente.ActualizarContacto(nombre, null, null, null);
         return cliente;
     }
 
@@ -65,11 +72,13 @@ public sealed class Cliente : Entidad
         TipoDocumento = tipoDocumento;
     }
 
-    public void ActualizarContacto(string nombre, string? telefono, string? correo)
+    public void ActualizarContacto(string nombre, string? telefono, string? correo, string? contacto = null, string? telefonoAlterno = null)
     {
         Nombre = Validar.Texto(nombre, "Nombre del cliente", LargoMaximoNombre);
         Telefono = Validar.TextoOpcional(telefono, "Teléfono", LargoMaximoTelefono);
+        TelefonoAlterno = Validar.TextoOpcional(telefonoAlterno, "Teléfono alterno", LargoMaximoTelefono);
         Correo = Validar.TextoOpcional(correo, "Correo", LargoMaximoCorreo);
+        Contacto = Validar.TextoOpcional(contacto, "Contacto", LargoMaximoNombre);
     }
 
     public void ConfigurarFacturacion(TipoComprobante tipoComprobante, bool exoneradoItbis, bool aplicaRetencion, ListaPrecio listaPrecio)

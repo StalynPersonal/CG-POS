@@ -34,6 +34,12 @@ internal static class ColumnasMaestro
     {
         constructor.Property<long>(ContextoDatosCentral.ColumnaVersion).IsRowVersion().HasConversion<byte[]>();
         constructor.HasIndex(ContextoDatosCentral.ColumnaVersion);
+        ConfigurarMarcas(constructor);
+    }
+
+    /// <summary>Solo las columnas de quién y cuándo, para lo que se administra a mano y no es un maestro que baja a las cajas.</summary>
+    public static void ConfigurarMarcas(EntityTypeBuilder constructor)
+    {
         constructor.Property<DateTimeOffset>(ModificadoEn).HasPrecision(3);
         constructor.Property<string>(ModificadoPor).HasMaxLength(LargoMaximoUsuario).IsRequired();
     }
@@ -161,6 +167,8 @@ internal sealed class ClienteConfiguracion : IEntityTypeConfiguration<Cliente>
         constructor.Property(c => c.Nombre).HasMaxLength(Cliente.LargoMaximoNombre).IsRequired();
         constructor.Property(c => c.Telefono).HasMaxLength(Cliente.LargoMaximoTelefono);
         constructor.Property(c => c.Correo).HasMaxLength(Cliente.LargoMaximoCorreo);
+        constructor.Property(c => c.Contacto).HasMaxLength(Cliente.LargoMaximoNombre);
+        constructor.Property(c => c.TelefonoAlterno).HasMaxLength(Cliente.LargoMaximoTelefono);
 
         constructor.HasIndex(c => c.Codigo).IsUnique();
         constructor.HasIndex(c => new { c.TipoDocumento, c.Documento }).IsUnique();

@@ -5,6 +5,7 @@ using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Central;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Actualizaciones;
 
@@ -36,7 +37,7 @@ internal sealed class ServicioActualizacionesCaja(ContextoDatosCentral contexto,
         if (string.Equals(caja.VersionAgente, version, StringComparison.Ordinal))
             return;
 
-        caja.ReportarVersion(version, reloj.GetUtcNow());
+        caja.ReportarVersion(version, reloj.Ahora());
         auditoria.Registrar(new EntradaAuditoria("Actualizaciones.VersionCaja", "Caja", cajaId.ToString(), Detalle: new { caja.Codigo, Version = version }));
         await contexto.SaveChangesAsync(cancelacion);
     }

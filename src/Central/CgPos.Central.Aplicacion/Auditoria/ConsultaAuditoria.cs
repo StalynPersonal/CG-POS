@@ -26,6 +26,9 @@ public interface IServicioConsultaAuditoria
 
     Task<PaginaAuditoria> ListarAsync(FiltroAuditoria filtro, CancellationToken cancelacion = default);
 
+    /// <summary>Un movimiento con el antes y el después de cada campo; nulo si no existe.</summary>
+    Task<DatosAuditoriaDetalle?> ObtenerAsync(int registroId, CancellationToken cancelacion = default);
+
     /// <summary>Acciones, entidades y usuarios que existen en la auditoría, para llenar los filtros.</summary>
     Task<OpcionesAuditoria> OpcionesAsync(CancellationToken cancelacion = default);
 }

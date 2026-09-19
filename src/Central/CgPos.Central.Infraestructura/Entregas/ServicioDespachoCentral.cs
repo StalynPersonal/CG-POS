@@ -8,12 +8,13 @@ using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Entregas;
 
 internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, TimeProvider reloj) : IServicioDespachoCentral
 {
-    private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+    private DateOnly Hoy => reloj.Ahora().Dia();
 
     public async Task<PaginaPendientesCentral> ListarAsync(string? buscar, EstadoPendiente? estado, MetodoEntrega? metodo, int? sucursalId, bool soloAtrasados,
         bool soloAbiertos, int pagina, int tamano, CancellationToken cancelacion = default)
@@ -66,7 +67,7 @@ internal sealed class ServicioDespachoCentral(ContextoDatosCentral contexto, Tim
     {
         var hoy = Hoy;
         var abiertos = contexto.PendientesEntrega.AsNoTracking().Where(p => p.Estado != EstadoPendiente.Entregado && p.Estado != EstadoPendiente.Anulado);
-        var inicioDia = new DateTimeOffset(hoy.ToDateTime(TimeOnly.MinValue), reloj.GetLocalNow().Offset);
+        var inicioDia = new DateTimeOffset(hoy.ToDateTime(TimeOnly.MinValue), reloj.Ahora().Offset);
 
         return new ResumenDespachoCentral(
             await abiertos.CountAsync(cancelacion),

@@ -2,6 +2,7 @@
 using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
 using CgPos.Dominio.Fidelidad;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Fidelidad;
 
@@ -15,8 +16,8 @@ internal sealed class RecalculadorPuntos(ContextoDatosCentral contexto, TimeProv
     /// <param name="forzarPublicacion">Publica el maestro aunque el saldo no cambie: lo usa la inscripción, que se publica con saldo cero.</param>
     public async Task<SaldoPuntos> RecalcularAsync(string cedula, string usuario, bool forzarPublicacion = false, CancellationToken cancelacion = default)
     {
-        var ahora = reloj.GetUtcNow();
-        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        var ahora = reloj.Ahora();
+        var hoy = reloj.Ahora().Dia();
         var movimientos = await contexto.MovimientosPuntos.Where(m => m.Cedula == cedula).ToListAsync(cancelacion);
 
         // El movimiento que provocó el recálculo todavía no está en la base: se guarda junto con el saldo que produce.

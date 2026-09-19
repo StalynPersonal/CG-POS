@@ -7,6 +7,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.ListasBoda;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.ListasBoda;
 
@@ -62,6 +63,9 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
         if (Invalida(solicitud) is { } problema)
             return ResultadoAdministracion.Error(problema);
 
+        if (await ArticulosDesconocidosAsync(solicitud, cancelacion) is { } faltan)
+            return ResultadoAdministracion.Error(faltan);
+
         var numero = (solicitud.Numero ?? string.Empty).Trim().ToUpperInvariant();
         if (numero.Length == 0)
             numero = await SiguienteNumeroAsync(cancelacion);
@@ -71,7 +75,7 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
         if (solicitud.SucursalId is { } sucursalId && !await contexto.Sucursales.AnyAsync(s => s.Id == sucursalId, cancelacion))
             return ResultadoAdministracion.Error("La sucursal indicada no existe.");
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         try
         {
             var lista = ListaBoda.Crear(numero, solicitud.Evento, solicitud.FechaEvento, solicitud.Lugar, solicitud.ClienteDocumento, solicitud.ClienteNombre,
@@ -104,8 +108,10 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
             return ResultadoAdministracion.Inexistente("La lista no existe.");
         if (solicitud.SucursalId is { } sucursalId && !await contexto.Sucursales.AnyAsync(s => s.Id == sucursalId, cancelacion))
             return ResultadoAdministracion.Error("La sucursal indicada no existe.");
+        if (await ArticulosDesconocidosAsync(solicitud, cancelacion) is { } faltan)
+            return ResultadoAdministracion.Error(faltan);
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         try
         {
             lista.Actualizar(solicitud.Evento, solicitud.FechaEvento, solicitud.Lugar, solicitud.ClienteDocumento, solicitud.ClienteNombre,
@@ -129,7 +135,7 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
         if (lista is null)
             return ResultadoAdministracion.Inexistente("La lista no existe.");
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         if (cerrar)
             lista.Cerrar(ahora);
         else
@@ -138,6 +144,26 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
         auditoria.Registrar(new EntradaAuditoria(cerrar ? "ListasBoda.Cerrada" : "ListasBoda.Reabierta", TipoEntidad, lista.Numero, Usuario: actor));
         await contexto.SaveChangesAsync(cancelacion);
         return ResultadoAdministracion.Correcto(lista.Id);
+    }
+
+    /// <summary>
+    /// Los artículos de la lista son los del maestro: se identifican por su código interno y tienen que existir. Así lo que
+    /// se regala es lo mismo que la caja cobra y lo que el Central descuenta de la lista.
+    /// </summary>
+    private async Task<string?> ArticulosDesconocidosAsync(SolicitudListaBoda solicitud, CancellationToken cancelacion)
+    {
+        var codigos = solicitud.Articulos.Select(a => (a.ArticuloCodigo ?? string.Empty).Trim())
+            .Where(codigo => codigo.Length > 0).Distinct(StringComparer.Ordinal).ToList();
+        if (codigos.Count == 0)
+            return null;
+
+        var conocidos = await contexto.Articulos.AsNoTracking().Where(a => codigos.Contains(a.Codigo))
+            .Select(a => a.Codigo).ToListAsync(cancelacion);
+
+        var faltan = codigos.Except(conocidos, StringComparer.Ordinal).ToList();
+        return faltan.Count == 0
+            ? null
+            : $"{(faltan.Count == 1 ? "No existe el artículo" : "No existen los artículos")} {string.Join(", ", faltan)} en el maestro.";
     }
 
     private static string? Invalida(SolicitudListaBoda solicitud) =>

@@ -11,6 +11,7 @@ using CgPos.Pos.Infraestructura.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Entregas;
 
@@ -73,7 +74,7 @@ internal sealed class ServicioDespacho(
         var anterior = pendiente.Estado;
         try
         {
-            pendiente.CambiarEstado(solicitud.Estado, sesion.Nombre, reloj.GetUtcNow());
+            pendiente.CambiarEstado(solicitud.Estado, sesion.Nombre, reloj.Ahora());
         }
         catch (ReglaPendienteExcepcion excepcion)
         {
@@ -97,7 +98,7 @@ internal sealed class ServicioDespacho(
         EntregaPendiente entrega;
         try
         {
-            entrega = pendiente.Entregar(solicitud.Lineas ?? [], solicitud.RecibeNombre, solicitud.RecibeCedula, sesion.Nombre, reloj.GetUtcNow());
+            entrega = pendiente.Entregar(solicitud.Lineas ?? [], solicitud.RecibeNombre, solicitud.RecibeCedula, sesion.Nombre, reloj.Ahora());
         }
         catch (Exception excepcion) when (excepcion is ReglaPendienteExcepcion or ArgumentException)
         {
@@ -128,7 +129,7 @@ internal sealed class ServicioDespacho(
 
     public async Task<RespuestaPendiente> AnularAsync(SesionUsuario sesion, int pendienteId, SolicitudAnularPendiente solicitud, CancellationToken cancelacion = default)
     {
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         // Se valida sobre una copia sin seguimiento antes de pedir la clave del supervisor.
         var copia = await Pendientes.AsNoTracking().SingleOrDefaultAsync(p => p.Id == pendienteId, cancelacion);

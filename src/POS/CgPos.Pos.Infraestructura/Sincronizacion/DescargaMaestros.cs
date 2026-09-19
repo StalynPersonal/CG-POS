@@ -7,6 +7,7 @@ using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Sincronizacion;
 
@@ -28,7 +29,7 @@ internal sealed class DescargaMaestros(
         var desde = marca?.Valor ?? 0;
 
         var resultado = await central.DescargarMaestrosAsync(desde, cancelacion);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         if (resultado.Paquete is not { } paquete)
         {
             if (resultado.CentralRespondio)

@@ -4,6 +4,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.CargaInicial;
 
@@ -41,7 +42,7 @@ public static class ExtensionesArchivosArranque
         await aplicar(servicios, ruta, cancelacion);
 
         // La huella se marca solo después de aplicar: si falla, el próximo arranque lo vuelve a intentar.
-        var ahora = ambito.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow();
+        var ahora = ambito.ServiceProvider.GetRequiredService<TimeProvider>().Ahora();
         if (marca is null)
         {
             marca = MarcaSincronizacion.Crear(claveMarca, 0, ahora);

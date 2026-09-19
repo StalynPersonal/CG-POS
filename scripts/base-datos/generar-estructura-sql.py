@@ -307,7 +307,7 @@ def datos_iniciales():
     telefono = escapar(EMPRESA['telefono'])
     permisos = ',\n    '.join(f"(1, N'{permiso}')" for permiso in permisos_central())
     parametros = ',\n    '.join(
-        f"({indice + 1}, N'{clave}', N'{valor}', N'{escapar(descripcion)}', NULL, NULL)"
+        f"({indice + 1}, N'{clave}', N'{valor}', N'{escapar(descripcion)}', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación')"
         for indice, (clave, valor, descripcion) in enumerate(PARAMETROS_INICIALES))
 
     return f"""
@@ -334,13 +334,13 @@ def datos_iniciales():
    factura una persona física) y se le valida el dígito verificador.
    ------------------------------------------------------------------------ */
 
-INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono])
-VALUES (1, '{rnc}', N'{razon_social}', N'{nombre_comercial}', N'{direccion}', N'{telefono}');
+INSERT INTO [Empresas] ([Id], [Rnc], [RazonSocial], [NombreComercial], [Direccion], [Telefono], [ModificadoEn], [ModificadoPor])
+VALUES (1, '{rnc}', N'{razon_social}', N'{nombre_comercial}', N'{direccion}', N'{telefono}', SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaEmpresas] RESTART WITH 11;
 GO
 
-INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo])
-VALUES (1, N'{ROL_CODIGO}', N'{ROL_NOMBRE}', 1);
+INSERT INTO [RolesCentral] ([Id], [Codigo], [Nombre], [Activo], [ModificadoEn], [ModificadoPor])
+VALUES (1, N'{ROL_CODIGO}', N'{ROL_NOMBRE}', 1, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaRolesCentral] RESTART WITH 11;
 GO
 
@@ -351,15 +351,16 @@ GO
 
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
-                               [BloqueadoHasta], [UltimoIngresoEn])
-VALUES (1, N'{ADMIN_CODIGO}', N'{ADMIN_NOMBRE}', NULL, 1, 1, '{hash_admin}', 1, NULL, 0, NULL, NULL);
+                               [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
+VALUES (1, N'{ADMIN_CODIGO}', N'{ADMIN_NOMBRE}', NULL, 1, 1, '{hash_admin}', 1, NULL, 0, NULL, NULL,
+        SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO
 
 /* Parámetros con los que el sistema arranca usable; se cambian en el Central (Organización → Parámetros).
    Los que dependen de la empresa o del ambiente (direcciones de la DGII, tipo de ingresos, textos y políticas)
    quedan sin valor a propósito: el Central avisa cuáles faltan. */
-INSERT INTO [Parametros] ([Id], [Clave], [Valor], [Descripcion], [SucursalId], [CajaId])
+INSERT INTO [Parametros] ([Id], [Clave], [Valor], [Descripcion], [SucursalId], [CajaId], [ModificadoEn], [ModificadoPor])
 VALUES
     {parametros};
 ALTER SEQUENCE [SecuenciaParametros] RESTART WITH {siguiente_parametros};
@@ -372,13 +373,364 @@ GO
 """
 
 
-def escribir(carpeta, contenido):
+def escribir(carpeta, contenido, nombre='structura_base_datos.sql'):
     destino = os.path.join(SALIDA, carpeta)
     os.makedirs(destino, exist_ok=True)
-    ruta = os.path.join(destino, 'structura_base_datos.sql')
+    ruta = os.path.join(destino, nombre)
     with open(ruta, 'w', encoding='utf-8-sig', newline='\r\n') as archivo:
         archivo.write(contenido)
     print('generado:', os.path.relpath(ruta, RAIZ))
+
+
+def escribir_convertir_fechas(carpeta, base):
+    """
+    Pasa a la hora del negocio (UTC-4) las fechas que se guardaron en UTC antes de este cambio. No cambia el momento
+    en que ocurrió cada cosa: solo cómo se ve. Recorre las columnas datetimeoffset que tenga la base en ese momento.
+    """
+    escribir(carpeta, f"""/*
+    CG-POS · Pasar a hora local las fechas guardadas en UTC de «{base}»
+
+    Hasta este cambio las fechas se guardaban en UTC (11:41 de la mañana se veía como 15:41 +00:00). Ahora se
+    guardan en la hora de aquí con su desfase (11:41 -04:00). Este archivo convierte lo que ya estaba guardado,
+    para que todo se lea igual.
+
+        sqlcmd -S .\\SQLEXPRESS -E -d {base} -i convertir-fechas-a-hora-local.sql
+
+    IMPORTANTE:
+      · Modifica datos: haga un respaldo de la base antes de ejecutarlo.
+      · Hágalo con el sistema detenido (Central y cajas), para que nadie escriba mientras convierte.
+      · NO cambia el momento real de cada operación, solo el desfase con que se muestra: una venta de las
+        11:41 de la mañana se seguía leyendo como las 11:41 de la mañana.
+      · Solo convierte lo que aún esté en +00:00, así que volver a ejecutarlo no daña nada.
+*/
+
+USE [{base}];
+GO
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+SET NOCOUNT ON;
+
+DECLARE @tabla sysname, @columna sysname, @sql nvarchar(max), @filas int, @total int = 0;
+
+DECLARE columnas CURSOR LOCAL FAST_FORWARD FOR
+    SELECT t.name, c.name
+    FROM sys.columns c
+    JOIN sys.tables t ON t.object_id = c.object_id
+    JOIN sys.types y ON y.user_type_id = c.user_type_id
+    WHERE y.name = 'datetimeoffset' AND t.is_ms_shipped = 0
+    ORDER BY t.name, c.name;
+
+OPEN columnas;
+FETCH NEXT FROM columnas INTO @tabla, @columna;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    /* SWITCHOFFSET conserva el instante: solo cambia el desfase con que queda expresado. */
+    SET @sql = N'UPDATE [' + @tabla + N'] SET [' + @columna + N'] = SWITCHOFFSET([' + @columna + N'], ''-04:00'')'
+             + N' WHERE [' + @columna + N'] IS NOT NULL AND DATEPART(TZoffset, [' + @columna + N']) <> -240;';
+    EXEC sp_executesql @sql;
+    SET @filas = @@ROWCOUNT;
+    SET @total = @total + @filas;
+    IF @filas > 0
+        PRINT '  ' + @tabla + '.' + @columna + ': ' + CAST(@filas AS varchar(20)) + ' fila(s).';
+
+    FETCH NEXT FROM columnas INTO @tabla, @columna;
+END
+
+CLOSE columnas;
+DEALLOCATE columnas;
+
+PRINT 'Listo. Fechas convertidas a hora local: ' + CAST(@total AS varchar(20)) + '.';
+GO
+""", nombre='convertir-fechas-a-hora-local.sql')
+
+
+def escribir_agregar_modificado(carpeta, base, tablas):
+    """
+    Agrega «ModificadoEn» y «ModificadoPor» a las tablas que se administran a mano y no las tenían. Para una base que
+    ya está en uso: las tablas nuevas ya nacen con esas columnas.
+    """
+    cuerpo = '\n'.join(f"""
+IF COL_LENGTH(N'{tabla}', N'ModificadoEn') IS NULL
+BEGIN
+    ALTER TABLE [{tabla}] ADD [ModificadoEn] datetimeoffset(3) NULL, [ModificadoPor] nvarchar(150) NULL;
+    PRINT '  {tabla}: columnas agregadas.';
+END
+GO
+
+/* A lo que ya existe no se le puede saber quién lo hizo: queda con la fecha de hoy y «Migración». */
+UPDATE [{tabla}] SET [ModificadoEn] = SYSDATETIMEOFFSET(), [ModificadoPor] = N'Migración' WHERE [ModificadoEn] IS NULL;
+GO
+
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'{tabla}') AND name = N'ModificadoEn' AND is_nullable = 1)
+BEGIN
+    ALTER TABLE [{tabla}] ALTER COLUMN [ModificadoEn] datetimeoffset(3) NOT NULL;
+    ALTER TABLE [{tabla}] ALTER COLUMN [ModificadoPor] nvarchar(150) NOT NULL;
+END
+GO
+""" for tabla in tablas)
+
+    escribir(carpeta, f"""/*
+    CG-POS · Agregar «ModificadoEn» y «ModificadoPor» en «{base}»
+
+    Estas tablas se administran a mano y no guardaban quién las cambió por última vez ni cuándo. Este archivo
+    agrega las dos columnas a una base que ya está en uso; las bases nuevas ya las traen.
+
+        sqlcmd -S .\\SQLEXPRESS -E -d {base} -i agregar-modificado-en-por.sql
+
+    Tablas: {', '.join(tablas)}.
+
+    IMPORTANTE:
+      · Cambia la estructura: haga un respaldo antes y ejecútelo con el sistema detenido.
+      · Las filas que ya existen quedan con la fecha del momento y «Migración» como responsable: ese dato no se
+        puede reconstruir hacia atrás. Lo que sí está desde siempre es la tabla Auditoria, con el detalle real.
+      · Se puede volver a ejecutar: si las columnas ya están, no hace nada.
+*/
+
+USE [{base}];
+GO
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+{cuerpo}
+PRINT 'Listo. Las tablas indicadas ya guardan quién las cambió y cuándo.';
+GO
+""", nombre='agregar-modificado-en-por.sql')
+
+
+def escribir_carga_clientes_dgii(carpeta, base):
+    """Carga el archivo de contribuyentes de la DGII en la tabla de clientes: actualiza el que existe y agrega el que no."""
+    escribir(carpeta, f"""/*
+    CG-POS · Cargar el archivo de la DGII (DGII_RNC.TXT) en los clientes de «{base}»
+
+    Toma el archivo que publica la DGII y lo lleva a la tabla Clientes: si el RNC o la cédula ya existe, le actualiza
+    la razón social y el estado; si no existe, lo crea. Los clientes bajan solos a las cajas en la siguiente
+    sincronización, como cualquier otro maestro.
+
+        1. Descargue el archivo de la DGII y déjelo en una carpeta del SERVIDOR de base de datos.
+        2. Cambie la ruta de @archivo, aquí abajo.
+        3. sqlcmd -S .\\SQLEXPRESS -E -d {base} -i cargar-clientes-dgii.sql
+
+    IMPORTANTE:
+      · La ruta la lee SQL Server, no su equipo: el archivo debe estar en el servidor o en una carpeta compartida
+        a la que tenga acceso la cuenta del servicio de SQL Server.
+      · Solo se cargan los contribuyentes en estado ACTIVO.
+      · De un cliente que ya existe se actualizan únicamente la razón social y el estado. El teléfono, el correo,
+        el contacto, el tipo de comprobante, la lista de precios y las direcciones NO se tocan: eso lo llenó usted.
+      · Un cliente que usted desactivó vuelve a quedar activo si la DGII lo reporta activo.
+      · Los clientes nuevos toman su tipo del documento: RNC de 9 dígitos factura con crédito fiscal (E31) y
+        cédula de 11 con consumo (E32). El código del cliente es su propio documento.
+      · No borra clientes: lo que ya no venga en el archivo se queda como está.
+      · Haga un respaldo antes. Es una carga masiva: ejecútela fuera del horario de venta.
+*/
+
+USE [{base}];
+GO
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+SET NOCOUNT ON;
+
+/* ------------------------------------------------------------------------
+   Ruta del archivo de la DGII, vista desde el servidor de base de datos.
+   ------------------------------------------------------------------------ */
+DECLARE @archivo nvarchar(4000) = N'C:\\CGPOS\\DGII_RNC.TXT';
+
+IF OBJECT_ID(N'tempdb..#Padron') IS NOT NULL DROP TABLE #Padron;
+CREATE TABLE #Padron
+(
+    Documento     nvarchar(50)  NULL,
+    RazonSocial   nvarchar(300) NULL,
+    NombreComercial nvarchar(300) NULL,
+    Actividad     nvarchar(300) NULL,
+    Campo5        nvarchar(100) NULL,
+    Campo6        nvarchar(100) NULL,
+    Campo7        nvarchar(100) NULL,
+    Campo8        nvarchar(100) NULL,
+    Fecha         nvarchar(50)  NULL,
+    Estado        nvarchar(50)  NULL,
+    Regimen       nvarchar(50)  NULL
+);
+
+/* El archivo de la DGII viene separado por «|», una línea por contribuyente y en codificación del sistema. */
+DECLARE @carga nvarchar(max) = N'
+    BULK INSERT #Padron
+    FROM ''' + REPLACE(@archivo, '''', '''''') + N'''
+    WITH (FIELDTERMINATOR = ''|'', ROWTERMINATOR = ''0x0a'', CODEPAGE = ''ACP'', TABLOCK, MAXERRORS = 1000);';
+
+BEGIN TRY
+    EXEC sp_executesql @carga;
+END TRY
+BEGIN CATCH
+    PRINT 'No se pudo leer el archivo: ' + ERROR_MESSAGE();
+    PRINT 'Recuerde que la ruta la abre SQL Server, no su equipo.';
+    RETURN;
+END CATCH
+
+/* Solo los activos, con documento de 9 dígitos (RNC) u 11 (cédula) y con razón social. */
+IF OBJECT_ID(N'tempdb..#Limpio') IS NOT NULL DROP TABLE #Limpio;
+SELECT
+    Documento   = LTRIM(RTRIM(REPLACE(REPLACE(Documento, '-', ''), CHAR(13), ''))),
+    RazonSocial = LTRIM(RTRIM(RazonSocial))
+INTO #Limpio
+FROM #Padron
+WHERE LTRIM(RTRIM(UPPER(REPLACE(Estado, CHAR(13), '')))) = N'ACTIVO'
+  AND LTRIM(RTRIM(RazonSocial)) <> N'';
+
+DELETE FROM #Limpio
+WHERE LEN(Documento) NOT IN (9, 11)
+   OR Documento LIKE '%[^0-9]%';
+
+/* Si el archivo trae el mismo documento dos veces, se queda con uno. */
+IF OBJECT_ID(N'tempdb..#Unicos') IS NOT NULL DROP TABLE #Unicos;
+SELECT Documento, RazonSocial = MIN(RazonSocial)
+INTO #Unicos
+FROM #Limpio
+GROUP BY Documento;
+
+CREATE UNIQUE CLUSTERED INDEX IX_Unicos ON #Unicos (Documento);
+
+DECLARE @leidos int = (SELECT COUNT(*) FROM #Unicos);
+PRINT 'Contribuyentes activos en el archivo: ' + CAST(@leidos AS varchar(20));
+
+/* ------------------------------------------------------------------------
+   Existe: se actualiza la razón social y el estado.
+   ------------------------------------------------------------------------ */
+UPDATE c
+SET c.Nombre        = u.RazonSocial,
+    c.Activo        = 1,
+    c.ModificadoEn  = SYSDATETIMEOFFSET(),
+    c.ModificadoPor = N'Padrón DGII'
+FROM [Clientes] c
+JOIN #Unicos u ON u.Documento = c.Documento
+WHERE c.Nombre <> u.RazonSocial OR c.Activo = 0;
+
+DECLARE @actualizados int = @@ROWCOUNT;
+
+/* ------------------------------------------------------------------------
+   No existe: se crea. El tipo sale del documento (9 dígitos RNC, 11 cédula).
+   ------------------------------------------------------------------------ */
+INSERT INTO [Clientes]
+    ([Id], [Codigo], [TipoDocumento], [Documento], [Nombre], [TipoComprobantePredeterminado],
+     [ExoneradoItbis], [AplicaRetencion], [ListaPrecioPredeterminada], [Activo], [ModificadoEn], [ModificadoPor])
+SELECT
+    NEXT VALUE FOR [SecuenciaClientes],
+    u.Documento,
+    CASE WHEN LEN(u.Documento) = 9 THEN 1 ELSE 0 END,   /* 1 = RNC, 0 = cédula */
+    u.Documento,
+    u.RazonSocial,
+    CASE WHEN LEN(u.Documento) = 9 THEN 31 ELSE 32 END, /* E31 crédito fiscal, E32 consumo */
+    0, 0, 0, 1,
+    SYSDATETIMEOFFSET(),
+    N'Padrón DGII'
+FROM #Unicos u
+WHERE NOT EXISTS (SELECT 1 FROM [Clientes] c WHERE c.Documento = u.Documento)
+  AND NOT EXISTS (SELECT 1 FROM [Clientes] c WHERE c.Codigo = u.Documento);
+
+DECLARE @creados int = @@ROWCOUNT;
+
+DROP TABLE #Padron;
+DROP TABLE #Limpio;
+DROP TABLE #Unicos;
+
+PRINT 'Clientes creados:      ' + CAST(@creados AS varchar(20));
+PRINT 'Clientes actualizados: ' + CAST(@actualizados AS varchar(20));
+PRINT 'Listo. Las cajas los reciben en su próxima sincronización.';
+GO
+""", nombre='cargar-clientes-dgii.sql')
+
+
+def escribir_columnas_cliente(carpeta, base):
+    """Contacto y segundo teléfono del cliente, para una base que ya está en uso."""
+    escribir(carpeta, f"""/*
+    CG-POS · Agregar «Contacto» y «TelefonoAlterno» a los clientes de «{base}»
+
+        sqlcmd -S .\\SQLEXPRESS -E -d {base} -i agregar-columnas-cliente.sql
+
+    QUÉ HACE Y QUÉ NO:
+      · Solo ejecuta ALTER TABLE [Clientes] ADD con las dos columnas nuevas, que quedan vacías.
+      · NO borra ni modifica ninguna fila ni ninguna otra columna. No hay DELETE, DROP ni TRUNCATE.
+      · Se puede volver a ejecutar: si las columnas ya están, no hace nada.
+*/
+
+USE [{base}];
+GO
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+IF COL_LENGTH(N'Clientes', N'Contacto') IS NULL
+BEGIN
+    ALTER TABLE [Clientes] ADD [Contacto] nvarchar(150) NULL;
+    PRINT '  Clientes.Contacto agregada.';
+END
+GO
+
+IF COL_LENGTH(N'Clientes', N'TelefonoAlterno') IS NULL
+BEGIN
+    ALTER TABLE [Clientes] ADD [TelefonoAlterno] nvarchar(20) NULL;
+    PRINT '  Clientes.TelefonoAlterno agregada.';
+END
+GO
+
+PRINT 'Listo. El cliente ya guarda su contacto y un segundo teléfono.';
+GO
+""", nombre='agregar-columnas-cliente.sql')
+
+
+def escribir_quitar_vistas(carpeta, base):
+    """
+    Borra las vistas de hora local y su función, que existieron mientras las fechas se guardaban en UTC. Ya no hacen
+    falta: las fechas se guardan en la hora de aquí. No toca tablas ni datos.
+    """
+    escribir(carpeta, f"""/*
+    CG-POS · Quitar las vistas de hora local de «{base}»
+
+    Las fechas ahora se guardan en la hora del negocio (UTC-4) con su desfase, así que las vistas del esquema
+    «local» y la función dbo.HoraRd ya no hacen falta. Este archivo las elimina si existen.
+
+        sqlcmd -S .\\SQLEXPRESS -E -d {base} -i quitar-vistas-hora-local.sql
+
+    No borra ni modifica ninguna tabla ni ningún dato: solo esas vistas y esa función.
+    Si nunca se crearon, el archivo no hace nada y no da error.
+*/
+
+USE [{base}];
+GO
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+DECLARE @sql nvarchar(max) = N'';
+
+SELECT @sql = @sql + N'DROP VIEW [local].[' + v.name + N'];' + CHAR(10)
+FROM sys.views v
+JOIN sys.schemas s ON s.schema_id = v.schema_id
+WHERE s.name = N'local';
+
+IF LEN(@sql) > 0
+    EXEC sp_executesql @sql;
+GO
+
+IF OBJECT_ID(N'dbo.HoraRd', N'FN') IS NOT NULL
+    DROP FUNCTION dbo.HoraRd;
+GO
+
+IF SCHEMA_ID(N'local') IS NOT NULL
+    EXEC (N'DROP SCHEMA [local]');
+GO
+
+PRINT 'Vistas de hora local eliminadas. Las tablas y sus datos no se tocaron.';
+GO
+""", nombre='quitar-vistas-hora-local.sql')
 
 
 temporal = os.path.join(SALIDA, '_esquema.sql')
@@ -388,6 +740,12 @@ central = esquema('src/Central/CgPos.Central.Infraestructura', 'src/Central/CgPo
 escribir('central', encabezado('CgPosCentral', 'CG-POS · Base de datos del Central',
                                'Estructura completa del servidor corporativo y el usuario administrador.')
          + central + datos_iniciales())
+escribir_quitar_vistas('central', 'CgPosCentral')
+escribir_convertir_fechas('central', 'CgPosCentral')
+escribir_columnas_cliente('central', 'CgPosCentral')
+escribir_carga_clientes_dgii('central', 'CgPosCentral')
+escribir_agregar_modificado('central', 'CgPosCentral',
+                            ['Empresas', 'Sucursales', 'Cajas', 'Parametros', 'UsuariosCentral', 'RolesCentral', 'ListasBoda'])
 
 # ---------------------------------------------------------------- Caja
 pos = esquema('src/POS/CgPos.Pos.Infraestructura', 'src/POS/CgPos.Pos.Agente', temporal)
@@ -398,5 +756,9 @@ escribir('pos', encabezado('CgPosCaja', 'CG-POS · Base de datos de la caja',
 PRINT 'Base de la caja creada. Configure la caja con su sucursal, su número y el secreto que emitió el Central.';
 GO
 """)
+escribir_quitar_vistas('pos', 'CgPosCaja')
+escribir_convertir_fechas('pos', 'CgPosCaja')
+escribir_columnas_cliente('pos', 'CgPosCaja')
+escribir_agregar_modificado('pos', 'CgPosCaja', ['Empresas', 'Sucursales', 'Cajas', 'Parametros'])
 
 os.remove(temporal)

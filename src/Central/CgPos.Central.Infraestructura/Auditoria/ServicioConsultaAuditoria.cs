@@ -3,6 +3,7 @@ using CgPos.Central.Aplicacion.Auditoria;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
+using CgPos.Dominio.Comun;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Auditoria;
@@ -17,14 +18,15 @@ internal sealed class ServicioConsultaAuditoria(ContextoDatosCentral contexto) :
 
         if (filtro.Desde is { } desde)
         {
-            var inicio = new DateTimeOffset(desde.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            // El día es el de aquí, no el de UTC: si no, lo de después de las 8 de la noche caería en el día siguiente.
+            var inicio = new DateTimeOffset(desde.ToDateTime(TimeOnly.MinValue), RelojNegocio.Desfase);
             consulta = consulta.Where(registro => registro.OcurridoEn >= inicio);
         }
 
         if (filtro.Hasta is { } hasta)
         {
             // El día "hasta" entra completo: se compara contra el arranque del día siguiente.
-            var fin = new DateTimeOffset(hasta.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            var fin = new DateTimeOffset(hasta.AddDays(1).ToDateTime(TimeOnly.MinValue), RelojNegocio.Desfase);
             consulta = consulta.Where(registro => registro.OcurridoEn < fin);
         }
 
@@ -70,20 +72,69 @@ internal sealed class ServicioConsultaAuditoria(ContextoDatosCentral contexto) :
                 registro.Motivo,
                 registro.UsuarioNombre,
                 registro.AutorizadoPorNombre,
-                registro.Detalle,
                 registro.Cambios,
             })
             .ToListAsync(cancelacion);
 
+        // El antes y el después se resumen aquí y no viajan al navegador: se piden al abrir el movimiento.
         var elementos = registros
-            .Select(registro => new DatosRegistroAuditoria(
-                registro.Id, registro.OcurridoEn, registro.Accion, registro.TipoEntidad, registro.EntidadId,
-                registro.Motivo, registro.UsuarioNombre, registro.AutorizadoPorNombre, registro.Detalle,
-                LeerCambios(registro.Cambios)))
+            .Select(registro => Fila(registro.Id, registro.OcurridoEn, registro.Accion, registro.TipoEntidad, registro.EntidadId,
+                registro.Motivo, registro.UsuarioNombre, registro.AutorizadoPorNombre, LeerCambios(registro.Cambios)))
             .ToList();
 
         return new PaginaAuditoria(elementos, total);
     }
+
+    public async Task<DatosAuditoriaDetalle?> ObtenerAsync(int registroId, CancellationToken cancelacion = default)
+    {
+        var registro = await contexto.Auditoria.AsNoTracking()
+            .Where(fila => fila.Id == registroId)
+            .Select(fila => new
+            {
+                fila.Id,
+                fila.OcurridoEn,
+                fila.Accion,
+                fila.TipoEntidad,
+                fila.EntidadId,
+                fila.Motivo,
+                fila.UsuarioNombre,
+                fila.AutorizadoPorNombre,
+                fila.Detalle,
+                fila.Cambios,
+            })
+            .FirstOrDefaultAsync(cancelacion);
+
+        if (registro is null)
+            return null;
+
+        var cambios = LeerCambios(registro.Cambios);
+        return new DatosAuditoriaDetalle(
+            Fila(registro.Id, registro.OcurridoEn, registro.Accion, registro.TipoEntidad, registro.EntidadId,
+                registro.Motivo, registro.UsuarioNombre, registro.AutorizadoPorNombre, cambios),
+            registro.Detalle,
+            cambios);
+    }
+
+    /// <summary>Fila del listado: los cambios se cuentan y se resumen en una línea corta («Sucursal #12 · 3 campos»).</summary>
+    private static DatosRegistroAuditoria Fila(int id, DateTimeOffset ocurridoEn, string accion, string tipoEntidad, string? entidadId,
+        string? motivo, string? usuario, string? autorizadoPor, IReadOnlyList<DatosEntidadAuditoria> cambios)
+    {
+        var campos = cambios.Sum(cambio => cambio.Campos.Count);
+        var resumen = cambios.Count switch
+        {
+            0 => null,
+            1 => $"{cambios[0].Operacion}: {cambios[0].Entidad}"
+                 + (cambios[0].EntidadId is { Length: > 0 } clave ? $" #{clave}" : string.Empty)
+                 + $" · {Plural(campos, "campo", "campos")}",
+            _ => $"{Plural(cambios.Count, "registro", "registros")} · {Plural(campos, "campo", "campos")}",
+        };
+
+        return new DatosRegistroAuditoria(id, ocurridoEn, accion, tipoEntidad, entidadId, motivo, usuario, autorizadoPor,
+            cambios.Count, campos, resumen);
+    }
+
+    private static string Plural(int cantidad, string singular, string plural) =>
+        $"{cantidad} {(cantidad == 1 ? singular : plural)}";
 
     public async Task<OpcionesAuditoria> OpcionesAsync(CancellationToken cancelacion = default)
     {

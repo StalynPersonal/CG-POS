@@ -7,6 +7,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Sincronizacion;
 
@@ -33,7 +34,7 @@ internal sealed class ProcesadorBandejaSalida(
             return new ResultadoProcesoBandeja(0, 0, 0);
 
         var (sucursalCodigo, cajaCodigo) = (contextoCaja.SucursalCodigo ?? string.Empty, contextoCaja.CajaCodigo ?? string.Empty);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         // Mensajes que quedaron en proceso por un cierre inesperado de la caja: se vuelven a enviar (el Central no los duplica).
         var interrumpidos = await contexto.BandejaSalida.Where(m => m.Estado == EstadoMensajeSalida.EnProceso).ToListAsync(cancelacion);
@@ -67,7 +68,7 @@ internal sealed class ProcesadorBandejaSalida(
                 resultado = ResultadoEnvioCentral.SinConexion(excepcion.Message);
             }
 
-            var momento = reloj.GetUtcNow();
+            var momento = reloj.Ahora();
             if (resultado.Confirmado)
             {
                 mensaje.MarcarConfirmado(momento);

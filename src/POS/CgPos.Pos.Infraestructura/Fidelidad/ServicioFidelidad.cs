@@ -9,6 +9,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Fidelidad;
 
@@ -48,7 +49,7 @@ internal sealed class ServicioFidelidad(
     IAuditoria auditoria,
     TimeProvider reloj) : IServicioFidelidad
 {
-    private DateOnly Hoy => DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+    private DateOnly Hoy => reloj.Ahora().Dia();
 
     public async Task<RespuestaFidelidad> ConsultarAsync(SesionUsuario sesion, string cedula, CancellationToken cancelacion = default)
     {
@@ -85,7 +86,7 @@ internal sealed class ServicioFidelidad(
         MiembroFidelidad miembro;
         try
         {
-            miembro = MiembroFidelidad.Inscribir(validacion.Documento, nombre, solicitud.Telefono, solicitud.Correo, reloj.GetUtcNow());
+            miembro = MiembroFidelidad.Inscribir(validacion.Documento, nombre, solicitud.Telefono, solicitud.Correo, reloj.Ahora());
         }
         catch (ArgumentException excepcion)
         {

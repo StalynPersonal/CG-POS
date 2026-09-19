@@ -1,4 +1,5 @@
 using CgPos.Pos.Aplicacion.Organizacion;
+using CgPos.Dominio.Comun;
 ﻿using CgPos.Pos.Aplicacion.Sincronizacion;
 
 namespace CgPos.Pos.Agente.Sincronizacion;
@@ -20,9 +21,9 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, IConf
         do
         {
             // Primero bajan los maestros: una caja nueva se aprovisiona en el primer ciclo (RF-281).
-            if (reloj.GetUtcNow() >= proximaDescarga)
+            if (reloj.Ahora() >= proximaDescarga)
             {
-                proximaDescarga = reloj.GetUtcNow() + intervaloMaestros;
+                proximaDescarga = reloj.Ahora() + intervaloMaestros;
                 await EjecutarAsync<IDescargaMaestros>(async descarga =>
                 {
                     var resultado = await descarga.DescargarAsync(detener);

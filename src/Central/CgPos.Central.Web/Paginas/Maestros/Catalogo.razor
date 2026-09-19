@@ -32,10 +32,16 @@
 }
 
 <MudPaper Elevation="1">
-    <MudTable T="DatosMaestroCentral<JsonObject>" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+    <MudTable T="DatosMaestroCentral<JsonObject>" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+              Elevation="0" RowsPerPage="25">
         <ToolBarContent>
             <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           Immediate="true" Clearable="true" />
+            <MudSpacer />
+            @* Cuántos registros tiene el catálogo, y cuántos quedan tras filtrar. *@
+            <MudText Typo="Typo.body2" Class="cg-central__detalle">
+                @Filtrados.Count() de @_registros.Count
+            </MudText>
         </ToolBarContent>
         <HeaderContent>
             @foreach (var campo in Columnas)
@@ -81,6 +87,11 @@
         <NoRecordsContent>
             <MudText>No hay registros que coincidan.</MudText>
         </NoRecordsContent>
+        <PagerContent>
+            @* Paginación con tamaño de página: un catálogo largo no se muestra de un solo golpe. *@
+            <MudTablePager PageSizeOptions="@(new[] { 10, 25, 50, 100, 200 })" RowsPerPageString="Filas por página:"
+                           InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
     </MudTable>
 </MudPaper>
 
@@ -133,7 +144,7 @@
 
         if (_definicion.Campos.Any(c => c.Tipo == TipoCampoCatalogo.Sucursal))
             _sucursales = (await Cliente.ListarSucursalesMaestrosAsync() ?? [])
-                .Select(s => new OpcionCatalogo(s.Codigo.ToString(CultureInfo.InvariantCulture), $"{s.Codigo:00} · {s.Nombre}")).ToList();
+                .Select(s => new OpcionCatalogo(s.Codigo, $"{s.Codigo} · {s.Nombre}")).ToList();
 
         _cargando = false;
     }

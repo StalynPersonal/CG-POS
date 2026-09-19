@@ -11,6 +11,7 @@ using CgPos.Dominio.Sincronizacion;
 using CgPos.ECF.Firma;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.ECF;
 
@@ -210,13 +211,13 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
 
     private async Task<string> TokenAsync(CancellationToken cancelacion)
     {
-        if (sesion.Token is { } vigente && sesion.VenceEn > reloj.GetUtcNow().AddMinutes(1))
+        if (sesion.Token is { } vigente && sesion.VenceEn > reloj.Ahora().AddMinutes(1))
             return vigente;
 
         await sesion.Cerrojo.WaitAsync(cancelacion);
         try
         {
-            if (sesion.Token is { } obtenido && sesion.VenceEn > reloj.GetUtcNow().AddMinutes(1))
+            if (sesion.Token is { } obtenido && sesion.VenceEn > reloj.Ahora().AddMinutes(1))
                 return obtenido;
 
             var semilla = await http.GetStringAsync(await UrlAsync(ClavesParametrosCentral.DgiiUrlSemilla, cancelacion), cancelacion);
@@ -232,7 +233,7 @@ internal sealed class ClienteDgiiHttp(HttpClient http, SesionDgii sesion, IServi
                 throw new InvalidOperationException("La DGII no devolvió el token de autenticación.");
 
             sesion.Token = datos.Token;
-            sesion.VenceEn = datos.Expira ?? reloj.GetUtcNow().AddMinutes(1);
+            sesion.VenceEn = datos.Expira ?? reloj.Ahora().AddMinutes(1);
             registro.LogInformation("Autenticado en la DGII hasta {Vence}", sesion.VenceEn);
             return datos.Token;
         }

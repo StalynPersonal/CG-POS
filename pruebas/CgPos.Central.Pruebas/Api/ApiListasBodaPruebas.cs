@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
+using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Sincronizacion;
@@ -25,9 +26,15 @@ public class ApiListasBodaPruebas(CentralEnPruebas central)
         var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         await central.CambiarParametroAsync(ClavesParametrosCentral.ListasBodaDescontarCompras, "true");
 
-        var codigoArticulo = $"ART{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        // Los artículos de la lista son los del maestro: se piden por su código interno y tienen que existir.
+        var codigoArticulo = await CrearArticuloAsync(cliente, admin);
         var solicitud = new SolicitudListaBoda(null, "Boda de Ana y Luis", new DateOnly(2026, 12, 12), "Salón Jardín", "40212345678", "Ana Pérez",
             "8095551234", "ana@ejemplo.do", null, null, [new SolicitudArticuloListaBoda(codigoArticulo, "Juego de copas", 6m)]);
+
+        var inventado = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/listas-boda",
+            solicitud with { Articulos = [new SolicitudArticuloListaBoda("NOEXISTE000", "Lo que sea", 1m)] });
+        Assert.False(inventado.Exitosa);
+        Assert.Contains("No existe el artículo", inventado.Mensaje);
 
         var creada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/listas-boda", solicitud);
         Assert.True(creada.Exitosa, creada.Mensaje);
@@ -88,6 +95,21 @@ public class ApiListasBodaPruebas(CentralEnPruebas central)
             HashSincronizacion.Calcular(contenido), sucursal, caja, DateTimeOffset.UtcNow);
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", token, mensaje));
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;
+    }
+
+    /// <summary>Artículo nuevo en el maestro, para pedirlo en la lista por su código interno.</summary>
+    private static async Task<string> CrearArticuloAsync(HttpClient cliente, string admin)
+    {
+        var categoria = (await ObtenerAsync<List<DatosMaestroCentral<CategoriaCarga>>>(cliente, admin, "/api/maestros/categorias")).First(c => c.Dato.Activa).Dato;
+        var unidad = (await ObtenerAsync<List<DatosMaestroCentral<UnidadMedidaCarga>>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
+        var impuesto = (await ObtenerAsync<List<DatosMaestroCentral<ImpuestoCarga>>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
+
+        var codigo = $"ART{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+        var articulo = new ArticuloCarga(codigo, "Juego de copas", categoria.DepartamentoCodigo, unidad.Codigo, impuesto.Codigo, 1200m,
+            CategoriaCodigo: categoria.Codigo);
+        var creado = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/maestros/articulos", articulo);
+        Assert.True(creado.Exitosa, creado.Mensaje);
+        return codigo;
     }
 
     private static async Task<RespuestaAdministracion> EnviarAsync(HttpClient cliente, string token, HttpMethod metodo, string ruta, object cuerpo)

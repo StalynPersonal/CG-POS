@@ -10,6 +10,7 @@
     --cg-texto: #1f2a26;
     --cg-textoo-secundario: #51605a;
     --cg-linea: #cfd8d3;
+    --cg-campo-bloqueado: #eef1ef;  /* fondo de los campos que no se pueden escribir */
     --cg-peligro: #b3261e;
     --cg-advertencia: #b7791f;
 
@@ -135,3 +136,21 @@ input, textarea, [contenteditable] {
 }
 
 .cg-numero { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* ---------- Campos que no se pueden escribir ----------
+   Un campo deshabilitado o de solo lectura lleva fondo gris: así se ve de un vistazo que no se escribe en él,
+   sin tener que hacer clic para descubrirlo. Aplica a texto, número, área de texto y selectores. */
+.mud-input.mud-disabled,
+.mud-input:has(> input[readonly]),
+.mud-input:has(> textarea[readonly]),
+.mud-input:has(> .mud-input-slot[readonly]) {
+    background-color: var(--cg-campo-bloqueado);
+}
+
+/* El texto del campo bloqueado se atenúa un poco, pero se deja legible: casi siempre es un dato que hay que leer. */
+.mud-input.mud-disabled .mud-input-slot,
+.mud-input.mud-disabled input,
+.mud-input.mud-disabled textarea {
+    color: var(--cg-texto);
+    opacity: .75;
+}

@@ -3,6 +3,7 @@ using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Auditoria;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Auditoria;
 
@@ -13,7 +14,7 @@ internal sealed class EscritorAuditoriaCentral(ContextoDatosCentral contexto, Ti
         ArgumentNullException.ThrowIfNull(entrada);
 
         contexto.Auditoria.Add(RegistroAuditoria.Crear(
-            ocurridoEn: reloj.GetUtcNow(),
+            ocurridoEn: reloj.Ahora(),
             accion: entrada.Accion,
             tipoEntidad: entrada.TipoEntidad,
             entidadId: entrada.EntidadId,

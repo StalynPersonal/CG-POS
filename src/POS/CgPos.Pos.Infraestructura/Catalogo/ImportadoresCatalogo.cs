@@ -10,6 +10,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Catalogo;
 
@@ -42,7 +43,7 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
         var categorias = await contexto.Categorias.ToDictionaryAsync(c => c.Codigo.ToString(CultureInfo.InvariantCulture), c => (c.Id, c.DepartamentoId), StringComparer.OrdinalIgnoreCase, cancelacion);
         var marcas = await contexto.Marcas.ToDictionaryAsync(m => m.Codigo.ToString(CultureInfo.InvariantCulture), m => m.Id, StringComparer.OrdinalIgnoreCase, cancelacion);
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var errores = new List<ErrorImportacion>();
         var codigosEnArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int creados = 0, actualizados = 0, precios = 0, numeroLinea = 1;
@@ -248,7 +249,7 @@ internal sealed class ImportadorPadronDgii(ContextoDatosPos contexto, TimeProvid
                     VALUES (origen.Documento, origen.RazonSocial, origen.NombreComercial, origen.Estado, origen.RegimenPago, @ahora);
                 """, conexion, transaccionSql) { CommandTimeout = 600 })
             {
-                fusion.Parameters.Add(new SqlParameter("@ahora", SqlDbType.DateTimeOffset) { Value = reloj.GetUtcNow() });
+                fusion.Parameters.Add(new SqlParameter("@ahora", SqlDbType.DateTimeOffset) { Value = reloj.Ahora() });
                 await fusion.ExecuteNonQueryAsync(cancelacion);
             }
 

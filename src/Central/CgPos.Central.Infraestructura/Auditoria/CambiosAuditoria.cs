@@ -25,6 +25,9 @@ public static class CambiosAuditoria
     private static readonly string[] Sensibles =
         ["contrasena", "hash", "clave", "secreto", "token", "pin", "certificado", "firma", "xml"];
 
+    /// <summary>Columnas del propio sistema: dicen quién y cuándo, y eso ya está en el registro de auditoría.</summary>
+    private static readonly string[] Tecnicas = ["ModificadoEn", "ModificadoPor", "Version"];
+
     /// <summary>
     /// Adjunta a los registros de auditoría de este guardado lo que cambió en la base. Un registro recibe los cambios de su
     /// misma entidad (por ejemplo, la acción sobre "Empresa" recibe los de la tabla Empresas) y, si no hay ninguno de su
@@ -70,6 +73,7 @@ public static class CambiosAuditoria
             return null;
 
         var campos = entrada.Properties
+            .Where(propiedad => !Tecnicas.Contains(propiedad.Metadata.Name, StringComparer.Ordinal))
             .Where(propiedad => !propiedad.Metadata.IsPrimaryKey() || entrada.State != EntityState.Added)
             .Select(propiedad => Describir(entrada.State, propiedad))
             .OfType<CampoCambiado>()

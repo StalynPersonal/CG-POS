@@ -192,7 +192,9 @@ public sealed record ClienteCarga(
     string? Telefono = null,
     string? Correo = null,
     IReadOnlyList<DireccionClienteCarga>? Direcciones = null,
-    bool Activo = true);
+    bool Activo = true,
+    string? Contacto = null,
+    string? TelefonoAlterno = null);
 
 /// <param name="Alias">Identifica la dirección dentro del cliente (ej. "Casa", "Oficina").</param>
 public sealed record DireccionClienteCarga(

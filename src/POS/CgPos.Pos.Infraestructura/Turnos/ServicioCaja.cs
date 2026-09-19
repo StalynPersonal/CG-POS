@@ -17,6 +17,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using CgPos.Pos.Infraestructura.Ventas;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Turnos;
 
@@ -89,7 +90,7 @@ internal sealed class ServicioCaja(
 
         var calculo = await CalcularAsync(turno, cancelacion);
         var resumen = Resumen(turno, calculo, mostrarEsperado: true);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
 
         auditoria.Registrar(new EntradaAuditoria("Caja.PreCierre", TipoEntidadTurno, turno.Id.ToString(),
             Detalle: new { turno.Numero, calculo.CantidadVentas, calculo.TotalVentas },
@@ -164,7 +165,7 @@ internal sealed class ServicioCaja(
 
         var numero = calculo.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro) + 1;
         var retiro = MovimientoCaja.Retiro(turno, numero, monto, calculo.MonedaLocal.Codigo, motivo, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre,
-            reloj.GetUtcNow());
+            reloj.Ahora());
         contexto.MovimientosCaja.Add(retiro);
 
         var datos = retiro.ADatos();
@@ -201,7 +202,7 @@ internal sealed class ServicioCaja(
             return Rechazo(permiso, CatalogoPermisos.RelevoCajero, $"El relevo de {turno.UsuarioActualNombre} requiere autorización de un supervisor.");
 
         var numero = await contexto.MovimientosCaja.CountAsync(m => m.TurnoId == turno.Id && m.Tipo == TipoMovimientoCaja.Relevo, cancelacion) + 1;
-        var relevo = turno.Relevar(numero, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre, reloj.GetUtcNow());
+        var relevo = turno.Relevar(numero, sesion.UsuarioId, sesion.Nombre, permiso.SupervisorId, permiso.SupervisorNombre, reloj.Ahora());
         contexto.MovimientosCaja.Add(relevo);
 
         var datos = relevo.ADatos();
@@ -241,7 +242,7 @@ internal sealed class ServicioCaja(
             conteos.Add(new ConteoDenominacion(denominacion.Id, denominacion.Moneda, denominacion.Valor, denominacion.Tipo, item.Cantidad));
         }
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var numero = await contexto.CierresTurno.CountAsync(c => c.TurnoId == turno.Id, cancelacion) + 1;
         CierreTurno cierre;
         try
@@ -308,7 +309,7 @@ internal sealed class ServicioCaja(
             return Rechazo(permiso, CatalogoPermisos.ReabrirCierre, "La reapertura de un cierre requiere autorización de un nivel superior.");
 
         var turno = await contexto.Turnos.SingleAsync(t => t.Id == cierre.TurnoId, cancelacion);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var porId = permiso.SupervisorId ?? sesion.UsuarioId;
         var porNombre = permiso.SupervisorNombre ?? sesion.Nombre;
         cierre.Reabrir(porId, porNombre, motivo, ahora);

@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using CgPos.Pos.Aplicacion.Perifericos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Perifericos;
 
@@ -23,7 +24,7 @@ internal sealed class ImpresoraTicket(IConfiguration configuracion, TimeProvider
         EnviarAsync(documento.Nombre, documento.Texto, documento.EscPos, cancelacion);
 
     public Task<ResultadoImpresion> AbrirGavetaAsync(CancellationToken cancelacion = default) =>
-        EnviarAsync("gaveta", $"Gaveta abierta {reloj.GetLocalNow():dd/MM/yyyy HH:mm:ss}", PulsoGaveta, cancelacion);
+        EnviarAsync("gaveta", $"Gaveta abierta {reloj.Ahora():dd/MM/yyyy HH:mm:ss}", PulsoGaveta, cancelacion);
 
     private async Task<ResultadoImpresion> EnviarAsync(string nombre, string texto, byte[] bytes, CancellationToken cancelacion)
     {
@@ -44,7 +45,7 @@ internal sealed class ImpresoraTicket(IConfiguration configuracion, TimeProvider
 
             var carpeta = seccion["Carpeta"] is { Length: > 0 } ruta ? ruta : @"C:\CGPOS\Impresiones";
             Directory.CreateDirectory(carpeta);
-            var baseArchivo = Path.Combine(carpeta, $"{reloj.GetLocalNow():yyyyMMdd-HHmmss-fff}-{nombre}");
+            var baseArchivo = Path.Combine(carpeta, $"{reloj.Ahora():yyyyMMdd-HHmmss-fff}-{nombre}");
             await File.WriteAllTextAsync(baseArchivo + ".txt", texto, cancelacion);
             await File.WriteAllBytesAsync(baseArchivo + ".escpos", bytes, cancelacion);
             return new ResultadoImpresion(true, null);

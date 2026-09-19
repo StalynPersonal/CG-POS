@@ -6,6 +6,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Seguridad;
 
@@ -41,7 +42,7 @@ internal sealed class ServicioAutenticacion(
         };
 
         if (resultado.Exitoso)
-            verificacion.Usuario!.RegistrarIngresoExitoso(reloj.GetUtcNow());
+            verificacion.Usuario!.RegistrarIngresoExitoso(reloj.Ahora());
 
         Auditar(credencial, verificacion.Usuario, resultado, caja);
         await contexto.SaveChangesAsync(cancelacion);

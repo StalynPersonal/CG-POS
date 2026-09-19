@@ -7,6 +7,7 @@ using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Catalogo;
 
@@ -195,7 +196,7 @@ internal sealed class ConsultaArticulos(
 
     private async Task<Dictionary<int, PreciosVigentes>> PreciosVigentesAsync(List<int> articulosIds, CancellationToken cancelacion)
     {
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var historial = await contexto.PreciosArticulo
             .AsNoTracking()
             .Where(p => articulosIds.Contains(p.ArticuloId) && p.VigenteDesde <= ahora)
@@ -293,7 +294,7 @@ internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvi
             .ToListAsync(cancelacion);
 
         // La tasa vigente más reciente de cada moneda.
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var tasas = (await contexto.TasasCambio.AsNoTracking().Where(t => t.VigenteDesde <= ahora).ToListAsync(cancelacion))
             .GroupBy(t => t.Moneda)
             .Select(grupo => grupo.OrderByDescending(t => t.VigenteDesde).First())
@@ -313,7 +314,7 @@ internal sealed class ServicioPrecios(ContextoDatosPos contexto, IAuditoria audi
         if (!await contexto.Articulos.AnyAsync(a => a.Id == articuloId, cancelacion))
             throw new ArgumentException("El artículo no existe.", nameof(articuloId));
 
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var registrado = await RegistroPrecios.RegistrarSiCambiaAsync(contexto, articuloId, lista, precio, vigenteDesde, ahora, origen, usuario?.UsuarioId, usuario?.Nombre, cancelacion);
         if (!registrado)
             return;

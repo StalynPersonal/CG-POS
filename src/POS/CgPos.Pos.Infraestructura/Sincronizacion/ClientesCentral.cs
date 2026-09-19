@@ -9,6 +9,7 @@ using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 using Microsoft.Extensions.Configuration;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Sincronizacion;
 
@@ -450,7 +451,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
         await _bloqueoToken.WaitAsync(cancelacion);
         try
         {
-            if (!renovar && _token is not null && _reloj.GetUtcNow() < _tokenVence - MargenRenovacion)
+            if (!renovar && _token is not null && _reloj.Ahora() < _tokenVence - MargenRenovacion)
                 return (_token, null);
 
             _token = null;
@@ -467,7 +468,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
             }
 
             _token = token;
-            _tokenVence = cuerpo.ExpiraEn ?? _reloj.GetUtcNow() + MargenRenovacion;
+            _tokenVence = cuerpo.ExpiraEn ?? _reloj.Ahora() + MargenRenovacion;
             return (token, null);
         }
         finally

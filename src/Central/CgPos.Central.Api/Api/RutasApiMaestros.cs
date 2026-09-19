@@ -56,6 +56,10 @@ public static class RutasApiMaestros
         maestros.MapPut("/articulos", async (ArticuloCarga articulo, ClaimsPrincipal usuario, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
             Responder(await servicio.GuardarArticuloAsync(articulo, nuevo: false, Actor(usuario), cancelacion)));
 
+        // Quien administra listas de boda elige los artículos del maestro, así que los busca sin necesitar el permiso de maestros.
+        aplicacion.MapGet("/api/manager/listas-boda/articulos", BuscarArticulosAsync)
+            .RequireAuthorization(CatalogoPermisosCentral.AdministrarListasBoda);
+
         var precios = aplicacion.MapGroup("/api/precios").RequireAuthorization(CatalogoPermisosCentral.AdministrarPrecios);
 
         precios.MapGet("/articulos", BuscarArticulosAsync);

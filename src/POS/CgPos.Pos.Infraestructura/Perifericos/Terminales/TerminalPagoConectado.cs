@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using CgPos.Pos.Aplicacion.Perifericos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Infraestructura.Perifericos.Terminales;
 
@@ -64,7 +65,7 @@ internal sealed class TerminalPagoConectado(IConfiguration configuracion, TimePr
             .Replace("{montoCentavos}", ((long)decimal.Round(monto * 100m, 0, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
             .Replace("{referencia}", referencia ?? string.Empty, StringComparison.Ordinal)
             .Replace("{aprobacion}", aprobacion ?? string.Empty, StringComparison.Ordinal)
-            .Replace("{fecha}", reloj.GetLocalNow().ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            .Replace("{fecha}", reloj.Ahora().ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
     /// <summary>Lee de la respuesta del terminal lo que la caja necesita, según el patrón del modelo.</summary>
     internal static CamposTerminal Interpretar(string respuesta, PerfilTerminal perfil)

@@ -6,6 +6,7 @@ using CgPos.Contratos.Seguridad;
 using CgPos.Pos.Aplicacion.Seguridad;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Pos.Agente.Seguridad;
 
@@ -29,7 +30,7 @@ public sealed class EmisorTokens
     public (string Token, DateTimeOffset ExpiraEn) Emitir(SesionUsuario sesion, TimeSpan duracion)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(duracion, TimeSpan.Zero);
-        var ahora = _reloj.GetUtcNow();
+        var ahora = _reloj.Ahora();
         var expira = ahora + duracion;
 
         var token = _manejador.CreateToken(new SecurityTokenDescriptor

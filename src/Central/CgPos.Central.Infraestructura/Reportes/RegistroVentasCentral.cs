@@ -2,6 +2,7 @@ using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Reportes;
 
@@ -23,7 +24,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
             venta.TurnoNumero, venta.UsuarioNombre, cobrada, DateOnly.FromDateTime(cobrada.LocalDateTime), venta.TipoComprobante, venta.Comprobante?.Encf, null,
             venta.Cliente?.TipoDocumento, venta.Cliente?.Documento, venta.Cliente?.Nombre, venta.Moneda, venta.Totales.Subtotal, venta.Totales.Descuento,
             // La retención de la Ley 32-23 se informa como retenido: el cliente pagó el total menos esa retención.
-            venta.Totales.Impuesto, venta.Totales.Retencion, venta.TotalCobrado, venta.Totales.CantidadLineas, reloj.GetUtcNow());
+            venta.Totales.Impuesto, venta.Totales.Retencion, venta.TotalCobrado, venta.Totales.CantidadLineas, reloj.Ahora());
 
         foreach (var impuesto in venta.Totales.Desglose)
             comprobante.AgregarImpuesto(impuesto.Porcentaje, impuesto.Base, impuesto.Impuesto);
@@ -50,7 +51,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
         var comprobante = ComprobanteVentaCentral.Registrar(TipoComprobanteVenta.NotaCredito, nota.Numero.Trim(), sucursalId, cajaId, nota.TurnoNumero,
             nota.UsuarioNombre, nota.CreadaEn, DateOnly.FromDateTime(nota.CreadaEn.LocalDateTime), CgPos.Dominio.Fiscal.TipoComprobante.NotaCredito,
             nota.Comprobante?.Encf, nota.EncfOrigen, nota.ClienteTipoDocumento, nota.ClienteDocumento, nota.ClienteNombre, nota.Moneda, nota.Subtotal, 0m,
-            nota.Impuesto, nota.ImpuestoRetenido, nota.Total, nota.Lineas.Count, reloj.GetUtcNow());
+            nota.Impuesto, nota.ImpuestoRetenido, nota.Total, nota.Lineas.Count, reloj.Ahora());
 
         foreach (var linea in nota.Lineas)
             comprobante.AgregarLinea(linea.NumeroLineaOrigen, linea.CodigoInterno, linea.Descripcion, linea.UnidadMedidaCodigo, linea.Cantidad,
@@ -74,7 +75,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
     public async Task RegistrarCierreAsync(DocumentoCierreTurno cierre, int sucursalId, int cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(cierre);
-        var ahora = reloj.GetUtcNow();
+        var ahora = reloj.Ahora();
         var registrado = await contexto.CierresTurno.Include(c => c.FormasPago)
             .SingleOrDefaultAsync(c => c.CajaId == cajaId && c.TurnoNumero == cierre.TurnoNumero, cancelacion);
 

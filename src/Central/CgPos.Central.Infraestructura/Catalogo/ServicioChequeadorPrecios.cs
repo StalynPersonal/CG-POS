@@ -7,6 +7,7 @@ using CgPos.Contratos.Central;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Promociones;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Catalogo;
 
@@ -65,7 +66,7 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
     /// <summary>Ofertas vigentes ahora que alcanzan al artículo; las de fidelidad no se anuncian porque no son para todo el mundo.</summary>
     private async Task<IReadOnlyList<DatosOfertaChequeador>> OfertasAsync(Articulo articulo, int? sucursalId, decimal precio, CancellationToken cancelacion)
     {
-        var ahora = reloj.GetLocalNow();
+        var ahora = reloj.Ahora();
         var candidatas = await contexto.Promociones.AsNoTracking()
             .Where(p => p.Activa && !p.SoloFidelidad && p.VigenteDesde <= ahora && p.VigenteHasta >= ahora)
             .ToListAsync(cancelacion);

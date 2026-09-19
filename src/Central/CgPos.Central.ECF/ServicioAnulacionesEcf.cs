@@ -13,6 +13,7 @@ using CgPos.Dominio.Sincronizacion;
 using CgPos.ECF.Documentos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.ECF;
 
@@ -54,7 +55,7 @@ internal sealed class ServicioAnulacionesEcf(
             return ResultadoAdministracion.Error("La empresa no está configurada.");
 
         var tipo = (int)secuencia.TipoComprobante;
-        var xml = GeneradorXmlAnecf.Generar(rnc, reloj.GetLocalNow(),
+        var xml = GeneradorXmlAnecf.Generar(rnc, reloj.Ahora(),
             [new RangoAnulacionEcf(tipo, SecuenciaEcf.FormatearEncf(secuencia.TipoComprobante, solicitud.Desde),
                 SecuenciaEcf.FormatearEncf(secuencia.TipoComprobante, solicitud.Hasta))]);
 
@@ -71,7 +72,7 @@ internal sealed class ServicioAnulacionesEcf(
 
         var estado = respuesta.Aceptada ? EstadoAnulacionEcf.Aceptada : respuesta.Error ? EstadoAnulacionEcf.Fallida : EstadoAnulacionEcf.Rechazada;
         var anulacion = AnulacionEcfCentral.Registrar(secuencia.Id, secuencia.CajaId, secuencia.TipoComprobante, solicitud.Desde, solicitud.Hasta,
-            solicitud.Motivo, actor.Nombre, estado, respuesta.Mensaje, respuesta.XmlFirmado, reloj.GetUtcNow());
+            solicitud.Motivo, actor.Nombre, estado, respuesta.Mensaje, respuesta.XmlFirmado, reloj.Ahora());
         contexto.AnulacionesEcf.Add(anulacion);
         auditoria.Registrar(new EntradaAuditoria($"Dgii.Anulacion{estado}", "AnulacionEcf", anulacion.Id.ToString(),
             new { secuencia.CajaId, Tipo = tipo, solicitud.Desde, solicitud.Hasta, anulacion.Cantidad, respuesta.Mensaje }, solicitud.Motivo, actor));
@@ -95,7 +96,7 @@ internal sealed class ServicioAnulacionesEcf(
             return $"El tramo debe estar dentro del rango asignado ({secuencia.Desde:N0} – {secuencia.Hasta:N0}).";
 
         // Con el rango activo y vigente la caja podría usar esos números sin conexión: primero se desactiva y la caja lo recibe.
-        var hoy = DateOnly.FromDateTime(reloj.GetLocalNow().DateTime);
+        var hoy = reloj.Ahora().Dia();
         if (secuencia.Activa && secuencia.VenceEn >= hoy)
             return "El rango está activo en la caja. Desactívelo y espere a que la caja sincronice antes de anular sus números sin usar.";
 

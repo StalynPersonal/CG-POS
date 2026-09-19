@@ -333,7 +333,9 @@ CREATE TABLE [Clientes] (
     [AplicaRetencion] bit NOT NULL,
     [ListaPrecioPredeterminada] int NOT NULL,
     [Telefono] nvarchar(20) NULL,
+    [TelefonoAlterno] nvarchar(20) NULL,
     [Correo] nvarchar(150) NULL,
+    [Contacto] nvarchar(150) NULL,
     [Activo] bit NOT NULL,
     CONSTRAINT [PK_Clientes] PRIMARY KEY ([Id])
 );
@@ -422,6 +424,8 @@ CREATE TABLE [Empresas] (
     [NombreComercial] nvarchar(150) NULL,
     [Direccion] nvarchar(250) NULL,
     [Telefono] nvarchar(20) NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Empresas] PRIMARY KEY ([Id])
 );
 GO
@@ -776,6 +780,8 @@ CREATE TABLE [Sucursales] (
     [Direccion] nvarchar(250) NULL,
     [Telefono] nvarchar(20) NULL,
     [Activa] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Sucursales] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Sucursales_Empresas_EmpresaId] FOREIGN KEY ([EmpresaId]) REFERENCES [Empresas] ([Id]) ON DELETE NO ACTION
 );
@@ -895,6 +901,8 @@ CREATE TABLE [Cajas] (
     [Codigo] char(2) NOT NULL,
     [Nombre] nvarchar(100) NOT NULL,
     [Habilitada] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Cajas] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Cajas_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
 );
@@ -947,6 +955,8 @@ CREATE TABLE [Parametros] (
     [Descripcion] nvarchar(250) NULL,
     [SucursalId] int NULL,
     [CajaId] int NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Parametros] PRIMARY KEY ([Id]),
     CONSTRAINT [CK_Parametros_UnSoloAmbito] CHECK ([SucursalId] IS NULL OR [CajaId] IS NULL),
     CONSTRAINT [FK_Parametros_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
