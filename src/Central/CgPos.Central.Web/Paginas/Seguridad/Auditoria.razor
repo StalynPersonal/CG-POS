@@ -27,14 +27,12 @@
         <ToolBarContent>
             @* Filtros: rango de días, acción, entidad, usuario, solo lo que cambió datos y búsqueda libre. *@
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
-                <div style="width: 210px">
-                    <MudDatePicker Date="_desde" DateChanged="@(valor => FiltrarAsync(() => _desde = valor))" Label="Desde" Variant="Variant.Outlined"
-                                   Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" />
-                </div>
-                <div style="width: 210px">
-                    <MudDatePicker Date="_hasta" DateChanged="@(valor => FiltrarAsync(() => _hasta = valor))" Label="Hasta" Variant="Variant.Outlined"
-                                   Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" />
-                </div>
+                <MudDatePicker Date="_desde" DateChanged="@(valor => FiltrarAsync(() => _desde = valor))" Label="Desde" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
+                               Class="cg-central__filtro-fecha" />
+                <MudDatePicker Date="_hasta" DateChanged="@(valor => FiltrarAsync(() => _hasta = valor))" Label="Hasta" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
+                               Class="cg-central__filtro-fecha" />
                 @* El filtro por acción está oculto por ahora; el Central lo sigue aceptando. *@
                 <MudSelect T="string" Value="_tipoEntidad" ValueChanged="@(valor => FiltrarAsync(() => _tipoEntidad = valor))" Label="Entidad"
                            Dense="true" Clearable="true" Style="min-width: 180px">

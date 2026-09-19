@@ -23,8 +23,8 @@
                 <MudSelectItem T="TipoReporteCentral" Value="@tipo">@Etiqueta(tipo)</MudSelectItem>
             }
         </MudSelect>
-        <MudDatePicker @bind-Date="_desde" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 170px" />
-        <MudDatePicker @bind-Date="_hasta" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 170px" />
+        <MudDatePicker @bind-Date="_desde" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
+        <MudDatePicker @bind-Date="_hasta" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="_cargando" OnClick="GenerarAsync">
             Generar
         </MudButton>

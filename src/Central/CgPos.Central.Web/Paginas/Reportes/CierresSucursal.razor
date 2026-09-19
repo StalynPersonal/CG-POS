@@ -24,7 +24,7 @@
                 <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
             }
         </MudSelect>
-        <MudDatePicker @bind-Date="_fecha" Label="Día de operación" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 190px" />
+        <MudDatePicker @bind-Date="_fecha" Label="Día de operación" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" Disabled="_cargando || _sucursalId is null"
                    OnClick="PrepararAsync">Preparar</MudButton>
     </div>
@@ -121,7 +121,7 @@
                     </MudSelect>
                     <MudTextField T="string" @bind-Value="deposito.NumeroBoleta" Label="Boleta" Margin="Margin.Dense" Style="max-width: 170px" />
                     <MudNumericField T="decimal?" @bind-Value="deposito.Monto" Label="Monto" Format="N2" Min="0" Margin="Margin.Dense" Style="max-width: 160px" />
-                    <MudDatePicker @bind-Date="deposito.Fecha" Label="Fecha" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" Style="max-width: 160px" />
+                    <MudDatePicker @bind-Date="deposito.Fecha" Label="Fecha" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => _depositos.Remove(deposito)" />
                 </div>
             }
@@ -144,8 +144,8 @@
     <div class="d-flex gap-3 flex-wrap align-center mb-3">
         <MudText Typo="Typo.h6">Cierres hechos</MudText>
         <MudSpacer />
-        <MudDatePicker @bind-Date="_desde" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 170px" />
-        <MudDatePicker @bind-Date="_hasta" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Style="max-width: 170px" />
+        <MudDatePicker @bind-Date="_desde" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
+        <MudDatePicker @bind-Date="_hasta" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
         <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ListarAsync">Consultar</MudButton>
     </div>
 

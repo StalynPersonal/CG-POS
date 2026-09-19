@@ -230,3 +230,16 @@ html, body {
     font-weight: 600;
     word-break: break-word;
 }
+
+/* Los campos de fecha de los filtros llevan un ancho propio y no se estiran ni se encogen: así no se montan con el
+   buscador cuando la barra de filtros se queda sin espacio. El ancho se le da solo a la casilla, nunca al componente
+   completo: el almanaque se dibuja dentro de él y con un ancho de 180 px saldría cortado. */
+.cg-central__filtro-fecha {
+    flex: 0 0 180px;
+    width: 180px;
+}
+
+.cg-central__filtro-fecha .mud-picker-inline {
+    width: max-content;
+    max-width: none;
+}

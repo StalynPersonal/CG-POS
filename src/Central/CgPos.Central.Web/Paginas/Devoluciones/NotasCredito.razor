@@ -26,14 +26,12 @@
         <ToolBarContent>
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
                 @* Rango de días por fecha de emisión de la nota; vacío consulta todo el historial. *@
-                <div style="width: 190px">
-                    <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v))" Label="Desde" Variant="Variant.Outlined"
-                                   Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" />
-                </div>
-                <div style="width: 190px">
-                    <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v))" Label="Hasta" Variant="Variant.Outlined"
-                                   Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" />
-                </div>
+                <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v))" Label="Desde" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
+                               Class="cg-central__filtro-fecha" />
+                <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v))" Label="Hasta" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
+                               Class="cg-central__filtro-fecha" />
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
                               Placeholder="e-NCF, número, documento o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                               Clearable="true" Style="min-width: 260px" />

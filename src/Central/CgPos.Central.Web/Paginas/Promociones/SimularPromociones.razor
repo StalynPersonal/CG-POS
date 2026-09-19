@@ -27,7 +27,8 @@
                 }
             </MudSelect>
             <div class="d-flex gap-2">
-                <MudDatePicker @bind-Date="_fecha" Label="Fecha" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+                <MudDatePicker @bind-Date="_fecha" Label="Fecha" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               Class="cg-central__filtro-fecha" />
                 <MudTimePicker @bind-Time="_hora" Label="Hora" Variant="Variant.Outlined" />
             </div>
             <MudSwitch T="bool" @bind-Value="_conFidelidad" Label="Cliente del programa de fidelidad" Color="Color.Secondary" />

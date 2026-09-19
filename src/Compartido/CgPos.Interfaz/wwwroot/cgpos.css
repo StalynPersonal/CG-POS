@@ -139,12 +139,20 @@ input, textarea, [contenteditable] {
 
 /* ---------- Campos que no se pueden escribir ----------
    Un campo deshabilitado o de solo lectura lleva fondo gris: así se ve de un vistazo que no se escribe en él,
-   sin tener que hacer clic para descubrirlo. Aplica a texto, número, área de texto y selectores. */
+   sin tener que hacer clic para descubrirlo. Aplica a texto, número y área de texto. */
 .mud-input.mud-disabled,
 .mud-input:has(> input[readonly]),
 .mud-input:has(> textarea[readonly]),
 .mud-input:has(> .mud-input-slot[readonly]) {
     background-color: var(--cg-campo-bloqueado);
+}
+
+/* Los selectores y los campos de fecha sí se usan, aunque su casilla no se escriba a mano: se elige de la lista o del
+   almanaque. Se les devuelve el fondo normal, salvo cuando están deshabilitados de verdad. */
+.mud-select .mud-input:not(.mud-disabled),
+.mud-picker .mud-input:not(.mud-disabled),
+.mud-autocomplete .mud-input:not(.mud-disabled) {
+    background-color: transparent;
 }
 
 /* El texto del campo bloqueado se atenúa un poco, pero se deja legible: casi siempre es un dato que hay que leer. */
@@ -153,15 +161,4 @@ input, textarea, [contenteditable] {
 .mud-input.mud-disabled textarea {
     color: var(--cg-texto);
     opacity: .75;
-}
-
-/* ---------- Selector de fecha ----------
-   El calendario se abre dentro del mismo componente del campo, así que heredaba su ancho y salía cortado cuando el
-   campo es angosto. Aquí se le devuelve su tamaño propio, sin importar lo angosto que sea el campo. */
-.mud-picker-inline,
-.mud-picker-inline .mud-picker-container,
-.mud-picker-inline .mud-picker-content,
-.mud-picker-inline .mud-picker-calendar-container {
-    max-width: none;
-    min-width: 310px;
 }
