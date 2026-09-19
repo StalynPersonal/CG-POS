@@ -21,7 +21,7 @@
  PASO 1. CREAR LA BASE
 -------------------------------------------------------------------------------
 
-     sqlcmd -S . -i "scripts\base-datos\central\structura_base_datos.sql"
+     sqlcmd -S . -i "scripts\base-datos\central\estructura_base_datos.sql"
 
  Crea CgPosCentral con sus tablas y sus datos de arranque (monedas, impuestos,
  unidades, formas de pago, denominaciones, motivos, parámetros, el rol de

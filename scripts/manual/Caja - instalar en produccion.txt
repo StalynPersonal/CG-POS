@@ -44,9 +44,9 @@
 
  En el equipo de la caja:
 
-     sqlcmd -S .\SQLEXPRESS -E -i "structura_base_datos.sql"
+     sqlcmd -S .\SQLEXPRESS -E -i "estructura_base_datos.sql"
 
- (el archivo es scripts\base-datos\pos\structura_base_datos.sql; cópielo al
+ (el archivo es scripts\base-datos\pos\estructura_base_datos.sql; cópielo al
  equipo con una memoria o por la red)
 
  Crea la base CgPosCaja vacía. No lleva datos: los artículos, los precios, los

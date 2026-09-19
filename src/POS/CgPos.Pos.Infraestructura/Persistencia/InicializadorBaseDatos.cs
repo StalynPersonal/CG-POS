@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +13,7 @@ public static class InicializadorBaseDatos
 
     /// <summary>
     /// Comprueba que la base local exista y tenga sus tablas. El Agente no crea ni cambia la base: eso lo hace el script
-    /// <c>scripts/base-datos/pos/structura_base_datos.sql</c>, que se ejecuta al instalar la caja.
+    /// <c>scripts/base-datos/estructura_base_datos_pos.sql</c>, que se ejecuta al instalar la caja.
     /// Reintenta si SQL Server aún no está disponible (ej. el servicio de SQL Express arranca después del equipo).
     /// </summary>
     /// <exception cref="BaseDatosNoPreparadaExcepcion">La base no existe o le faltan tablas.</exception>
@@ -29,7 +29,7 @@ public static class InicializadorBaseDatos
             {
                 if (!await contexto.Database.CanConnectAsync(cancelacion))
                     throw new BaseDatosNoPreparadaExcepcion(
-                        "La base de datos de la caja no existe. Créela con scripts/base-datos/pos/structura_base_datos.sql.");
+                        "La base de datos de la caja no existe. Créela con scripts/base-datos/estructura_base_datos_pos.sql.");
 
                 await contexto.Turnos.AnyAsync(cancelacion);
                 logger.LogInformation("Base de datos local lista");
@@ -38,7 +38,7 @@ public static class InicializadorBaseDatos
             catch (SqlException excepcion) when (EsFaltanTablas(excepcion))
             {
                 throw new BaseDatosNoPreparadaExcepcion(
-                    "A la base de datos de la caja le faltan tablas. Ejecute scripts/base-datos/pos/structura_base_datos.sql.", excepcion);
+                    "A la base de datos de la caja le faltan tablas. Ejecute scripts/base-datos/estructura_base_datos_pos.sql.", excepcion);
             }
             catch (SqlException excepcion) when (intento < IntentosMaximos)
             {

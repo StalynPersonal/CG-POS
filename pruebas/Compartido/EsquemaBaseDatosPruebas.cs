@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
 namespace CgPos.Pruebas.Compartido;
@@ -10,7 +10,7 @@ namespace CgPos.Pruebas.Compartido;
 public static class EsquemaBaseDatosPruebas
 {
     /// <param name="cadenaConexion">Conexión a la base temporal que se va a crear (su catálogo aún no existe).</param>
-    /// <param name="script">Ruta del structura_base_datos.sql que corresponde a esa base.</param>
+    /// <param name="script">Ruta del script de estructura que corresponde a esa base.</param>
     /// <param name="sinAdministrador">
     /// Quita la empresa y el administrador que siembra el script, para que la prueba use los de su propia carga inicial.
     /// Lo que siembra el script se prueba aparte.
@@ -52,9 +52,9 @@ public static class EsquemaBaseDatosPruebas
 
     /// <summary>Ruta del script de la base del Central.</summary>
     public static string ScriptCentral(string raizRepositorio) =>
-        Path.Combine(raizRepositorio, "scripts", "base-datos", "central", "structura_base_datos.sql");
+        Path.Combine(raizRepositorio, "scripts", "base-datos", "estructura_base_datos_central.sql");
 
     /// <summary>Ruta del script de la base de una caja.</summary>
     public static string ScriptCaja(string raizRepositorio) =>
-        Path.Combine(raizRepositorio, "scripts", "base-datos", "pos", "structura_base_datos.sql");
+        Path.Combine(raizRepositorio, "scripts", "base-datos", "estructura_base_datos_pos.sql");
 }

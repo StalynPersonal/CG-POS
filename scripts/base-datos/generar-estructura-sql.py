@@ -4,9 +4,9 @@ Genera los scripts de estructura de las bases de datos a partir del modelo de EF
 
     python scripts/base-datos/generar-estructura-sql.py
 
-Deja dos archivos, uno por base:
-    scripts/base-datos/central/structura_base_datos.sql
-    scripts/base-datos/pos/structura_base_datos.sql
+Deja dos archivos en la misma carpeta, uno por base:
+    scripts/base-datos/estructura_base_datos_central.sql
+    scripts/base-datos/estructura_base_datos_pos.sql
 
 Cada uno crea la base si no existe, la secuencia de Id, todas las tablas con sus llaves primarias,
 llaves foráneas, índices y restricciones, y en el Central el único dato inicial: el usuario administrador.
@@ -195,13 +195,13 @@ def esquema(proyecto, arranque, destino):
         return archivo.read().strip()
 
 
-def encabezado(base, titulo, descripcion):
+def encabezado(base, titulo, descripcion, archivo):
     return f"""/*
     {titulo}
     {descripcion}
 
     Cómo usarlo:
-        sqlcmd -S .\\SQLEXPRESS -E -i structura_base_datos.sql
+        sqlcmd -S .\\SQLEXPRESS -E -i {archivo}
     o ábralo en SQL Server Management Studio y ejecútelo.
 
     Crea la base «{base}» si no existe, la secuencia de Id, todas las tablas con sus llaves,
@@ -373,18 +373,17 @@ GO
 """
 
 
-def escribir(carpeta, contenido, nombre='structura_base_datos.sql'):
-    destino = os.path.join(SALIDA, carpeta)
-    os.makedirs(destino, exist_ok=True)
-    ruta = os.path.join(destino, nombre)
+def escribir(contenido, nombre):
+    os.makedirs(SALIDA, exist_ok=True)
+    ruta = os.path.join(SALIDA, nombre)
     with open(ruta, 'w', encoding='utf-8-sig', newline='\r\n') as archivo:
         archivo.write(contenido)
     print('generado:', os.path.relpath(ruta, RAIZ))
 
 
-def escribir_carga_clientes_dgii(carpeta, base):
+def escribir_carga_clientes_dgii(base):
     """Carga el archivo de contribuyentes de la DGII en la tabla de clientes: actualiza el que existe y agrega el que no."""
-    escribir(carpeta, f"""/*
+    escribir(f"""/*
     CG-POS · Cargar el archivo de la DGII (DGII_RNC.TXT) en los clientes de «{base}»
 
     Toma el archivo que publica la DGII y lo lleva a la tabla Clientes: si el RNC o la cédula ya existe, le actualiza
@@ -530,19 +529,20 @@ temporal = os.path.join(SALIDA, '_esquema.sql')
 
 # ---------------------------------------------------------------- Central
 central = esquema('src/Central/CgPos.Central.Infraestructura', 'src/Central/CgPos.Central.Api', temporal)
-escribir('central', encabezado('CgPosCentral', 'CG-POS · Base de datos del Central',
-                               'Estructura completa del servidor corporativo y el usuario administrador.')
-         + central + datos_iniciales())
-escribir_carga_clientes_dgii('central', 'CgPosCentral')
+escribir(encabezado('CgPosCentral', 'CG-POS · Base de datos del Central',
+                    'Estructura completa del servidor corporativo y el usuario administrador.', 'estructura_base_datos_central.sql')
+         + central + datos_iniciales(), 'estructura_base_datos_central.sql')
+escribir_carga_clientes_dgii('CgPosCentral')
 
 # ---------------------------------------------------------------- Caja
 pos = esquema('src/POS/CgPos.Pos.Infraestructura', 'src/POS/CgPos.Pos.Agente', temporal)
-escribir('pos', encabezado('CgPosCaja', 'CG-POS · Base de datos de la caja',
-                           'Estructura completa de una caja. No lleva datos: todo baja del Central en la primera sincronización.')
+escribir(encabezado('CgPosCaja', 'CG-POS · Base de datos de la caja',
+                    'Estructura completa de una caja. No lleva datos: todo baja del Central en la primera sincronización.',
+                    'estructura_base_datos_pos.sql')
          + pos + """
 
-PRINT 'Base de la caja creada. Configure su sucursal y su número: la credencial la pide sola al Central.';
+PRINT 'Base de la caja creada. Al abrirla le pedirá su sucursal, su caja, su IP, el servidor y la credencial.';
 GO
-""")
+""", 'estructura_base_datos_pos.sql')
 
 os.remove(temporal)

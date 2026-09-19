@@ -34,6 +34,18 @@
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">@_estado.Problema</MudAlert>
                 }
+
+                @* El Central no acepta esta caja: se puede seguir vendiendo, pero hay que corregir sus datos. *@
+                @if (_configuracion is { Configurada: true, Sirve: false })
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mt-4">
+                        @(_configuracion.Problema ?? "El Central no acepta esta caja.")
+                    </MudAlert>
+                    <MudButton Variant="Variant.Filled" Color="Color.Default" Class="mt-3" StartIcon="@Icons.Material.Filled.Settings"
+                               OnClick="IrAConfigurar">
+                        Configurar la caja
+                    </MudButton>
+                }
                 else
                 {
                     <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Class="mt-4 ml-0">Caja habilitada</MudChip>
@@ -97,6 +109,7 @@
 
     private PantallaCaja _pantalla = PantallasCaja.Principal;
     private DatosEstadoCaja? _estado;
+    private DatosConfiguracionPantalla? _configuracion;
     private bool _cargando = true;
     private bool _procesando;
     private string? _mensaje;
@@ -124,7 +137,8 @@
 
         // Una caja recién instalada no sabe cuál es: antes de pedir usuario hay que decirle qué caja es y dónde está su
         // Central. Se entra por aquí sea cual sea la pantalla desde la que se abrió.
-        if (await Cliente.ObtenerConfiguracionAsync() is not { Configurada: true })
+        _configuracion = await Cliente.ObtenerConfiguracionAsync();
+        if (_configuracion is not { Configurada: true })
         {
             Navegacion.NavigateTo($"/configurar?pantalla={ClavePantalla}", replace: true);
             return;
@@ -139,6 +153,8 @@
         _estado = await Cliente.ObtenerEstadoCajaAsync();
         _cargando = false;
     }
+
+    private void IrAConfigurar() => Navegacion.NavigateTo($"/configurar?pantalla={ClavePantalla}");
 
     private string? ClaseCampo(CampoActivo campo) => _campo == campo ? "cg-campo-activo" : null;
 

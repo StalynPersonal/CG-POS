@@ -13,7 +13,7 @@ public static class InicializadorBaseDatosCentral
 
     /// <summary>
     /// Comprueba que la base del Central exista y tenga sus tablas; reintenta mientras SQL Server no esté disponible.
-    /// El Central no crea ni cambia la base: eso lo hace el script <c>scripts/base-datos/central/structura_base_datos.sql</c>.
+    /// El Central no crea ni cambia la base: eso lo hace el script <c>scripts/base-datos/estructura_base_datos_central.sql</c>.
     /// </summary>
     /// <exception cref="BaseDatosNoPreparadaExcepcion">La base no existe o le faltan tablas.</exception>
     public static async Task InicializarBaseDatosCentralAsync(this IServiceProvider servicios, CancellationToken cancelacion = default)
@@ -28,7 +28,7 @@ public static class InicializadorBaseDatosCentral
             {
                 if (!await contexto.Database.CanConnectAsync(cancelacion))
                     throw new BaseDatosNoPreparadaExcepcion(
-                        "La base de datos del Central no existe. Créela con scripts/base-datos/central/structura_base_datos.sql.");
+                        "La base de datos del Central no existe. Créela con scripts/base-datos/estructura_base_datos_central.sql.");
 
                 await contexto.UsuariosCentral.AnyAsync(cancelacion);
                 logger.LogInformation("Base de datos del Central lista");
@@ -37,7 +37,7 @@ public static class InicializadorBaseDatosCentral
             catch (SqlException excepcion) when (excepcion.Number == 208)
             {
                 throw new BaseDatosNoPreparadaExcepcion(
-                    "A la base de datos del Central le faltan tablas. Ejecute scripts/base-datos/central/structura_base_datos.sql.", excepcion);
+                    "A la base de datos del Central le faltan tablas. Ejecute scripts/base-datos/estructura_base_datos_central.sql.", excepcion);
             }
             catch (SqlException excepcion) when (intento < IntentosMaximos)
             {

@@ -23,7 +23,7 @@
  PASO 1. CREAR LA BASE DE LA CAJA
 -------------------------------------------------------------------------------
 
-     sqlcmd -S . -i "scripts\base-datos\pos\structura_base_datos.sql"
+     sqlcmd -S . -i "scripts\base-datos\pos\estructura_base_datos.sql"
 
  Crea CgPosCaja con todas sus tablas y SIN datos: los artículos, los precios,
  los usuarios y los parámetros bajan del Central en la primera sincronización.

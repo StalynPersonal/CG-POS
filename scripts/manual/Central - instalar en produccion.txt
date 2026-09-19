@@ -37,11 +37,11 @@
 
  Abra SQL Server Management Studio, conéctese al servidor y ejecute:
 
-     scripts\base-datos\central\structura_base_datos.sql
+     scripts\base-datos\central\estructura_base_datos.sql
 
  O desde una consola:
 
-     sqlcmd -S .\SQLSERVER -E -i "scripts\base-datos\central\structura_base_datos.sql"
+     sqlcmd -S .\SQLSERVER -E -i "scripts\base-datos\central\estructura_base_datos.sql"
 
  Ese archivo crea la base CgPosCentral con todas sus tablas y con los datos con
  los que arranca el sistema: monedas, impuestos (ITBIS 18 %, 16 %, 0 % y

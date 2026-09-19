@@ -12,7 +12,7 @@
          La credencial queda cifrada en este equipo y solo sirve aquí.
       4. Copia el certificado .p12 de la empresa (el PIN no se guarda: lo digita el supervisor en la caja).
       5. Instala el servicio con instalar-agente.ps1, lo arranca y comprueba /salud.
-    La base de datos NO la crea este script: créela antes con scripts\base-datos\pos\structura_base_datos.sql.
+    La base de datos NO la crea este script: créela antes con scripts\base-datos\pos\estructura_base_datos.sql.
 
 .EXAMPLE
     .\instalar-caja.ps1 -Paquete C:\temp\cgpos-agente-1.0.0.zip -Sucursal 1 -Caja 1 `

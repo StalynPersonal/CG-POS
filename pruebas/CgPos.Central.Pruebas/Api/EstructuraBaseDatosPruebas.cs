@@ -1,4 +1,4 @@
-using CgPos.Central.Pruebas.Soporte;
+﻿using CgPos.Central.Pruebas.Soporte;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pruebas.Compartido;
 using Microsoft.Data.SqlClient;
@@ -7,7 +7,7 @@ using Microsoft.Extensions.Configuration;
 namespace CgPos.Central.Pruebas.Api;
 
 /// <summary>
-/// El script con el que se crea la base del Central (<c>scripts/base-datos/central/structura_base_datos.sql</c>) deja el
+/// El script con el que se crea la base del Central (<c>scripts/base-datos/estructura_base_datos_central.sql</c>) deja el
 /// sistema listo para entrar por primera vez: un administrador con todos los permisos y la contraseña que documenta el script.
 /// </summary>
 public class EstructuraBaseDatosPruebas

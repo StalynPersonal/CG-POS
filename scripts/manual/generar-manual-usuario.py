@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Genera el manual de usuario de CG-POS en Word.
 
@@ -153,7 +153,7 @@ titulo('2.1. Crear la base de datos del Central y entrar por primera vez', 2)
 p('El sistema no crea ni cambia bases de datos por su cuenta: la base se crea con el script que viene con el sistema. '
   'Esto lo hace una sola vez el personal de tecnología.')
 paso('En el servidor, abra SQL Server Management Studio (o use sqlcmd) y ejecute el archivo '
-     'scripts/base-datos/central/structura_base_datos.sql. Crea la base CgPosCentral con todas sus tablas, llaves e índices.')
+     'scripts/base-datos/estructura_base_datos_central.sql. Crea la base CgPosCentral con todas sus tablas, llaves e índices.')
 paso('Ese mismo script deja lo mínimo para arrancar: la empresa, el usuario administrador, los parámetros del negocio con '
      'valores razonables y los catálogos que son iguales en cualquier negocio dominicano.')
 nota('El RNC que trae el script es un marcador: lo primero que debe hacer al entrar al Central es corregirlo en '
@@ -251,7 +251,7 @@ p('La DGII publica un archivo con todos los contribuyentes registrados del país
   'de una vez en los clientes del Central, y de ahí bajan solos a las cajas. Sirve para que, cuando un cliente dicte su RNC '
   'en la caja, su razón social aparezca escrita exactamente como la tiene la DGII.')
 paso('Descargue el archivo del portal de la DGII y déjelo en una carpeta del servidor de base de datos.')
-paso('Abra scripts/base-datos/central/cargar-clientes-dgii.sql, cambie la ruta del archivo arriba y ejecútelo.')
+paso('Abra scripts/base-datos/cargar-clientes-dgii.sql, cambie la ruta del archivo arriba y ejecútelo.')
 paso('Al terminar informa cuántos clientes creó y cuántos actualizó. Las cajas los reciben en su próxima sincronización.')
 tabla(['Qué hace', 'Detalle'],
       [['Si el cliente ya existe', 'Le actualiza la razón social y lo deja activo. El teléfono, el correo, el contacto, el tipo de comprobante, la lista de precios y las direcciones no se tocan: eso lo llenó usted.'],
@@ -538,7 +538,7 @@ p('Cada caja tiene su propia base de datos en su propio equipo: por eso sigue ve
   'La instalación la hace tecnología, una sola vez por caja.')
 paso('En el Central, cree la sucursal y la caja (Organización → Cajas), con la IP fija del equipo donde va a correr. Después, '
      'en el menú de esa caja, «Emitir credencial»: el secreto se muestra una sola vez, cópielo.')
-paso('En el equipo de la caja, instale SQL Server Express y ejecute scripts/base-datos/pos/structura_base_datos.sql. '
+paso('En el equipo de la caja, instale SQL Server Express y ejecute scripts/base-datos/estructura_base_datos_pos.sql. '
      'Crea la base CgPosCaja vacía: no lleva datos, todo baja del Central.')
 paso('Instale el programa de la caja con scripts/caja/instalar-caja.ps1, indicando el número de sucursal, el de caja y '
      'la dirección del Central. No se le pide ninguna clave.')
@@ -741,7 +741,7 @@ titulo('4. Recorrido completo del sistema (para probarlo todo)')
 p('Este es el orden recomendado para recorrer el sistema de punta a punta y comprobar que todo funciona.')
 
 titulo('Primero, en el Central', 2)
-paso('Cree la base del Central con scripts/base-datos/central/structura_base_datos.sql y entre con el usuario ADMIN (cambie su contraseña).')
+paso('Cree la base del Central con scripts/base-datos/estructura_base_datos_central.sql y entre con el usuario ADMIN (cambie su contraseña).')
 paso('Revise Organización: cree la empresa, la sucursal y la caja. La credencial la pedirá la caja al instalarse.')
 paso('En Parámetros, configure lo que el negocio necesita: fondo de caja, redondeo, días de vigencia de notas de crédito, '
      'retención de la Ley 32-23 (si aplica), chequeador y listas de boda.')
@@ -753,7 +753,7 @@ paso('Cree los usuarios de caja: un cajero, un supervisor y un gerente, con sus 
 paso('Cree una lista de boda de prueba y anote su número.')
 
 titulo('Después, en la caja', 2)
-paso('Cree la base de la caja con scripts/base-datos/pos/structura_base_datos.sql e instale la caja con su sucursal, su número y la dirección del Central.')
+paso('Cree la base de la caja con scripts/base-datos/estructura_base_datos_pos.sql e instale la caja con su sucursal, su número y la dirección del Central.')
 paso('Llene la pantalla de configuración de la caja con su sucursal, su código, su IP, la dirección del Central y la credencial.')
 paso('Espere el primer ciclo de sincronización: la caja baja artículos, precios, usuarios y parámetros del Central.')
 paso('Entre con el usuario del cajero y abra el turno con su fondo.')
@@ -783,7 +783,7 @@ doc.add_page_break()
 # ---------------------------------------------------------------- Qué hacer si
 titulo('5. Qué hacer si…')
 tabla(['Situación', 'Qué pasa y qué hacer'],
-      [['La caja o el Central avisan que falta la base de datos', 'No se ejecutó el script de creación en ese equipo, o el sistema está apuntando a otra base. Ejecute scripts/base-datos/central/structura_base_datos.sql en el servidor o scripts/base-datos/pos/structura_base_datos.sql en la caja.'],
+      [['La caja o el Central avisan que falta la base de datos', 'No se ejecutó el script de creación en ese equipo, o el sistema está apuntando a otra base. Ejecute scripts/base-datos/estructura_base_datos_central.sql en el servidor o scripts/base-datos/estructura_base_datos_pos.sql en la caja.'],
        ['No hay internet', 'La caja sigue vendiendo, cobrando y facturando normal: todo se guarda y se envía cuando vuelva la comunicación. Solo quedan sin servicio las listas de boda, las notas de crédito de otra sucursal y el chequeador.'],
        ['El terminal de tarjeta no responde', 'La caja lo avisa. Se puede registrar la aprobación manual del banco con autorización de supervisor, y queda marcada para conciliar.'],
        ['Se acabaron los e-NCF o venció el rango', 'No se puede facturar. Administración debe asignar un rango nuevo en el Central; la caja lo recibe en su próxima sincronización. La barra de estado avisa antes de que se acabe.'],
