@@ -26,9 +26,12 @@ public sealed record DatosSecuenciaEcfCentral(
     long Hasta,
     DateOnly VenceEn,
     bool Activa,
-    long? UltimoRecibido);
+    long? UltimoRecibido,
+    long Proximo,
+    DateTimeOffset AsignadoEn,
+    string AsignadoPor);
 
-public sealed record SolicitudSecuenciaEcf(int CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn);
+public sealed record SolicitudSecuenciaEcf(int CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, long? Proximo = null);
 
 /// <summary>Un rango solo se amplía, se prorroga o se desactiva: la caja, el tipo y el inicio no cambian.</summary>
 public sealed record SolicitudActualizarSecuenciaEcf(long Hasta, DateOnly VenceEn, bool Activa);

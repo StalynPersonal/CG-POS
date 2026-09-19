@@ -254,7 +254,7 @@ public static class MapeoMaestros
 
     public static SecuenciaEcf Crear(SecuenciaEcfCarga d, IResolutorCodigos r)
     {
-        var secuencia = SecuenciaEcf.Asignar(r.Caja(d.SucursalCodigo, d.CajaCodigo), d.TipoComprobante, d.Desde, d.Hasta, d.VenceEn);
+        var secuencia = SecuenciaEcf.Asignar(r.Caja(d.SucursalCodigo, d.CajaCodigo), d.TipoComprobante, d.Desde, d.Hasta, d.VenceEn, d.Proximo);
         secuencia.Actualizar(d.Hasta, d.VenceEn, d.Activa);
         return secuencia;
     }

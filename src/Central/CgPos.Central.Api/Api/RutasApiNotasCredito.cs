@@ -37,8 +37,9 @@ public static class RutasApiNotasCredito
         var manager = aplicacion.MapGroup("/api/manager/notas-credito").RequireAuthorization(CatalogoPermisosCentral.AdministrarNotasCredito);
 
         manager.MapGet("/", async (string? buscar, EstadoNotaCreditoCentral? estado, bool? soloSobregiradas, int? pagina, int? tamano,
-                IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
-            Results.Ok(await servicio.ListarAsync(buscar, estado, soloSobregiradas ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
+                DateOnly? desde, DateOnly? hasta, IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarAsync(buscar, estado, soloSobregiradas ?? false, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado,
+                desde, hasta, cancelacion)));
 
         manager.MapGet("/{notaCreditoId:int}/movimientos", async (int notaCreditoId, IServicioNotasCreditoCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarMovimientosAsync(notaCreditoId, cancelacion)));

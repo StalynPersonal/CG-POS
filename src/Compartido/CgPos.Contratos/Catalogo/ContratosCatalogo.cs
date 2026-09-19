@@ -98,7 +98,9 @@ public sealed record MotivoDevolucionCarga(int Codigo, string Nombre, bool Activ
 /// Rango de e-CF que el Central asigna a una caja (RF-28). Se identifica por su tipo y su inicio: un e-NCF es único en la empresa y los rangos no se
 /// solapan. Ampliar el mismo rango extiende su final.
 /// </summary>
-public sealed record SecuenciaEcfCarga(string SucursalCodigo, string CajaCodigo, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, bool Activa = true);
+/// <param name="Proximo">Número con el que la caja arranca el consumo; si no viene, arranca en <paramref name="Desde"/>.</param>
+public sealed record SecuenciaEcfCarga(string SucursalCodigo, string CajaCodigo, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn,
+    bool Activa = true, long? Proximo = null);
 
 /// <summary>Tasa del día de SAP B1: pesos por unidad de la moneda (RF-212). Se identifica por la moneda y desde cuándo rige.</summary>
 public sealed record TasaCambioCarga(string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);

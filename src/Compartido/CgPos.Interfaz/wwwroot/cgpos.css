@@ -154,3 +154,14 @@ input, textarea, [contenteditable] {
     color: var(--cg-texto);
     opacity: .75;
 }
+
+/* ---------- Selector de fecha ----------
+   El calendario se abre dentro del mismo componente del campo, así que heredaba su ancho y salía cortado cuando el
+   campo es angosto. Aquí se le devuelve su tamaño propio, sin importar lo angosto que sea el campo. */
+.mud-picker-inline,
+.mud-picker-inline .mud-picker-container,
+.mud-picker-inline .mud-picker-content,
+.mud-picker-inline .mud-picker-calendar-container {
+    max-width: none;
+    min-width: 310px;
+}

@@ -29,19 +29,25 @@ public sealed class SecuenciaEcf : Entidad
     public long Restantes => Hasta - Ultimo;
     public decimal PorcentajeRestante => Total == 0 ? 0m : decimal.Round(Restantes * 100m / Total, 2);
 
-    public static SecuenciaEcf Asignar(int cajaId, TipoComprobante tipo, long desde, long hasta, DateOnly venceEn)
+    /// <param name="proximo">
+    /// Número con el que arranca el consumo. Se indica cuando parte del rango ya se usó fuera del sistema; si se omite,
+    /// arranca en <paramref name="desde"/>.
+    /// </param>
+    public static SecuenciaEcf Asignar(int cajaId, TipoComprobante tipo, long desde, long hasta, DateOnly venceEn, long? proximo = null)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de comprobante no válido.");
         if (desde < 1 || hasta > SecuenciaMaxima || desde > hasta)
             throw new ArgumentException($"El rango {desde}–{hasta} no es válido para e-CF.");
+        if (proximo is { } inicio && (inicio < desde || inicio > hasta + 1))
+            throw new ArgumentException($"El próximo número ({inicio}) debe estar dentro del rango {desde}–{hasta}.", nameof(proximo));
 
         var secuencia = new SecuenciaEcf
         {
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,
             Desde = desde,
-            Ultimo = desde - 1,
+            Ultimo = (proximo ?? desde) - 1,
         };
         secuencia.Actualizar(hasta, venceEn, activa: true);
         return secuencia;

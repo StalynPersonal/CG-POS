@@ -457,6 +457,11 @@ tabla(['Caja', 'Tipo', 'Desde', 'Hasta', 'Vence'],
       anchos=[1.6, 4.4, 2.4, 2.4, 3.0])
 nota('Los rangos de una caja no se solapan con los de otra. El sistema avisa en la barra de estado cuando queda poco del rango '
      'o está por vencer, y no deja facturar si se agota: por eso conviene pedir el próximo con tiempo.')
+p('Al asignar el rango se elige primero la sucursal y después su caja. El campo «Próximo» se deja vacío casi siempre: el '
+  'consumo arranca en el primer número del rango. Solo se llena cuando parte de esa numeración ya se usó en otro sistema y '
+  'hay que continuar desde cierto número.')
+nota('En el listado, «Próximo» es el número que la caja emitirá en su siguiente comprobante, y «Usado» es hasta dónde llegó '
+     'según lo que ya subió al Central. La columna «Asignado» dice cuándo se cargó el rango y quién lo hizo.')
 
 titulo('2.10. Facturas de las cajas', 2)
 p('Ruta: /facturas. Es la vista de todo lo que las cajas subieron al Central.')

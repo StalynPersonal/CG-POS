@@ -29,14 +29,28 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
                 .ToListAsync(cancelacion))
             .ToDictionary(u => (u.CajaId, u.TipoComprobante), u => long.Parse(u.Encf[3..], System.Globalization.CultureInfo.InvariantCulture));
 
+        // Quién asignó el rango y cuándo: son las columnas que llevan todos los maestros del Central.
+        var asignaciones = await contexto.SecuenciasEcf.AsNoTracking()
+            .Select(s => new
+            {
+                s.Id,
+                En = EF.Property<DateTimeOffset>(s, Persistencia.Configuraciones.ColumnasMaestro.ModificadoEn),
+                Por = EF.Property<string>(s, Persistencia.Configuraciones.ColumnasMaestro.ModificadoPor),
+            })
+            .ToDictionaryAsync(s => s.Id, cancelacion);
+
         return (await contexto.SecuenciasEcf.AsNoTracking().ToListAsync(cancelacion))
             .Where(s => cajas.ContainsKey(s.CajaId))
             .Select(s =>
             {
                 var caja = cajas[s.CajaId];
                 long? ultimo = ultimos.TryGetValue((s.CajaId, s.TipoComprobante), out var secuencia) && secuencia >= s.Desde && secuencia <= s.Hasta ? secuencia : null;
+                var asignacion = asignaciones.GetValueOrDefault(s.Id);
                 return new DatosSecuenciaEcfCentral(s.Id, s.CajaId, caja.Codigo, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty,
-                    s.TipoComprobante, s.Desde, s.Hasta, s.VenceEn, s.Activa, ultimo);
+                    s.TipoComprobante, s.Desde, s.Hasta, s.VenceEn, s.Activa, ultimo,
+                    Proximo: (ultimo ?? s.Ultimo) + 1,
+                    AsignadoEn: asignacion?.En ?? default,
+                    AsignadoPor: asignacion?.Por ?? string.Empty);
             })
             .OrderBy(s => s.SucursalCodigo, StringComparer.Ordinal)
             .ThenBy(s => s.CajaCodigo, StringComparer.Ordinal)
@@ -55,7 +69,11 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         if (await contexto.SecuenciasEcf.AnyAsync(s => s.TipoComprobante == solicitud.TipoComprobante && s.Desde == solicitud.Desde, cancelacion))
             return ResultadoAdministracion.Error("Ya hay un rango de ese tipo que empieza en ese número.");
 
-        var secuencia = new SecuenciaEcfCarga(sucursal, caja, solicitud.TipoComprobante, solicitud.Desde, solicitud.Hasta, solicitud.VenceEn);
+        if (solicitud.Proximo is { } proximo && (proximo < solicitud.Desde || proximo > solicitud.Hasta + 1))
+            return ResultadoAdministracion.Error($"El próximo número debe estar entre {solicitud.Desde} y {solicitud.Hasta}.");
+
+        var secuencia = new SecuenciaEcfCarga(sucursal, caja, solicitud.TipoComprobante, solicitud.Desde, solicitud.Hasta, solicitud.VenceEn,
+            Proximo: solicitud.Proximo);
         return await PublicarAsync(() => publicador.PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]), actor.Nombre, cancelacion),
             async () => await contexto.SecuenciasEcf.Where(s => s.TipoComprobante == secuencia.TipoComprobante && s.Desde == secuencia.Desde)
                 .Select(s => (int?)s.Id).SingleOrDefaultAsync(cancelacion));

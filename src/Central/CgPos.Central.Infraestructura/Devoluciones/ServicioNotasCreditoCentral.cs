@@ -101,7 +101,7 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
     }
 
     public async Task<PaginaNotasCreditoCentral> ListarAsync(string? buscar, EstadoNotaCreditoCentral? estado, bool soloSobregiradas, int pagina, int tamano,
-        CancellationToken cancelacion = default)
+        DateOnly? desde = null, DateOnly? hasta = null, CancellationToken cancelacion = default)
     {
         tamano = Math.Clamp(tamano, 1, IServicioNotasCreditoCentral.TamanoMaximoPagina);
         pagina = Math.Max(pagina, 0);
@@ -109,6 +109,11 @@ internal sealed class ServicioNotasCreditoCentral(ContextoDatosCentral contexto,
         var emitidaAntesDe = Hoy.AddDays(-await DiasVigenciaAsync(cancelacion));
 
         var consulta = contexto.NotasCredito.AsNoTracking();
+        if (desde is { } inicio)
+            consulta = consulta.Where(n => n.FechaEmision >= inicio);
+        if (hasta is { } fin)
+            consulta = consulta.Where(n => n.FechaEmision <= fin);
+
         if (!string.IsNullOrWhiteSpace(buscar))
         {
             var texto = buscar.Trim();

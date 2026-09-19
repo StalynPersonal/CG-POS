@@ -8,10 +8,19 @@
         <div class="cg-central__dialogo">
             @if (Secuencia is null)
             {
-                <MudSelect T="int?" @bind-Value="_cajaId" Label="Caja" Placeholder="Seleccione la caja" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
-                    @foreach (var caja in Cajas)
+                @* Primero la sucursal y luego su caja: en una empresa con varias sucursales la lista de cajas se vuelve larga. *@
+                <MudSelect T="string" Value="_sucursalCodigo" ValueChanged="ElegirSucursal" Label="Sucursal" Placeholder="Seleccione la sucursal"
+                           Variant="Variant.Outlined" ToStringFunc="NombreSucursal">
+                    @foreach (var sucursal in Sucursales)
                     {
-                        <MudSelectItem T="int?" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                        <MudSelectItem T="string" Value="@sucursal">@NombreSucursal(sucursal)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="int?" @bind-Value="_cajaId" Label="Caja" Placeholder="Seleccione la caja" Variant="Variant.Outlined"
+                           ToStringFunc="NombreCaja" Disabled="@(_sucursalCodigo is null)">
+                    @foreach (var caja in CajasDeLaSucursal)
+                    {
+                        <MudSelectItem T="int?" Value="@caja.Id">Caja @caja.Codigo · @caja.Nombre</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSelect T="TipoComprobante" @bind-Value="_tipo" Label="Comprobante" Variant="Variant.Outlined" ToStringFunc="NombreTipo">
@@ -30,6 +39,16 @@
 
             <MudNumericField T="long" @bind-Value="_hasta" Label="Hasta" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
                              HelperText="@(Secuencia is null ? null : "Solo se puede ampliar.")" />
+            @if (Secuencia is null)
+            {
+                <MudNumericField T="long?" @bind-Value="_proximo" Label="Próximo" Variant="Variant.Outlined" Min="1" HideSpinButtons="true" Clearable="true"
+                                 HelperText="Número con el que arranca el consumo. Se deja vacío para empezar por el primero del rango; se indica solo si parte del rango ya se usó." />
+            }
+            else
+            {
+                <MudTextField T="string" Value="@Secuencia.Proximo.ToString("N0")" Label="Próximo" Variant="Variant.Outlined" ReadOnly="true"
+                              HelperText="El que emitirá la caja en su siguiente comprobante." />
+            }
             <MudDatePicker @bind-Date="_vence" Label="Vence" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
             @if (Secuencia is not null)
             {
@@ -54,7 +73,9 @@
     [Parameter] public DatosSecuenciaEcfCentral? Secuencia { get; set; }
     [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
 
+    private string? _sucursalCodigo;
     private int? _cajaId;
+    private long? _proximo;
     private TipoComprobante _tipo = TipoComprobante.FacturaConsumo;
     private long _desde = 1;
     private long _hasta;
@@ -65,8 +86,24 @@
 
     private static string NombreTipo(TipoComprobante tipo) => $"E{(int)tipo} · {ReglasComprobante.Nombre(tipo)}";
 
+    private IReadOnlyList<string> Sucursales =>
+        Cajas.Select(c => c.SucursalCodigo).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+
+    private IEnumerable<DatosCaja> CajasDeLaSucursal =>
+        Cajas.Where(c => c.SucursalCodigo == _sucursalCodigo).OrderBy(c => c.Codigo, StringComparer.Ordinal);
+
+    private string NombreSucursal(string? codigo) =>
+        Cajas.FirstOrDefault(c => c.SucursalCodigo == codigo) is { } caja ? $"{codigo} · {caja.SucursalNombre}" : codigo ?? string.Empty;
+
     private string NombreCaja(int? cajaId) =>
-        Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"Caja {caja.Codigo} · Sucursal {caja.SucursalCodigo}" : string.Empty;
+        Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"Caja {caja.Codigo} · {caja.Nombre}" : string.Empty;
+
+    /// <summary>Al cambiar de sucursal la caja elegida deja de valer.</summary>
+    private void ElegirSucursal(string? codigo)
+    {
+        _sucursalCodigo = codigo;
+        _cajaId = null;
+    }
 
     protected override void OnInitialized()
     {
@@ -96,7 +133,7 @@
         _mensaje = null;
         var venceEn = DateOnly.FromDateTime(vence);
         var respuesta = Secuencia is null
-            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, _hasta, venceEn))
+            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, _hasta, venceEn, _proximo))
             : await Cliente.ActualizarSecuenciaAsync(Secuencia.Id, new SolicitudActualizarSecuenciaEcf(_hasta, venceEn, _activa));
         _procesando = false;
 

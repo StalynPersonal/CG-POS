@@ -304,9 +304,11 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     // ---------- Notas de crédito ----------
 
     public async Task<PaginaNotasCreditoCentral?> BuscarNotasCreditoAsync(string? buscar, CgPos.Dominio.Devoluciones.EstadoNotaCreditoCentral? estado,
-        bool soloSobregiradas, int pagina, int tamano, CancellationToken cancelacion = default)
+        bool soloSobregiradas, int pagina, int tamano, DateOnly? desde = null, DateOnly? hasta = null, CancellationToken cancelacion = default)
     {
         var ruta = $"api/manager/notas-credito?pagina={pagina}&tamano={tamano}&soloSobregiradas={(soloSobregiradas ? "true" : "false")}"
+                   + (desde is { } inicio ? $"&desde={inicio:yyyy-MM-dd}" : string.Empty)
+                   + (hasta is { } fin ? $"&hasta={fin:yyyy-MM-dd}" : string.Empty)
                    + (estado is { } filtro ? $"&estado={filtro}" : string.Empty)
                    + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"&buscar={Uri.EscapeDataString(buscar.Trim())}");
         try

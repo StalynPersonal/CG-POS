@@ -26,8 +26,9 @@ public interface IServicioNotasCreditoCentral
     /// <returns><c>false</c> si esa caja no tiene una reserva abierta de la nota para esa factura.</returns>
     Task<bool> LiberarReservaAsync(string notaCreditoNumero, int cajaId, string ventaNumero, CancellationToken cancelacion = default);
 
+    /// <param name="desde">Primer día de emisión que se incluye; sin él, no hay límite hacia atrás.</param>
     Task<PaginaNotasCreditoCentral> ListarAsync(string? buscar, EstadoNotaCreditoCentral? estado, bool soloSobregiradas, int pagina, int tamano,
-        CancellationToken cancelacion = default);
+        DateOnly? desde = null, DateOnly? hasta = null, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosMovimientoNotaCredito>> ListarMovimientosAsync(int notaCreditoId, CancellationToken cancelacion = default);
 

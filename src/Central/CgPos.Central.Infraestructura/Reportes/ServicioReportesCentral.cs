@@ -6,6 +6,7 @@ using CgPos.Contratos.Central;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Reportes;
 
@@ -97,11 +98,12 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
     public async Task<IReadOnlyList<DatosEcfReporte>> EcfAsync(FiltroReporte filtro, CancellationToken cancelacion = default)
     {
         var codigos = await CodigosAsync(cancelacion);
-        var desde = filtro.Desde.ToDateTime(TimeOnly.MinValue);
-        var hasta = filtro.Hasta.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        // El día es el de aquí, no el del reloj del servidor ni el de UTC.
+        var desde = new DateTimeOffset(filtro.Desde.ToDateTime(TimeOnly.MinValue), RelojNegocio.Desfase);
+        var hasta = new DateTimeOffset(filtro.Hasta.AddDays(1).ToDateTime(TimeOnly.MinValue), RelojNegocio.Desfase);
 
         var consulta = contexto.ComprobantesRecibidos.AsNoTracking()
-            .Where(c => c.FechaFirma.LocalDateTime >= desde && c.FechaFirma.LocalDateTime < hasta);
+            .Where(c => c.FechaFirma >= desde && c.FechaFirma < hasta);
         if (filtro.SucursalId is { } sucursal)
             consulta = consulta.Where(c => c.SucursalId == sucursal);
         if (filtro.CajaId is { } caja)

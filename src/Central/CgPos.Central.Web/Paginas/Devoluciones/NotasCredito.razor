@@ -25,6 +25,15 @@
               RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                @* Rango de días por fecha de emisión de la nota; vacío consulta todo el historial. *@
+                <div style="width: 190px">
+                    <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v))" Label="Desde" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" />
+                </div>
+                <div style="width: 190px">
+                    <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v))" Label="Hasta" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" />
+                </div>
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
                               Placeholder="e-NCF, número, documento o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                               Clearable="true" Style="min-width: 260px" />
@@ -87,6 +96,8 @@
 
 @code {
     private MudTable<DatosNotaCreditoCentral>? _tabla;
+    private DateTime? _desde = DateTime.Today.AddMonths(-1);
+    private DateTime? _hasta = DateTime.Today;
     private string? _buscar;
     private EstadoNotaCreditoCentral? _estado;
     private bool _soloSobregiradas;
@@ -108,7 +119,10 @@
 
     private async Task<TableData<DatosNotaCreditoCentral>> CargarAsync(TableState estado, CancellationToken cancelacion)
     {
-        var pagina = await Cliente.BuscarNotasCreditoAsync(_buscar, _estado, _soloSobregiradas, estado.Page, estado.PageSize, cancelacion);
+        var pagina = await Cliente.BuscarNotasCreditoAsync(_buscar, _estado, _soloSobregiradas, estado.Page, estado.PageSize,
+            _desde is { } desde ? DateOnly.FromDateTime(desde) : null,
+            _hasta is { } hasta ? DateOnly.FromDateTime(hasta) : null,
+            cancelacion);
         _error = pagina is null;
         return new TableData<DatosNotaCreditoCentral> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
     }
