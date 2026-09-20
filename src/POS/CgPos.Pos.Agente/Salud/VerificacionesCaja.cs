@@ -116,6 +116,35 @@ internal static class VerificacionesCaja
         }
     }
 
+    /// <summary>Publicidad de la pantalla del cliente: dónde van las imágenes y cuántas hay.</summary>
+    internal sealed class Publicidad(IConfiguration configuracion, IHostEnvironment entorno) : IHealthCheck
+    {
+        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext contexto, CancellationToken cancelacion = default)
+        {
+            var carpeta = Pantallas.RutasPantallaCliente.CarpetaPublicidad(configuracion, entorno.ContentRootPath);
+            var imagenes = Pantallas.RutasPantallaCliente.ImagenesDe(carpeta);
+            var datos = new Dictionary<string, object>
+            {
+                ["carpeta"] = carpeta,
+                ["url"] = CgPos.Contratos.Pantallas.ContratoPantallaCliente.RutaImagenes,
+                ["imagenes"] = imagenes.Count,
+                ["extensiones"] = Pantallas.RutasPantallaCliente.ExtensionesImagen,
+            };
+
+            // Los nombres ayudan a ver si falta una o si hay algo que la pantalla ignora por su extensión.
+            if (imagenes.Count > 0)
+                datos["archivos"] = imagenes;
+
+            if (!Directory.Exists(carpeta))
+                return Task.FromResult(Aviso($"La carpeta de publicidad no existe: {carpeta}. Créela y copie ahí las imágenes.", datos));
+
+            // Sin imágenes la pantalla del cliente funciona igual: muestra la venta y no rota nada.
+            return Task.FromResult(imagenes.Count == 0
+                ? Aviso($"No hay imágenes de publicidad en {carpeta}: copie ahí los archivos ({string.Join(", ", Pantallas.RutasPantallaCliente.ExtensionesImagen)}).", datos)
+                : Bien($"{imagenes.Count} imagen(es) de publicidad en {carpeta}, servidas en {CgPos.Contratos.Pantallas.ContratoPantallaCliente.RutaImagenes}.", datos));
+        }
+    }
+
     /// <summary>Certificado digital: sin él la caja no puede firmar los comprobantes fiscales.</summary>
     internal sealed class Certificado(IConfiguration configuracion) : IHealthCheck
     {

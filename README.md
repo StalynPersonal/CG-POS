@@ -108,7 +108,7 @@ dotnet run --project src/POS/CgPos.Pos.Agente
 ```
 
 - Pantallas: <http://localhost:5180>
-- Salud del servicio y la base: <http://localhost:5180/salud>
+- Salud del servicio y la base: <http://localhost:5180/salud>. Comprueba base de datos, configuración de la caja, Central, certificado e-CF y **publicidad** (la carpeta de las imágenes ya resuelta, la dirección con que se sirven —`/publicidad`— y cuántas hay). Estados en español: *Correcto*, *Con pendientes* y *Con fallas*.
 - Logs de desarrollo: `src/POS/CgPos.Pos.Agente/logs/`
 
 En desarrollo, el Agente aplica al arrancar `datos/carga-inicial.desarrollo.json` y opera como la caja que se le indique en su pantalla de configuración (por lo general la 01 de la sucursal 01). Las referencias entre registros de los archivos de datos van por código, nunca por Id (el departamento del artículo por su número, el rol del usuario por su código, sus cajas como sucursal y caja). Los archivos de datos se aplican **solo si cambiaron** desde la última vez (su huella SHA-256 queda en la base). En el Central, además, solo crean lo que no existe: lo que se editó en el Manager nunca se pisa. La caja configurada contra un Central no aplica los archivos de carga inicial ni de maestros: todo le llega del Central. Usuarios de prueba:

@@ -61,7 +61,28 @@ public sealed class FiltroPublicarVenta(PublicadorPantallaCliente publicador, IL
 
 public static class RutasPantallaCliente
 {
-    private static readonly string[] ExtensionesImagen = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
+    /// <summary>Lo que la pantalla del cliente sabe mostrar; lo demás que haya en la carpeta se ignora.</summary>
+    internal static readonly string[] ExtensionesImagen = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
+
+    /// <summary>Dónde se dejan las imágenes si no se configura otra carpeta.</summary>
+    internal const string CarpetaPublicidadPredeterminada = @"C:\CGPOS\Publicidad";
+
+    /// <summary>Clave de appsettings con la carpeta de las imágenes.</summary>
+    internal const string ClaveCarpetaPublicidad = "Pantallas:CarpetaPublicidad";
+
+    /// <summary>Carpeta de las imágenes de publicidad, ya resuelta a ruta completa. La usan la pantalla y el diagnóstico.</summary>
+    internal static string CarpetaPublicidad(IConfiguration configuracion, string raizContenido) =>
+        Path.GetFullPath(configuracion[ClaveCarpetaPublicidad] is { Length: > 0 } ruta ? ruta : CarpetaPublicidadPredeterminada, raizContenido);
+
+    /// <summary>Las imágenes que hay ahora mismo en la carpeta, en el orden en que se muestran.</summary>
+    internal static IReadOnlyList<string> ImagenesDe(string carpeta) =>
+        Directory.Exists(carpeta)
+            ? [.. Directory.EnumerateFiles(carpeta)
+                .Where(ruta => ExtensionesImagen.Contains(Path.GetExtension(ruta), StringComparer.OrdinalIgnoreCase))
+                .Select(Path.GetFileName)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .Select(nombre => nombre!)]
+            : [];
 
     public static WebApplication MapearPantallaCliente(this WebApplication aplicacion)
     {
@@ -70,7 +91,7 @@ public static class RutasPantallaCliente
         // La carpeta se crea si no existe: instalar una caja no debe depender de que alguien se acuerde de crearla, ni del
         // orden en que lo haga. Si no se puede crear (ruta de red caída, sin permisos), la caja arranca igual y solo se
         // queda sin publicidad: la pantalla del cliente sigue mostrando la venta, que es lo que no puede faltar.
-        var carpeta = CarpetaPublicidad(aplicacion);
+        var carpeta = CarpetaPublicidad(aplicacion.Configuration, aplicacion.Environment.ContentRootPath);
         try
         {
             Directory.CreateDirectory(carpeta);
@@ -93,14 +114,9 @@ public static class RutasPantallaCliente
         aplicacion.MapGet("/api/pantallas/publicidad", async (IEstadoCaja estadoCaja, IParametros parametros, IContextoCaja contextoCaja,
             CancellationToken cancelacion) =>
         {
-            var imagenes = Directory.Exists(carpeta)
-                ? Directory.EnumerateFiles(carpeta)
-                    .Where(ruta => ExtensionesImagen.Contains(Path.GetExtension(ruta), StringComparer.OrdinalIgnoreCase))
-                    .Select(Path.GetFileName)
-                    .Order(StringComparer.OrdinalIgnoreCase)
-                    .Select(nombre => $"{ContratoPantallaCliente.RutaImagenes}/{Uri.EscapeDataString(nombre!)}")
-                    .ToList()
-                : [];
+            var imagenes = ImagenesDe(carpeta)
+                .Select(nombre => $"{ContratoPantallaCliente.RutaImagenes}/{Uri.EscapeDataString(nombre)}")
+                .ToList();
 
             // Los textos y el tiempo de la publicidad los configura el negocio; si no están, la pantalla no los muestra.
             var estado = await estadoCaja.ObtenerAsync(cancelacion);
@@ -118,7 +134,5 @@ public static class RutasPantallaCliente
         return aplicacion;
     }
 
-    private static string CarpetaPublicidad(WebApplication aplicacion) =>
-        Path.GetFullPath(aplicacion.Configuration["Pantallas:CarpetaPublicidad"] is { Length: > 0 } ruta ? ruta : @"C:\CGPOS\Publicidad",
-            aplicacion.Environment.ContentRootPath);
+
 }
