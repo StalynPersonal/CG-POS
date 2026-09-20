@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 
 namespace CgPos.Contratos.Central;
 
@@ -7,6 +7,16 @@ public sealed record DatosMaestroCentral<T>(T Dato, DateTimeOffset ModificadoEn,
 
 /// <param name="Total">Registros que coinciden con la búsqueda, sumando todas las páginas.</param>
 public sealed record PaginaMaestros<T>(IReadOnlyList<DatosMaestroCentral<T>> Elementos, int Total);
+
+/// <summary>Dónde buscar un artículo desde el Manager. Sin campo se busca en todos.</summary>
+public static class CamposBusquedaArticulo
+{
+    /// <summary>Código interno, de barras o de proveedor, completo: un código es el artículo o no lo es.</summary>
+    public const string Codigo = "codigo";
+
+    /// <summary>Descripción, por parecido.</summary>
+    public const string Descripcion = "descripcion";
+}
 
 /// <summary>Corrección del documento de un cliente mal digitado; el motivo queda en la auditoría.</summary>
 public sealed record SolicitudCorreccionDocumentoCliente(CgPos.Dominio.Fiscal.TipoDocumentoIdentidad TipoDocumento, string Documento, string Motivo);

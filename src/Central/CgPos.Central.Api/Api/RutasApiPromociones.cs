@@ -32,7 +32,7 @@ public static class RutasApiPromociones
 
         // Referencias para armar el alcance de una promoción sin exigir los permisos de maestros u organización.
         grupo.MapGet("/articulos", async (string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
-            Results.Ok(await maestros.BuscarAsync<ArticuloCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
+            Results.Ok(await maestros.BuscarAsync<ArticuloCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion: cancelacion)));
         grupo.MapPost("/articulos/por-codigo", async (string[] codigos, IServicioPromocionesCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ArticulosPorCodigoAsync(codigos, cancelacion)));
         grupo.MapGet("/departamentos", async (IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>

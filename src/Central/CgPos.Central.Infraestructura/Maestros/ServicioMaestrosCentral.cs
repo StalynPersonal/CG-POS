@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
@@ -17,8 +17,9 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(CancellationToken cancelacion = default) where T : class =>
         await TablasMaestros.De<T>().TodosAsync(contexto, new ResolutorCodigosCentral(contexto), cancelacion);
 
-    public Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, CancellationToken cancelacion = default) where T : class =>
-        TablasMaestros.De<T>().PaginaAsync(contexto, new ResolutorCodigosCentral(contexto), texto,
+    public Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, string? campo = null, CancellationToken cancelacion = default)
+        where T : class =>
+        TablasMaestros.De<T>().PaginaAsync(contexto, new ResolutorCodigosCentral(contexto), texto, campo,
             Math.Max(pagina, 0), Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina), cancelacion);
 
     public async Task<ResultadoAdministracion> GuardarAsync<T>(T dato, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default) where T : class

@@ -64,8 +64,12 @@ else if (_lista is { } lista)
                               AdornmentAriaLabel="Buscar artículo" />
                 <MudTextField Value="_descripcion" Label="Descripción" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"
                               Class="flex-grow-1" Style="min-width: 260px" />
+                @* El precio es solo para verlo: la lista guarda lo pedido, y la caja cobra el precio que esté vigente ese día. *@
+                <MudNumericField Value="_precio" T="decimal" Label="Precio del día" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
+                                 Style="width: 140px" ReadOnly="true" HideSpinButtons="true" />
+                @* La cantidad sale vacía: se escribe el número y ya. Vacío vale 1. *@
                 <MudNumericField @ref="_campoCantidad" Immediate="true" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 Min="0.001m" Format="0.###" Style="width: 130px" OnKeyDown="AlTeclearCantidad" />
+                                 Min="0.001m" Format="0.###" Style="width: 130px" OnKeyDown="AlTeclearCantidad" Placeholder="1" HideSpinButtons="true" />
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarAsync">Agregar</MudButton>
             </div>
 
@@ -75,6 +79,7 @@ else if (_lista is { } lista)
                     <MudTh Style="width: 200px">Código</MudTh>
                     <MudTh>Descripción</MudTh>
                     <MudTh Style="width: 130px">Cantidad</MudTh>
+                    <MudTh Style="width: 140px; text-align: right">Precio</MudTh>
                     <MudTh Style="width: 120px">Comprado</MudTh>
                     <MudTh Style="width: 60px"></MudTh>
                 </HeaderContent>
@@ -82,6 +87,8 @@ else if (_lista is { } lista)
                     <MudTd>@context.Codigo</MudTd>
                     <MudTd>@context.Descripcion</MudTd>
                     <MudTd><MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" /></MudTd>
+                    @* Los artículos de una lista guardada no traen precio: la lista pide artículos, no precios. *@
+                    <MudTd Style="text-align: right">@(context.Precio > 0 ? context.Precio.ToString("N2") : "—")</MudTd>
                     <MudTd>@context.Comprado.ToString("0.###")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => _articulos.Remove(context)" />
@@ -152,9 +159,10 @@ else if (_lista is { } lista)
     // La fila de captura, que es donde se digita antes de agregar.
     private string? _codigo;
     private string _descripcion = string.Empty;
-    private decimal _cantidad = 1m;
+    private decimal _precio;
+    private decimal? _cantidad;
     private MudTextField<string?>? _campoCodigo;
-    private MudNumericField<decimal>? _campoCantidad;
+    private MudNumericField<decimal?>? _campoCantidad;
 
     /// <summary>Se ejecuta también al pasar de una lista a otra sin salir de la pantalla.</summary>
     protected override async Task OnParametersSetAsync()
@@ -262,6 +270,7 @@ else if (_lista is { } lista)
     {
         _codigo = articulo.Codigo;
         _descripcion = articulo.Descripcion;
+        _precio = articulo.PrecioDetalle;
     }
 
     /// <summary>Pasa lo digitado a la lista y deja la fila lista para el siguiente artículo.</summary>
@@ -274,18 +283,21 @@ else if (_lista is { } lista)
             return;
         }
 
-        if (_cantidad <= 0)
+        // Dejar la cantidad vacía es lo más común: una unidad.
+        var cantidad = _cantidad ?? 1m;
+        if (cantidad <= 0)
         {
             Avisos.Add("La cantidad tiene que ser mayor que cero.", Severity.Warning);
             await EnfocarAsync(_campoCantidad);
             return;
         }
 
-        _articulos.Insert(0, new ArticuloEnEdicion { Codigo = _codigo.Trim(), Descripcion = _descripcion, Cantidad = _cantidad });
+        _articulos.Insert(0, new ArticuloEnEdicion { Codigo = _codigo.Trim(), Descripcion = _descripcion, Cantidad = cantidad, Precio = _precio });
 
         _codigo = null;
         _descripcion = string.Empty;
-        _cantidad = 1m;
+        _precio = 0m;
+        _cantidad = null;
         await EnfocarAsync(_campoCodigo);
     }
 
@@ -296,7 +308,7 @@ else if (_lista is { } lista)
             await destino.FocusAsync();
     }
 
-    private static async Task EnfocarAsync(MudNumericField<decimal>? campo)
+    private static async Task EnfocarAsync(MudNumericField<decimal?>? campo)
     {
         if (campo is { } destino)
             await destino.FocusAsync();
@@ -347,6 +359,10 @@ else if (_lista is { } lista)
         public string Codigo { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;
         public decimal Cantidad { get; set; } = 1m;
+
+        /// <summary>Solo para verlo mientras se arma la lista: lo que se cobra es el precio del día de la compra.</summary>
+        public decimal Precio { get; init; }
+
         public decimal Comprado { get; init; }
     }
 }

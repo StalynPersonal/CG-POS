@@ -24,6 +24,7 @@ foreach ($f in Get-ChildItem *.sql | Sort-Object Name) { sqlcmd -S . -E -b -f 65
 | `06-articulos.sql` | Artículos | 157.892 |
 | `07-codigos-barra.sql` | Códigos de barra | 315.011 |
 | `08-secuencias-ecf.sql` | Rangos de e-NCF por caja | 196 · **lea el aviso** |
+| `09-rellenar-codigos-articulo.sql` | Arregla los códigos cargados con los scripts viejos | solo si ya cargó |
 
 El `-f 65001` es necesario: los archivos están en UTF-8 y sin él los acentos se cargan mal.
 
@@ -60,6 +61,13 @@ Además necesita que las cajas de CG-POS ya estén creadas: el archivo trae una 
 cuadre no se carga y sale listado al terminar.
 
 ## Lo que hay que revisar después de cargar
+
+**El código del artículo va a seis dígitos.** En Stellar es texto (`000001`) y la exportación a Excel lo
+convirtió en número, perdiendo los ceros de delante. Los scripts ya lo rellenan: los códigos que son todo
+dígitos y miden menos de seis se completan con ceros (`1` → `000001`), los de seis o más se dejan igual y
+los alfanuméricos (`C0010`, `ACTIVO-FIJO`) no se tocan. Si cargó la base con los scripts anteriores,
+ejecute `09-rellenar-codigos-articulo.sql`: hace lo mismo sobre lo ya cargado y se puede repetir sin
+riesgo.
 
 **El código de la categoría es compuesto.** Un mismo grupo de Stellar aparece en varios departamentos y
 aquí el código de categoría es único en todo el sistema, así que se compone como

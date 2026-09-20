@@ -79,12 +79,14 @@ else if (_cotizacion is { } cotizacion)
                                   AdornmentAriaLabel="Buscar artículo" />
                     <MudTextField Value="_descripcion" Label="Descripción" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"
                                   Class="flex-grow-1" Style="min-width: 240px" />
+                    @* Cantidad y descuento salen vacíos: se escribe el número y ya. Vacío vale 1 y 0. *@
                     <MudNumericField @ref="_campoCantidad" Immediate="true" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                     Min="0.001m" Format="0.###" Style="width: 120px" OnKeyDown="AlTeclearCantidad" />
-                    <MudNumericField @bind-Value="_precio" Immediate="true" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
-                                     Style="width: 140px" />
+                                     Min="0.001m" Format="0.###" Style="width: 120px" OnKeyDown="AlTeclearCantidad" Placeholder="1" HideSpinButtons="true" />
+                    @* El precio es el del maestro y no se cambia aquí: lo que se cotiza es el precio del día. *@
+                    <MudNumericField Value="_precio" T="decimal" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
+                                     Style="width: 140px" ReadOnly="true" HideSpinButtons="true" />
                     <MudNumericField @ref="_campoDescuento" Immediate="true" @bind-Value="_descuento" Label="Descuento" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                     Min="0m" Format="N2" Style="width: 130px" OnKeyDown="AlTeclearDescuento" />
+                                     Min="0m" Format="N2" Style="width: 130px" OnKeyDown="AlTeclearDescuento" Placeholder="0.00" HideSpinButtons="true" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarAsync">Agregar</MudButton>
                 </div>
             }
@@ -95,7 +97,7 @@ else if (_cotizacion is { } cotizacion)
                     <MudTh Style="width: 190px">Código</MudTh>
                     <MudTh>Descripción</MudTh>
                     <MudTh Style="width: 120px">Cantidad</MudTh>
-                    <MudTh Style="width: 140px">Precio</MudTh>
+                    <MudTh Style="width: 140px; text-align: right">Precio</MudTh>
                     <MudTh Style="width: 130px">Descuento</MudTh>
                     <MudTh Style="width: 120px; text-align: right">Importe</MudTh>
                     <MudTh Style="width: 56px"></MudTh>
@@ -107,10 +109,7 @@ else if (_cotizacion is { } cotizacion)
                         <MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" Format="0.###"
                                          Disabled="!_editable" />
                     </MudTd>
-                    <MudTd>
-                        <MudNumericField @bind-Value="context.PrecioUnitario" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
-                                         Disabled="!_editable" />
-                    </MudTd>
+                    <MudTd Style="text-align: right">@context.PrecioUnitario.ToString("N2")</MudTd>
                     <MudTd>
                         <MudNumericField @bind-Value="context.Descuento" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
                                          Disabled="!_editable" />
@@ -169,12 +168,12 @@ else if (_cotizacion is { } cotizacion)
     // La fila de captura, que es donde se digita antes de agregar.
     private string? _codigo;
     private string _descripcion = string.Empty;
-    private decimal _cantidad = 1m;
+    private decimal? _cantidad;
     private decimal _precio;
-    private decimal _descuento;
+    private decimal? _descuento;
     private MudTextField<string?>? _campoCodigo;
-    private MudNumericField<decimal>? _campoCantidad;
-    private MudNumericField<decimal>? _campoDescuento;
+    private MudNumericField<decimal?>? _campoCantidad;
+    private MudNumericField<decimal?>? _campoDescuento;
 
     /// <summary>Lo que suma la cotización mientras se arma, con el mismo criterio que la caja.</summary>
     private decimal TotalEnEdicion => _lineas.Sum(l => l.Importe);
@@ -318,7 +317,9 @@ else if (_cotizacion is { } cotizacion)
             return;
         }
 
-        if (_cantidad <= 0)
+        // Dejar la cantidad vacía es lo más común: una unidad.
+        var cantidad = _cantidad ?? 1m;
+        if (cantidad <= 0)
         {
             Avisos.Add("La cantidad tiene que ser mayor que cero.", Severity.Warning);
             await EnfocarAsync(_campoCantidad);
@@ -329,16 +330,16 @@ else if (_cotizacion is { } cotizacion)
         {
             Codigo = _codigo.Trim(),
             Descripcion = _descripcion,
-            Cantidad = _cantidad,
+            Cantidad = cantidad,
             PrecioUnitario = _precio,
-            Descuento = _descuento,
+            Descuento = _descuento ?? 0m,
         });
 
         _codigo = null;
         _descripcion = string.Empty;
-        _cantidad = 1m;
+        _cantidad = null;
         _precio = 0m;
-        _descuento = 0m;
+        _descuento = null;
         await EnfocarAsync(_campoCodigo);
     }
 
@@ -349,7 +350,7 @@ else if (_cotizacion is { } cotizacion)
             await destino.FocusAsync();
     }
 
-    private static async Task EnfocarAsync(MudNumericField<decimal>? campo)
+    private static async Task EnfocarAsync(MudNumericField<decimal?>? campo)
     {
         if (campo is { } destino)
             await destino.FocusAsync();

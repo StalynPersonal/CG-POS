@@ -244,9 +244,10 @@ tabla(['Opción', 'Ruta', 'Para qué sirve'],
        ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
        ['Clientes', '/clientes', 'Clientes con su contacto, sus dos teléfonos, su comprobante habitual, exoneraciones y direcciones de envío.']],
       anchos=[3.8, 4.4, 8.8])
-nota('Al buscar un artículo, el código interno, el de barras y el de proveedor se buscan completos: se escribe el '
-     'código entero o no aparece. Solo la descripción se busca por parecido. Es a propósito: buscar «040100» por '
-     'pedazos devolvía cientos de artículos que solo empiezan igual.')
+nota('En Artículos y en Precios, al lado del buscador hay un «Buscar por» donde se elige Descripción o Código. La '
+     'descripción se busca por parecido; el código (interno, de barras o de proveedor) hay que escribirlo completo, '
+     'porque un código es el artículo o no lo es: buscar «040100» por pedazos devolvía cientos de artículos que '
+     'solo empiezan igual.')
 
 titulo('2.5.1. Cargar los clientes desde el archivo de la DGII', 3)
 p('La DGII publica un archivo con todos los contribuyentes registrados del país (DGII_RNC.TXT). Ese archivo se puede cargar '
@@ -486,11 +487,14 @@ p('Ruta: /listas-boda.')
 paso('Para hacer una nueva, use «Nueva lista» del menú o el botón del listado: se abre una pantalla completa, no una '
      'ventanita.')
 paso('Escriba los datos de los festejados (cédula o RNC, teléfono, correo) y los del evento (nombre, fecha, lugar).')
-paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y salta a la '
-     'cantidad), escriba la cantidad y otro Enter lo pasa a la lista y vuelve al código, vacío y listo para el siguiente. '
-     'Lo último agregado queda arriba.')
+paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y el precio del '
+     'día y salta a la cantidad), escriba la cantidad y otro Enter lo pasa a la lista y vuelve al código, vacío y listo '
+     'para el siguiente. Si no escribe cantidad, vale una unidad. Lo último agregado queda arriba.')
 paso('Si no se sabe el código, presione la lupa del campo y busque el artículo por código o por descripción. Los artículos '
      'siempre se eligen del maestro, nunca se escriben a mano, para que lo pedido sea exactamente lo que la caja cobra.')
+nota('El precio que se ve al agregar es el del día, solo para orientar a los festejados: la lista guarda lo pedido, no '
+     'precios, y la caja cobra el precio que esté vigente el día de cada compra. Por eso los artículos de una lista ya '
+     'guardada muestran una raya en vez de precio.')
 paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
 paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
 paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
@@ -506,12 +510,14 @@ paso('Para hacer una nueva, use «Nueva cotización» del menú o el botón del 
 paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo.')
 paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y el precio del '
      'día y salta a la cantidad), escriba la cantidad y Enter (salta al descuento), y otro Enter lo pasa a la lista y '
-     'vuelve al código, vacío y listo para el siguiente.')
+     'vuelve al código, vacío y listo para el siguiente. La cantidad y el descuento salen vacíos: si no escribe nada, '
+     'vale una unidad y sin descuento.')
 paso('Si no se sabe el código, presione la lupa del campo: se abre una ventana para buscar el artículo por código o por '
      'descripción, y el que se elija cae en el campo del código. Si lo digitado no existe, esa ventana se abre sola con lo '
      'que se escribió.')
-p('Lo último agregado queda arriba en la lista. El precio, la cantidad y el descuento se siguen pudiendo cambiar en la '
-  'línea, y el total se ve arriba, al lado de la observación.')
+p('Lo último agregado queda arriba en la lista. El precio es el del maestro y no se digita: lo que se cotiza es el precio '
+  'del día. La cantidad y el descuento sí se pueden corregir en la línea, y el total se ve arriba, al lado de la '
+  'observación.')
 paso('Guarde: el Central le asigna su número (por ejemplo COT000001) y su fecha de vencimiento, según los días '
      'configurados en Parámetros.')
 paso('Con «Imprimir» sale el PDF en tamaño carta para entregárselo o enviárselo al cliente.')

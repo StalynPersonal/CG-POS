@@ -1,6 +1,7 @@
 ﻿@page "/precios/articulos"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPrecios)]
 @using CgPos.Contratos.Catalogo
+@using CgPos.Contratos.Central
 @inject ClienteCentral Cliente
 @inject IDialogService Dialogos
 @inject ISnackbar Avisos
@@ -23,8 +24,16 @@
     <MudTable @ref="_tabla" T="DatosMaestroCentral<ArticuloCarga>" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
               Elevation="0" RowsPerPage="10">
         <ToolBarContent>
-            <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="Buscar por código, código de barras o descripción"
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+            @* Dónde buscar: la descripción va por parecido y el código tiene que escribirse completo. *@
+            <div class="d-flex gap-3 align-center" style="width: 100%">
+                <MudSelect T="string" Value="_campo" ValueChanged="CambiarCampoAsync" Label="Buscar por" Dense="true" Margin="Margin.Dense"
+                           Style="max-width: 180px">
+                    <MudSelectItem T="string" Value="@CamposBusquedaArticulo.Descripcion">Descripción</MudSelectItem>
+                    <MudSelectItem T="string" Value="@CamposBusquedaArticulo.Codigo">Código</MudSelectItem>
+                </MudSelect>
+                <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="@Placeholder"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+            </div>
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Artículo</MudTh>
@@ -79,9 +88,23 @@
 
     private async Task<TableData<DatosMaestroCentral<ArticuloCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)
     {
-        var pagina = await Cliente.BuscarArticulosAsync("precios", _buscar, estado.Page, estado.PageSize, cancelacion);
+        var pagina = await Cliente.BuscarArticulosAsync("precios", _buscar, estado.Page, estado.PageSize, cancelacion, _campo);
         _error = pagina is null;
         return new TableData<DatosMaestroCentral<ArticuloCarga>> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
+    }
+
+    /// <summary>Dónde se busca. Se arranca por descripción, que es como se busca casi siempre.</summary>
+    private string _campo = CamposBusquedaArticulo.Descripcion;
+
+    private string Placeholder => _campo == CamposBusquedaArticulo.Codigo
+        ? "Código interno, de barras o de proveedor, completo"
+        : "Parte de la descripción";
+
+    /// <summary>Al cambiar de campo se vuelve a buscar, para no dejar en pantalla el resultado del anterior.</summary>
+    private Task CambiarCampoAsync(string campo)
+    {
+        _campo = campo;
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
     }
 
     private Task BuscarAsync(string? texto)

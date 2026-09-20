@@ -186,17 +186,20 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         EnviarAsync(HttpMethod.Post, $"api/maestros/clientes/{Uri.EscapeDataString(codigoCliente)}/documento", solicitud);
 
     /// <param name="modulo">"maestros" o "precios", según el permiso con el que se consulta.</param>
+    /// <param name="campo">Dónde buscar (ver <see cref="CamposBusquedaArticulo"/>); nulo para buscar en todos.</param>
     public Task<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>?> BuscarArticulosAsync(string modulo, string? texto, int pagina, int tamano,
-        CancellationToken cancelacion = default) =>
-        BuscarAsync<CgPos.Contratos.Catalogo.ArticuloCarga>($"api/{modulo}/articulos", texto, pagina, tamano, cancelacion);
+        CancellationToken cancelacion = default, string? campo = null) =>
+        BuscarAsync<CgPos.Contratos.Catalogo.ArticuloCarga>($"api/{modulo}/articulos", texto, pagina, tamano, cancelacion,
+            campo is null ? null : $"&campo={campo}");
 
     /// <returns>Nulo si no se pudo consultar.</returns>
-    private async Task<PaginaMaestros<T>?> BuscarAsync<T>(string ruta, string? texto, int pagina, int tamano, CancellationToken cancelacion)
+    private async Task<PaginaMaestros<T>?> BuscarAsync<T>(string ruta, string? texto, int pagina, int tamano, CancellationToken cancelacion,
+        string? extra = null)
     {
         try
         {
             return await Http.GetFromJsonAsync<PaginaMaestros<T>>(
-                $"{ruta}?buscar={Uri.EscapeDataString(texto ?? string.Empty)}&pagina={pagina}&tamano={tamano}", OpcionesJson.Predeterminadas, cancelacion);
+                $"{ruta}?buscar={Uri.EscapeDataString(texto ?? string.Empty)}&pagina={pagina}&tamano={tamano}{extra}", OpcionesJson.Predeterminadas, cancelacion);
         }
         catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
         {

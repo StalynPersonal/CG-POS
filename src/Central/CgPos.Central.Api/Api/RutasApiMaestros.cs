@@ -43,7 +43,7 @@ public static class RutasApiMaestros
         Catalogo<DescuentoTarjetaCarga>(maestros, "descuentos-tarjeta");
 
         maestros.MapGet("/clientes", async (string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
-            Results.Ok(await servicio.BuscarAsync<ClienteCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion)));
+            Results.Ok(await servicio.BuscarAsync<ClienteCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion: cancelacion)));
         Catalogo<ClienteCarga>(maestros, "clientes", listar: false);
         maestros.MapPost("/clientes/{codigo}/documento", async (string codigo, SolicitudCorreccionDocumentoCliente solicitud, ClaimsPrincipal usuario,
                 IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
@@ -86,8 +86,9 @@ public static class RutasApiMaestros
         return aplicacion;
     }
 
-    private static async Task<IResult> BuscarArticulosAsync(string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
-        Results.Ok(await servicio.BuscarAsync<ArticuloCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion));
+    private static async Task<IResult> BuscarArticulosAsync(string? buscar, int? pagina, int? tamano, string? campo, IServicioMaestrosCentral servicio,
+        CancellationToken cancelacion) =>
+        Results.Ok(await servicio.BuscarAsync<ArticuloCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, campo, cancelacion));
 
     private static void Catalogo<T>(RouteGroupBuilder grupo, string ruta, bool listar = true, bool codigoNumerico = false) where T : class
     {
