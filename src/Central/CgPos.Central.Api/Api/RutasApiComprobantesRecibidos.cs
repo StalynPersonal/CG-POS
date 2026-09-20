@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using CgPos.Contratos.Central;
+using System.Security.Claims;
 using CgPos.Central.Api.Seguridad;
 using CgPos.Central.Aplicacion.Ventas;
 using CgPos.Dominio.Reportes;
@@ -31,6 +32,20 @@ public static class RutasApiComprobantesRecibidos
                 : await servicio.BuscarAsync(numero, caja.CajaId, cancelacion) is { } factura
                     ? Results.Ok(factura)
                     : Results.NotFound());
+
+        // Retiene las líneas mientras la caja emite la nota; si no la emite, la reserva vence sola.
+        cajas.MapPost("/{numero}/reservas", async (string numero, SolicitudReservaFactura solicitud, ClaimsPrincipal usuario,
+                IServicioFacturasParaCaja servicio, CancellationToken cancelacion) =>
+            EmisorTokensCentral.LeerDispositivo(usuario) is { } caja
+                ? Results.Ok(await servicio.ReservarAsync(numero, caja.CajaId,
+                    (solicitud.Lineas ?? []).GroupBy(l => l.NumeroLinea).ToDictionary(g => g.Key, g => g.Sum(l => l.Cantidad)), cancelacion))
+                : Results.Unauthorized());
+
+        cajas.MapDelete("/{numero}/reservas", async (string numero, ClaimsPrincipal usuario, IServicioFacturasParaCaja servicio,
+                CancellationToken cancelacion) =>
+            EmisorTokensCentral.LeerDispositivo(usuario) is not { } caja ? Results.Unauthorized()
+                : await servicio.LiberarReservaAsync(numero, caja.CajaId, cancelacion) ? Results.NoContent()
+                : Results.NotFound());
 
         cajas.MapGet("/", async (string? buscar, DateOnly? desde, DateOnly? hasta, IServicioFacturasParaCaja servicio, CancellationToken cancelacion) =>
         {

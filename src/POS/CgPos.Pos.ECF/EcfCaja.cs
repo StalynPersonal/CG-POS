@@ -90,7 +90,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     public Task<EmisionEcf> EmitirAsync(Venta venta, CancellationToken cancelacion)
     {
         ValidarMoneda(venta.Moneda);
-        return EmitirDocumentoAsync(venta.Id, venta.CajaId, venta.SucursalId, venta.TipoComprobante, venta.CobradaEn,
+        return EmitirDocumentoAsync(venta.Id, OrigenComprobante.Venta, venta.CajaId, venta.SucursalId, venta.TipoComprobante, venta.CobradaEn,
             (encf, vence, emisor, ahora, tipoIngresos) => ConversionEcf.DesdeVenta(venta, encf, vence, emisor, ahora, tipoIngresos), cancelacion);
     }
 
@@ -110,12 +110,12 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     public Task<EmisionEcf> EmitirNotaCreditoAsync(Devolucion devolucion, CancellationToken cancelacion)
     {
         ValidarMoneda(devolucion.Moneda);
-        return EmitirDocumentoAsync(devolucion.Id, devolucion.CajaId, devolucion.SucursalId, TipoComprobante.NotaCredito, devolucion.CreadaEn,
+        return EmitirDocumentoAsync(devolucion.Id, OrigenComprobante.Devolucion, devolucion.CajaId, devolucion.SucursalId, TipoComprobante.NotaCredito, devolucion.CreadaEn,
             (encf, vence, emisor, ahora, tipoIngresos) => ConversionEcf.DesdeNotaCredito(devolucion, encf, vence, emisor, ahora, tipoIngresos), cancelacion);
     }
 
     /// <param name="documentoId">Venta o devolución que origina el comprobante.</param>
-    private async Task<EmisionEcf> EmitirDocumentoAsync(int documentoId, int cajaId, int sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
+    private async Task<EmisionEcf> EmitirDocumentoAsync(int documentoId, OrigenComprobante origen, int cajaId, int sucursalId, TipoComprobante tipo, DateTimeOffset? fechaEmision,
         Func<string, DateOnly, EmisorEcf, DateTimeOffset, int, DocumentoEcf> armar, CancellationToken cancelacion)
     {
         var certificadoFirma = certificado.ObtenerParaFirmar()
@@ -161,7 +161,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         Directory.CreateDirectory(Path.GetDirectoryName(ruta)!);
         await File.WriteAllTextAsync(ruta, firmado, new UTF8Encoding(false), cancelacion);
 
-        var documento = DocumentoElectronico.Emitir(documentoId, cajaId, tipo, encf, fechaEmision ?? ahora, documentoEcf.FechaHoraFirma,
+        var documento = DocumentoElectronico.Emitir(documentoId, origen, cajaId, tipo, encf, fechaEmision ?? ahora, documentoEcf.FechaHoraFirma,
             codigoSeguridad, documentoEcf.Totales.MontoTotal, hash, ruta, urlTimbre);
         contexto.DocumentosElectronicos.Add(documento);
 

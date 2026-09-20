@@ -1,4 +1,4 @@
-using CgPos.Dominio.Devoluciones;
+﻿using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -60,5 +60,36 @@ internal sealed class ReservaNotaCreditoCentralConfiguracion : IEntityTypeConfig
 
         // El saldo disponible se calcula con las reservas vigentes de cada nota.
         constructor.HasIndex(r => new { r.NotaCreditoId, r.CerradaEn, r.VenceEn });
+    }
+}
+
+/// <summary>
+/// Líneas de una factura retenidas mientras una caja emite su nota de crédito. Se consultan por factura para saber qué queda
+/// realmente disponible, y las vencidas se cierran en la misma consulta que las lee.
+/// </summary>
+internal sealed class ReservaFacturaCentralConfiguracion : IEntityTypeConfiguration<ReservaFacturaCentral>
+{
+    public void Configure(EntityTypeBuilder<ReservaFacturaCentral> constructor)
+    {
+        constructor.ToTable("ReservasFactura");
+        constructor.HasKey(r => r.Id);
+        constructor.Property(r => r.FacturaNumero).HasMaxLength(ReservaFacturaCentral.LargoMaximoNumero).IsUnicode(false).IsRequired();
+        constructor.Property(r => r.Cierre).HasMaxLength(ReservaFacturaCentral.LargoMaximoCierre);
+
+        constructor.HasOne<Caja>().WithMany().HasForeignKey(r => r.CajaId).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasIndex(r => new { r.FacturaNumero, r.CerradaEn, r.VenceEn });
+
+        constructor.HasMany(r => r.Lineas).WithOne().HasForeignKey(l => l.ReservaId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(r => r.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class LineaReservaFacturaCentralConfiguracion : IEntityTypeConfiguration<LineaReservaFacturaCentral>
+{
+    public void Configure(EntityTypeBuilder<LineaReservaFacturaCentral> constructor)
+    {
+        constructor.ToTable("LineasReservaFactura");
+        constructor.HasKey(l => l.Id);
+        constructor.Property(l => l.Cantidad).HasPrecision(18, 4);
     }
 }

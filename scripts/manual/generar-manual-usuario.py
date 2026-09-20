@@ -741,6 +741,18 @@ tabla(['Tipo', 'Para qué', 'Importante'],
 nota('La vigencia de las notas de crédito se cuenta desde su emisión con los días configurados HOY en el Central: si una nota '
      'se venció y el negocio decide aceptarla, se suben los días en el Central y vuelve a poder usarse.')
 
+p('Facturas de otra sucursal o de otra caja:')
+viñeta('Se devuelven igual. Si la factura no es de esta caja, el sistema se la pide al Central y la trae con lo que ya se '
+       'devolvió de ella en cualquier tienda de la empresa; la pantalla avisa de qué sucursal y caja viene.')
+viñeta('La nota de crédito la emite SIEMPRE esta caja, con su propio certificado y su propio rango de e-NCF. La factura solo '
+       'se consulta.')
+viñeta('Mientras se emite, el Central le retiene esas líneas a esta caja, para que otra tienda no devuelva al mismo tiempo la '
+       'misma mercancía. La retención se suelta sola a los minutos configurados en el Central si la nota no se llega a emitir.')
+viñeta('La copia de la factura traída del Central se borra en cuanto se emite la nota: en la caja no queda guardada la venta '
+       'de otra tienda.')
+nota('Para devolver una factura de otra tienda hace falta conexión con el Central. Sin conexión solo se devuelven las '
+     'facturas de esta misma caja, y la pantalla lo dice con esas palabras en vez de dejar al cajero esperando.')
+
 titulo('3.16. Retiros, pre-cierre y cierre de turno', 2)
 viñeta('Retiro de efectivo: monto y motivo, autorización de supervisor, comprobante impreso con firmas. No se puede retirar '
        'más del efectivo que hay en la gaveta.')

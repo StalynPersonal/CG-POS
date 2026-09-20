@@ -126,6 +126,13 @@ public enum EstadoDocumentoElectronico
 /// Comprobante fiscal electrónico emitido y firmado en la caja (RF-218), con la ruta y el hash de su XML (RF-220) y el
 /// historial de estados (RF-223).
 /// </summary>
+/// <summary>De qué documento salió el comprobante electrónico.</summary>
+public enum OrigenComprobante
+{
+    Venta,
+    Devolucion,
+}
+
 public sealed class DocumentoElectronico : Entidad
 {
     public const int LargoEncf = 13;
@@ -139,7 +146,15 @@ public sealed class DocumentoElectronico : Entidad
     {
     }
 
+    /// <summary>Id de la venta o de la devolución que originó el comprobante, según <see cref="TipoOrigen"/>.</summary>
     public int VentaId { get; private set; }
+
+    /// <summary>
+    /// Si el comprobante salió de una venta o de una devolución. Las dos numeran sus Id por separado, así que sin esto la
+    /// devolución 5 y la venta 5 se pisarían en la misma tabla.
+    /// </summary>
+    public OrigenComprobante TipoOrigen { get; private set; }
+
     public int CajaId { get; private set; }
     public TipoComprobante TipoComprobante { get; private set; }
     public string Encf { get; private set; } = string.Empty;
@@ -159,15 +174,17 @@ public sealed class DocumentoElectronico : Entidad
 
     public IReadOnlyCollection<HistorialEstadoEcf> Historial => _historial;
 
-    public static DocumentoElectronico Emitir(int ventaId, int cajaId, TipoComprobante tipo, string encf, DateTimeOffset fechaEmision, DateTimeOffset fechaFirma,
-        string codigoSeguridad, decimal montoTotal, string hashXml, string rutaXml, string urlTimbre)
+    public static DocumentoElectronico Emitir(int ventaId, OrigenComprobante tipoOrigen, int cajaId, TipoComprobante tipo, string encf,
+        DateTimeOffset fechaEmision, DateTimeOffset fechaFirma, string codigoSeguridad, decimal montoTotal, string hashXml, string rutaXml,
+        string urlTimbre)
     {
         if (encf is not { Length: LargoEncf })
             throw new ArgumentException($"El eNCF '{encf}' no tiene {LargoEncf} caracteres.", nameof(encf));
 
         var documento = new DocumentoElectronico
         {
-            VentaId = Validar.Id(ventaId, "Venta"),
+            VentaId = Validar.Id(ventaId, "Documento de origen"),
+            TipoOrigen = tipoOrigen,
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,
             Encf = encf,

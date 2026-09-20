@@ -18,6 +18,7 @@ using CgPos.Pos.Infraestructura.Tickets;
 using CgPos.Pos.Infraestructura.Ventas;
 using Microsoft.EntityFrameworkCore;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Pos.Infraestructura.Turnos;
 
@@ -356,7 +357,7 @@ internal sealed class ServicioCaja(
         var idsCobradas = cobradas.Select(v => v.Id).ToList();
         var conEcf = idsCobradas.Count == 0
             ? []
-            : await contexto.DocumentosElectronicos.AsNoTracking().Where(d => idsCobradas.Contains(d.VentaId)).Select(d => d.VentaId).ToListAsync(cancelacion);
+            : await contexto.DocumentosElectronicos.AsNoTracking().Where(d => idsCobradas.Contains(d.VentaId) && d.TipoOrigen == OrigenComprobante.Venta).Select(d => d.VentaId).ToListAsync(cancelacion);
         var sinEcf = cobradas.Where(v => !conEcf.Contains(v.Id)).Select(v => v.NumeroTransaccion).ToList();
         if (sinEcf.Count > 0)
             bloqueos.Add($"Hay {sinEcf.Count} venta(s) sin e-CF firmado: {string.Join(", ", sinEcf.Take(5))}.");

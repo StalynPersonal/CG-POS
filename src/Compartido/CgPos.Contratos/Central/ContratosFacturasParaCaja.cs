@@ -1,3 +1,6 @@
+﻿using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Fiscal;
+
 namespace CgPos.Contratos.Central;
 
 /// <summary>
@@ -11,6 +14,7 @@ public sealed record DatosFacturaParaCaja(
     string SucursalCodigo,
     string CajaCodigo,
     bool Propia,
+    TipoComprobante TipoComprobante,
     DateOnly FechaOperacion,
     DateTimeOffset CobradaEn,
     string? ClienteDocumento,
@@ -23,8 +27,12 @@ public sealed record DatosFacturaParaCaja(
 public sealed record DatosLineaFacturaParaCaja(
     int NumeroLinea,
     string Codigo,
+    string CodigoLeido,
     string Descripcion,
+    TipoArticulo TipoArticulo,
     string? UnidadMedida,
+    int DecimalesCantidad,
+    decimal PorcentajeImpuesto,
     decimal Cantidad,
     decimal PrecioUnitario,
     decimal Descuento,
@@ -47,3 +55,10 @@ public sealed record ResumenFacturaParaCaja(
     string? ClienteDocumento,
     string? ClienteNombre,
     decimal Total);
+
+/// <summary>Líneas que la caja pide retener mientras emite la nota de crédito.</summary>
+public sealed record SolicitudReservaFactura(IReadOnlyList<LineaReservaFactura> Lineas);
+
+public sealed record LineaReservaFactura(int NumeroLinea, decimal Cantidad);
+
+public sealed record RespuestaReservaFactura(bool Exitosa, string? Mensaje, DateTimeOffset? VenceEn = null);

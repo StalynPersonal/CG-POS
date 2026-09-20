@@ -165,6 +165,22 @@ public interface IClienteCentral
     Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default);
 
     /// <summary>
+    /// Busca en el Central una factura de cualquier tienda para devolverla, por su número o su e-NCF. El Central es el único que ve
+    /// las devoluciones de toda la empresa: en su respuesta viene cuánto se devolvió ya de cada línea.
+    /// </summary>
+    Task<ResultadoFacturaCentral> ConsultarFacturaAsync(string numeroOEncf, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Pide al Central retener las líneas de esa factura mientras esta caja emite la nota, para que dos tiendas no devuelvan la misma
+    /// mercancía. La reserva vence sola si la nota no llega.
+    /// </summary>
+    Task<ResultadoReservaFactura> ReservarFacturaAsync(string facturaNumero, IReadOnlyDictionary<int, decimal> lineas,
+        CancellationToken cancelacion = default);
+
+    /// <summary>Suelta las líneas retenidas cuando la devolución no llegó a emitirse.</summary>
+    Task LiberarReservaFacturaAsync(string facturaNumero, CancellationToken cancelacion = default);
+
+    /// <summary>
     /// Pide al Central retener saldo de esa nota para la factura <paramref name="ventaNumero"/> mientras la caja cobra; la reserva vence sola si no
     /// se confirma. Pedirla otra vez para la misma factura la reemplaza.
     /// </summary>
@@ -215,6 +231,26 @@ public sealed record ResultadoCotizacionCentral(DatosCotizacionParaCaja? Cotizac
     public static ResultadoCotizacionCentral NoExiste(string error) => new(null, true, error);
 
     public static ResultadoCotizacionCentral SinConexion(string error) => new(null, false, error);
+}
+
+/// <summary>Consulta de una factura en el Central para devolverla: puede ser de cualquier sucursal y no se guarda en la caja.</summary>
+public sealed record ResultadoFacturaCentral(DatosFacturaParaCaja? Factura, bool CentralRespondio, string? Error)
+{
+    public static ResultadoFacturaCentral Encontrada(DatosFacturaParaCaja factura) => new(factura, true, null);
+
+    public static ResultadoFacturaCentral NoExiste(string error) => new(null, true, error);
+
+    public static ResultadoFacturaCentral SinConexion(string error) => new(null, false, error);
+}
+
+/// <summary>Reserva de las líneas de una factura mientras se emite la nota de crédito.</summary>
+public sealed record ResultadoReservaFactura(bool Exitosa, string? Error, bool CentralRespondio)
+{
+    public static ResultadoReservaFactura Reservada() => new(true, null, true);
+
+    public static ResultadoReservaFactura Rechazada(string error) => new(false, error, true);
+
+    public static ResultadoReservaFactura SinConexion(string error) => new(false, error, false);
 }
 
 /// <param name="Monto">Lo que el Central retuvo, que puede ser menos de lo pedido.</param>

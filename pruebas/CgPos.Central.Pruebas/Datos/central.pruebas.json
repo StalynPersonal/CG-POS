@@ -155,6 +155,11 @@
       "descripcion": "Minutos que se retiene el saldo de una nota mientras la caja cobra"
     },
     {
+      "clave": "Central.Devoluciones.MinutosReserva",
+      "valor": "10",
+      "descripcion": "Minutos que se retienen las líneas de una factura mientras otra tienda le hace la nota de crédito"
+    },
+    {
       "clave": "Central.Chequeador.Habilitado",
       "valor": "true",
       "descripcion": "Enciende la página de consulta de precios de la tienda"

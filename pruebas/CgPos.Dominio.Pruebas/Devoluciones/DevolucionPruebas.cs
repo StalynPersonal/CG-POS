@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -28,7 +28,7 @@ public class DevolucionPruebas
 
     private static Devolucion Devolver(Venta venta, decimal cantidad, IReadOnlyDictionary<int, DevueltoLinea>? devuelto = null, DateOnly? hoy = null,
         string? serial = null) =>
-        Devolucion.Registrar(venta, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
+        Devolucion.Registrar(FacturaParaDevolver.De(venta), venta.SucursalId, venta.CajaId, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
             Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", null, Ids.Siguiente(), "Cajera", Ids.Siguiente(), "Encargado",
             diasRetencionImpuesto: 30, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
 
@@ -73,12 +73,12 @@ public class DevolucionPruebas
     {
         var venta = VentaCobrada(1);
 
-        var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
+        var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(FacturaParaDevolver.De(venta), venta.SucursalId, venta.CajaId, null, [new LineaSolicitadaDevolucion(1, 1)],
             new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", null, Ids.Siguiente(), "Cajera",
             null, null, 30, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.ClienteRequerido, sinCliente.Codigo);
 
-        var sinMotivo = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(venta, null, [new LineaSolicitadaDevolucion(1, 1)],
+        var sinMotivo = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(FacturaParaDevolver.De(venta), venta.SucursalId, venta.CajaId, null, [new LineaSolicitadaDevolucion(1, 1)],
             new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Ids.Siguiente(), "Cajera", null, null, 30, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.MotivoRequerido, sinMotivo.Codigo);
     }

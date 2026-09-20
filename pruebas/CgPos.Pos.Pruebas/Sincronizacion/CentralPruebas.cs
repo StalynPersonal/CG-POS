@@ -206,4 +206,42 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
         return Task.CompletedTask;
     }
 
+    /// <summary>Facturas de otras tiendas que este Central entrega para devolver, por número y también por e-NCF.</summary>
+    public Dictionary<string, DatosFacturaParaCaja> Facturas { get; } = [];
+
+    /// <summary>Cuando es falso, el Central no responde: sirve para probar la caja sin red.</summary>
+    public bool Responde { get; set; } = true;
+
+    public List<(string FacturaNumero, IReadOnlyDictionary<int, decimal> Lineas)> ReservasFactura { get; } = [];
+
+    public List<string> ReservasFacturaLiberadas { get; } = [];
+
+    /// <summary>Rechaza la reserva de esa factura, como si otra caja se le hubiera adelantado.</summary>
+    public string? RechazaReservaDe { get; set; }
+
+    public Task<ResultadoFacturaCentral> ConsultarFacturaAsync(string numeroOEncf, CancellationToken cancelacion = default) =>
+        Task.FromResult(!Responde
+            ? ResultadoFacturaCentral.SinConexion("No hay comunicación con el Central.")
+            : Facturas.TryGetValue(numeroOEncf, out var factura)
+                ? ResultadoFacturaCentral.Encontrada(factura)
+                : ResultadoFacturaCentral.NoExiste($"El Central no tiene la factura {numeroOEncf}."));
+
+    public Task<ResultadoReservaFactura> ReservarFacturaAsync(string facturaNumero, IReadOnlyDictionary<int, decimal> lineas,
+        CancellationToken cancelacion = default)
+    {
+        if (!Responde)
+            return Task.FromResult(ResultadoReservaFactura.SinConexion("No hay comunicación con el Central."));
+        if (RechazaReservaDe == facturaNumero)
+            return Task.FromResult(ResultadoReservaFactura.Rechazada($"La factura {facturaNumero} la está devolviendo otra caja ahora mismo."));
+
+        ReservasFactura.Add((facturaNumero, lineas));
+        return Task.FromResult(ResultadoReservaFactura.Reservada());
+    }
+
+    public Task LiberarReservaFacturaAsync(string facturaNumero, CancellationToken cancelacion = default)
+    {
+        ReservasFacturaLiberadas.Add(facturaNumero);
+        return Task.CompletedTask;
+    }
+
 }

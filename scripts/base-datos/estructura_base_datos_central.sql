@@ -160,6 +160,10 @@ CREATE SEQUENCE [SecuenciaLineasCotizacion] AS int START WITH 1 INCREMENT BY 1 N
 GO
 
 
+CREATE SEQUENCE [SecuenciaLineasReservaFactura] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaLineasVenta] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -217,6 +221,10 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaReglasAcumulacion] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaReservasFactura] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -1189,6 +1197,20 @@ CREATE TABLE [PendientesEntrega] (
 GO
 
 
+CREATE TABLE [ReservasFactura] (
+    [Id] int NOT NULL,
+    [FacturaNumero] varchar(30) NOT NULL,
+    [CajaId] int NOT NULL,
+    [CreadaEn] datetimeoffset(3) NOT NULL,
+    [VenceEn] datetimeoffset(3) NOT NULL,
+    [CerradaEn] datetimeoffset(3) NULL,
+    [Cierre] nvarchar(40) NULL,
+    CONSTRAINT [PK_ReservasFactura] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_ReservasFactura_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
 CREATE TABLE [SecuenciasEcf] (
     [Id] int NOT NULL,
     [CajaId] int NOT NULL,
@@ -1399,6 +1421,17 @@ CREATE TABLE [ReservasNotaCredito] (
     CONSTRAINT [PK_ReservasNotaCredito] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_ReservasNotaCredito_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_ReservasNotaCredito_NotasCredito_NotaCreditoId] FOREIGN KEY ([NotaCreditoId]) REFERENCES [NotasCredito] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasReservaFactura] (
+    [Id] int NOT NULL,
+    [ReservaId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [Cantidad] decimal(18,4) NOT NULL,
+    CONSTRAINT [PK_LineasReservaFactura] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasReservaFactura_ReservasFactura_ReservaId] FOREIGN KEY ([ReservaId]) REFERENCES [ReservasFactura] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1748,6 +1781,10 @@ CREATE UNIQUE INDEX [IX_LineasCotizacion_CotizacionId_ArticuloCodigo] ON [Lineas
 GO
 
 
+CREATE INDEX [IX_LineasReservaFactura_ReservaId] ON [LineasReservaFactura] ([ReservaId]);
+GO
+
+
 CREATE INDEX [IX_LineasVenta_Codigo] ON [LineasVenta] ([Codigo]);
 GO
 
@@ -1913,6 +1950,14 @@ GO
 
 
 CREATE INDEX [IX_ReglasAcumulacion_Version] ON [ReglasAcumulacion] ([Version]);
+GO
+
+
+CREATE INDEX [IX_ReservasFactura_CajaId] ON [ReservasFactura] ([CajaId]);
+GO
+
+
+CREATE INDEX [IX_ReservasFactura_FacturaNumero_CerradaEn_VenceEn] ON [ReservasFactura] ([FacturaNumero], [CerradaEn], [VenceEn]);
 GO
 
 
@@ -2144,43 +2189,44 @@ VALUES
     (14, N'Central.Monitor.MinutosSinComunicacion', N'30', N'Minutos sin comunicación tras los que una caja es alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (15, N'Central.Monitor.MinutosAlertaDgii', N'60', N'Minutos sin resultado de la DGII tras los que un e-CF es alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (16, N'Central.NotasCredito.MinutosReserva', N'10', N'Minutos que se retiene el saldo de una nota mientras la caja cobra', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (17, N'Central.Fidelidad.MinutosCicloVencimiento', N'60', N'Minutos entre revisiones de los puntos vencidos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (18, N'Central.Fidelidad.LoteVencimiento', N'500', N'Miembros por lote al vencer puntos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (19, N'Central.Cotizaciones.DiasVigencia', N'15', N'Días que vale una cotización desde que se hace', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (20, N'Central.Despacho.MinutosCicloAvisos', N'15', N'Minutos entre avisos de pedidos preparados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (21, N'Central.Despacho.LoteAvisos', N'50', N'Avisos por lote', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (22, N'Seguridad.IntentosMaximosClave', N'3', N'Intentos de clave fallidos que bloquean al usuario de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (23, N'Seguridad.MinutosBloqueo', N'5', N'Minutos que dura el bloqueo del usuario de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (24, N'Seguridad.MinutosVigenciaAutorizacion', N'5', N'Minutos para usar una autorización de supervisor', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (25, N'Seguridad.HorasSesion', N'12', N'Horas que dura la sesión en la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (26, N'General.MonedaLocal', N'DOP', N'Moneda local del negocio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (27, N'Caja.FondoPredeterminado', N'0.00', N'Fondo sugerido al abrir turno', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (28, N'Caja.PasoRedondeoEfectivo', N'0', N'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (29, N'Caja.CierreCiego', N'true', N'El cajero declara el cierre sin ver lo esperado', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (30, N'Caja.FondoEnCuadre', N'false', N'El fondo forma parte del efectivo esperado en el cierre', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (31, N'Numeracion.DigitosSecuencia', N'7', N'Dígitos de la secuencia en el número de los documentos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (32, N'Fiscal.MontoIdentificacionConsumo', N'250000', N'Total desde el cual la factura de consumo exige cédula o RNC', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (33, N'Fiscal.PorcentajeAlertaSecuenciaEcf', N'10', N'Porcentaje restante de un rango de e-CF desde el cual se alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (34, N'Fiscal.DiasAlertaCertificado', N'30', N'Días antes del vencimiento del certificado para alertar', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (35, N'Fiscal.PorcentajeRetencionLey3223', N'0', N'Retención de la Ley 32-23 en facturas gubernamentales E45 (0 = sin retención)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (36, N'Devoluciones.DiasRetencionImpuesto', N'30', N'Días desde la factura tras los cuales la devolución retiene el ITBIS', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (37, N'Devoluciones.DiasVigenciaNotaCredito', N'180', N'Días desde la emisión en que se puede consumir una nota de crédito', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (38, N'Fidelidad.ValorPunto', N'1', N'Valor en dinero de cada punto al canjearlo', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (39, N'Fidelidad.MesesVigenciaPuntos', N'12', N'Meses que duran los puntos acumulados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (40, N'Fidelidad.MinimoPuntosCanje', N'50', N'Puntos mínimos para poder canjear', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (41, N'Fidelidad.MaximoPuntosCanjeSinConexion', N'2000', N'Tope de puntos a canjear sin conexión con el Central', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (42, N'Sincronizacion.DiasRetencionXmlEnviados', N'90', N'Días que se conservan los XML ya enviados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (43, N'Sincronizacion.DiasRetencionMensajesConfirmados', N'60', N'Días que se conservan los mensajes confirmados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (44, N'Sincronizacion.AlertaTamanoBaseDatosMb', N'8000', N'Tamaño de la base de la caja que dispara alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (45, N'Sincronizacion.HorasAlertaPendientes', N'24', N'Horas con documentos sin sincronizar que disparan alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (46, N'Respaldo.DiasRetencion', N'7', N'Días que se conservan los respaldos de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (47, N'Reloj.ToleranciaSegundos', N'60', N'Diferencia de hora tolerada contra el servidor NTP', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (48, N'Balanza.PrefijoPeso', N'21', N'Prefijo de las etiquetas de balanza con peso', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (49, N'Balanza.PrefijoPrecio', N'22', N'Prefijo de las etiquetas de balanza con precio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (50, N'Balanza.DigitosCodigoArticulo', N'5', N'Dígitos del código del artículo en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (51, N'Balanza.DigitosValor', N'5', N'Dígitos del valor en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (52, N'Balanza.DecimalesPeso', N'3', N'Decimales del peso en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (53, N'Balanza.DecimalesPrecio', N'2', N'Decimales del precio en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación');
+    (17, N'Central.Devoluciones.MinutosReserva', N'10', N'Minutos que se retienen las líneas de una factura mientras otra tienda le hace la nota de crédito', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (18, N'Central.Fidelidad.MinutosCicloVencimiento', N'60', N'Minutos entre revisiones de los puntos vencidos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (19, N'Central.Fidelidad.LoteVencimiento', N'500', N'Miembros por lote al vencer puntos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (20, N'Central.Cotizaciones.DiasVigencia', N'15', N'Días que vale una cotización desde que se hace', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (21, N'Central.Despacho.MinutosCicloAvisos', N'15', N'Minutos entre avisos de pedidos preparados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (22, N'Central.Despacho.LoteAvisos', N'50', N'Avisos por lote', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (23, N'Seguridad.IntentosMaximosClave', N'3', N'Intentos de clave fallidos que bloquean al usuario de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (24, N'Seguridad.MinutosBloqueo', N'5', N'Minutos que dura el bloqueo del usuario de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (25, N'Seguridad.MinutosVigenciaAutorizacion', N'5', N'Minutos para usar una autorización de supervisor', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (26, N'Seguridad.HorasSesion', N'12', N'Horas que dura la sesión en la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (27, N'General.MonedaLocal', N'DOP', N'Moneda local del negocio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (28, N'Caja.FondoPredeterminado', N'0.00', N'Fondo sugerido al abrir turno', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (29, N'Caja.PasoRedondeoEfectivo', N'0', N'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (30, N'Caja.CierreCiego', N'true', N'El cajero declara el cierre sin ver lo esperado', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (31, N'Caja.FondoEnCuadre', N'false', N'El fondo forma parte del efectivo esperado en el cierre', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (32, N'Numeracion.DigitosSecuencia', N'7', N'Dígitos de la secuencia en el número de los documentos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (33, N'Fiscal.MontoIdentificacionConsumo', N'250000', N'Total desde el cual la factura de consumo exige cédula o RNC', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (34, N'Fiscal.PorcentajeAlertaSecuenciaEcf', N'10', N'Porcentaje restante de un rango de e-CF desde el cual se alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (35, N'Fiscal.DiasAlertaCertificado', N'30', N'Días antes del vencimiento del certificado para alertar', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (36, N'Fiscal.PorcentajeRetencionLey3223', N'0', N'Retención de la Ley 32-23 en facturas gubernamentales E45 (0 = sin retención)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (37, N'Devoluciones.DiasRetencionImpuesto', N'30', N'Días desde la factura tras los cuales la devolución retiene el ITBIS', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (38, N'Devoluciones.DiasVigenciaNotaCredito', N'180', N'Días desde la emisión en que se puede consumir una nota de crédito', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (39, N'Fidelidad.ValorPunto', N'1', N'Valor en dinero de cada punto al canjearlo', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (40, N'Fidelidad.MesesVigenciaPuntos', N'12', N'Meses que duran los puntos acumulados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (41, N'Fidelidad.MinimoPuntosCanje', N'50', N'Puntos mínimos para poder canjear', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (42, N'Fidelidad.MaximoPuntosCanjeSinConexion', N'2000', N'Tope de puntos a canjear sin conexión con el Central', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (43, N'Sincronizacion.DiasRetencionXmlEnviados', N'90', N'Días que se conservan los XML ya enviados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (44, N'Sincronizacion.DiasRetencionMensajesConfirmados', N'60', N'Días que se conservan los mensajes confirmados', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (45, N'Sincronizacion.AlertaTamanoBaseDatosMb', N'8000', N'Tamaño de la base de la caja que dispara alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (46, N'Sincronizacion.HorasAlertaPendientes', N'24', N'Horas con documentos sin sincronizar que disparan alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (47, N'Respaldo.DiasRetencion', N'7', N'Días que se conservan los respaldos de la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (48, N'Reloj.ToleranciaSegundos', N'60', N'Diferencia de hora tolerada contra el servidor NTP', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (49, N'Balanza.PrefijoPeso', N'21', N'Prefijo de las etiquetas de balanza con peso', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (50, N'Balanza.PrefijoPrecio', N'22', N'Prefijo de las etiquetas de balanza con precio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (51, N'Balanza.DigitosCodigoArticulo', N'5', N'Dígitos del código del artículo en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (52, N'Balanza.DigitosValor', N'5', N'Dígitos del valor en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (53, N'Balanza.DecimalesPeso', N'3', N'Decimales del peso en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (54, N'Balanza.DecimalesPrecio', N'2', N'Decimales del precio en la etiqueta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaParametros] RESTART WITH 61;
 GO
 

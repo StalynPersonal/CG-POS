@@ -199,6 +199,9 @@ public static class CatalogoParametros
         new("Central.Monitor.MinutosAlertaDgii", "Monitor de sincronización", "Minutos sin resultado de la DGII tras los que un e-CF es alerta", Entero, true, Central, Minimo: 1),
 
         new("Central.NotasCredito.MinutosReserva", "Notas de crédito", "Minutos que se retiene el saldo de una nota de crédito mientras una caja cobra", Entero, true, Central, Minimo: 1),
+        new("Central.Devoluciones.MinutosReserva", "Devoluciones",
+            "Minutos que se retienen las líneas de una factura mientras una caja de otra tienda le emite la nota de crédito",
+            Entero, true, Central, Minimo: 1),
         new("Central.Chequeador.Habilitado", "Chequeador de precios",
             "Enciende la página de consulta de precios de la tienda; su consulta no pide sesión, por eso se activa a propósito",
             Booleano, false, Central),

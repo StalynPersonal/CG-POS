@@ -115,6 +115,7 @@ public static class ClavesParametrosCentral
 
     /// <summary>Minutos que el Central retiene el saldo de una nota de crédito mientras una caja termina de cobrar.</summary>
     public const string NotasCreditoMinutosReserva = "Central.NotasCredito.MinutosReserva";
+    public const string DevolucionesMinutosReserva = "Central.Devoluciones.MinutosReserva";
 
     /// <summary>
     /// Si lo que se compra contra una lista de boda se descuenta de las cantidades pedidas. Opcional: sin él la lista solo guía al

@@ -1,4 +1,4 @@
-using CgPos.Contratos.Central;
+﻿using CgPos.Contratos.Central;
 
 namespace CgPos.Central.Aplicacion.Ventas;
 
@@ -21,4 +21,14 @@ public interface IServicioFacturasParaCaja
     /// el cliente llega sin el ticket.
     /// </summary>
     Task<IReadOnlyList<ResumenFacturaParaCaja>> ListarAsync(string? buscar, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Retiene esas líneas para la caja mientras emite la nota de crédito. Pedirla otra vez para la misma factura y caja reemplaza
+    /// la anterior, así un reintento no bloquea el doble.
+    /// </summary>
+    Task<RespuestaReservaFactura> ReservarAsync(string facturaNumero, int cajaId, IReadOnlyDictionary<int, decimal> lineas,
+        CancellationToken cancelacion = default);
+
+    /// <summary>Suelta lo que esa caja tenía retenido de la factura. Falso si no tenía nada.</summary>
+    Task<bool> LiberarReservaAsync(string facturaNumero, int cajaId, CancellationToken cancelacion = default);
 }

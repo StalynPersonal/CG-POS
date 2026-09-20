@@ -1047,7 +1047,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(0m, nota.Saldo);
         Assert.Equal("Supervisor Seguridad", nota.AutorizadoPorNombre);
         Assert.Empty(await caja.EjecutarAsync<ContextoDatosPos, List<int>>(contexto =>
-            contexto.DocumentosElectronicos.Where(d => d.VentaId == nota.Id).Select(d => d.Id).ToListAsync()));
+            contexto.DocumentosElectronicos.Where(d => d.VentaId == nota.Id && d.TipoOrigen == OrigenComprobante.Devolucion)
+                .Select(d => d.Id).ToListAsync()));
 
         // No se usa como forma de pago en otra venta.
         var consulta = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaSaldoNotaCredito>(s => s.ConsultarNotaCreditoAsync(caja.Cajero, nota.Numero));
@@ -1063,6 +1064,92 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         // La factura queda ajustada: lo devuelto por la nota interna no se puede devolver otra vez.
         var otraVez = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
         Assert.Equal(CodigoResultadoDevolucion.TodoDevuelto, otraVez.Resultado);
+    }
+
+    [SkippableFact]
+    public async Task Una_factura_de_otra_tienda_se_devuelve_consultandola_al_Central_y_su_copia_no_queda_guardada()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        // Una factura que esta caja nunca vendió: solo existe en el Central, con 2 de 5 ya devueltas en otra tienda.
+        const string Numero = "02-03-000000123";
+        const string EncfFactura = "E320000099001";
+        caja.Central.Facturas[Numero] = FacturaDelCentral(caja, Numero, EncfFactura, cantidad: 5m, devuelta: 2m);
+        caja.Central.Facturas[EncfFactura] = caja.Central.Facturas[Numero];
+
+        // Sin red no se promete nada que no se pueda cumplir: se dice que solo se devuelven las facturas de esta caja.
+        caja.Central.Responde = false;
+        var sinRed = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, Numero));
+        Assert.Equal(CodigoResultadoDevolucion.SinConexionCentral, sinRed.Resultado);
+        Assert.Contains("solo se devuelven las facturas de esta caja", sinRed.Mensaje);
+
+        caja.Central.Responde = true;
+
+        // Una que no existe en ninguna tienda se distingue de no haber podido preguntar.
+        var inventada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, "99-99-000000001"));
+        Assert.Equal(CodigoResultadoDevolucion.FacturaNoEncontrada, inventada.Resultado);
+
+        // El Central la entrega con lo ya devuelto en otra tienda descontado: quedan 3 de 5.
+        var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, EncfFactura));
+        Assert.True(buscada.Exitosa, buscada.Mensaje);
+        var factura = buscada.Factura!;
+        Assert.Null(factura.VentaId);
+        Assert.Equal(new DatosOrigenFactura(true, "02", "03"), factura.Origen);
+        var linea = Assert.Single(factura.Lineas);
+        Assert.Equal((5m, 2m, 3m), (linea.CantidadVendida, linea.CantidadDevuelta, linea.CantidadDisponible));
+
+        // No se devuelve más de lo que queda, aunque la factura diga 5.
+        var solicitud = new SolicitudDevolucion(null, [new SolicitudLineaDevolucion(linea.NumeroLinea, 4m)], null, null,
+            caja.Catalogo.CodigoMotivoDevolucion, null, null, FacturaNumero: Numero);
+        var deMas = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
+        Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, deMas.Resultado);
+        Assert.Contains("solo quedan 3", deMas.Mensaje);
+
+        // Si otra caja se adelantó y el Central no reserva las líneas, no se emite nada.
+        caja.Central.RechazaReservaDe = Numero;
+        var solicitudUna = solicitud with
+        {
+            Lineas = [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)],
+            AutorizacionId = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Defectuoso"),
+        };
+        var ocupada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitudUna));
+        Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, ocupada.Resultado);
+        Assert.Contains("otra caja", ocupada.Mensaje);
+        caja.Central.RechazaReservaDe = null;
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Artículo defectuoso");
+        var emitida = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero,
+            solicitud with { Lineas = [new SolicitudLineaDevolucion(linea.NumeroLinea, 3m)], AutorizacionId = autorizacion }));
+        Assert.True(emitida.Exitosa, emitida.Mensaje);
+
+        var nota = emitida.NotaCredito!;
+        Assert.Equal(Numero, nota.VentaOrigenNumero);
+        Assert.Null(nota.VentaOrigenId); // no hay venta local a la que apuntar
+        Assert.Equal(EncfFactura, nota.EncfOrigen);
+        Assert.True(nota.EsTotal); // con lo que ya se había devuelto, la factura queda completa
+
+        // La nota sale con el rango de e-NCF y el número de ESTA caja, no de la que vendió.
+        Assert.StartsWith("E34", nota.Comprobante!.Encf, StringComparison.Ordinal);
+        Assert.Contains(caja.Escenario.CodigoCajaUno, nota.Numero, StringComparison.Ordinal);
+
+        // El Central retuvo las líneas antes de emitir.
+        Assert.Equal((Numero, 3m), (caja.Central.ReservasFactura[^1].FacturaNumero, caja.Central.ReservasFactura[^1].Lineas[linea.NumeroLinea]));
+
+        // Y la copia temporal de la factura se borró: no queda rastro de una factura de otra tienda en esta caja.
+        Assert.Empty(await caja.EjecutarAsync<ContextoDatosPos, List<string>>(contexto =>
+            contexto.FacturasConsultadas.Select(f => f.Numero).ToListAsync()));
+    }
+
+    /// <summary>Factura que el Central de prueba entrega como si la hubiera vendido la caja 03 de la sucursal 02.</summary>
+    private static DatosFacturaParaCaja FacturaDelCentral(CajaEnPruebas caja, string numero, string encf, decimal cantidad, decimal devuelta)
+    {
+        const decimal Precio = 850m;
+        var importe = cantidad * Precio;
+        return new DatosFacturaParaCaja(numero, encf, "02", "03", false, TipoComprobante.FacturaConsumo,
+            DateOnly.FromDateTime(caja.Reloj.Ahora.Date), caja.Reloj.Ahora.AddDays(-1), "401007551", "Cliente de Otra Tienda", "DOP", importe,
+            [new DatosLineaFacturaParaCaja(1, caja.Catalogo.CodigoCincel, caja.Catalogo.BarrasCincel, "Cincel de punta", TipoArticulo.Normal, "UND", 0,
+                18m, cantidad, Precio, 0m, importe - decimal.Round(importe / 1.18m, 2, MidpointRounding.AwayFromZero), importe, null, devuelta)]);
     }
 
     [SkippableFact]
@@ -1100,7 +1187,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.StartsWith("E34", encfNota);
 
         var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
-            contexto.DocumentosElectronicos.Where(d => d.VentaId == nota.Id).Select(d => d.RutaXml).SingleAsync());
+            contexto.DocumentosElectronicos.Where(d => d.VentaId == nota.Id && d.TipoOrigen == OrigenComprobante.Devolucion)
+                .Select(d => d.RutaXml).SingleAsync());
         var xml = await File.ReadAllTextAsync(rutaXml);
         Assert.Contains($"<NCFModificado>{factura.Comprobante!.Encf}</NCFModificado>", xml);
         Assert.Contains("<CodigoModificacion>1</CodigoModificacion>", xml);

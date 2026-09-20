@@ -37,7 +37,8 @@ internal sealed class DocumentoElectronicoConfiguracion : IEntityTypeConfigurati
         constructor.Property(d => d.MontoTotal).HasPrecision(18, 2);
 
         constructor.HasIndex(d => d.Encf).IsUnique();
-        constructor.HasIndex(d => d.VentaId).IsUnique();
+        // Ventas y devoluciones numeran sus Id por separado: el par con el tipo de origen es lo único que identifica al documento.
+        constructor.HasIndex(d => new { d.VentaId, d.TipoOrigen }).IsUnique();
         constructor.HasIndex(d => new { d.CajaId, d.Estado });
 
         constructor.HasMany(d => d.Historial).WithOne().HasForeignKey(h => h.DocumentoElectronicoId).OnDelete(DeleteBehavior.Cascade);

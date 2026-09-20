@@ -552,7 +552,7 @@ internal sealed class ServicioVentas(
         if (ultima is null)
             return new RespuestaImpresion(false, "No hay ventas cobradas para reimprimir.");
 
-        var documento = await contexto.DocumentosElectronicos.AsNoTracking().SingleOrDefaultAsync(d => d.VentaId == ultima.Id, cancelacion);
+        var documento = await contexto.DocumentosElectronicos.AsNoTracking().SingleOrDefaultAsync(d => d.VentaId == ultima.Id && d.TipoOrigen == OrigenComprobante.Venta, cancelacion);
         _montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, sesion.CajaId, cancelacion);
         var impresion = await impresora.ImprimirAsync(
             GeneradorTicket.Generar(await EncabezadoTicketAsync(sesion, cancelacion), ultima.ADatos(_montoIdentificacion, documento), esCopia: true), cancelacion);

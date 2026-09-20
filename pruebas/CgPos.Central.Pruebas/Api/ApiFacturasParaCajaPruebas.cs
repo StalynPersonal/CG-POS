@@ -62,6 +62,32 @@ public class ApiFacturasParaCajaPruebas(CentralEnPruebas central)
         // Una que no existe es 404: la caja lo distingue de no haber podido preguntar.
         using (var inexistente = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/facturas/019990000001", cajaDos)))
             Assert.Equal(HttpStatusCode.NotFound, inexistente.StatusCode);
+
+        // La caja 02 retiene 2 de las 3 que quedan mientras emite su nota.
+        Assert.True((await ReservarAsync(cliente, cajaDos, numero, [(1, 2m)])).Exitosa);
+
+        // Para la caja 01 esas 2 ya no están disponibles: no se devuelve dos veces la misma mercancía.
+        Assert.Equal(1m, Assert.Single((await BuscarAsync(cliente, cajaUno, numero)).Lineas).Disponible);
+
+        // Y no puede reservar más de lo que queda.
+        var deMas = await ReservarAsync(cliente, cajaUno, numero, [(1, 2m)]);
+        Assert.False(deMas.Exitosa);
+        Assert.Contains("solo quedan 1", deMas.Mensaje);
+
+        // La caja 02 suelta lo suyo y todo vuelve a estar disponible.
+        using (var liberada = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Delete, $"/api/facturas/{numero}/reservas", cajaDos)))
+            Assert.Equal(HttpStatusCode.NoContent, liberada.StatusCode);
+
+        Assert.Equal(3m, Assert.Single((await BuscarAsync(cliente, cajaUno, numero)).Lineas).Disponible);
+    }
+
+    private static async Task<RespuestaReservaFactura> ReservarAsync(HttpClient cliente, string token, string numero,
+        (int Linea, decimal Cantidad)[] lineas)
+    {
+        var solicitud = new SolicitudReservaFactura(lineas.Select(l => new LineaReservaFactura(l.Linea, l.Cantidad)).ToList());
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/facturas/{numero}/reservas", token, solicitud));
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.Content.ReadFromJsonAsync<RespuestaReservaFactura>(OpcionesJson.Predeterminadas))!;
     }
 
     private static async Task<DatosFacturaParaCaja> BuscarAsync(HttpClient cliente, string token, string numeroOEncf)

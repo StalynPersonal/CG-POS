@@ -36,6 +36,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral> ConsumosNotaCredito => Set<CgPos.Dominio.Devoluciones.ConsumoNotaCreditoCentral>();
     public DbSet<CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral> ReservasNotaCredito => Set<CgPos.Dominio.Devoluciones.ReservaNotaCreditoCentral>();
 
+    /// <summary>Líneas de factura retenidas mientras una caja de otra tienda emite su nota de crédito.</summary>
+    public DbSet<CgPos.Dominio.Devoluciones.ReservaFacturaCentral> ReservasFactura => Set<CgPos.Dominio.Devoluciones.ReservaFacturaCentral>();
+
     // Saldo oficial de puntos del programa de fidelidad (M11)
     public DbSet<CgPos.Dominio.Fidelidad.MovimientoPuntosCentral> MovimientosPuntos => Set<CgPos.Dominio.Fidelidad.MovimientoPuntosCentral>();
     public DbSet<CgPos.Dominio.Fidelidad.SaldoPuntosCentral> SaldosPuntos => Set<CgPos.Dominio.Fidelidad.SaldoPuntosCentral>();

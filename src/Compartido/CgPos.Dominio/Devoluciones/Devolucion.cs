@@ -112,7 +112,8 @@ public sealed class Devolucion : Entidad
     public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
-    public int VentaOrigenId { get; private set; }
+    /// <summary>Venta de esta caja que se devuelve; nula cuando la factura se consultó al Central.</summary>
+    public int? VentaOrigenId { get; private set; }
     public string VentaOrigenNumero { get; private set; } = string.Empty;
     public DateTimeOffset VentaOrigenCobradaEn { get; private set; }
     public TipoComprobante TipoComprobanteOrigen { get; private set; }
@@ -183,7 +184,10 @@ public sealed class Devolucion : Entidad
     public IReadOnlyList<LineaDevolucion> Lineas => _lineas;
     public IReadOnlyList<ConsumoNotaCredito> Consumos => _consumos;
 
-    public static Devolucion Registrar(Venta venta, string? encfOrigen, IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
+    /// <param name="sucursalId">Sucursal que emite la nota, que no es la que vendió cuando la factura vino del Central.</param>
+    /// <param name="cajaId">Caja que emite la nota: es la que tiene el rango de e-NCF y el certificado.</param>
+    public static Devolucion Registrar(FacturaParaDevolver venta, int sucursalId, int cajaId, string? encfOrigen,
+        IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
         IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, int? motivoCodigo, string? motivoNombre, string? observacion,
         string numero, int? turnoId, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
         int diasRetencionImpuesto, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria, bool esInterna = false)
@@ -191,8 +195,7 @@ public sealed class Devolucion : Entidad
         ArgumentNullException.ThrowIfNull(zonaHoraria);
         ArgumentNullException.ThrowIfNull(venta);
 
-        if (venta.Estado != EstadoVenta.Cobrada || venta.CobradaEn is not { } cobradaEn)
-            throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.FacturaNoCobrada, $"La transacción {venta.NumeroTransaccion} no es una factura cobrada.");
+        var cobradaEn = venta.CobradaEn;
 
         var pedidas = solicitadas.Where(s => s.Cantidad != 0m).OrderBy(s => s.NumeroLinea).ToList();
         if (pedidas.Count == 0)
@@ -211,12 +214,12 @@ public sealed class Devolucion : Entidad
         var devolucion = new Devolucion
         {
             Numero = Validar.Texto(numero, "Número de la devolución", LargoMaximoNumero),
-            SucursalId = venta.SucursalId,
-            CajaId = venta.CajaId,
+            SucursalId = Validar.Id(sucursalId, "Sucursal"),
+            CajaId = Validar.Id(cajaId, "Caja"),
             TurnoId = turnoId,
             UsuarioId = Validar.Id(usuarioId, "Usuario"),
             UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoNombre),
-            VentaOrigenId = venta.Id,
+            VentaOrigenId = venta.VentaId,
             VentaOrigenNumero = venta.NumeroTransaccion,
             VentaOrigenCobradaEn = cobradaEn,
             TipoComprobanteOrigen = venta.TipoComprobante,
@@ -239,7 +242,7 @@ public sealed class Devolucion : Entidad
 
         foreach (var pedida in pedidas)
         {
-            var linea = venta.Lineas.FirstOrDefault(l => l.NumeroLinea == pedida.NumeroLinea && l.EstaActiva)
+            var linea = venta.Lineas.FirstOrDefault(l => l.NumeroLinea == pedida.NumeroLinea)
                 ?? throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.LineaNoEncontrada, $"La línea {pedida.NumeroLinea} no existe en la factura.");
 
             if (pedida.Cantidad < 0 || (!linea.PermiteDecimales && pedida.Cantidad != decimal.Truncate(pedida.Cantidad)))
@@ -271,7 +274,7 @@ public sealed class Devolucion : Entidad
             devolucion._lineas.Add(LineaDevolucion.Crear(devolucion.Id, linea, pedida.Cantidad, importeFactura, devolucion.RetieneImpuesto, serial));
         }
 
-        devolucion.EsTotal = venta.Lineas.Where(l => l.EstaActiva).All(l =>
+        devolucion.EsTotal = venta.Lineas.All(l =>
             l.Cantidad - (devuelto.GetValueOrDefault(l.NumeroLinea)?.Cantidad ?? 0m) - devolucion._lineas.Where(d => d.NumeroLineaOrigen == l.NumeroLinea).Sum(d => d.Cantidad) <= 0m);
 
         devolucion.Subtotal = devolucion._lineas.Sum(l => l.Base);
@@ -395,7 +398,8 @@ public sealed class LineaDevolucion : Entidad
 
     public string? Serial { get; private set; }
 
-    internal static LineaDevolucion Crear(int devolucionId, LineaVenta linea, decimal cantidad, decimal importeFactura, bool retieneImpuesto, string? serial)
+    internal static LineaDevolucion Crear(int devolucionId, LineaFacturaParaDevolver linea, decimal cantidad, decimal importeFactura, bool retieneImpuesto,
+        string? serial)
     {
         var baseImponible = Devolucion.Redondear(importeFactura / (1m + linea.PorcentajeImpuesto / 100m));
         var impuesto = importeFactura - baseImponible;

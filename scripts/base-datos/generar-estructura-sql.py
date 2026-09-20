@@ -63,6 +63,7 @@ PARAMETROS_INICIALES = [
     ('Central.Monitor.MinutosSinComunicacion', '30', 'Minutos sin comunicación tras los que una caja es alerta'),
     ('Central.Monitor.MinutosAlertaDgii', '60', 'Minutos sin resultado de la DGII tras los que un e-CF es alerta'),
     ('Central.NotasCredito.MinutosReserva', '10', 'Minutos que se retiene el saldo de una nota mientras la caja cobra'),
+    ('Central.Devoluciones.MinutosReserva', '10', 'Minutos que se retienen las líneas de una factura mientras otra tienda le hace la nota de crédito'),
     ('Central.Fidelidad.MinutosCicloVencimiento', '60', 'Minutos entre revisiones de los puntos vencidos'),
     ('Central.Fidelidad.LoteVencimiento', '500', 'Miembros por lote al vencer puntos'),
     ('Central.Cotizaciones.DiasVigencia', '15', 'Días que vale una cotización desde que se hace'),

@@ -74,6 +74,13 @@
                     <div class="cg-devolucion__dato"><small>e-NCF</small><strong>@(factura.Encf ?? "—")</strong></div>
                     <div class="cg-devolucion__dato"><small>Fecha</small><strong>@factura.CobradaEn.ToLocalTime().ToString("dd/MM/yyyy h:mm tt")</strong></div>
                     <div class="cg-devolucion__dato"><small>Días</small><strong>@factura.DiasTranscurridos</strong></div>
+                    @* La factura de otra tienda vino del Central: el cajero tiene que saber que no es de esta caja. *@
+                    @if (factura.Origen is { DelCentral: true } origen)
+                    {
+                        <MudChip T="string" Color="Color.Info" Icon="@Icons.Material.Filled.Cloud">
+                            Factura de la sucursal @origen.SucursalCodigo, caja @origen.CajaCodigo
+                        </MudChip>
+                    }
                     @if (factura.RetieneImpuesto)
                     {
                         <MudChip T="string" Color="Color.Warning">Más de @factura.DiasRetencionImpuesto días: se retiene el ITBIS</MudChip>
@@ -329,7 +336,8 @@
             _reembolso,
             _reembolsoReferencia,
             _reembolsoDetalle,
-            _interna);
+            _interna,
+            factura.NumeroTransaccion);
 
         _procesando = true;
         _mensaje = null;

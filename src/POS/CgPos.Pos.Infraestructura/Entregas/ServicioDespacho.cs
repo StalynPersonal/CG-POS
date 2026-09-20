@@ -1,4 +1,4 @@
-using CgPos.Contratos.Sincronizacion;
+﻿using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Seguridad;
@@ -12,6 +12,7 @@ using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
 using Microsoft.EntityFrameworkCore;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Pos.Infraestructura.Entregas;
 
@@ -40,7 +41,7 @@ internal sealed class ServicioDespacho(
         {
             // Por la factura: número de transacción o e-NCF impreso.
             var ventaId = await contexto.Ventas.AsNoTracking().Where(v => v.NumeroTransaccion == buscado).Select(v => (int?)v.Id).FirstOrDefaultAsync(cancelacion)
-                ?? await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == buscado).Select(d => (int?)d.VentaId).FirstOrDefaultAsync(cancelacion);
+                ?? await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == buscado && d.TipoOrigen == OrigenComprobante.Venta).Select(d => (int?)d.VentaId).FirstOrDefaultAsync(cancelacion);
             if (ventaId is { } id)
                 pendientes = await Pendientes.AsNoTracking().Where(p => p.VentaId == id).OrderBy(p => p.Numero).ToListAsync(cancelacion);
         }

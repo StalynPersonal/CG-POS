@@ -72,6 +72,15 @@ internal sealed class CentralNoConfigurado : IClienteCentral
     public Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoCotizacionCentral.SinConexion(Motivo));
 
+    public Task<ResultadoFacturaCentral> ConsultarFacturaAsync(string numeroOEncf, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoFacturaCentral.SinConexion(Motivo));
+
+    public Task<ResultadoReservaFactura> ReservarFacturaAsync(string facturaNumero, IReadOnlyDictionary<int, decimal> lineas,
+        CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoReservaFactura.SinConexion(Motivo));
+
+    public Task LiberarReservaFacturaAsync(string facturaNumero, CancellationToken cancelacion = default) => Task.CompletedTask;
+
     public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, decimal monto,
         CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoReservaNotaCredito.SinConexion(Motivo));
@@ -86,6 +95,7 @@ internal sealed class CentralNoConfigurado : IClienteCentral
 internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 {
     private const string SinNotasCredito = "El Central simulado no valida notas de crédito de otras sucursales.";
+    private const string SinFacturas = "El Central simulado no tiene facturas de otras sucursales.";
 
     public string Carpeta { get; } = carpeta;
 
@@ -110,6 +120,15 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 
     public Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoCotizacionCentral.SinConexion("El Central simulado no tiene cotizaciones."));
+
+    public Task<ResultadoFacturaCentral> ConsultarFacturaAsync(string numeroOEncf, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoFacturaCentral.SinConexion(SinFacturas));
+
+    public Task<ResultadoReservaFactura> ReservarFacturaAsync(string facturaNumero, IReadOnlyDictionary<int, decimal> lineas,
+        CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoReservaFactura.SinConexion(SinFacturas));
+
+    public Task LiberarReservaFacturaAsync(string facturaNumero, CancellationToken cancelacion = default) => Task.CompletedTask;
 
     public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, decimal monto,
         CancellationToken cancelacion = default) =>
@@ -150,6 +169,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     public const string RutaNotasCredito = "api/notas-credito";
     public const string RutaListasBoda = "api/listas-boda";
     public const string RutaCotizaciones = "api/cotizaciones";
+    public const string RutaFacturas = "api/facturas";
 
     private static readonly SocketsHttpHandler Manejador = new()
     {
@@ -345,6 +365,81 @@ internal sealed class ClienteCentralHttp : IClienteCentral
                 return ResultadoCotizacionCentral.SinConexion($"El Central devolvió una cotización ilegible: {excepcion.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// Factura de cualquier tienda para devolverla, por su número o su e-NCF. Viene con lo ya devuelto de cada línea, que solo el
+    /// Central conoce: la caja únicamente ve sus propias notas de crédito.
+    /// </summary>
+    public async Task<ResultadoFacturaCentral> ConsultarFacturaAsync(string numeroOEncf, CancellationToken cancelacion = default)
+    {
+        var (respuesta, fallo) = await SolicitarAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"{RutaFacturas}/{Uri.EscapeDataString(numeroOEncf)}"), cancelacion);
+
+        if (fallo is not null)
+            return ResultadoFacturaCentral.SinConexion(fallo.Error!);
+
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                if (respuesta.StatusCode == HttpStatusCode.NotFound)
+                    return ResultadoFacturaCentral.NoExiste($"El Central no tiene la factura {numeroOEncf}.");
+                if (!respuesta.IsSuccessStatusCode)
+                    return ResultadoFacturaCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al consultar la factura.");
+
+                var factura = await respuesta.Content.ReadFromJsonAsync<DatosFacturaParaCaja>(OpcionesJson.Predeterminadas, cancelacion);
+                return factura is null
+                    ? ResultadoFacturaCentral.SinConexion("El Central devolvió una respuesta vacía.")
+                    : ResultadoFacturaCentral.Encontrada(factura);
+            }
+            catch (JsonException excepcion)
+            {
+                return ResultadoFacturaCentral.SinConexion($"El Central devolvió una factura ilegible: {excepcion.Message}");
+            }
+        }
+    }
+
+    /// <summary>Retiene las líneas de la factura mientras esta caja emite la nota; el Central las suelta solo si la nota no llega.</summary>
+    public async Task<ResultadoReservaFactura> ReservarFacturaAsync(string facturaNumero, IReadOnlyDictionary<int, decimal> lineas,
+        CancellationToken cancelacion = default)
+    {
+        var solicitud = new SolicitudReservaFactura(lineas.Select(l => new LineaReservaFactura(l.Key, l.Value)).ToList());
+        var (respuesta, fallo) = await SolicitarAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, $"{RutaFacturas}/{Uri.EscapeDataString(facturaNumero)}/reservas")
+            {
+                Content = JsonContent.Create(solicitud, options: OpcionesJson.Predeterminadas),
+            }, cancelacion);
+
+        if (fallo is not null)
+            return ResultadoReservaFactura.SinConexion(fallo.Error!);
+
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                if (!respuesta.IsSuccessStatusCode)
+                    return ResultadoReservaFactura.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al reservar la factura.");
+
+                var reserva = await respuesta.Content.ReadFromJsonAsync<RespuestaReservaFactura>(OpcionesJson.Predeterminadas, cancelacion);
+                return reserva is { Exitosa: true }
+                    ? ResultadoReservaFactura.Reservada()
+                    : ResultadoReservaFactura.Rechazada(reserva?.Mensaje ?? "El Central no reservó las líneas de la factura.");
+            }
+            catch (Exception excepcion) when (EsFallaDeComunicacion(excepcion, cancelacion))
+            {
+                return ResultadoReservaFactura.SinConexion(SinConexionPor(excepcion).Error!);
+            }
+        }
+    }
+
+    public async Task LiberarReservaFacturaAsync(string facturaNumero, CancellationToken cancelacion = default)
+    {
+        var (respuesta, _) = await SolicitarAsync(
+            () => new HttpRequestMessage(HttpMethod.Delete, $"{RutaFacturas}/{Uri.EscapeDataString(facturaNumero)}/reservas"), cancelacion);
+        respuesta?.Dispose();
     }
 
     /// <summary>Saldo de una nota de crédito emitida en cualquier sucursal (RF-43).</summary>

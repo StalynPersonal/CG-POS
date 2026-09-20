@@ -61,6 +61,9 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<CgPos.Dominio.Devoluciones.MotivoDevolucion> MotivosDevolucion => Set<CgPos.Dominio.Devoluciones.MotivoDevolucion>();
     public DbSet<CgPos.Dominio.Devoluciones.Devolucion> Devoluciones => Set<CgPos.Dominio.Devoluciones.Devolucion>();
 
+    /// <summary>Copia temporal de las facturas de otras tiendas que se piden al Central para devolverlas; se borra al emitir la nota.</summary>
+    public DbSet<CgPos.Dominio.Devoluciones.FacturaConsultada> FacturasConsultadas => Set<CgPos.Dominio.Devoluciones.FacturaConsultada>();
+
     // Descuentos y promociones (M06, M07)
     public DbSet<Promocion> Promociones => Set<Promocion>();
 

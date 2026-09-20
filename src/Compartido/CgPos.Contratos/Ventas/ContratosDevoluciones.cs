@@ -29,8 +29,10 @@ public sealed record DatosNotaCreditoResumen(int Id, string Numero, string? Encf
 
 /// <summary>Factura llamada para devolver (RF-159): lo vendido, lo ya devuelto y lo disponible por línea.</summary>
 /// <param name="RetieneImpuesto">Pasó el plazo de devolución: la nota acredita sin ITBIS (RF-44).</param>
+/// <param name="VentaId">Venta de esta caja; nulo si la factura la entregó el Central y solo existe como copia temporal.</param>
+/// <param name="Origen">Dónde está la factura y, si es de otra tienda, de cuál.</param>
 public sealed record DatosFacturaDevolucion(
-    int VentaId,
+    int? VentaId,
     string NumeroTransaccion,
     string? Encf,
     TipoComprobante TipoComprobante,
@@ -41,7 +43,11 @@ public sealed record DatosFacturaDevolucion(
     DatosClienteVenta? Cliente,
     IReadOnlyList<DatosLineaFacturaDevolucion> Lineas,
     IReadOnlyList<DatosMotivoDevolucion> Motivos,
-    IReadOnlyList<DatosNotaCreditoResumen> NotasPrevias);
+    IReadOnlyList<DatosNotaCreditoResumen> NotasPrevias,
+    DatosOrigenFactura? Origen = null);
+
+/// <summary>De dónde salió la factura: de esta caja o del Central. Solo para decírselo al cajero en pantalla y en la auditoría.</summary>
+public sealed record DatosOrigenFactura(bool DelCentral, string SucursalCodigo, string CajaCodigo);
 
 public sealed record SolicitudLineaDevolucion(int NumeroLinea, decimal Cantidad, string? Serial = null);
 
@@ -50,7 +56,7 @@ public sealed record SolicitudLineaDevolucion(int NumeroLinea, decimal Cantidad,
 /// <param name="ReembolsoReferencia">Operación del terminal para la tarjeta o número del cheque.</param>
 /// <param name="ReembolsoDetalle">Banco del cheque, tarjeta o quien recibe el efectivo.</param>
 public sealed record SolicitudDevolucion(
-    int VentaId,
+    int? VentaId,
     IReadOnlyList<SolicitudLineaDevolucion> Lineas,
     string? ClienteDocumento,
     string? ClienteNombre,
@@ -60,7 +66,9 @@ public sealed record SolicitudDevolucion(
     TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
     string? ReembolsoReferencia = null,
     string? ReembolsoDetalle = null,
-    bool Interna = false);
+    bool Interna = false,
+    /// <summary>Número de la factura cuando vino del Central: en esa caja no hay venta a la que apuntar.</summary>
+    string? FacturaNumero = null);
 
 public sealed record DatosLineaNotaCredito(
     int NumeroLineaOrigen,
@@ -81,7 +89,7 @@ public sealed record DatosLineaNotaCredito(
 public sealed record DatosNotaCredito(
     int Id,
     string Numero,
-    int VentaOrigenId,
+    int? VentaOrigenId,
     string VentaOrigenNumero,
     string? EncfOrigen,
     DateTimeOffset VentaOrigenCobradaEn,
@@ -132,6 +140,9 @@ public enum CodigoResultadoDevolucion
     NotaCreditoNoEncontrada,
     NotaCreditoConsumida,
     NotaCreditoVencida,
+
+    /// <summary>La factura no es de esta caja y el Central no respondió: hay que distinguirlo de que no exista.</summary>
+    SinConexionCentral,
 }
 
 public sealed record RespuestaFacturaDevolucion(CodigoResultadoDevolucion Resultado, string? Mensaje, DatosFacturaDevolucion? Factura)

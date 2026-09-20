@@ -1,4 +1,4 @@
-using CgPos.Dominio.Devoluciones;
+﻿using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +41,8 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
         constructor.Property(d => d.Moneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(d => d.SimboloMoneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo).IsRequired();
 
-        constructor.HasOne<Venta>().WithMany().HasForeignKey(d => d.VentaOrigenId).OnDelete(DeleteBehavior.Restrict);
+        // La venta de origen es opcional: la factura pudo venir del Central y no existir en esta caja.
+        constructor.HasOne<Venta>().WithMany().HasForeignKey(d => d.VentaOrigenId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         constructor.HasIndex(d => d.VentaOrigenId);
         constructor.HasIndex(d => new { d.CajaId, d.Numero }).IsUnique();
         constructor.HasIndex(d => d.Encf).IsUnique().HasFilter("[Encf] IS NOT NULL");
@@ -85,5 +86,49 @@ internal sealed class ConsumoNotaCreditoConfiguracion : IEntityTypeConfiguration
         constructor.Property(c => c.Monto).HasPrecision(18, 2);
         constructor.Property(c => c.SaldoRestante).HasPrecision(18, 2);
         constructor.HasIndex(c => c.VentaId);
+    }
+}
+
+/// <summary>
+/// Copia temporal de una factura traída del Central. Se borra al emitir la nota de crédito, así que nunca crece: el índice
+/// único por número es el que hace que una segunda consulta reemplace lo que hubiera quedado de un intento anterior.
+/// </summary>
+internal sealed class FacturaConsultadaConfiguracion : IEntityTypeConfiguration<FacturaConsultada>
+{
+    public void Configure(EntityTypeBuilder<FacturaConsultada> constructor)
+    {
+        constructor.ToTable("FacturasConsultadas");
+        constructor.HasKey(f => f.Id);
+        constructor.Property(f => f.Numero).HasMaxLength(FacturaConsultada.LargoMaximoNumero).IsUnicode(false).IsRequired();
+        constructor.Property(f => f.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false);
+        constructor.Property(f => f.SucursalCodigo).HasMaxLength(FacturaConsultada.LargoMaximoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(f => f.CajaCodigo).HasMaxLength(FacturaConsultada.LargoMaximoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(f => f.ClienteDocumento).HasMaxLength(20).IsUnicode(false);
+        constructor.Property(f => f.ClienteNombre).HasMaxLength(FacturaConsultada.LargoMaximoTexto);
+        constructor.Property(f => f.Moneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(f => f.SimboloMoneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo).IsRequired();
+        constructor.Property(f => f.Total).HasPrecision(18, 2);
+        constructor.HasIndex(f => f.Numero).IsUnique();
+
+        constructor.HasMany(f => f.Lineas).WithOne().HasForeignKey(l => l.FacturaConsultadaId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(f => f.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class LineaFacturaConsultadaConfiguracion : IEntityTypeConfiguration<LineaFacturaConsultada>
+{
+    public void Configure(EntityTypeBuilder<LineaFacturaConsultada> constructor)
+    {
+        constructor.ToTable("LineasFacturaConsultada");
+        constructor.HasKey(l => l.Id);
+        constructor.Property(l => l.CodigoInterno).HasMaxLength(FacturaConsultada.LargoMaximoCodigo).IsRequired();
+        constructor.Property(l => l.CodigoLeido).HasMaxLength(FacturaConsultada.LargoMaximoCodigo).IsRequired();
+        constructor.Property(l => l.Descripcion).HasMaxLength(FacturaConsultada.LargoMaximoTexto).IsRequired();
+        constructor.Property(l => l.UnidadMedidaCodigo).HasMaxLength(20).IsRequired();
+        constructor.Property(l => l.Cantidad).HasPrecision(18, 4);
+        constructor.Property(l => l.ImporteConImpuesto).HasPrecision(18, 2);
+        constructor.Property(l => l.PorcentajeImpuesto).HasPrecision(9, 4);
+        constructor.Property(l => l.Devuelta).HasPrecision(18, 4);
+        constructor.Property(l => l.Serial).HasMaxLength(100);
     }
 }

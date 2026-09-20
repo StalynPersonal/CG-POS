@@ -116,6 +116,10 @@ CREATE SEQUENCE [SecuenciaEntregasPendiente] AS int START WITH 1 INCREMENT BY 1 
 GO
 
 
+CREATE SEQUENCE [SecuenciaFacturasConsultadas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaFormasPago] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -137,6 +141,10 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaLineasEntregaPendiente] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLineasFacturaConsultada] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -407,6 +415,7 @@ GO
 CREATE TABLE [DocumentosElectronicos] (
     [Id] int NOT NULL,
     [VentaId] int NOT NULL,
+    [TipoOrigen] int NOT NULL,
     [CajaId] int NOT NULL,
     [TipoComprobante] int NOT NULL,
     [Encf] varchar(13) NOT NULL,
@@ -435,6 +444,26 @@ CREATE TABLE [Empresas] (
     [ModificadoEn] datetimeoffset(3) NOT NULL,
     [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Empresas] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [FacturasConsultadas] (
+    [Id] int NOT NULL,
+    [Numero] varchar(30) NOT NULL,
+    [Encf] varchar(13) NULL,
+    [SucursalCodigo] varchar(50) NOT NULL,
+    [CajaCodigo] varchar(50) NOT NULL,
+    [TipoComprobante] int NOT NULL,
+    [CobradaEn] datetimeoffset(3) NOT NULL,
+    [ClienteTipoDocumento] int NULL,
+    [ClienteDocumento] varchar(20) NULL,
+    [ClienteNombre] nvarchar(200) NULL,
+    [Moneda] varchar(3) NOT NULL,
+    [SimboloMoneda] nvarchar(5) NOT NULL,
+    [Total] decimal(18,2) NOT NULL,
+    [ConsultadaEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_FacturasConsultadas] PRIMARY KEY ([Id])
 );
 GO
 
@@ -793,6 +822,30 @@ CREATE TABLE [Sucursales] (
     [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Sucursales] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Sucursales_Empresas_EmpresaId] FOREIGN KEY ([EmpresaId]) REFERENCES [Empresas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [LineasFacturaConsultada] (
+    [Id] int NOT NULL,
+    [FacturaConsultadaId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [ArticuloId] int NOT NULL,
+    [CodigoInterno] nvarchar(50) NOT NULL,
+    [CodigoLeido] nvarchar(50) NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [TipoArticulo] int NOT NULL,
+    [UnidadMedidaCodigo] nvarchar(20) NOT NULL,
+    [DecimalesCantidad] int NOT NULL,
+    [Cantidad] decimal(18,4) NOT NULL,
+    [ImporteConImpuesto] decimal(18,2) NOT NULL,
+    [PorcentajeImpuesto] decimal(9,4) NOT NULL,
+    [IndicadorFacturacion] int NOT NULL,
+    [EsServicio] bit NOT NULL,
+    [Serial] nvarchar(100) NULL,
+    [Devuelta] decimal(18,4) NOT NULL,
+    CONSTRAINT [PK_LineasFacturaConsultada] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasFacturaConsultada_FacturasConsultadas_FacturaConsultadaId] FOREIGN KEY ([FacturaConsultadaId]) REFERENCES [FacturasConsultadas] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1176,7 +1229,7 @@ CREATE TABLE [Devoluciones] (
     [TurnoId] int NULL,
     [UsuarioId] int NOT NULL,
     [UsuarioNombre] nvarchar(150) NOT NULL,
-    [VentaOrigenId] int NOT NULL,
+    [VentaOrigenId] int NULL,
     [VentaOrigenNumero] varchar(30) NOT NULL,
     [VentaOrigenCobradaEn] datetimeoffset(3) NOT NULL,
     [TipoComprobanteOrigen] int NOT NULL,
@@ -1512,7 +1565,7 @@ CREATE UNIQUE INDEX [IX_DocumentosElectronicos_Encf] ON [DocumentosElectronicos]
 GO
 
 
-CREATE UNIQUE INDEX [IX_DocumentosElectronicos_VentaId] ON [DocumentosElectronicos] ([VentaId]);
+CREATE UNIQUE INDEX [IX_DocumentosElectronicos_VentaId_TipoOrigen] ON [DocumentosElectronicos] ([VentaId], [TipoOrigen]);
 GO
 
 
@@ -1521,6 +1574,10 @@ GO
 
 
 CREATE INDEX [IX_EntregasPendiente_PendienteEntregaId] ON [EntregasPendiente] ([PendienteEntregaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_FacturasConsultadas_Numero] ON [FacturasConsultadas] ([Numero]);
 GO
 
 
@@ -1545,6 +1602,10 @@ GO
 
 
 CREATE INDEX [IX_LineasEntregaPendiente_EntregaPendienteId] ON [LineasEntregaPendiente] ([EntregaPendienteId]);
+GO
+
+
+CREATE INDEX [IX_LineasFacturaConsultada_FacturaConsultadaId] ON [LineasFacturaConsultada] ([FacturaConsultadaId]);
 GO
 
 
