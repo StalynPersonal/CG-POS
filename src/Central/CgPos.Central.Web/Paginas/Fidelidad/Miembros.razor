@@ -23,10 +23,10 @@
     <MudTable @ref="_tabla" T="DatosMiembroFidelidadCentral" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
               RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
-            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+            <div class="d-flex gap-2 flex-wrap align-center">
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
                               Placeholder="Cédula, nombre, teléfono o correo" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="min-width: 260px" />
+                              Clearable="true" Style="width: 260px" />
                 <MudSwitch T="bool" Value="_soloConPuntos" ValueChanged="@(v => FiltrarAsync(() => _soloConPuntos = v))" Label="Solo con puntos"
                            Color="Color.Primary" />
             </div>

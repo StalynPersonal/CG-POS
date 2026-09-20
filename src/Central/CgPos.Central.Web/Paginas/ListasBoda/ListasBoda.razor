@@ -37,10 +37,10 @@
               RowsPerPage="10" OnRowClick="@(evento => Abrir(evento.Item))" RowStyle="cursor: pointer">
         <ToolBarContent>
             @* Filtros de la tabla: texto libre y estado de la lista. *@
-            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+            <div class="d-flex gap-2 flex-wrap align-center">
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
                               Placeholder="Número, evento, cliente o documento" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="min-width: 280px" />
+                              Clearable="true" Style="width: 280px" />
                 <MudSelect T="EstadoListaBoda?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
                            Clearable="true" Style="max-width: 200px">
                     <MudSelectItem T="EstadoListaBoda?" Value="@EstadoListaBoda.Abierta">Abiertas</MudSelectItem>

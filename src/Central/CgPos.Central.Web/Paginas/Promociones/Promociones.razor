@@ -27,9 +27,9 @@
 <MudPaper Elevation="1">
     <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
-            <div class="d-flex gap-4 flex-wrap align-center" style="width: 100%">
+            <div class="d-flex gap-2 flex-wrap align-center">
                 <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por código o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true" DebounceInterval="200" Clearable="true" Style="min-width: 240px" />
+                              Immediate="true" DebounceInterval="200" Clearable="true" Style="width: 240px" />
                 <MudChipSet T="string" @bind-SelectedValue="_vista" SelectionMode="SelectionMode.SingleSelection" CheckMark="true" Color="Color.Secondary" Variant="Variant.Outlined">
                     <MudChip T="string" Value="@("activas")" Text="Vigentes y programadas" />
                     <MudChip T="string" Value="@("vigentes")" Text="Vigentes" />

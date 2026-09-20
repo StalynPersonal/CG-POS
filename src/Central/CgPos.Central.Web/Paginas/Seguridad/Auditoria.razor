@@ -26,7 +26,7 @@
               Elevation="0" RowsPerPage="10">
         <ToolBarContent>
             @* Filtros: rango de días, acción, entidad, usuario, solo lo que cambió datos y búsqueda libre. *@
-            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+            <div class="d-flex gap-2 flex-wrap align-center">
                 <MudDatePicker Date="_desde" DateChanged="@(valor => FiltrarAsync(() => _desde = valor))" Label="Desde" Variant="Variant.Outlined"
                                Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
                                Class="cg-central__filtro-fecha" />
@@ -35,14 +35,14 @@
                                Class="cg-central__filtro-fecha" />
                 @* El filtro por acción está oculto por ahora; el Central lo sigue aceptando. *@
                 <MudSelect T="string" Value="_tipoEntidad" ValueChanged="@(valor => FiltrarAsync(() => _tipoEntidad = valor))" Label="Entidad"
-                           Dense="true" Clearable="true" Style="min-width: 180px">
+                           Dense="true" Clearable="true" Style="width: 180px">
                     @foreach (var entidad in _opciones.TiposEntidad)
                     {
                         <MudSelectItem T="string" Value="@entidad">@entidad</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSelect T="string" Value="_usuario" ValueChanged="@(valor => FiltrarAsync(() => _usuario = valor))" Label="Usuario" Dense="true"
-                           Clearable="true" Style="min-width: 180px">
+                           Clearable="true" Style="width: 180px">
                     @foreach (var usuario in _opciones.Usuarios)
                     {
                         <MudSelectItem T="string" Value="@usuario">@usuario</MudSelectItem>
@@ -50,7 +50,7 @@
                 </MudSelect>
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(valor => FiltrarAsync(() => _buscar = valor))" DebounceInterval="400"
                               Placeholder="Entidad, motivo o valor" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="min-width: 240px" />
+                              Clearable="true" Style="width: 240px" />
                 <MudSwitch T="bool" Value="_soloConCambios" ValueChanged="@(valor => FiltrarAsync(() => _soloConCambios = valor))"
                            Color="Color.Secondary" Label="Solo cambios de datos" />
             </div>

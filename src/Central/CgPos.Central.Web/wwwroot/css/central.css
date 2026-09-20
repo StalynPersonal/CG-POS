@@ -96,6 +96,24 @@ html, body {
     padding-bottom: 6px !important;
 }
 
+/*
+    Los artículos de una cotización o de una lista de boda: ahí se digitan muchas líneas seguidas y se quieren ver
+    todas de un vistazo, así que la fila se aprieta y los campos de la celda bajan de alto (los de la fila de captura,
+    que están fuera de la tabla, conservan su tamaño normal).
+*/
+.cg-central__lineas .mud-table-cell,
+.cg-central__lineas .mud-table-cell:has(.mud-input-control) {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+}
+
+.cg-central__lineas .mud-input-control .mud-input-slot {
+    height: 30px;
+    min-height: 30px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
 .cg-central__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .cg-central__valor {

@@ -26,13 +26,13 @@
               Elevation="0" RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
             @* Filtros: rango de días, sucursal, caja, tipo de documento y búsqueda por número, e-NCF o cliente. *@
-            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+            <div class="d-flex gap-2 flex-wrap align-center" style="width: 100%">
                 <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v ?? _desde))" Label="Desde" Variant="Variant.Outlined"
                                Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
                 <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v ?? _hasta))" Label="Hasta" Variant="Variant.Outlined"
                                Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
                 <MudSelect T="int?" Value="_sucursalId" ValueChanged="@(v => FiltrarAsync(() => _sucursalId = v))" Label="Sucursal" Dense="true"
-                           Clearable="true" Style="min-width: 180px">
+                           Clearable="true" Style="width: 180px">
                     @foreach (var sucursal in _sucursales)
                     {
                         <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
@@ -45,7 +45,7 @@
                 </MudSelect>
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
                               Placeholder="Número, e-NCF o cliente" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="min-width: 240px" />
+                              Clearable="true" Style="width: 240px" />
                 <MudSpacer />
                 <MudText Typo="Typo.subtitle2">Total: @_suma.ToString("N2")</MudText>
             </div>

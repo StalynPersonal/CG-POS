@@ -74,7 +74,7 @@ else if (_lista is { } lista)
             </div>
 
             @* Lo agregado, con lo último arriba para ver que entró lo que se acaba de digitar. *@
-            <MudTable T="ArticuloEnEdicion" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None" Class="mt-2">
+            <MudTable T="ArticuloEnEdicion" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None" Class="mt-2 cg-central__lineas">
                 <HeaderContent>
                     <MudTh Style="width: 200px">Código</MudTh>
                     <MudTh>Descripción</MudTh>
@@ -86,7 +86,7 @@ else if (_lista is { } lista)
                 <RowTemplate>
                     <MudTd>@context.Codigo</MudTd>
                     <MudTd>@context.Descripcion</MudTd>
-                    <MudTd><MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" /></MudTd>
+                    <MudTd><MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" HideSpinButtons="true" /></MudTd>
                     @* Los artículos de una lista guardada no traen precio: la lista pide artículos, no precios. *@
                     <MudTd Style="text-align: right">@(context.Precio > 0 ? context.Precio.ToString("N2") : "—")</MudTd>
                     <MudTd>@context.Comprado.ToString("0.###")</MudTd>

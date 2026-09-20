@@ -35,7 +35,7 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
     <MudTable T="DatosParametro" Items="_filtrados" GroupBy="_porModulo" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
             <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por descripción, módulo, ámbito o valor" Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" />
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" Style="width: 420px" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Parámetro</MudTh>

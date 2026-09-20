@@ -24,7 +24,7 @@
     <MudTable @ref="_tabla" T="DatosNotaCreditoCentral" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
               RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
-            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+            <div class="d-flex gap-2 flex-wrap align-center">
                 @* Rango de días por fecha de emisión de la nota; vacío consulta todo el historial. *@
                 <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v))" Label="Desde" Variant="Variant.Outlined"
                                Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
@@ -34,7 +34,7 @@
                                Class="cg-central__filtro-fecha" />
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
                               Placeholder="e-NCF, número, documento o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="min-width: 260px" />
+                              Clearable="true" Style="width: 260px" />
                 <MudSelect T="EstadoNotaCreditoCentral?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
                            Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todas")" Style="max-width: 200px">
                     <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vigente">Vigentes</MudSelectItem>

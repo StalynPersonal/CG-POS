@@ -37,7 +37,7 @@
         <ToolBarContent>
             @* La espera de 200 ms evita filtrar entre letra y letra mientras se escribe. *@
             <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar" Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" />
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" Style="width: 420px" />
             <MudSpacer />
             @* Cuántos registros tiene el catálogo, y cuántos quedan tras filtrar. *@
             <MudText Typo="Typo.body2" Class="cg-central__detalle">

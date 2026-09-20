@@ -26,7 +26,7 @@
     <MudTable T="DatosUsuarioCentral" Items="_filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
             <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por usuario, nombre, correo o rol" Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" />
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" Style="width: 420px" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Usuario</MudTh>

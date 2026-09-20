@@ -92,7 +92,7 @@ else if (_cotizacion is { } cotizacion)
             }
 
             @* Lo agregado, con lo último arriba para ver que entró lo que se acaba de digitar. *@
-            <MudTable T="LineaEnEdicion" Items="_lineas" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None" Class="mt-2">
+            <MudTable T="LineaEnEdicion" Items="_lineas" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None" Class="mt-2 cg-central__lineas">
                 <HeaderContent>
                     <MudTh Style="width: 190px">Código</MudTh>
                     <MudTh>Descripción</MudTh>
@@ -107,12 +107,12 @@ else if (_cotizacion is { } cotizacion)
                     <MudTd>@context.Descripcion</MudTd>
                     <MudTd>
                         <MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" Format="0.###"
-                                         Disabled="!_editable" />
+                                         Disabled="!_editable" HideSpinButtons="true" />
                     </MudTd>
                     <MudTd Style="text-align: right">@context.PrecioUnitario.ToString("N2")</MudTd>
                     <MudTd>
                         <MudNumericField @bind-Value="context.Descuento" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
-                                         Disabled="!_editable" />
+                                         Disabled="!_editable" HideSpinButtons="true" />
                     </MudTd>
                     <MudTd Style="text-align: right">@context.Importe.ToString("N2")</MudTd>
                     <MudTd>
