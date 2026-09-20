@@ -482,9 +482,12 @@ titulo('2.12. Listas de boda y de regalos', 2)
 p('Ruta: /listas-boda.')
 paso('Para hacer una nueva, use «Nueva lista» del menú o el botón del listado: se abre una pantalla completa, no una '
      'ventanita.')
-paso('Escriba los datos de los festejados (cédula o RNC, teléfono, correo), los del evento (nombre, fecha, lugar) y los '
-     'artículos pedidos con su cantidad. Los artículos se buscan por su código interno o su descripción y se eligen del '
-     'maestro: no se escriben a mano, para que lo pedido sea exactamente lo que la caja cobra.')
+paso('Escriba los datos de los festejados (cédula o RNC, teléfono, correo) y los del evento (nombre, fecha, lugar).')
+paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y salta a la '
+     'cantidad), escriba la cantidad y otro Enter lo pasa a la lista y vuelve al código, vacío y listo para el siguiente. '
+     'Lo último agregado queda arriba.')
+paso('Si no se sabe el código, presione la lupa del campo y busque el artículo por código o por descripción. Los artículos '
+     'siempre se eligen del maestro, nunca se escriben a mano, para que lo pedido sea exactamente lo que la caja cobra.')
 paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
 paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
 paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
@@ -498,8 +501,14 @@ p('Ruta: /cotizaciones. Es el presupuesto que se le arma a un cliente desde cual
 paso('Para hacer una nueva, use «Nueva cotización» del menú o el botón del listado: se abre una pantalla completa, no una '
      'ventanita.')
 paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo.')
-paso('Agregue los artículos: se buscan por código interno o descripción y traen el precio del día, que se puede cambiar a '
-     'mano igual que el descuento.')
+paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y el precio del '
+     'día y salta a la cantidad), escriba la cantidad y Enter (salta al descuento), y otro Enter lo pasa a la lista y '
+     'vuelve al código, vacío y listo para el siguiente.')
+paso('Si no se sabe el código, presione la lupa del campo: se abre una ventana para buscar el artículo por código o por '
+     'descripción, y el que se elija cae en el campo del código. Si lo digitado no existe, esa ventana se abre sola con lo '
+     'que se escribió.')
+p('Lo último agregado queda arriba en la lista. El precio, la cantidad y el descuento se siguen pudiendo cambiar en la '
+  'línea, y el total se ve arriba, al lado de la observación.')
 paso('Guarde: el Central le asigna su número (por ejemplo COT000001) y su fecha de vencimiento, según los días '
      'configurados en Parámetros.')
 paso('Con «Imprimir» sale el PDF en tamaño carta para entregárselo o enviárselo al cliente.')

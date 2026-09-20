@@ -1,0 +1,73 @@
+@* Busca un artículo del maestro por código o descripción y devuelve el elegido, para llenar la fila de captura. *@
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        @* El buscador y la lista: se escribe arriba y se elige tocando la fila o con Enter en la primera. *@
+        <div style="min-width: 640px">
+            <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="300" Immediate="true" AutoFocus="true"
+                          Placeholder="Código, descripción o código de barras" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+
+            <MudTable T="ArticuloCarga" Items="_articulos" Dense="true" Hover="true" Elevation="0" Loading="_cargando" Breakpoint="Breakpoint.None"
+                      Class="mt-2" RowStyle="cursor: pointer" OnRowClick="@(evento => Elegir(evento.Item))" FixedHeader="true" Height="380px">
+                <HeaderContent>
+                    <MudTh Style="width: 180px">Código</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh Style="width: 120px; text-align: right">Precio</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Código">@context.Codigo</MudTd>
+                    <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+                    <MudTd DataLabel="Precio" Style="text-align: right">@context.PrecioDetalle.ToString("N2")</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(_buscar) ? "Escriba para buscar un artículo." : "Ningún artículo coincide.")</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    /// <summary>De qué módulo es la búsqueda: cada uno tiene su ruta con su propio permiso.</summary>
+    [Parameter] public string Modulo { get; set; } = string.Empty;
+
+    /// <summary>Lo que ya se había digitado en el código: la búsqueda arranca con eso escrito.</summary>
+    [Parameter] public string? TextoInicial { get; set; }
+
+    private string? _buscar;
+    private IReadOnlyList<ArticuloCarga> _articulos = [];
+    private bool _cargando;
+
+    /// <summary>Se busca en el Central, no en memoria: el maestro tiene más de cien mil artículos.</summary>
+    private async Task BuscarAsync(string? texto)
+    {
+        _buscar = texto;
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            _articulos = [];
+            return;
+        }
+
+        _cargando = true;
+        var pagina = await Cliente.BuscarArticulosAsync(Modulo, texto, 0, 50);
+        _cargando = false;
+        _articulos = pagina?.Elementos.Select(e => e.Dato).ToList() ?? [];
+    }
+
+    protected override Task OnInitializedAsync() =>
+        string.IsNullOrWhiteSpace(TextoInicial) ? Task.CompletedTask : BuscarAsync(TextoInicial);
+
+    private void Elegir(ArticuloCarga? articulo)
+    {
+        if (articulo is { } elegido)
+            Dialogo.Close(DialogResult.Ok(elegido));
+    }
+}

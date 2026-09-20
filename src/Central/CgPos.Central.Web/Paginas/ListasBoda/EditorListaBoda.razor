@@ -4,6 +4,7 @@
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.ListasBoda
 @inject ClienteCentral Cliente
+@inject IDialogService Dialogos
 @inject ISnackbar Avisos
 @inject NavigationManager Navegacion
 
@@ -52,10 +53,24 @@ else if (_lista is { } lista)
 
         <MudTextField @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
-        @* Artículos pedidos: se eligen del maestro buscando por su código interno o su descripción; lo comprado se muestra al editar. *@
+        @* Captura: se digita el código, Enter lo busca y pasa a la cantidad, y otro Enter lo agrega a la lista. *@
         <div class="mt-4">
             <MudText Typo="Typo.subtitle1">Artículos pedidos</MudText>
-            <MudTable T="ArticuloEnEdicion" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None">
+
+            <div class="d-flex gap-2 flex-wrap align-end">
+                <MudTextField @ref="_campoCodigo" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Immediate="true" Style="width: 200px" OnKeyDown="AlTeclearCodigo"
+                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="BuscarEnElMaestroAsync"
+                              AdornmentAriaLabel="Buscar artículo" />
+                <MudTextField Value="_descripcion" Label="Descripción" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"
+                              Class="flex-grow-1" Style="min-width: 260px" />
+                <MudNumericField @ref="_campoCantidad" Immediate="true" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Min="0.001m" Format="0.###" Style="width: 130px" OnKeyDown="AlTeclearCantidad" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarAsync">Agregar</MudButton>
+            </div>
+
+            @* Lo agregado, con lo último arriba para ver que entró lo que se acaba de digitar. *@
+            <MudTable T="ArticuloEnEdicion" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None" Class="mt-2">
                 <HeaderContent>
                     <MudTh Style="width: 200px">Código</MudTh>
                     <MudTh>Descripción</MudTh>
@@ -64,12 +79,7 @@ else if (_lista is { } lista)
                     <MudTh Style="width: 60px"></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>
-                        <MudAutocomplete T="ArticuloCarga" Value="@BuscadoDe(context)" ValueChanged="@(articulo => Elegir(context, articulo))"
-                                         SearchFunc="BuscarArticulosAsync" ToStringFunc="@(a => a?.Codigo ?? string.Empty)" Variant="Variant.Outlined"
-                                         Margin="Margin.Dense" ResetValueOnEmptyText="false" CoerceText="true" Placeholder="Código o descripción"
-                                         MinCharacters="2" MaxItems="20" />
-                    </MudTd>
+                    <MudTd>@context.Codigo</MudTd>
                     <MudTd>@context.Descripcion</MudTd>
                     <MudTd><MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" /></MudTd>
                     <MudTd>@context.Comprado.ToString("0.###")</MudTd>
@@ -77,10 +87,10 @@ else if (_lista is { } lista)
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => _articulos.Remove(context)" />
                     </MudTd>
                 </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">Todavía no hay artículos: digite el código arriba y presione Enter.</MudText>
+                </NoRecordsContent>
             </MudTable>
-            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="() => _articulos.Add(new ArticuloEnEdicion())">
-                Agregar artículo
-            </MudButton>
         </div>
 
         @if (lista.Compras is { Count: > 0 } compras)
@@ -136,7 +146,15 @@ else if (_lista is { } lista)
     private string? _telefono;
     private string? _correo;
     private string? _observacion;
+    // Los artículos se guardan con el último arriba, que es como se ven: al guardar se invierte para respetar el orden en que se digitaron.
     private readonly List<ArticuloEnEdicion> _articulos = [];
+
+    // La fila de captura, que es donde se digita antes de agregar.
+    private string? _codigo;
+    private string _descripcion = string.Empty;
+    private decimal _cantidad = 1m;
+    private MudTextField<string?>? _campoCodigo;
+    private MudNumericField<decimal>? _campoCantidad;
 
     /// <summary>Se ejecuta también al pasar de una lista a otra sin salir de la pantalla.</summary>
     protected override async Task OnParametersSetAsync()
@@ -166,10 +184,7 @@ else if (_lista is { } lista)
 
         _articulos.Clear();
         foreach (var articulo in lista.Articulos)
-            _articulos.Add(new ArticuloEnEdicion { Codigo = articulo.ArticuloCodigo, Descripcion = articulo.Descripcion, Cantidad = articulo.Cantidad, Comprado = articulo.Comprado });
-
-        if (_articulos.Count == 0)
-            _articulos.Add(new ArticuloEnEdicion());
+            _articulos.Insert(0, new ArticuloEnEdicion { Codigo = articulo.ArticuloCodigo, Descripcion = articulo.Descripcion, Cantidad = articulo.Cantidad, Comprado = articulo.Comprado });
     }
 
     /// <summary>La lista en blanco con la que arranca el formulario cuando todavía no existe.</summary>
@@ -178,9 +193,119 @@ else if (_lista is { } lista)
 
     private void Volver() => Navegacion.NavigateTo("listas-boda");
 
+    // ---------- La captura ----------
+
+    /// <summary>Enter en el código: busca el artículo y pasa a la cantidad. Sin código, abre la búsqueda.</summary>
+    private async Task AlTeclearCodigo(KeyboardEventArgs tecla)
+    {
+        if (tecla.Key is not ("Enter" or "NumpadEnter"))
+            return;
+
+        if (string.IsNullOrWhiteSpace(_codigo))
+        {
+            await BuscarEnElMaestroAsync();
+            return;
+        }
+
+        var articulo = await BuscarPorCodigoAsync(_codigo.Trim());
+        if (articulo is null)
+        {
+            // No se encontró tal cual: se abre la búsqueda con lo digitado, en vez de dejar al usuario sin salida.
+            await BuscarEnElMaestroAsync(_codigo.Trim());
+            return;
+        }
+
+        Tomar(articulo);
+        await EnfocarAsync(_campoCantidad);
+    }
+
+    /// <summary>Enter en la cantidad: el artículo entra a la lista y todo vuelve al código, vacío.</summary>
+    private async Task AlTeclearCantidad(KeyboardEventArgs tecla)
+    {
+        if (tecla.Key is "Enter" or "NumpadEnter")
+            await AgregarAsync();
+    }
+
+    /// <summary>El artículo cuyo código se digitó: exacto por código, o el único que coincida.</summary>
+    private async Task<ArticuloCarga?> BuscarPorCodigoAsync(string codigo)
+    {
+        var pagina = await Cliente.BuscarArticulosAsync("manager/listas-boda", codigo, 0, 20);
+        var articulos = pagina?.Elementos.Select(e => e.Dato).ToList() ?? [];
+
+        return articulos.FirstOrDefault(a => string.Equals(a.Codigo, codigo, StringComparison.OrdinalIgnoreCase))
+               ?? articulos.FirstOrDefault(a => a.CodigosBarras?.Any(b => string.Equals(b, codigo, StringComparison.OrdinalIgnoreCase)) == true)
+               ?? (articulos.Count == 1 ? articulos[0] : null);
+    }
+
+    /// <summary>La búsqueda por descripción: abre el listado del maestro y vuelve con el artículo elegido.</summary>
+    private async Task BuscarEnElMaestroAsync() => await BuscarEnElMaestroAsync(null);
+
+    private async Task BuscarEnElMaestroAsync(string? textoInicial)
+    {
+        var parametros = new DialogParameters<DialogoBuscarArticulo>
+        {
+            { d => d.Modulo, "manager/listas-boda" },
+            { d => d.TextoInicial, textoInicial },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoBuscarArticulo>("Buscar artículo",
+            parametros, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await referencia.Result is not { Canceled: false, Data: ArticuloCarga articulo })
+            return;
+
+        Tomar(articulo);
+        await EnfocarAsync(_campoCantidad);
+    }
+
+    /// <summary>El artículo elegido llena la fila de captura con su código y su descripción del maestro.</summary>
+    private void Tomar(ArticuloCarga articulo)
+    {
+        _codigo = articulo.Codigo;
+        _descripcion = articulo.Descripcion;
+    }
+
+    /// <summary>Pasa lo digitado a la lista y deja la fila lista para el siguiente artículo.</summary>
+    private async Task AgregarAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_codigo) || _descripcion.Length == 0)
+        {
+            Avisos.Add("Elija primero el artículo: digite su código y presione Enter, o búsquelo con la lupa.", Severity.Warning);
+            await EnfocarAsync(_campoCodigo);
+            return;
+        }
+
+        if (_cantidad <= 0)
+        {
+            Avisos.Add("La cantidad tiene que ser mayor que cero.", Severity.Warning);
+            await EnfocarAsync(_campoCantidad);
+            return;
+        }
+
+        _articulos.Insert(0, new ArticuloEnEdicion { Codigo = _codigo.Trim(), Descripcion = _descripcion, Cantidad = _cantidad });
+
+        _codigo = null;
+        _descripcion = string.Empty;
+        _cantidad = 1m;
+        await EnfocarAsync(_campoCodigo);
+    }
+
+    /// <summary>El foco salta solo de un campo al siguiente: la idea es no tocar el mouse mientras se digita.</summary>
+    private static async Task EnfocarAsync(MudTextField<string?>? campo)
+    {
+        if (campo is { } destino)
+            await destino.FocusAsync();
+    }
+
+    private static async Task EnfocarAsync(MudNumericField<decimal>? campo)
+    {
+        if (campo is { } destino)
+            await destino.FocusAsync();
+    }
+
     private async Task GuardarAsync()
     {
-        var articulos = _articulos
+        // Los artículos se guardan en el orden en que se digitaron, aunque en pantalla el último esté arriba.
+        var articulos = Enumerable.Reverse(_articulos)
             .Where(a => !string.IsNullOrWhiteSpace(a.Codigo) && a.Cantidad > 0)
             .Select(a => new SolicitudArticuloListaBoda(a.Codigo.Trim(), string.IsNullOrWhiteSpace(a.Descripcion) ? a.Codigo.Trim() : a.Descripcion.Trim(), a.Cantidad))
             .ToList();
@@ -214,21 +339,6 @@ else if (_lista is { } lista)
         }
 
         Volver();
-    }
-
-    /// <summary>Artículos del maestro que coinciden con lo que se escribe: se busca por código interno o por descripción.</summary>
-    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
-        (await Cliente.BuscarArticulosAsync("manager/listas-boda", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
-
-    /// <summary>Lo ya elegido, para que el buscador muestre el código del artículo de esa línea.</summary>
-    private static ArticuloCarga? BuscadoDe(ArticuloEnEdicion linea) =>
-        linea.Codigo.Length == 0 ? null : new ArticuloCarga(linea.Codigo, linea.Descripcion, 0, 0, string.Empty, 0m);
-
-    /// <summary>Al elegir el artículo, la línea toma su código y su descripción del maestro: no se digitan a mano.</summary>
-    private static void Elegir(ArticuloEnEdicion linea, ArticuloCarga? articulo)
-    {
-        linea.Codigo = articulo?.Codigo ?? string.Empty;
-        linea.Descripcion = articulo?.Descripcion ?? string.Empty;
     }
 
     /// <summary>Fila del formulario de artículos, mientras se edita.</summary>
