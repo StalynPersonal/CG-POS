@@ -78,6 +78,12 @@
                     <MudNavLink Href="facturas" Icon="@Icons.Material.Filled.Receipt">Facturas de las cajas</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            @* Cotizaciones: el presupuesto se arma aquí y lo factura cualquier caja. *@
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarCotizaciones">
+                <MudNavGroup Title="Cotizaciones" Icon="@Icons.Material.Filled.RequestQuote" Expanded="@EnRuta("cotizaciones")">
+                    <MudNavLink Href="cotizaciones" Icon="@Icons.Material.Filled.Description">Presupuestos</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarListasBoda">
                 <MudNavGroup Title="Listas de boda" Icon="@Icons.Material.Filled.Favorite" Expanded="@EnRuta("listas-boda")">
                     <MudNavLink Href="listas-boda" Icon="@Icons.Material.Filled.CardGiftcard">Listas de regalos</MudNavLink>

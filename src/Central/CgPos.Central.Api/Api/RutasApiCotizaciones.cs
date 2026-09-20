@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Cotizaciones;
 using CgPos.Central.Api.Seguridad;
 using CgPos.Contratos.Central;
@@ -34,6 +34,11 @@ public static class RutasApiCotizaciones
         manager.MapPost("/{cotizacionId:int}/anular", async (int cotizacionId, SolicitudAnularCotizacion solicitud, ClaimsPrincipal usuario,
                 IServicioCotizaciones servicio, CancellationToken cancelacion) =>
             Responder(await servicio.AnularAsync(cotizacionId, solicitud.Motivo ?? string.Empty, Actor(usuario), cancelacion)));
+
+        manager.MapGet("/{cotizacionId:int}/pdf", async (int cotizacionId, IServicioCotizaciones servicio, CancellationToken cancelacion) =>
+            await servicio.DocumentoAsync(cotizacionId, cancelacion) is { } archivo
+                ? Results.File(archivo.Contenido, archivo.TipoContenido, archivo.Nombre)
+                : Results.NotFound());
 
         // La caja la consulta al facturar: necesita conexión con el Central, no se guarda en la caja.
         var cajas = aplicacion.MapGroup("/api/cotizaciones").RequireAuthorization(PoliticasCentral.Dispositivo);

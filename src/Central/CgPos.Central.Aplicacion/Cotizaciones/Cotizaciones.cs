@@ -1,4 +1,5 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
+using CgPos.Central.Aplicacion.Reportes;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Cotizaciones;
@@ -26,4 +27,7 @@ public interface IServicioCotizaciones
 
     /// <summary>La anula con su motivo; no se borra, queda para consulta.</summary>
     Task<ResultadoAdministracion> AnularAsync(int cotizacionId, string motivo, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    /// <summary>El PDF en carta que se le entrega o se le envía al cliente; nulo si la cotización no existe.</summary>
+    Task<ArchivoReporte?> DocumentoAsync(int cotizacionId, CancellationToken cancelacion = default);
 }

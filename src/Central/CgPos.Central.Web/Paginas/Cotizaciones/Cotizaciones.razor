@@ -1,0 +1,365 @@
+﻿@page "/cotizaciones"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarCotizaciones)]
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Cotizaciones
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+@inject IJSRuntime Js
+
+<PageTitle>Cotizaciones · CG-POS Central</PageTitle>
+
+@* Encabezado: qué es una cotización y el botón para hacer una nueva. *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Cotizaciones</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Presupuestos para clientes, con los precios del día congelados. Se imprimen o se envían, valen los días configurados y
+            cualquier caja las convierte en factura buscándolas por su número.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => Editar(null)">Nueva cotización</MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las cotizaciones. Verifique la comunicación con el Central.</MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosCotizacion" Items="_cotizaciones" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" Loading="_cargando"
+              RowsPerPage="25" OnRowClick="@(evento => Editar(evento.Item))" RowStyle="cursor: pointer">
+        <ToolBarContent>
+            @* Filtros: texto libre (número, cliente o factura) y estado. *@
+            <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
+                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                              Placeholder="Número, cliente, documento o factura" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="min-width: 280px" />
+                <MudSelect T="EstadoCotizacion?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
+                           Clearable="true" Style="max-width: 200px">
+                    <MudSelectItem T="EstadoCotizacion?" Value="@EstadoCotizacion.Abierta">Abiertas</MudSelectItem>
+                    <MudSelectItem T="EstadoCotizacion?" Value="@EstadoCotizacion.Facturada">Facturadas</MudSelectItem>
+                    <MudSelectItem T="EstadoCotizacion?" Value="@EstadoCotizacion.Anulada">Anuladas</MudSelectItem>
+                </MudSelect>
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Cotización</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Vence</MudTh>
+            <MudTh Style="text-align: right">Líneas</MudTh>
+            <MudTh Style="text-align: right">Total</MudTh>
+            <MudTh>Estado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Cotización">
+                <strong>@context.Numero</strong>
+                <div class="cg-central__detalle">@context.CreadaEn.ToLocalTime().ToString("dd/MM/yyyy") · @context.CreadaPor</div>
+            </MudTd>
+            <MudTd DataLabel="Cliente">
+                @context.ClienteNombre
+                <div class="cg-central__detalle">@context.ClienteDocumento</div>
+            </MudTd>
+            <MudTd DataLabel="Vence">@context.VenceEn.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd DataLabel="Líneas" Style="text-align: right">@context.Lineas.Count</MudTd>
+            <MudTd DataLabel="Total" Style="text-align: right">@context.Total.ToString("N2")</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (context.Estado == EstadoCotizacion.Facturada)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Facturada</MudChip>
+                    <div class="cg-central__detalle">@context.VentaNumero</div>
+                }
+                else if (context.Estado == EstadoCotizacion.Anulada)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Anulada</MudChip>
+                }
+                else if (context.Vencida)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Vencida</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Vigente</MudChip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No hay cotizaciones que coincidan.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@* Formulario: los datos del cliente arriba y las líneas con su precio abajo. *@
+@if (_editando is { } cotizacion)
+{
+    <MudDialog @bind-Visible="_abierto" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(_cotizacionId is null ? "Nueva cotización" : $"Cotización {cotizacion.Numero}")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (!_editable)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    @(cotizacion.Estado == EstadoCotizacion.Facturada
+                        ? $"Ya se facturó con {cotizacion.VentaNumero}: queda solo para consulta."
+                        : $"Anulada: {cotizacion.MotivoAnulacion}")
+                </MudAlert>
+            }
+
+            @* Datos del cliente y vigencia. *@
+            <div class="d-flex gap-3 flex-wrap">
+                <MudTextField @bind-Value="_clienteNombre" Label="Nombre del cliente" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Style="min-width: 280px" Disabled="!_editable" />
+                <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Style="max-width: 220px" Disabled="!_editable" />
+                <MudTextField @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px"
+                              Disabled="!_editable" />
+                <MudTextField @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 240px"
+                              Disabled="!_editable" />
+                <MudDatePicker @bind-Date="_venceEn" Label="Vale hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               Class="cg-central__filtro-fecha" Disabled="!_editable" />
+            </div>
+
+            <MudTextField @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3"
+                          Disabled="!_editable" />
+
+            @* Líneas: el artículo se elige del maestro y trae su precio del día, que se puede cambiar a mano. *@
+            <div class="mt-4">
+                <MudText Typo="Typo.subtitle1">Artículos cotizados</MudText>
+                <MudTable T="LineaEnEdicion" Items="_lineas" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None">
+                    <HeaderContent>
+                        <MudTh Style="width: 190px">Código</MudTh>
+                        <MudTh>Descripción</MudTh>
+                        <MudTh Style="width: 120px">Cantidad</MudTh>
+                        <MudTh Style="width: 140px">Precio</MudTh>
+                        <MudTh Style="width: 130px">Descuento</MudTh>
+                        <MudTh Style="width: 120px; text-align: right">Importe</MudTh>
+                        <MudTh Style="width: 56px"></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudAutocomplete T="ArticuloCarga" Value="@BuscadoDe(context)" ValueChanged="@(articulo => Elegir(context, articulo))"
+                                             SearchFunc="BuscarArticulosAsync" ToStringFunc="@(a => a?.Codigo ?? string.Empty)" Variant="Variant.Outlined"
+                                             Margin="Margin.Dense" ResetValueOnEmptyText="false" CoerceText="true" Placeholder="Código o descripción"
+                                             MinCharacters="2" MaxItems="20" Disabled="!_editable" />
+                        </MudTd>
+                        <MudTd>@context.Descripcion</MudTd>
+                        <MudTd>
+                            <MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" Format="0.###"
+                                             Disabled="!_editable" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField @bind-Value="context.PrecioUnitario" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
+                                             Disabled="!_editable" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField @bind-Value="context.Descuento" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
+                                             Disabled="!_editable" />
+                        </MudTd>
+                        <MudTd Style="text-align: right">@context.Importe.ToString("N2")</MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Disabled="!_editable" OnClick="() => _lineas.Remove(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                @if (_editable)
+                {
+                    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="() => _lineas.Add(new LineaEnEdicion())">
+                        Agregar artículo
+                    </MudButton>
+                }
+
+                @* El total que se ve aquí es el mismo que la caja va a cobrar. *@
+                <div class="d-flex justify-end mt-2">
+                    <MudText Typo="Typo.h6">Total @TotalEnEdicion.ToString("N2")</MudText>
+                </div>
+            </div>
+        </DialogContent>
+        <DialogActions>
+            @if (_cotizacionId is { } id && _editable)
+            {
+                <MudButton Color="Color.Error" OnClick="() => AnularAsync(id)">Anular</MudButton>
+            }
+            @if (_cotizacionId is { } paraImprimir)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="() => ImprimirAsync(paraImprimir)">Imprimir</MudButton>
+            }
+            <MudButton OnClick="Cerrar">Cerrar</MudButton>
+            @if (_editable)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando" OnClick="GuardarAsync">Guardar</MudButton>
+            }
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private IReadOnlyList<DatosCotizacion> _cotizaciones = [];
+    private string? _buscar;
+    private EstadoCotizacion? _estado;
+    private bool _cargando;
+    private bool _error;
+    private bool _guardando;
+
+    private DatosCotizacion? _editando;
+    private int? _cotizacionId;
+    private bool _editable = true;
+    private string _clienteNombre = string.Empty;
+    private string? _clienteDocumento;
+    private string? _telefono;
+    private string? _correo;
+    private string? _observacion;
+    private DateTime? _venceEn;
+    private readonly List<LineaEnEdicion> _lineas = [];
+    private bool _abierto;
+
+    /// <summary>Lo que suma la cotización mientras se arma, con el mismo criterio que la caja.</summary>
+    private decimal TotalEnEdicion => _lineas.Sum(l => l.Importe);
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var cotizaciones = await Cliente.ListarCotizacionesAsync(_buscar, _estado);
+        _cargando = false;
+        _error = cotizaciones is null;
+        _cotizaciones = cotizaciones ?? [];
+    }
+
+    private async Task FiltrarAsync(Action cambiar)
+    {
+        cambiar();
+        await CargarAsync();
+    }
+
+    /// <summary>Abre el formulario con una cotización existente o en blanco para hacer una nueva.</summary>
+    private void Editar(DatosCotizacion? cotizacion)
+    {
+        _abierto = true;
+        _editando = cotizacion ?? new DatosCotizacion(0, string.Empty, string.Empty, null, null, null, null, null,
+            DateOnly.FromDateTime(DateTime.Today), false, EstadoCotizacion.Abierta, null, null, null, string.Empty, DateTimeOffset.Now, 0m, 0m, 0m, 0m, []);
+        _cotizacionId = cotizacion?.Id;
+        _editable = cotizacion is null || cotizacion.Estado == EstadoCotizacion.Abierta;
+        _clienteNombre = _editando.ClienteNombre;
+        _clienteDocumento = _editando.ClienteDocumento;
+        _telefono = _editando.ClienteTelefono;
+        _correo = _editando.ClienteCorreo;
+        _observacion = _editando.Observacion;
+
+        // Una cotización nueva toma su vigencia del Central; aquí solo se muestra vacía hasta que se guarde.
+        _venceEn = cotizacion is null ? null : _editando.VenceEn.ToDateTime(TimeOnly.MinValue);
+
+        _lineas.Clear();
+        foreach (var linea in _editando.Lineas)
+        {
+            _lineas.Add(new LineaEnEdicion
+            {
+                Codigo = linea.ArticuloCodigo,
+                Descripcion = linea.Descripcion,
+                Cantidad = linea.Cantidad,
+                PrecioUnitario = linea.PrecioUnitario,
+                Descuento = linea.Descuento,
+            });
+        }
+
+        if (_lineas.Count == 0)
+            _lineas.Add(new LineaEnEdicion());
+    }
+
+    /// <summary>Solo se oculta: vaciar el contenido quita el diálogo del árbol y su fondo se queda pegado.</summary>
+    private void Cerrar() => _abierto = false;
+
+    private async Task GuardarAsync()
+    {
+        var lineas = _lineas
+            .Where(l => !string.IsNullOrWhiteSpace(l.Codigo) && l.Cantidad > 0)
+            .Select(l => new SolicitudLineaCotizacion(l.Codigo.Trim(), l.Cantidad, l.PrecioUnitario, l.Descuento))
+            .ToList();
+
+        var solicitud = new SolicitudCotizacion(_clienteNombre, _clienteDocumento, _telefono, _correo, null,
+            _venceEn is { } vence ? DateOnly.FromDateTime(vence) : null, _observacion, lineas);
+
+        _guardando = true;
+        var respuesta = _cotizacionId is { } id
+            ? await Cliente.ActualizarCotizacionAsync(id, solicitud)
+            : await Cliente.CrearCotizacionAsync(solicitud);
+        _guardando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo guardar la cotización.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(_cotizacionId is null ? "Cotización creada." : "Cotización actualizada.", Severity.Success);
+        Cerrar();
+        await CargarAsync();
+    }
+
+    private async Task AnularAsync(int cotizacionId)
+    {
+        var parametros = new DialogParameters<DialogoMotivo>
+        {
+            { d => d.Mensaje, "La cotización deja de poder facturarse. No se borra: queda para consulta con su motivo." },
+            { d => d.Etiqueta, "Motivo de la anulación" },
+            { d => d.TextoConfirmar, "Anular" },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoMotivo>("Anular la cotización", parametros);
+        if (await referencia.Result is not { Canceled: false, Data: string motivo })
+            return;
+
+        var respuesta = await Cliente.AnularCotizacionAsync(cotizacionId, motivo);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo anular la cotización.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add("Cotización anulada.", Severity.Success);
+        Cerrar();
+        await CargarAsync();
+    }
+
+    /// <summary>Descarga el PDF en carta para entregárselo o enviárselo al cliente.</summary>
+    private async Task ImprimirAsync(int cotizacionId)
+    {
+        var archivo = await Cliente.DescargarCotizacionAsync(cotizacionId);
+        if (archivo is not { } generado)
+        {
+            Avisos.Add("No se pudo generar el documento.", Severity.Error);
+            return;
+        }
+
+        await Js.InvokeVoidAsync("cgCentral.descargarArchivo", generado.Nombre, generado.TipoContenido, Convert.ToBase64String(generado.Contenido));
+    }
+
+    /// <summary>Artículos del maestro que coinciden con lo que se escribe: por código interno, barras o descripción.</summary>
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Cliente.BuscarArticulosAsync("manager/cotizaciones", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    /// <summary>Lo ya elegido, para que el buscador muestre el código del artículo de esa línea.</summary>
+    private static ArticuloCarga? BuscadoDe(LineaEnEdicion linea) =>
+        linea.Codigo.Length == 0 ? null : new ArticuloCarga(linea.Codigo, linea.Descripcion, 0, 0, string.Empty, 0m);
+
+    /// <summary>Al elegir el artículo, la línea toma del maestro su código, su descripción y el precio del día.</summary>
+    private static void Elegir(LineaEnEdicion linea, ArticuloCarga? articulo)
+    {
+        linea.Codigo = articulo?.Codigo ?? string.Empty;
+        linea.Descripcion = articulo?.Descripcion ?? string.Empty;
+        linea.PrecioUnitario = articulo?.PrecioDetalle ?? 0m;
+    }
+
+    /// <summary>Fila del formulario mientras se arma la cotización.</summary>
+    private sealed class LineaEnEdicion
+    {
+        public string Codigo { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal Cantidad { get; set; } = 1m;
+        public decimal PrecioUnitario { get; set; }
+        public decimal Descuento { get; set; }
+
+        public decimal Importe => Math.Max(0m, decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero) - Descuento);
+    }
+}

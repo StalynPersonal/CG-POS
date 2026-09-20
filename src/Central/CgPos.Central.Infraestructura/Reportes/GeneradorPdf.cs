@@ -1,21 +1,16 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using CgPos.Contratos.Central;
 
 namespace CgPos.Central.Infraestructura.Reportes;
 
 /// <summary>
-/// PDF mínimo de una tabla, en apaisado y con Courier (una de las 14 fuentes que todo visor trae, así no hay que incrustar nada).
-/// Suficiente para los reportes del Central y sin dependencias que instalar en el servidor de la empresa.
+/// PDF mínimo de una tabla, en A4 apaisado: es la forma de los reportes del Central, que son anchos. El PDF en sí lo escribe
+/// EnsambladorPdf, que también sirve para documentos con otra forma, como la cotización que se le entrega a un cliente.
 /// </summary>
 internal static class GeneradorPdf
 {
-    private const double AnchoPagina = 842;  // A4 apaisado, en puntos
-    private const double AltoPagina = 595;
-    private const double Margen = 28;
-    private const double TamanoLetra = 8;
-    private const double AnchoCaracter = TamanoLetra * 0.6;  // Courier es monoespaciada
-    private const double AltoLinea = 11;
+    private static readonly HojaPdf Hoja = HojaPdf.A4Apaisada;
 
     public static byte[] Crear(TablaReporte tabla)
     {
@@ -36,12 +31,11 @@ internal static class GeneradorPdf
             lineas.Add((Linea(totales, anchos, tabla.Alineaciones), true));
         }
 
-        var porPagina = (int)Math.Floor((AltoPagina - 2 * Margen - AltoLinea) / AltoLinea);
-        var paginas = lineas.Chunk(Math.Max(porPagina, 1)).ToList();
+        var paginas = lineas.Chunk(Hoja.Lineas).ToList();
         if (paginas.Count == 0)
             paginas.Add([(tabla.Titulo, true)]);
 
-        return Ensamblar(paginas);
+        return EnsambladorPdf.Crear(paginas, Hoja);
     }
 
     private static List<int> Anchos(TablaReporte tabla)
@@ -54,7 +48,7 @@ internal static class GeneradorPdf
         }
 
         // Si la fila no cabe a lo ancho, las columnas de texto se recortan (los números nunca).
-        var disponibles = (int)Math.Floor((AnchoPagina - 2 * Margen) / AnchoCaracter);
+        var disponibles = Hoja.Columnas;
         for (var intento = 0; intento < 50 && anchos.Sum() + (anchos.Count - 1) * 2 > disponibles; intento++)
         {
             var mayor = anchos.Select((ancho, indice) => (ancho, indice))
@@ -84,77 +78,5 @@ internal static class GeneradorPdf
         }
 
         return string.Join("  ", celdas).TrimEnd();
-    }
-
-    private static byte[] Ensamblar(IReadOnlyList<(string Texto, bool Negrita)[]> paginas)
-    {
-        // Objetos: 1 catálogo, 2 páginas, 3 y 4 fuentes, 5.. una página y su contenido.
-        var objetos = new List<string>();
-        var idsPaginas = Enumerable.Range(0, paginas.Count).Select(i => 5 + i * 2).ToList();
-
-        objetos.Add("<< /Type /Catalog /Pages 2 0 R >>");
-        objetos.Add($"<< /Type /Pages /Kids [{string.Join(' ', idsPaginas.Select(id => $"{id} 0 R"))}] /Count {paginas.Count} >>");
-        objetos.Add("<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>");
-        objetos.Add("<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>");
-
-        for (var indice = 0; indice < paginas.Count; indice++)
-        {
-            var contenidoId = idsPaginas[indice] + 1;
-            objetos.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {AnchoPagina:F0} {AltoPagina:F0}] " +
-                        $"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {contenidoId} 0 R >>");
-            var flujo = Contenido(paginas[indice], indice + 1, paginas.Count);
-            objetos.Add($"<< /Length {Encoding.ASCII.GetByteCount(flujo)} >>\nstream\n{flujo}\nendstream");
-        }
-
-        var pdf = new StringBuilder("%PDF-1.4\n");
-        var posiciones = new List<int>();
-        for (var indice = 0; indice < objetos.Count; indice++)
-        {
-            posiciones.Add(Encoding.ASCII.GetByteCount(pdf.ToString()));
-            pdf.Append(CultureInfo.InvariantCulture, $"{indice + 1} 0 obj\n{objetos[indice]}\nendobj\n");
-        }
-
-        var inicioXref = Encoding.ASCII.GetByteCount(pdf.ToString());
-        pdf.Append(CultureInfo.InvariantCulture, $"xref\n0 {objetos.Count + 1}\n0000000000 65535 f \n");
-        foreach (var posicion in posiciones)
-            pdf.Append(CultureInfo.InvariantCulture, $"{posicion:D10} 00000 n \n");
-
-        pdf.Append(CultureInfo.InvariantCulture,
-            $"trailer\n<< /Size {objetos.Count + 1} /Root 1 0 R >>\nstartxref\n{inicioXref}\n%%EOF");
-
-        return Encoding.ASCII.GetBytes(pdf.ToString());
-    }
-
-    private static string Contenido((string Texto, bool Negrita)[] lineas, int pagina, int total)
-    {
-        var flujo = new StringBuilder("BT\n");
-        var y = AltoPagina - Margen;
-        foreach (var (texto, negrita) in lineas)
-        {
-            flujo.Append(CultureInfo.InvariantCulture, $"/{(negrita ? "F2" : "F1")} {TamanoLetra:F0} Tf\n1 0 0 1 {Margen:F0} {y:F0} Tm\n({Escapar(texto)}) Tj\n");
-            y -= AltoLinea;
-        }
-
-        flujo.Append(CultureInfo.InvariantCulture,
-            $"/F1 {TamanoLetra:F0} Tf\n1 0 0 1 {AnchoPagina - Margen - 80:F0} {Margen:F0} Tm\n(Página {pagina} de {total}) Tj\n");
-        flujo.Append("ET");
-        return flujo.ToString();
-    }
-
-    /// <summary>Texto para el PDF: se escapan los paréntesis y las tildes se pasan a WinAnsi.</summary>
-    private static string Escapar(string texto)
-    {
-        var limpio = texto.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
-        var bytes = Encoding.Latin1.GetBytes(limpio);
-        var resultado = new StringBuilder(bytes.Length);
-        foreach (var caracter in bytes)
-        {
-            if (caracter < 32 || caracter > 126)
-                resultado.Append(CultureInfo.InvariantCulture, $"\\{Convert.ToString(caracter, 8).PadLeft(3, '0')}");
-            else
-                resultado.Append((char)caracter);
-        }
-
-        return resultado.ToString();
     }
 }

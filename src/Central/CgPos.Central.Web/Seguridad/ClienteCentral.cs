@@ -399,6 +399,53 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    // ---------- Cotizaciones ----------
+
+    public async Task<IReadOnlyList<DatosCotizacion>?> ListarCotizacionesAsync(string? buscar, CgPos.Dominio.Cotizaciones.EstadoCotizacion? estado,
+        CancellationToken cancelacion = default)
+    {
+        var ruta = "api/manager/cotizaciones?"
+                   + (estado is { } filtro ? $"estado={filtro}&" : string.Empty)
+                   + (string.IsNullOrWhiteSpace(buscar) ? string.Empty : $"buscar={Uri.EscapeDataString(buscar.Trim())}");
+        try
+        {
+            return await Http.GetFromJsonAsync<IReadOnlyList<DatosCotizacion>>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public Task<RespuestaAdministracion> CrearCotizacionAsync(SolicitudCotizacion solicitud) =>
+        EnviarAsync(HttpMethod.Post, "api/manager/cotizaciones", solicitud);
+
+    public Task<RespuestaAdministracion> ActualizarCotizacionAsync(int cotizacionId, SolicitudCotizacion solicitud) =>
+        EnviarAsync(HttpMethod.Put, $"api/manager/cotizaciones/{cotizacionId}", solicitud);
+
+    public Task<RespuestaAdministracion> AnularCotizacionAsync(int cotizacionId, string motivo) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/cotizaciones/{cotizacionId}/anular", new SolicitudAnularCotizacion(motivo));
+
+    /// <summary>El PDF en carta que se le entrega o se le envía al cliente.</summary>
+    public async Task<(string Nombre, string TipoContenido, byte[] Contenido)?> DescargarCotizacionAsync(int cotizacionId,
+        CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.GetAsync($"api/manager/cotizaciones/{cotizacionId}/pdf", cancelacion);
+            if (!respuesta.IsSuccessStatusCode)
+                return null;
+
+            var nombre = respuesta.Content.Headers.ContentDisposition?.FileNameStar ?? respuesta.Content.Headers.ContentDisposition?.FileName ?? "cotizacion.pdf";
+            return (nombre.Trim('"'), respuesta.Content.Headers.ContentType?.ToString() ?? "application/pdf",
+                await respuesta.Content.ReadAsByteArrayAsync(cancelacion));
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
     // ---------- Listas de boda (RF-73) ----------
 
     public async Task<IReadOnlyList<DatosListaBoda>?> ListarListasBodaAsync(string? buscar, CgPos.Dominio.ListasBoda.EstadoListaBoda? estado,

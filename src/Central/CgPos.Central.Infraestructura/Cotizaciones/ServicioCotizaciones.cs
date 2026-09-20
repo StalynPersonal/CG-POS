@@ -1,6 +1,8 @@
 ﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Cotizaciones;
 using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Aplicacion.Reportes;
+using CgPos.Central.Infraestructura.Reportes;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
@@ -167,6 +169,19 @@ internal sealed class ServicioCotizaciones(
             contexto.ChangeTracker.Clear();
             return ResultadoAdministracion.Error(ValidacionMaestros.MensajeError(excepcion));
         }
+    }
+
+    public async Task<ArchivoReporte?> DocumentoAsync(int cotizacionId, CancellationToken cancelacion = default)
+    {
+        if (await ObtenerAsync(cotizacionId, cancelacion) is not { } cotizacion)
+            return null;
+
+        var empresa = await contexto.Empresas.AsNoTracking().SingleAsync(cancelacion);
+        var condiciones = await parametros.ObtenerAsync(ClavesParametrosCentral.CotizacionesCondiciones, cancelacion);
+        var pdf = GeneradorPdfCotizacion.Crear(cotizacion,
+            new EmpresaEnDocumento(empresa.NombreComercial ?? empresa.RazonSocial, empresa.Rnc, empresa.Direccion, empresa.Telefono), condiciones);
+
+        return new ArchivoReporte($"{cotizacion.Numero}.pdf", "application/pdf", pdf);
     }
 
     /// <summary>
