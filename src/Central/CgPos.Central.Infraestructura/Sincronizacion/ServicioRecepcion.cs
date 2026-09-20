@@ -9,6 +9,7 @@ using CgPos.Dominio.Fidelidad;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fiscal;
@@ -85,6 +86,8 @@ internal sealed class ServicioRecepcion(
             await RegistrarMovimientoPuntosAsync(documento, ahora, cancelacion);
         else if (mensaje.TipoMensaje is TiposMensaje.PendienteCreado or TiposMensaje.PendienteActualizado)
             await RegistrarPendienteAsync(documento, remitente, ahora, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.IngresoUsuario)
+            await RegistrarIngresoUsuarioAsync(documento, cancelacion);
 
         estado.RegistrarRecepcion(ahora);
 
@@ -192,6 +195,36 @@ internal sealed class ServicioRecepcion(
 
     /// <summary>
     /// Suma al saldo oficial los puntos que acumuló, canjeó o reversó una caja (RF-240). El documento que los originó y el tipo identifican el
+    /// <summary>
+    /// Anota en el usuario cuándo entró por última vez y en qué caja. Un aviso viejo que llega tarde (la caja estuvo sin red)
+    /// no retrocede la fecha, y un usuario que ya no existe en el Central se ignora sin dar el mensaje por malo.
+    /// </summary>
+    private async Task RegistrarIngresoUsuarioAsync(DocumentoRecibido documento, CancellationToken cancelacion)
+    {
+        DocumentoIngresoUsuario? ingreso = null;
+        try
+        {
+            ingreso = JsonSerializer.Deserialize<DocumentoIngresoUsuario>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (ingreso is null || string.IsNullOrWhiteSpace(ingreso.UsuarioCodigo))
+            return;
+
+        var codigo = ingreso.UsuarioCodigo.Trim();
+        var usuarioId = await contexto.UsuariosCaja.AsNoTracking().Where(u => u.Codigo == codigo).Select(u => (int?)u.Id).SingleOrDefaultAsync(cancelacion);
+        if (usuarioId is not { } id)
+            return;
+
+        var acceso = await contexto.AccesosUsuarioCaja.SingleOrDefaultAsync(a => a.UsuarioId == id, cancelacion);
+        if (acceso is null)
+            contexto.AccesosUsuarioCaja.Add(AccesoUsuarioCaja.Registrar(id, documento.CajaId, ingreso.IngresoEn));
+        else
+            acceso.Actualizar(documento.CajaId, ingreso.IngresoEn);
+    }
+
     /// movimiento, así que un reenvío no acumula dos veces, y el saldo recalculado se publica en el maestro del miembro para todas las cajas.
     /// </summary>
     private async Task RegistrarMovimientoPuntosAsync(DocumentoRecibido documento, DateTimeOffset ahora, CancellationToken cancelacion)

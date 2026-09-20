@@ -5,7 +5,7 @@ namespace CgPos.Dominio.Reportes;
 
 /// <summary>
 /// Cierre de turno informado por una caja (RF-267), para el reporte de cuadres del Central: lo esperado, lo declarado y la diferencia,
-/// con el detalle por forma de pago. Se identifica por la caja y el número del turno: un cierre reabierto y vuelto a cerrar llega otra vez y se actualiza.
+/// con el detalle por forma de pago. Se identifica por la caja y el número del turno, así que un reenvío del mismo cierre actualiza la fila en vez de duplicarla.
 /// </summary>
 public sealed class CierreTurnoCentral : Entidad
 {

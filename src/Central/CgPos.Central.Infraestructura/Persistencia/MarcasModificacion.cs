@@ -1,4 +1,4 @@
-using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
+﻿using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
 using CgPos.Dominio.Auditoria;
 using CgPos.Dominio.Comun;
 using Microsoft.EntityFrameworkCore;

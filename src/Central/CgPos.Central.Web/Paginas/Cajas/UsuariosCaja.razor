@@ -1,4 +1,4 @@
-@page "/cajas/usuarios"
+﻿@page "/cajas/usuarios"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarUsuariosCaja)]
 @inject ClienteCentral Cliente
 @inject IDialogService Dialogos
@@ -35,6 +35,7 @@
             <MudTh>Rol</MudTh>
             <MudTh>Cajas</MudTh>
             <MudTh>Acceso</MudTh>
+            <MudTh>Último ingreso</MudTh>
             <MudTh>Estado</MudTh>
             <MudTh Style="width: 56px"></MudTh>
         </HeaderContent>
@@ -55,6 +56,8 @@
                     }
                 </div>
             </MudTd>
+            @* Lo avisa la caja al entrar el usuario, así que aquí se ve el de todas las terminales juntas. *@
+            <MudTd DataLabel="Último ingreso">@UltimoIngreso(context)</MudTd>
             <MudTd DataLabel="Estado">
                 @if (context.Activo)
                 {
@@ -88,6 +91,16 @@
         : _usuarios.Where(u => Contiene(u.Codigo) || Contiene(u.Nombre) || Contiene(u.RolNombre));
 
     private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
+
+    private string UltimoIngreso(DatosUsuarioCaja usuario)
+    {
+        if (usuario.UltimoIngresoEn is not { } fecha)
+            return "Nunca";
+
+        var caja = _cajas.FirstOrDefault(c => c.Id == usuario.UltimoIngresoCajaId);
+        var donde = caja is null ? string.Empty : $" · caja {caja.SucursalCodigo}-{caja.Codigo}";
+        return $"{fecha.ToLocalTime():dd/MM/yyyy h:mm tt}{donde}";
+    }
 
     private string NombresCajas(IReadOnlyList<int> cajas) =>
         cajas.Count == 0 ? "Ninguna" : string.Join(", ", cajas.Select(id => _cajas.FirstOrDefault(c => c.Id == id) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : "?"));

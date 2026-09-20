@@ -77,6 +77,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<Rol> RolesCaja => Set<Rol>();
     public DbSet<Usuario> UsuariosCaja => Set<Usuario>();
 
+    /// <summary>Último ingreso de cada usuario de caja, avisado por la terminal donde entró.</summary>
+    public DbSet<AccesoUsuarioCaja> AccesosUsuarioCaja => Set<AccesoUsuarioCaja>();
+
     // Anulaciones de e-NCF informadas a la DGII (ANECF)
     public DbSet<CgPos.Dominio.Fiscal.AnulacionEcfCentral> AnulacionesEcf => Set<CgPos.Dominio.Fiscal.AnulacionEcfCentral>();
 

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Organizacion;
+﻿using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

@@ -170,10 +170,13 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
     public async Task<IReadOnlyList<DatosUsuarioCaja>> ListarUsuariosCajaAsync(CancellationToken cancelacion = default)
     {
         var roles = await contexto.RolesCaja.AsNoTracking().ToDictionaryAsync(r => r.Id, r => r.Nombre, cancelacion);
+        var accesos = await contexto.AccesosUsuarioCaja.AsNoTracking().ToDictionaryAsync(a => a.UsuarioId, a => (a.IngresoEn, a.CajaId), cancelacion);
 
         return (await contexto.UsuariosCaja.AsNoTracking().Include(u => u.CajasAsignadas).ToListAsync(cancelacion))
             .Select(u => new DatosUsuarioCaja(u.Id, u.Codigo, u.Nombre, u.RolId, roles.GetValueOrDefault(u.RolId) ?? string.Empty,
-                u.CajasAsignadas.Select(c => c.CajaId).ToList(), u.ClaveHash is not null, u.Activo))
+                u.CajasAsignadas.Select(c => c.CajaId).ToList(), u.ClaveHash is not null, u.Activo,
+                accesos.TryGetValue(u.Id, out var acceso) ? acceso.IngresoEn : null,
+                accesos.TryGetValue(u.Id, out var enCaja) ? enCaja.CajaId : null))
             .OrderBy(u => u.Codigo, StringComparer.Ordinal)
             .ToList();
     }

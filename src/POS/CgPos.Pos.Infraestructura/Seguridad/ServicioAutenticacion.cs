@@ -1,9 +1,10 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using CgPos.Dominio.Comun;
@@ -15,6 +16,7 @@ internal sealed class ServicioAutenticacion(
     VerificadorCredenciales verificador,
     IContextoCaja contextoCaja,
     IAuditoria auditoria,
+    IBandejaSalida bandejaSalida,
     TimeProvider reloj) : IServicioAutenticacion
 {
     public async Task<ResultadoAutenticacion> IngresarAsync(CredencialUsuario credencial, CancellationToken cancelacion = default)
@@ -42,7 +44,14 @@ internal sealed class ServicioAutenticacion(
         };
 
         if (resultado.Exitoso)
-            verificacion.Usuario!.RegistrarIngresoExitoso(reloj.Ahora());
+        {
+            var ahora = reloj.Ahora();
+            verificacion.Usuario!.RegistrarIngresoExitoso(ahora);
+
+            // El Central lleva el último acceso de cada usuario de caja: así se ve desde allá sin ir terminal por terminal.
+            bandejaSalida.Encolar(TiposMensaje.IngresoUsuario, verificacion.Usuario.Codigo,
+                new DocumentoIngresoUsuario(verificacion.Usuario.Codigo, ahora));
+        }
 
         Auditar(credencial, verificacion.Usuario, resultado, caja);
         await contexto.SaveChangesAsync(cancelacion);

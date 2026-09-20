@@ -156,6 +156,12 @@ public sealed record DocumentoMovimientoTurno(
     string? AutorizadoPorNombre,
     DateTimeOffset Fecha);
 
+/// <summary>
+/// Mensaje <c>Seguridad.IngresoUsuario</c>: un usuario entró a esta caja. Con esto, en el Central se ve el último acceso de
+/// cada usuario de caja sin tener que ir terminal por terminal.
+/// </summary>
+public sealed record DocumentoIngresoUsuario(string UsuarioCodigo, DateTimeOffset IngresoEn);
+
 /// <summary>Mensajes <c>Caja.RetiroEfectivo</c> y <c>Caja.RelevoCajero</c>.</summary>
 public sealed record DocumentoMovimientoCaja(long TurnoNumero, DocumentoMovimientoTurno Movimiento);
 

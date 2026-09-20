@@ -16,6 +16,7 @@ public static class TiposMensaje
     public const string PendienteActualizado = "Entregas.PendienteActualizado";
     public const string MovimientoPuntos = "Fidelidad.MovimientoPuntos";
     public const string InscripcionFidelidad = "Fidelidad.Inscripcion";
+    public const string IngresoUsuario = "Seguridad.IngresoUsuario";
 
     /// <summary>Documentos que llevan su e-CF firmado en la propiedad <c>ecf</c> (RF-276).</summary>
     public static IReadOnlySet<string> ConEcf { get; } = new HashSet<string>(StringComparer.Ordinal) { VentaCobrada, NotaCreditoEmitida };

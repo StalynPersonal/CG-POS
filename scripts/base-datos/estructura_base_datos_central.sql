@@ -32,6 +32,10 @@ SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
 
+CREATE SEQUENCE [SecuenciaAccesosUsuarioCaja] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaAlmacenes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -907,6 +911,18 @@ CREATE TABLE [TopesDescuento] (
 GO
 
 
+CREATE TABLE [AccesosUsuarioCaja] (
+    [Id] int NOT NULL,
+    [UsuarioId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [IngresoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_AccesosUsuarioCaja] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_AccesosUsuarioCaja_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]),
+    CONSTRAINT [FK_AccesosUsuarioCaja_UsuariosCaja_UsuarioId] FOREIGN KEY ([UsuarioId]) REFERENCES [UsuariosCaja] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [AnulacionesEcf] (
     [Id] int NOT NULL,
     [SecuenciaId] int NOT NULL,
@@ -1351,6 +1367,14 @@ CREATE TABLE [PagosVenta] (
     CONSTRAINT [PK_PagosVenta] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_PagosVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
 );
+GO
+
+
+CREATE INDEX [IX_AccesosUsuarioCaja_CajaId] ON [AccesosUsuarioCaja] ([CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_AccesosUsuarioCaja_UsuarioId] ON [AccesosUsuarioCaja] ([UsuarioId]);
 GO
 
 

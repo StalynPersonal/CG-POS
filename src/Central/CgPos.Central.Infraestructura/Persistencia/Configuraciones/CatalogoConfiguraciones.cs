@@ -499,8 +499,25 @@ internal sealed class UsuarioCajaConfiguracion : IEntityTypeConfiguration<Usuari
         // El bloqueo por intentos es de cada caja: el Central no lo lleva.
         constructor.Ignore(u => u.IntentosFallidos);
         constructor.Ignore(u => u.BloqueadoHasta);
+
+        // El último acceso tampoco va en esta fila: lo lleva AccesosUsuarioCaja, para que un ingreso no cambie la versión
+        // del usuario y lo reparta otra vez a todas las cajas.
         constructor.Ignore(u => u.UltimoIngresoEn);
         ColumnasMaestro.Configurar(constructor);
+    }
+}
+
+internal sealed class AccesoUsuarioCajaConfiguracion : IEntityTypeConfiguration<AccesoUsuarioCaja>
+{
+    public void Configure(EntityTypeBuilder<AccesoUsuarioCaja> constructor)
+    {
+        constructor.ToTable("AccesosUsuarioCaja");
+        constructor.HasKey(a => a.Id);
+
+        // Uno por usuario: siempre el último, no el historial. El historial de ingresos está en la auditoría de cada caja.
+        constructor.HasIndex(a => a.UsuarioId).IsUnique();
+        constructor.HasOne<Usuario>().WithMany().HasForeignKey(a => a.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        constructor.HasOne<Caja>().WithMany().HasForeignKey(a => a.CajaId).OnDelete(DeleteBehavior.NoAction);
     }
 }
 

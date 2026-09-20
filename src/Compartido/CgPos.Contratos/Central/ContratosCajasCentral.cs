@@ -46,7 +46,10 @@ public sealed record DatosRolCaja(int Id, string Codigo, string Nombre, int Nive
 /// <param name="Permisos">Códigos del catálogo de permisos de la caja.</param>
 public sealed record SolicitudRolCaja(string Codigo, string Nombre, int Nivel, IReadOnlyList<string> Permisos, bool Activo = true);
 
-public sealed record DatosUsuarioCaja(int Id, string Codigo, string Nombre, int RolId, string RolNombre, IReadOnlyList<int> Cajas, bool TieneClave, bool Activo);
+/// <param name="UltimoIngresoEn">Cuándo entró por última vez a una caja; nulo si nunca lo ha hecho.</param>
+/// <param name="UltimoIngresoCajaId">En qué caja fue ese último ingreso.</param>
+public sealed record DatosUsuarioCaja(int Id, string Codigo, string Nombre, int RolId, string RolNombre, IReadOnlyList<int> Cajas, bool TieneClave, bool Activo,
+    DateTimeOffset? UltimoIngresoEn = null, int? UltimoIngresoCajaId = null);
 
 /// <param name="Codigo">No cambia después de crear el usuario.</param>
 /// <param name="Clave">Clave nueva. Obligatoria al crear; vacía conserva la actual.</param>
