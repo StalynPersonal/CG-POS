@@ -47,7 +47,7 @@
                 <MudTextField T="string" Value="@Secuencia.Desde.ToString("N0")" Label="Desde" Variant="Variant.Outlined" ReadOnly="true" />
             }
 
-            <MudNumericField T="long" @bind-Value="_hasta" Label="Hasta" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
+            <MudNumericField T="long?" @bind-Value="_hasta" Label="Hasta" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
                              Required="true" RequiredError="Indique el último número del rango." Immediate="true"
                              HelperText="@(Secuencia is null ? null : "Solo se puede ampliar.")" />
             @if (Secuencia is null)
@@ -57,8 +57,9 @@
             }
             else
             {
-                <MudTextField T="string" Value="@Secuencia.Proximo.ToString("N0")" Label="Próximo" Variant="Variant.Outlined" ReadOnly="true"
-                              HelperText="El que emitirá la caja en su siguiente comprobante." />
+                @* Se puede corregir por si la caja quedó desfasada: un respaldo restaurado, comprobantes emitidos aparte… *@
+                <MudNumericField T="long?" @bind-Value="_proximo" Label="Próximo" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
+                                 HelperText="@($"El que emitirá la caja en su siguiente comprobante ({Secuencia.Proximo:N0}). Adelantarlo deja los números saltados sin usar; no se puede retroceder por debajo de lo ya recibido.")" />
             }
             <MudDatePicker @bind-Date="_vence" Label="Vence" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined"
                            Required="true" RequiredError="Indique hasta cuándo vale el rango." />
@@ -92,13 +93,14 @@
     private TipoComprobante _tipo = TipoComprobante.FacturaConsumo;
     private string? _serie = SecuenciaEcf.SeriePredeterminada;
     private long _desde = 1;
-    private long _hasta;
+    private long? _hasta;
     private DateTime? _vence;
     private bool _activa = true;
     private string? _mensaje;
     private bool _procesando;
 
-    private static string NombreTipo(TipoComprobante tipo) => $"E{(int)tipo} · {ReglasComprobante.Nombre(tipo)}";
+    /// <summary>Solo el tipo: la serie se elige en su propio campo y juntos forman el e-NCF.</summary>
+    private static string NombreTipo(TipoComprobante tipo) => $"{(int)tipo} · {ReglasComprobante.Nombre(tipo)}";
 
     /// <summary>El número completo con el que arrancaría este rango, tal como saldrá en la factura.</summary>
     private string EjemploEncf
@@ -123,7 +125,7 @@
         : _vence is null ? "Indique hasta cuándo vale el rango."
         : Secuencia is null && _cajaId is null ? "Seleccione la caja."
         : Secuencia is null && _desde < 1 ? "Indique el primer número del rango."
-        : _hasta < 1 ? "Indique el último número del rango."
+        : _hasta is not { } hasta || hasta < 1 ? "Indique el último número del rango."
         : null;
 
     private IReadOnlyList<string> Sucursales =>
@@ -151,6 +153,8 @@
             return;
 
         _hasta = secuencia.Hasta;
+        _proximo = secuencia.Proximo;
+        _serie = secuencia.Serie;
         _vence = secuencia.VenceEn.ToDateTime(TimeOnly.MinValue);
         _activa = secuencia.Activa;
     }
@@ -172,9 +176,10 @@
         _procesando = true;
         _mensaje = null;
         var venceEn = DateOnly.FromDateTime(vence);
+        var hasta = _hasta!.Value;
         var respuesta = Secuencia is null
-            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, _hasta, venceEn, _proximo, _serie))
-            : await Cliente.ActualizarSecuenciaAsync(Secuencia.Id, new SolicitudActualizarSecuenciaEcf(_hasta, venceEn, _activa));
+            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, hasta, venceEn, _proximo, _serie))
+            : await Cliente.ActualizarSecuenciaAsync(Secuencia.Id, new SolicitudActualizarSecuenciaEcf(hasta, venceEn, _activa, _proximo));
         _procesando = false;
 
         if (respuesta.Exitosa)

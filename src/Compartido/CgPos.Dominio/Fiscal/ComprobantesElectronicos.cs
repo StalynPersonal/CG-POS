@@ -62,6 +62,19 @@ public sealed class SecuenciaEcf : Entidad
         return secuencia;
     }
 
+    /// <summary>
+    /// Corrige el número con el que sigue la caja. Sirve cuando la realidad se separa del sistema: se restauró un respaldo
+    /// viejo, se emitieron comprobantes fuera del sistema o hubo que saltar un tramo. Adelantar deja esos números sin usar.
+    /// </summary>
+    /// <exception cref="ArgumentException">Queda fuera del rango.</exception>
+    public void CambiarProximo(long proximo)
+    {
+        if (proximo < Desde || proximo > Hasta + 1)
+            throw new ArgumentException($"El próximo número ({proximo}) debe estar entre {Desde} y {Hasta}.", nameof(proximo));
+
+        Ultimo = proximo - 1;
+    }
+
     /// <summary>El Central puede ampliar el rango, cambiar el vencimiento o desactivarlo; nunca retroceder lo ya emitido.</summary>
     public void Actualizar(long hasta, DateOnly venceEn, bool activa)
     {

@@ -86,9 +86,52 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         if ((await TablasMaestros.SecuenciasEcf.PorIdAsync(contexto, resolutor, secuenciaId, cancelacion))?.Dato is not { } anterior)
             return ResultadoAdministracion.Inexistente("El rango de e-CF no existe.");
 
-        var secuencia = anterior with { Hasta = solicitud.Hasta, VenceEn = solicitud.VenceEn, Activa = solicitud.Activa };
+        // Adelantar siempre se puede; retroceder, solo hasta donde el Central no haya recibido comprobantes: un número ya
+        // emitido no se puede volver a usar.
+        if (solicitud.Proximo is { } proximo)
+        {
+            if (proximo < anterior.Desde || proximo > anterior.Hasta + 1)
+                return ResultadoAdministracion.Error($"El próximo número debe estar entre {anterior.Desde} y {anterior.Hasta}.");
+
+            var recibido = await UltimoRecibidoAsync(secuenciaId, cancelacion);
+            if (recibido is { } ultimo && proximo <= ultimo)
+                return ResultadoAdministracion.Error(
+                    $"El Central ya recibió comprobantes hasta el {ultimo}: el próximo no puede ser menor o igual a ese número.");
+        }
+
+        var secuencia = anterior with
+        {
+            Hasta = solicitud.Hasta,
+            VenceEn = solicitud.VenceEn,
+            Activa = solicitud.Activa,
+            Proximo = solicitud.Proximo,
+        };
         return await PublicarAsync(() => publicador.PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]), actor.Nombre, cancelacion),
             () => Task.FromResult<int?>(secuenciaId));
+    }
+
+    /// <summary>
+    /// Mayor secuencia que el Central ya recibió de esa caja para ese tipo, dentro del rango. Es el piso para corregir el
+    /// próximo número: por debajo de ahí se estaría repitiendo un comprobante ya emitido.
+    /// </summary>
+    private async Task<long?> UltimoRecibidoAsync(int secuenciaId, CancellationToken cancelacion)
+    {
+        var rango = await contexto.SecuenciasEcf.AsNoTracking()
+            .Where(s => s.Id == secuenciaId)
+            .Select(s => new { s.CajaId, s.TipoComprobante, s.Desde, s.Hasta })
+            .SingleOrDefaultAsync(cancelacion);
+        if (rango is null)
+            return null;
+
+        // El e-NCF tiene largo fijo con ceros a la izquierda, así que el mayor en texto es la mayor secuencia recibida.
+        var mayor = await contexto.ComprobantesRecibidos.AsNoTracking()
+            .Where(c => c.CajaId == rango.CajaId && c.TipoComprobante == rango.TipoComprobante)
+            .MaxAsync(c => (string?)c.Encf, cancelacion);
+        if (mayor is not { Length: > 3 })
+            return null;
+
+        var secuencia = long.Parse(mayor[3..], System.Globalization.CultureInfo.InvariantCulture);
+        return secuencia >= rango.Desde && secuencia <= rango.Hasta ? secuencia : null;
     }
 
     public async Task<IReadOnlyList<DatosRolCaja>> ListarRolesCajaAsync(CancellationToken cancelacion = default)

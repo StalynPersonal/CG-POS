@@ -265,6 +265,10 @@ public static class MapeoMaestros
             throw new InvalidOperationException("Un rango de e-CF no cambia de caja, tipo ni inicio; asigne un rango nuevo.");
 
         e.Actualizar(d.Hasta, d.VenceEn, d.Activa);
+
+        // El Central puede corregir por dónde va la caja; sin indicarlo, cada caja sigue con lo suyo.
+        if (d.Proximo is { } proximo)
+            e.CambiarProximo(proximo);
     }
 
     public static MotivoDevolucion Crear(MotivoDevolucionCarga d) =>

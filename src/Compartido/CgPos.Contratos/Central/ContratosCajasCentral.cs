@@ -37,7 +37,8 @@ public sealed record SolicitudSecuenciaEcf(int CajaId, TipoComprobante TipoCompr
     string? Serie = null);
 
 /// <summary>Un rango solo se amplía, se prorroga o se desactiva: la caja, el tipo y el inicio no cambian.</summary>
-public sealed record SolicitudActualizarSecuenciaEcf(long Hasta, DateOnly VenceEn, bool Activa);
+/// <param name="Proximo">Corrige el número con el que sigue la caja; si no viene, se deja como está.</param>
+public sealed record SolicitudActualizarSecuenciaEcf(long Hasta, DateOnly VenceEn, bool Activa, long? Proximo = null);
 
 public sealed record DatosRolCaja(int Id, string Codigo, string Nombre, int Nivel, IReadOnlyList<string> Permisos, bool Activo, int Usuarios);
 
