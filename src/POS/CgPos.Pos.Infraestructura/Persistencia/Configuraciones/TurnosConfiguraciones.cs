@@ -1,4 +1,4 @@
-using CgPos.Dominio.Pagos;
+﻿using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Turnos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -37,8 +37,6 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
         constructor.Property(c => c.TotalDeclarado).HasPrecision(18, 2);
         constructor.Property(c => c.Diferencia).HasPrecision(18, 2);
         constructor.Property(c => c.UsuarioNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
-        constructor.Property(c => c.ReabiertoPorNombre).HasMaxLength(Turno.LargoMaximoUsuario);
-        constructor.Property(c => c.MotivoReapertura).HasMaxLength(CierreTurno.LargoMaximoMotivo);
 
         constructor.HasOne<Turno>().WithMany().HasForeignKey(c => c.TurnoId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasIndex(c => new { c.TurnoId, c.Numero }).IsUnique();

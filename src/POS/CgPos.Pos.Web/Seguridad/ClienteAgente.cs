@@ -376,9 +376,6 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaCaja> ReabrirCierreAsync(int cierreId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, $"api/caja/cierres/{cierreId}/reabrir", new SolicitudReabrirCierre(motivo, autorizacionId), ErrorCaja, cancelacion);
-
     public Task<RespuestaCaja> ReimprimirCierreAsync(int cierreId, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaCaja>(HttpMethod.Post, $"api/caja/cierres/{cierreId}/reimprimir", null, ErrorCaja, cancelacion);
 

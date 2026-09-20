@@ -1,4 +1,4 @@
-using CgPos.Contratos.Sincronizacion;
+﻿using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fidelidad;
@@ -80,7 +80,7 @@ internal static class DocumentosParaCentral
     public static DocumentoCierreTurno CierreTurno(DatosCierre cierre) =>
         new(cierre.TurnoNumero, cierre.Numero, cierre.FechaOperacion, cierre.Ciego, cierre.FondoInicial, cierre.FondoEnCuadre, cierre.Moneda,
             cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, cierre.UsuarioNombre,
-            cierre.AbiertoEn, cierre.CerradoEn, cierre.Estado, cierre.ReabiertoPorNombre, cierre.ReabiertoEn, cierre.MotivoReapertura,
+            cierre.AbiertoEn, cierre.CerradoEn,
             cierre.FormasPago.Select(f => new DocumentoCierreFormaPago(f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado, f.Declarado,
                 f.Diferencia)).ToList(),
             cierre.Denominaciones,

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Pagos;
 
 namespace CgPos.Dominio.Reportes;
@@ -36,9 +36,6 @@ public sealed class CierreTurnoCentral : Entidad
     public decimal Diferencia { get; private set; }
     public DateTimeOffset AbiertoEn { get; private set; }
     public DateTimeOffset CerradoEn { get; private set; }
-    public string? ReabiertoPorNombre { get; private set; }
-    public DateTimeOffset? ReabiertoEn { get; private set; }
-    public string? MotivoReapertura { get; private set; }
     public DateTimeOffset RegistradoEn { get; private set; }
 
     public IReadOnlyList<CierreFormaPagoCentral> FormasPago => _formasPago;
@@ -62,13 +59,12 @@ public sealed class CierreTurnoCentral : Entidad
             CerradoEn = cerradoEn,
         };
 
-        cierre.Actualizar(usuarioNombre, ciego, fondoInicial, cantidadVentas, totalVentas, totalRetiros, totalEsperado, totalDeclarado, diferencia, null, null, null, ahora);
+        cierre.Actualizar(usuarioNombre, ciego, fondoInicial, cantidadVentas, totalVentas, totalRetiros, totalEsperado, totalDeclarado, diferencia, ahora);
         return cierre;
     }
 
     public void Actualizar(string? usuarioNombre, bool ciego, decimal fondoInicial, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
-        decimal totalEsperado, decimal totalDeclarado, decimal diferencia, string? reabiertoPor, DateTimeOffset? reabiertoEn, string? motivoReapertura,
-        DateTimeOffset ahora)
+        decimal totalEsperado, decimal totalDeclarado, decimal diferencia, DateTimeOffset ahora)
     {
         UsuarioNombre = Validar.TextoOpcional(usuarioNombre, "Usuario", LargoMaximoTexto) ?? string.Empty;
         Ciego = ciego;
@@ -79,9 +75,6 @@ public sealed class CierreTurnoCentral : Entidad
         TotalEsperado = totalEsperado;
         TotalDeclarado = totalDeclarado;
         Diferencia = diferencia;
-        ReabiertoPorNombre = Validar.TextoOpcional(reabiertoPor, "Reabierto por", LargoMaximoTexto);
-        ReabiertoEn = reabiertoEn;
-        MotivoReapertura = Validar.TextoOpcional(motivoReapertura, "Motivo de la reapertura", LargoMaximoMotivo);
         RegistradoEn = ahora;
     }
 

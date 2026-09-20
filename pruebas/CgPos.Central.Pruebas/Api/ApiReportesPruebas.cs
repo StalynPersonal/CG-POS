@@ -102,9 +102,8 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var fila = Assert.Single(cuadres.Filas, f => f[3] == turno);
         Assert.Equal(("5,000.00", "4,950.00", "-50.00"), (fila[7], fila[8], fila[9]));
 
-        // Un cierre reabierto y cerrado otra vez actualiza la fila, no crea otra.
-        var corregido = cierre with { TotalDeclarado = 5000m, Diferencia = 0m, ReabiertoPorNombre = "Supervisor", ReabiertoEn = DateTimeOffset.UtcNow,
-            MotivoReapertura = "Faltó contar un sobre" };
+        // El mismo cierre recibido otra vez actualiza la fila, no crea otra.
+        var corregido = cierre with { TotalDeclarado = 5000m, Diferencia = 0m };
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, corregido)));
 
         var despues = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
@@ -164,7 +163,7 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         new(Random.Shared.NextInt64(1_000, 999_999), 1, dia, true, 1000m, false, "DOP",
             12, 5000m, 0m, esperado, declarado, declarado - esperado, "Cajero Desarrollo",
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
-            new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)), EstadoCierre.Vigente, null, null, null,
+            new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)),
             [new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 12, esperado, declarado, declarado - esperado)],
             [], []);
 

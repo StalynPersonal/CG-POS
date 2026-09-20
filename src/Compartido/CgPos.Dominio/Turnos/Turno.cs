@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Turnos;
 
@@ -90,15 +90,5 @@ public sealed class Turno : Entidad
         UsuarioActualId = movimiento.UsuarioId;
         UsuarioActualNombre = movimiento.UsuarioNombre;
         return movimiento;
-    }
-
-    /// <summary>Vuelve a abrir el turno al reabrir su cierre (RF-266).</summary>
-    public void Reabrir()
-    {
-        if (EstaAbierto)
-            throw new InvalidOperationException("El turno ya está abierto.");
-
-        Estado = EstadoTurno.Abierto;
-        CerradoEn = null;
     }
 }

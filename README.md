@@ -246,10 +246,10 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 - **Cierre de turno:** declaración por forma de pago y conteo del efectivo por denominaciones. Con `Caja.CierreCiego` (por defecto `true`) el cajero no ve lo esperado; *Pre-cierre* imprime lo esperado con clave de supervisor.
 - **Lo esperado:** el efectivo cuenta lo recibido menos la devuelta y los retiros; el fondo solo entra si `Caja.FondoEnCuadre` es `true` (por defecto no se mezcla). Moneda extranjera se cuadra en su moneda; los demás medios, por lo aplicado a las facturas.
 - **No se cierra** con facturas en espera, transacciones en curso con artículos o ventas sin e-CF firmado; la pantalla lista qué falta. Las transacciones vacías se descartan al cerrar.
-- **Al cerrar:** se imprime el reporte (esperado, declarado, diferencia por forma de pago, denominaciones, retiros, reembolsos y relevos) y el cierre queda en la bandeja de salida (`Caja.TurnoCerrado`), igual que retiros, relevos y reaperturas.
+- **Al cerrar:** se imprime el reporte (esperado, declarado, diferencia por forma de pago, denominaciones, retiros, reembolsos y relevos) y el cierre queda en la bandeja de salida (`Caja.TurnoCerrado`), igual que retiros y relevos.
 - **Cierre de lote (RF-215):** *Cerrar lote* cierra el lote del terminal de pago y cuadra las tarjetas aprobadas del turno con lo que el terminal reporta: si detalla el lote se muestran la diferencia y las autorizaciones que faltan de un lado o del otro; si el modelo no lo detalla, se muestra lo de la caja para compararlo con el comprobante que imprime el terminal.
-- **Reapertura:** desde la apertura, *Reabrir el último cierre* con motivo y autorización de nivel superior (en los datos de desarrollo, el gerente G001). El cierre queda como *Reabierto* y el turno vuelve a su cajero.
-- **API:** `GET /api/caja/turno/resumen`, `POST /api/caja/turno/{precierre|retiros|relevo|cierre}`, `GET /api/caja/cierres`, `POST /api/caja/cierres/{id}/{reabrir|reimprimir}`.
+- **El cierre es definitivo:** la caja no puede reabrirlo ni deshacerlo, ni con autorización. Un cierre mal hecho se corrige en el Central como ajuste administrativo, con su propio permiso y su auditoría; en la terminal, cerrar es un acto de una sola dirección.
+- **API:** `GET /api/caja/turno/resumen`, `POST /api/caja/turno/{precierre|retiros|relevo|cierre}`, `GET /api/caja/cierres`, `POST /api/caja/cierres/{id}/reimprimir`.
 
 ### Devoluciones y notas de crédito
 

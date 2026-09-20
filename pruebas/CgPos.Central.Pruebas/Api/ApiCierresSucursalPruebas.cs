@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -106,7 +106,7 @@ public class ApiCierresSucursalPruebas(CentralEnPruebas central)
 
         return new DocumentoCierreTurno(turno, 1, dia, true, 0m, false, "DOP", 10, esperado + tarjeta, 0m, esperado, declarado, declarado - esperado,
             "Cajero Desarrollo", new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
-            new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)), EstadoCierre.Vigente, null, null, null, formas, [], []);
+            new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)), formas, [], []);
     }
 
     private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, string tipo, object documento)

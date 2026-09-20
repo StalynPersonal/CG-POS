@@ -1,4 +1,4 @@
-using CgPos.Dominio.Pagos;
+﻿using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Turnos;
 
 namespace CgPos.Dominio.Pruebas.Turnos;
@@ -101,7 +101,7 @@ public class CierreTurnoPruebas
     }
 
     [Fact]
-    public void Relevo_cambia_el_usuario_del_turno_y_la_reapertura_lo_vuelve_a_abrir()
+    public void Relevo_cambia_el_usuario_del_turno_y_el_cierre_lo_deja_cerrado_para_siempre()
     {
         var turno = TurnoAbierto();
         var relevista = Ids.Siguiente();
@@ -113,15 +113,11 @@ public class CierreTurnoPruebas
         Assert.Equal(relevista, turno.UsuarioActualId);
         Assert.Throws<InvalidOperationException>(() => turno.Relevar(2, relevista, "Relevista", null, null, Ahora));
 
+        // Cerrar es definitivo: el turno queda cerrado y el cierre no se puede deshacer desde la caja.
         var cierre = CierreTurno.Registrar(turno, 1, true, false, 0, 0m, 0m, [], [], [], MonedaLocal, relevista, "Relevista", Ahora);
-        Assert.Equal(CodigoErrorCierre.MotivoRequerido, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Ids.Siguiente(), "Gerente", " ", Ahora)).Codigo);
 
-        cierre.Reabrir(Ids.Siguiente(), "Gerente", "Billete de 1,000 mal contado", Ahora);
-        turno.Reabrir();
-
-        Assert.Equal(EstadoCierre.Reabierto, cierre.Estado);
-        Assert.True(turno.EstaAbierto);
-        Assert.Null(turno.CerradoEn);
-        Assert.Equal(CodigoErrorCierre.YaReabierto, Assert.Throws<ReglaCierreExcepcion>(() => cierre.Reabrir(Ids.Siguiente(), "Gerente", "Otra vez", Ahora)).Codigo);
+        Assert.Equal(relevista, cierre.UsuarioId);
+        Assert.False(turno.EstaAbierto);
+        Assert.Equal(Ahora, turno.CerradoEn);
     }
 }

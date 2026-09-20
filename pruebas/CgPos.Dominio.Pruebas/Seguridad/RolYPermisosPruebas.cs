@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using CgPos.Dominio.Seguridad;
 
 namespace CgPos.Dominio.Pruebas.Seguridad;
@@ -32,7 +32,7 @@ public class RolYPermisosPruebas
 
         Assert.Equal(2, supervisor.PermisosAsignados.Count);
         Assert.True(supervisor.TienePermiso(CatalogoPermisos.EliminarLinea));
-        Assert.False(supervisor.TienePermiso(CatalogoPermisos.ReabrirCierre));
+        Assert.False(supervisor.TienePermiso(CatalogoPermisos.AnularVenta));
 
         supervisor.QuitarPermiso(CatalogoPermisos.EliminarLinea);
         Assert.False(supervisor.TienePermiso(CatalogoPermisos.EliminarLinea));

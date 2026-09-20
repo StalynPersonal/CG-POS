@@ -89,8 +89,6 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.ToTable("CierresTurno");
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.UsuarioNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
-        constructor.Property(c => c.ReabiertoPorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
-        constructor.Property(c => c.MotivoReapertura).HasMaxLength(CierreTurnoCentral.LargoMaximoMotivo);
         constructor.Property(c => c.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
 
         constructor.HasOne<Caja>().WithMany().HasForeignKey(c => c.CajaId).OnDelete(DeleteBehavior.Restrict);

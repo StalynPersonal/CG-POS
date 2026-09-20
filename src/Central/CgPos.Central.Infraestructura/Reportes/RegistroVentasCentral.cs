@@ -1,4 +1,4 @@
-using CgPos.Central.Infraestructura.Persistencia;
+﻿using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
@@ -88,7 +88,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
         }
 
         registrado.Actualizar(cierre.UsuarioNombre, cierre.Ciego, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
-            cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, cierre.ReabiertoPorNombre, cierre.ReabiertoEn, cierre.MotivoReapertura, ahora);
+            cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, ahora);
         registrado.ReemplazarFormasPago(cierre.FormasPago.Select(f => (f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado, f.Declarado, f.Diferencia)));
     }
 }

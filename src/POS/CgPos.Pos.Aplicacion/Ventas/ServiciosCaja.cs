@@ -35,7 +35,6 @@ public interface IServicioCaja
         IReadOnlyList<SolicitudConteoDenominacion> conteo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>Reabre el último cierre de la caja con autorización de nivel superior y motivo (RF-266).</summary>
-    Task<RespuestaCaja> ReabrirCierreAsync(SesionUsuario sesion, int cierreId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosCierre>> ListarCierresAsync(SesionUsuario sesion, int maximo = 20, CancellationToken cancelacion = default);
 

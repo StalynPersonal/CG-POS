@@ -25,7 +25,7 @@ else if (_venta is null)
 {
     <PanelAperturaTurno Estado="_estadoTurno" Mensaje="@_mensaje" Procesando="_procesando"
                         NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
-                        AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" AlRelevar="RelevarTurnoAsync" AlReabrir="ReabrirUltimoCierreAsync" />
+                        AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" AlRelevar="RelevarTurnoAsync" />
 }
 else if (_suspendida)
 {
@@ -495,35 +495,6 @@ else
         await CargarAsync();
         if (respuesta is { Exitosa: true })
             _aviso = respuesta.Mensaje;
-    }
-
-    private async Task ReabrirUltimoCierreAsync()
-    {
-        _mensaje = null;
-        var cierres = await Cliente.ListarCierresAsync(1);
-        if (cierres is not [{ Estado: CgPos.Dominio.Turnos.EstadoCierre.Vigente } ultimo])
-        {
-            _mensaje = "No hay un cierre vigente para reabrir en esta caja.";
-            return;
-        }
-
-        var motivo = await PedirTextoAsync($"Reabrir el turno {ultimo.TurnoNumero}", "Motivo de la reapertura",
-            ayuda: $"Cierre de {ultimo.UsuarioNombre} con diferencia de {ultimo.Diferencia:C}. Requiere autorización de un nivel superior.",
-            decimales: false, modo: ModoTeclado.Alfanumerico);
-        if (motivo is null)
-            return;
-
-        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.ReabrirCierreAsync(ultimo.Id, motivo, autorizacion),
-            $"Reabrir el cierre del turno {ultimo.TurnoNumero}. Motivo: {motivo}", "CierreTurno", ultimo.Id.ToString());
-        if (respuesta is null)
-            return;
-        if (!respuesta.Exitosa)
-        {
-            _mensaje = respuesta.Mensaje;
-            return;
-        }
-
-        await CargarAsync();
     }
 
     // ---------- Escaneo y líneas ----------

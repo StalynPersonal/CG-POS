@@ -829,7 +829,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task Relevo_con_autorizacion_pasa_el_turno_y_la_reapertura_del_cierre_queda_auditada()
+    public async Task Relevo_con_autorizacion_pasa_el_turno_y_el_cierre_queda_firme()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
@@ -851,21 +851,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var cierreId = cierre.Cierre!.Id;
         Assert.Equal(0m, cierre.Cierre.Diferencia);
 
-        var sinMotivo = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.ReabrirCierreAsync(caja.CajeroDos, cierreId, null, null));
-        Assert.Equal(CodigoResultadoCaja.MotivoRequerido, sinMotivo.Resultado);
-
-        const string Motivo = "Faltó declarar un voucher";
-        var autorizacionReapertura = await caja.AutorizarAsync(CatalogoPermisos.ReabrirCierre, Motivo, caja.CajeroDos);
-        var reapertura = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.ReabrirCierreAsync(caja.CajeroDos, cierreId, Motivo, autorizacionReapertura));
-        Assert.True(reapertura.Exitosa, reapertura.Mensaje);
-        Assert.Equal(EstadoTurno.Abierto, reapertura.Turno!.Estado);
+        // El cierre es definitivo: la caja no lo puede deshacer. Una corrección posterior se hace en el Central.
+        var cerrado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.CajeroDos));
+        Assert.Null(cerrado.TurnoAbierto);
 
         var cierres = await caja.EjecutarAsync<IServicioCaja, IReadOnlyList<DatosCierre>>(s => s.ListarCierresAsync(caja.CajeroDos));
-        Assert.Equal(EstadoCierre.Reabierto, Assert.Single(cierres).Estado);
-
-        var turnoId = reapertura.Turno.Id.ToString();
-        Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.Auditoria.CountAsync(registro => registro.Accion == "Caja.CierreReabierto" && registro.EntidadId == turnoId)));
+        Assert.Equal(cierreId, Assert.Single(cierres).Id);
     }
 
     [SkippableFact]

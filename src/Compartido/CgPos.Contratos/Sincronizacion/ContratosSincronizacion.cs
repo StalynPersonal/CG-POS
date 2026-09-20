@@ -10,7 +10,6 @@ public static class TiposMensaje
     public const string NotaCreditoEmitida = "Devolucion.NotaCreditoEmitida";
     public const string NotaCreditoConsumida = "NotaCredito.Consumida";
     public const string TurnoCerrado = "Caja.TurnoCerrado";
-    public const string CierreReabierto = "Caja.CierreReabierto";
     public const string RetiroEfectivo = "Caja.RetiroEfectivo";
     public const string RelevoCajero = "Caja.RelevoCajero";
     public const string PendienteCreado = "Entregas.PendienteCreado";

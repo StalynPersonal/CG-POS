@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Reportes;
 using CgPos.Central.Aplicacion.Seguridad;
@@ -145,19 +145,6 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
             .ToHashSet();
         foreach (var turno in turnosConVentas.Where(t => !cerrados.Contains((t.CajaId, t.TurnoNumero))).OrderBy(t => t.CajaId).ThenBy(t => t.TurnoNumero))
             pendientes.Add($"La caja {cajas.GetValueOrDefault(turno.CajaId)} tiene el turno {turno.TurnoNumero} con ventas y sin cierre recibido.");
-
-        // Una reapertura posterior al cierre registrado significa que la caja todavía no lo ha vuelto a cerrar.
-        var cajasDelDia = cierres.Select(c => c.CajaId).Distinct().ToList();
-        var reaperturas = await contexto.DocumentosRecibidos.AsNoTracking()
-            .Where(d => d.TipoMensaje == TiposMensaje.CierreReabierto && cajasDelDia.Contains(d.CajaId))
-            .Select(d => new { d.CajaId, d.Referencia, d.RecibidoEn })
-            .ToListAsync(cancelacion);
-        foreach (var cierre in cierres)
-        {
-            var turno = cierre.TurnoNumero.ToString(CultureInfo.InvariantCulture);
-            if (reaperturas.Any(r => r.CajaId == cierre.CajaId && r.Referencia == turno && r.RecibidoEn > cierre.RegistradoEn))
-                pendientes.Add($"El cierre del turno {cierre.TurnoNumero} de la caja {cajas.GetValueOrDefault(cierre.CajaId)} se reabrió y no se ha vuelto a cerrar.");
-        }
 
         return pendientes;
     }

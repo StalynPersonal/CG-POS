@@ -74,7 +74,6 @@ public sealed record SolicitudCierreTurno(
     IReadOnlyList<SolicitudConteoDenominacion>? Conteo,
     Guid? AutorizacionId);
 
-public sealed record SolicitudReabrirCierre(string? Motivo, Guid? AutorizacionId);
 
 public sealed record DatosCierreFormaPago(
     int FormaPagoId,
@@ -111,10 +110,6 @@ public sealed record DatosCierre(
     string UsuarioNombre,
     DateTimeOffset AbiertoEn,
     DateTimeOffset CerradoEn,
-    EstadoCierre Estado,
-    string? ReabiertoPorNombre,
-    DateTimeOffset? ReabiertoEn,
-    string? MotivoReapertura,
     IReadOnlyList<DatosCierreFormaPago> FormasPago,
     IReadOnlyList<DatosCierreDenominacion> Denominaciones,
     IReadOnlyList<DatosMovimientoCaja> Movimientos);
@@ -135,7 +130,6 @@ public enum CodigoResultadoCaja
     CierreBloqueado,
     DeclaracionInvalida,
     CierreNoEncontrado,
-    NoSePuedeReabrir,
 }
 
 public sealed record RespuestaCaja(

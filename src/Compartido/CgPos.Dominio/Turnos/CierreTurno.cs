@@ -112,14 +112,6 @@ public sealed class MovimientoCaja : Entidad
     }
 }
 
-public enum EstadoCierre
-{
-    Vigente,
-
-    /// <summary>El turno se reabrió con autorización (RF-266); el cierre queda como historial.</summary>
-    Reabierto,
-}
-
 public enum CodigoErrorCierre
 {
     TurnoCerrado,
@@ -127,7 +119,6 @@ public enum CodigoErrorCierre
     FormaPagoDesconocida,
     ConteoNoCoincide,
     MotivoRequerido,
-    YaReabierto,
 }
 
 public sealed class ReglaCierreExcepcion(CodigoErrorCierre codigo, string mensaje) : Exception(mensaje)
@@ -235,11 +226,6 @@ public sealed class CierreTurno : Entidad
     public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
     public DateTimeOffset CerradoEn { get; private set; }
-    public EstadoCierre Estado { get; private set; }
-    public int? ReabiertoPorId { get; private set; }
-    public string? ReabiertoPorNombre { get; private set; }
-    public DateTimeOffset? ReabiertoEn { get; private set; }
-    public string? MotivoReapertura { get; private set; }
 
     public IReadOnlyList<CierreFormaPago> FormasPago => _formasPago;
     public IReadOnlyList<CierreDenominacion> Denominaciones => _denominaciones;
@@ -279,7 +265,6 @@ public sealed class CierreTurno : Entidad
             UsuarioId = Validar.Id(usuarioId, "Usuario"),
             UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", Turno.LargoMaximoUsuario),
             CerradoEn = ahora,
-            Estado = EstadoCierre.Vigente,
         };
 
         foreach (var item in conteo.Where(c => c.Cantidad > 0).OrderBy(c => c.Moneda).ThenByDescending(c => c.Valor))
@@ -315,21 +300,6 @@ public sealed class CierreTurno : Entidad
 
         turno.Cerrar(ahora);
         return cierre;
-    }
-
-    /// <summary>Marca el cierre como reabierto (RF-266). Quien llama reabre también el turno.</summary>
-    public void Reabrir(int usuarioId, string usuarioNombre, string? motivo, DateTimeOffset ahora)
-    {
-        if (Estado != EstadoCierre.Vigente)
-            throw new ReglaCierreExcepcion(CodigoErrorCierre.YaReabierto, "El cierre ya fue reabierto.");
-        if (string.IsNullOrWhiteSpace(motivo))
-            throw new ReglaCierreExcepcion(CodigoErrorCierre.MotivoRequerido, "La reapertura de un cierre requiere motivo.");
-
-        Estado = EstadoCierre.Reabierto;
-        ReabiertoPorId = Validar.Id(usuarioId, "Usuario");
-        ReabiertoPorNombre = Validar.Texto(usuarioNombre, "Usuario", Turno.LargoMaximoUsuario);
-        MotivoReapertura = Validar.Texto(motivo, "Motivo", LargoMaximoMotivo);
-        ReabiertoEn = ahora;
     }
 }
 

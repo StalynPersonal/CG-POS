@@ -1028,11 +1028,6 @@ CREATE TABLE [CierresTurno] (
     [UsuarioId] int NOT NULL,
     [UsuarioNombre] nvarchar(150) NOT NULL,
     [CerradoEn] datetimeoffset(3) NOT NULL,
-    [Estado] int NOT NULL,
-    [ReabiertoPorId] int NULL,
-    [ReabiertoPorNombre] nvarchar(150) NULL,
-    [ReabiertoEn] datetimeoffset(3) NULL,
-    [MotivoReapertura] nvarchar(250) NULL,
     CONSTRAINT [PK_CierresTurno] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_CierresTurno_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
 );

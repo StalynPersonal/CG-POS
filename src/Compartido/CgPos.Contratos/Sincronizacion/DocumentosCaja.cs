@@ -1,4 +1,4 @@
-using CgPos.Contratos.Ventas;
+﻿using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -187,16 +187,9 @@ public sealed record DocumentoCierreTurno(
     string UsuarioNombre,
     DateTimeOffset AbiertoEn,
     DateTimeOffset CerradoEn,
-    EstadoCierre Estado,
-    string? ReabiertoPorNombre,
-    DateTimeOffset? ReabiertoEn,
-    string? MotivoReapertura,
     IReadOnlyList<DocumentoCierreFormaPago> FormasPago,
     IReadOnlyList<DatosCierreDenominacion> Denominaciones,
     IReadOnlyList<DocumentoMovimientoTurno> Movimientos);
-
-/// <summary>Mensaje <c>Caja.CierreReabierto</c>.</summary>
-public sealed record DocumentoReaperturaCierre(long TurnoNumero, int CierreNumero, string ReabiertoPorNombre, string Motivo, DateTimeOffset ReabiertoEn);
 
 /// <summary>Mensajes <c>Entregas.PendienteCreado</c> y <c>Entregas.PendienteActualizado</c>: el pendiente completo, identificado por su número.</summary>
 public sealed record DocumentoPendienteEntrega(

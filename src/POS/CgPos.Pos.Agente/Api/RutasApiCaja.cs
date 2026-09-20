@@ -41,9 +41,6 @@ public static class RutasApiCaja
         cierres.MapGet("/", (int? maximo, ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Results.Ok(await servicio.ListarCierresAsync(sesion, maximo ?? 20, cancelacion))));
 
-        cierres.MapPost("/{cierreId:int}/reabrir", (int cierreId, SolicitudReabrirCierre solicitud, ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.ReabrirCierreAsync(sesion, cierreId, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
-
         cierres.MapPost("/{cierreId:int}/reimprimir", (int cierreId, ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.ReimprimirCierreAsync(sesion, cierreId, cancelacion))));
 

@@ -30,8 +30,7 @@ internal static class ConversionesCaja
     public static DatosCierre ADatos(this CierreTurno cierre, IEnumerable<MovimientoCaja> movimientos) =>
         new(cierre.Id, cierre.TurnoId, cierre.TurnoNumero, cierre.Numero, cierre.CajaId, cierre.SucursalId, cierre.FechaOperacion, cierre.Ciego,
             cierre.FondoInicial, cierre.FondoEnCuadre, cierre.Moneda, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado,
-            cierre.TotalDeclarado, cierre.Diferencia, cierre.UsuarioNombre, cierre.AbiertoEn, cierre.CerradoEn, cierre.Estado, cierre.ReabiertoPorNombre,
-            cierre.ReabiertoEn, cierre.MotivoReapertura,
+            cierre.TotalDeclarado, cierre.Diferencia, cierre.UsuarioNombre, cierre.AbiertoEn, cierre.CerradoEn,
             cierre.FormasPago.OrderBy(f => f.Orden)
                 .Select(f => new DatosCierreFormaPago(f.FormaPagoId, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado, f.Declarado, f.Diferencia))
                 .ToList(),
@@ -283,58 +282,6 @@ internal sealed class ServicioCaja(
             cancelacion);
         var mensaje = $"Turno {turno.Numero} cerrado.{(impresion.Correcto ? string.Empty : $" {impresion.Mensaje}")}";
         return new RespuestaCaja(CodigoResultadoCaja.Correcto, mensaje, Cierre: datos, Turno: turno.ADatos());
-    }
-
-    public async Task<RespuestaCaja> ReabrirCierreAsync(SesionUsuario sesion, int cierreId, string? motivo, Guid? autorizacionId,
-        CancellationToken cancelacion = default)
-    {
-        var cierre = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Denominaciones)
-            .SingleOrDefaultAsync(c => c.Id == cierreId && c.CajaId == sesion.CajaId, cancelacion);
-        if (cierre is null)
-            return new RespuestaCaja(CodigoResultadoCaja.CierreNoEncontrado, "El cierre no existe en esta caja.");
-        if (string.IsNullOrWhiteSpace(motivo))
-            return new RespuestaCaja(CodigoResultadoCaja.MotivoRequerido, "Indique el motivo de la reapertura.");
-        if (cierre.Estado != EstadoCierre.Vigente)
-            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "El cierre ya fue reabierto.");
-
-        var ultimo = await contexto.CierresTurno.AsNoTracking().Where(c => c.CajaId == sesion.CajaId)
-            .OrderByDescending(c => c.CerradoEn).Select(c => c.Id).FirstAsync(cancelacion);
-        if (ultimo != cierre.Id)
-            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "Solo se puede reabrir el último cierre de la caja.");
-        if (await contexto.Turnos.AnyAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion))
-            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "La caja tiene un turno abierto: ciérrelo antes de reabrir el anterior.");
-
-        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.ReabrirCierre, autorizacionId, TipoEntidadCierre, cierre.Id.ToString(), cancelacion);
-        if (!permiso.Permitido)
-            return Rechazo(permiso, CatalogoPermisos.ReabrirCierre, "La reapertura de un cierre requiere autorización de un nivel superior.");
-
-        var turno = await contexto.Turnos.SingleAsync(t => t.Id == cierre.TurnoId, cancelacion);
-        var ahora = reloj.Ahora();
-        var porId = permiso.SupervisorId ?? sesion.UsuarioId;
-        var porNombre = permiso.SupervisorNombre ?? sesion.Nombre;
-        cierre.Reabrir(porId, porNombre, motivo, ahora);
-        turno.Reabrir();
-
-        bandejaSalida.Encolar("Caja.CierreReabierto", turno.Numero.ToString(CultureInfo.InvariantCulture),
-            new DocumentoReaperturaCierre(turno.Numero, cierre.Numero, porNombre, cierre.MotivoReapertura!, ahora));
-        auditoria.Registrar(new EntradaAuditoria("Caja.CierreReabierto", TipoEntidadTurno, turno.Id.ToString(),
-            Detalle: new { turno.Numero, Cierre = cierre.Numero, cierre.Diferencia },
-            Motivo: cierre.MotivoReapertura,
-            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
-            AutorizadoPor: Autorizador(permiso)));
-
-        try
-        {
-            await contexto.SaveChangesAsync(cancelacion);
-        }
-        catch (DbUpdateException)
-        {
-            // El índice de un solo turno abierto por caja ganó una carrera con una apertura simultánea.
-            contexto.ChangeTracker.Clear();
-            return new RespuestaCaja(CodigoResultadoCaja.NoSePuedeReabrir, "La caja ya tiene un turno abierto.");
-        }
-
-        return new RespuestaCaja(CodigoResultadoCaja.Correcto, $"Turno {turno.Numero} reabierto: {turno.UsuarioActualNombre} puede continuar.", Turno: turno.ADatos());
     }
 
     public async Task<IReadOnlyList<DatosCierre>> ListarCierresAsync(SesionUsuario sesion, int maximo = 20, CancellationToken cancelacion = default)

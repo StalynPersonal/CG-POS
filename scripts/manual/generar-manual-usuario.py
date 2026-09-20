@@ -370,7 +370,7 @@ tabla(['Nivel', 'Tope sugerido'],
       anchos=[5.0, 9.0])
 
 p('8. Usuarios y roles de caja: al menos un cajero (solo vender y cobrar), un supervisor (autoriza descuentos, '
-  'devoluciones, retiros y notas internas) y un gerente (además reabre cierres y autoriza lo de mayor monto).')
+  'devoluciones, retiros y notas internas) y un gerente (además autoriza lo de mayor monto).')
 
 p('9. Rangos de comprobantes fiscales por caja (E31, E32, E34, E44 y E45), con los números que le asignó la DGII.')
 
@@ -384,7 +384,7 @@ p('Los roles dicen qué puede hacer cada quien y el nivel decide quién autoriza
 tabla(['Código', 'Rol', 'Nivel', 'Qué puede hacer'],
       [['CAJERO', 'Cajero', '1', 'Abrir turno, vender, cobrar, imprimir y cerrar su turno. No descuenta ni anula.'],
        ['SUPERVISOR', 'Supervisor', '5', 'Todo lo del cajero y además autoriza descuentos hasta su tope, anulaciones, devoluciones, retiros de efectivo, notas de crédito internas y apertura de gaveta.'],
-       ['GERENTE', 'Gerente', '8', 'Todo lo anterior, más reabrir un cierre, autorizar lo que pasa el tope del supervisor y cambiar el comprobante de una factura.']],
+       ['GERENTE', 'Gerente', '8', 'Todo lo anterior, más autorizar lo que pasa el tope del supervisor y cambiar el comprobante de una factura.']],
       anchos=[2.4, 2.6, 1.4, 10.0])
 tabla(['Usuario', 'Nombre', 'Rol', 'Cajas asignadas'],
       [['C001', 'Cajero de la caja 01', 'CAJERO', 'Caja 01'],
@@ -587,8 +587,8 @@ p('El turno es el período de trabajo de un cajero en esa caja. Solo puede haber
 viñeta('Al abrir se digita el fondo de caja (el sistema sugiere el monto configurado).')
 viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno: con la autorización de un supervisor, '
        'usted toma el turno sin cerrarlo ni cuadrar.')
-viñeta('Si el último cierre se hizo por error, aparece Reabrir el último cierre: pide motivo y la autorización de alguien '
-       'de nivel superior, y queda registrado.')
+viñeta('Cerrar el turno es definitivo: la caja no puede volver atrás. Cuente con calma antes de cerrar; si de todos modos '
+       'quedó mal, la corrección se hace en el Central.')
 
 titulo('3.4. La pantalla de ventas principal', 2)
 p('La pantalla está dividida en cinco zonas:')
@@ -794,7 +794,7 @@ tabla(['Situación', 'Qué pasa y qué hacer'],
        ['El certificado pide PIN', 'Toque el indicador e-CF de la barra de estado y digite el PIN. Queda solo en memoria: si se reinicia el equipo, se vuelve a pedir.'],
        ['La nota de crédito está vencida', 'Si el negocio decide aceptarla, se suben los días de vigencia en los parámetros del Central y la nota vuelve a poder usarse.'],
        ['El cliente quiere su dinero de vuelta', 'En la devolución se elige efectivo, tarjeta o cheque, según lo que el negocio tenga habilitado; la nota de crédito se emite igual pero sin saldo.'],
-       ['Se cerró el turno por error', 'Desde la apertura, Reabrir el último cierre con motivo y autorización de nivel superior.'],
+       ['Se cerró el turno por error', 'La caja no lo puede deshacer: el cierre es definitivo. Se corrige en el Central, con el detalle de lo que pasó.'],
        ['Un usuario quedó bloqueado', 'Se desbloquea desde el Central, en Usuarios de caja.'],
        ['Falta un parámetro', 'La operación se rechaza con el mensaje “Falta configurar el parámetro…”. Se configura en el Central, en Parámetros.'],
        ['Al revisar la base de datos, las horas se ven adelantadas', 'No están mal: las fechas se guardan en UTC, que va cuatro horas adelante de la hora dominicana. Para verlas en hora de aquí consulte las vistas del esquema «local» (por ejemplo SELECT * FROM local.Auditoria) o use dbo.HoraRd(fecha).']],

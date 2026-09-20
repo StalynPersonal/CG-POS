@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 
 namespace CgPos.Dominio.Seguridad;
 
@@ -21,7 +21,6 @@ public static class CatalogoPermisos
     public const string RetiroEfectivo = "Caja.RetiroEfectivo";
     public const string AbrirGaveta = "Caja.AbrirGaveta";
     public const string PreCierre = "Caja.PreCierre";
-    public const string ReabrirCierre = "Caja.ReabrirCierre";
 
     // Ventas
     public const string RegistrarVenta = "Ventas.Registrar";
@@ -62,7 +61,6 @@ public static class CatalogoPermisos
         new(RetiroEfectivo, "Caja", "Registrar retiros parciales de efectivo"),
         new(AbrirGaveta, "Caja", "Abrir la gaveta sin una venta"),
         new(PreCierre, "Caja", "Emitir el reporte de pre-cierre"),
-        new(ReabrirCierre, "Caja", "Reabrir o ajustar un cierre de caja"),
 
         new(RegistrarVenta, "Ventas", "Registrar ventas"),
         new(EliminarLinea, "Ventas", "Eliminar líneas de una venta"),

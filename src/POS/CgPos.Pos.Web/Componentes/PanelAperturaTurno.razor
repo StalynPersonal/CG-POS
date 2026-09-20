@@ -1,4 +1,4 @@
-@* Se muestra en lugar de la venta mientras la caja no tenga un turno abierto por el usuario (RF-4, RF-259). *@
+﻿@* Se muestra en lugar de la venta mientras la caja no tenga un turno abierto por el usuario (RF-4, RF-259). *@
 @using System.Globalization
 
 <div class="cg-turno">
@@ -68,9 +68,6 @@
                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="AbrirAsync" Disabled="Procesando" Class="cg-turno__boton"
                                    StartIcon="@Icons.Material.Filled.LockOpen">Abrir turno</MudButton>
                     </div>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="AlReabrir" Disabled="Procesando" StartIcon="@Icons.Material.Filled.History">
-                        Reabrir el último cierre
-                    </MudButton>
                     @if (Procesando)
                     {
                         <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
@@ -92,7 +89,6 @@
     [Parameter] public EventCallback AlReintentar { get; set; }
     [Parameter] public EventCallback AlSalir { get; set; }
     [Parameter] public EventCallback AlRelevar { get; set; }
-    [Parameter] public EventCallback AlReabrir { get; set; }
 
     private string _fondo = string.Empty;
     private decimal? _sugeridoAplicado;

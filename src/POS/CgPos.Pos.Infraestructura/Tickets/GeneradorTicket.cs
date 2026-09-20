@@ -497,8 +497,6 @@ internal static class GeneradorTicket
 
         AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia);
         Agregar($"CIERRE DE TURNO Nº {cierre.TurnoNumero}", Estilo.Titulo);
-        if (cierre.Estado == EstadoCierre.Reabierto)
-            Agregar("*** CIERRE REABIERTO ***", Estilo.Negrita);
         Agregar($"Cierre {cierre.Numero}{(cierre.Ciego ? " · ciego" : string.Empty)} · Día {cierre.FechaOperacion.ToString("dd/MM/yyyy", cultura)}");
         Agregar($"Apertura: {HoraLocal(encabezado, cierre.AbiertoEn, cultura)}");
         Agregar($"Cierre:   {HoraLocal(encabezado, cierre.CerradoEn, cultura)}");
@@ -559,13 +557,6 @@ internal static class GeneradorTicket
             foreach (var relevo in relevos)
                 foreach (var parte in Envolver($"  {HoraCorta(encabezado, relevo.Fecha, cultura)} {relevo.UsuarioAnteriorNombre} -> {relevo.UsuarioNombre}"))
                     Agregar(parte);
-        }
-
-        if (cierre is { Estado: EstadoCierre.Reabierto, ReabiertoEn: { } reabiertoEn })
-        {
-            Separador();
-            foreach (var parte in Envolver($"Reabierto por {cierre.ReabiertoPorNombre} el {HoraLocal(encabezado, reabiertoEn, cultura)}. Motivo: {cierre.MotivoReapertura}"))
-                Agregar(parte);
         }
 
         AgregarFirmas(lineas, "Cajero", "Supervisor");
