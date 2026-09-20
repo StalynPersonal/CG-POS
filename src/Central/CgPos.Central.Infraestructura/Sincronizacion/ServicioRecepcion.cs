@@ -2,6 +2,7 @@
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Sincronizacion;
+using CgPos.Central.Infraestructura.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Serializacion;
@@ -25,6 +26,7 @@ internal sealed class ServicioRecepcion(
     Fidelidad.RecalculadorPuntos recalculadorPuntos,
     Reportes.RegistroVentasCentral registroVentas,
     IParametrosCentral parametros,
+    INumeracionCentral numeracion,
     TimeProvider reloj,
     ILogger<ServicioRecepcion> registro) : IServicioRecepcion
 {
@@ -412,7 +414,19 @@ internal sealed class ServicioRecepcion(
 
         try
         {
-            contexto.PendientesEntrega.Add(PendienteEntrega.Reconstruir(datos, documento.SucursalId, documento.CajaId, almacenId));
+            var pendiente_ = PendienteEntrega.Reconstruir(datos, documento.SucursalId, documento.CajaId, almacenId);
+
+            // El Central le pone su propio número. Si falta su secuencia el pendiente entra igual: la caja ya lo creó al
+            // cobrar, y perderlo dejaría mercancía sin despachar por una configuración.
+            try
+            {
+                pendiente_.AsignarNumeroCentral(await numeracion.SiguienteAsync(DocumentosNumerados.Despacho, cancelacion));
+            }
+            catch (SecuenciaCentralNoConfiguradaExcepcion)
+            {
+            }
+
+            contexto.PendientesEntrega.Add(pendiente_);
         }
         catch (ArgumentException excepcion)
         {

@@ -864,6 +864,7 @@ GO
 CREATE TABLE [CierresSucursal] (
     [Id] int NOT NULL,
     [SucursalId] int NOT NULL,
+    [NumeroCentral] varchar(200) NULL,
     [FechaOperacion] date NOT NULL,
     [CantidadCierres] int NOT NULL,
     [CantidadVentas] int NOT NULL,
@@ -1213,6 +1214,7 @@ CREATE TABLE [PendientesEntrega] (
     [ActualizadoPorNombre] nvarchar(150) NOT NULL,
     [MotivoAnulacion] nvarchar(250) NULL,
     [AvisoEnviadoEn] datetimeoffset(3) NULL,
+    [NumeroCentral] varchar(30) NULL,
     CONSTRAINT [PK_PendientesEntrega] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_PendientesEntrega_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_PendientesEntrega_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
@@ -1267,6 +1269,7 @@ CREATE TABLE [VentasCentral] (
     [Id] int NOT NULL,
     [Tipo] int NOT NULL,
     [Numero] nvarchar(40) NOT NULL,
+    [NumeroCentral] varchar(40) NULL,
     [SucursalId] int NOT NULL,
     [CajaId] int NOT NULL,
     [TurnoNumero] bigint NULL,
@@ -1662,6 +1665,10 @@ CREATE INDEX [IX_CierresFormaPago_CierreId] ON [CierresFormaPago] ([CierreId]);
 GO
 
 
+CREATE UNIQUE INDEX [IX_CierresSucursal_NumeroCentral] ON [CierresSucursal] ([NumeroCentral]) WHERE [NumeroCentral] IS NOT NULL;
+GO
+
+
 CREATE UNIQUE INDEX [IX_CierresSucursal_SucursalId_FechaOperacion] ON [CierresSucursal] ([SucursalId], [FechaOperacion]);
 GO
 
@@ -2014,6 +2021,10 @@ CREATE UNIQUE INDEX [IX_PendientesEntrega_Numero] ON [PendientesEntrega] ([Numer
 GO
 
 
+CREATE UNIQUE INDEX [IX_PendientesEntrega_NumeroCentral] ON [PendientesEntrega] ([NumeroCentral]) WHERE [NumeroCentral] IS NOT NULL;
+GO
+
+
 CREATE INDEX [IX_PendientesEntrega_SucursalId] ON [PendientesEntrega] ([SucursalId]);
 GO
 
@@ -2179,6 +2190,10 @@ GO
 
 
 CREATE INDEX [IX_VentasCentral_FechaOperacion_SucursalId_CajaId] ON [VentasCentral] ([FechaOperacion], [SucursalId], [CajaId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_VentasCentral_NumeroCentral] ON [VentasCentral] ([NumeroCentral]) WHERE [NumeroCentral] IS NOT NULL;
 GO
 
 
@@ -2402,6 +2417,10 @@ GO
    puede crear: la numeración es una decisión del negocio, no algo que el sistema invente. */
 INSERT INTO [SecuenciasCentral] ([Codigo], [Prefijo], [Documento], [Ultimo], [Digitos], [Activa])
 VALUES
+    ('Factura', 'FAC', N'Factura', 0, 6, 1),
+    ('NotaCredito', 'NC', N'Nota de crédito', 0, 6, 1),
+    ('Despacho', 'DES', N'Despacho', 0, 6, 1),
+    ('CierreSucursal', 'CS', N'Cierre de sucursal', 0, 6, 1),
     ('Cotizacion', 'COT', N'Cotización', 0, 6, 1),
     ('ListaBoda', 'LB', N'Lista de boda', 0, 6, 1);
 GO

@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Ventas;
+﻿using CgPos.Central.Aplicacion.Ventas;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Reportes;
@@ -107,6 +107,7 @@ internal sealed class ServicioComprobantesRecibidos(ContextoDatosCentral context
             c.Id,
             c.Tipo,
             c.Numero,
+            c.NumeroCentral,
             c.Encf,
             c.TipoComprobanteFiscal,
             sucursales.GetValueOrDefault(c.SucursalId) ?? string.Empty,

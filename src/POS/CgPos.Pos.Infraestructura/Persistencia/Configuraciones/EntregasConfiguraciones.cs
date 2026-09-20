@@ -86,6 +86,7 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
 
         // El aviso al cliente y el seguimiento del despacho son del Central: la caja solo crea el pendiente al cobrar.
         constructor.Ignore(p => p.AvisoEnviadoEn);
+        constructor.Ignore(p => p.NumeroCentral);
 
         constructor.HasIndex(p => p.Numero).IsUnique();
         constructor.HasIndex(p => p.VentaId);

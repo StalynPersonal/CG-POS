@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 
@@ -34,7 +34,15 @@ public sealed class ComprobanteVentaCentral : Entidad
     }
 
     public TipoComprobanteVenta Tipo { get; private set; }
+
+    /// <summary>Número con el que la caja emitió el documento (sucursal + caja + tipo + secuencia).</summary>
     public string Numero { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Número que le pone el Central al recibirlo, con su propia numeración (FAC000001). Es nulo mientras no se haya podido
+    /// asignar, que solo pasa si falta su secuencia: el documento se guarda igual, porque ya se emitió en la caja.
+    /// </summary>
+    public string? NumeroCentral { get; private set; }
     public int SucursalId { get; private set; }
     public int CajaId { get; private set; }
     /// <summary>Número del turno en la caja; nulo en una nota de crédito emitida fuera de un turno.</summary>
@@ -76,6 +84,15 @@ public sealed class ComprobanteVentaCentral : Entidad
 
     /// <summary>Detalle del comprobante tal como lo cobró la caja, para verlo en el Central sin abrir el XML.</summary>
     public IReadOnlyList<LineaVentaCentral> Lineas => _lineas;
+
+    /// <summary>Le pone el número del Central; solo se hace una vez, al recibirlo.</summary>
+    public void AsignarNumeroCentral(string numero)
+    {
+        if (NumeroCentral is not null)
+            return;
+
+        NumeroCentral = Validar.Texto(numero, "Número del Central", LargoMaximoNumero);
+    }
 
     public static ComprobanteVentaCentral Registrar(TipoComprobanteVenta tipo, string numero, int sucursalId, int cajaId, long? turnoNumero,
         string? usuarioNombre, DateTimeOffset fecha, DateOnly fechaOperacion, TipoComprobante tipoFiscal, string? encf, string? encfModificado,

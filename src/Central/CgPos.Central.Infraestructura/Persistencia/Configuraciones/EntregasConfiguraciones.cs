@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Ventas;
@@ -35,6 +35,8 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
         constructor.Property(p => p.AutorizadoPorNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
         constructor.Property(p => p.ActualizadoPorNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre).IsRequired();
         constructor.Property(p => p.MotivoAnulacion).HasMaxLength(PendienteEntrega.LargoMaximoMotivo);
+        constructor.Property(p => p.NumeroCentral).HasMaxLength(PendienteEntrega.LargoMaximoNumero).IsUnicode(false);
+        constructor.HasIndex(p => p.NumeroCentral).IsUnique().HasFilter("[NumeroCentral] IS NOT NULL");
 
         // La venta y el almacén son de la caja que lo emitió: aquí se guardan sus Id como referencia, sin llave foránea.
         constructor.Ignore(p => p.EstaAbierto);

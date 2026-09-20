@@ -149,6 +149,10 @@ MOTIVOS_DESCUENTO = [
 # Documentos que numera el propio Central. Cada uno con su prefijo, cómo se le llama y cuántos dígitos lleva.
 # El código es con lo que el sistema la busca y no cambia; el prefijo es solo cómo se ve el número.
 SECUENCIAS_CENTRAL = [
+    ('Factura', 'FAC', 'Factura', 6),
+    ('NotaCredito', 'NC', 'Nota de crédito', 6),
+    ('Despacho', 'DES', 'Despacho', 6),
+    ('CierreSucursal', 'CS', 'Cierre de sucursal', 6),
     ('Cotizacion', 'COT', 'Cotización', 6),
     ('ListaBoda', 'LB', 'Lista de boda', 6),
 ]

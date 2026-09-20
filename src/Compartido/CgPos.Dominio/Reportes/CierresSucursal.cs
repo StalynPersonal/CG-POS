@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Pagos;
 
 namespace CgPos.Dominio.Reportes;
@@ -21,6 +21,13 @@ public sealed class CierreSucursal : Entidad
     }
 
     public int SucursalId { get; private set; }
+
+    /// <summary>
+    /// Número del cierre con la numeración del Central. Nulo si falta su secuencia: el cierre se guarda igual, porque cuadrar
+    /// el día no puede depender de una configuración.
+    /// </summary>
+    public string? NumeroCentral { get; private set; }
+
     public DateOnly FechaOperacion { get; private set; }
     public int CantidadCierres { get; private set; }
     public int CantidadVentas { get; private set; }
@@ -32,6 +39,15 @@ public sealed class CierreSucursal : Entidad
     public decimal Diferencia { get; private set; }
 
     public string? Observacion { get; private set; }
+
+    /// <summary>Le pone el número del Central; solo se hace una vez, al cerrar.</summary>
+    public void AsignarNumeroCentral(string numero)
+    {
+        if (NumeroCentral is not null)
+            return;
+
+        NumeroCentral = Validar.Texto(numero, "Número del Central", LargoMaximoTexto);
+    }
     public string CerradoPor { get; private set; } = string.Empty;
     public DateTimeOffset CerradoEn { get; private set; }
 

@@ -1,4 +1,6 @@
-﻿using CgPos.Central.Infraestructura.Persistencia;
+﻿using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Infraestructura.Organizacion;
+using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,7 @@ namespace CgPos.Central.Infraestructura.Reportes;
 /// Arma el modelo de lectura de los reportes con lo que informan las cajas. No guarda: quien lo llama decide la transacción,
 /// para que el documento recibido y su reflejo en los reportes queden juntos.
 /// </summary>
-internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeProvider reloj)
+internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INumeracionCentral numeracion, TimeProvider reloj)
 {
     /// <summary>La factura se identifica por su número: si ya se registró (un reenvío), no se repite.</summary>
     public async Task RegistrarVentaAsync(DocumentoVentaCobrada venta, int sucursalId, int cajaId, CancellationToken cancelacion)
@@ -39,6 +41,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
                 linea.Importe - decimal.Round(linea.Importe / (1 + (linea.PorcentajeImpuesto / 100m)), 2, MidpointRounding.AwayFromZero),
                 linea.Importe, linea.Serial, linea.PromocionCodigo);
 
+        await NumerarAsync(comprobante, DocumentosNumerados.Factura, cancelacion);
         contexto.VentasCentral.Add(comprobante);
     }
 
@@ -57,6 +60,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
             comprobante.AgregarLinea(linea.NumeroLineaOrigen, linea.CodigoInterno, linea.Descripcion, linea.UnidadMedidaCodigo, linea.Cantidad,
                 linea.PrecioUnitario, 0m, linea.Impuesto, linea.Importe, linea.Serial, null);
 
+        await NumerarAsync(comprobante, DocumentosNumerados.NotaCredito, cancelacion);
         contexto.VentasCentral.Add(comprobante);
     }
 
@@ -94,5 +98,21 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
         registrado.Actualizar(cierre.UsuarioNombre, cierre.Ciego, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
             cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, ahora);
         registrado.ReemplazarFormasPago(cierre.FormasPago.Select(f => (f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado, f.Declarado, f.Diferencia)));
+    }
+
+    /// <summary>
+    /// Le pone al documento el número del Central. Si su secuencia falta o está apagada NO se rechaza el documento: la caja
+    /// ya lo emitió y el dato fiscal no se puede perder. Se guarda sin número y queda para asignárselo cuando se configure.
+    /// </summary>
+    private async Task NumerarAsync(ComprobanteVentaCentral comprobante, string codigoDocumento, CancellationToken cancelacion)
+    {
+        try
+        {
+            comprobante.AsignarNumeroCentral(await numeracion.SiguienteAsync(codigoDocumento, cancelacion));
+        }
+        catch (SecuenciaCentralNoConfiguradaExcepcion)
+        {
+            // Queda sin número del Central; el documento entra igual.
+        }
     }
 }

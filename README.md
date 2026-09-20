@@ -163,7 +163,11 @@ La de la caja va en su base y funciona sin red: la caja factura aunque el Centra
 
 **Secuencias de documentos del Central:** cada documento que emite el Central tiene su fila en `SecuenciasCentral`, con su código, el prefijo, cómo se le llama, el último número entregado, los dígitos del correlativo y si está activa. **Sin su secuencia, el documento no se crea**: la operación se rechaza diciendo cuál falta o cuál está apagada, en vez de inventar una numeración. La instalación deja creadas las de cotización y lista de boda; las demás se agregan en Organización → Secuencias de documentos.
 
-El **código** (`Cotizacion`, `ListaBoda`) es con lo que el sistema la busca y no cambia; el **prefijo** (`COT`, `LB`) es solo cómo se ve el número y se puede cambiar cuando el negocio quiera, sin que deje de emitirse nada — los documentos ya emitidos conservan el suyo. Dos documentos no pueden compartir prefijo. El contador solo se adelanta: bajarlo repetiría números ya entregados.
+El **código** (`Factura`, `Cotizacion`…) es con lo que el sistema la busca y no cambia; el **prefijo** (`FAC`, `COT`) es solo cómo se ve el número y se puede cambiar cuando el negocio quiera, sin que deje de emitirse nada — los documentos ya emitidos conservan el suyo. Dos documentos no pueden compartir prefijo. El contador solo se adelanta: bajarlo repetiría números ya entregados.
+
+**El Central numera lo que le sube la caja.** Una factura llega con el número de la caja (`010110000001`) y el Central le pone además el suyo (`FAC000001`); ambos quedan guardados, y el listado de facturas los muestra juntos. Lo mismo con las notas de crédito, los despachos y el cierre de sucursal. La instalación deja creadas esas seis secuencias.
+
+Si al recibir un documento falta su secuencia o está apagada, **el documento entra igual, sin número del Central**: la caja ya lo emitió y perderlo por una configuración sería peor. Se le puede asignar después. Esto es distinto de crear una cotización, que sí se rechaza: ahí el documento todavía no existe.
 - El Central exige que el número de factura y de nota de crédito sea único en la empresa: si llega repetido de otra transacción, el mensaje se guarda, no entra en los reportes y queda un conflicto `NumeroDuplicado` en el monitor.
 
 En la pantalla de venta:

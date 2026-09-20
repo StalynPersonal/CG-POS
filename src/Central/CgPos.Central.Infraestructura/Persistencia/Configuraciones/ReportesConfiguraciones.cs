@@ -33,6 +33,9 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
         constructor.HasKey(c => c.Id);
 
         constructor.Property(c => c.Numero).HasMaxLength(ComprobanteVentaCentral.LargoMaximoNumero).IsRequired();
+        constructor.Property(c => c.NumeroCentral).HasMaxLength(ComprobanteVentaCentral.LargoMaximoNumero).IsUnicode(false);
+        // Dos documentos no pueden llevar el mismo número del Central; los que aún no lo tienen quedan fuera del índice.
+        constructor.HasIndex(c => c.NumeroCentral).IsUnique().HasFilter("[NumeroCentral] IS NOT NULL");
         constructor.Property(c => c.Encf).HasMaxLength(ComprobanteVentaCentral.LargoMaximoEncf).IsFixedLength().IsUnicode(false);
         constructor.Property(c => c.EncfModificado).HasMaxLength(ComprobanteVentaCentral.LargoMaximoEncf).IsFixedLength().IsUnicode(false);
         constructor.Property(c => c.ClienteDocumento).HasMaxLength(ComprobanteVentaCentral.LargoMaximoTexto);
@@ -130,6 +133,8 @@ internal sealed class CierreSucursalConfiguracion : IEntityTypeConfiguration<Cie
     {
         constructor.ToTable("CierresSucursal");
         constructor.HasKey(c => c.Id);
+        constructor.Property(c => c.NumeroCentral).HasMaxLength(CierreSucursal.LargoMaximoTexto).IsUnicode(false);
+        constructor.HasIndex(c => c.NumeroCentral).IsUnique().HasFilter("[NumeroCentral] IS NOT NULL");
         constructor.Property(c => c.Observacion).HasMaxLength(CierreSucursal.LargoMaximoObservacion);
         constructor.Property(c => c.CerradoPor).HasMaxLength(CierreSucursal.LargoMaximoTexto).IsRequired();
         constructor.Ignore(c => c.EfectivoADepositar);

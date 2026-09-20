@@ -225,6 +225,21 @@ public sealed class PendienteEntrega : Entidad
     /// <summary>Cuándo se le avisó al cliente que su pedido está listo; nulo si todavía no se le avisó (RF-256).</summary>
     public DateTimeOffset? AvisoEnviadoEn { get; private set; }
 
+    /// <summary>
+    /// Número que le pone el Central al recibirlo, con su propia numeración. Nulo mientras no se haya podido asignar, que
+    /// solo pasa si falta su secuencia: el pendiente se guarda igual, porque la caja ya lo creó al cobrar.
+    /// </summary>
+    public string? NumeroCentral { get; private set; }
+
+    /// <summary>Le pone el número del Central; solo se hace una vez, al recibirlo.</summary>
+    public void AsignarNumeroCentral(string numero)
+    {
+        if (NumeroCentral is not null)
+            return;
+
+        NumeroCentral = Validar.Texto(numero, "Número del Central", LargoMaximoNumero);
+    }
+
     public IReadOnlyList<LineaPendienteEntrega> Lineas => _lineas;
     public IReadOnlyList<EntregaPendiente> Entregas => _entregas;
 

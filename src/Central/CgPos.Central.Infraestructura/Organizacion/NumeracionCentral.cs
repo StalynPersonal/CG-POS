@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Organizacion;
+﻿using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,6 +41,18 @@ public static class DocumentosNumerados
 {
     public const string Cotizacion = "Cotizacion";
     public const string ListaBoda = "ListaBoda";
+
+    /// <summary>Numeración propia del Central para las facturas que le suben las cajas.</summary>
+    public const string Factura = "Factura";
+
+    /// <summary>Numeración propia del Central para las notas de crédito que le suben las cajas.</summary>
+    public const string NotaCredito = "NotaCredito";
+
+    /// <summary>Pendientes de entrega y envíos que le suben las cajas y que el Central despacha.</summary>
+    public const string Despacho = "Despacho";
+
+    /// <summary>Cierre consolidado del día de una sucursal, que se hace en el Central.</summary>
+    public const string CierreSucursal = "CierreSucursal";
 }
 
 /// <summary>No hay una secuencia configurada para ese documento, o está desactivada, así que no se puede crear.</summary>

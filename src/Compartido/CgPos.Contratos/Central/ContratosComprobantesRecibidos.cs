@@ -1,4 +1,4 @@
-using CgPos.Dominio.Fiscal;
+﻿using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Reportes;
 using CgPos.Dominio.Sincronizacion;
@@ -9,7 +9,10 @@ namespace CgPos.Contratos.Central;
 public sealed record DatosComprobanteRecibido(
     int Id,
     TipoComprobanteVenta Tipo,
+    /// <summary>Número con el que lo emitió la caja.</summary>
     string Numero,
+    /// <summary>Número que le puso el Central al recibirlo; nulo si faltaba su secuencia.</summary>
+    string? NumeroCentral,
     string? Encf,
     TipoComprobante TipoComprobanteFiscal,
     string SucursalNombre,

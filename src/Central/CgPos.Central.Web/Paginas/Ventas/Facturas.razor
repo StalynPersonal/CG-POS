@@ -61,7 +61,15 @@
         <RowTemplate>
             <MudTd DataLabel="Documento">
                 <strong>@(context.Encf ?? context.Numero)</strong>
-                <div class="cg-central__detalle">@context.Numero · @(context.Tipo == TipoComprobanteVenta.Factura ? "Factura" : "Nota de crédito")</div>
+                @* El de la caja y, si ya se le puso, el del Central: son dos numeraciones distintas del mismo documento. *@
+                <div class="cg-central__detalle">
+                    @context.Numero
+                    @if (context.NumeroCentral is { Length: > 0 } numeroCentral)
+                    {
+                        <text> · @numeroCentral</text>
+                    }
+                    · @(context.Tipo == TipoComprobanteVenta.Factura ? "Factura" : "Nota de crédito")
+                </div>
             </MudTd>
             <MudTd DataLabel="Origen">
                 @context.SucursalNombre

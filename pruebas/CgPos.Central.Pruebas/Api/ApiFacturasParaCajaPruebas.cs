@@ -35,6 +35,17 @@ public class ApiFacturasParaCajaPruebas(CentralEnPruebas central)
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, cajaUno,
             Mensaje(TiposMensaje.VentaCobrada, numero, Factura(numero, encf, cantidad: 5m), CentralEnPruebas.CajaUno)));
 
+        // El Central le pone su propio número al recibirla, y conserva el de la caja.
+        using (var recibidas = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/manager/facturas?desde={DateOnly.FromDateTime(DateTime.Today).AddDays(-1):yyyy-MM-dd}&hasta={DateOnly.FromDateTime(DateTime.Today).AddDays(1):yyyy-MM-dd}&buscar={numero}",
+            await CentralEnPruebas.TokenAdministradorAsync(cliente))))
+        {
+            recibidas.EnsureSuccessStatusCode();
+            var pagina = (await recibidas.Content.ReadFromJsonAsync<PaginaComprobantesRecibidos>(OpcionesJson.Predeterminadas))!;
+            var comprobante = Assert.Single(pagina.Elementos, c => c.Numero == numero);
+            Assert.StartsWith("FAC", comprobante.NumeroCentral, StringComparison.Ordinal);
+        }
+
         // La caja 02, que no la emitió, la encuentra igual y la ve completa.
         var factura = await BuscarAsync(cliente, cajaDos, numero);
         Assert.Equal((numero, encf, false), (factura.Numero, factura.Encf, factura.Propia));

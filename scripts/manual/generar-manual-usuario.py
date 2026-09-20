@@ -516,6 +516,11 @@ p('Ruta: /organizacion/secuencias. Aquí se dice cómo se numera cada documento 
   'delante, cuántos dígitos tiene el correlativo y por cuál va.')
 nota('Sin su secuencia, el documento NO se puede crear: el sistema lo rechaza diciendo cuál falta. Es a propósito, para que '
      'la numeración la decida el negocio y no se invente sola la primera vez que alguien hace el documento.')
+p('El Central le pone su propio número a los documentos que le suben las cajas. Una factura llega con el número de la caja '
+  '(010110000001) y el Central le agrega el suyo (FAC000001): los dos quedan guardados y se ven juntos en el listado de '
+  'facturas. Lo mismo con las notas de crédito, los despachos y el cierre de sucursal.')
+nota('Si al llegar un documento de la caja falta su secuencia, el documento se guarda igual pero sin número del Central: la '
+     'caja ya lo emitió y perderlo sería peor. Configure la secuencia y los siguientes ya lo traerán.')
 p('En el sistema hay tres numeraciones distintas y conviene no confundirlas:')
 tabla(['Numeración', 'Quién la lleva', 'Cómo se ve'],
       [['Documentos de la caja', 'Cada caja, en su propia base', 'Sucursal + caja + tipo + secuencia (010110000001)'],

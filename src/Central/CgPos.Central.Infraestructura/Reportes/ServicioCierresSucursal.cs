@@ -2,6 +2,8 @@
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Reportes;
 using CgPos.Central.Aplicacion.Seguridad;
+using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Infraestructura.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
@@ -12,7 +14,8 @@ using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Reportes;
 
-internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAuditoriaCentral auditoria, TimeProvider reloj) : IServicioCierresSucursal
+internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAuditoriaCentral auditoria,
+    INumeracionCentral numeracion, TimeProvider reloj) : IServicioCierresSucursal
 {
     public async Task<DatosPreparacionCierreSucursal?> PrepararAsync(int sucursalId, DateOnly fechaOperacion, CancellationToken cancelacion = default)
     {
@@ -69,6 +72,16 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
         catch (ArgumentException excepcion)
         {
             return ResultadoAdministracion.Error(ValidacionMaestros.MensajeError(excepcion));
+        }
+
+        // El cierre lleva el número del Central. Si falta su secuencia se guarda sin él: cuadrar el día de la sucursal no
+        // puede quedar bloqueado por una configuración.
+        try
+        {
+            cierre.AsignarNumeroCentral(await numeracion.SiguienteAsync(DocumentosNumerados.CierreSucursal, cancelacion));
+        }
+        catch (SecuenciaCentralNoConfiguradaExcepcion)
+        {
         }
 
         contexto.CierresSucursal.Add(cierre);
