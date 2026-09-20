@@ -58,6 +58,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<Aplicacion.ListasBoda.IServicioListasBoda, ListasBoda.ServicioListasBoda>();
         servicios.AddScoped<Aplicacion.Organizacion.INumeracionCentral, Organizacion.NumeracionCentral>();
         servicios.AddScoped<Aplicacion.Cotizaciones.IServicioCotizaciones, Cotizaciones.ServicioCotizaciones>();
+        servicios.AddScoped<Aplicacion.Ventas.IServicioFacturasParaCaja, Ventas.ServicioFacturasParaCaja>();
         servicios.AddScoped<Aplicacion.Ventas.IServicioComprobantesRecibidos, Ventas.ServicioComprobantesRecibidos>();
         servicios.AddScoped<Aplicacion.Auditoria.IServicioConsultaAuditoria, Auditoria.ServicioConsultaAuditoria>();
         servicios.AddScoped<Aplicacion.Catalogo.IServicioChequeadorPrecios, Catalogo.ServicioChequeadorPrecios>();
