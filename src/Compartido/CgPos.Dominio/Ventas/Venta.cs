@@ -1085,7 +1085,7 @@ public sealed class Venta : Entidad
             .Select(l =>
             {
                 var importe = l.ImporteConImpuesto;
-                var baseImponible = decimal.Round(importe / (1 + l.PorcentajeImpuesto / 100m), 2, MidpointRounding.AwayFromZero);
+                var baseImponible = Fiscal.CalculoImpuestos.BaseDe(importe, l.PorcentajeImpuesto);
                 return (l.PorcentajeImpuesto, l.IndicadorFacturacion, Base: baseImponible, Impuesto: importe - baseImponible, Total: importe);
             })
             .GroupBy(x => (x.PorcentajeImpuesto, x.IndicadorFacturacion))
