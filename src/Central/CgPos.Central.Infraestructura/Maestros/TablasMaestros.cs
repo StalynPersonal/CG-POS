@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Text.Json;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
@@ -284,7 +284,7 @@ internal static class TablasMaestros
             p?.PrecioDetalle ?? 0m, p?.PrecioMayor, e.Tipo, e.Referencia, e.Costo, e.PrecioMinimo, e.CantidadMinimaMayor,
             e.Codigos.Where(c => c.Tipo == TipoCodigoArticulo.Barras).Select(c => c.Codigo).OrderBy(c => c, StringComparer.Ordinal).ToList(),
             e.Codigos.Where(c => c.Tipo == TipoCodigoArticulo.Proveedor).Select(c => c.Codigo).OrderBy(c => c, StringComparer.Ordinal).ToList(),
-            e.RutaImagen, e.MostrarEnCatalogo, e.VentaEnPos, e.Activo, p?.VigentesDesde, e.Tara, e.EsServicio,
+            e.RutaImagen, e.MostrarEnCatalogo, e.VentaEnPos, e.Activo, p?.VigentesDesde, e.PesoEmpaque, e.EsServicio,
             e.CategoriaId is { } categoria ? r.CodigoCategoria(categoria) : null,
             e.MarcaId is { } marca ? r.CodigoMarca(marca) : null),
         q => q.OrderBy(e => e.Codigo),

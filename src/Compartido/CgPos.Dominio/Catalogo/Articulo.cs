@@ -62,7 +62,7 @@ public sealed class Articulo : Entidad
     public decimal? CantidadMinimaMayor { get; private set; }
 
     /// <summary>Peso del empaque que se descuenta del peso leído en la balanza, en la unidad del artículo (RF-196).</summary>
-    public decimal? Tara { get; private set; }
+    public decimal? PesoEmpaque { get; private set; }
 
     public string? RutaImagen { get; private set; }
 
@@ -120,12 +120,12 @@ public sealed class Articulo : Entidad
         CantidadMinimaMayor = cantidadMinimaMayor;
     }
 
-    public void ConfigurarTara(decimal? tara)
+    public void ConfigurarPesoEmpaque(decimal? pesoEmpaque)
     {
-        if (tara < 0)
-            throw new ArgumentOutOfRangeException(nameof(tara), tara, "El peso del empaque no puede ser negativo.");
+        if (pesoEmpaque < 0)
+            throw new ArgumentOutOfRangeException(nameof(pesoEmpaque), pesoEmpaque, "El peso del empaque no puede ser negativo.");
 
-        Tara = tara is 0m ? null : tara;
+        PesoEmpaque = pesoEmpaque is 0m ? null : pesoEmpaque;
     }
 
     /// <summary>La categoría debe ser del departamento del artículo: lo valida quien conoce las categorías (el Central al publicar).</summary>

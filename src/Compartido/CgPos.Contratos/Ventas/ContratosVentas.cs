@@ -160,7 +160,7 @@ public sealed record DatosVentaEnEspera(
 /// <param name="SerialEnDespacho">Serializado sin serial que se marcará para entrega o envío: el serial se captura en el despacho (RN-16).</param>
 public sealed record SolicitudAgregarArticulo(string Codigo, decimal? Cantidad = null, string? Serial = null, bool SerialEnDespacho = false);
 
-/// <summary>Agrega un artículo pesado con el peso que reporta la balanza, descontando su tara (RF-19, RF-196).</summary>
+/// <summary>Agrega un artículo pesado con el peso que reporta la balanza, descontando el de su empaque (RF-19, RF-196).</summary>
 public sealed record SolicitudPesarArticulo(string Codigo);
 
 public sealed record SolicitudCambiarCantidad(decimal Cantidad);

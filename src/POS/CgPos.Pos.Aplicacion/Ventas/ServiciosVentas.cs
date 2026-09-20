@@ -38,7 +38,7 @@ public interface IServicioVentas
     /// <summary>Almacenes y sucursales para retiro; primero los de la sucursal de la caja (RF-138, RF-140).</summary>
     Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
-    /// <summary>Agrega un artículo pesado con el peso estable de la balanza menos su tara (RF-19, RF-196).</summary>
+    /// <summary>Agrega un artículo pesado con el peso estable de la balanza menos el de su empaque (RF-19, RF-196).</summary>
     Task<RespuestaVenta> AgregarDesdeBalanzaAsync(SesionUsuario sesion, int ventaId, string codigo, CancellationToken cancelacion = default);
 
     Task<RespuestaVenta> CambiarCantidadAsync(SesionUsuario sesion, int ventaId, int numeroLinea, decimal cantidad, CancellationToken cancelacion = default);

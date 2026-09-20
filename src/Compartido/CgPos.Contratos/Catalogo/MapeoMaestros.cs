@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -104,7 +104,7 @@ public static class MapeoMaestros
         var departamentoId = r.Departamento(d.DepartamentoCodigo);
         e.ActualizarDatos(d.Descripcion, d.Referencia, departamentoId, r.UnidadMedida(d.UnidadMedidaCodigo), r.Impuesto(d.ImpuestoCodigo), d.Tipo);
         e.ConfigurarPrecios(d.Costo, d.PrecioMinimo, d.CantidadMinimaMayor);
-        e.ConfigurarTara(d.Tara);
+        e.ConfigurarPesoEmpaque(d.PesoEmpaque);
         e.Clasificar(r.Categoria(d.CategoriaCodigo.Value), d.MarcaCodigo is { } marca ? r.Marca(marca) : null);
         e.ConfigurarNaturaleza(d.EsServicio);
         e.ConfigurarPresentacion(d.RutaImagen, d.MostrarEnCatalogo, d.VentaEnPos);

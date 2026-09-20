@@ -176,7 +176,7 @@ public sealed record ArticuloCarga(
     bool VentaEnPos = true,
     bool Activo = true,
     DateTimeOffset? PreciosVigentesDesde = null,
-    decimal? Tara = null,
+    decimal? PesoEmpaque = null,
     bool EsServicio = false,
     int? CategoriaCodigo = null,
     int? MarcaCodigo = null);
@@ -265,7 +265,7 @@ public sealed record DatosArticuloVenta(
     decimal? PesoLeido,
     decimal? PrecioLeido,
     string? RutaImagen,
-    decimal? Tara = null,
+    decimal? PesoEmpaque = null,
     bool EsServicio = false,
     int? CategoriaId = null,
     string? CategoriaNombre = null,

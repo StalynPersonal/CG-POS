@@ -1,4 +1,4 @@
-namespace CgPos.Dominio.Catalogo;
+﻿namespace CgPos.Dominio.Catalogo;
 
 public enum TipoValorBalanza
 {
@@ -26,13 +26,13 @@ public sealed record LecturaBalanza(string CodigoArticulo, TipoValorBalanza Tipo
 public static class ReglasBalanza
 {
     /// <summary>
-    /// Peso a facturar de una lectura en vivo de la balanza: bruto menos la tara del empaque (RF-196), a 3 decimales.
+    /// Peso a facturar de una lectura en vivo de la balanza: bruto menos el peso del empaque (RF-196), a 3 decimales.
     /// Las etiquetas impresas por la balanza ya traen el peso neto y no pasan por aquí.
     /// </summary>
     /// <returns>Nulo si la lectura no deja un peso neto positivo.</returns>
-    public static decimal? PesoNeto(decimal pesoBruto, decimal? tara)
+    public static decimal? PesoNeto(decimal pesoBruto, decimal? pesoEmpaque)
     {
-        var neto = decimal.Round(pesoBruto - (tara ?? 0m), 3, MidpointRounding.AwayFromZero);
+        var neto = decimal.Round(pesoBruto - (pesoEmpaque ?? 0m), 3, MidpointRounding.AwayFromZero);
         return neto > 0 ? neto : null;
     }
 }

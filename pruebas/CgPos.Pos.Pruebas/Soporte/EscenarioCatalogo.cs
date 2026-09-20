@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -80,7 +80,7 @@ public sealed class EscenarioCatalogo
     public string BarrasCemento { get; } = CodigoBarrasAleatorio();
     public string CodigoCombo => $"KIT-{Sufijo}";
     public string CodigoTaladro => $"TAL-{Sufijo}";
-    public const decimal TaraCebolla = 0.050m;
+    public const decimal PesoEmpaqueCebolla = 0.050m;
     public string PluTomate { get; } = PluAleatorio();
     public string PluCebolla { get; } = PluAleatorio();
     public string CodigoInactivo => $"INA-{Sufijo}";
@@ -167,7 +167,7 @@ public sealed class EscenarioCatalogo
                 new ArticuloCarga(PluTomate, $"Tomate {Sufijo}", CodigoVegetales, CodigoLibraNumerico, CodigoExento, 45m,
                     Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, CategoriaCodigo: CodigoCategoriaVegetales),
                 new ArticuloCarga(PluCebolla, $"Cebolla {Sufijo}", CodigoVegetales, CodigoLibraNumerico, CodigoExento, 55m,
-                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, Tara: TaraCebolla, CategoriaCodigo: CodigoCategoriaVegetales),
+                    Tipo: TipoArticulo.Pesado, MostrarEnCatalogo: true, PreciosVigentesDesde: vigenciaPrecios, PesoEmpaque: PesoEmpaqueCebolla, CategoriaCodigo: CodigoCategoriaVegetales),
                 new ArticuloCarga(CodigoTaladro, $"Taladro inalámbrico {Sufijo}", CodigoFerreteria, CodigoUnidad, CodigoItbis18, 6950m,
                     Tipo: TipoArticulo.Serializado, PreciosVigentesDesde: vigenciaPrecios, CategoriaCodigo: CodigoCategoriaHerramientas),
                 new ArticuloCarga(CodigoInactivo, $"Artículo descontinuado {Sufijo}", CodigoFerreteria, CodigoUnidad, CodigoItbis18, 100m,

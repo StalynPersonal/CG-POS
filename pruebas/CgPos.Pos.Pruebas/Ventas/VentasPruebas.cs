@@ -457,7 +457,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(pesada.Exitosa, pesada.Mensaje);
 
         var linea = pesada.Venta!.Lineas.Single();
-        var netoEsperado = BalanzaPrueba.PesoSimulado - EscenarioCatalogo.TaraCebolla; // 1.250 − 0.050
+        var netoEsperado = BalanzaPrueba.PesoSimulado - EscenarioCatalogo.PesoEmpaqueCebolla; // 1.250 − 0.050
         Assert.Equal(netoEsperado, linea.Cantidad);
         Assert.True(linea.LeidaDeBalanza);
         Assert.Equal(decimal.Round(netoEsperado * 55m, 2), pesada.Venta.Totales.Total);

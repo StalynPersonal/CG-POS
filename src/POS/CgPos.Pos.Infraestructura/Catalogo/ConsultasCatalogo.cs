@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Pos.Aplicacion.Abstracciones;
@@ -155,7 +155,7 @@ internal sealed class ConsultaArticulos(
             lectura is { Tipo: TipoValorBalanza.Peso } ? lectura.Valor : null,
             lectura is { Tipo: TipoValorBalanza.Precio } ? lectura.Valor : null,
             datos.articulo.RutaImagen,
-            datos.articulo.Tara,
+            datos.articulo.PesoEmpaque,
             datos.articulo.EsServicio,
             datos.articulo.CategoriaId,
             datos.articulo.CategoriaId is { } categoriaId

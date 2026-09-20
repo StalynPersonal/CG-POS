@@ -1,4 +1,4 @@
-@* Alta o edición de un artículo. Los precios solo se indican al crearlo; después se cambian en Precios, con vigencia. *@
+﻿@* Alta o edición de un artículo. Los precios solo se indican al crearlo; después se cambian en Precios, con vigencia. *@
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Catalogo
 @inject ClienteCentral Cliente
@@ -109,7 +109,7 @@
             }
 
             <MudItem xs="12" sm="4">
-                <MudNumericField T="decimal?" @bind-Value="_tara" Label="Peso del empaque (pesados)" Variant="Variant.Outlined" HideSpinButtons="true"
+                <MudNumericField T="decimal?" @bind-Value="_pesoEmpaque" Label="Peso del empaque (pesados)" Variant="Variant.Outlined" HideSpinButtons="true"
                                  HelperText="Se descuenta del peso de la balanza: bandeja, envase o bolsa" />
             </MudItem>
             <MudItem xs="12" sm="8">
@@ -160,7 +160,7 @@
     private decimal? _cantidadMinimaMayor;
     private decimal? _precioMinimo;
     private decimal? _costo;
-    private decimal? _tara;
+    private decimal? _pesoEmpaque;
     private string? _rutaImagen;
     private bool _mostrarEnCatalogo;
     private bool _ventaEnPos = true;
@@ -179,7 +179,7 @@
         (_categoria, _marca) = (a.CategoriaCodigo, a.MarcaCodigo);
         _codigosBarras = string.Join(Environment.NewLine, a.CodigosBarras ?? []);
         _codigosProveedor = string.Join(Environment.NewLine, a.CodigosProveedor ?? []);
-        (_tara, _rutaImagen, _mostrarEnCatalogo, _ventaEnPos, _esServicio, _activo) = (a.Tara, a.RutaImagen, a.MostrarEnCatalogo, a.VentaEnPos, a.EsServicio, a.Activo);
+        (_pesoEmpaque, _rutaImagen, _mostrarEnCatalogo, _ventaEnPos, _esServicio, _activo) = (a.PesoEmpaque, a.RutaImagen, a.MostrarEnCatalogo, a.VentaEnPos, a.EsServicio, a.Activo);
     }
 
     /// <summary>La categoría es del departamento: al cambiarlo se quita si ya no corresponde.</summary>
@@ -228,7 +228,7 @@
             _ventaEnPos,
             _activo,
             Articulo?.PreciosVigentesDesde,
-            _tara,
+            _pesoEmpaque,
             _esServicio,
             _categoria,
             _marca);
