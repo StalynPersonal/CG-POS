@@ -52,7 +52,9 @@ public static class InyeccionDependencias
         servicios.AddScoped<ICargaInicial, ServicioCargaInicial>();
 
         // Organización y seguridad (M01, M02)
-        servicios.AddSingleton<IContextoCaja>(proveedor => new ContextoCajaConfigurado(configuracion, proveedor.GetRequiredService<IServiceScopeFactory>()));
+        servicios.AddSingleton<IContextoCaja>(proveedor => new ContextoCajaConfigurado(
+            proveedor.GetRequiredService<Aplicacion.Sincronizacion.IConfiguracionCaja>(),
+            proveedor.GetRequiredService<IServiceScopeFactory>()));
         servicios.AddScoped<IParametros, ServicioParametros>();
         servicios.AddScoped<IEstadoCaja, ServicioEstadoCaja>();
 

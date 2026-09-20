@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using CgPos.Contratos.Seguridad;
+using CgPos.Contratos.Ventas;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Agente.Seguridad;
@@ -53,8 +54,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("BaseDatos:NivelCompatibilidad", _baseDatos.NivelCompatibilidad);
             anfitrion.UseSetting("CargaInicial:Archivo", Path.Combine(datosPruebas, "carga-inicial.pruebas.json"));
             anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datosPruebas, "maestros.pruebas.json"));
-            anfitrion.UseSetting("Caja:Sucursal", SucursalDesarrollo.ToString());
-            anfitrion.UseSetting("Caja:Codigo", CajaDesarrollo.ToString());
+            // La caja ya no se identifica por archivo: se comprueba su dirección solo cuando el equipo la tiene de verdad.
+            anfitrion.UseSetting("Caja:ValidarIpDelEquipo", "0");
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
             anfitrion.UseSetting("Perifericos:Impresora:Carpeta", _baseDatos.CarpetaImpresiones);
             anfitrion.UseSetting("Ecf:CarpetaXml", _baseDatos.CarpetaEcf);
@@ -68,6 +69,26 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
 
         // Arranca el Agente: aplica migraciones, carga inicial y maestros.
         _ = Fabrica.Server;
+
+        // Y se configura como lo haría el técnico en la pantalla de la caja: qué caja es, su dirección, su Central y su
+        // credencial. Sin esto la caja no sabe cuál es, igual que una recién instalada.
+        await ConfigurarCajaAsync();
+    }
+
+    /// <summary>Deja la caja configurada como la 01 de la sucursal 01, que es la de los datos de prueba.</summary>
+    private async Task ConfigurarCajaAsync()
+    {
+        using var cliente = Fabrica!.CreateClient();
+        var solicitud = new SolicitudConfigurarCajaPantalla(
+            SucursalDesarrollo.ToString("00", System.Globalization.CultureInfo.InvariantCulture),
+            CajaDesarrollo.ToString("00", System.Globalization.CultureInfo.InvariantCulture),
+            "10.12.1.101",
+            "http://central.pruebas/",
+            "secreto-de-pruebas",
+            "Pruebas");
+
+        using var respuesta = await cliente.PostAsJsonAsync("/api/configuracion", solicitud, OpcionesJson.Predeterminadas);
+        respuesta.EnsureSuccessStatusCode();
     }
 
     public async Task DisposeAsync()

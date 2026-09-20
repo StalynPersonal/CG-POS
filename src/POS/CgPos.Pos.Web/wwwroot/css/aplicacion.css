@@ -856,3 +856,14 @@
 
 /* Lo que hay que tener a mano antes de empezar. */
 .cg-configurar__lista { margin: 12px 0 0; padding-left: 20px; line-height: 1.7; }
+
+/* Botón para ir a configurar la caja: va sobre el verde oscuro del ingreso, así que se pinta claro para que se vea. */
+.cg-ingreso__configurar {
+    background: #ffffff !important;
+    color: var(--cg-primario, #1b4d3e) !important;
+    font-weight: 600;
+    min-height: var(--cg-toque-minimo);
+    padding-inline: 20px;
+}
+
+.cg-ingreso__configurar:hover { background: #e8f5e9 !important; }

@@ -1,4 +1,4 @@
-using CgPos.Contratos.Catalogo;
+﻿using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Seguridad;
 using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Aplicacion.Organizacion;
@@ -11,13 +11,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CgPos.Pos.Infraestructura.Organizacion;
 
-internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, IServiceScopeFactory ambitos) : IContextoCaja
+/// <summary>
+/// Qué caja es este equipo, según lo que se escribió en su pantalla de configuración. Nulo mientras no se haya configurado.
+/// </summary>
+internal sealed class ContextoCajaConfigurado(Aplicacion.Sincronizacion.IConfiguracionCaja configuracion, IServiceScopeFactory ambitos) : IContextoCaja
 {
     private int? _cajaId;
 
-    public string? SucursalCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaSucursal);
+    public string? SucursalCodigo => Configuracion?.SucursalCodigo;
 
-    public string? CajaCodigo => Leer(Aplicacion.Sincronizacion.ClavesSincronizacion.CajaCodigo);
+    public string? CajaCodigo => Configuracion?.CajaCodigo;
 
     /// <summary>Se busca por los códigos y se recuerda una vez encontrada: la caja no cambia de Id en su base.</summary>
     public int? CajaId
@@ -38,13 +41,11 @@ internal sealed class ContextoCajaConfigurado(IConfiguration configuracion, ISer
     }
 
     /// <summary>
-    /// El código se configura como texto de dos dígitos («01»); se acepta escrito sin el cero delante y se usa con él, para
-    /// que coincida con el de la base.
+    /// La configuración se lee aquí de forma síncrona porque estas propiedades las consulta medio sistema; el servicio la
+    /// recuerda en memoria, así que no toca la base en cada llamada.
     /// </summary>
-    private string? Leer(string clave) =>
-        int.TryParse(configuracion[clave], out var valor) && valor is >= 1 and <= CgPos.Dominio.Comun.CodigosCatalogo.MaximoSucursalCaja
-            ? valor.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
-            : null;
+    private Aplicacion.Sincronizacion.DatosConfiguracionCaja? Configuracion =>
+        configuracion.ObtenerAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 }
 
 internal sealed class ServicioParametros(ContextoDatosPos contexto) : IParametros
@@ -78,7 +79,7 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
     public async Task<DatosEstadoCaja> ObtenerAsync(CancellationToken cancelacion = default)
     {
         if (contextoCaja.CajaId is not { } cajaId)
-            return new DatosEstadoCaja(false, false, Problema: "La caja no está configurada en este equipo (Caja:Sucursal y Caja:Codigo) o todavía no llegó del Central.");
+            return new DatosEstadoCaja(false, false, Problema: "Esta caja todavía no llegó del Central. Revise su configuración y que el Central la acepte.");
 
         var datos = await (
                 from caja in contexto.Cajas
