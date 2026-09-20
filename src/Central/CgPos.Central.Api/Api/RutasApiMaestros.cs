@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Contratos.Catalogo;
@@ -59,6 +59,10 @@ public static class RutasApiMaestros
         // Quien administra listas de boda elige los artículos del maestro, así que los busca sin necesitar el permiso de maestros.
         aplicacion.MapGet("/api/manager/listas-boda/articulos", BuscarArticulosAsync)
             .RequireAuthorization(CatalogoPermisosCentral.AdministrarListasBoda);
+
+        // Lo mismo para quien cotiza: elige artículos del maestro y necesita ver su precio, sin administrarlo.
+        aplicacion.MapGet("/api/manager/cotizaciones/articulos", BuscarArticulosAsync)
+            .RequireAuthorization(CatalogoPermisosCentral.AdministrarCotizaciones);
 
         var precios = aplicacion.MapGroup("/api/precios").RequireAuthorization(CatalogoPermisosCentral.AdministrarPrecios);
 

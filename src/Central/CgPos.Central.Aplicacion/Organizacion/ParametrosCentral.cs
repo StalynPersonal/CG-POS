@@ -3,6 +3,16 @@ using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Central.Aplicacion.Organizacion;
 
+/// <summary>
+/// Numera los documentos que nacen en el Central (COT000001…). Está aparte de la numeración de la caja, que lleva sucursal
+/// y caja en el número porque cada terminal numera por su cuenta.
+/// </summary>
+public interface INumeracionCentral
+{
+    /// <returns>El prefijo seguido del correlativo, con ceros a la izquierda.</returns>
+    Task<string> SiguienteAsync(string prefijo, CancellationToken cancelacion = default);
+}
+
 /// <summary>Parámetros generales que rigen el propio Central. Los de sucursal y caja se distribuyen a las cajas.</summary>
 public interface IParametrosCentral
 {
@@ -111,6 +121,12 @@ public static class ClavesParametrosCentral
     /// cliente y las compras quedan en su historial.
     /// </summary>
     public const string ListasBodaDescontarCompras = "Central.ListasBoda.DescontarCompras";
+
+    /// <summary>Días que vale una cotización desde que se hace; después solo se factura con autorización.</summary>
+    public const string CotizacionesDiasVigencia = "Central.Cotizaciones.DiasVigencia";
+
+    /// <summary>Condiciones impresas al pie de la cotización; opcional.</summary>
+    public const string CotizacionesCondiciones = "Central.Cotizaciones.Condiciones";
 
     /// <summary>
     /// Enciende el chequeador de precios de la tienda (RF-95). Su consulta no pide sesión, así que se activa a propósito; apagado,

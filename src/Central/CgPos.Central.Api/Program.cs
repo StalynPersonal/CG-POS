@@ -119,6 +119,7 @@ try
     aplicacion.MapearApiMonitor();
     aplicacion.MapearApiNotasCredito();
     aplicacion.MapearApiListasBoda();
+    aplicacion.MapearApiCotizaciones();
     aplicacion.MapearApiComprobantesRecibidos();
     aplicacion.MapearApiAuditoria();
     aplicacion.MapearApiChequeador();

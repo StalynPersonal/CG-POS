@@ -65,6 +65,7 @@ PARAMETROS_INICIALES = [
     ('Central.NotasCredito.MinutosReserva', '10', 'Minutos que se retiene el saldo de una nota mientras la caja cobra'),
     ('Central.Fidelidad.MinutosCicloVencimiento', '60', 'Minutos entre revisiones de los puntos vencidos'),
     ('Central.Fidelidad.LoteVencimiento', '500', 'Miembros por lote al vencer puntos'),
+    ('Central.Cotizaciones.DiasVigencia', '15', 'Días que vale una cotización desde que se hace'),
     ('Central.Despacho.MinutosCicloAvisos', '15', 'Minutos entre avisos de pedidos preparados'),
     ('Central.Despacho.LoteAvisos', '50', 'Avisos por lote'),
 

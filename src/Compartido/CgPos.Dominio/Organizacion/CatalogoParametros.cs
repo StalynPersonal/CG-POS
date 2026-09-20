@@ -206,6 +206,11 @@ public static class CatalogoParametros
             "Lo que se compra contra una lista de boda se descuenta de las cantidades pedidas; apagado, la compra solo queda en su historial",
             Booleano, false, Central),
 
+        new("Central.Cotizaciones.DiasVigencia", "Cotizaciones",
+            "Días que vale una cotización desde que se hace; pasados, solo se factura con autorización de un supervisor", Entero, true, Central, Minimo: 1),
+        new("Central.Cotizaciones.Condiciones", "Cotizaciones",
+            "Condiciones que se imprimen al pie de la cotización (validez, disponibilidad, forma de pago)", Texto, false, Central),
+
         new("Central.Fidelidad.MinutosCicloVencimiento", "Fidelidad", "Minutos entre revisiones de los puntos de fidelidad que ya vencieron", Entero, true, Central, Minimo: 1),
         new("Central.Fidelidad.LoteVencimiento", "Fidelidad", "Máximo de miembros cuyo saldo de puntos se recalcula por ciclo de vencimiento", Entero, true, Central, Minimo: 1, Maximo: 10000),
 

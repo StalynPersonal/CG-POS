@@ -77,6 +77,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Fidelidad.ReglaAcumulacion> ReglasAcumulacion => Set<CgPos.Dominio.Fidelidad.ReglaAcumulacion>();
     public DbSet<CgPos.Dominio.Fidelidad.MiembroFidelidad> MiembrosFidelidad => Set<CgPos.Dominio.Fidelidad.MiembroFidelidad>();
     public DbSet<CgPos.Dominio.Entregas.Almacen> Almacenes => Set<CgPos.Dominio.Entregas.Almacen>();
+    /// <summary>Presupuestos hechos en el Central; las cajas las consultan por número para facturarlas.</summary>
+    public DbSet<CgPos.Dominio.Cotizaciones.Cotizacion> Cotizaciones => Set<CgPos.Dominio.Cotizaciones.Cotizacion>();
+
     public DbSet<Rol> RolesCaja => Set<Rol>();
     public DbSet<Usuario> UsuariosCaja => Set<Usuario>();
 
