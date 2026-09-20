@@ -510,6 +510,20 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     public Task<RespuestaAdministracion> CerrarSucursalAsync(SolicitudCierreSucursal solicitud) =>
         EnviarAsync(HttpMethod.Post, "api/manager/cierres-sucursal", solicitud);
 
+    // ---------- Cierres de caja ----------
+
+    public Task<IReadOnlyList<DatosSucursal>?> ListarSucursalesCierreCajaAsync() => ListarAsync<DatosSucursal>("api/manager/cierres-caja/sucursales");
+
+    public Task<IReadOnlyList<DatosCaja>?> ListarCajasCierreCajaAsync() => ListarAsync<DatosCaja>("api/manager/cierres-caja/cajas");
+
+    public Task<IReadOnlyList<DatosCierreCaja>?> ListarCierresCajaAsync(int? sucursalId, int? cajaId, DateOnly desde, DateOnly hasta) =>
+        ListarAsync<DatosCierreCaja>(
+            $"api/manager/cierres-caja?desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}"
+            + $"{(sucursalId is { } sucursal ? $"&sucursalId={sucursal}" : string.Empty)}{(cajaId is { } caja ? $"&cajaId={caja}" : string.Empty)}");
+
+    public Task<RespuestaAdministracion> AjustarCierreCajaAsync(int cierreId, SolicitudAjusteCierre solicitud) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/cierres-caja/{cierreId}/ajustes", solicitud);
+
     // ---------- Reportes ----------
 
     public async Task<TablaReporte?> ReporteAsync(TipoReporteCentral tipo, DateOnly desde, DateOnly hasta, int? sucursalId, CancellationToken cancelacion = default)

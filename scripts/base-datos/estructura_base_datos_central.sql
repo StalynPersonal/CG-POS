@@ -36,6 +36,10 @@ CREATE SEQUENCE [SecuenciaAccesosUsuarioCaja] AS int START WITH 1 INCREMENT BY 1
 GO
 
 
+CREATE SEQUENCE [SecuenciaAjustesCierreTurno] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaAlmacenes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -1265,6 +1269,23 @@ CREATE TABLE [ComprasListaBoda] (
 GO
 
 
+CREATE TABLE [AjustesCierreTurno] (
+    [Id] int NOT NULL,
+    [CierreId] int NOT NULL,
+    [FormaPagoId] int NOT NULL,
+    [FormaPagoNombre] nvarchar(200) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [DeclaradoAnterior] decimal(18,4) NOT NULL,
+    [DeclaradoNuevo] decimal(18,4) NOT NULL,
+    [Motivo] nvarchar(500) NOT NULL,
+    [AjustadoPorNombre] nvarchar(200) NOT NULL,
+    [AjustadoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_AjustesCierreTurno] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_AjustesCierreTurno_CierresTurno_CierreId] FOREIGN KEY ([CierreId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [CierresFormaPago] (
     [Id] int NOT NULL,
     [CierreId] int NOT NULL,
@@ -1375,6 +1396,10 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_AccesosUsuarioCaja_UsuarioId] ON [AccesosUsuarioCaja] ([UsuarioId]);
+GO
+
+
+CREATE INDEX [IX_AjustesCierreTurno_CierreId] ON [AjustesCierreTurno] ([CierreId]);
 GO
 
 
@@ -2008,7 +2033,8 @@ VALUES
     (1, N'Central.ListasBoda.Administrar'),
     (1, N'Central.Despacho.Operar'),
     (1, N'Central.Reportes.Consultar'),
-    (1, N'Central.CierresSucursal.Operar');
+    (1, N'Central.CierresSucursal.Operar'),
+    (1, N'Central.Cierres.Ajustar');
 GO
 
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],

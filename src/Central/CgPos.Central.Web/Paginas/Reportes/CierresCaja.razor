@@ -1,0 +1,184 @@
+@page "/cierres-caja"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AjustarCierres)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Cierres de caja · CG-POS Central</PageTitle>
+
+@* Cerrar en la caja es definitivo: aquí es donde se corrige un cuadre que salió mal, con motivo y sin borrar lo informado. *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Cierres de caja</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Lo que cuadró cada turno. Si un cierre salió mal, aquí se corrige lo declarado en la forma de pago que falló:
+            la caja no puede reabrirlo. Lo que informó la terminal queda registrado.
+        </MudText>
+    </div>
+</div>
+
+@* Filtros: el día de operación y, opcionalmente, la sucursal y la caja. *@
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <div class="d-flex gap-3 flex-wrap align-center">
+        <MudDatePicker @bind-Date="_desde" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
+        <MudDatePicker @bind-Date="_hasta" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
+        <MudSelect T="int?" @bind-Value="_sucursalId" Label="Sucursal" Dense="true" Clearable="true" Style="min-width: 220px" ToStringFunc="NombreSucursal">
+            @foreach (var sucursal in _sucursales)
+            {
+                <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="int?" @bind-Value="_cajaId" Label="Caja" Dense="true" Clearable="true" Style="min-width: 200px" ToStringFunc="NombreCaja">
+            @foreach (var caja in CajasDelFiltro)
+            {
+                <MudSelectItem T="int?" Value="@caja.Id">@caja.SucursalCodigo-@caja.Codigo · @caja.Nombre</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" Disabled="_cargando" OnClick="BuscarAsync">Buscar</MudButton>
+    </div>
+</MudPaper>
+
+@if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+
+@* Un panel por cierre: el resumen arriba y, al abrirlo, sus formas de pago y sus correcciones. *@
+@if (_cierres.Count == 0 && !_cargando)
+{
+    <MudAlert Severity="Severity.Info">No hay cierres de caja en esas fechas.</MudAlert>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="true">
+        @foreach (var cierre in _cierres)
+        {
+            <MudExpansionPanel>
+                <TitleContent>
+                    <div class="d-flex gap-4 flex-wrap align-center">
+                        <strong>Caja @cierre.SucursalCodigo-@cierre.CajaCodigo · turno @cierre.TurnoNumero</strong>
+                        <MudText Typo="Typo.body2">@cierre.FechaOperacion.ToString("dd/MM/yyyy") · @cierre.UsuarioNombre</MudText>
+                        <MudText Typo="Typo.body2">Esperado @cierre.TotalEsperado.ToString("N2") · Declarado @cierre.TotalDeclarado.ToString("N2")</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@(cierre.Diferencia == 0 ? Color.Success : Color.Warning)" Variant="Variant.Outlined">
+                            Diferencia @cierre.Diferencia.ToString("N2")
+                        </MudChip>
+                        @if (cierre.Ajustes.Count > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.EditNote">Corregido</MudChip>
+                        }
+                        @if (cierre.EnCierreSucursal)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Lock">Día consolidado</MudChip>
+                        }
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    @* Formas de pago: lo esperado, lo declarado y el botón para corregir la que quedó mal. *@
+                    <MudTable Items="cierre.FormasPago" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Forma de pago</MudTh>
+                            <MudTh>Moneda</MudTh>
+                            <MudTh Style="text-align:right">Transacciones</MudTh>
+                            <MudTh Style="text-align:right">Esperado</MudTh>
+                            <MudTh Style="text-align:right">Declarado</MudTh>
+                            <MudTh Style="text-align:right">Diferencia</MudTh>
+                            <MudTh Style="width: 120px"></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Forma de pago">@context.Nombre</MudTd>
+                            <MudTd DataLabel="Moneda">@context.Moneda</MudTd>
+                            <MudTd DataLabel="Transacciones" Style="text-align:right">@context.Transacciones</MudTd>
+                            <MudTd DataLabel="Esperado" Style="text-align:right">@context.Esperado.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Declarado" Style="text-align:right">@context.Declarado.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Diferencia" Style="text-align:right">@context.Diferencia.ToString("N2")</MudTd>
+                            <MudTd>
+                                <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small" Disabled="cierre.EnCierreSucursal"
+                                           OnClick="() => AjustarAsync(cierre, context)">Corregir</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+
+                    @* Historial: qué se corrigió, de cuánto a cuánto, por qué y quién. *@
+                    @if (cierre.Ajustes.Count > 0)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-4">Correcciones</MudText>
+                        <MudSimpleTable Dense="true" Elevation="0">
+                            <tbody>
+                                @foreach (var ajuste in cierre.Ajustes)
+                                {
+                                    <tr>
+                                        <td>@ajuste.AjustadoEn.ToLocalTime().ToString("dd/MM/yyyy h:mm tt")</td>
+                                        <td>@ajuste.FormaPagoNombre</td>
+                                        <td>@ajuste.DeclaradoAnterior.ToString("N2") → @ajuste.DeclaradoNuevo.ToString("N2")</td>
+                                        <td>@ajuste.AjustadoPorNombre</td>
+                                        <td>@ajuste.Motivo</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+
+                    @if (cierre.EnCierreSucursal)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-4">
+                            El día de esta sucursal ya se consolidó: sus totales y su depósito se dieron por buenos, así que este cuadre no se puede corregir.
+                        </MudAlert>
+                    }
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    private IReadOnlyList<DatosSucursal> _sucursales = [];
+    private IReadOnlyList<DatosCaja> _cajas = [];
+    private IReadOnlyList<DatosCierreCaja> _cierres = [];
+    private DateTime? _desde = DateTime.Today.AddDays(-7);
+    private DateTime? _hasta = DateTime.Today;
+    private int? _sucursalId;
+    private int? _cajaId;
+    private bool _cargando;
+
+    /// <summary>Con una sucursal elegida, solo se ofrecen sus cajas.</summary>
+    private IEnumerable<DatosCaja> CajasDelFiltro => _sucursalId is { } sucursal ? _cajas.Where(c => c.SucursalId == sucursal) : _cajas;
+
+    private string NombreSucursal(int? sucursalId) =>
+        _sucursales.FirstOrDefault(s => s.Id == sucursalId) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : "Todas";
+
+    private string NombreCaja(int? cajaId) =>
+        _cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : "Todas";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sucursales = await Cliente.ListarSucursalesCierreCajaAsync() ?? [];
+        _cajas = await Cliente.ListarCajasCierreCajaAsync() ?? [];
+        await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        if (_desde is not { } desde || _hasta is not { } hasta)
+            return;
+
+        _cargando = true;
+        _cierres = await Cliente.ListarCierresCajaAsync(_sucursalId, _cajaId, DateOnly.FromDateTime(desde), DateOnly.FromDateTime(hasta)) ?? [];
+        _cargando = false;
+    }
+
+    private async Task AjustarAsync(DatosCierreCaja cierre, DatosFormaPagoCierreCaja forma)
+    {
+        var parametros = new DialogParameters<DialogoAjusteCierre>
+        {
+            { d => d.Cierre, cierre },
+            { d => d.Forma, forma },
+        };
+
+        var referencia = await Dialogos.ShowAsync<DialogoAjusteCierre>($"Corregir {forma.Nombre} · turno {cierre.TurnoNumero}", parametros);
+        if ((await referencia.Result)?.Canceled != false)
+            return;
+
+        Avisos.Add("Cierre corregido.", Severity.Success);
+        await BuscarAsync();
+    }
+}

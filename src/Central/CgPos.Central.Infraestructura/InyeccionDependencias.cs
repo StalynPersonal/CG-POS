@@ -71,6 +71,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<Reportes.RegistroVentasCentral>();
         servicios.AddScoped<Aplicacion.Reportes.IServicioReportesCentral, Reportes.ServicioReportesCentral>();
         servicios.AddScoped<Aplicacion.Reportes.IServicioCierresSucursal, Reportes.ServicioCierresSucursal>();
+        servicios.AddScoped<Aplicacion.Reportes.IServicioCierresCaja, Reportes.ServicioCierresCaja>();
         servicios.AddSingleton<Aplicacion.Reportes.IExportadorReportes, Reportes.ExportadorReportes>();
 
         // Actualización remota del Agente de las cajas (H7).

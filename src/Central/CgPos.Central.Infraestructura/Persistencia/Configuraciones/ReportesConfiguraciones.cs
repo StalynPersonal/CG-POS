@@ -95,11 +95,32 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasMany(c => c.FormasPago).WithOne().HasForeignKey(f => f.CierreId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.FormasPago).AutoInclude(false);
+        constructor.HasMany(c => c.Ajustes).WithOne().HasForeignKey(a => a.CierreId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(c => c.Ajustes).AutoInclude(false);
 
         constructor.HasIndex(c => new { c.FechaOperacion, c.SucursalId, c.CajaId });
 
-        // Un cierre por turno de cada caja; al reabrirlo y cerrarlo otra vez se actualiza.
+        // Un cierre por turno de cada caja; un reenvío del mismo mensaje actualiza la fila.
         constructor.HasIndex(c => new { c.CajaId, c.TurnoNumero }).IsUnique();
+    }
+}
+
+internal sealed class AjusteCierreTurnoConfiguracion : IEntityTypeConfiguration<AjusteCierreTurno>
+{
+    public void Configure(EntityTypeBuilder<AjusteCierreTurno> constructor)
+    {
+        constructor.ToTable("AjustesCierreTurno");
+        constructor.HasKey(a => a.Id);
+
+        constructor.Property(a => a.FormaPagoNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto).IsRequired();
+        constructor.Property(a => a.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(a => a.Motivo).HasMaxLength(CierreTurnoCentral.LargoMaximoMotivo).IsRequired();
+        constructor.Property(a => a.AjustadoPorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto).IsRequired();
+
+        // El movimiento se calcula al leerlo; no es una columna.
+        constructor.Ignore(a => a.Movimiento);
+
+        constructor.HasIndex(a => a.CierreId);
     }
 }
 

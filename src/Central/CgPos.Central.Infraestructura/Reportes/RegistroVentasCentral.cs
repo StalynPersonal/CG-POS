@@ -71,12 +71,16 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, TimeP
                || await contexto.VentasCentral.AsNoTracking().AnyAsync(c => c.Tipo == tipo && c.Numero == buscado, cancelacion);
     }
 
-    /// <summary>Un cierre reabierto y vuelto a cerrar llega otra vez: se actualiza con lo último que informó la caja. Se identifica por la caja y el turno.</summary>
+    /// <summary>
+    /// Guarda el cierre que informa una caja, identificado por la caja y el turno: un reenvío del mismo mensaje actualiza la
+    /// fila en vez de duplicarla. Los ajustes se traen a propósito: un cierre ya corregido aquí no se pisa con lo que la
+    /// caja mandó en su momento.
+    /// </summary>
     public async Task RegistrarCierreAsync(DocumentoCierreTurno cierre, int sucursalId, int cajaId, CancellationToken cancelacion)
     {
         ArgumentNullException.ThrowIfNull(cierre);
         var ahora = reloj.Ahora();
-        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago)
+        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Ajustes)
             .SingleOrDefaultAsync(c => c.CajaId == cajaId && c.TurnoNumero == cierre.TurnoNumero, cancelacion);
 
         if (registrado is null)

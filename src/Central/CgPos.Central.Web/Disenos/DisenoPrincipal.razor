@@ -114,6 +114,12 @@
                     <MudNavLink Href="cierres-sucursal" Icon="@Icons.Material.Filled.FactCheck">Cierre y depósitos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+            @* Corregir un cuadre: en la caja, cerrar es definitivo, así que la corrección se hace aquí. *@
+            <AuthorizeView Policy="@CatalogoPermisosCentral.AjustarCierres">
+                <MudNavGroup Title="Cierres de caja" Icon="@Icons.Material.Filled.PointOfSale" Expanded="@EnRuta("cierres-caja")">
+                    <MudNavLink Href="cierres-caja" Icon="@Icons.Material.Filled.RuleFolder">Cuadres y correcciones</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             @* Seguridad: usuarios y roles del Central, y la auditoría de todo lo que se hace en él. *@
             @if (TieneAlguno(CatalogoPermisosCentral.AdministrarSeguridad, CatalogoPermisosCentral.ConsultarAuditoria))
             {

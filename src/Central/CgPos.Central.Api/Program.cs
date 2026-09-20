@@ -123,6 +123,7 @@ try
     aplicacion.MapearApiAuditoria();
     aplicacion.MapearApiChequeador();
     aplicacion.MapearApiCierresSucursal();
+    aplicacion.MapearApiCierresCaja();
     aplicacion.MapearApiFidelidad();
     aplicacion.MapearApiDespacho();
     aplicacion.MapearApiReportes();

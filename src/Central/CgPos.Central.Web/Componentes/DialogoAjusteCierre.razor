@@ -1,0 +1,75 @@
+@* Corrección del cuadre de una forma de pago: lo que de verdad había y por qué. El original queda en el historial. *@
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        <div class="cg-central__dialogo">
+            <MudText Typo="Typo.body2">
+                Caja @Cierre.SucursalCodigo-@Cierre.CajaCodigo, turno @Cierre.TurnoNumero del @Cierre.FechaOperacion.ToString("dd/MM/yyyy"),
+                cuadrado por @Cierre.UsuarioNombre.
+            </MudText>
+
+            <MudSimpleTable Dense="true" Elevation="0">
+                <tbody>
+                    <tr>
+                        <td>Esperado en @Forma.Nombre</td>
+                        <td style="text-align:right">@Forma.Esperado.ToString("N2") @Forma.Moneda</td>
+                    </tr>
+                    <tr>
+                        <td>Declarado por la caja</td>
+                        <td style="text-align:right">@Forma.Declarado.ToString("N2") @Forma.Moneda</td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+
+            <MudNumericField T="decimal" @bind-Value="_declarado" Label="@($"Lo que de verdad había ({Forma.Moneda})")" Variant="Variant.Outlined"
+                             Min="0" Format="N2" Immediate="true" HelperText="@Ayuda" />
+
+            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" Lines="2" Immediate="true"
+                          Required="true" RequiredError="Indique el motivo de la corrección."
+                          HelperText="Queda en la auditoría y en el historial del cierre. Escriba qué pasó, no solo «ajuste»." />
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || !Completo)" OnClick="GuardarAsync">Corregir</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    [Parameter] public DatosCierreCaja Cierre { get; set; } = default!;
+    [Parameter] public DatosFormaPagoCierreCaja Forma { get; set; } = default!;
+
+    private decimal _declarado;
+    private string? _motivo;
+    private string? _mensaje;
+    private bool _procesando;
+
+    /// <summary>Cómo queda la diferencia con lo que se está escribiendo, para verlo antes de guardar.</summary>
+    private string Ayuda => $"La diferencia de {Forma.Nombre} quedaría en {(_declarado - Forma.Esperado):N2} {Forma.Moneda}.";
+
+    private bool Completo => !string.IsNullOrWhiteSpace(_motivo) && _declarado != Forma.Declarado;
+
+    protected override void OnInitialized() => _declarado = Forma.Declarado;
+
+    private async Task GuardarAsync()
+    {
+        _procesando = true;
+        _mensaje = null;
+
+        var respuesta = await Cliente.AjustarCierreCajaAsync(Cierre.Id, new SolicitudAjusteCierre(Forma.Id, _declarado, _motivo ?? string.Empty));
+        _procesando = false;
+
+        if (respuesta.Exitosa)
+            Dialogo.Close(DialogResult.Ok(true));
+        else
+            _mensaje = respuesta.Mensaje ?? "No se pudo corregir el cierre.";
+    }
+}

@@ -29,6 +29,9 @@ public static class CatalogoPermisosCentral
     public const string ConsultarReportes = "Central.Reportes.Consultar";
     public const string CerrarSucursal = "Central.CierresSucursal.Operar";
 
+    /// <summary>Corregir el cuadre de un cierre de caja. La caja no puede: cerrar allá es definitivo.</summary>
+    public const string AjustarCierres = "Central.Cierres.Ajustar";
+
     public static IReadOnlyList<DefinicionPermiso> Todos { get; } =
     [
         new(AdministrarSeguridad, "Seguridad", "Administrar usuarios y roles del Central"),
@@ -49,6 +52,7 @@ public static class CatalogoPermisosCentral
         new(OperarDespacho, "Pendientes", "Operar el despacho central de pendientes y envíos"),
         new(ConsultarReportes, "Reportes", "Consultar y exportar reportes"),
         new(CerrarSucursal, "Reportes", "Hacer el cierre consolidado de sucursal y registrar sus depósitos"),
+        new(AjustarCierres, "Reportes", "Corregir el cuadre de un cierre de caja, con motivo y auditoría"),
     ];
 
     private static readonly FrozenSet<string> Codigos = Todos.Select(p => p.Codigo).ToFrozenSet(StringComparer.Ordinal);

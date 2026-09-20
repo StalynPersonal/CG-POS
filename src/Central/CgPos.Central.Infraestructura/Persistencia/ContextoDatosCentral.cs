@@ -49,6 +49,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();
 
+    /// <summary>Correcciones hechas desde el Central sobre un cierre de caja.</summary>
+    public DbSet<CgPos.Dominio.Reportes.AjusteCierreTurno> AjustesCierreTurno => Set<CgPos.Dominio.Reportes.AjusteCierreTurno>();
+
     // Maestros que el Central publica para las cajas, cada uno en su tabla (bajan por código)
     public DbSet<CgPos.Dominio.Pagos.Moneda> Monedas => Set<CgPos.Dominio.Pagos.Moneda>();
     public DbSet<CgPos.Dominio.Catalogo.Departamento> Departamentos => Set<CgPos.Dominio.Catalogo.Departamento>();
