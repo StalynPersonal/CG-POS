@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Fidelidad;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Seguridad;
@@ -9,7 +9,7 @@ namespace CgPos.Central.Api.Api;
 /// <summary>Programa de fidelidad en el Central Manager: saldo oficial de puntos, movimientos de todas las sucursales y ajustes.</summary>
 public static class RutasApiFidelidad
 {
-    private const int TamanoPaginaPredeterminado = 25;
+    private const int TamanoPaginaPredeterminado = 10;
 
     public static IEndpointRouteBuilder MapearApiFidelidad(this IEndpointRouteBuilder aplicacion)
     {

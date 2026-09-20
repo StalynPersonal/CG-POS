@@ -1,0 +1,94 @@
+@page "/organizacion/secuencias"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+
+<PageTitle>Secuencias de documentos · CG-POS Central</PageTitle>
+
+@* Encabezado: qué numera esta pantalla y el botón para agregar la de un documento nuevo. *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">Secuencias de documentos</MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Cómo se numera cada documento que emite el Central. Sin su secuencia, el documento no se puede crear. No son los
+            comprobantes fiscales —esos van por sus rangos de la DGII, en Fiscal → Secuencias de e-CF— ni los documentos de la
+            caja, que numera cada terminal con su sucursal y su caja.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddCircle" OnClick="() => AbrirAsync(null)">
+        Nueva secuencia
+    </MudButton>
+</div>
+
+@if (_error)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar las secuencias. Verifique la comunicación con el Central.</MudAlert>
+}
+else if (!_cargando && _secuencias.Any(s => !s.Activa))
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        Hay secuencias desactivadas: @string.Join(", ", _secuencias.Where(s => !s.Activa).Select(s => s.Documento)).
+        Mientras lo estén, esos documentos no se pueden crear.
+    </MudAlert>
+}
+
+<MudPaper Elevation="1">
+    <MudTable T="DatosSecuenciaCentral" Items="_secuencias" Hover="true" Loading="_cargando" Class="cg-central__tabla" Dense="true"
+              Breakpoint="Breakpoint.Sm" Elevation="0" OnRowClick="@(evento => AbrirAsync(evento.Item))" RowStyle="cursor: pointer">
+        <HeaderContent>
+            <MudTh>Documento</MudTh>
+            <MudTh>Prefijo</MudTh>
+            <MudTh Style="text-align: right">Último entregado</MudTh>
+            <MudTh>Próximo número</MudTh>
+            <MudTh>Estado</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Documento">@context.Documento</MudTd>
+            <MudTd DataLabel="Prefijo"><span class="cg-central__valor">@context.Prefijo</span></MudTd>
+            <MudTd DataLabel="Último entregado" Style="text-align: right">@context.Ultimo.ToString("N0")</MudTd>
+            <MudTd DataLabel="Próximo número"><span class="cg-central__valor">@context.Proximo</span></MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Activa ? Color.Success : Color.Error)" Variant="Variant.Filled">
+                    @(context.Activa ? "Activa" : "Desactivada")
+                </MudChip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2">
+                No hay ninguna secuencia configurada. Sin ellas no se puede crear ningún documento del Central.
+            </MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private IReadOnlyList<DatosSecuenciaCentral> _secuencias = [];
+    private bool _cargando = true;
+    private bool _error;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var lista = await Cliente.ListarSecuenciasDocumentoAsync();
+        _error = lista is null;
+        _secuencias = lista ?? [];
+        _cargando = false;
+    }
+
+    private async Task AbrirAsync(DatosSecuenciaCentral? secuencia)
+    {
+        var parametros = new DialogParameters<DialogoSecuenciaDocumento> { { d => d.Secuencia, secuencia } };
+        var dialogo = await Dialogos.ShowAsync<DialogoSecuenciaDocumento>(
+            secuencia is null ? "Nueva secuencia" : $"Secuencia de {secuencia.Documento}", parametros,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        if (await dialogo.Result is { Canceled: false })
+        {
+            Avisos.Add("Secuencia guardada.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+}

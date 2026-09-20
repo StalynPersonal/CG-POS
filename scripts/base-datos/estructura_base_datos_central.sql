@@ -591,7 +591,10 @@ GO
 
 CREATE TABLE [SecuenciasCentral] (
     [Prefijo] varchar(10) NOT NULL,
+    [Documento] nvarchar(60) NOT NULL,
     [Ultimo] bigint NOT NULL,
+    [Digitos] int NOT NULL,
+    [Activa] bit NOT NULL,
     CONSTRAINT [PK_SecuenciasCentral] PRIMARY KEY ([Prefijo])
 );
 GO
@@ -2388,6 +2391,14 @@ VALUES
     (4, 4, N'Garantía', 1, SYSDATETIMEOFFSET(), N'Instalación'),
     (5, 5, N'Error de facturación', 1, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaMotivosDevolucion] RESTART WITH 11;
+GO
+
+/* Numeración de los documentos que emite el Central. Sin la fila de un documento, ese documento no se
+   puede crear: la numeración es una decisión del negocio, no algo que el sistema invente. */
+INSERT INTO [SecuenciasCentral] ([Prefijo], [Documento], [Ultimo], [Digitos], [Activa])
+VALUES
+    ('COT', N'Cotización', 0, 6, 1),
+    ('LB', N'Lista de boda', 0, 6, 1);
 GO
 
 /* Formas de pago */

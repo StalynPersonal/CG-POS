@@ -666,6 +666,13 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    /// <summary>Numeración de los documentos que emite el Central; la de los e-NCF es otra cosa y va aparte.</summary>
+    public Task<IReadOnlyList<DatosSecuenciaCentral>?> ListarSecuenciasDocumentoAsync() =>
+        ListarAsync<DatosSecuenciaCentral>("api/organizacion/secuencias");
+
+    public Task<RespuestaAdministracion> GuardarSecuenciaDocumentoAsync(SolicitudSecuenciaCentral solicitud) =>
+        EnviarAsync(HttpMethod.Post, "api/organizacion/secuencias", solicitud);
+
     public async Task<DetallePendienteCentral?> ObtenerPendienteAsync(int pendienteId)
     {
         try

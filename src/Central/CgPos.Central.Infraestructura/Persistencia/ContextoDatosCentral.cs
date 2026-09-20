@@ -83,6 +83,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     /// <summary>Presupuestos hechos en el Central; las cajas las consultan por número para facturarlas.</summary>
     public DbSet<CgPos.Dominio.Cotizaciones.Cotizacion> Cotizaciones => Set<CgPos.Dominio.Cotizaciones.Cotizacion>();
 
+    /// <summary>Contador de cada documento que numera el Central; sin su fila el documento no se puede crear.</summary>
+    public DbSet<Organizacion.SecuenciaCentral> SecuenciasCentral => Set<Organizacion.SecuenciaCentral>();
+
     public DbSet<Rol> RolesCaja => Set<Rol>();
     public DbSet<Usuario> UsuariosCaja => Set<Usuario>();
 

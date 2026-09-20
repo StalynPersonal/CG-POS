@@ -48,7 +48,7 @@
 
 <MudPaper Elevation="1">
     <MudTable @ref="_tabla" T="DatosPendienteCentralResumen" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
-              Elevation="0" RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+              Elevation="0" RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
                 <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
@@ -106,7 +106,7 @@
             <MudText>No hay pendientes que coincidan.</MudText>
         </NoRecordsContent>
         <PagerContent>
-            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
         </PagerContent>
     </MudTable>
 </MudPaper>

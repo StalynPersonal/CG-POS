@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.ListasBoda;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
@@ -7,12 +7,13 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.ListasBoda;
 using Microsoft.EntityFrameworkCore;
+using CgPos.Central.Infraestructura.Organizacion;
 using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.ListasBoda;
 
-internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParametrosCentral parametros, IAuditoriaCentral auditoria, TimeProvider reloj)
-    : IServicioListasBoda
+internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParametrosCentral parametros, IAuditoriaCentral auditoria,
+    INumeracionCentral numeracion, TimeProvider reloj) : IServicioListasBoda
 {
     private const string TipoEntidad = "ListaBoda";
     private const string PrefijoNumero = "LB";
@@ -68,7 +69,16 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
 
         var numero = (solicitud.Numero ?? string.Empty).Trim().ToUpperInvariant();
         if (numero.Length == 0)
-            numero = await SiguienteNumeroAsync(cancelacion);
+        {
+            try
+            {
+                numero = await numeracion.SiguienteAsync(PrefijoNumero, cancelacion);
+            }
+            catch (SecuenciaCentralNoConfiguradaExcepcion excepcion)
+            {
+                return ResultadoAdministracion.Error(excepcion.Message);
+            }
+        }
         else if (await contexto.ListasBoda.AnyAsync(l => l.Numero == numero, cancelacion))
             return ResultadoAdministracion.Error($"Ya existe una lista con el número {numero}.");
 
@@ -173,20 +183,6 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
         : solicitud.Articulos is not { Count: > 0 } ? "Agregue al menos un artículo a la lista."
         : null;
 
-    /// <summary>Numeración propia del Central: LB seguido de un correlativo, para que el cliente la diga en caja.</summary>
-    private async Task<string> SiguienteNumeroAsync(CancellationToken cancelacion)
-    {
-        var usados = await contexto.ListasBoda.AsNoTracking()
-            .Where(l => l.Numero.StartsWith(PrefijoNumero))
-            .Select(l => l.Numero)
-            .ToListAsync(cancelacion);
-
-        var siguiente = usados
-            .Select(n => int.TryParse(n[PrefijoNumero.Length..], out var valor) ? valor : 0)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
-        return $"{PrefijoNumero}{siguiente:000000}";
-    }
 
     private static List<DatosArticuloListaBoda> Articulos(ListaBoda lista) =>
         lista.Articulos

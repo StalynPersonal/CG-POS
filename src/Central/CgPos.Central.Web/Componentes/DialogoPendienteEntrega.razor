@@ -1,4 +1,4 @@
-@* Detalle de un pendiente de entrega o envío, y las acciones del despacho: preparar, entregar y anular. *@
+﻿@* Detalle de un pendiente de entrega o envío, y las acciones del despacho: preparar, entregar y anular. *@
 @using CgPos.Contratos.Ventas
 @using CgPos.Dominio.Entregas
 @inject ClienteCentral Central
@@ -158,7 +158,7 @@
                                     <td>@entrega.UsuarioNombre</td>
                                     <td>@string.Join(", ", entrega.Lineas.Select(l => $"{l.Cantidad:N2} × {l.Descripcion}"))</td>
                                     <td>
-                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Title="Constancia"
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" title="Constancia de entrega"
                                                        OnClick="() => DescargarConstanciaAsync(entrega.Numero)" />
                                     </td>
                                 </tr>

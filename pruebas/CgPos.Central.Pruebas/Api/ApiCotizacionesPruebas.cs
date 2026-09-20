@@ -5,6 +5,7 @@ using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Cotizaciones;
+using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Pruebas.Api;
 
@@ -111,6 +112,57 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
         Assert.False(actualizar.Cuerpo!.Exitosa);
         Assert.Contains("anulada", actualizar.Cuerpo.Mensaje, StringComparison.OrdinalIgnoreCase);
     }
+
+    [SkippableFact]
+    public async Task Sin_su_secuencia_configurada_el_documento_no_se_crea_y_se_dice_cual_falta()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+
+        var solicitud = new SolicitudCotizacion($"Cliente {Guid.NewGuid():N}"[..24], null, null, null, null, null, null,
+            [new SolicitudLineaCotizacion(Cincel, 1, null)]);
+
+        // Desactivada, la cotización no se emite: el contador se conserva pero el documento no se puede crear.
+        await CambiarSecuenciaAsync(central, activa: false);
+        var apagada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
+        Assert.False(apagada.Cuerpo!.Exitosa);
+        Assert.Contains("desactivada", apagada.Cuerpo.Mensaje, StringComparison.OrdinalIgnoreCase);
+
+        // Y sin la fila siquiera, se dice qué prefijo falta en vez de inventar uno.
+        await QuitarSecuenciaAsync(central);
+        var sinFila = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
+        Assert.False(sinFila.Cuerpo!.Exitosa);
+        Assert.Contains("COT", sinFila.Cuerpo.Mensaje, StringComparison.Ordinal);
+
+        // Restituida desde la pantalla de secuencias, la numeración sigue donde iba.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/secuencias",
+            new SolicitudSecuenciaCentral("COT", "Cotización", 500, 6, true))).Cuerpo!.Exitosa);
+
+        var creada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
+        Assert.True(creada.Cuerpo!.Exitosa, creada.Cuerpo.Mensaje);
+        Assert.Equal("COT000501", Assert.Single(await ListarAsync(cliente, admin, solicitud.ClienteNombre)).Numero);
+
+        // El contador no se deja retroceder: repetiría números ya entregados.
+        var atras = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/secuencias",
+            new SolicitudSecuenciaCentral("COT", "Cotización", 10, 6, true));
+        Assert.False(atras.Cuerpo!.Exitosa);
+        Assert.Contains("repetiría", atras.Cuerpo.Mensaje, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Task CambiarSecuenciaAsync(CentralEnPruebas central, bool activa) =>
+        central.UsarContextoAsync(async contexto =>
+        {
+            await contexto.Database.ExecuteSqlAsync($"UPDATE SecuenciasCentral SET Activa = {activa} WHERE Prefijo = 'COT'");
+            return true;
+        });
+
+    private static Task QuitarSecuenciaAsync(CentralEnPruebas central) =>
+        central.UsarContextoAsync(async contexto =>
+        {
+            await contexto.Database.ExecuteSqlAsync($"DELETE FROM SecuenciasCentral WHERE Prefijo = 'COT'");
+            return true;
+        });
 
     /// <summary>El precio publicado del artículo en este momento: otras pruebas de la colección pueden haberlo cambiado.</summary>
     private static async Task<decimal> PrecioAsync(HttpClient cliente, string token, string codigo)

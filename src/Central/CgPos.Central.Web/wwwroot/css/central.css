@@ -74,6 +74,28 @@ html, body {
     font-weight: 700;
 }
 
+/*
+    Filas más bajas en todos los listados: de un vistazo caben más líneas y se recorre menos. Se hace
+    aquí, sobre la celda, y no pantalla por pantalla, para que todas se vean iguales. Las celdas que
+    llevan dentro un campo de edición (un MudTextField, un MudNumericField) recuperan su aire, porque
+    con el padding apretado el campo queda pegado al borde.
+*/
+.mud-table-cell {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    height: auto;
+}
+
+.mud-table-dense .mud-table-cell {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+.mud-table-cell:has(.mud-input-control) {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+}
+
 .cg-central__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .cg-central__valor {

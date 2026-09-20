@@ -1,4 +1,4 @@
-@page "/notas-credito"
+﻿@page "/notas-credito"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarNotasCredito)]
 @using CgPos.Dominio.Devoluciones
 @inject ClienteCentral Cliente
@@ -22,7 +22,7 @@
 
 <MudPaper Elevation="1">
     <MudTable @ref="_tabla" T="DatosNotaCreditoCentral" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
-              RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+              RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
                 @* Rango de días por fecha de emisión de la nota; vacío consulta todo el historial. *@
@@ -87,7 +87,7 @@
             <MudText>No hay notas de crédito que coincidan.</MudText>
         </NoRecordsContent>
         <PagerContent>
-            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
         </PagerContent>
     </MudTable>
 </MudPaper>

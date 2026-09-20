@@ -4,6 +4,7 @@ using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Reportes;
 using CgPos.Central.Infraestructura.Reportes;
 using CgPos.Central.Aplicacion.Seguridad;
+using CgPos.Central.Infraestructura.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Central.Infraestructura.Persistencia.Configuraciones;
 using CgPos.Contratos.Catalogo;
@@ -88,7 +89,16 @@ internal sealed class ServicioCotizaciones(
 
         try
         {
-            var numero = await numeracion.SiguienteAsync(PrefijoNumero, cancelacion);
+            string numero;
+            try
+            {
+                numero = await numeracion.SiguienteAsync(PrefijoNumero, cancelacion);
+            }
+            catch (SecuenciaCentralNoConfiguradaExcepcion excepcion)
+            {
+                return ResultadoAdministracion.Error(excepcion.Message);
+            }
+
             var cotizacion = Cotizacion.Crear(numero, solicitud.ClienteNombre, solicitud.ClienteDocumento, solicitud.ClienteTelefono, solicitud.ClienteCorreo,
                 solicitud.SucursalId, vence, solicitud.Observacion, actor.Nombre, ahora);
             contexto.Cotizaciones.Add(cotizacion);

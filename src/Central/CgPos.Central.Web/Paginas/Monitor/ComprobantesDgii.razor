@@ -1,4 +1,4 @@
-@page "/monitor/comprobantes"
+﻿@page "/monitor/comprobantes"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.MonitorearSincronizacion)]
 @using CgPos.Dominio.Sincronizacion
 @inject ClienteCentral Cliente
@@ -22,7 +22,7 @@
 }
 
 <MudPaper Elevation="1">
-    <MudTable @ref="_tabla" T="DatosComprobanteDgii" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25"
+    <MudTable @ref="_tabla" T="DatosComprobanteDgii" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="10"
               OnRowClick="@(evento => AbrirDetalleAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">
@@ -100,7 +100,7 @@
             <MudText>No hay comprobantes que coincidan.</MudText>
         </NoRecordsContent>
         <PagerContent>
-            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
         </PagerContent>
     </MudTable>
 </MudPaper>

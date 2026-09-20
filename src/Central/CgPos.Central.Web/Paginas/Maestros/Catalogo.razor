@@ -1,4 +1,4 @@
-@page "/maestros/{Ruta}"
+﻿@page "/maestros/{Ruta}"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarMaestros)]
 @using System.Globalization
 @using System.Text.Json.Nodes
@@ -33,7 +33,7 @@
 
 <MudPaper Elevation="1">
     <MudTable T="DatosMaestroCentral<JsonObject>" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
-              Elevation="0" RowsPerPage="25">
+              Elevation="0" RowsPerPage="10">
         <ToolBarContent>
             <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           Immediate="true" Clearable="true" />

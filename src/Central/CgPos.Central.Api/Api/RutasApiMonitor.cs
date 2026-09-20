@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Contratos.Central;
@@ -10,7 +10,7 @@ namespace CgPos.Central.Api.Api;
 
 public static class RutasApiMonitor
 {
-    private const int TamanoPaginaPredeterminado = 25;
+    private const int TamanoPaginaPredeterminado = 10;
 
     public static IEndpointRouteBuilder MapearApiMonitor(this IEndpointRouteBuilder aplicacion)
     {

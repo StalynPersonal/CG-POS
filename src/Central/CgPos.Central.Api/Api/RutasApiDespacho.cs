@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Entregas;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
@@ -13,7 +13,7 @@ namespace CgPos.Central.Api.Api;
 /// </summary>
 public static class RutasApiDespacho
 {
-    private const int TamanoPaginaPredeterminado = 25;
+    private const int TamanoPaginaPredeterminado = 10;
 
     public static IEndpointRouteBuilder MapearApiDespacho(this IEndpointRouteBuilder aplicacion)
     {

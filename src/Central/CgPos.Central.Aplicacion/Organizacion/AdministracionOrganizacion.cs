@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Contratos.Central;
 
@@ -37,4 +37,13 @@ public interface IServicioOrganizacion
     Task<ResultadoAdministracion> CrearParametroAsync(SolicitudParametro solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<ResultadoAdministracion> CambiarValorParametroAsync(int parametroId, string valor, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Numeración de los documentos que emite el Central. Cada documento necesita la suya para poder crearse; si falta o
+    /// está desactivada, la operación se rechaza diciendo cuál es.
+    /// </summary>
+    Task<IReadOnlyList<DatosSecuenciaCentral>> ListarSecuenciasAsync(CancellationToken cancelacion = default);
+
+    /// <summary>Crea la numeración de un documento nuevo, o corrige la de uno que ya existe.</summary>
+    Task<ResultadoAdministracion> GuardarSecuenciaAsync(SolicitudSecuenciaCentral solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 }

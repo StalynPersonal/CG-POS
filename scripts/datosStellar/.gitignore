@@ -1,0 +1,7 @@
+# Las fuentes de la migración no se versionan: son pesadas y no son código.
+#   STELLAR.xlsx  la exportación de Stellar (60 MB)
+#   DGII_RNC.TXT  el padrón de contribuyentes de la DGII (90 MB), que se descarga de su web
+# Los scripts .sql que salen de ellas sí se versionan.
+STELLAR.xlsx
+DGII_RNC.TXT
+*.bak

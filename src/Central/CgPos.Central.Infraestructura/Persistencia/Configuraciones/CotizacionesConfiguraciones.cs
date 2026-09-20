@@ -65,7 +65,10 @@ internal sealed class LineaCotizacionConfiguracion : IEntityTypeConfiguration<Li
     }
 }
 
-/// <summary>Contador de los documentos que numera el Central; su clave es el prefijo (COT, LB…).</summary>
+/// <summary>
+/// Contador de los documentos que numera el Central; su clave es el prefijo (COT, LB…). Cada documento que el Central
+/// emite tiene aquí su fila, y sin ella no se puede crear.
+/// </summary>
 internal sealed class SecuenciaCentralConfiguracion : IEntityTypeConfiguration<SecuenciaCentral>
 {
     public void Configure(EntityTypeBuilder<SecuenciaCentral> constructor)
@@ -73,5 +76,6 @@ internal sealed class SecuenciaCentralConfiguracion : IEntityTypeConfiguration<S
         constructor.ToTable("SecuenciasCentral");
         constructor.HasKey(s => s.Prefijo);
         constructor.Property(s => s.Prefijo).HasMaxLength(SecuenciaCentral.LargoMaximoPrefijo).IsUnicode(false);
+        constructor.Property(s => s.Documento).HasMaxLength(SecuenciaCentral.LargoMaximoDocumento).IsRequired();
     }
 }

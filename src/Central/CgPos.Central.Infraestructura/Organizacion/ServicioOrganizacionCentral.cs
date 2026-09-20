@@ -310,4 +310,61 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         await contexto.SaveChangesAsync(cancelacion);
         return ResultadoAdministracion.Correcto(entidadId);
     }
+
+    public async Task<IReadOnlyList<DatosSecuenciaCentral>> ListarSecuenciasAsync(CancellationToken cancelacion = default)
+    {
+        var secuencias = await contexto.SecuenciasCentral.AsNoTracking().OrderBy(s => s.Documento).ToListAsync(cancelacion);
+        return secuencias.Select(s => new DatosSecuenciaCentral(s.Prefijo, s.Documento, s.Ultimo, s.Digitos, s.Activa,
+            $"{s.Prefijo}{(s.Ultimo + 1).ToString(new string('0', Math.Clamp(s.Digitos, 1, 18)))}")).ToList();
+    }
+
+    public async Task<ResultadoAdministracion> GuardarSecuenciaAsync(SolicitudSecuenciaCentral solicitud, UsuarioAuditoria actor,
+        CancellationToken cancelacion = default)
+    {
+        ArgumentNullException.ThrowIfNull(solicitud);
+        var prefijo = (solicitud.Prefijo ?? string.Empty).Trim().ToUpperInvariant();
+        var documento = (solicitud.Documento ?? string.Empty).Trim();
+
+        if (prefijo.Length == 0 || prefijo.Length > SecuenciaCentral.LargoMaximoPrefijo)
+            return ResultadoAdministracion.Error($"El prefijo es obligatorio y no puede pasar de {SecuenciaCentral.LargoMaximoPrefijo} caracteres.");
+        if (!prefijo.All(char.IsAsciiLetterOrDigit))
+            return ResultadoAdministracion.Error("El prefijo solo admite letras y números: es parte del número del documento.");
+        if (documento.Length == 0)
+            return ResultadoAdministracion.Error("Indique qué documento numera esta secuencia.");
+        if (solicitud.Digitos is < 1 or > 18)
+            return ResultadoAdministracion.Error("Los dígitos del correlativo van de 1 a 18.");
+        if (solicitud.Ultimo < 0)
+            return ResultadoAdministracion.Error("El último número entregado no puede ser negativo.");
+
+        var existente = await contexto.SecuenciasCentral.SingleOrDefaultAsync(s => s.Prefijo == prefijo, cancelacion);
+        // Bajar el contador repetiría números ya usados, así que solo se deja subir.
+        if (existente is not null && solicitud.Ultimo < existente.Ultimo)
+            return ResultadoAdministracion.Error(
+                $"La secuencia de {existente.Documento} va por {existente.Ultimo}: bajarla repetiría números ya entregados.");
+
+        var anterior = existente is null ? null : new { existente.Documento, existente.Ultimo, existente.Digitos, existente.Activa };
+        if (existente is null)
+            contexto.SecuenciasCentral.Add(new SecuenciaCentral
+            {
+                Prefijo = prefijo,
+                Documento = documento,
+                Ultimo = solicitud.Ultimo,
+                Digitos = solicitud.Digitos,
+                Activa = solicitud.Activa,
+            });
+        else
+        {
+            existente.Documento = documento;
+            existente.Ultimo = solicitud.Ultimo;
+            existente.Digitos = solicitud.Digitos;
+            existente.Activa = solicitud.Activa;
+        }
+
+        auditoria.Registrar(new EntradaAuditoria(anterior is null ? "Organizacion.SecuenciaCreada" : "Organizacion.SecuenciaActualizada",
+            "SecuenciaCentral", prefijo,
+            Detalle: new { documento, solicitud.Ultimo, solicitud.Digitos, solicitud.Activa, Anterior = anterior },
+            Usuario: actor));
+        await contexto.SaveChangesAsync(cancelacion);
+        return ResultadoAdministracion.Correcto();
+    }
 }

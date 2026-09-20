@@ -1,4 +1,4 @@
-@page "/seguridad/auditoria"
+﻿@page "/seguridad/auditoria"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.ConsultarAuditoria)]
 @inject ClienteCentral Cliente
 
@@ -23,7 +23,7 @@
 @* Tabla de movimientos: se pide al Central una página a la vez, con el tamaño de página que elija el usuario. *@
 <MudPaper Elevation="1">
     <MudTable @ref="_tabla" T="DatosRegistroAuditoria" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
-              Elevation="0" RowsPerPage="25">
+              Elevation="0" RowsPerPage="10">
         <ToolBarContent>
             @* Filtros: rango de días, acción, entidad, usuario, solo lo que cambió datos y búsqueda libre. *@
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">

@@ -1,4 +1,4 @@
-@page "/facturas"
+﻿@page "/facturas"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.ConsultarReportes)]
 @using CgPos.Dominio.Reportes
 @using CgPos.Dominio.Sincronizacion
@@ -23,7 +23,7 @@
 
 <MudPaper Elevation="1">
     <MudTable @ref="_tabla" T="DatosComprobanteRecibido" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
-              Elevation="0" RowsPerPage="25" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
+              Elevation="0" RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
         <ToolBarContent>
             @* Filtros: rango de días, sucursal, caja, tipo de documento y búsqueda por número, e-NCF o cliente. *@
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">

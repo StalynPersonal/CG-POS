@@ -14,7 +14,7 @@ namespace CgPos.Central.Api.Api;
 /// </summary>
 public static class RutasApiMaestros
 {
-    private const int TamanoPaginaPredeterminado = 25;
+    private const int TamanoPaginaPredeterminado = 10;
 
     public static IEndpointRouteBuilder MapearApiMaestros(this IEndpointRouteBuilder aplicacion)
     {

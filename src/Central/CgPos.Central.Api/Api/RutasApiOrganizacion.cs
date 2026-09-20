@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Organizacion;
@@ -62,6 +62,14 @@ public static class RutasApiOrganizacion
         organizacion.MapPut("/parametros/{parametroId:int}", async (int parametroId, SolicitudValorParametro solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
                 CancellationToken cancelacion) =>
             Responder(await servicio.CambiarValorParametroAsync(parametroId, solicitud.Valor ?? string.Empty, Actor(usuario), cancelacion)));
+
+        // Numeración de los documentos que emite el Central: sin su fila, el documento no se puede crear.
+        organizacion.MapGet("/secuencias", async (IServicioOrganizacion servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarSecuenciasAsync(cancelacion)));
+
+        organizacion.MapPost("/secuencias", async (SolicitudSecuenciaCentral solicitud, ClaimsPrincipal usuario, IServicioOrganizacion servicio,
+                CancellationToken cancelacion) =>
+            Responder(await servicio.GuardarSecuenciaAsync(solicitud, Actor(usuario), cancelacion)));
 
         return aplicacion;
     }

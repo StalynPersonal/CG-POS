@@ -1,4 +1,4 @@
-@page "/listas-boda"
+﻿@page "/listas-boda"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarListasBoda)]
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.ListasBoda
@@ -35,7 +35,7 @@
 
 <MudPaper Elevation="1">
     <MudTable T="DatosListaBoda" Items="_listas" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" Loading="_cargando"
-              RowsPerPage="25" OnRowClick="@(evento => Editar(evento.Item))" RowStyle="cursor: pointer">
+              RowsPerPage="10" OnRowClick="@(evento => Editar(evento.Item))" RowStyle="cursor: pointer">
         <ToolBarContent>
             @* Filtros de la tabla: texto libre y estado de la lista. *@
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">

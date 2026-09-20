@@ -37,3 +37,13 @@ public sealed record DatosParametro(int Id, string Clave, string Valor, string? 
 public sealed record SolicitudParametro(string Clave, string Valor, int? SucursalId = null, int? CajaId = null);
 
 public sealed record SolicitudValorParametro(string Valor);
+
+/// <summary>
+/// Numeración de un documento que emite el Central. Cada documento tiene la suya y sin ella no se puede crear: es una
+/// decisión del negocio, no algo que el sistema invente la primera vez que hace falta.
+/// </summary>
+/// <param name="Proximo">El número que se llevará el próximo documento, ya formateado.</param>
+public sealed record DatosSecuenciaCentral(string Prefijo, string Documento, long Ultimo, int Digitos, bool Activa, string Proximo);
+
+/// <param name="Ultimo">Último número entregado; el próximo documento se lleva este más uno.</param>
+public sealed record SolicitudSecuenciaCentral(string Prefijo, string Documento, long Ultimo, int Digitos, bool Activa);

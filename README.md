@@ -150,6 +150,18 @@ Al ingresar, si la caja no tiene turno abierto se pide el fondo (sugerido por el
 **Numeración de documentos:** cada documento se numera `código de sucursal (2) + código de caja (2) + tipo (1) + secuencia`, sin separadores ni prefijos. El dígito del tipo es `1` factura, `2` nota de crédito y `3` pendiente de entrega (factura de la sucursal 01, caja 01, secuencia 1 con 7 dígitos = `010110000001`; su nota de crédito, `010120000001`). La secuencia es por caja y tipo, y atómica. El número es único en toda la empresa: con él caja y Central identifican el documento, y del número se leen la sucursal, la caja y el tipo (`NumeroDocumento`).
 - `Numeracion.DigitosSecuencia` (5 a 12): se puede aumentar en cualquier momento; si una secuencia supera los dígitos, el número crece en vez de reiniciarse.
 - `Numeracion.ProximaFactura` y `Numeracion.ProximaNotaCredito` (por caja): mínimo de la próxima secuencia, para continuar la numeración tras reinstalar una caja. Solo la adelantan; un valor menor al ya usado no la hace retroceder.
+
+**Las tres numeraciones del sistema son independientes** y conviene no confundirlas:
+
+| | Quién la lleva | Forma | Dónde se configura |
+| --- | --- | --- | --- |
+| Documentos de la caja | Cada caja, en su base (`SecuenciasCaja`) | sucursal + caja + tipo + secuencia | `Numeracion.*` |
+| Documentos del Central | El Central (`SecuenciasCentral`) | prefijo + correlativo (`COT000001`) | Organización → Secuencias de documentos |
+| Comprobantes fiscales | La caja que emite, con su rango de la DGII (`SecuenciasEcf`) | e-NCF (`E320000000001`) | Fiscal → Secuencias de e-CF |
+
+La de la caja va en su base y funciona sin red: la caja factura aunque el Central esté caído. La del Central numera lo que nace allá (cotizaciones, listas de boda). Y el e-NCF es otra cosa: su rango lo asigna la DGII y no se inventa.
+
+**Secuencias de documentos del Central:** cada documento que emite el Central tiene su fila en `SecuenciasCentral`, con el prefijo, cómo se le llama, el último número entregado, los dígitos del correlativo y si está activa. **Sin su secuencia, el documento no se crea**: la operación se rechaza diciendo cuál falta o cuál está apagada, en vez de inventar una numeración. La instalación deja creadas las de cotización (`COT`) y lista de boda (`LB`); las demás se agregan en Organización → Secuencias de documentos. El contador solo se puede adelantar: bajarlo repetiría números ya entregados.
 - El Central exige que el número de factura y de nota de crédito sea único en la empresa: si llega repetido de otra transacción, el mensaje se guarda, no entra en los reportes y queda un conflicto `NumeroDuplicado` en el monitor.
 
 En la pantalla de venta:

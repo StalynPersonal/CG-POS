@@ -511,7 +511,25 @@ nota('Mientras algo siga pendiente de entregar, no se puede devolver: el cliente
      'anular primero el pendiente. Si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda '
      'preparado.')
 
-titulo('2.15. Cierre consolidado de sucursal', 2)
+titulo('2.15. Secuencias de documentos', 2)
+p('Ruta: /organizacion/secuencias. Aquí se dice cómo se numera cada documento que emite el Central: el prefijo que lleva '
+  'delante, cuántos dígitos tiene el correlativo y por cuál va.')
+nota('Sin su secuencia, el documento NO se puede crear: el sistema lo rechaza diciendo cuál falta. Es a propósito, para que '
+     'la numeración la decida el negocio y no se invente sola la primera vez que alguien hace el documento.')
+p('En el sistema hay tres numeraciones distintas y conviene no confundirlas:')
+tabla(['Numeración', 'Quién la lleva', 'Cómo se ve'],
+      [['Documentos de la caja', 'Cada caja, en su propia base', 'Sucursal + caja + tipo + secuencia (010110000001)'],
+       ['Documentos del Central', 'El Central, en esta pantalla', 'Prefijo + correlativo (COT000001)'],
+       ['Comprobantes fiscales', 'La caja, con el rango que da la DGII', 'e-NCF (E320000000001)']],
+      anchos=[5.0, 6.0, 6.0])
+p('La de la caja funciona sin internet: la caja factura aunque el Central esté apagado. La de esta pantalla numera lo que '
+  'nace en el Central (cotizaciones, listas de boda). Y el e-NCF se administra en Fiscal, que es otra cosa.')
+paso('Para agregar la numeración de un documento nuevo, presione «Nueva secuencia» y escriba el prefijo y cómo se llama.')
+paso('Para continuar una numeración que venía de otro sistema, cambie «Último número entregado». Solo se puede subir: '
+     'bajarlo repetiría números ya usados.')
+paso('Desactivar una secuencia impide crear ese documento y conserva el contador.')
+
+titulo('2.16. Cierre consolidado de sucursal', 2)
 p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
 paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta (si algún turno no ha cerrado, lo dice).')
 paso('El sistema calcula el efectivo a depositar por moneda (las tarjetas y transferencias no se depositan).')
@@ -519,7 +537,7 @@ paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede se
 paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
 nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
 
-titulo('2.16. Reportes', 2)
+titulo('2.17. Reportes', 2)
 p('Ruta: /reportes. Todos por rango de días y, si se quiere, por sucursal o caja. Cada uno se descarga en Excel y en PDF.')
 tabla(['Reporte', 'Qué muestra'],
       [['Ventas', 'Por día, sucursal y caja: facturas, notas de crédito, subtotal, descuento, ITBIS y total.'],
@@ -530,11 +548,11 @@ tabla(['Reporte', 'Qué muestra'],
        ['Sincronización', 'Última comunicación de cada caja, mensajes, rechazos y alertas.']],
       anchos=[4.5, 12.5])
 
-titulo('2.17. Monitor de sincronización', 2)
+titulo('2.18. Monitor de sincronización', 2)
 viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuántos documentos trae pendientes.')
 viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
 
-titulo('2.18. Chequeador de precios', 2)
+titulo('2.19. Chequeador de precios', 2)
 p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla que se pone en el pasillo de la tienda. Tecnología '
   'deja cada pantalla con la dirección de su sucursal, así el cliente nunca elige sucursal y siempre ve el precio y las ofertas '
   'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '

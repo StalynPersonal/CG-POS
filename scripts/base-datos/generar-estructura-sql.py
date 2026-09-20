@@ -146,6 +146,12 @@ MOTIVOS_DESCUENTO = [
     (1, 'Cliente frecuente'), (2, 'Producto con daño o defecto'), (3, 'Ajuste de precio'), (4, 'Autorizado por gerencia'),
 ]
 
+# Documentos que numera el propio Central. Cada uno con su prefijo, cómo se le llama y cuántos dígitos lleva.
+SECUENCIAS_CENTRAL = [
+    ('COT', 'Cotización', 6),
+    ('LB', 'Lista de boda', 6),
+]
+
 MOTIVOS_DEVOLUCION = [
     (1, 'Artículo defectuoso'), (2, 'Artículo equivocado'), (3, 'Cliente no satisfecho'), (4, 'Garantía'), (5, 'Error de facturación'),
 ]
@@ -287,6 +293,15 @@ def catalogos_tecnicos():
 
     bloque('Motivos de devolución', 'MotivosDevolucion', "[Codigo], [Nombre], [Activo]",
            [f"{codigo}, N'{nombre}'" for codigo, nombre in MOTIVOS_DEVOLUCION])
+
+    # Las secuencias del Central no llevan Id ni auditoría: su clave es el propio prefijo.
+    valores_secuencias = ',\n'.join(
+        f"    ('{prefijo}', N'{documento}', 0, {digitos}, 1)" for prefijo, documento, digitos in SECUENCIAS_CENTRAL)
+    partes.append(
+        '/* Numeración de los documentos que emite el Central. Sin la fila de un documento, ese documento no se\n'
+        '   puede crear: la numeración es una decisión del negocio, no algo que el sistema invente. */\n'
+        'INSERT INTO [SecuenciasCentral] ([Prefijo], [Documento], [Ultimo], [Digitos], [Activa])\nVALUES\n'
+        + valores_secuencias + ';\nGO\n')
 
     bloque('Formas de pago', 'FormasPago',
            "[Codigo], [Nombre], [Tipo], [Moneda], [Orden], [AbreGaveta], [PermiteDevuelta], [RequiereReferencia], "

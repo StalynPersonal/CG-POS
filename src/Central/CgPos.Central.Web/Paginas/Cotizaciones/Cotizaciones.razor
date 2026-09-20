@@ -28,7 +28,7 @@
 
 <MudPaper Elevation="1">
     <MudTable T="DatosCotizacion" Items="_cotizaciones" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" Loading="_cargando"
-              RowsPerPage="25" OnRowClick="@(evento => Editar(evento.Item))" RowStyle="cursor: pointer">
+              RowsPerPage="10" OnRowClick="@(evento => Editar(evento.Item))" RowStyle="cursor: pointer">
         <ToolBarContent>
             @* Filtros: texto libre (número, cliente o factura) y estado. *@
             <div class="d-flex gap-3 flex-wrap align-center" style="width: 100%">

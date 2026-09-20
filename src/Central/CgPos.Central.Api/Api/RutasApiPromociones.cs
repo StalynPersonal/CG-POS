@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Contratos.Catalogo;
@@ -10,7 +10,7 @@ namespace CgPos.Central.Api.Api;
 
 public static class RutasApiPromociones
 {
-    private const int TamanoPaginaPredeterminado = 25;
+    private const int TamanoPaginaPredeterminado = 10;
 
     public static IEndpointRouteBuilder MapearApiPromociones(this IEndpointRouteBuilder aplicacion)
     {

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Api.Seguridad;
 using CgPos.Central.Aplicacion.Devoluciones;
 using CgPos.Contratos.Central;
@@ -11,7 +11,7 @@ namespace CgPos.Central.Api.Api;
 /// <summary>Notas de crédito de todas las sucursales: consulta y reserva de saldo para las cajas, y revisión en el Central Manager.</summary>
 public static class RutasApiNotasCredito
 {
-    private const int TamanoPaginaPredeterminado = 25;
+    private const int TamanoPaginaPredeterminado = 10;
 
     public static IEndpointRouteBuilder MapearApiNotasCredito(this IEndpointRouteBuilder aplicacion)
     {
