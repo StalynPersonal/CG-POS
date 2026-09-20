@@ -110,7 +110,8 @@ internal static class ConversionesVenta
                     documento.Estado, venceSecuencia),
             fidelidad,
             venta.DestinosEntrega.Count == 0 ? null : venta.DestinosEntrega.OrderBy(d => d.Numero).Select(d => d.ADatos()).ToList(),
-            venta.ListaBodaNumero is { } numeroLista ? new DatosListaBodaVenta(numeroLista, venta.ListaBodaEvento ?? string.Empty) : null);
+            venta.ListaBodaNumero is { } numeroLista ? new DatosListaBodaVenta(numeroLista, venta.ListaBodaEvento ?? string.Empty) : null,
+            venta.ExentaDeImpuesto);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>

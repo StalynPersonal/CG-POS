@@ -105,7 +105,7 @@ public static class CatalogoParametros
         new("Fiscal.DiasAlertaCertificado", "Fiscal", "Días antes del vencimiento del certificado digital para alertar", Entero, true, Minimo: 0),
         new("Fiscal.TipoIngresos", "Fiscal", "Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6)", Entero, true, Minimo: 1, Maximo: 6),
         new(PorcentajeRetencionLey3223, "Fiscal",
-            "Porcentaje de retención de la Ley 32-23 que se descuenta de lo que paga un cliente de régimen especial (E44); sin configurar = sin retención",
+            "Porcentaje de retención de la Ley 32-23 en facturas gubernamentales (E45); un emisor electrónico autorizado está exento, así que normalmente va en 0",
             Decimal, false, Minimo: 0, Maximo: 100),
 
         new(DigitosSecuenciaDocumentos, "Numeración de documentos",

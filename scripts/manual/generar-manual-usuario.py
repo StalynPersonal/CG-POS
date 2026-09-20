@@ -408,7 +408,7 @@ tabla(['Parámetro', 'Valor sugerido', 'Por qué'],
        ['Vigencia de la nota de crédito', '180 días', 'Medio año para que el cliente use su saldo a favor.'],
        ['Días de retención del ITBIS en devoluciones', '30 días', 'Pasado ese plazo la devolución retiene el ITBIS, como manda la norma.'],
        ['Monto que exige identificación', '250,000.00', 'Desde ese total la factura de consumo exige cédula o RNC.'],
-       ['Retención de la Ley 32-23', '0 %', 'Solo se cambia si le factura a quien la aplica (E44).'],
+       ['Retención de la Ley 32-23', '0 %', 'Solo para facturas gubernamentales (E45), y quien factura en e-CF está exento.'],
        ['Dígitos de la secuencia de documentos', '7', 'Diez millones de documentos por caja y tipo antes de crecer el número.'],
        ['Tipo de ingresos del e-CF', '01', 'Ingresos por operaciones: es lo que corresponde a la venta de mercancía.'],
        ['Valor del punto de fidelidad', '1.00', 'Cada punto vale un peso al canjearlo.'],
@@ -595,7 +595,7 @@ p('La pantalla está dividida en cinco zonas:')
 tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
        ['Encabezado central', 'Cliente de la factura, número de transacción, cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
-       ['Encabezado derecho', 'Subtotal, ITBIS, descuentos, TOTAL y, en facturas de régimen especial, la retención y el total a pagar.'],
+       ['Encabezado derecho', 'Subtotal, ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL y, en facturas gubernamentales con retención, el total a pagar.'],
        ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar.'],
        ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio, importe y la oferta aplicada.'],
        ['Barra de teclas F', 'Las funciones, en dos páginas.'],
@@ -652,12 +652,17 @@ p('Se digita la cédula o el RNC; la caja lo busca en los clientes, que bajan de
 tabla(['Comprobante', 'Cuándo se usa'],
       [['E32 – Consumo', 'Cliente común. Desde el monto configurado (RD$250,000 por defecto) exige cédula o RNC.'],
        ['E31 – Crédito fiscal', 'Empresa que necesita el ITBIS. Exige RNC o cédula.'],
-       ['E44 – Régimen especial', 'Clientes de régimen especial. Si el negocio lo tiene configurado, se le aplica la retención de la Ley 32-23.'],
-       ['E45 – Gubernamental', 'Instituciones del Estado. Exige RNC.']],
+       ['E44 – Régimen especial', 'Zonas francas, diplomáticos y demás acogidos a un régimen especial, que deben presentar su carné o certificación de exención de la DGII. La factura va SIN ITBIS.'],
+       ['E45 – Gubernamental', 'Instituciones del Estado. Exige RNC. Lleva ITBIS normal.']],
       anchos=[5.0, 12.0])
-p('Retención de la Ley 32-23: en las facturas E44, el sistema calcula el porcentaje configurado sobre el subtotal ya con '
-  'descuentos y se lo descuenta a lo que el cliente paga en caja. La factura mantiene su total; el ticket muestra '
-  '“RETENCIÓN LEY 32-23” y “TOTAL A PAGAR”.')
+p('Factura exenta (E44): al elegir este comprobante, toda la factura pasa a ser exenta de ITBIS, tengan o no impuesto los '
+  'artículos. Los precios bajan a su base, así que el cliente paga menos: un artículo de RD$118 se cobra a RD$100. La '
+  'pantalla, la pantalla del cliente y el ticket lo indican con “EXENTA DE ITBIS – RÉGIMEN ESPECIAL”. Si el bien que se '
+  'vende no está exento para ese cliente, no se usa el E44: se le factura con E31.')
+p('Retención de la Ley 32-23: en las facturas E45, si el negocio configuró el porcentaje, el sistema lo calcula sobre el '
+  'subtotal ya con descuentos y se lo descuenta a lo que el cliente paga en caja. La factura mantiene su total; el ticket '
+  'muestra “RETENCIÓN LEY 32-23” y “TOTAL A PAGAR”. Normalmente va en cero: quien factura electrónicamente está exento de '
+  'esa retención.')
 
 titulo('3.9. Lista de boda (F6)', 2)
 paso('Pida al cliente el número de la lista (la crea la administración en el Central).')

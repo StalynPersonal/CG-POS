@@ -2083,7 +2083,7 @@ VALUES
     (31, N'Fiscal.MontoIdentificacionConsumo', N'250000', N'Total desde el cual la factura de consumo exige cédula o RNC', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (32, N'Fiscal.PorcentajeAlertaSecuenciaEcf', N'10', N'Porcentaje restante de un rango de e-CF desde el cual se alerta', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (33, N'Fiscal.DiasAlertaCertificado', N'30', N'Días antes del vencimiento del certificado para alertar', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (34, N'Fiscal.PorcentajeRetencionLey3223', N'0', N'Retención de la Ley 32-23 en facturas E44 (0 = sin retención)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (34, N'Fiscal.PorcentajeRetencionLey3223', N'0', N'Retención de la Ley 32-23 en facturas gubernamentales E45 (0 = sin retención)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (35, N'Devoluciones.DiasRetencionImpuesto', N'30', N'Días desde la factura tras los cuales la devolución retiene el ITBIS', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (36, N'Devoluciones.DiasVigenciaNotaCredito', N'180', N'Días desde la emisión en que se puede consumir una nota de crédito', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (37, N'Fidelidad.ValorPunto', N'1', N'Valor en dinero de cada punto al canjearlo', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),

@@ -89,8 +89,15 @@ else
             <section class="cg-venta__bloque cg-venta__totales">
                 @* Subtotal sin ITBIS de las líneas activas. *@
                 <div class="cg-venta__total-fila"><span>Subtotal</span><span class="cg-numero">@_venta.Totales.Subtotal.ToString("N2")</span></div>
-                @* ITBIS de la venta, sumando todas las tasas. *@
-                <div class="cg-venta__total-fila"><span>ITBIS</span><span class="cg-numero">@_venta.Totales.Impuesto.ToString("N2")</span></div>
+                @* ITBIS de la venta, sumando todas las tasas; en régimen especial la factura va exenta y se avisa. *@
+                @if (_venta.ExentaDeImpuesto)
+                {
+                    <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>ITBIS</span><span class="cg-numero">Exenta · régimen especial</span></div>
+                }
+                else
+                {
+                    <div class="cg-venta__total-fila"><span>ITBIS</span><span class="cg-numero">@_venta.Totales.Impuesto.ToString("N2")</span></div>
+                }
                 @if (_venta.Totales.Descuento > 0)
                 {
                     @* Lo que el cliente se ahorró entre ofertas y descuentos manuales. *@
@@ -100,7 +107,7 @@ else
                 <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
                 @if (_venta.Totales.Retencion > 0)
                 {
-                    @* Régimen especial (E44): la retención de la Ley 32-23 y lo que el cliente paga en caja. *@
+                    @* Gubernamental (E45): la retención de la Ley 32-23 y lo que el cliente paga en caja. *@
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Retención Ley 32-23</span><span class="cg-numero">−@_venta.Totales.Retencion.ToString("N2")</span></div>
                     <div class="cg-venta__total-fila cg-venta__total-final"><span>A pagar (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
                 }

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Genera los scripts de estructura de las bases de datos a partir del modelo de EF Core.
 
@@ -84,7 +84,7 @@ PARAMETROS_INICIALES = [
     ('Fiscal.MontoIdentificacionConsumo', '250000', 'Total desde el cual la factura de consumo exige cédula o RNC'),
     ('Fiscal.PorcentajeAlertaSecuenciaEcf', '10', 'Porcentaje restante de un rango de e-CF desde el cual se alerta'),
     ('Fiscal.DiasAlertaCertificado', '30', 'Días antes del vencimiento del certificado para alertar'),
-    ('Fiscal.PorcentajeRetencionLey3223', '0', 'Retención de la Ley 32-23 en facturas E44 (0 = sin retención)'),
+    ('Fiscal.PorcentajeRetencionLey3223', '0', 'Retención de la Ley 32-23 en facturas gubernamentales E45 (0 = sin retención)'),
     ('Devoluciones.DiasRetencionImpuesto', '30', 'Días desde la factura tras los cuales la devolución retiene el ITBIS'),
     ('Devoluciones.DiasVigenciaNotaCredito', '180', 'Días desde la emisión en que se puede consumir una nota de crédito'),
 

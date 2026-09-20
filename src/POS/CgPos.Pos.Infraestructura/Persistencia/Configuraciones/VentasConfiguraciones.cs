@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Seguridad;
@@ -54,6 +54,7 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
         constructor.Property(v => v.MotivoDescuentoFactura).HasMaxLength(Venta.LargoMaximoMotivo);
         constructor.Property(v => v.DescuentoFacturaAutorizadoPorNombre).HasMaxLength(Venta.LargoMaximoUsuario);
         constructor.Ignore(v => v.TieneLineasActivas);
+        constructor.Ignore(v => v.ExentaDeImpuesto);
         constructor.ConfigurarFidelidad();
         constructor.ConfigurarEntregas();
 
@@ -123,6 +124,7 @@ internal sealed class LineaVentaConfiguracion : IEntityTypeConfiguration<LineaVe
         constructor.Ignore(l => l.ImporteConImpuesto);
         constructor.Ignore(l => l.DescuentoTotal);
         constructor.Ignore(l => l.TienePromocionActiva);
+        constructor.Ignore(l => l.Exenta);
         constructor.HasIndex(l => l.PromocionId);
 
         constructor.HasIndex(l => new { l.VentaId, l.NumeroLinea }).IsUnique();

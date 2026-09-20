@@ -1,4 +1,4 @@
-@page "/cliente"
+﻿@page "/cliente"
 @implements IAsyncDisposable
 @using System.Text.Json
 @using CgPos.Contratos.Serializacion
@@ -88,7 +88,14 @@
                 <div class="cg-pantalla-cliente__totales">
                     <div><span>Artículos</span><span class="cg-numero">@venta.Totales.CantidadArticulos.ToString("0.###")</span></div>
                     <div><span>Subtotal</span><span class="cg-numero">@venta.Totales.Subtotal.ToString("N2")</span></div>
-                    <div><span>ITBIS</span><span class="cg-numero">@venta.Totales.Impuesto.ToString("N2")</span></div>
+                    @if (venta.ExentaDeImpuesto)
+                    {
+                        <div><span>ITBIS</span><span class="cg-numero">Exenta</span></div>
+                    }
+                    else
+                    {
+                        <div><span>ITBIS</span><span class="cg-numero">@venta.Totales.Impuesto.ToString("N2")</span></div>
+                    }
                     @if (venta.Totales.Descuento > 0)
                     {
                         <div class="cg-pantalla-cliente__ahorro-total"><span>Usted ahorra</span><span class="cg-numero">@venta.Totales.Descuento.ToString("N2")</span></div>

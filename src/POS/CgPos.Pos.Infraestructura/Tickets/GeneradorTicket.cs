@@ -119,11 +119,18 @@ internal static class GeneradorTicket
         Importe("SUBTOTAL (sin ITBIS)", venta.Totales.Subtotal);
         foreach (var tasa in venta.Totales.Desglose.Where(d => d.Impuesto > 0))
             Importe($"ITBIS {tasa.Porcentaje.ToString("0.##", cultura)}%", tasa.Impuesto);
+
+        // Régimen especial (E44): la factura va sin ITBIS y el ticket tiene que decirlo.
+        if (venta.ExentaDeImpuesto)
+        {
+            foreach (var parte in Envolver("EXENTA DE ITBIS - REGIMEN ESPECIAL"))
+                Agregar(parte, Estilo.Negrita);
+        }
         if (venta.Totales.Descuento > 0)
             Importe("DESCUENTOS", -venta.Totales.Descuento);
         Importe($"TOTAL {venta.SimboloMoneda}", venta.Totales.Total, Estilo.Titulo);
 
-        // Régimen especial (E44): la retención de la Ley 32-23 se le descuenta al cliente de lo que paga (RN Ley 32-23).
+        // Gubernamental (E45): la retención de la Ley 32-23 se le descuenta al cliente de lo que paga.
         if (venta.Totales.Retencion > 0)
         {
             Importe("RETENCIÓN LEY 32-23", -venta.Totales.Retencion);

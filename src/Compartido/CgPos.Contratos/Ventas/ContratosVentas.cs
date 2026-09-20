@@ -126,7 +126,9 @@ public sealed record DatosVenta(
     DatosComprobanteElectronico? Comprobante = null,
     DatosFidelidadVenta? Fidelidad = null,
     IReadOnlyList<DatosDestinoEntrega>? DestinosEntrega = null,
-    DatosListaBodaVenta? ListaBoda = null);
+    DatosListaBodaVenta? ListaBoda = null,
+    /// <summary>La factura va sin ITBIS por ser de régimen especial (E44).</summary>
+    bool ExentaDeImpuesto = false);
 
 /// <summary>Lista de boda del Central contra la que se está comprando (RF-73).</summary>
 public sealed record DatosListaBodaVenta(string Numero, string Evento);

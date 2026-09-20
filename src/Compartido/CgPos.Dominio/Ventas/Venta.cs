@@ -348,6 +348,11 @@ public sealed class Venta : Entidad
             new PreciosVigentes(precioDetalle, articulo.PrecioMayor), cantidad, SeleccionListaPrecio.Automatica);
 
         var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio, serialPendiente);
+
+        // En una factura de régimen especial lo que se agrega ya entra sin ITBIS, como el resto.
+        if (ExentaDeImpuesto)
+            linea.Exentar();
+
         _lineas.Add(linea);
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
@@ -579,13 +584,36 @@ public sealed class Venta : Entidad
         }
 
         TipoComprobante = tipo;
-        if (tipo != TipoComprobante.RegimenesEspeciales)
+        if (tipo != TipoComprobante.Gubernamental)
             PorcentajeRetencion = 0m;
+
+        AplicarExencionDelComprobante();
         ActualizadaEn = ahora;
     }
 
     /// <summary>
-    /// Aplica la retención de la Ley 32-23 con el porcentaje configurado; solo queda puesta en facturas de régimen especial (E44).
+    /// El régimen especial (E44) se factura exento de ITBIS: el cliente paga la base, no el precio con impuesto. Lo dice la
+    /// DGII para zonas francas y demás regímenes, y vale para toda la factura, tenga o no impuesto cada artículo. Si el
+    /// comprobante cambia a otro tipo, las líneas vuelven a su precio con impuesto.
+    /// </summary>
+    private void AplicarExencionDelComprobante()
+    {
+        foreach (var linea in _lineas)
+        {
+            if (ExentaDeImpuesto)
+                linea.Exentar();
+            else
+                linea.Gravar();
+        }
+
+        // El descuento de factura se reparte sobre los importes nuevos.
+        ProrratearDescuentoFactura();
+    }
+
+    /// <summary>
+    /// Aplica la retención de la Ley 32-23 con el porcentaje configurado; solo queda puesta en facturas gubernamentales
+    /// (E45), que es donde el Estado retiene el ISR al pagarle a su proveedor. Un emisor electrónico autorizado está
+    /// exento de esa retención (artículo 34 de la Ley 32-23), así que lo normal es tenerla en cero.
     /// </summary>
     public void AplicarRetencionLey(decimal porcentaje, DateTimeOffset ahora)
     {
@@ -593,7 +621,7 @@ public sealed class Venta : Entidad
         if (porcentaje is < 0m or > 100m)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido, "El porcentaje de retención debe estar entre 0 y 100.");
 
-        var aplicable = TipoComprobante == TipoComprobante.RegimenesEspeciales ? porcentaje : 0m;
+        var aplicable = TipoComprobante == TipoComprobante.Gubernamental ? porcentaje : 0m;
         if (aplicable == PorcentajeRetencion)
             return;
 
@@ -1003,6 +1031,9 @@ public sealed class Venta : Entidad
 
     public bool TieneLineasActivas => _lineas.Any(l => l.EstaActiva);
 
+    /// <summary>La factura va sin ITBIS por ser de régimen especial (E44).</summary>
+    public bool ExentaDeImpuesto => TipoComprobante == TipoComprobante.RegimenesEspeciales;
+
     /// <summary>
     /// Totales con ITBIS incluido en los precios: por línea se redondea el importe a 2 decimales y se separa la base,
     /// así el ITBIS total coincide con la suma del desglose por línea (RF-183).
@@ -1129,6 +1160,22 @@ public sealed class LineaVenta : Entidad
     public decimal PorcentajeImpuesto { get; private set; }
     public int IndicadorFacturacion { get; private set; }
 
+    /// <summary>Indicador de facturación de un e-CF exento, según la tabla de la DGII.</summary>
+    public const int IndicadorExento = 4;
+
+    // Lo que valía la línea con impuesto, guardado al exentarla para poder deshacerlo si cambia el comprobante.
+    public decimal? PorcentajeImpuestoGravado { get; private set; }
+    public int? IndicadorFacturacionGravado { get; private set; }
+    public decimal? PrecioUnitarioGravado { get; private set; }
+    public decimal? PrecioDetalleGravado { get; private set; }
+    public decimal? PrecioMayorGravado { get; private set; }
+    public decimal? PrecioMinimoGravado { get; private set; }
+    public decimal? ImporteEtiquetaGravado { get; private set; }
+    public decimal? DescuentoPromocionGravado { get; private set; }
+
+    /// <summary>La línea se está facturando sin ITBIS, por ser de una factura de régimen especial.</summary>
+    public bool Exenta => PorcentajeImpuestoGravado is not null;
+
     /// <summary>Servicio y no bien, para el e-CF.</summary>
     public bool EsServicio { get; private set; }
     public decimal PrecioDetalle { get; private set; }
@@ -1240,6 +1287,68 @@ public sealed class LineaVenta : Entidad
         Cantidad = cantidad;
         EstablecerPrecio(precio);
     }
+
+    /// <summary>
+    /// La línea se vende exenta (factura de régimen especial): el precio baja a su base y el impuesto sale. Se guardan los
+    /// valores con impuesto para poder volver atrás si el comprobante cambia. Una línea sin impuesto también se marca, así
+    /// toda la factura habla el mismo idioma.
+    /// </summary>
+    internal void Exentar()
+    {
+        if (Exenta)
+            return;
+
+        PorcentajeImpuestoGravado = PorcentajeImpuesto;
+        IndicadorFacturacionGravado = IndicadorFacturacion;
+        PrecioUnitarioGravado = PrecioUnitario;
+        PrecioDetalleGravado = PrecioDetalle;
+        PrecioMayorGravado = PrecioMayor;
+        PrecioMinimoGravado = PrecioMinimo;
+        ImporteEtiquetaGravado = ImporteEtiqueta;
+        DescuentoPromocionGravado = DescuentoPromocion;
+
+        var factor = 1m + PorcentajeImpuesto / 100m;
+        PrecioUnitario = SinImpuesto(PrecioUnitario, factor);
+        PrecioDetalle = SinImpuesto(PrecioDetalle, factor);
+        PrecioMayor = PrecioMayor is { } mayor ? SinImpuesto(mayor, factor) : null;
+        PrecioMinimo = PrecioMinimo is { } minimo ? SinImpuesto(minimo, factor) : null;
+        ImporteEtiqueta = ImporteEtiqueta is { } etiqueta ? SinImpuesto(etiqueta, factor) : null;
+        DescuentoPromocion = SinImpuesto(DescuentoPromocion, factor);
+        PorcentajeImpuesto = 0m;
+        IndicadorFacturacion = IndicadorExento;
+
+        RecalcularDescuentoManual();
+    }
+
+    /// <summary>Vuelve al precio con impuesto: el comprobante dejó de ser de régimen especial.</summary>
+    internal void Gravar()
+    {
+        if (!Exenta)
+            return;
+
+        PorcentajeImpuesto = PorcentajeImpuestoGravado!.Value;
+        IndicadorFacturacion = IndicadorFacturacionGravado!.Value;
+        PrecioUnitario = PrecioUnitarioGravado!.Value;
+        PrecioDetalle = PrecioDetalleGravado!.Value;
+        PrecioMayor = PrecioMayorGravado;
+        PrecioMinimo = PrecioMinimoGravado;
+        ImporteEtiqueta = ImporteEtiquetaGravado;
+        DescuentoPromocion = DescuentoPromocionGravado!.Value;
+
+        PorcentajeImpuestoGravado = null;
+        IndicadorFacturacionGravado = null;
+        PrecioUnitarioGravado = null;
+        PrecioDetalleGravado = null;
+        PrecioMayorGravado = null;
+        PrecioMinimoGravado = null;
+        ImporteEtiquetaGravado = null;
+        DescuentoPromocionGravado = null;
+
+        RecalcularDescuentoManual();
+    }
+
+    private static decimal SinImpuesto(decimal monto, decimal factor) =>
+        factor == 1m ? monto : decimal.Round(monto / factor, 2, MidpointRounding.AwayFromZero);
 
     internal void EstablecerPrecio(PrecioDeterminado precio)
     {

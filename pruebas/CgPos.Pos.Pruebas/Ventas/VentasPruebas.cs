@@ -283,7 +283,52 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task La_retencion_de_la_ley_32_23_solo_aplica_al_regimen_especial_y_baja_lo_que_paga_el_cliente()
+    public async Task La_factura_de_regimen_especial_va_exenta_de_itbis_y_el_cliente_paga_la_base()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var conCliente = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, caja.Catalogo.RncCliente, null));
+        Assert.True(conCliente.Exitosa, conCliente.Mensaje);
+
+        var gravados = conCliente.Venta!.Totales;
+        Assert.True(gravados.Impuesto > 0, "El artículo de la prueba lleva ITBIS.");
+
+        // Régimen especial: la DGII manda facturar exento, así que el cliente paga la base y no el precio con ITBIS.
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Zona franca con carné de exención");
+        var especial = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.RegimenesEspeciales, autorizacion));
+        Assert.True(especial.Exitosa, especial.Mensaje);
+
+        var exentos = especial.Venta!.Totales;
+        Assert.True(especial.Venta.ExentaDeImpuesto);
+        Assert.Equal(0m, exentos.Impuesto);
+        Assert.Equal(exentos.Subtotal, exentos.Total);
+        Assert.Equal(gravados.Subtotal, exentos.Total);
+        Assert.Equal(0m, exentos.Retencion);
+
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, exentos.Total)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+
+        // En el e-CF todo va como exento: sin ITBIS y con el total igual a la base.
+        var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.RutaXml).SingleAsync());
+        var xml = await File.ReadAllTextAsync(rutaXml);
+        var total = exentos.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Contains($"<MontoExento>{total}</MontoExento>", xml, StringComparison.Ordinal);
+        Assert.Contains($"<MontoTotal>{total}</MontoTotal>", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<TotalITBIS>", xml, StringComparison.Ordinal);
+
+        // Y el ticket lo dice, que es lo que se lleva el cliente.
+        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{venta.NumeroTransaccion}.txt")));
+        Assert.Contains("EXENTA DE ITBIS", ticket, StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
+    public async Task La_retencion_de_la_ley_32_23_solo_aplica_a_lo_gubernamental_y_baja_lo_que_paga_el_cliente()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
@@ -297,13 +342,15 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         // Crédito fiscal: sin retención.
         Assert.Equal(0m, conCliente.Venta!.Totales.Retencion);
 
-        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Cliente de régimen especial");
-        var especial = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
-            s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.RegimenesEspeciales, autorizacion));
-        Assert.True(especial.Exitosa, especial.Mensaje);
+        // La retención es del comprobante gubernamental: la hace el Estado al pagarle a su proveedor.
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Cliente del Estado");
+        var gubernamental = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.Gubernamental, autorizacion));
+        Assert.True(gubernamental.Exitosa, gubernamental.Mensaje);
 
         // La retención se calcula sobre el subtotal (ya con descuentos) y se descuenta de lo que paga el cliente.
-        var totales = especial.Venta!.Totales;
+        var totales = gubernamental.Venta!.Totales;
+        Assert.True(totales.Impuesto > 0, "La factura gubernamental lleva ITBIS.");
         var esperada = decimal.Round(totales.Subtotal * 0.05m, 2, MidpointRounding.AwayFromZero);
         Assert.Equal(esperada, totales.Retencion);
         Assert.Equal(totales.Total - esperada, totales.TotalAPagar);
