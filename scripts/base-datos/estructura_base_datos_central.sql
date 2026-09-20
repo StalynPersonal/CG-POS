@@ -1974,6 +1974,7 @@ VALUES
     (1, N'Central.Auditoria.Consultar'),
     (1, N'Central.Organizacion.Administrar'),
     (1, N'Central.Dispositivos.Administrar'),
+    (1, N'Central.Cajas.Configurar'),
     (1, N'Central.UsuariosCaja.Administrar'),
     (1, N'Central.Maestros.Administrar'),
     (1, N'Central.Clientes.CorregirDocumento'),

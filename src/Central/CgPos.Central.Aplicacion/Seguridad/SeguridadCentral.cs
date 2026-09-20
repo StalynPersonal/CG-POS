@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Dominio.Globalizacion;
 
@@ -32,6 +32,12 @@ public enum MotivoRechazoCentral
     SesionReutilizada,
 
     ContrasenaNoCumple,
+
+    /// <summary>El usuario existe y la contraseña es buena, pero su rol no tiene el permiso que hace falta.</summary>
+    PermisoInsuficiente,
+
+    /// <summary>Tiene pendiente cambiar la contraseña: primero entra al Central Manager y la cambia.</summary>
+    DebeCambiarContrasena,
 }
 
 public sealed record ResultadoSesionCentral(
@@ -72,6 +78,14 @@ public interface IServicioSesionesCentral
 
     /// <summary>Cambia la contraseña del propio usuario según la política configurada, cierra todas sus sesiones e inicia una nueva.</summary>
     Task<ResultadoSesionCentral> CambiarContrasenaAsync(int usuarioId, string actual, string nueva, OrigenSolicitud origen, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Comprueba usuario, contraseña y un permiso concreto sin abrir sesión: es para autorizar una acción puntual, como
+    /// configurar una caja. Cuenta los intentos fallidos, bloquea y audita igual que el ingreso normal, así que no sirve
+    /// para probar contraseñas sin límite.
+    /// </summary>
+    Task<ResultadoAutorizacionCentral> AutorizarConPermisoAsync(string codigo, string contrasena, string permiso, OrigenSolicitud origen,
+        CancellationToken cancelacion = default);
 }
 
 /// <summary>Política de contraseñas del Central; los valores salen de parámetros.</summary>
@@ -96,6 +110,17 @@ public static class ReglasContrasena
 }
 
 /// <summary>Mensajes para el usuario. No revelan si un usuario existe.</summary>
+/// <summary>Resultado de autorizar una acción puntual con usuario y contraseña.</summary>
+/// <param name="Usuario">Quién autorizó, para la auditoría; nulo si no se autorizó.</param>
+public sealed record ResultadoAutorizacionCentral(UsuarioAuditoria? Usuario, MotivoRechazoCentral? Motivo, DateTimeOffset? BloqueadoHasta = null)
+{
+    public bool Exitoso => Usuario is not null;
+
+    public static ResultadoAutorizacionCentral Exito(UsuarioAuditoria usuario) => new(usuario, null);
+
+    public static ResultadoAutorizacionCentral Rechazo(MotivoRechazoCentral motivo, DateTimeOffset? bloqueadoHasta = null) => new(null, motivo, bloqueadoHasta);
+}
+
 public static class MensajesSeguridadCentral
 {
     private static readonly CultureInfo Cultura = CulturaRd.Crear();
@@ -110,6 +135,8 @@ public static class MensajesSeguridadCentral
             MotivoRechazoCentral.SesionInvalida => "La sesión venció. Ingrese nuevamente.",
             MotivoRechazoCentral.SesionReutilizada => "La sesión se cerró por seguridad. Ingrese nuevamente.",
             MotivoRechazoCentral.ContrasenaNoCumple => detalle ?? "La contraseña no cumple la política.",
+            MotivoRechazoCentral.PermisoInsuficiente => "Este usuario no tiene permiso para configurar cajas.",
+            MotivoRechazoCentral.DebeCambiarContrasena => "Este usuario debe cambiar su contraseña en el Central Manager antes de configurar una caja.",
             _ => "No se pudo iniciar sesión.",
         };
 

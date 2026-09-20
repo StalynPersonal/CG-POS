@@ -261,13 +261,15 @@ public sealed record DatosConfiguracionPantalla(
     string? Problema);
 
 /// <summary>Los datos que el técnico escribe en la pantalla de la caja la primera vez.</summary>
+/// <param name="Usuario">Usuario del Central con permiso para configurar cajas; su contraseña solo se usa para comprobarlo.</param>
 public sealed record SolicitudConfigurarCajaPantalla(
     string? SucursalCodigo,
     string? CajaCodigo,
     string? DireccionIp,
     string? UrlCentral,
     string? Secreto,
-    string? ConfiguradaPor = null);
+    string? Usuario = null,
+    string? Contrasena = null);
 
 public sealed record RespuestaConfiguracion(bool Exitosa, string Mensaje);
 

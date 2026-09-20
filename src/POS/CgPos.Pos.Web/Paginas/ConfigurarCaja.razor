@@ -20,6 +20,7 @@
                 <li>La dirección IP fija de este equipo, la misma que registraron en el Central.</li>
                 <li>La dirección del servidor Central.</li>
                 <li>La credencial que se emite en Organización → Cajas → Emitir credencial.</li>
+                <li>Un usuario del Central con permiso para configurar cajas, y su contraseña.</li>
             </ul>
         </div>
     </section>
@@ -53,8 +54,14 @@
                           InputType="InputType.Password" Immediate="true" Class="mt-3" Required="true" RequiredError="Escriba la credencial que emitió el Central."
                           HelperText="Se guarda cifrada en este equipo; no se vuelve a mostrar." />
 
-            <MudTextField T="string" @bind-Value="_configuradaPor" Label="Quién configura (opcional)" Variant="Variant.Outlined" MaxLength="150"
-                          Immediate="true" Class="mt-3" />
+            @* Quien configura se identifica con su usuario del Central: la contraseña solo viaja para comprobarla y no se guarda. *@
+            <MudText Typo="Typo.subtitle2" Class="mt-6">Quién autoriza</MudText>
+            <div class="cg-configurar__fila">
+                <MudTextField T="string" @bind-Value="_usuario" Label="Usuario del Central" Variant="Variant.Outlined" MaxLength="50"
+                              Immediate="true" Required="true" RequiredError="Indique el usuario del Central." />
+                <MudTextField T="string" @bind-Value="_contrasena" Label="Contraseña" Variant="Variant.Outlined" MaxLength="150"
+                              InputType="InputType.Password" Immediate="true" Required="true" RequiredError="Escriba la contraseña." />
+            </div>
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-6"
                        Disabled="@(_guardando || !Completo)" OnClick="GuardarAsync">
@@ -70,7 +77,8 @@
     private string? _direccionIp;
     private string? _urlCentral;
     private string? _secreto;
-    private string? _configuradaPor;
+    private string? _usuario;
+    private string? _contrasena;
     private string? _problema;
     private bool _guardando;
 
@@ -79,7 +87,8 @@
 
     private bool Completo =>
         _sucursal is { Length: > 0 } && _caja is { Length: > 0 } && _direccionIp is { Length: > 0 }
-        && _urlCentral is { Length: > 0 } && _secreto is { Length: > 0 };
+        && _urlCentral is { Length: > 0 } && _secreto is { Length: > 0 }
+        && _usuario is { Length: > 0 } && _contrasena is { Length: > 0 };
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,9 +109,10 @@
         _problema = null;
 
         var respuesta = await Cliente.ConfigurarCajaAsync(new SolicitudConfigurarCajaPantalla(
-            _sucursal, _caja, _direccionIp, _urlCentral, _secreto, _configuradaPor));
+            _sucursal, _caja, _direccionIp, _urlCentral, _secreto, _usuario, _contrasena));
 
         _guardando = false;
+        _contrasena = null;
         if (!respuesta.Exitosa)
         {
             _problema = respuesta.Mensaje;

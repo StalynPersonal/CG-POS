@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
@@ -183,6 +183,66 @@ internal sealed class ServicioSesionesCentral(
         await contexto.SaveChangesAsync(cancelacion);
 
         return ResultadoSesionCentral.Exito(CrearSesion(usuario, rol, sesion.Familia), token, sesion.ExpiraEn);
+    }
+
+    public async Task<ResultadoAutorizacionCentral> AutorizarConPermisoAsync(string codigo, string contrasena, string permiso, OrigenSolicitud origen,
+        CancellationToken cancelacion = default)
+    {
+        var codigoLimpio = codigo?.Trim() ?? string.Empty;
+        contrasena ??= string.Empty;
+        var ahora = reloj.Ahora();
+
+        var usuario = codigoLimpio.Length == 0 ? null : await contexto.UsuariosCentral.SingleOrDefaultAsync(u => u.Codigo == codigoLimpio, cancelacion);
+        if (usuario is null)
+        {
+            // Un usuario inexistente tarda lo mismo que una contraseña incorrecta.
+            hashContrasenas.Verificar(contrasena, _hashFicticio ??= hashContrasenas.Hash(Guid.NewGuid().ToString()));
+            return await RechazarAutorizacionAsync(null, MotivoRechazoCentral.CredencialesInvalidas, permiso, origen, cancelacion, codigoLimpio);
+        }
+
+        if (usuario.EstaBloqueado(ahora))
+            return await RechazarAutorizacionAsync(usuario, MotivoRechazoCentral.UsuarioBloqueado, permiso, origen, cancelacion);
+
+        // El mismo contador de intentos y el mismo bloqueo del ingreso: aquí tampoco se pueden probar contraseñas sin límite.
+        if (!hashContrasenas.Verificar(contrasena, usuario.ContrasenaHash))
+        {
+            var bloqueado = await RegistrarFalloAsync(usuario, ahora, cancelacion);
+            return await RechazarAutorizacionAsync(usuario, bloqueado ? MotivoRechazoCentral.UsuarioBloqueado : MotivoRechazoCentral.CredencialesInvalidas,
+                permiso, origen, cancelacion);
+        }
+
+        if (!usuario.Activo)
+            return await RechazarAutorizacionAsync(usuario, MotivoRechazoCentral.UsuarioInactivo, permiso, origen, cancelacion);
+
+        if (usuario.DebeCambiarContrasena)
+            return await RechazarAutorizacionAsync(usuario, MotivoRechazoCentral.DebeCambiarContrasena, permiso, origen, cancelacion);
+
+        var rol = await CargarRolAsync(usuario.RolId, cancelacion);
+        if (rol is not { Activo: true })
+            return await RechazarAutorizacionAsync(usuario, MotivoRechazoCentral.RolInactivo, permiso, origen, cancelacion);
+
+        if (!rol.PermisosAsignados.Any(p => string.Equals(p.PermisoCodigo, permiso, StringComparison.Ordinal)))
+            return await RechazarAutorizacionAsync(usuario, MotivoRechazoCentral.PermisoInsuficiente, permiso, origen, cancelacion);
+
+        // La contraseña era buena: se limpian los intentos fallidos acumulados, como en un ingreso normal.
+        usuario.RegistrarIngresoExitoso(ahora);
+        await contexto.SaveChangesAsync(cancelacion);
+        return ResultadoAutorizacionCentral.Exito(new UsuarioAuditoria(usuario.Id, usuario.Nombre));
+    }
+
+    private async Task<ResultadoAutorizacionCentral> RechazarAutorizacionAsync(UsuarioCentral? usuario, MotivoRechazoCentral motivo, string permiso,
+        OrigenSolicitud origen, CancellationToken cancelacion, string? codigoIntentado = null)
+    {
+        const string Accion = "Seguridad.AutorizacionRechazada";
+        var detalle = new { Motivo = motivo.ToString(), Permiso = permiso, CodigoIntentado = codigoIntentado, origen.DireccionIp, origen.AgenteUsuario };
+
+        if (usuario is null)
+            auditoria.Registrar(new EntradaAuditoria(Accion, TipoEntidad, Detalle: detalle));
+        else
+            Auditar(Accion, usuario, detalle);
+
+        await contexto.SaveChangesAsync(cancelacion);
+        return ResultadoAutorizacionCentral.Rechazo(motivo, motivo == MotivoRechazoCentral.UsuarioBloqueado ? usuario?.BloqueadoHasta : null);
     }
 
     private (SesionCentral Sesion, string Token) IniciarSesion(UsuarioCentral usuario, DateTimeOffset ahora, TimeSpan inactividad, TimeSpan duracion, OrigenSolicitud origen)

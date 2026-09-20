@@ -17,6 +17,7 @@ internal sealed class ConfiguracionCajaLocal : IConfiguracionCaja
 {
     private readonly IServiceScopeFactory _ambitos;
     private readonly IProteccionSecreto _proteccion;
+    private readonly IValidadorConfiguracionCaja _validador;
     private readonly TimeProvider _reloj;
     private readonly ILogger<ConfiguracionCajaLocal> _registro;
     private readonly bool _exigirIpDelEquipo;
@@ -24,11 +25,12 @@ internal sealed class ConfiguracionCajaLocal : IConfiguracionCaja
     private DatosConfiguracionCaja? _recordada;
     private bool _leida;
 
-    public ConfiguracionCajaLocal(IServiceScopeFactory ambitos, IProteccionSecreto proteccion, IConfiguration configuracion, TimeProvider reloj,
-        ILogger<ConfiguracionCajaLocal> registro)
+    public ConfiguracionCajaLocal(IServiceScopeFactory ambitos, IProteccionSecreto proteccion, IValidadorConfiguracionCaja validador,
+        IConfiguration configuracion, TimeProvider reloj, ILogger<ConfiguracionCajaLocal> registro)
     {
         _ambitos = ambitos;
         _proteccion = proteccion;
+        _validador = validador;
         _reloj = reloj;
         _registro = registro;
 
@@ -67,16 +69,24 @@ internal sealed class ConfiguracionCajaLocal : IConfiguracionCaja
         if (_exigirIpDelEquipo && !EsDelEquipo(solicitud.DireccionIp))
             return $"La dirección {solicitud.DireccionIp} no es de este equipo. Corríjala o apague la comprobación con {ClavesConfiguracionCaja.ValidarIpDelEquipo} = 0.";
 
+        if (solicitud.Usuario is not { Length: > 0 } || solicitud.Contrasena is not { Length: > 0 })
+            return "Escriba el usuario y la contraseña del Central que autorizan esta configuración.";
+
         ConfiguracionCaja configuracion;
         try
         {
             configuracion = ConfiguracionCaja.Crear(solicitud.SucursalCodigo, solicitud.CajaCodigo, solicitud.DireccionIp, solicitud.UrlCentral,
-                _proteccion.Proteger(solicitud.Secreto), _reloj.Ahora(), solicitud.ConfiguradaPor);
+                _proteccion.Proteger(solicitud.Secreto), _reloj.Ahora(), solicitud.Usuario.Trim());
         }
         catch (ArgumentException excepcion)
         {
             return excepcion.Message;
         }
+
+        // El Central tiene la última palabra: comprueba a la vez quién autoriza y que la caja, su dirección y su credencial
+        // sean las que él tiene registradas. Nada se guarda si no la acepta.
+        if (await _validador.ValidarAsync(solicitud, cancelacion) is { Length: > 0 } rechazo)
+            return rechazo;
 
         await using var ambito = _ambitos.CreateAsyncScope();
         var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
@@ -87,8 +97,8 @@ internal sealed class ConfiguracionCajaLocal : IConfiguracionCaja
         await contexto.SaveChangesAsync(cancelacion);
 
         Olvidar();
-        _registro.LogInformation("Caja configurada como {Sucursal}-{Caja} contra {Central}.",
-            configuracion.SucursalCodigo, configuracion.CajaCodigo, configuracion.UrlCentral);
+        _registro.LogInformation("Caja configurada como {Sucursal}-{Caja} contra {Central} por {Usuario}.",
+            configuracion.SucursalCodigo, configuracion.CajaCodigo, configuracion.UrlCentral, configuracion.ConfiguradaPor);
         return null;
     }
 

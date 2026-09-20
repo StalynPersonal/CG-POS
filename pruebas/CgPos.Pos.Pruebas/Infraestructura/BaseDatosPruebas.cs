@@ -74,6 +74,8 @@ public sealed class BaseDatosPruebas : IAsyncLifetime
                 ["Perifericos:Impresora:Carpeta"] = CarpetaImpresiones,
                 ["Ecf:CarpetaXml"] = CarpetaEcf,
                 ["Ecf:Certificado:Ruta"] = RutaCertificado,
+                // No hay un Central de verdad contra el que validar la configuración de la caja.
+                ["Central:Modo"] = "Simulado",
             })
             .Build();
 

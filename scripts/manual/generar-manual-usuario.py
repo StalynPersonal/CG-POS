@@ -543,10 +543,14 @@ paso('En el equipo de la caja, instale SQL Server Express y ejecute scripts/base
 paso('Instale el programa de la caja con scripts/caja/instalar-caja.ps1, indicando el número de sucursal, el de caja y '
      'la dirección del Central. No se le pide ninguna clave.')
 paso('Arranque la caja y abra cualquiera de sus pantallas. Como todavía no sabe cuál es, le pedirá cinco datos: el código de '
-     'su sucursal, el de la caja, la IP de ese equipo, la dirección del Central y la credencial que copió.')
+     'su sucursal, el de la caja, la IP de ese equipo, la dirección del Central y la credencial que copió. Además le pedirá su '
+     'usuario y contraseña del Central, para saber quién está montando esa caja.')
 paso('Copie el certificado digital de la empresa en el equipo. El PIN no se guarda: lo digita un supervisor en la caja.')
 paso('Ya con su credencial, la caja baja artículos, precios, usuarios, parámetros y sus rangos de comprobantes.')
 nota('Si la caja avisa que la base no existe o le faltan tablas, es que no se ejecutó el script en ese equipo.')
+nota('Quien configura una caja tiene que ser un usuario del Central con el permiso «Autorizar la configuración de una caja '
+     'desde el propio equipo». El Central lo comprueba en el momento, junto con la credencial y la dirección del equipo, y deja '
+     'anotado quién configuró esa caja. La contraseña no se guarda en la caja: solo el nombre del usuario.')
 nota('La credencial queda cifrada en la base de esa caja: no se vuelve a ver y copiarla a otra máquina no sirve. En cada '
      'comunicación el Central comprueba los cuatro datos juntos —sucursal, caja, IP y credencial—, así que dos cajas no pueden '
      'usar lo mismo.')

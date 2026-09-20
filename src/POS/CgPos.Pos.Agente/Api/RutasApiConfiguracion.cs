@@ -1,4 +1,4 @@
-using CgPos.Contratos.Ventas;
+﻿using CgPos.Contratos.Ventas;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 
 namespace CgPos.Pos.Agente.Api;
@@ -41,7 +41,8 @@ public static class RutasApiConfiguracion
                 solicitud.DireccionIp ?? string.Empty,
                 solicitud.UrlCentral ?? string.Empty,
                 solicitud.Secreto ?? string.Empty,
-                solicitud.ConfiguradaPor), cancelacion);
+                solicitud.Usuario ?? string.Empty,
+                solicitud.Contrasena ?? string.Empty), cancelacion);
 
             return problema is null
                 ? Results.Ok(new RespuestaConfiguracion(true, "Caja configurada. En el próximo ciclo se comunicará con el Central."))

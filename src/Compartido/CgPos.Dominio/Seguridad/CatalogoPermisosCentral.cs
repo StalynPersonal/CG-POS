@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 
 namespace CgPos.Dominio.Seguridad;
 
@@ -12,6 +12,9 @@ public static class CatalogoPermisosCentral
     public const string ConsultarAuditoria = "Central.Auditoria.Consultar";
     public const string AdministrarOrganizacion = "Central.Organizacion.Administrar";
     public const string AdministrarDispositivos = "Central.Dispositivos.Administrar";
+
+    /// <summary>Autoriza a montar una caja: es lo que el técnico escribe en la pantalla de configuración del equipo.</summary>
+    public const string ConfigurarCajas = "Central.Cajas.Configurar";
     public const string AdministrarUsuariosCaja = "Central.UsuariosCaja.Administrar";
     public const string AdministrarMaestros = "Central.Maestros.Administrar";
     public const string CorregirDocumentoCliente = "Central.Clientes.CorregirDocumento";
@@ -32,6 +35,7 @@ public static class CatalogoPermisosCentral
         new(ConsultarAuditoria, "Seguridad", "Consultar la auditoría del Central y de las cajas"),
         new(AdministrarOrganizacion, "Organización", "Administrar empresa, sucursales, cajas y parámetros"),
         new(AdministrarDispositivos, "Organización", "Emitir y revocar las credenciales con las que las cajas se conectan"),
+        new(ConfigurarCajas, "Organización", "Autorizar la configuración de una caja desde el propio equipo"),
         new(AdministrarUsuariosCaja, "Seguridad", "Administrar usuarios y roles de las cajas"),
         new(AdministrarMaestros, "Maestros", "Administrar artículos, clientes y catálogos"),
         new(CorregirDocumentoCliente, "Maestros", "Corregir el tipo y el número de documento de un cliente (queda auditado con motivo)"),

@@ -87,8 +87,18 @@
      IP de esta caja       10.12.1.101   (la misma que está en el Central)
      Servidor Central      https://central.laempresa.com.do
      Credencial            la que emitió el Central
+     Usuario del Central   el de quien está instalando
+     Contraseña            la suya
 
- Guarde. La credencial queda cifrada en la base de datos de esta caja: no se
+ Quien configura se identifica con su usuario del Central, que tiene que tener
+ el permiso "Autorizar la configuración de una caja desde el propio equipo"
+ (Central.Cajas.Configurar). La contraseña solo viaja para comprobarla; en la
+ caja se guarda nada más el usuario, y en el Central queda anotado quién
+ configuró esta caja y desde qué dirección.
+
+ Guarde. El Central responde en el momento: si la dirección del Central, la
+ credencial, la IP o el usuario no sirven, lo dice ahí mismo y no se guarda
+ nada. La credencial queda cifrada en la base de datos de esta caja: no se
  vuelve a mostrar y no sirve en otro equipo.
 
  En el siguiente ciclo la caja se comunica y baja artículos, precios, usuarios,

@@ -77,14 +77,25 @@ public sealed record DatosConfiguracionCaja(
     public bool Sirve => Problema is null && Secreto is { Length: > 0 };
 }
 
-/// <summary>Los cinco datos que el técnico escribe en la pantalla de la caja la primera vez.</summary>
+/// <summary>
+/// Lo que el técnico escribe en la pantalla de la caja la primera vez: los cinco datos del equipo y, para autorizar, su
+/// usuario y contraseña del Central. La contraseña solo viaja para comprobarla; en la caja no se guarda.
+/// </summary>
 public sealed record SolicitudConfigurarCaja(
     string SucursalCodigo,
     string CajaCodigo,
     string DireccionIp,
     string UrlCentral,
     string Secreto,
-    string? ConfiguradaPor = null);
+    string Usuario,
+    string Contrasena);
+
+/// <summary>Le pregunta al Central si acepta estos datos antes de guardarlos, con el usuario que autoriza.</summary>
+public interface IValidadorConfiguracionCaja
+{
+    /// <returns>El motivo por el que el Central no la acepta, o nulo si la aceptó.</returns>
+    Task<string?> ValidarAsync(SolicitudConfigurarCaja solicitud, CancellationToken cancelacion = default);
+}
 
 /// <summary>Qué caja es este equipo. Se llena desde la propia pantalla de la caja y se guarda en su base.</summary>
 public interface IConfiguracionCaja

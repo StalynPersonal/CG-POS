@@ -75,9 +75,18 @@
      IP de esta caja       10.12.1.101   (la misma que puso en el Central)
      Servidor Central      http://localhost:5280
      Credencial            la que copió
+     Usuario del Central   ADMIN
+     Contraseña            la del Central
 
- Guarde. La credencial se cifra y queda en la base de la caja. En el siguiente
- ciclo baja artículos, precios, usuarios y parámetros.
+ El usuario tiene que existir en el Central y tener el permiso "Autorizar la
+ configuración de una caja desde el propio equipo"
+ (Central.Cajas.Configurar). El rol Administrador ya lo trae. La contraseña
+ solo viaja para comprobarla: en la caja se guarda únicamente el usuario.
+
+ Guarde. El Central comprueba en ese momento la credencial, la caja, la IP y
+ quién autoriza; si algo no cuadra lo dice ahí mismo y no se guarda nada. La
+ credencial se cifra y queda en la base de la caja. En el siguiente ciclo baja
+ artículos, precios, usuarios y parámetros.
 
  Si prefiere trabajar sin Central, en appsettings.Development.json ponga el
  modo simulado, que guarda los envíos en una carpeta en vez de mandarlos:

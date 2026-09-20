@@ -1,4 +1,4 @@
-using CgPos.Contratos.CargaInicial;
+﻿using CgPos.Contratos.CargaInicial;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.CargaInicial;
 using CgPos.Pos.Aplicacion.Sincronizacion;
@@ -29,7 +29,7 @@ public class CargaInicialSoloLoPropioPruebas(BaseDatosPruebas baseDatos) : IClas
         {
             var configuracion = ambito.ServiceProvider.GetRequiredService<IConfiguracionCaja>();
             var error = await configuracion.GuardarAsync(new SolicitudConfigurarCaja(
-                SucursalPropia, CajaPropia, "10.12.1.101", "http://central:5280", "credencial-de-prueba", "Pruebas"));
+                SucursalPropia, CajaPropia, "10.12.1.101", "http://central:5280", "credencial-de-prueba", "ADMIN", "Clave.Pruebas"));
             Assert.Null(error);
         }
 

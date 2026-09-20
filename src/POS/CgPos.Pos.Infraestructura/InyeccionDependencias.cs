@@ -92,9 +92,11 @@ public static class InyeccionDependencias
         servicios.AddSingleton(OpcionesSincronizacion.Leer(configuracion));
         servicios.AddSingleton<Aplicacion.Sincronizacion.IEstadoConexionCentral, EstadoConexionCentral>();
         servicios.AddSingleton<Aplicacion.Sincronizacion.IProteccionSecreto, ProteccionSecretoEquipo>();
+        servicios.AddSingleton(_ => FabricaValidadorConfiguracion.Crear(configuracion));
         servicios.AddSingleton<Aplicacion.Sincronizacion.IConfiguracionCaja>(proveedor => new ConfiguracionCajaLocal(
             proveedor.GetRequiredService<IServiceScopeFactory>(),
             proveedor.GetRequiredService<Aplicacion.Sincronizacion.IProteccionSecreto>(),
+            proveedor.GetRequiredService<Aplicacion.Sincronizacion.IValidadorConfiguracionCaja>(),
             configuracion,
             proveedor.GetRequiredService<TimeProvider>(),
             proveedor.GetRequiredService<ILoggerFactory>().CreateLogger<ConfiguracionCajaLocal>()));

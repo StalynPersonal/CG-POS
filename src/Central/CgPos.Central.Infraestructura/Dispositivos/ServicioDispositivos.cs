@@ -2,14 +2,17 @@
 using CgPos.Central.Aplicacion.Dispositivos;
 using CgPos.Contratos.Central;
 using CgPos.Central.Infraestructura.Persistencia;
+using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Infraestructura.Seguridad;
+using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Dispositivos;
 
-internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAuditoriaCentral auditoria, TimeProvider reloj) : IServicioDispositivos
+internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAuditoriaCentral auditoria, IServicioSesionesCentral sesiones, TimeProvider reloj)
+    : IServicioDispositivos
 {
     private const string TipoEntidad = "Caja";
 
@@ -111,6 +114,32 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
         return ResultadoDispositivo.Exito(new DispositivoAutenticado(cajaId, datos.Codigo, datos.Nombre, datos.SucursalId, datos.SucursalCodigo, credencial.Id));
     }
 
+
+    public async Task<RespuestaValidarConfiguracionCaja> ValidarConfiguracionAsync(SolicitudValidarConfiguracionCaja solicitud, OrigenSolicitud origen,
+        CancellationToken cancelacion = default)
+    {
+        ArgumentNullException.ThrowIfNull(solicitud);
+
+        // Primero la persona: así este endpoint no sirve para probar credenciales de cajas sin ser nadie.
+        var autorizacion = await sesiones.AutorizarConPermisoAsync(solicitud.Usuario ?? string.Empty, solicitud.Contrasena ?? string.Empty,
+            CatalogoPermisosCentral.ConfigurarCajas, origen, cancelacion);
+        if (autorizacion.Usuario is not { } autorizador)
+            return new RespuestaValidarConfiguracionCaja(false, MensajesSeguridadCentral.Para(autorizacion.Motivo!.Value, autorizacion.BloqueadoHasta));
+
+        // Después el equipo: la credencial, la caja, su sucursal y la dirección tienen que cuadrar, igual que en cada comunicación.
+        var dispositivo = await AutenticarAsync(solicitud.SucursalCodigo ?? string.Empty, solicitud.CajaCodigo ?? string.Empty,
+            solicitud.Secreto ?? string.Empty, solicitud.DireccionIp, origen, cancelacion);
+        if (dispositivo.Dispositivo is not { } caja)
+            return new RespuestaValidarConfiguracionCaja(false, MensajesDispositivos.Para(dispositivo.Motivo!.Value));
+
+        var sucursalNombre = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId).Select(s => s.Nombre).SingleAsync(cancelacion);
+        auditoria.Registrar(new EntradaAuditoria("Dispositivos.CajaConfigurada", TipoEntidad, caja.CajaId.ToString(),
+            new { Caja = $"{caja.SucursalCodigo}-{caja.CajaCodigo}", Declarada = solicitud.DireccionIp, Origen = origen.DireccionIp },
+            Usuario: autorizador));
+        await contexto.SaveChangesAsync(cancelacion);
+
+        return new RespuestaValidarConfiguracionCaja(true, SucursalNombre: sucursalNombre, CajaNombre: caja.CajaNombre);
+    }
 
     public Task<bool> EsCredencialActivaAsync(int credencialId, int cajaId, CancellationToken cancelacion = default) =>
         contexto.CredencialesDispositivo.AnyAsync(c => c.Id == credencialId && c.CajaId == cajaId && c.RevocadaEn == null

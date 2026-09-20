@@ -56,6 +56,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             anfitrion.UseSetting("Maestros:Archivo", Path.Combine(datosPruebas, "maestros.pruebas.json"));
             // La caja ya no se identifica por archivo: se comprueba su dirección solo cuando el equipo la tiene de verdad.
             anfitrion.UseSetting("Caja:ValidarIpDelEquipo", "0");
+            // Sin un Central de verdad, la configuración de la caja no se valida contra nadie.
+            anfitrion.UseSetting("Central:Modo", "Simulado");
             anfitrion.UseSetting("Agente:ServirPantallas", "false");
             anfitrion.UseSetting("Perifericos:Impresora:Carpeta", _baseDatos.CarpetaImpresiones);
             anfitrion.UseSetting("Ecf:CarpetaXml", _baseDatos.CarpetaEcf);
@@ -85,7 +87,8 @@ public sealed class AgenteEnPruebas : IAsyncLifetime
             "10.12.1.101",
             "http://central.pruebas/",
             "secreto-de-pruebas",
-            "Pruebas");
+            "ADMIN",
+            "Clave.Pruebas");
 
         using var respuesta = await cliente.PostAsJsonAsync("/api/configuracion", solicitud, OpcionesJson.Predeterminadas);
         respuesta.EnsureSuccessStatusCode();

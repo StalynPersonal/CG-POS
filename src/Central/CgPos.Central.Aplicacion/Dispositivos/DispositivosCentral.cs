@@ -42,6 +42,13 @@ public interface IServicioDispositivos
 
     /// <summary>La credencial sigue activa y la caja habilitada: se consulta con cada token de dispositivo.</summary>
     Task<bool> EsCredencialActivaAsync(int credencialId, int cajaId, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Autoriza que se configure una caja desde su propio equipo: primero el usuario del Central que lo pide (con el permiso
+    /// de configurar cajas) y después la credencial, la caja y la dirección que trae. Queda en la auditoría quién la configuró.
+    /// </summary>
+    Task<RespuestaValidarConfiguracionCaja> ValidarConfiguracionAsync(SolicitudValidarConfiguracionCaja solicitud, OrigenSolicitud origen,
+        CancellationToken cancelacion = default);
 }
 
 public static class MensajesDispositivos

@@ -29,6 +29,19 @@ public static class RutasApiDispositivos
             })
             .SinCache();
 
+        // Público, y es una pantalla de login: quien configura una caja se identifica con su usuario del Central y su
+        // contraseña, y tiene que tener el permiso de configurar cajas. Los intentos fallidos cuentan y bloquean igual.
+        dispositivos.MapPost("/configuracion", async (SolicitudValidarConfiguracionCaja solicitud, HttpContext http, IServicioDispositivos servicio,
+                CancellationToken cancelacion) =>
+            {
+                if (solicitud is null)
+                    return Results.BadRequest(new RespuestaValidarConfiguracionCaja(false, "No llegaron los datos de la caja."));
+
+                var resultado = await servicio.ValidarConfiguracionAsync(solicitud, http.OrigenSolicitud(), cancelacion);
+                return resultado.Aceptada ? Results.Ok(resultado) : Results.Json(resultado, statusCode: StatusCodes.Status401Unauthorized);
+            })
+            .SinCache();
+
         dispositivos.MapGet("/actual", (ClaimsPrincipal usuario) =>
                 EmisorTokensCentral.LeerDispositivo(usuario) is { } dispositivo ? Results.Ok(dispositivo) : Results.Unauthorized())
             .RequireAuthorization(PoliticasCentral.Dispositivo);

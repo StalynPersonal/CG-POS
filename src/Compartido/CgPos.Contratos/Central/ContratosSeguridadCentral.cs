@@ -39,6 +39,21 @@ public sealed record SolicitudTokenDispositivo(string SucursalCodigo, string Caj
 public sealed record RespuestaTokenDispositivo(bool Exitoso, string? Mensaje = null, string? Token = null, DateTimeOffset? ExpiraEn = null);
 
 /// <summary>
+/// Lo que la caja manda al Central mientras la están configurando: los datos del equipo y el usuario del Central que lo
+/// autoriza. La contraseña se usa una sola vez para comprobarla y no se guarda en ningún lado de la caja.
+/// </summary>
+public sealed record SolicitudValidarConfiguracionCaja(
+    string SucursalCodigo,
+    string CajaCodigo,
+    string Secreto,
+    string? DireccionIp,
+    string Usuario,
+    string Contrasena);
+
+/// <param name="Mensaje">Qué falló, para mostrarlo en la pantalla de la caja; nulo si se aceptó.</param>
+public sealed record RespuestaValidarConfiguracionCaja(bool Aceptada, string? Mensaje = null, string? SucursalNombre = null, string? CajaNombre = null);
+
+/// <summary>
 /// Credencial recién emitida. El secreto solo se entrega en esta respuesta: el Central guarda su hash. En la caja se configuran
 /// <c>Caja:Sucursal</c>, <c>Caja:Codigo</c> y <c>Central:Secreto</c>.
 /// </summary>

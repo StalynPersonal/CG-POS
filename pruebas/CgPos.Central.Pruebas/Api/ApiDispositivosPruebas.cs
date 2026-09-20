@@ -111,6 +111,47 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
         Assert.True((await PedirTokenAsync(cliente, CentralEnPruebas.CajaDos, credencial.Secreto)).Cuerpo!.Exitoso);
     }
 
+    [SkippableFact]
+    public async Task Configurar_una_caja_exige_un_usuario_del_central_con_permiso_y_la_credencial_correcta()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var administrador = await TokenAdministradorAsync(cliente);
+        var credencial = await EmitirAsync(cliente, administrador, CentralEnPruebas.CajaUno);
+        var (sucursal, caja, direccionIp) = CentralEnPruebas.IdentidadCaja(CentralEnPruebas.CajaUno);
+
+        Task<(HttpStatusCode Estado, RespuestaValidarConfiguracionCaja? Cuerpo)> ValidarAsync(string secreto, string usuario, string contrasena) =>
+            EnviarConfiguracionAsync(cliente, new SolicitudValidarConfiguracionCaja(sucursal, caja, secreto, direccionIp, usuario, contrasena));
+
+        // Sin un usuario del Central no se configura nada, aunque la credencial de la caja sea la buena.
+        var sinUsuario = await ValidarAsync(credencial.Secreto, "NOEXISTE", "loquesea");
+        Assert.Equal(HttpStatusCode.Unauthorized, sinUsuario.Estado);
+        Assert.Equal("Usuario o contraseña incorrectos.", sinUsuario.Cuerpo!.Mensaje);
+
+        // Con el usuario bueno pero una credencial que no es la de esta caja, tampoco.
+        var credencialMala = await ValidarAsync(credencial.Secreto + "x", "ADMIN", CentralEnPruebas.ContrasenaAdministrador);
+        Assert.Equal(HttpStatusCode.Unauthorized, credencialMala.Estado);
+        Assert.Equal("Credencial de caja no válida.", credencialMala.Cuerpo!.Mensaje);
+
+        // Con las dos cosas en orden, el Central acepta y dice qué caja es, para que el técnico lo confirme en pantalla.
+        var aceptada = await ValidarAsync(credencial.Secreto, "ADMIN", CentralEnPruebas.ContrasenaAdministrador);
+        Assert.Equal(HttpStatusCode.OK, aceptada.Estado);
+        Assert.True(aceptada.Cuerpo!.Aceptada, aceptada.Cuerpo.Mensaje);
+        Assert.False(string.IsNullOrWhiteSpace(aceptada.Cuerpo.CajaNombre));
+
+        // Y queda en la auditoría del Central quién la configuró.
+        var auditada = await central.UsarContextoAsync(contexto => contexto.Auditoria.AsNoTracking()
+            .AnyAsync(a => a.Accion == "Dispositivos.CajaConfigurada" && a.EntidadId == CentralEnPruebas.CajaUno.ToString()));
+        Assert.True(auditada);
+    }
+
+    private static async Task<(HttpStatusCode Estado, RespuestaValidarConfiguracionCaja? Cuerpo)> EnviarConfiguracionAsync(HttpClient cliente,
+        SolicitudValidarConfiguracionCaja solicitud)
+    {
+        using var respuesta = await cliente.PostAsJsonAsync("/api/dispositivos/configuracion", solicitud, OpcionesJson.Predeterminadas);
+        return (respuesta.StatusCode, await respuesta.Content.ReadFromJsonAsync<RespuestaValidarConfiguracionCaja>(OpcionesJson.Predeterminadas));
+    }
+
     private Task<int> HabilitarCajaDosAsync(bool habilitada) =>
         central.UsarContextoAsync(async contexto =>
         {
