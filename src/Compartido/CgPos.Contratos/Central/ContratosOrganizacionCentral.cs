@@ -42,8 +42,11 @@ public sealed record SolicitudValorParametro(string Valor);
 /// Numeración de un documento que emite el Central. Cada documento tiene la suya y sin ella no se puede crear: es una
 /// decisión del negocio, no algo que el sistema invente la primera vez que hace falta.
 /// </summary>
+/// <param name="Codigo">Con lo que el sistema la busca; no cambia.</param>
+/// <param name="Prefijo">Lo que se ve delante del correlativo; esto sí se puede cambiar.</param>
 /// <param name="Proximo">El número que se llevará el próximo documento, ya formateado.</param>
-public sealed record DatosSecuenciaCentral(string Prefijo, string Documento, long Ultimo, int Digitos, bool Activa, string Proximo);
+public sealed record DatosSecuenciaCentral(string Codigo, string Prefijo, string Documento, long Ultimo, int Digitos, bool Activa, string Proximo);
 
+/// <param name="Codigo">Identifica la secuencia; con él la busca el sistema al numerar.</param>
 /// <param name="Ultimo">Último número entregado; el próximo documento se lleva este más uno.</param>
-public sealed record SolicitudSecuenciaCentral(string Prefijo, string Documento, long Ultimo, int Digitos, bool Activa);
+public sealed record SolicitudSecuenciaCentral(string Codigo, string Prefijo, string Documento, long Ultimo, int Digitos, bool Activa);

@@ -147,9 +147,10 @@ MOTIVOS_DESCUENTO = [
 ]
 
 # Documentos que numera el propio Central. Cada uno con su prefijo, cómo se le llama y cuántos dígitos lleva.
+# El código es con lo que el sistema la busca y no cambia; el prefijo es solo cómo se ve el número.
 SECUENCIAS_CENTRAL = [
-    ('COT', 'Cotización', 6),
-    ('LB', 'Lista de boda', 6),
+    ('Cotizacion', 'COT', 'Cotización', 6),
+    ('ListaBoda', 'LB', 'Lista de boda', 6),
 ]
 
 MOTIVOS_DEVOLUCION = [
@@ -296,11 +297,11 @@ def catalogos_tecnicos():
 
     # Las secuencias del Central no llevan Id ni auditoría: su clave es el propio prefijo.
     valores_secuencias = ',\n'.join(
-        f"    ('{prefijo}', N'{documento}', 0, {digitos}, 1)" for prefijo, documento, digitos in SECUENCIAS_CENTRAL)
+        f"    ('{codigo}', '{prefijo}', N'{documento}', 0, {digitos}, 1)" for codigo, prefijo, documento, digitos in SECUENCIAS_CENTRAL)
     partes.append(
         '/* Numeración de los documentos que emite el Central. Sin la fila de un documento, ese documento no se\n'
         '   puede crear: la numeración es una decisión del negocio, no algo que el sistema invente. */\n'
-        'INSERT INTO [SecuenciasCentral] ([Prefijo], [Documento], [Ultimo], [Digitos], [Activa])\nVALUES\n'
+        'INSERT INTO [SecuenciasCentral] ([Codigo], [Prefijo], [Documento], [Ultimo], [Digitos], [Activa])\nVALUES\n'
         + valores_secuencias + ';\nGO\n')
 
     bloque('Formas de pago', 'FormasPago',

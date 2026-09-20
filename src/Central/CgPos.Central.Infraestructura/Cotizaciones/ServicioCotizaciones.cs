@@ -23,7 +23,7 @@ internal sealed class ServicioCotizaciones(
     TimeProvider reloj) : IServicioCotizaciones
 {
     private const string TipoEntidad = "Cotizacion";
-    internal const string PrefijoNumero = "COT";
+    internal const string CodigoDocumento = DocumentosNumerados.Cotizacion;
 
     public async Task<DatosCotizacionParaCaja?> BuscarParaCajaAsync(string numero, CancellationToken cancelacion = default)
     {
@@ -92,7 +92,7 @@ internal sealed class ServicioCotizaciones(
             string numero;
             try
             {
-                numero = await numeracion.SiguienteAsync(PrefijoNumero, cancelacion);
+                numero = await numeracion.SiguienteAsync(CodigoDocumento, cancelacion);
             }
             catch (SecuenciaCentralNoConfiguradaExcepcion excepcion)
             {

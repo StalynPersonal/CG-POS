@@ -1,4 +1,4 @@
-@page "/organizacion/secuencias"
+﻿@page "/organizacion/secuencias"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
 @inject ClienteCentral Cliente
 @inject IDialogService Dialogos
@@ -38,6 +38,7 @@ else if (!_cargando && _secuencias.Any(s => !s.Activa))
               Breakpoint="Breakpoint.Sm" Elevation="0" OnRowClick="@(evento => AbrirAsync(evento.Item))" RowStyle="cursor: pointer">
         <HeaderContent>
             <MudTh>Documento</MudTh>
+            <MudTh>Código</MudTh>
             <MudTh>Prefijo</MudTh>
             <MudTh Style="text-align: right">Último entregado</MudTh>
             <MudTh>Próximo número</MudTh>
@@ -45,6 +46,7 @@ else if (!_cargando && _secuencias.Any(s => !s.Activa))
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Documento">@context.Documento</MudTd>
+            <MudTd DataLabel="Código"><span class="cg-central__valor">@context.Codigo</span></MudTd>
             <MudTd DataLabel="Prefijo"><span class="cg-central__valor">@context.Prefijo</span></MudTd>
             <MudTd DataLabel="Último entregado" Style="text-align: right">@context.Ultimo.ToString("N0")</MudTd>
             <MudTd DataLabel="Próximo número"><span class="cg-central__valor">@context.Proximo</span></MudTd>

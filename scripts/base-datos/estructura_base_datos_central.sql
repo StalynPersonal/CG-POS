@@ -590,12 +590,13 @@ GO
 
 
 CREATE TABLE [SecuenciasCentral] (
+    [Codigo] varchar(30) NOT NULL,
     [Prefijo] varchar(10) NOT NULL,
     [Documento] nvarchar(60) NOT NULL,
     [Ultimo] bigint NOT NULL,
     [Digitos] int NOT NULL,
     [Activa] bit NOT NULL,
-    CONSTRAINT [PK_SecuenciasCentral] PRIMARY KEY ([Prefijo])
+    CONSTRAINT [PK_SecuenciasCentral] PRIMARY KEY ([Codigo])
 );
 GO
 
@@ -2065,6 +2066,10 @@ CREATE INDEX [IX_SaldosPuntos_ProximoVencimiento] ON [SaldosPuntos] ([ProximoVen
 GO
 
 
+CREATE UNIQUE INDEX [IX_SecuenciasCentral_Prefijo] ON [SecuenciasCentral] ([Prefijo]);
+GO
+
+
 CREATE INDEX [IX_SecuenciasEcf_CajaId] ON [SecuenciasEcf] ([CajaId]);
 GO
 
@@ -2395,10 +2400,10 @@ GO
 
 /* Numeración de los documentos que emite el Central. Sin la fila de un documento, ese documento no se
    puede crear: la numeración es una decisión del negocio, no algo que el sistema invente. */
-INSERT INTO [SecuenciasCentral] ([Prefijo], [Documento], [Ultimo], [Digitos], [Activa])
+INSERT INTO [SecuenciasCentral] ([Codigo], [Prefijo], [Documento], [Ultimo], [Digitos], [Activa])
 VALUES
-    ('COT', N'Cotización', 0, 6, 1),
-    ('LB', N'Lista de boda', 0, 6, 1);
+    ('Cotizacion', 'COT', N'Cotización', 0, 6, 1),
+    ('ListaBoda', 'LB', N'Lista de boda', 0, 6, 1);
 GO
 
 /* Formas de pago */

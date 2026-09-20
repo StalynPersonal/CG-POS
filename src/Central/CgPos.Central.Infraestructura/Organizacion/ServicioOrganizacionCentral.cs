@@ -314,7 +314,7 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
     public async Task<IReadOnlyList<DatosSecuenciaCentral>> ListarSecuenciasAsync(CancellationToken cancelacion = default)
     {
         var secuencias = await contexto.SecuenciasCentral.AsNoTracking().OrderBy(s => s.Documento).ToListAsync(cancelacion);
-        return secuencias.Select(s => new DatosSecuenciaCentral(s.Prefijo, s.Documento, s.Ultimo, s.Digitos, s.Activa,
+        return secuencias.Select(s => new DatosSecuenciaCentral(s.Codigo, s.Prefijo, s.Documento, s.Ultimo, s.Digitos, s.Activa,
             $"{s.Prefijo}{(s.Ultimo + 1).ToString(new string('0', Math.Clamp(s.Digitos, 1, 18)))}")).ToList();
     }
 
@@ -322,9 +322,14 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
+        var codigo = (solicitud.Codigo ?? string.Empty).Trim();
         var prefijo = (solicitud.Prefijo ?? string.Empty).Trim().ToUpperInvariant();
         var documento = (solicitud.Documento ?? string.Empty).Trim();
 
+        if (codigo.Length == 0 || codigo.Length > SecuenciaCentral.LargoMaximoCodigo)
+            return ResultadoAdministracion.Error($"El código es obligatorio y no puede pasar de {SecuenciaCentral.LargoMaximoCodigo} caracteres.");
+        if (!codigo.All(char.IsAsciiLetterOrDigit))
+            return ResultadoAdministracion.Error("El código solo admite letras y números: es con lo que el sistema busca la secuencia.");
         if (prefijo.Length == 0 || prefijo.Length > SecuenciaCentral.LargoMaximoPrefijo)
             return ResultadoAdministracion.Error($"El prefijo es obligatorio y no puede pasar de {SecuenciaCentral.LargoMaximoPrefijo} caracteres.");
         if (!prefijo.All(char.IsAsciiLetterOrDigit))
@@ -336,24 +341,35 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         if (solicitud.Ultimo < 0)
             return ResultadoAdministracion.Error("El último número entregado no puede ser negativo.");
 
-        var existente = await contexto.SecuenciasCentral.SingleOrDefaultAsync(s => s.Prefijo == prefijo, cancelacion);
+        // Dos documentos con el mismo prefijo darían números iguales y no se sabría cuál es cuál.
+        if (await contexto.SecuenciasCentral.AnyAsync(s => s.Prefijo == prefijo && s.Codigo != codigo, cancelacion))
+            return ResultadoAdministracion.Error($"Ya hay otro documento que numera con el prefijo {prefijo}.");
+
+        var existente = await contexto.SecuenciasCentral.SingleOrDefaultAsync(s => s.Codigo == codigo, cancelacion);
+
         // Bajar el contador repetiría números ya usados, así que solo se deja subir.
         if (existente is not null && solicitud.Ultimo < existente.Ultimo)
             return ResultadoAdministracion.Error(
                 $"La secuencia de {existente.Documento} va por {existente.Ultimo}: bajarla repetiría números ya entregados.");
 
-        var anterior = existente is null ? null : new { existente.Documento, existente.Ultimo, existente.Digitos, existente.Activa };
+        var anterior = existente is null ? null : new { existente.Prefijo, existente.Documento, existente.Ultimo, existente.Digitos, existente.Activa };
+        var cambiaPrefijo = existente is not null && existente.Prefijo != prefijo;
+
         if (existente is null)
+        {
             contexto.SecuenciasCentral.Add(new SecuenciaCentral
             {
+                Codigo = codigo,
                 Prefijo = prefijo,
                 Documento = documento,
                 Ultimo = solicitud.Ultimo,
                 Digitos = solicitud.Digitos,
                 Activa = solicitud.Activa,
             });
+        }
         else
         {
+            existente.Prefijo = prefijo;
             existente.Documento = documento;
             existente.Ultimo = solicitud.Ultimo;
             existente.Digitos = solicitud.Digitos;
@@ -361,10 +377,12 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
         }
 
         auditoria.Registrar(new EntradaAuditoria(anterior is null ? "Organizacion.SecuenciaCreada" : "Organizacion.SecuenciaActualizada",
-            "SecuenciaCentral", prefijo,
-            Detalle: new { documento, solicitud.Ultimo, solicitud.Digitos, solicitud.Activa, Anterior = anterior },
+            "SecuenciaCentral", codigo,
+            Detalle: new { prefijo, documento, solicitud.Ultimo, solicitud.Digitos, solicitud.Activa, Anterior = anterior },
+            Motivo: cambiaPrefijo ? $"El prefijo pasó de {anterior!.Prefijo} a {prefijo}; los documentos ya emitidos conservan el suyo." : null,
             Usuario: actor));
         await contexto.SaveChangesAsync(cancelacion);
         return ResultadoAdministracion.Correcto();
     }
+
 }

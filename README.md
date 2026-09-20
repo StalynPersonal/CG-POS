@@ -161,7 +161,9 @@ Al ingresar, si la caja no tiene turno abierto se pide el fondo (sugerido por el
 
 La de la caja va en su base y funciona sin red: la caja factura aunque el Central esté caído. La del Central numera lo que nace allá (cotizaciones, listas de boda). Y el e-NCF es otra cosa: su rango lo asigna la DGII y no se inventa.
 
-**Secuencias de documentos del Central:** cada documento que emite el Central tiene su fila en `SecuenciasCentral`, con el prefijo, cómo se le llama, el último número entregado, los dígitos del correlativo y si está activa. **Sin su secuencia, el documento no se crea**: la operación se rechaza diciendo cuál falta o cuál está apagada, en vez de inventar una numeración. La instalación deja creadas las de cotización (`COT`) y lista de boda (`LB`); las demás se agregan en Organización → Secuencias de documentos. El contador solo se puede adelantar: bajarlo repetiría números ya entregados.
+**Secuencias de documentos del Central:** cada documento que emite el Central tiene su fila en `SecuenciasCentral`, con su código, el prefijo, cómo se le llama, el último número entregado, los dígitos del correlativo y si está activa. **Sin su secuencia, el documento no se crea**: la operación se rechaza diciendo cuál falta o cuál está apagada, en vez de inventar una numeración. La instalación deja creadas las de cotización y lista de boda; las demás se agregan en Organización → Secuencias de documentos.
+
+El **código** (`Cotizacion`, `ListaBoda`) es con lo que el sistema la busca y no cambia; el **prefijo** (`COT`, `LB`) es solo cómo se ve el número y se puede cambiar cuando el negocio quiera, sin que deje de emitirse nada — los documentos ya emitidos conservan el suyo. Dos documentos no pueden compartir prefijo. El contador solo se adelanta: bajarlo repetiría números ya entregados.
 - El Central exige que el número de factura y de nota de crédito sea único en la empresa: si llega repetido de otra transacción, el mensaje se guarda, no entra en los reportes y queda un conflicto `NumeroDuplicado` en el monitor.
 
 En la pantalla de venta:

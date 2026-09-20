@@ -1,4 +1,4 @@
-﻿using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,14 +6,21 @@ namespace CgPos.Central.Infraestructura.Organizacion;
 
 /// <summary>
 /// Contador de un documento que numera el propio Central. Cada documento tiene su fila y sin ella no se puede crear: la
-/// numeración de un documento es una decisión del negocio, no algo que el sistema invente la primera vez que hace falta.
+/// numeración es una decisión del negocio, no algo que el sistema invente la primera vez que hace falta.
+///
+/// El <see cref="Codigo"/> es con lo que el sistema la busca y no cambia nunca; el <see cref="Prefijo"/> es solo cómo se ve
+/// el número y se puede cambiar cuando el negocio quiera, sin que deje de funcionar nada.
 /// </summary>
 public sealed class SecuenciaCentral
 {
+    public const int LargoMaximoCodigo = 30;
     public const int LargoMaximoPrefijo = 10;
     public const int LargoMaximoDocumento = 60;
 
-    /// <summary>Lo que se antepone al correlativo y con lo que el código pide su número: COT, LB…</summary>
+    /// <summary>Con lo que el sistema pide su número: Cotizacion, ListaBoda… No se cambia.</summary>
+    public string Codigo { get; set; } = string.Empty;
+
+    /// <summary>Lo que se antepone al correlativo: COT, LB… Esto sí se puede cambiar.</summary>
     public string Prefijo { get; set; } = string.Empty;
 
     /// <summary>Qué documento numera, tal como se le llama en el negocio. Es lo que se ve al administrarla.</summary>
@@ -29,6 +36,13 @@ public sealed class SecuenciaCentral
     public bool Activa { get; set; } = true;
 }
 
+/// <summary>Códigos de los documentos que numera el Central. Son los que el sistema busca en la tabla.</summary>
+public static class DocumentosNumerados
+{
+    public const string Cotizacion = "Cotizacion";
+    public const string ListaBoda = "ListaBoda";
+}
+
 /// <summary>No hay una secuencia configurada para ese documento, o está desactivada, así que no se puede crear.</summary>
 public sealed class SecuenciaCentralNoConfiguradaExcepcion(string mensaje) : Exception(mensaje);
 
@@ -41,32 +55,29 @@ public sealed class SecuenciaCentralNoConfiguradaExcepcion(string mensaje) : Exc
 /// </summary>
 internal sealed class NumeracionCentral(ContextoDatosCentral contexto) : INumeracionCentral
 {
-    public async Task<string> SiguienteAsync(string prefijo, CancellationToken cancelacion = default)
+    public async Task<string> SiguienteAsync(string codigoDocumento, CancellationToken cancelacion = default)
     {
-        var limpio = (prefijo ?? string.Empty).Trim().ToUpperInvariant();
-        ArgumentException.ThrowIfNullOrEmpty(limpio);
+        var codigo = (codigoDocumento ?? string.Empty).Trim();
+        ArgumentException.ThrowIfNullOrEmpty(codigo);
 
         // El UPDATE solo toca la fila si existe y está activa; devuelve el número ya incrementado.
         var valores = await contexto.Database.SqlQuery<long>($"""
             UPDATE SecuenciasCentral WITH (ROWLOCK)
             SET Ultimo = Ultimo + 1
             OUTPUT inserted.Ultimo AS Value
-            WHERE Prefijo = {limpio} AND Activa = 1;
+            WHERE Codigo = {codigo} AND Activa = 1;
             """).ToListAsync(cancelacion);
 
-        if (valores.Count == 0)
-            throw new SecuenciaCentralNoConfiguradaExcepcion(await MensajeAsync(limpio, cancelacion));
+        var secuencia = await contexto.SecuenciasCentral.AsNoTracking().SingleOrDefaultAsync(s => s.Codigo == codigo, cancelacion);
+        if (valores.Count == 0 || secuencia is null)
+            throw new SecuenciaCentralNoConfiguradaExcepcion(Mensaje(codigo, secuencia));
 
-        var secuencia = await contexto.SecuenciasCentral.AsNoTracking().SingleAsync(s => s.Prefijo == limpio, cancelacion);
-        return $"{limpio}{valores.Single().ToString(new string('0', Math.Clamp(secuencia.Digitos, 1, 18)))}";
+        return $"{secuencia.Prefijo}{valores.Single().ToString(new string('0', Math.Clamp(secuencia.Digitos, 1, 18)))}";
     }
 
     /// <summary>Distingue la secuencia que no existe de la que está apagada: se corrigen en sitios distintos.</summary>
-    private async Task<string> MensajeAsync(string prefijo, CancellationToken cancelacion)
-    {
-        var secuencia = await contexto.SecuenciasCentral.AsNoTracking().SingleOrDefaultAsync(s => s.Prefijo == prefijo, cancelacion);
-        return secuencia is null
-            ? $"No hay una secuencia configurada con el prefijo {prefijo}. Configúrela en Organización → Secuencias antes de crear este documento."
-            : $"La secuencia de {secuencia.Documento} ({prefijo}) está desactivada: actívela en Organización → Secuencias para poder crear el documento.";
-    }
+    private static string Mensaje(string codigo, SecuenciaCentral? secuencia) =>
+        secuencia is null
+            ? $"No hay una secuencia configurada para el documento {codigo}. Créela en Organización → Secuencias de documentos antes de emitirlo."
+            : $"La secuencia de {secuencia.Documento} está desactivada: actívela en Organización → Secuencias de documentos para poder crear el documento.";
 }

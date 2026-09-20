@@ -4,24 +4,29 @@
 <MudDialog>
     <DialogContent>
         <MudGrid Spacing="2">
-            @* El prefijo es parte del número y no se cambia una vez en uso: identifica la secuencia. *@
+            @* El código es con lo que el sistema busca la secuencia: no se cambia, o dejaría de encontrarla. *@
             <MudItem xs="12" sm="5">
-                <MudTextField @bind-Value="_prefijo" Label="Prefijo" Variant="Variant.Outlined" Margin="Margin.Dense"
-                              Disabled="@(Secuencia is not null)" MaxLength="10"
-                              HelperText="@(Secuencia is null ? "Letras y números, va delante del correlativo" : "No se cambia: es parte de los números ya emitidos")" />
+                <MudTextField @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Disabled="@(Secuencia is not null)" MaxLength="30"
+                              HelperText="@(Secuencia is null ? "Con esto la busca el sistema al numerar" : "No se cambia: el sistema la busca por aquí")" />
             </MudItem>
             <MudItem xs="12" sm="7">
                 <MudTextField @bind-Value="_documento" Label="Documento que numera" Variant="Variant.Outlined" Margin="Margin.Dense"
                               MaxLength="60" HelperText="Como se le llama en el negocio: Cotización, Lista de boda…" />
             </MudItem>
 
-            <MudItem xs="12" sm="6">
-                <MudNumericField @bind-Value="_ultimo" Label="Último número entregado" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 Min="0" HelperText="El próximo documento se lleva este más uno" />
+            @* El prefijo es solo cómo se ve el número: se puede cambiar sin que deje de funcionar nada. *@
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_prefijo" Label="Prefijo" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              MaxLength="10" HelperText="Va delante del correlativo" />
             </MudItem>
-            <MudItem xs="12" sm="6">
+            <MudItem xs="12" sm="4">
+                <MudNumericField @bind-Value="_ultimo" Label="Último número entregado" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Min="0" HelperText="El próximo se lleva este más uno" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
                 <MudNumericField @bind-Value="_digitos" Label="Dígitos del correlativo" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 Min="1" Max="18" HelperText="Con 6 dígitos queda COT000001" />
+                                 Min="1" Max="18" HelperText="Con 6 queda COT000001" />
             </MudItem>
 
             <MudItem xs="12">
@@ -30,6 +35,20 @@
                     Desactivada, el documento no se puede crear y el contador se conserva.
                 </MudText>
             </MudItem>
+
+            @* Cambiar el prefijo de una secuencia que ya numeró documentos deja dos formatos conviviendo. *@
+            @if (CambiaElPrefijo)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Warning" Dense="true">
+                        El prefijo pasa de <strong>@Secuencia!.Prefijo</strong> a <strong>@_prefijo.Trim().ToUpperInvariant()</strong>.
+                        @if (Secuencia.Ultimo > 0)
+                        {
+                            <text>Los @Secuencia.Ultimo.ToString("N0") documentos ya emitidos conservan el prefijo anterior: quedarán los dos formatos conviviendo.</text>
+                        }
+                    </MudAlert>
+                </MudItem>
+            }
 
             @* Cómo va a quedar el próximo número, para verlo antes de guardar. *@
             <MudItem xs="12">
@@ -53,6 +72,7 @@
 
     [Parameter] public DatosSecuenciaCentral? Secuencia { get; set; }
 
+    private string _codigo = string.Empty;
     private string _prefijo = string.Empty;
     private string _documento = string.Empty;
     private long _ultimo;
@@ -64,12 +84,15 @@
     private string Proximo =>
         $"{_prefijo.Trim().ToUpperInvariant()}{(_ultimo + 1).ToString(new string('0', Math.Clamp(_digitos, 1, 18)))}";
 
+    private bool CambiaElPrefijo =>
+        Secuencia is not null && !string.Equals(_prefijo.Trim(), Secuencia.Prefijo, StringComparison.OrdinalIgnoreCase);
+
     protected override void OnInitialized()
     {
         if (Secuencia is not { } s)
             return;
 
-        (_prefijo, _documento, _ultimo, _digitos, _activa) = (s.Prefijo, s.Documento, s.Ultimo, s.Digitos, s.Activa);
+        (_codigo, _prefijo, _documento, _ultimo, _digitos, _activa) = (s.Codigo, s.Prefijo, s.Documento, s.Ultimo, s.Digitos, s.Activa);
     }
 
     private async Task GuardarAsync()
@@ -79,7 +102,7 @@
         try
         {
             var respuesta = await Cliente.GuardarSecuenciaDocumentoAsync(
-                new SolicitudSecuenciaCentral(_prefijo, _documento, _ultimo, _digitos, _activa));
+                new SolicitudSecuenciaCentral(_codigo, _prefijo, _documento, _ultimo, _digitos, _activa));
 
             if (respuesta.Exitosa)
                 Dialogo.Close();

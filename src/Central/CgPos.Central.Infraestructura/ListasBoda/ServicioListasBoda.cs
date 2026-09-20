@@ -16,7 +16,7 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
     INumeracionCentral numeracion, TimeProvider reloj) : IServicioListasBoda
 {
     private const string TipoEntidad = "ListaBoda";
-    private const string PrefijoNumero = "LB";
+    private const string CodigoDocumento = DocumentosNumerados.ListaBoda;
 
     /// <summary>Si lo comprado se descuenta de las cantidades pedidas; lo decide el negocio en el Central.</summary>
     private Task<bool> DescuentaComprasAsync(CancellationToken cancelacion) =>
@@ -72,7 +72,7 @@ internal sealed class ServicioListasBoda(ContextoDatosCentral contexto, IParamet
         {
             try
             {
-                numero = await numeracion.SiguienteAsync(PrefijoNumero, cancelacion);
+                numero = await numeracion.SiguienteAsync(CodigoDocumento, cancelacion);
             }
             catch (SecuenciaCentralNoConfiguradaExcepcion excepcion)
             {

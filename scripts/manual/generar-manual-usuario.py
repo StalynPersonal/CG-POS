@@ -524,7 +524,10 @@ tabla(['Numeración', 'Quién la lleva', 'Cómo se ve'],
       anchos=[5.0, 6.0, 6.0])
 p('La de la caja funciona sin internet: la caja factura aunque el Central esté apagado. La de esta pantalla numera lo que '
   'nace en el Central (cotizaciones, listas de boda). Y el e-NCF se administra en Fiscal, que es otra cosa.')
-paso('Para agregar la numeración de un documento nuevo, presione «Nueva secuencia» y escriba el prefijo y cómo se llama.')
+viñeta('El CÓDIGO es con lo que el sistema encuentra la secuencia y no se cambia. El PREFIJO es solo lo que se ve delante '
+       'del número, y ese sí se puede cambiar cuando quiera: lo que ya se emitió conserva el prefijo con el que salió.')
+paso('Para agregar la numeración de un documento nuevo, presione «Nueva secuencia» y escriba su código, su prefijo y cómo '
+     'se llama.')
 paso('Para continuar una numeración que venía de otro sistema, cambie «Último número entregado». Solo se puede subir: '
      'bajarlo repetiría números ya usados.')
 paso('Desactivar una secuencia impide crear ese documento y conserva el contador.')

@@ -74,8 +74,11 @@ internal sealed class SecuenciaCentralConfiguracion : IEntityTypeConfiguration<S
     public void Configure(EntityTypeBuilder<SecuenciaCentral> constructor)
     {
         constructor.ToTable("SecuenciasCentral");
-        constructor.HasKey(s => s.Prefijo);
-        constructor.Property(s => s.Prefijo).HasMaxLength(SecuenciaCentral.LargoMaximoPrefijo).IsUnicode(false);
+        // La clave es el código del documento y no el prefijo: el prefijo se puede cambiar cuando el negocio quiera.
+        constructor.HasKey(s => s.Codigo);
+        constructor.Property(s => s.Codigo).HasMaxLength(SecuenciaCentral.LargoMaximoCodigo).IsUnicode(false);
+        constructor.Property(s => s.Prefijo).HasMaxLength(SecuenciaCentral.LargoMaximoPrefijo).IsUnicode(false).IsRequired();
         constructor.Property(s => s.Documento).HasMaxLength(SecuenciaCentral.LargoMaximoDocumento).IsRequired();
+        constructor.HasIndex(s => s.Prefijo).IsUnique();
     }
 }

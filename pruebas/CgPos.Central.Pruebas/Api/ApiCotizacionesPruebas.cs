@@ -133,11 +133,11 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
         await QuitarSecuenciaAsync(central);
         var sinFila = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
         Assert.False(sinFila.Cuerpo!.Exitosa);
-        Assert.Contains("COT", sinFila.Cuerpo.Mensaje, StringComparison.Ordinal);
+        Assert.Contains("Cotizacion", sinFila.Cuerpo.Mensaje, StringComparison.Ordinal);
 
         // Restituida desde la pantalla de secuencias, la numeración sigue donde iba.
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/secuencias",
-            new SolicitudSecuenciaCentral("COT", "Cotización", 500, 6, true))).Cuerpo!.Exitosa);
+            new SolicitudSecuenciaCentral("Cotizacion", "COT", "Cotización", 500, 6, true))).Cuerpo!.Exitosa);
 
         var creada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
         Assert.True(creada.Cuerpo!.Exitosa, creada.Cuerpo.Mensaje);
@@ -145,22 +145,35 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
 
         // El contador no se deja retroceder: repetiría números ya entregados.
         var atras = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/secuencias",
-            new SolicitudSecuenciaCentral("COT", "Cotización", 10, 6, true));
+            new SolicitudSecuenciaCentral("Cotizacion", "COT", "Cotización", 10, 6, true));
         Assert.False(atras.Cuerpo!.Exitosa);
         Assert.Contains("repetiría", atras.Cuerpo.Mensaje, StringComparison.OrdinalIgnoreCase);
+
+        // El prefijo se cambia y la emisión sigue funcionando: el sistema busca la secuencia por su código,
+        // no por el prefijo. El contador sigue donde iba y lo ya emitido conserva el suyo.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/secuencias",
+            new SolicitudSecuenciaCentral("Cotizacion", "PRE", "Cotización", 501, 6, true))).Cuerpo!.Exitosa);
+
+        var conNuevoPrefijo = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
+        Assert.True(conNuevoPrefijo.Cuerpo!.Exitosa, conNuevoPrefijo.Cuerpo.Mensaje);
+        Assert.Contains(await ListarAsync(cliente, admin, solicitud.ClienteNombre), c => c.Numero == "PRE000502");
+
+        // Y se deja como estaba, que otras pruebas de la colección cotizan con COT.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/organizacion/secuencias",
+            new SolicitudSecuenciaCentral("Cotizacion", "COT", "Cotización", 502, 6, true))).Cuerpo!.Exitosa);
     }
 
     private static Task CambiarSecuenciaAsync(CentralEnPruebas central, bool activa) =>
         central.UsarContextoAsync(async contexto =>
         {
-            await contexto.Database.ExecuteSqlAsync($"UPDATE SecuenciasCentral SET Activa = {activa} WHERE Prefijo = 'COT'");
+            await contexto.Database.ExecuteSqlAsync($"UPDATE SecuenciasCentral SET Activa = {activa} WHERE Codigo = 'Cotizacion'");
             return true;
         });
 
     private static Task QuitarSecuenciaAsync(CentralEnPruebas central) =>
         central.UsarContextoAsync(async contexto =>
         {
-            await contexto.Database.ExecuteSqlAsync($"DELETE FROM SecuenciasCentral WHERE Prefijo = 'COT'");
+            await contexto.Database.ExecuteSqlAsync($"DELETE FROM SecuenciasCentral WHERE Codigo = 'Cotizacion'");
             return true;
         });
 
