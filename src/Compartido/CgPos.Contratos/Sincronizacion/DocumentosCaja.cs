@@ -103,7 +103,9 @@ public sealed record DocumentoVentaCobrada(
     DocumentoFidelidadVenta? Fidelidad,
     IReadOnlyList<DocumentoDestinoEntrega> DestinosEntrega,
     DocumentoElectronicoParaCentral? Ecf = null,
-    string? ListaBodaNumero = null);
+    string? ListaBodaNumero = null,
+    /// <summary>Cotización del Central que se facturó con esta venta; el Central la marca facturada al recibirla.</summary>
+    string? CotizacionNumero = null);
 
 /// <summary>
 /// Mensaje <c>Devolucion.NotaCreditoEmitida</c>: la nota de crédito con referencia a la factura por su número, y su XML firmado. La nota

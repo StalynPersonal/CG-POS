@@ -174,6 +174,14 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
             ? ResultadoListaBodaCentral.Encontrada(lista)
             : ResultadoListaBodaCentral.NoExiste($"El Central no tiene la lista {numero}."));
 
+    /// <summary>Cotizaciones que el Central de prueba responde, por su número.</summary>
+    public Dictionary<string, DatosCotizacionParaCaja> Cotizaciones { get; } = [];
+
+    public Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default) =>
+        Task.FromResult(Cotizaciones.TryGetValue(numero, out var cotizacion)
+            ? ResultadoCotizacionCentral.Encontrada(cotizacion)
+            : ResultadoCotizacionCentral.NoExiste($"El Central no tiene la cotización {numero}."));
+
     public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
         Task.FromResult(NotasCredito.TryGetValue(codigo, out var nota)
             ? ResultadoNotaCreditoCentral.Encontrada(nota)

@@ -298,7 +298,7 @@ else
                 <TeclaFuncion Atajo="F6" Texto="Lista boda" Icono="@Icons.Material.Filled.Favorite" AlPresionar="AsignarListaBodaAsync" />
                 <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="AbrirEsperaAsync" />
                 <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="TotalizarAsync" />
-                <TeclaFuncion Atajo="F9" Texto="Suspender" Icono="@Icons.Material.Filled.DesktopAccessDisabled" Deshabilitada="true" />
+                <TeclaFuncion Atajo="F9" Texto="Cotización" Icono="@Icons.Material.Filled.RequestQuote" AlPresionar="FacturarCotizacionAsync" />
                 <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" AlPresionar="IrADevolucionesAsync" />
                 <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="ConsultarPrecioAsync" />
                 <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" AlPresionar="AbrirClienteAsync" />
@@ -907,6 +907,38 @@ else
     }
 
     /// <summary>Pide el número de la lista de boda y la valida en el Central (RF-73); vacío la quita de la venta.</summary>
+    /// <summary>
+    /// Trae una cotización del Central y la vuelca en la venta. El número se escanea del papel que trae el cliente o se
+    /// digita; una vencida pide autorización de un supervisor.
+    /// </summary>
+    private async Task FacturarCotizacionAsync()
+    {
+        if (_venta is null)
+            return;
+
+        var numero = await PedirTextoAsync("Cotización", "Número de la cotización (escanee el papel del cliente)",
+            ayuda: "La cotización se hizo en el Central; se traen sus artículos con los precios que se le prometieron.",
+            decimales: false, modo: ModoTeclado.Alfanumerico);
+        if (string.IsNullOrWhiteSpace(numero))
+            return;
+
+        await EnColaAsync(async () =>
+        {
+            var respuesta = await Autorizaciones.EjecutarCotizacionAsync(
+                autorizacion => Cliente.FacturarCotizacionAsync(_venta!.Id, numero, autorizacion),
+                $"Facturar la cotización {numero}, que ya venció", _venta.NumeroTransaccion);
+
+            if (respuesta is null)
+                return;
+
+            if (respuesta.Venta is { } actualizada)
+                _venta = actualizada;
+
+            _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
+            _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
+        });
+    }
+
     private async Task AsignarListaBodaAsync()
     {
         if (_venta is null)
@@ -1090,6 +1122,7 @@ else
             "F5" => PesarAsync(),
             "F7" => AbrirEsperaAsync(),
             "F8" => TotalizarAsync(),
+            "F9" => FacturarCotizacionAsync(),
             "F10" => IrADevolucionesAsync(),
             "F11" => ConsultarPrecioAsync(),
             "F12" => AbrirClienteAsync(),

@@ -154,6 +154,7 @@ public sealed class Venta : Entidad
 {
     public const int LargoMaximoNumero = 40;
     public const int LargoMaximoCertificacion = 50;
+    public const int LargoMaximoNumeroCotizacion = 20;
     public const int LargoMaximoMotivo = 500;
     public const int LargoMaximoUsuario = 150;
     public const int LargoMaximoNombreCliente = 150;
@@ -364,6 +365,47 @@ public sealed class Venta : Entidad
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
         return linea;
+    }
+
+    /// <summary>
+    /// Agrega una línea con el precio que se le cotizó al cliente. No pasa por las reglas de precio ni por las ofertas: lo
+    /// cotizado es un compromiso por escrito y se respeta tal cual mientras la cotización esté vigente.
+    /// </summary>
+    /// <param name="precioUnitario">Con impuesto incluido, el de la cotización.</param>
+    /// <param name="descuento">Descuento de esa línea en la cotización; 0 si no lleva.</param>
+    public LineaVenta AgregarArticuloCotizado(ArticuloParaVenta articulo, decimal cantidad, decimal precioUnitario, decimal descuento, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(articulo);
+        AsegurarEditable();
+
+        if (precioUnitario < 0)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.SinPrecio, $"El precio cotizado de {articulo.Descripcion} no puede ser negativo.");
+
+        var normalizada = NormalizarCantidad(cantidad, articulo.PermiteDecimales, articulo.DecimalesCantidad);
+        var precio = new PrecioDeterminado(ListaPrecio.Detalle, precioUnitario, MotivoPrecio.PrecioCotizado, RequiereAutorizacion: false);
+        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(),
+            articulo with { PrecioDetalle = precioUnitario, PrecioMayor = null, CantidadMinimaMayor = null },
+            normalizada, precio, importeEtiqueta: null, leidaDeBalanza: false, serial: null, serialPendiente: false);
+
+        if (ExentaDeImpuesto)
+            linea.Exentar();
+
+        _lineas.Add(linea);
+
+        if (descuento > 0)
+            linea.AplicarDescuentoCotizado(decimal.Round(descuento, 2, MidpointRounding.AwayFromZero));
+
+        ProrratearDescuentoFactura();
+        ActualizadaEn = ahora;
+        return linea;
+    }
+
+    /// <summary>Deja constancia de qué cotización se facturó, para el ticket y para avisarle al Central.</summary>
+    public void AsignarCotizacion(string? numero, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+        CotizacionNumero = string.IsNullOrWhiteSpace(numero) ? null : Validar.Texto(numero, "Cotización", LargoMaximoNumeroCotizacion).ToUpperInvariant();
+        ActualizadaEn = ahora;
     }
 
     /// <summary>Cambia la cantidad de una línea (RF-110) y recalcula el precio por mayor automático.</summary>
@@ -729,12 +771,14 @@ public sealed class Venta : Entidad
             foreach (var linea in lineas)
             {
                 linea.QuitarPromocion(desactivada);
-                if (linea.ImporteEtiqueta is null)
+                if (linea.ImporteEtiqueta is null && !linea.EsCotizada)
                     linea.EstablecerPrecio(PrecioAutomatico(linea));
             }
 
             var primera = lineas[0];
-            if (desactivada || lineas.Any(l => l.DescuentoManual > 0))
+
+            // Lo cotizado se respeta tal cual: el cliente ya tiene ese precio por escrito y no se le mejora ni se le empeora.
+            if (desactivada || lineas.Any(l => l.DescuentoManual > 0 || l.EsCotizada))
                 continue;
 
             var candidatas = vigentes.Where(p => p.AplicaA(primera.ArticuloId, primera.DepartamentoId, primera.CategoriaId, primera.MarcaId)).ToList();
@@ -1065,6 +1109,9 @@ public sealed class Venta : Entidad
 
     public bool TieneLineasActivas => _lineas.Any(l => l.EstaActiva);
 
+    /// <summary>Número de la cotización del Central que se facturó en esta venta; nulo si no vino de ninguna.</summary>
+    public string? CotizacionNumero { get; private set; }
+
     /// <summary>
     /// La factura va sin ITBIS: siempre en régimen especial (E44), y en gubernamental (E45) solo cuando la entidad presentó
     /// su certificación de exención, que es lo que pide la Norma General 05-19.
@@ -1214,6 +1261,9 @@ public sealed class LineaVenta : Entidad
 
     /// <summary>La línea se está facturando sin ITBIS, por ser de una factura de régimen especial.</summary>
     public bool Exenta => PorcentajeImpuestoGravado is not null;
+
+    /// <summary>Su precio viene de una cotización: no se recalcula ni recibe ofertas.</summary>
+    public bool EsCotizada => MotivoPrecio == MotivoPrecio.PrecioCotizado;
 
     /// <summary>Servicio y no bien, para el e-CF.</summary>
     public bool EsServicio { get; private set; }
@@ -1424,6 +1474,15 @@ public sealed class LineaVenta : Entidad
         MotivoDescuento = motivo;
         DescuentoAutorizadoPorId = autorizadoPorId;
         DescuentoAutorizadoPorNombre = autorizadoPorNombre;
+    }
+
+    /// <summary>Descuento que traía la línea en la cotización; se guarda como manual para que las ofertas no la pisen.</summary>
+    internal void AplicarDescuentoCotizado(decimal monto)
+    {
+        DescuentoManual = Math.Min(monto, ImporteBruto);
+        DescuentoManualTipo = TipoDescuento.Monto;
+        DescuentoManualValor = DescuentoManual;
+        MotivoDescuento = "Descuento cotizado";
     }
 
     internal void QuitarDescuentoManual()

@@ -161,6 +161,9 @@ public interface IClienteCentral
     /// <summary>Consulta en el Central una lista de boda por su número (RF-73); las listas no se guardan en la caja.</summary>
     Task<ResultadoListaBodaCentral> ConsultarListaBodaAsync(string numero, CancellationToken cancelacion = default);
 
+    /// <summary>Busca una cotización del Central por su número, para convertirla en factura.</summary>
+    Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default);
+
     /// <summary>
     /// Pide al Central retener saldo de esa nota para la factura <paramref name="ventaNumero"/> mientras la caja cobra; la reserva vence sola si no
     /// se confirma. Pedirla otra vez para la misma factura la reemplaza.
@@ -202,6 +205,16 @@ public sealed record ResultadoListaBodaCentral(DatosListaBodaParaCaja? Lista, bo
     public static ResultadoListaBodaCentral NoExiste(string error) => new(null, true, error);
 
     public static ResultadoListaBodaCentral SinConexion(string error) => new(null, false, error);
+}
+
+/// <summary>Consulta de una cotización en el Central: vive allá, la caja solo la lee para facturarla.</summary>
+public sealed record ResultadoCotizacionCentral(DatosCotizacionParaCaja? Cotizacion, bool CentralRespondio, string? Error)
+{
+    public static ResultadoCotizacionCentral Encontrada(DatosCotizacionParaCaja cotizacion) => new(cotizacion, true, null);
+
+    public static ResultadoCotizacionCentral NoExiste(string error) => new(null, true, error);
+
+    public static ResultadoCotizacionCentral SinConexion(string error) => new(null, false, error);
 }
 
 /// <param name="Monto">Lo que el Central retuvo, que puede ser menos de lo pedido.</param>

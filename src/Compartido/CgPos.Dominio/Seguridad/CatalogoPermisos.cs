@@ -29,6 +29,7 @@ public static class CatalogoPermisos
     public const string AnularVenta = "Ventas.Anular";
     public const string SuspenderVenta = "Ventas.Suspender";
     public const string CambiarComprobante = "Ventas.CambiarComprobante";
+    public const string FacturarCotizacionVencida = "Ventas.FacturarCotizacionVencida";
     public const string AplicarPrecioMayor = "Ventas.AplicarPrecioMayor";
     public const string VenderBajoPrecioMinimo = "Ventas.VenderBajoPrecioMinimo";
     public const string ExonerarItbis = "Ventas.ExonerarItbis";
@@ -68,6 +69,7 @@ public static class CatalogoPermisos
         new(AnularVenta, "Ventas", "Anular una venta antes de cerrarla"),
         new(SuspenderVenta, "Ventas", "Suspender operaciones"),
         new(CambiarComprobante, "Ventas", "Cambiar el tipo de comprobante fiscal"),
+        new(FacturarCotizacionVencida, "Ventas", "Facturar una cotización cuya vigencia ya pasó"),
         new(AplicarPrecioMayor, "Ventas", "Aplicar la lista de precios por mayor"),
         new(VenderBajoPrecioMinimo, "Ventas", "Vender por debajo del precio mínimo"),
         new(ExonerarItbis, "Ventas", "Exonerar el ITBIS de una venta"),

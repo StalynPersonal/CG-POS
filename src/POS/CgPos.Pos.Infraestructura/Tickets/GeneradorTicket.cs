@@ -109,6 +109,13 @@ internal static class GeneradorTicket
         }
         Separador();
 
+        if (venta.CotizacionNumero is { Length: > 0 } cotizacion)
+        {
+            foreach (var parte in Envolver($"Cotización {cotizacion}"))
+                Agregar(parte);
+            Separador();
+        }
+
         if (venta.ListaBoda is { } listaBoda)
         {
             foreach (var parte in Envolver($"Lista {listaBoda.Numero}: {listaBoda.Evento}"))

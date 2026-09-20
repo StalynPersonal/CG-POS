@@ -1103,6 +1103,7 @@ CREATE TABLE [Ventas] (
     [TotalCobrado] decimal(18,2) NULL,
     [Devuelta] decimal(18,2) NOT NULL,
     [RedondeoEfectivo] decimal(18,2) NOT NULL,
+    [CotizacionNumero] varchar(20) NULL,
     CONSTRAINT [PK_Ventas] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Ventas_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
 );

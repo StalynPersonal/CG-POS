@@ -283,6 +283,63 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Una_cotizacion_del_central_se_factura_con_sus_precios_congelados()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        // El Central cotizó el cincel a 700 (el maestro lo tiene a 850) y con 50 de descuento en la línea.
+        const string Numero = "COT000123";
+        caja.Central.Cotizaciones[Numero] = new DatosCotizacionParaCaja(Numero, "Constructora del Este", "131234567",
+            CgPos.Dominio.Cotizaciones.EstadoCotizacion.Abierta, DateOnly.FromDateTime(DateTime.Today).AddDays(10), Vencida: false, 1350m,
+            [new DatosLineaCotizacionParaCaja(caja.Catalogo.CodigoCincel, "Cincel", 2, 700m, 50m)]);
+
+        var venta = await caja.VentaActualAsync();
+        var facturada = await caja.EjecutarAsync<IServicioVentas, RespuestaCotizacion>(s =>
+            s.FacturarCotizacionAsync(caja.Cajero, venta.Id, Numero, null));
+        Assert.True(facturada.Exitosa, facturada.Mensaje);
+
+        // Se respeta lo cotizado, no el precio del maestro: 2 × 700 − 50.
+        var linea = Assert.Single(facturada.Venta!.Lineas);
+        Assert.Equal((700m, 1350m), (linea.PrecioUnitario, facturada.Venta.Totales.Total));
+        Assert.Equal(Numero, facturada.Venta.CotizacionNumero);
+
+        // Ya con artículos, la venta no acepta otra cotización encima: primero se termina o se limpia.
+        var repetida = await caja.EjecutarAsync<IServicioVentas, RespuestaCotizacion>(s =>
+            s.FacturarCotizacionAsync(caja.Cajero, venta.Id, Numero, null));
+        Assert.Equal(CodigoResultadoVenta.DocumentoInvalido, repetida.Resultado);
+    }
+
+    [SkippableFact]
+    public async Task Una_cotizacion_vencida_necesita_autorizacion_y_una_que_no_existe_se_informa()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+
+        // Una que el Central no tiene se distingue de no haber podido preguntar.
+        var inexistente = await caja.EjecutarAsync<IServicioVentas, RespuestaCotizacion>(s =>
+            s.FacturarCotizacionAsync(caja.Cajero, venta.Id, "COT999999", null));
+        Assert.Equal(CodigoResultadoVenta.DocumentoInvalido, inexistente.Resultado);
+
+        const string Vencida = "COT000999";
+        caja.Central.Cotizaciones[Vencida] = new DatosCotizacionParaCaja(Vencida, "Constructora del Este", null,
+            CgPos.Dominio.Cotizaciones.EstadoCotizacion.Abierta, DateOnly.FromDateTime(DateTime.Today).AddDays(-3), Vencida: true, 700m,
+            [new DatosLineaCotizacionParaCaja(caja.Catalogo.CodigoCincel, "Cincel", 1, 700m, 0m)]);
+
+        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaCotizacion>(s =>
+            s.FacturarCotizacionAsync(caja.Cajero, venta.Id, Vencida, null));
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
+        Assert.Equal(CatalogoPermisos.FacturarCotizacionVencida, sinPermiso.PermisoRequerido);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.FacturarCotizacionVencida, "El cliente la trajo tarde");
+        var conPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaCotizacion>(s =>
+            s.FacturarCotizacionAsync(caja.Cajero, venta.Id, Vencida, autorizacion));
+        Assert.True(conPermiso.Exitosa, conPermiso.Mensaje);
+        Assert.Equal(Vencida, conPermiso.Venta!.CotizacionNumero);
+    }
+
+    [SkippableFact]
     public async Task La_factura_de_regimen_especial_va_exenta_de_itbis_y_el_cliente_paga_la_base()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

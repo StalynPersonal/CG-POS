@@ -292,6 +292,30 @@ internal sealed class ServicioRecepcion(
 
         await registroVentas.RegistrarVentaAsync(venta, documento.SucursalId, documento.CajaId, cancelacion);
         await RegistrarCompraListaBodaAsync(venta, documento, ahora, cancelacion);
+        await MarcarCotizacionFacturadaAsync(venta, documento, ahora, cancelacion);
+    }
+
+    /// <summary>
+    /// La factura salió de una cotización: queda cerrada con el número de la factura, para que no se facture dos veces. Es
+    /// idempotente porque los mensajes de la caja pueden repetirse.
+    /// </summary>
+    private async Task MarcarCotizacionFacturadaAsync(DocumentoVentaCobrada venta, DocumentoRecibido documento, DateTimeOffset ahora,
+        CancellationToken cancelacion)
+    {
+        if (venta.CotizacionNumero is not { Length: > 0 } numeroCotizacion)
+            return;
+
+        var numero = numeroCotizacion.Trim().ToUpperInvariant();
+        var cotizacion = await contexto.Cotizaciones.FirstOrDefaultAsync(c => c.Numero == numero, cancelacion);
+        if (cotizacion is null)
+        {
+            await RegistrarConflictoAsync(documento.CajaId, documento.SucursalId, documento.MensajeId, documento.TipoMensaje,
+                TipoConflictoSincronizacion.DocumentoInvalido,
+                $"La factura {venta.Numero} se cobró contra la cotización {numero}, que no existe en el Central.", ahora, cancelacion);
+            return;
+        }
+
+        cotizacion.RegistrarFactura(venta.Numero, venta.CobradaEn, ahora);
     }
 
     /// <summary>

@@ -54,7 +54,8 @@ internal static class DocumentosParaCentral
                 d.AlmacenNombre, d.Direccion, d.Sector, d.Ciudad, d.Referencia, d.Telefono, d.Transportista, d.CostoEnvio, d.FechaComprometida, d.Comentario,
                 d.AutorizadoPorNombre, d.Lineas)).ToList(),
             ecf,
-            datos.ListaBoda?.Numero);
+            datos.ListaBoda?.Numero,
+            datos.CotizacionNumero);
     }
 
     public static async Task<DocumentoPendienteEntrega> PendienteAsync(this ContextoDatosPos contexto, PendienteEntrega pendiente, CancellationToken cancelacion)

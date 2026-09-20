@@ -130,7 +130,9 @@ public sealed record DatosVenta(
     /// <summary>La factura va sin ITBIS: régimen especial (E44), o gubernamental con certificación de exención.</summary>
     bool ExentaDeImpuesto = false,
     /// <summary>Certificación de exención que presentó la entidad del Estado, si la hay.</summary>
-    string? CertificacionExencion = null);
+    string? CertificacionExencion = null,
+    /// <summary>Cotización del Central que se está facturando en esta venta.</summary>
+    string? CotizacionNumero = null);
 
 /// <summary>Lista de boda del Central contra la que se está comprando (RF-73).</summary>
 public sealed record DatosListaBodaVenta(string Numero, string Evento);
@@ -181,6 +183,16 @@ public sealed record SolicitudCambiarComprobante(TipoComprobante TipoComprobante
 
 /// <summary>Certificación de exención de ITBIS de una entidad del Estado (E45); vacía la quita y la factura vuelve a llevar ITBIS.</summary>
 public sealed record SolicitudCertificacionExencion(string? Certificacion);
+
+/// <param name="Numero">Número de la cotización del Central (COT000123), escaneado o digitado.</param>
+public sealed record SolicitudFacturarCotizacion(string? Numero, Guid? AutorizacionId = null);
+
+/// <param name="Cotizacion">La cotización tal como la devolvió el Central, para mostrarla en pantalla.</param>
+public sealed record RespuestaCotizacion(CodigoResultadoVenta Resultado, string? Mensaje, DatosVenta? Venta, DatosCotizacionParaCaja? Cotizacion,
+    string? PermisoRequerido = null)
+{
+    public bool Exitosa => Resultado == CodigoResultadoVenta.Correcto;
+}
 
 /// <param name="Limite">Nulo para quitar el límite.</param>
 public sealed record SolicitudLimiteCompra(decimal? Limite);

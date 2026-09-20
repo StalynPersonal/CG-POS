@@ -69,6 +69,9 @@ internal sealed class CentralNoConfigurado : IClienteCentral
     public Task<ResultadoListaBodaCentral> ConsultarListaBodaAsync(string numero, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoListaBodaCentral.SinConexion(Motivo));
 
+    public Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoCotizacionCentral.SinConexion(Motivo));
+
     public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, decimal monto,
         CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoReservaNotaCredito.SinConexion(Motivo));
@@ -104,6 +107,9 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
 
     public Task<ResultadoListaBodaCentral> ConsultarListaBodaAsync(string numero, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoListaBodaCentral.SinConexion("El Central simulado no tiene listas de boda."));
+
+    public Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default) =>
+        Task.FromResult(ResultadoCotizacionCentral.SinConexion("El Central simulado no tiene cotizaciones."));
 
     public Task<ResultadoReservaNotaCredito> ReservarNotaCreditoAsync(string notaCreditoNumero, string ventaNumero, decimal monto,
         CancellationToken cancelacion = default) =>
@@ -143,6 +149,7 @@ internal sealed class ClienteCentralHttp : IClienteCentral
     public const string RutaToken = "api/dispositivos/token";
     public const string RutaNotasCredito = "api/notas-credito";
     public const string RutaListasBoda = "api/listas-boda";
+    public const string RutaCotizaciones = "api/cotizaciones";
 
     private static readonly SocketsHttpHandler Manejador = new()
     {
@@ -305,6 +312,37 @@ internal sealed class ClienteCentralHttp : IClienteCentral
             catch (JsonException excepcion)
             {
                 return ResultadoListaBodaCentral.SinConexion($"El Central devolvió una lista de boda ilegible: {excepcion.Message}");
+            }
+        }
+    }
+
+    /// <summary>Cotización hecha en el Central, con sus precios congelados, para convertirla en factura.</summary>
+    public async Task<ResultadoCotizacionCentral> ConsultarCotizacionAsync(string numero, CancellationToken cancelacion = default)
+    {
+        var (respuesta, fallo) = await SolicitarAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"{RutaCotizaciones}/{Uri.EscapeDataString(numero)}"), cancelacion);
+
+        if (fallo is not null)
+            return ResultadoCotizacionCentral.SinConexion(fallo.Error!);
+
+        ArgumentNullException.ThrowIfNull(respuesta);
+        using (respuesta)
+        {
+            try
+            {
+                if (respuesta.StatusCode == HttpStatusCode.NotFound)
+                    return ResultadoCotizacionCentral.NoExiste($"El Central no tiene la cotización {numero}.");
+                if (!respuesta.IsSuccessStatusCode)
+                    return ResultadoCotizacionCentral.SinConexion($"El Central respondió {(int)respuesta.StatusCode} al consultar la cotización.");
+
+                var cotizacion = await respuesta.Content.ReadFromJsonAsync<DatosCotizacionParaCaja>(OpcionesJson.Predeterminadas, cancelacion);
+                return cotizacion is null
+                    ? ResultadoCotizacionCentral.SinConexion("El Central devolvió una respuesta vacía.")
+                    : ResultadoCotizacionCentral.Encontrada(cotizacion);
+            }
+            catch (JsonException excepcion)
+            {
+                return ResultadoCotizacionCentral.SinConexion($"El Central devolvió una cotización ilegible: {excepcion.Message}");
             }
         }
     }

@@ -72,6 +72,13 @@ public interface IServicioVentas
     /// </summary>
     Task<RespuestaVenta> RegistrarCertificacionExencionAsync(SesionUsuario sesion, int ventaId, string? certificacion, CancellationToken cancelacion = default);
 
+    /// <summary>
+    /// Trae del Central la cotización y la vuelca en la venta en curso con sus precios congelados. Una vencida necesita
+    /// autorización de un supervisor; una ya facturada o anulada no se usa.
+    /// </summary>
+    Task<RespuestaCotizacion> FacturarCotizacionAsync(SesionUsuario sesion, int ventaId, string numero, Guid? autorizacionId,
+        CancellationToken cancelacion = default);
+
     Task<RespuestaVenta> EstablecerLimiteCompraAsync(SesionUsuario sesion, int ventaId, decimal? limite, CancellationToken cancelacion = default);
 
     /// <summary>

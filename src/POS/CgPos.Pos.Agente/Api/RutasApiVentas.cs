@@ -86,6 +86,15 @@ public static class RutasApiVentas
         ventas.MapPut("/{ventaId:int}/comprobante", (int ventaId, SolicitudCambiarComprobante solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.CambiarComprobanteAsync(sesion, ventaId, solicitud.TipoComprobante, solicitud.AutorizacionId, cancelacion))));
 
+        // Cotización hecha en el Central: se trae por su número y se vuelca en la venta con sus precios congelados.
+        ventas.MapPut("/{ventaId:int}/cotizacion", (int ventaId, SolicitudFacturarCotizacion solicitud, ClaimsPrincipal usuario, IServicioVentas servicio,
+                CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion =>
+            {
+                var respuesta = await servicio.FacturarCotizacionAsync(sesion, ventaId, solicitud.Numero ?? string.Empty, solicitud.AutorizacionId, cancelacion);
+                return respuesta.Exitosa ? Results.Ok(respuesta) : Results.BadRequest(respuesta);
+            }));
+
         // Exención de ITBIS de una entidad del Estado (E45): se guarda el número de su certificación.
         ventas.MapPut("/{ventaId:int}/certificacion-exencion", (int ventaId, SolicitudCertificacionExencion solicitud, ClaimsPrincipal usuario,
                 IServicioVentas servicio, CancellationToken cancelacion) =>

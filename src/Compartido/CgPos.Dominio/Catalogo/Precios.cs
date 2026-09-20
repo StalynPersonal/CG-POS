@@ -93,6 +93,9 @@ public enum MotivoPrecio
     MayorManual,
     MayorNoAplicaComboKit,
     SinPrecioMayor,
+
+    /// <summary>El precio viene pactado en una cotización del Central: no se recalcula ni recibe ofertas.</summary>
+    PrecioCotizado,
 }
 
 public sealed record PrecioDeterminado(ListaPrecio Lista, decimal PrecioUnitario, MotivoPrecio Motivo, bool RequiereAutorizacion);

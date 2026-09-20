@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using CgPos.Central.Pruebas.Soporte;
@@ -26,24 +26,29 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var caja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
 
+        // El precio del maestro puede cambiar entre pruebas: se lee ahora para saber qué debería congelarse.
+        var precioDelDia = await PrecioAsync(cliente, admin, Cincel);
+        var esperado = decimal.Round(3 * precioDelDia, 2, MidpointRounding.AwayFromZero) + (10 * 450m) - 200m;
+        var nombre = $"Constructora {Guid.NewGuid():N}"[..28];
+
         // Sin precio indicado toma el del maestro; con precio indicado manda el pactado.
-        var solicitud = new SolicitudCotizacion("Constructora del Este", "131234567", "809-555-0100", null, null, null, "Entrega en obra",
+        var solicitud = new SolicitudCotizacion(nombre, "131234567", "809-555-0100", null, null, null, "Entrega en obra",
             [new SolicitudLineaCotizacion(Cincel, 3, null), new SolicitudLineaCotizacion(Cemento, 10, 450m, 200m)]);
 
         var creada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/manager/cotizaciones", solicitud);
         Assert.True(creada.Cuerpo!.Exitosa, creada.Cuerpo.Mensaje);
 
-        var cotizacion = Assert.Single(await ListarAsync(cliente, admin, "Constructora del Este"));
+        var cotizacion = Assert.Single(await ListarAsync(cliente, admin, nombre));
         Assert.StartsWith("COT", cotizacion.Numero, StringComparison.Ordinal);
         Assert.Equal((EstadoCotizacion.Abierta, false), (cotizacion.Estado, cotizacion.Vencida));
 
-        // 3 × 850 del maestro + 10 × 450 pactados − 200 de descuento.
-        Assert.Equal(6850m, cotizacion.Total);
+        Assert.Equal(esperado, cotizacion.Total);
         Assert.Equal(cotizacion.Subtotal + cotizacion.Impuesto, cotizacion.Total);
         Assert.Equal(200m, cotizacion.Descuento);
 
         var delMaestro = Assert.Single(cotizacion.Lineas, l => l.ArticuloCodigo == Cincel);
-        Assert.Equal((850m, "Cincel de Punta SDS MAX 5/8\"x11\" Tramon", 18m), (delMaestro.PrecioUnitario, delMaestro.Descripcion, delMaestro.PorcentajeImpuesto));
+        Assert.Equal((precioDelDia, 18m), (delMaestro.PrecioUnitario, delMaestro.PorcentajeImpuesto));
+        Assert.False(string.IsNullOrWhiteSpace(delMaestro.Descripcion));
 
         // Vence con los días configurados en el Central, contados desde hoy.
         Assert.True(cotizacion.VenceEn > DateOnly.FromDateTime(DateTime.Today));
@@ -53,7 +58,7 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
         {
             respuesta.EnsureSuccessStatusCode();
             var paraCaja = (await respuesta.Content.ReadFromJsonAsync<DatosCotizacionParaCaja>(OpcionesJson.Predeterminadas))!;
-            Assert.Equal((cotizacion.Numero, 6850m, false), (paraCaja.Numero, paraCaja.Total, paraCaja.Vencida));
+            Assert.Equal((cotizacion.Numero, esperado, false), (paraCaja.Numero, paraCaja.Total, paraCaja.Vencida));
             Assert.Equal(450m, Assert.Single(paraCaja.Lineas, l => l.ArticuloCodigo == Cemento).PrecioUnitario);
         }
 
@@ -105,6 +110,16 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
             new SolicitudCotizacion(cliente_, null, null, null, null, null, null, [new SolicitudLineaCotizacion(Cincel, 5, null)]));
         Assert.False(actualizar.Cuerpo!.Exitosa);
         Assert.Contains("anulada", actualizar.Cuerpo.Mensaje, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>El precio publicado del artículo en este momento: otras pruebas de la colección pueden haberlo cambiado.</summary>
+    private static async Task<decimal> PrecioAsync(HttpClient cliente, string token, string codigo)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/manager/cotizaciones/articulos?buscar={codigo}", token));
+        respuesta.EnsureSuccessStatusCode();
+        var pagina = (await respuesta.Content.ReadFromJsonAsync<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>>(OpcionesJson.Predeterminadas))!;
+        return pagina.Elementos.Single(e => e.Dato.Codigo == codigo).Dato.PrecioDetalle;
     }
 
     private static async Task<IReadOnlyList<DatosCotizacion>> ListarAsync(HttpClient cliente, string token, string buscar)

@@ -2,6 +2,7 @@
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Cotizaciones;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
@@ -112,7 +113,8 @@ internal static class ConversionesVenta
             venta.DestinosEntrega.Count == 0 ? null : venta.DestinosEntrega.OrderBy(d => d.Numero).Select(d => d.ADatos()).ToList(),
             venta.ListaBodaNumero is { } numeroLista ? new DatosListaBodaVenta(numeroLista, venta.ListaBodaEvento ?? string.Empty) : null,
             venta.ExentaDeImpuesto,
-            venta.CertificacionExencion);
+            venta.CertificacionExencion,
+            venta.CotizacionNumero);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -1179,6 +1181,78 @@ internal sealed class ServicioVentas(
 
         return new RespuestaListaBoda(respuesta.Resultado,
             respuesta.Exitosa ? $"Lista {lista.Numero}: {lista.Evento}." : respuesta.Mensaje, respuesta.Venta, lista);
+    }
+
+    public async Task<RespuestaCotizacion> FacturarCotizacionAsync(SesionUsuario sesion, int ventaId, string numero, Guid? autorizacionId,
+        CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return new RespuestaCotizacion(rechazo.Resultado, rechazo.Mensaje, rechazo.Venta, null);
+
+        var buscado = (numero ?? string.Empty).Trim().ToUpperInvariant();
+        if (buscado.Length == 0)
+            return new RespuestaCotizacion(CodigoResultadoVenta.DocumentoInvalido, "Indique el número de la cotización.", Datos(venta!), null);
+
+        // Las cotizaciones viven en el Central: sin comunicación no se pueden facturar, y eso se dice con esas palabras.
+        var consulta = await central.ConsultarCotizacionAsync(buscado, cancelacion);
+        if (!consulta.CentralRespondio)
+            return new RespuestaCotizacion(CodigoResultadoVenta.SinConexionCentral,
+                $"Las cotizaciones se consultan en el Central y no respondió: {consulta.Error}", Datos(venta!), null);
+        if (consulta.Cotizacion is not { } cotizacion)
+            return new RespuestaCotizacion(CodigoResultadoVenta.DocumentoInvalido, consulta.Error ?? "La cotización no existe.", Datos(venta!), null);
+
+        if (cotizacion.Estado == EstadoCotizacion.Facturada)
+            return new RespuestaCotizacion(CodigoResultadoVenta.DocumentoInvalido,
+                $"La cotización {cotizacion.Numero} ya se facturó.", Datos(venta!), cotizacion);
+        if (cotizacion.Estado == EstadoCotizacion.Anulada)
+            return new RespuestaCotizacion(CodigoResultadoVenta.DocumentoInvalido,
+                $"La cotización {cotizacion.Numero} está anulada.", Datos(venta!), cotizacion);
+
+        // Vencida se puede facturar, pero la decisión es de un supervisor y queda auditada.
+        if (cotizacion.Vencida)
+        {
+            var permisoVencida = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.FacturarCotizacionVencida, autorizacionId, TipoEntidadVenta,
+                venta!.NumeroTransaccion, cancelacion);
+            if (!permisoVencida.Permitido)
+            {
+                var negado = SinPermiso(permisoVencida, CatalogoPermisos.FacturarCotizacionVencida, venta);
+                return new RespuestaCotizacion(negado.Resultado,
+                    $"La cotización {cotizacion.Numero} venció el {cotizacion.VenceEn:dd/MM/yyyy}. {negado.Mensaje}", negado.Venta, cotizacion,
+                    negado.PermisoRequerido);
+            }
+        }
+
+        if (venta!.TieneLineasActivas)
+            return new RespuestaCotizacion(CodigoResultadoVenta.DocumentoInvalido,
+                "La venta ya tiene artículos. Termínela o límpiela antes de facturar una cotización.", Datos(venta), cotizacion);
+
+        // Los artículos tienen que existir en esta caja: la cotización solo trae el código y el precio pactado.
+        var articulos = new List<(CgPos.Contratos.Central.DatosLineaCotizacionParaCaja Linea, DatosArticuloVenta Articulo)>(cotizacion.Lineas.Count);
+        foreach (var linea in cotizacion.Lineas)
+        {
+            var articulo = await consultaArticulos.BuscarPorCodigoAsync(linea.ArticuloCodigo, cancelacion);
+            if (articulo is null)
+                return new RespuestaCotizacion(CodigoResultadoVenta.ArticuloNoEncontrado,
+                    $"El artículo {linea.ArticuloCodigo} de la cotización no está en esta caja. Sincronice los maestros e intente de nuevo.",
+                    Datos(venta), cotizacion);
+
+            articulos.Add((linea, articulo));
+        }
+
+        var respuesta = await EjecutarAsync(venta, () =>
+        {
+            foreach (var (linea, articulo) in articulos)
+                venta.AgregarArticuloCotizado(articulo.AArticuloParaVenta(), linea.Cantidad, linea.PrecioUnitario, linea.Descuento, reloj.Ahora());
+
+            venta.AsignarCotizacion(cotizacion.Numero, reloj.Ahora());
+            auditoria.Registrar(new EntradaAuditoria("Ventas.CotizacionFacturada", TipoEntidadVenta, venta.NumeroTransaccion,
+                Detalle: new { cotizacion.Numero, cotizacion.ClienteNombre, cotizacion.Total, cotizacion.Vencida },
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        }, cancelacion);
+
+        return new RespuestaCotizacion(respuesta.Resultado,
+            respuesta.Exitosa ? $"Cotización {cotizacion.Numero} de {cotizacion.ClienteNombre}." : respuesta.Mensaje, respuesta.Venta, cotizacion);
     }
 
     public async Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
