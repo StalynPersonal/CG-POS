@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -121,6 +121,36 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         var abiertos = await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?soloAbiertos=true&buscar={creado.Numero}");
         Assert.Empty(abiertos.Elementos);
         Assert.True((await ObtenerAsync<ResumenDespachoCentral>(cliente, admin, "/api/manager/despacho/resumen")).EntregadosHoy >= 1);
+    }
+
+    [SkippableFact]
+    public async Task El_pendiente_que_sube_la_caja_recibe_el_numero_del_Central_y_conserva_el_suyo()
+    {
+        // 1. Si no hay SQL Server disponible, la prueba se salta en vez de fallar.
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+
+        // 2. Un cliente HTTP contra el Central levantado en memoria, y las credenciales que hacen falta:
+        //    la caja se autentica como dispositivo; el administrador, como usuario del Manager.
+        using var cliente = central.CrearCliente();
+        var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+
+        // 3. Lo que va a pasar: la caja crea un pendiente al cobrar y lo informa al Central.
+        var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.RetiroAlmacen, EstadoPendiente.Pendiente,
+            DateOnly.FromDateTime(DateTime.Today), 2m, 0m);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
+
+        // 4. Lo que se comprueba: el Central lo guardó con SU número, y el de la caja sigue ahí.
+        var detalle = await ObtenerAsync<DetallePendienteCentral>(cliente, admin,
+            $"/api/manager/despacho/pendientes/{Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos).Id}");
+
+        Assert.Equal(creado.Numero, detalle.Pendiente.Numero);
+        Assert.StartsWith("DES", detalle.Resumen.NumeroCentral, StringComparison.Ordinal);
+
+        // 5. Y el número no se repite si el mensaje llega dos veces: el pendiente ya existe y no se vuelve a numerar.
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
+        var despues = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos);
+        Assert.Equal(detalle.Resumen.NumeroCentral, despues.NumeroCentral);
     }
 
     [SkippableFact]

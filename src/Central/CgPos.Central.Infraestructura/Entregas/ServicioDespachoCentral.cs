@@ -227,7 +227,7 @@ internal sealed class ServicioDespachoCentral(
         var cajas = await contexto.Cajas.AsNoTracking().Where(c => idsCajas.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
 
-        return pendientes.Select(p => new DatosPendienteCentralResumen(p.Id, p.Numero, p.VentaNumero,
+        return pendientes.Select(p => new DatosPendienteCentralResumen(p.Id, p.Numero, p.NumeroCentral, p.VentaNumero,
             sucursales.GetValueOrDefault(p.SucursalId) ?? string.Empty, cajas.GetValueOrDefault(p.CajaId) ?? string.Empty, p.Metodo, p.Estado,
             p.Metodo == MetodoEntrega.Envio ? p.Ciudad : p.AlmacenNombre, p.ClienteNombre, p.ClienteDocumento, p.Telefono, p.FechaComprometida,
             p.EstaAtrasado(hoy), p.Unidades, p.UnidadesEntregadas, p.CreadoEn, p.ActualizadoEn)).ToList();

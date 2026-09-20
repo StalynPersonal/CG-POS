@@ -1,4 +1,4 @@
-using CgPos.Contratos.Sincronizacion;
+﻿using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 
@@ -8,7 +8,10 @@ namespace CgPos.Contratos.Central;
 /// <param name="Atrasado">Pasó la fecha comprometida y todavía no se entregó.</param>
 public sealed record DatosPendienteCentralResumen(
     int Id,
+    /// <summary>Número con el que la caja lo creó al cobrar.</summary>
     string Numero,
+    /// <summary>Número que le puso el Central al recibirlo; nulo si faltaba su secuencia.</summary>
+    string? NumeroCentral,
     string VentaNumero,
     string SucursalCodigo,
     string CajaCodigo,
