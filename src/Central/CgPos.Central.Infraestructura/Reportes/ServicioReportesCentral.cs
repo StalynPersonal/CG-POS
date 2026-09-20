@@ -81,7 +81,7 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
     public async Task<IReadOnlyList<DatosCuadreReporte>> CuadresAsync(FiltroReporte filtro, CancellationToken cancelacion = default)
     {
         var codigos = await CodigosAsync(cancelacion);
-        var consulta = contexto.CierresTurno.AsNoTracking()
+        var consulta = contexto.CierresTurno.AsNoTracking().Include(c => c.Ajustes)
             .Where(c => c.FechaOperacion >= filtro.Desde && c.FechaOperacion <= filtro.Hasta);
         if (filtro.SucursalId is { } sucursal)
             consulta = consulta.Where(c => c.SucursalId == sucursal);
@@ -92,7 +92,7 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
 
         return cierres.Select(c => new DatosCuadreReporte(c.FechaOperacion, codigos.Sucursales.GetValueOrDefault(c.SucursalId) ?? string.Empty,
             codigos.Cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.TurnoNumero, c.UsuarioNombre, c.CantidadVentas, c.TotalVentas, c.TotalEsperado,
-            c.TotalDeclarado, c.Diferencia, c.Ciego)).ToList();
+            c.TotalDeclarado, c.Diferencia, c.Ciego, c.DeclaradoPorLaCaja, c.Ajustado)).ToList();
     }
 
     public async Task<IReadOnlyList<DatosEcfReporte>> EcfAsync(FiltroReporte filtro, CancellationToken cancelacion = default)
@@ -168,17 +168,18 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
 
     private static TablaReporte TablaCuadres(IReadOnlyList<DatosCuadreReporte> datos, string subtitulo) =>
         new("Cuadres de caja", subtitulo,
-            ["Fecha", "Sucursal", "Caja", "Turno", "Cajero", "Ventas", "Total ventas", "Esperado", "Declarado", "Diferencia"],
-            [false, false, false, true, false, true, true, true, true, true],
+            ["Fecha", "Sucursal", "Caja", "Turno", "Cajero", "Ventas", "Total ventas", "Esperado", "Declaró la caja", "Declarado", "Diferencia", "Corregido"],
+            [false, false, false, true, false, true, true, true, true, true, true, false],
             datos.Select(d => (IReadOnlyList<string>)
             [
                 d.Fecha.ToString("dd/MM/yyyy"), d.SucursalCodigo, d.CajaCodigo, d.TurnoNumero.ToString(Cultura), d.UsuarioNombre,
-                Entero(d.CantidadVentas), Monto(d.TotalVentas), Monto(d.Esperado), Monto(d.Declarado), Monto(d.Diferencia),
+                Entero(d.CantidadVentas), Monto(d.TotalVentas), Monto(d.Esperado), Monto(d.DeclaradoPorLaCaja), Monto(d.Declarado), Monto(d.Diferencia),
+                d.Ajustado ? "Sí" : string.Empty,
             ]).ToList(),
             [
                 "Total", string.Empty, string.Empty, string.Empty, string.Empty, Entero(datos.Sum(d => d.CantidadVentas)),
-                Monto(datos.Sum(d => d.TotalVentas)), Monto(datos.Sum(d => d.Esperado)), Monto(datos.Sum(d => d.Declarado)),
-                Monto(datos.Sum(d => d.Diferencia)),
+                Monto(datos.Sum(d => d.TotalVentas)), Monto(datos.Sum(d => d.Esperado)), Monto(datos.Sum(d => d.DeclaradoPorLaCaja)),
+                Monto(datos.Sum(d => d.Declarado)), Monto(datos.Sum(d => d.Diferencia)), string.Empty,
             ]);
 
     private static TablaReporte TablaEcf(IReadOnlyList<DatosEcfReporte> datos, string subtitulo) =>

@@ -47,6 +47,12 @@ public sealed class CierreTurnoCentral : Entidad
     /// <summary>Alguien corrigió este cierre desde el Central.</summary>
     public bool Ajustado => _ajustes.Count > 0;
 
+    /// <summary>
+    /// Lo que declaró la caja, antes de las correcciones: el declarado de hoy menos lo que movió cada ajuste. Sirve para
+    /// mostrar en los reportes las dos cifras, la de la terminal y la corregida.
+    /// </summary>
+    public decimal DeclaradoPorLaCaja => TotalDeclarado - _ajustes.Where(a => a.Moneda == Moneda).Sum(a => a.Movimiento);
+
     /// <summary>Faltó o sobró dinero respecto de lo esperado.</summary>
     public bool ConDiferencia => Diferencia != 0m;
 

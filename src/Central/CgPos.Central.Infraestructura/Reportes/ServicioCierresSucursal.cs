@@ -31,7 +31,7 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
         return new DatosPreparacionCierreSucursal(sucursal.Id, sucursal.Codigo, sucursal.Nombre, fechaOperacion,
             cierres.OrderBy(c => cajas.GetValueOrDefault(c.CajaId), StringComparer.Ordinal).ThenBy(c => c.TurnoNumero)
                 .Select(c => new DatosCierreTurnoSucursal(cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.TurnoNumero, c.UsuarioNombre, c.CantidadVentas,
-                    c.TotalVentas, c.TotalEsperado, c.TotalDeclarado, c.Diferencia, c.CerradoEn))
+                    c.TotalVentas, c.TotalEsperado, c.TotalDeclarado, c.Diferencia, c.CerradoEn, c.DeclaradoPorLaCaja, c.Ajustado))
                 .ToList(),
             formas.Select(f => new DatosFormaPagoCierreSucursal(f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado, f.Declarado, f.Diferencia)).ToList(),
             Efectivo(CierreSucursal.ADepositar(formas.Select(f => (f.Tipo, f.Moneda, f.Declarado))), []),
@@ -117,8 +117,9 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
     private IQueryable<CierreSucursal> Consulta() =>
         contexto.CierresSucursal.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Depositos).AsSplitQuery();
 
+    /// <summary>Con sus ajustes, para poder mostrar junto a cada cierre lo que declaró la caja y lo que se corrigió aquí.</summary>
     private Task<List<CierreTurnoCentral>> CierresDelDiaAsync(int sucursalId, DateOnly fechaOperacion, CancellationToken cancelacion) =>
-        contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago)
+        contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Ajustes).AsSplitQuery()
             .Where(c => c.SucursalId == sucursalId && c.FechaOperacion == fechaOperacion)
             .ToListAsync(cancelacion);
 

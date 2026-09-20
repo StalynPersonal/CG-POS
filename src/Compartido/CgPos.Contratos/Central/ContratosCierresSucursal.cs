@@ -1,8 +1,11 @@
-using CgPos.Dominio.Pagos;
+﻿using CgPos.Dominio.Pagos;
 
 namespace CgPos.Contratos.Central;
 
 /// <summary>Cierre de turno de una caja que entra en el cierre de la sucursal.</summary>
+/// <param name="Declarado">Con las correcciones hechas desde el Central, si las hubo.</param>
+/// <param name="DeclaradoPorLaCaja">Lo que declaró la terminal al cerrar.</param>
+/// <param name="Ajustado">El cuadre se corrigió desde el Central: se consolida con la cifra corregida.</param>
 public sealed record DatosCierreTurnoSucursal(
     string CajaCodigo,
     long TurnoNumero,
@@ -12,7 +15,9 @@ public sealed record DatosCierreTurnoSucursal(
     decimal Esperado,
     decimal Declarado,
     decimal Diferencia,
-    DateTimeOffset CerradoEn);
+    DateTimeOffset CerradoEn,
+    decimal DeclaradoPorLaCaja = 0m,
+    bool Ajustado = false);
 
 public sealed record DatosFormaPagoCierreSucursal(TipoFormaPago Tipo, string Nombre, string Moneda, int Transacciones, decimal Esperado, decimal Declarado,
     decimal Diferencia);

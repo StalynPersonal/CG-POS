@@ -1,4 +1,4 @@
-@page "/cierres-sucursal"
+﻿@page "/cierres-sucursal"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.CerrarSucursal)]
 @using CgPos.Contratos.Catalogo
 @inject ClienteCentral Cliente
@@ -66,7 +66,8 @@
                     <thead>
                         <tr>
                             <th>Caja</th><th>Turno</th><th>Cajero</th><th style="text-align: right">Ventas</th><th style="text-align: right">Total ventas</th>
-                            <th style="text-align: right">Esperado</th><th style="text-align: right">Declarado</th><th style="text-align: right">Diferencia</th>
+                            <th style="text-align: right">Esperado</th><th style="text-align: right">Declaró la caja</th>
+                            <th style="text-align: right">Declarado</th><th style="text-align: right">Diferencia</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -79,7 +80,17 @@
                                 <td style="text-align: right">@cierre.CantidadVentas</td>
                                 <td style="text-align: right">@cierre.TotalVentas.ToString("N2")</td>
                                 <td style="text-align: right">@cierre.Esperado.ToString("N2")</td>
-                                <td style="text-align: right">@cierre.Declarado.ToString("N2")</td>
+                                @* Si el cuadre se corrigió desde el Central, se ven las dos cifras: la de la caja y la que vale. *@
+                                <td style="text-align: right">@cierre.DeclaradoPorLaCaja.ToString("N2")</td>
+                                <td style="text-align: right">
+                                    @cierre.Declarado.ToString("N2")
+                                    @if (cierre.Ajustado)
+                                    {
+                                        <MudTooltip Text="Cuadre corregido desde el Central; se consolida con esta cifra.">
+                                            <MudIcon Icon="@Icons.Material.Filled.EditNote" Size="Size.Small" Color="Color.Info" />
+                                        </MudTooltip>
+                                    }
+                                </td>
                                 <td style="text-align: right; @ColorDiferencia(cierre.Diferencia)">@cierre.Diferencia.ToString("N2")</td>
                             </tr>
                         }

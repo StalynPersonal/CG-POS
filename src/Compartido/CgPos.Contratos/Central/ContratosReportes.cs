@@ -1,4 +1,4 @@
-using CgPos.Dominio.Fiscal;
+﻿using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Sincronizacion;
 using CgPos.Dominio.Reportes;
 
@@ -66,6 +66,8 @@ public sealed record DatosFormato607(
     decimal ItbisRetenido,
     string TipoVenta);
 
+/// <param name="Declarado">Lo que vale hoy: con las correcciones hechas desde el Central, si las hubo.</param>
+/// <param name="DeclaradoPorLaCaja">Lo que declaró la terminal al cerrar; distinto del anterior solo si el cierre se corrigió.</param>
 public sealed record DatosCuadreReporte(
     DateOnly Fecha,
     string SucursalCodigo,
@@ -77,7 +79,9 @@ public sealed record DatosCuadreReporte(
     decimal Esperado,
     decimal Declarado,
     decimal Diferencia,
-    bool Ciego);
+    bool Ciego,
+    decimal DeclaradoPorLaCaja = 0m,
+    bool Ajustado = false);
 
 public sealed record DatosEcfReporte(
     string Encf,

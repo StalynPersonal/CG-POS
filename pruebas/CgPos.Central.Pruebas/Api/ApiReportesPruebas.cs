@@ -100,14 +100,15 @@ public class ApiReportesPruebas(CentralEnPruebas central)
 
         var cuadres = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
         var fila = Assert.Single(cuadres.Filas, f => f[3] == turno);
-        Assert.Equal(("5,000.00", "4,950.00", "-50.00"), (fila[7], fila[8], fila[9]));
+        // Esperado, lo que declaró la caja, lo que vale hoy y la diferencia: sin corrección, las dos cifras del medio son iguales.
+        Assert.Equal(("5,000.00", "4,950.00", "4,950.00", "-50.00"), (fila[7], fila[8], fila[9], fila[10]));
 
         // El mismo cierre recibido otra vez actualiza la fila, no crea otra.
         var corregido = cierre with { TotalDeclarado = 5000m, Diferencia = 0m };
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, corregido)));
 
         var despues = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
-        Assert.Equal("0.00", Assert.Single(despues.Filas, f => f[3] == turno)[9]);
+        Assert.Equal("0.00", Assert.Single(despues.Filas, f => f[3] == turno)[10]);
 
         // Excel es un .xlsx legible y el PDF empieza por su cabecera.
         var excel = await DescargarAsync(cliente, admin, "/api/manager/reportes/Cuadres/excel", dia, dia);

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Central.Pruebas.Soporte;
@@ -55,6 +55,16 @@ public class ApiCierresCajaPruebas(CentralEnPruebas central)
 
         Assert.True(await central.UsarContextoAsync(contexto => contexto.Auditoria.AsNoTracking()
             .AnyAsync(a => a.Accion == "Reportes.CierreAjustado" && a.EntidadId == corregido.Id.ToString())));
+
+        // En el reporte de cuadres se ven las dos cifras: lo que declaró la caja y lo que vale después de la corrección.
+        using (var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/manager/reportes/Cuadres?desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}", admin)))
+        {
+            respuesta.EnsureSuccessStatusCode();
+            var tabla = (await respuesta.Content.ReadFromJsonAsync<TablaReporte>(OpcionesJson.Predeterminadas))!;
+            var fila = Assert.Single(tabla.Filas, f => f[3] == cierre.TurnoNumero.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(("4,950.00", "5,000.00", "0.00", "Sí"), (fila[8], fila[9], fila[10], fila[11]));
+        }
 
         // El mismo cierre reenviado por la caja no borra la corrección: traería otra vez las cifras viejas.
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token,
