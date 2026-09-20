@@ -1,4 +1,4 @@
-@* Alta o edición de un usuario de caja. Entra a la caja con su código y su clave; la clave solo viaja como hash y vacía conserva la actual. *@
+﻿@* Alta o edición de un usuario de caja. Entra a la caja con su código y su clave; la clave solo viaja como hash y vacía conserva la actual. *@
 @inject ClienteCentral Cliente
 
 <MudDialog>
@@ -13,12 +13,35 @@
                     <MudSelectItem T="int?" Value="@rol.Id">@rol.Nombre (nivel @rol.Nivel)</MudSelectItem>
                 }
             </MudSelect>
-            <MudSelect T="int" @bind-SelectedValues="_cajas" MultiSelection="true" Label="Cajas que opera" Variant="Variant.Outlined" ToStringFunc="NombreCaja">
-                @foreach (var caja in Cajas)
+            @* Primero la sucursal y después sus cajas: la lista completa de la empresa no cabe ni se entiende. *@
+            <MudSelect T="int?" Value="_sucursalId" ValueChanged="CambiarSucursal" Label="Sucursal" Placeholder="Seleccione la sucursal"
+                       Variant="Variant.Outlined" ToStringFunc="NombreSucursal">
+                @foreach (var sucursal in Sucursales)
                 {
-                    <MudSelectItem T="int" Value="@caja.Id">Caja @caja.Codigo · Sucursal @caja.SucursalCodigo</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
                 }
             </MudSelect>
+
+            <MudSelect T="int" SelectedValues="_cajasDeLaSucursal" SelectedValuesChanged="CambiarCajas" MultiSelection="true"
+                       Label="Cajas que opera" Placeholder="@(_sucursalId is null ? "Elija primero la sucursal" : "Ninguna")"
+                       Variant="Variant.Outlined" Disabled="@(_sucursalId is null)" ToStringFunc="NombreCaja">
+                @foreach (var caja in CajasDeLaSucursal)
+                {
+                    <MudSelectItem T="int" Value="@caja.Id">Caja @caja.Codigo · @caja.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+
+            @* Lo asignado en todas las sucursales, para verlo junto y poder quitarlo sin ir sucursal por sucursal. *@
+            @if (_cajas.Count > 0)
+            {
+                <div class="cg-central__dialogo-chips">
+                    @foreach (var cajaId in _cajas.OrderBy(NombreCaja, StringComparer.Ordinal))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined"
+                                 OnClose="() => QuitarCaja(cajaId)">@NombreCaja(cajaId)</MudChip>
+                    }
+                </div>
+            }
             <MudTextField T="string" @bind-Value="_clave" Label="@(Usuario is null ? "Clave" : "Clave nueva (vacía conserva la actual)")" Variant="Variant.Outlined"
                           InputType="InputType.Password" HelperText="Con esta clave y su código entra a la caja y autoriza operaciones." />
             <MudSwitch T="bool" @bind-Value="_activo" Label="@(_activo ? "Activo" : "Inactivo")" Color="Color.Secondary" />
@@ -41,10 +64,18 @@
     [Parameter] public IReadOnlyList<DatosRolCaja> Roles { get; set; } = [];
     [Parameter] public IReadOnlyList<DatosCaja> Cajas { get; set; } = [];
 
+    /// <summary>Las sucursales que tienen cajas, sacadas de la misma lista: no hace falta pedirlas aparte.</summary>
+    private IEnumerable<(int Id, string Codigo, string Nombre)> Sucursales =>
+        Cajas.GroupBy(c => c.SucursalId).Select(g => (g.Key, g.First().SucursalCodigo, g.First().SucursalNombre)).OrderBy(s => s.SucursalCodigo, StringComparer.Ordinal);
+
+    private IEnumerable<DatosCaja> CajasDeLaSucursal =>
+        Cajas.Where(c => c.SucursalId == _sucursalId).OrderBy(c => c.Codigo, StringComparer.Ordinal);
+
     private string? _codigo;
     private string? _nombre;
     private int? _rolId;
-    private IReadOnlyCollection<int> _cajas = [];
+    private int? _sucursalId;
+    private readonly HashSet<int> _cajas = [];
     private string? _clave;
     private bool _activo = true;
     private string? _mensaje;
@@ -55,6 +86,26 @@
     private string NombreCaja(int cajaId) =>
         Cajas.FirstOrDefault(c => c.Id == cajaId) is { } caja ? $"{caja.SucursalCodigo}-{caja.Codigo}" : string.Empty;
 
+    private string NombreSucursal(int? sucursalId) =>
+        Cajas.FirstOrDefault(c => c.SucursalId == sucursalId) is { } caja ? $"{caja.SucursalCodigo} · {caja.SucursalNombre}" : string.Empty;
+
+    /// <summary>Lo asignado en la sucursal que se está mirando; lo de las otras sigue guardado en <see cref="_cajas"/>.</summary>
+    private IReadOnlyCollection<int> _cajasDeLaSucursal => [.. CajasDeLaSucursal.Where(c => _cajas.Contains(c.Id)).Select(c => c.Id)];
+
+    private void CambiarSucursal(int? sucursalId) => _sucursalId = sucursalId;
+
+    private void CambiarCajas(IReadOnlyCollection<int> seleccionadas)
+    {
+        // Se reemplaza solo lo de esta sucursal: cambiar de sucursal no borra lo que el usuario ya tenía en otra.
+        foreach (var caja in CajasDeLaSucursal)
+            _cajas.Remove(caja.Id);
+
+        foreach (var cajaId in seleccionadas)
+            _cajas.Add(cajaId);
+    }
+
+    private void QuitarCaja(int cajaId) => _cajas.Remove(cajaId);
+
     protected override void OnInitialized()
     {
         if (Usuario is not { } usuario)
@@ -63,7 +114,11 @@
         _codigo = usuario.Codigo;
         _nombre = usuario.Nombre;
         _rolId = usuario.RolId;
-        _cajas = usuario.Cajas.ToHashSet();
+        foreach (var cajaId in usuario.Cajas)
+            _cajas.Add(cajaId);
+
+        // Se abre en la sucursal de la primera caja que ya tenía: es la que casi siempre se viene a cambiar.
+        _sucursalId = Cajas.FirstOrDefault(c => _cajas.Contains(c.Id))?.SucursalId;
         _activo = usuario.Activo;
     }
 

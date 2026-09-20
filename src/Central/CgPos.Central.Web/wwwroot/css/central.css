@@ -102,6 +102,8 @@ html, body {
 }
 
 .cg-central__dialogo { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+/* Las cajas ya asignadas, en fila y con salto cuando no caben. */
+.cg-central__dialogo-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .cg-central__formulario-angosto { max-width: 520px; display: flex; flex-direction: column; gap: 16px; }
 
 .cg-central__grupo-permisos {
