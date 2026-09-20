@@ -99,8 +99,9 @@ public sealed record MotivoDevolucionCarga(int Codigo, string Nombre, bool Activ
 /// solapan. Ampliar el mismo rango extiende su final.
 /// </summary>
 /// <param name="Proximo">Número con el que la caja arranca el consumo; si no viene, arranca en <paramref name="Desde"/>.</param>
+/// <param name="Serie">Letra con la que empieza el e-NCF; si no viene, la que usa hoy la DGII.</param>
 public sealed record SecuenciaEcfCarga(string SucursalCodigo, string CajaCodigo, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn,
-    bool Activa = true, long? Proximo = null);
+    bool Activa = true, long? Proximo = null, string? Serie = null);
 
 /// <summary>Tasa del día que publica el Central: pesos por unidad de la moneda (RF-212). Se identifica por la moneda y desde cuándo rige.</summary>
 public sealed record TasaCambioCarga(string Moneda, decimal Tasa, DateTimeOffset VigenteDesde);

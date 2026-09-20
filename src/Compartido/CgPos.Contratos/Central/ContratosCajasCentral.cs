@@ -1,4 +1,4 @@
-using CgPos.Dominio.Fiscal;
+﻿using CgPos.Dominio.Fiscal;
 
 namespace CgPos.Contratos.Central;
 
@@ -22,6 +22,8 @@ public sealed record DatosSecuenciaEcfCentral(
     string CajaCodigo,
     string SucursalCodigo,
     TipoComprobante TipoComprobante,
+    /// <summary>Letra con la que empieza el e-NCF de este rango.</summary>
+    string Serie,
     long Desde,
     long Hasta,
     DateOnly VenceEn,
@@ -31,7 +33,8 @@ public sealed record DatosSecuenciaEcfCentral(
     DateTimeOffset AsignadoEn,
     string AsignadoPor);
 
-public sealed record SolicitudSecuenciaEcf(int CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, long? Proximo = null);
+public sealed record SolicitudSecuenciaEcf(int CajaId, TipoComprobante TipoComprobante, long Desde, long Hasta, DateOnly VenceEn, long? Proximo = null,
+    string? Serie = null);
 
 /// <summary>Un rango solo se amplía, se prorroga o se desactiva: la caja, el tipo y el inicio no cambian.</summary>
 public sealed record SolicitudActualizarSecuenciaEcf(long Hasta, DateOnly VenceEn, bool Activa);

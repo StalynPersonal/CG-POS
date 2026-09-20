@@ -757,7 +757,7 @@ CREATE TABLE [Articulos] (
     [Costo] decimal(18,4) NULL,
     [PrecioMinimo] decimal(18,4) NULL,
     [CantidadMinimaMayor] decimal(18,4) NULL,
-    [Tara] decimal(18,4) NULL,
+    [PesoEmpaque] decimal(18,4) NULL,
     [RutaImagen] nvarchar(260) NULL,
     [EsServicio] bit NOT NULL,
     [MostrarEnCatalogo] bit NOT NULL,
@@ -1136,6 +1136,7 @@ GO
 CREATE TABLE [SecuenciasEcf] (
     [Id] int NOT NULL,
     [CajaId] int NOT NULL,
+    [Serie] char(1) NOT NULL,
     [TipoComprobante] int NOT NULL,
     [Desde] bigint NOT NULL,
     [Hasta] bigint NOT NULL,
@@ -1991,7 +1992,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$GOVgsgS4FvPJhbmmtMygWg==$p8b13htXxqyf5Zu0j9uD19d9o3hJP7hjqkL7hv8OhWw=', 1, NULL, 0, NULL, NULL,
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$xum8WSC0XiiHZLid0EyXhA==$cQMDAHM6w/PZWnB8ILuTGyrMaZ0+SV3e1hZ2b/K7bWs=', 1, NULL, 0, NULL, NULL,
         SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO

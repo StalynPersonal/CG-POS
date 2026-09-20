@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Dgii;
@@ -56,8 +56,7 @@ internal sealed class ServicioAnulacionesEcf(
 
         var tipo = (int)secuencia.TipoComprobante;
         var xml = GeneradorXmlAnecf.Generar(rnc, reloj.Ahora(),
-            [new RangoAnulacionEcf(tipo, SecuenciaEcf.FormatearEncf(secuencia.TipoComprobante, solicitud.Desde),
-                SecuenciaEcf.FormatearEncf(secuencia.TipoComprobante, solicitud.Hasta))]);
+            [new RangoAnulacionEcf(tipo, secuencia.Encf(solicitud.Desde), secuencia.Encf(solicitud.Hasta))]);
 
         RespuestaAnulacionDgii respuesta;
         try
@@ -103,8 +102,8 @@ internal sealed class ServicioAnulacionesEcf(
         if (!await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametrosCentral.DgiiHabilitado, cancelacion))
             return "El envío a la DGII no está activado en los parámetros del Central.";
 
-        var desde = SecuenciaEcf.FormatearEncf(secuencia.TipoComprobante, solicitud.Desde);
-        var hasta = SecuenciaEcf.FormatearEncf(secuencia.TipoComprobante, solicitud.Hasta);
+        var desde = secuencia.Encf(solicitud.Desde);
+        var hasta = secuencia.Encf(solicitud.Hasta);
         var usado = await contexto.ComprobantesRecibidos.AsNoTracking()
             .Where(c => c.CajaId == secuencia.CajaId && c.TipoComprobante == secuencia.TipoComprobante
                 && string.Compare(c.Encf, desde) >= 0 && string.Compare(c.Encf, hasta) <= 0)

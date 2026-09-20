@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Fiscal;
 
@@ -10,11 +10,18 @@ public sealed class SecuenciaEcf : Entidad
 {
     public const long SecuenciaMaxima = 9_999_999_999;
 
+    /// <summary>La que usa hoy la DGII para los comprobantes electrónicos. Se guarda con el rango por si algún día cambia.</summary>
+    public const string SeriePredeterminada = "E";
+
     private SecuenciaEcf()
     {
     }
 
     public int CajaId { get; private set; }
+
+    /// <summary>Letra con la que empieza el e-NCF de este rango. Va con el rango: lo ya emitido conserva la suya.</summary>
+    public string Serie { get; private set; } = SeriePredeterminada;
+
     public TipoComprobante TipoComprobante { get; private set; }
     public long Desde { get; private set; }
     public long Hasta { get; private set; }
@@ -33,7 +40,8 @@ public sealed class SecuenciaEcf : Entidad
     /// Número con el que arranca el consumo. Se indica cuando parte del rango ya se usó fuera del sistema; si se omite,
     /// arranca en <paramref name="desde"/>.
     /// </param>
-    public static SecuenciaEcf Asignar(int cajaId, TipoComprobante tipo, long desde, long hasta, DateOnly venceEn, long? proximo = null)
+    public static SecuenciaEcf Asignar(int cajaId, TipoComprobante tipo, long desde, long hasta, DateOnly venceEn, long? proximo = null,
+        string? serie = null)
     {
         if (!Enum.IsDefined(tipo))
             throw new ArgumentOutOfRangeException(nameof(tipo), tipo, "Tipo de comprobante no válido.");
@@ -44,6 +52,7 @@ public sealed class SecuenciaEcf : Entidad
 
         var secuencia = new SecuenciaEcf
         {
+            Serie = NormalizarSerie(serie),
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,
             Desde = desde,
@@ -66,7 +75,25 @@ public sealed class SecuenciaEcf : Entidad
 
     public bool Disponible(DateOnly hoy) => Activa && Ultimo < Hasta && VenceEn >= hoy;
 
-    public static string FormatearEncf(TipoComprobante tipo, long secuencia) => $"E{(int)tipo:00}{secuencia:0000000000}";
+    /// <summary>El e-NCF completo: serie, tipo de dos dígitos y secuencia de diez, como lo pide la DGII.</summary>
+    public static string FormatearEncf(TipoComprobante tipo, long secuencia, string? serie = null) =>
+        $"{NormalizarSerie(serie)}{(int)tipo:00}{secuencia:0000000000}";
+
+    /// <summary>El e-NCF de este rango para esa secuencia, con la serie que se le asignó.</summary>
+    public string Encf(long secuencia) => FormatearEncf(TipoComprobante, secuencia, Serie);
+
+    /// <exception cref="ArgumentException">La serie no es una sola letra.</exception>
+    private static string NormalizarSerie(string? serie)
+    {
+        var texto = (serie ?? string.Empty).Trim().ToUpperInvariant();
+        if (texto.Length == 0)
+            return SeriePredeterminada;
+
+        if (texto.Length != 1 || !char.IsAsciiLetterUpper(texto[0]))
+            throw new ArgumentException($"La serie «{serie}» debe ser una sola letra.", nameof(serie));
+
+        return texto;
+    }
 }
 
 /// <summary>Ciclo de estados del e-CF (RF-223). La caja llega hasta Pendiente por sincronizar; el Central continúa.</summary>

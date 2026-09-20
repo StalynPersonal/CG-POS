@@ -372,6 +372,9 @@ internal sealed class SecuenciaEcfConfiguracion : IEntityTypeConfiguration<Secue
     {
         constructor.ToTable("SecuenciasEcf");
         constructor.HasKey(s => s.Id);
+
+        // Una letra: la que la DGII use en ese momento. Se guarda con el rango para no tocar lo ya emitido si cambia.
+        constructor.Property(s => s.Serie).HasMaxLength(1).IsFixedLength().IsUnicode(false).IsRequired();
         constructor.Ignore(s => s.Total);
         constructor.Ignore(s => s.Restantes);
         constructor.Ignore(s => s.PorcentajeRestante);

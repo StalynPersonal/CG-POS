@@ -408,7 +408,7 @@ internal static class TablasMaestros
         (e, r, p) =>
         {
             var (sucursal, caja) = r.CodigoCaja(e.CajaId);
-            return new SecuenciaEcfCarga(sucursal, caja, e.TipoComprobante, e.Desde, e.Hasta, e.VenceEn, e.Activa);
+            return new SecuenciaEcfCarga(sucursal, caja, e.TipoComprobante, e.Desde, e.Hasta, e.VenceEn, e.Activa, Serie: e.Serie);
         },
         q => q.OrderBy(e => e.TipoComprobante).ThenBy(e => e.Desde));
 

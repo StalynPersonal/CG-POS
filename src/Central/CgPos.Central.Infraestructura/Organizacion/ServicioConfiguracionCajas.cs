@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
@@ -47,7 +47,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
                 long? ultimo = ultimos.TryGetValue((s.CajaId, s.TipoComprobante), out var secuencia) && secuencia >= s.Desde && secuencia <= s.Hasta ? secuencia : null;
                 var asignacion = asignaciones.GetValueOrDefault(s.Id);
                 return new DatosSecuenciaEcfCentral(s.Id, s.CajaId, caja.Codigo, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty,
-                    s.TipoComprobante, s.Desde, s.Hasta, s.VenceEn, s.Activa, ultimo,
+                    s.TipoComprobante, s.Serie, s.Desde, s.Hasta, s.VenceEn, s.Activa, ultimo,
                     Proximo: (ultimo ?? s.Ultimo) + 1,
                     AsignadoEn: asignacion?.En ?? default,
                     AsignadoPor: asignacion?.Por ?? string.Empty);
@@ -73,7 +73,7 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
             return ResultadoAdministracion.Error($"El próximo número debe estar entre {solicitud.Desde} y {solicitud.Hasta}.");
 
         var secuencia = new SecuenciaEcfCarga(sucursal, caja, solicitud.TipoComprobante, solicitud.Desde, solicitud.Hasta, solicitud.VenceEn,
-            Proximo: solicitud.Proximo);
+            Proximo: solicitud.Proximo, Serie: solicitud.Serie);
         return await PublicarAsync(() => publicador.PublicarAsync(new PaqueteMaestros(SecuenciasEcf: [secuencia]), actor.Nombre, cancelacion),
             async () => await contexto.SecuenciasEcf.Where(s => s.TipoComprobante == secuencia.TipoComprobante && s.Desde == secuencia.Desde)
                 .Select(s => (int?)s.Id).SingleOrDefaultAsync(cancelacion));

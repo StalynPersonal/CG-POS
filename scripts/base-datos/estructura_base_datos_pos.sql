@@ -682,6 +682,7 @@ GO
 CREATE TABLE [SecuenciasEcf] (
     [Id] int NOT NULL,
     [CajaId] int NOT NULL,
+    [Serie] char(1) NOT NULL,
     [TipoComprobante] int NOT NULL,
     [Desde] bigint NOT NULL,
     [Hasta] bigint NOT NULL,
@@ -887,7 +888,7 @@ CREATE TABLE [Articulos] (
     [Costo] decimal(18,4) NULL,
     [PrecioMinimo] decimal(18,4) NULL,
     [CantidadMinimaMayor] decimal(18,4) NULL,
-    [Tara] decimal(18,4) NULL,
+    [PesoEmpaque] decimal(18,4) NULL,
     [RutaImagen] nvarchar(260) NULL,
     [EsServicio] bit NOT NULL,
     [MostrarEnCatalogo] bit NOT NULL,

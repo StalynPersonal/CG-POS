@@ -1,4 +1,4 @@
-@* Asignación de un rango de e-CF a una caja, o su ampliación, prórroga o desactivación. *@
+﻿@* Asignación de un rango de e-CF a una caja, o su ampliación, prórroga o desactivación. *@
 @using CgPos.Dominio.Fiscal
 @using CgPos.Dominio.Ventas
 @inject ClienteCentral Cliente
@@ -10,26 +10,36 @@
             {
                 @* Primero la sucursal y luego su caja: en una empresa con varias sucursales la lista de cajas se vuelve larga. *@
                 <MudSelect T="string" Value="_sucursalCodigo" ValueChanged="ElegirSucursal" Label="Sucursal" Placeholder="Seleccione la sucursal"
-                           Variant="Variant.Outlined" ToStringFunc="NombreSucursal">
+                           Variant="Variant.Outlined" ToStringFunc="NombreSucursal" Required="true" RequiredError="Seleccione la sucursal.">
                     @foreach (var sucursal in Sucursales)
                     {
                         <MudSelectItem T="string" Value="@sucursal">@NombreSucursal(sucursal)</MudSelectItem>
                     }
                 </MudSelect>
                 <MudSelect T="int?" @bind-Value="_cajaId" Label="Caja" Placeholder="Seleccione la caja" Variant="Variant.Outlined"
-                           ToStringFunc="NombreCaja" Disabled="@(_sucursalCodigo is null)">
+                           ToStringFunc="NombreCaja" Disabled="@(_sucursalCodigo is null)" Required="true" RequiredError="Seleccione la caja.">
                     @foreach (var caja in CajasDeLaSucursal)
                     {
                         <MudSelectItem T="int?" Value="@caja.Id">Caja @caja.Codigo · @caja.Nombre</MudSelectItem>
                     }
                 </MudSelect>
-                <MudSelect T="TipoComprobante" @bind-Value="_tipo" Label="Comprobante" Variant="Variant.Outlined" ToStringFunc="NombreTipo">
-                    @foreach (var tipo in TiposEcfCaja.Asignables)
-                    {
-                        <MudSelectItem T="TipoComprobante" Value="@tipo">@NombreTipo(tipo)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudNumericField T="long" @bind-Value="_desde" Label="Desde" Variant="Variant.Outlined" Min="1" HideSpinButtons="true" />
+                <div class="cg-secuencia__comprobante">
+                    <MudTextField T="string" @bind-Value="_serie" Label="Serie" Variant="Variant.Outlined" MaxLength="1" Immediate="true"
+                                  Required="true" RequiredError="Indique la serie." HelperText="Hoy la DGII usa E." />
+                    <MudSelect T="TipoComprobante" @bind-Value="_tipo" Label="Tipo de comprobante" Variant="Variant.Outlined" ToStringFunc="NombreTipo"
+                               Required="true" RequiredError="Seleccione el tipo de comprobante.">
+                        @foreach (var tipo in TiposEcfCaja.Asignables)
+                        {
+                            <MudSelectItem T="TipoComprobante" Value="@tipo">@NombreTipo(tipo)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+
+                <MudNumericField T="long" @bind-Value="_desde" Label="Desde" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
+                                 Required="true" RequiredError="Indique el primer número del rango." Immediate="true" />
+
+                @* Así se ve el comprobante que emitirá la caja: serie, tipo y secuencia de diez dígitos. *@
+                <MudTextField T="string" Value="@EjemploEncf" Label="Primer e-NCF del rango" Variant="Variant.Outlined" ReadOnly="true" />
             }
             else
             {
@@ -38,6 +48,7 @@
             }
 
             <MudNumericField T="long" @bind-Value="_hasta" Label="Hasta" Variant="Variant.Outlined" Min="1" HideSpinButtons="true"
+                             Required="true" RequiredError="Indique el último número del rango." Immediate="true"
                              HelperText="@(Secuencia is null ? null : "Solo se puede ampliar.")" />
             @if (Secuencia is null)
             {
@@ -49,7 +60,8 @@
                 <MudTextField T="string" Value="@Secuencia.Proximo.ToString("N0")" Label="Próximo" Variant="Variant.Outlined" ReadOnly="true"
                               HelperText="El que emitirá la caja en su siguiente comprobante." />
             }
-            <MudDatePicker @bind-Date="_vence" Label="Vence" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" />
+            <MudDatePicker @bind-Date="_vence" Label="Vence" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined"
+                           Required="true" RequiredError="Indique hasta cuándo vale el rango." />
             @if (Secuencia is not null)
             {
                 <MudSwitch T="bool" @bind-Value="_activa" Label="@(_activa ? "Activo" : "Inactivo")" Color="Color.Secondary" />
@@ -63,7 +75,8 @@
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || Faltante() is not null)"
+                   OnClick="GuardarAsync">Guardar</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -77,6 +90,7 @@
     private int? _cajaId;
     private long? _proximo;
     private TipoComprobante _tipo = TipoComprobante.FacturaConsumo;
+    private string? _serie = SecuenciaEcf.SeriePredeterminada;
     private long _desde = 1;
     private long _hasta;
     private DateTime? _vence;
@@ -85,6 +99,32 @@
     private bool _procesando;
 
     private static string NombreTipo(TipoComprobante tipo) => $"E{(int)tipo} · {ReglasComprobante.Nombre(tipo)}";
+
+    /// <summary>El número completo con el que arrancaría este rango, tal como saldrá en la factura.</summary>
+    private string EjemploEncf
+    {
+        get
+        {
+            // Mientras la serie no sirva, se muestra el ejemplo con la que usa la DGII hoy, para no dejar el campo en blanco.
+            try
+            {
+                return SecuenciaEcf.FormatearEncf(_tipo, _proximo ?? _desde, _serie);
+            }
+            catch (ArgumentException)
+            {
+                return SecuenciaEcf.FormatearEncf(_tipo, _proximo ?? _desde);
+            }
+        }
+    }
+
+    /// <returns>Qué falta por llenar, o nulo si está completo.</returns>
+    private string? Faltante() =>
+        _serie is not { Length: 1 } ? "Indique la serie del comprobante, de una letra."
+        : _vence is null ? "Indique hasta cuándo vale el rango."
+        : Secuencia is null && _cajaId is null ? "Seleccione la caja."
+        : Secuencia is null && _desde < 1 ? "Indique el primer número del rango."
+        : _hasta < 1 ? "Indique el último número del rango."
+        : null;
 
     private IReadOnlyList<string> Sucursales =>
         Cajas.Select(c => c.SucursalCodigo).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
@@ -133,7 +173,7 @@
         _mensaje = null;
         var venceEn = DateOnly.FromDateTime(vence);
         var respuesta = Secuencia is null
-            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, _hasta, venceEn, _proximo))
+            ? await Cliente.AsignarSecuenciaAsync(new SolicitudSecuenciaEcf(_cajaId!.Value, _tipo, _desde, _hasta, venceEn, _proximo, _serie))
             : await Cliente.ActualizarSecuenciaAsync(Secuencia.Id, new SolicitudActualizarSecuenciaEcf(_hasta, venceEn, _activa));
         _procesando = false;
 

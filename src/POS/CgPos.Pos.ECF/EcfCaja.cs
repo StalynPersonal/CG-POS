@@ -132,7 +132,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
                 $"No hay secuencia de e-CF disponible para {ReglasComprobante.Nombre(tipo)} (E{(int)tipo}) en esta caja: " +
                 "está agotada, vencida o no asignada. Solicite un rango al Central: sin e-NCF disponible no se puede facturar.");
 
-        var encf = SecuenciaEcf.FormatearEncf(tipo, asignada.Ultimo);
+        var encf = SecuenciaEcf.FormatearEncf(tipo, asignada.Ultimo, asignada.Serie);
         var emisor = await EmisorAsync(sucursalId, cancelacion);
         var tipoIngresos = await parametros.ObtenerEnteroAsync(ClavesParametros.TipoIngresos, cajaId, cancelacion);
         // Las fechas del e-CF van en la hora local configurada en el equipo de la caja.
@@ -211,6 +211,9 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
         public int Id { get; set; }
         public long Ultimo { get; set; }
         public DateOnly VenceEn { get; set; }
+
+        /// <summary>Serie del rango: la lleva el e-NCF, y cada rango conserva la suya.</summary>
+        public string Serie { get; set; } = SecuenciaEcf.SeriePredeterminada;
     }
 
     /// <summary>Toma la siguiente secuencia disponible de forma atómica (bloqueo de fila) dentro de la transacción abierta.</summary>
@@ -223,7 +226,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
                 WHERE CajaId = {cajaId} AND TipoComprobante = {(int)tipo} AND Activa = 1 AND Ultimo < Hasta AND VenceEn >= {fecha}
                 ORDER BY Desde)
             UPDATE Candidata SET Ultimo = Ultimo + 1
-            OUTPUT inserted.Id AS Id, inserted.Ultimo AS Ultimo, inserted.VenceEn AS VenceEn;
+            OUTPUT inserted.Id AS Id, inserted.Ultimo AS Ultimo, inserted.VenceEn AS VenceEn, inserted.Serie AS Serie;
             """).ToListAsync(cancelacion);
 
         return resultado.SingleOrDefault();
