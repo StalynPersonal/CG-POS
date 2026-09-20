@@ -14,6 +14,12 @@ public sealed class Caja : Entidad
 
     public int SucursalId { get; private set; }
 
+    /// <summary>
+    /// Código de la sucursal a la que pertenece. Lo guarda la caja, que solo tiene su propia fila, para que se lea sola sin
+    /// cruzarla con Sucursales; el Central lo resuelve por la relación y no lo guarda.
+    /// </summary>
+    public string SucursalCodigo { get; private set; } = string.Empty;
+
     /// <summary>Código de la caja, de dos dígitos (01 a 99) y único dentro de su sucursal. Es el que va en los documentos.</summary>
     public string Codigo { get; private set; } = string.Empty;
 
@@ -32,14 +38,19 @@ public sealed class Caja : Entidad
 
     public DateTimeOffset? VersionReportadaEn { get; private set; }
 
-    public static Caja Crear(int sucursalId, string codigo, string nombre, string direccionIp) =>
+    /// <param name="sucursalCodigo">Solo lo llena la caja; en el Central va vacío porque lo resuelve por la relación.</param>
+    public static Caja Crear(int sucursalId, string codigo, string nombre, string direccionIp, string? sucursalCodigo = null) =>
         new()
         {
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
+            SucursalCodigo = sucursalCodigo is null ? string.Empty : Validar.CodigoDosDigitos(sucursalCodigo, "Código de sucursal"),
             Codigo = Validar.CodigoDosDigitos(codigo, "Código de caja"),
             Nombre = Validar.Texto(nombre, "Nombre de caja", LargoMaximoNombre),
             DireccionIp = NormalizarIp(direccionIp),
         };
+
+    public void CambiarSucursalCodigo(string sucursalCodigo) =>
+        SucursalCodigo = Validar.CodigoDosDigitos(sucursalCodigo, "Código de sucursal");
 
     public void CambiarNombre(string nombre) => Nombre = Validar.Texto(nombre, "Nombre de caja", LargoMaximoNombre);
 

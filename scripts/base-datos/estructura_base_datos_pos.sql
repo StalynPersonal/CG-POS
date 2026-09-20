@@ -907,6 +907,7 @@ GO
 CREATE TABLE [Cajas] (
     [Id] int NOT NULL,
     [SucursalId] int NOT NULL,
+    [SucursalCodigo] char(2) NOT NULL,
     [Codigo] char(2) NOT NULL,
     [Nombre] nvarchar(100) NOT NULL,
     [DireccionIp] varchar(45) NOT NULL,

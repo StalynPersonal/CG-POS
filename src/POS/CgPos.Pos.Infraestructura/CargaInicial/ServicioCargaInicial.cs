@@ -5,6 +5,7 @@ using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
+using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,6 +16,7 @@ internal sealed class ServicioCargaInicial(
     ContextoDatosPos contexto,
     IHashCredenciales hashCredenciales,
     IAuditoria auditoria,
+    IConfiguracionCaja configuracionCaja,
     ILogger<ServicioCargaInicial> logger) : ICargaInicial
 {
     private const string TodosLosPermisos = "*";
@@ -52,6 +54,20 @@ internal sealed class ServicioCargaInicial(
         var roles = paquete.Roles ?? [];
         var usuarios = paquete.Usuarios ?? [];
         var parametros = paquete.Parametros ?? [];
+
+        // La caja solo guarda lo suyo: su sucursal y su terminal. De las demás no necesita nada, y lo que haga falta de otra
+        // sucursal o caja (una factura para una devolución, por ejemplo) se le pregunta al Central.
+        if (await configuracionCaja.ObtenerAsync(cancelacion) is { } propia)
+        {
+            sucursales = [.. sucursales.Where(s => EsPropia(s.Codigo, propia.SucursalCodigo))];
+            cajas = [.. cajas.Where(c => EsPropia(c.SucursalCodigo, propia.SucursalCodigo) && EsPropia(c.Codigo, propia.CajaCodigo))];
+            usuarios = [.. usuarios.Select(u => u.Cajas is null ? u : u with
+            {
+                Cajas = [.. u.Cajas.Where(c => EsPropia(c.SucursalCodigo, propia.SucursalCodigo) && EsPropia(c.CajaCodigo, propia.CajaCodigo))],
+            })];
+            parametros = [.. parametros.Where(p => p.SucursalCodigo is null
+                || EsPropia(p.SucursalCodigo, propia.SucursalCodigo) && (p.CajaCodigo is null || EsPropia(p.CajaCodigo, propia.CajaCodigo)))];
+        }
 
         await ValidarAsync(paquete, sucursales, cajas, roles, usuarios, parametros, cancelacion);
 
@@ -98,6 +114,10 @@ internal sealed class ServicioCargaInicial(
             throw new CargaInicialInvalidaExcepcion([detalle]);
         }
     }
+
+    /// <summary>Los códigos vienen de dos dígitos y se comparan tal cual, sin espacios.</summary>
+    private static bool EsPropia(string? codigo, string propio) =>
+        string.Equals(codigo?.Trim(), propio.Trim(), StringComparison.Ordinal);
 
     /// <summary>Id local de cada caja por el código de su sucursal y el suyo.</summary>
     internal static async Task<Dictionary<(string Sucursal, string Caja), int>> IdsCajasAsync(ContextoDatosPos contexto, CancellationToken cancelacion) =>
@@ -251,13 +271,14 @@ internal sealed class ServicioCargaInicial(
         var caja = await contexto.Cajas.SingleOrDefaultAsync(c => c.SucursalId == sucursalId && c.Codigo == dato.Codigo, cancelacion);
         if (caja is null)
         {
-            caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre, dato.DireccionIp ?? string.Empty);
+            caja = Caja.Crear(sucursalId, dato.Codigo, dato.Nombre, dato.DireccionIp ?? string.Empty, dato.SucursalCodigo);
             contexto.Cajas.Add(caja);
             _creados++;
         }
         else
         {
             caja.CambiarNombre(dato.Nombre);
+            caja.CambiarSucursalCodigo(dato.SucursalCodigo);
             if (dato.DireccionIp is { Length: > 0 } direccion)
                 caja.CambiarDireccionIp(direccion);
             _actualizados++;

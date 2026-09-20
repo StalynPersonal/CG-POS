@@ -32,9 +32,9 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         Assert.True(paquete.Hasta > 0);
         var organizacion = paquete.Organizacion!;
         Assert.Equal("999000004", organizacion.Empresa.Rnc);
-        // Otras pruebas de la colección crean sucursales y cajas: basta con que estén las de desarrollo.
-        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == "01" && c.Codigo == "01");
-        Assert.Contains(organizacion.Cajas!, c => c.SucursalCodigo == "01" && c.Codigo == "02");
+        // Solo baja la propia sucursal y la propia caja: de las demás, la caja no guarda nada.
+        Assert.Equal(("01", "01"), (Assert.Single(organizacion.Cajas!).SucursalCodigo, Assert.Single(organizacion.Cajas!).Codigo));
+        Assert.Equal("01", Assert.Single(organizacion.Sucursales!).Codigo);
         Assert.Contains(organizacion.Parametros!, p => p.Clave == "General.MonedaLocal");
         Assert.DoesNotContain(organizacion.Parametros!, p => p.Clave.StartsWith("Central.", StringComparison.Ordinal));
 

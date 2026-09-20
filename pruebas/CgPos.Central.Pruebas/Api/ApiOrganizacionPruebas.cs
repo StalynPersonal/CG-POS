@@ -30,7 +30,7 @@ public class CatalogoParametrosCentralPruebas
 public class ApiOrganizacionPruebas(CentralEnPruebas central)
 {
     [SkippableFact]
-    public async Task Sucursal_y_caja_nuevas_bajan_a_las_cajas_y_sus_codigos_no_se_repiten()
+    public async Task Sucursal_y_caja_nuevas_no_bajan_a_una_caja_ajena_y_sus_codigos_no_se_repiten()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
@@ -71,10 +71,12 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Null(listada.CredencialEmitidaEn);
         Assert.Equal(1, Assert.Single(await ListarAsync<DatosSucursal>(cliente, admin, "/api/organizacion/sucursales"), s => s.Id == sucursalId).Cajas);
 
-        // Los cambios de organización bajan a las cajas en su próxima descarga.
+        // A cada caja solo le baja lo suyo: la sucursal y la caja nuevas son de otra sucursal y no le llegan.
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
-        Assert.Contains(bajada.Organizacion!.Sucursales!, s => s.Codigo == codigoSucursal);
-        Assert.Contains(bajada.Organizacion.Cajas!, c => c.SucursalCodigo == codigoSucursal && c.Codigo == "01" && c.Nombre == "Caja renombrada");
+        IReadOnlyList<CgPos.Contratos.CargaInicial.SucursalCarga> sucursalesBajadas = bajada.Organizacion?.Sucursales ?? [];
+        IReadOnlyList<CgPos.Contratos.CargaInicial.CajaCarga> cajasBajadas = bajada.Organizacion?.Cajas ?? [];
+        Assert.DoesNotContain(sucursalesBajadas, s => s.Codigo == codigoSucursal);
+        Assert.DoesNotContain(cajasBajadas, c => c.SucursalCodigo == codigoSucursal);
     }
 
     [SkippableFact]

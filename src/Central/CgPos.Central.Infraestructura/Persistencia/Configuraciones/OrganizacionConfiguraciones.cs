@@ -52,6 +52,9 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
         constructor.Property(c => c.Nombre).HasMaxLength(Caja.LargoMaximoNombre).IsRequired();
         constructor.Property(c => c.DireccionIp).HasMaxLength(Caja.LargoMaximoIp).IsUnicode(false).IsRequired();
 
+        // El código de la sucursal solo lo guarda la caja; aquí se resuelve por la relación con Sucursales.
+        constructor.Ignore(c => c.SucursalCodigo);
+
         // Dos cajas no pueden compartir dirección: es parte de lo que las distingue al comunicarse.
         constructor.HasIndex(c => c.DireccionIp).IsUnique();
 

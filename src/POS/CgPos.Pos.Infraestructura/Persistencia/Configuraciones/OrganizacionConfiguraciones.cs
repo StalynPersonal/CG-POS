@@ -76,6 +76,11 @@ internal sealed class CajaConfiguracion : IEntityTypeConfiguration<Caja>
 
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
         constructor.Property(c => c.Codigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
+
+        // La caja guarda una sola fila, la suya, y lleva el código de su sucursal a la vista para no cruzar tablas al leerla.
+        constructor.Property(c => c.SucursalCodigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false)
+            .IsRequired();
+
         constructor.HasIndex(c => new { c.SucursalId, c.Codigo }).IsUnique();
     }
 }

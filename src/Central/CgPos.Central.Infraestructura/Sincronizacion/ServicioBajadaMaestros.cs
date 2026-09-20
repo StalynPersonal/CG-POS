@@ -32,8 +32,9 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
 
         if (hasta > desde)
         {
-            var sucursales = await EnRango(contexto.Sucursales.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
-            var cajas = await EnRango(contexto.Cajas.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
+            // A la caja solo le baja su propia sucursal y su propia terminal: lo de las demás lo consulta al Central cuando lo necesita.
+            var sucursales = await EnRango(contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId), desde, hasta).ToListAsync(cancelacion);
+            var cajas = await EnRango(contexto.Cajas.AsNoTracking().Where(c => c.Id == caja.CajaId), desde, hasta).ToListAsync(cancelacion);
             var parametros = await EnRango(ParametrosDeCaja(caja), desde, hasta).ToListAsync(cancelacion);
             var empresaCambio = await EnRango(contexto.Empresas.AsNoTracking(), desde, hasta).AnyAsync(cancelacion);
             var roles = (await TablasMaestros.RolesCaja.CambiosAsync(contexto, resolutor, desde, hasta, cancelacion)).Cast<RolCarga>().ToList();
