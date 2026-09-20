@@ -25,8 +25,49 @@
     <MudAlert Severity="Severity.Error" Class="mb-4">No se pudieron cargar los rangos. Verifique la comunicación con el Central.</MudAlert>
 }
 
+@* Filtros: al elegir una sucursal, la lista de cajas se reduce a las suyas. *@
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudGrid Spacing="2" Justify="Justify.FlexStart">
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="int?" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">Todas</MudSelectItem>
+                @foreach (var sucursal in Sucursales)
+                {
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="int?" @bind-Value="_cajaId" @bind-Value:after="Filtrar" Label="Caja" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">Todas</MudSelectItem>
+                @foreach (var caja in CajasDeLaSucursal)
+                {
+                    <MudSelectItem T="int?" Value="@caja.Id">@caja.Codigo · @caja.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" md="3">
+            <MudSelect T="TipoComprobante?" @bind-Value="_tipo" @bind-Value:after="Filtrar" Label="Comprobante" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem T="TipoComprobante?" Value="@((TipoComprobante?)null)">Todos</MudSelectItem>
+                @foreach (var tipo in Tipos)
+                {
+                    <MudSelectItem T="TipoComprobante?" Value="@tipo">@(((int)tipo).ToString("00")) · @ReglasComprobante.Nombre(tipo)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="12" md="3" Class="d-flex align-center">
+            <MudCheckBox T="bool" @bind-Value="_soloActivos" @bind-Value:after="Filtrar" Label="Solo activos" Color="Color.Primary" Dense="true" />
+            <MudSpacer />
+            <MudText Typo="Typo.body2" Class="cg-central__detalle">@_filtradas.Count de @_secuencias.Count</MudText>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
 <MudPaper Elevation="1">
-    <MudTable T="DatosSecuenciaEcfCentral" Items="_secuencias" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+    <MudTable T="DatosSecuenciaEcfCentral" Items="_filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="10">
         <HeaderContent>
             <MudTh>Caja</MudTh>
             <MudTh>Comprobante</MudTh>
@@ -95,8 +136,11 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText>No hay rangos asignados.</MudText>
+            <MudText>@(_secuencias.Count == 0 ? "No hay rangos asignados." : "Ningún rango coincide con los filtros.")</MudText>
         </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] { 10, 25, 50, 100 }" RowsPerPageString="Filas por página:" />
+        </PagerContent>
     </MudTable>
 </MudPaper>
 
@@ -138,8 +182,53 @@
     private IReadOnlyList<DatosSecuenciaEcfCentral> _secuencias = [];
     private IReadOnlyList<DatosCaja> _cajas = [];
     private IReadOnlyList<DatosAnulacionEcf> _anulaciones = [];
+    private List<DatosSecuenciaEcfCentral> _filtradas = [];
+    private int? _sucursalId;
+    private int? _cajaId;
+    private TipoComprobante? _tipo;
+    private bool _soloActivos;
     private bool _cargando = true;
     private bool _error;
+
+    /// <summary>Las sucursales que tienen caja: salen del maestro de cajas, sin pedir otra lista.</summary>
+    private IEnumerable<(int Id, string Codigo, string Nombre)> Sucursales => _cajas
+        .GroupBy(c => c.SucursalId)
+        .Select(g => (Id: g.Key, g.First().SucursalCodigo, Nombre: g.First().SucursalNombre))
+        .OrderBy(s => s.SucursalCodigo)
+        .Select(s => (s.Id, s.SucursalCodigo, s.Nombre));
+
+    /// <summary>Solo las cajas de la sucursal elegida; todas mientras no se elija ninguna.</summary>
+    private IEnumerable<DatosCaja> CajasDeLaSucursal => _cajas
+        .Where(c => _sucursalId is not { } sucursal || c.SucursalId == sucursal)
+        .OrderBy(c => c.SucursalCodigo).ThenBy(c => c.Codigo);
+
+    /// <summary>Los tipos de comprobante que de verdad tienen rangos asignados.</summary>
+    private IEnumerable<TipoComprobante> Tipos => _secuencias.Select(s => s.TipoComprobante).Distinct().OrderBy(t => (int)t);
+
+    /// <summary>Al cambiar de sucursal se limpia la caja: la que estuviera elegida puede no ser de esta.</summary>
+    private Task CambiarSucursalAsync(int? sucursalId)
+    {
+        _sucursalId = sucursalId;
+        if (_cajaId is { } caja && _cajas.FirstOrDefault(c => c.Id == caja) is { } elegida && elegida.SucursalId != sucursalId)
+            _cajaId = null;
+
+        Filtrar();
+        return Task.CompletedTask;
+    }
+
+    private void Filtrar()
+    {
+        var cajasVisibles = _sucursalId is { } sucursal
+            ? _cajas.Where(c => c.SucursalId == sucursal).Select(c => c.Id).ToHashSet()
+            : null;
+
+        _filtradas = _secuencias
+            .Where(s => cajasVisibles is null || cajasVisibles.Contains(s.CajaId))
+            .Where(s => _cajaId is not { } caja || s.CajaId == caja)
+            .Where(s => _tipo is not { } tipo || s.TipoComprobante == tipo)
+            .Where(s => !_soloActivos || s.Activa)
+            .ToList();
+    }
 
     private static DateOnly Hoy => DateOnly.FromDateTime(DateTime.Now);
 
@@ -153,6 +242,7 @@
         _anulaciones = await Cliente.ListarAnulacionesEcfAsync() ?? [];
         _error = secuencias is null;
         _secuencias = secuencias ?? [];
+        Filtrar();
         _cargando = false;
     }
 
