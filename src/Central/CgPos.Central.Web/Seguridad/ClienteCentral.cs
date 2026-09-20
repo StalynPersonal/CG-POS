@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
+using CgPos.Contratos.Ventas;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Central.Web.Seguridad;
@@ -624,6 +626,39 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         try
         {
             return await Http.GetFromJsonAsync<PaginaPendientesCentral>(ruta, OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Avanza la preparación del pendiente (RF-252).</summary>
+    public Task<RespuestaAdministracion> CambiarEstadoPendienteAsync(int pendienteId, EstadoPendiente estado) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/despacho/pendientes/{pendienteId}/estado", new SolicitudEstadoPendiente(estado));
+
+    /// <summary>Registra la entrega total o parcial con quien recibe (RF-253, RF-254).</summary>
+    public Task<RespuestaAdministracion> EntregarPendienteAsync(int pendienteId, SolicitudEntregaPendiente solicitud) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/despacho/pendientes/{pendienteId}/entregas", solicitud);
+
+    /// <summary>Anula el pendiente con motivo, liberando la mercancía (RF-255).</summary>
+    public Task<RespuestaAdministracion> AnularPendienteAsync(int pendienteId, string motivo) =>
+        EnviarAsync(HttpMethod.Post, $"api/manager/despacho/pendientes/{pendienteId}/anular", new SolicitudAnularPendiente(motivo));
+
+    /// <summary>La constancia en carta que firma quien recibe la mercancía (RF-254).</summary>
+    public async Task<(string Nombre, string TipoContenido, byte[] Contenido)?> DescargarConstanciaAsync(int pendienteId, int numeroEntrega,
+        CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.GetAsync($"api/manager/despacho/pendientes/{pendienteId}/entregas/{numeroEntrega}/pdf", cancelacion);
+            if (!respuesta.IsSuccessStatusCode)
+                return null;
+
+            var nombre = respuesta.Content.Headers.ContentDisposition?.FileNameStar ?? respuesta.Content.Headers.ContentDisposition?.FileName
+                ?? $"constancia-{pendienteId}-{numeroEntrega}.pdf";
+            return (nombre.Trim('"'), respuesta.Content.Headers.ContentType?.ToString() ?? "application/pdf",
+                await respuesta.Content.ReadAsByteArrayAsync(cancelacion));
         }
         catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
         {

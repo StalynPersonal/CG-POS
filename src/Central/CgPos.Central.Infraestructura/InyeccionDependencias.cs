@@ -69,6 +69,7 @@ public static class InyeccionDependencias
 
         // Pendientes de entrega y envíos de todas las sucursales (M12).
         servicios.AddScoped<Aplicacion.Entregas.IServicioDespachoCentral, Entregas.ServicioDespachoCentral>();
+        servicios.AddSingleton<Reportes.GeneradorPdfConstanciaEntrega>();
 
         // Reportes y su exportación a Excel, PDF y al formato 607 (M16).
         servicios.AddScoped<Reportes.RegistroVentasCentral>();

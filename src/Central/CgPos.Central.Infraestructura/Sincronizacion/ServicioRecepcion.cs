@@ -390,17 +390,29 @@ internal sealed class ServicioRecepcion(
         }
 
         var numero = pendiente.Numero.Trim();
-        var datos = new DatosPendienteCentral(numero, pendiente.VentaNumero, documento.SucursalId, documento.CajaId, pendiente.Metodo,
-            pendiente.Estado, pendiente.AlmacenNombre, pendiente.Ciudad, pendiente.ClienteDocumento, pendiente.ClienteNombre, pendiente.Telefono,
-            pendiente.FechaComprometida, pendiente.Lineas.Sum(l => l.Cantidad), pendiente.Lineas.Sum(l => l.CantidadEntregada), pendiente.CreadoEn,
-            pendiente.ActualizadoEn, documento.Contenido);
+
+        // El Central es quien despacha: la caja solo crea el pendiente al cobrar. Si el mensaje se reenvía y el pendiente ya
+        // está aquí, no se toca — pisarlo borraría las entregas que el Central ya registró.
+        if (await contexto.PendientesEntrega.AnyAsync(p => p.Numero == numero, cancelacion))
+            return;
+
+        var almacenId = pendiente.AlmacenCodigo is { Length: > 0 } codigoAlmacen
+            ? await contexto.Almacenes.AsNoTracking().Where(a => a.Codigo == codigoAlmacen).Select(a => (int?)a.Id).FirstOrDefaultAsync(cancelacion)
+            : null;
+
+        var datos = new DatosPendienteReconstruido(numero, pendiente.VentaNumero, pendiente.Metodo, pendiente.Estado, pendiente.AlmacenNombre,
+            pendiente.Direccion, pendiente.Sector, pendiente.Ciudad, pendiente.Referencia, pendiente.Telefono, pendiente.Transportista,
+            pendiente.CostoEnvio, pendiente.FechaComprometida, pendiente.Comentario, pendiente.ClienteDocumento, pendiente.ClienteNombre,
+            pendiente.VendidoPorNombre, pendiente.AutorizadoPorNombre, pendiente.CreadoEn, pendiente.ActualizadoEn, pendiente.ActualizadoPorNombre,
+            pendiente.MotivoAnulacion,
+            pendiente.Lineas.Select(l => new DatosLineaPendienteReconstruida(l.NumeroLineaVenta, 0, l.Codigo, l.Descripcion, l.UnidadMedidaCodigo,
+                l.DecimalesCantidad, l.Serializado, l.Cantidad, l.CantidadEntregada, l.Serial)).ToList(),
+            pendiente.Entregas.Select(e => new DatosEntregaReconstruida(e.Numero, e.RecibeNombre, e.RecibeCedula, e.UsuarioNombre, e.Fecha,
+                e.Lineas.Select(l => new DatosLineaEntregaReconstruida(l.NumeroLineaVenta, l.Descripcion, l.Cantidad, l.Serial)).ToList())).ToList());
 
         try
         {
-            if (await contexto.PendientesEntrega.SingleOrDefaultAsync(p => p.Numero == numero, cancelacion) is { } existente)
-                existente.Actualizar(datos, ahora);
-            else
-                contexto.PendientesEntrega.Add(PendienteCentral.Registrar(datos, ahora));
+            contexto.PendientesEntrega.Add(PendienteEntrega.Reconstruir(datos, documento.SucursalId, documento.CajaId, almacenId));
         }
         catch (ArgumentException excepcion)
         {

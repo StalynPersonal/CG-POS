@@ -7,6 +7,7 @@ using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Devoluciones;
+using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Reportes;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,11 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
 
         // Lo que otra caja tiene retenido mientras emite su nota cuenta como devuelto: si no, las dos verían lo mismo disponible.
         foreach (var (linea, cantidad) in await RetenidoPorOtrasCajasAsync(factura.Numero, cajaId, cancelacion))
+            devuelto[linea] = devuelto.GetValueOrDefault(linea) + cantidad;
+
+        // La mercancía que todavía no se ha entregado tampoco se devuelve (RF-233): el cliente no la tiene. El Central es quien
+        // despacha, así que es el único que sabe qué se entregó ya y qué sigue en el almacén.
+        foreach (var (linea, cantidad) in await PorEntregarAsync(factura.Numero, cancelacion))
             devuelto[linea] = devuelto.GetValueOrDefault(linea) + cantidad;
 
         var sucursales = await contexto.Sucursales.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
@@ -184,6 +190,23 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
 
         await contexto.SaveChangesAsync(cancelacion);
         return true;
+    }
+
+    /// <summary>
+    /// Cantidad por línea de la factura que sigue pendiente de entregar, en pendientes no anulados (RF-233). Mientras esté en el
+    /// almacén no se puede devolver: primero se anula el pendiente, que libera la mercancía.
+    /// </summary>
+    private async Task<Dictionary<int, decimal>> PorEntregarAsync(string facturaNumero, CancellationToken cancelacion)
+    {
+        var pendientes = await contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas)
+            .Where(p => p.VentaNumero == facturaNumero && p.Estado != EstadoPendiente.Anulado)
+            .ToListAsync(cancelacion);
+
+        return pendientes.SelectMany(p => p.Lineas)
+            .GroupBy(l => l.NumeroLineaVenta)
+            .Select(grupo => (Linea: grupo.Key, Pendiente: grupo.Sum(l => l.Cantidad - l.CantidadEntregada)))
+            .Where(x => x.Pendiente > 0)
+            .ToDictionary(x => x.Linea, x => x.Pendiente);
     }
 
     /// <summary>Lo que otras cajas tienen retenido de esa factura ahora mismo, por línea.</summary>

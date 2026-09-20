@@ -101,7 +101,7 @@
         Clave,
     }
 
-    /// <summary>Pantalla a la que se entra (?pantalla=principal|secundaria|devoluciones|despacho); sin indicar, la principal.</summary>
+    /// <summary>Pantalla a la que se entra (?pantalla=principal|secundaria|devoluciones); sin indicar, la principal.</summary>
     [SupplyParameterFromQuery(Name = "pantalla")] public string? ClavePantalla { get; set; }
 
     private PantallaCaja _pantalla = PantallasCaja.Principal;

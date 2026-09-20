@@ -113,10 +113,9 @@ try
     aplicacion.MapearApiCaja();
     aplicacion.MapearApiDevoluciones();
     aplicacion.MapearApiFidelidad();
-    aplicacion.MapearApiDespacho();
     aplicacion.MapearPantallaCliente();
 
-    // Cualquier ruta de las pantallas (cajero, cliente, devoluciones, despacho) la resuelve la propia aplicación;
+    // Cualquier ruta de las pantallas (cajero, cliente, devoluciones) la resuelve la propia aplicación;
     // las rutas /api desconocidas dan 404 y no el index.html, que confundiría a quien consume la API.
     if (servirPantallas)
     {

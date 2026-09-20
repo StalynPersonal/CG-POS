@@ -43,9 +43,8 @@ public static class CatalogoPermisos
     public const string RegistrarDevolucion = "Devoluciones.Registrar";
     public const string AutorizarDevolucion = "Devoluciones.Autorizar";
     public const string AutorizarNotaCreditoInterna = "Devoluciones.AutorizarNotaCreditoInterna";
+    /// <summary>Marcar mercancía como pendiente al vender; el despacho en sí se hace en el Central.</summary>
     public const string MarcarPendiente = "Pendientes.Marcar";
-    public const string DespacharPendiente = "Pendientes.Despachar";
-    public const string AnularPendiente = "Pendientes.Anular";
     public const string AprobacionManualTarjeta = "Cobro.AprobacionManualTarjeta";
 
     // Fidelidad
@@ -82,8 +81,6 @@ public static class CatalogoPermisos
         new(AutorizarDevolucion, "Devoluciones", "Autorizar devoluciones"),
         new(AutorizarNotaCreditoInterna, "Devoluciones", "Autorizar notas de crédito internas, sin comprobante fiscal"),
         new(MarcarPendiente, "Pendientes", "Marcar artículos como pendientes de entrega o envío"),
-        new(DespacharPendiente, "Pendientes", "Preparar, despachar y registrar la entrega de pendientes"),
-        new(AnularPendiente, "Pendientes", "Anular un pendiente de entrega no entregado"),
         new(AprobacionManualTarjeta, "Cobro", "Registrar aprobación manual de tarjeta (contingencia)"),
 
         new(CanjearPuntos, "Fidelidad", "Canjear puntos de fidelidad como forma de pago"),

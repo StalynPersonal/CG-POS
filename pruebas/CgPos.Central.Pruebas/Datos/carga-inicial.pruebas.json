@@ -65,8 +65,6 @@
         "Devoluciones.Autorizar",
         "Devoluciones.AutorizarNotaCreditoInterna",
         "Pendientes.Marcar",
-        "Pendientes.Despachar",
-        "Pendientes.Anular",
         "Cobro.AprobacionManualTarjeta",
         "Fidelidad.CanjearPuntos"
       ]

@@ -137,7 +137,7 @@ public sealed class EscenarioSeguridad
             Roles:
             [
                 new RolCarga(CodigoRolCajero, "Cajero", 1,
-                    [CatalogoPermisos.RegistrarVenta, CatalogoPermisos.AbrirTurno, CatalogoPermisos.CerrarTurno, CatalogoPermisos.DespacharPendiente]),
+                    [CatalogoPermisos.RegistrarVenta, CatalogoPermisos.AbrirTurno, CatalogoPermisos.CerrarTurno]),
                 new RolCarga(CodigoRolSupervisor, "Supervisor", 2,
                     [CatalogoPermisos.AutorizarOperaciones, CatalogoPermisos.EliminarLinea, CatalogoPermisos.LimpiarPantalla, CatalogoPermisos.AnularVenta,
                      CatalogoPermisos.RegistrarVenta, CatalogoPermisos.CambiarComprobante, CatalogoPermisos.SuspenderVenta,
@@ -146,8 +146,7 @@ public sealed class EscenarioSeguridad
                      CatalogoPermisos.AprobacionManualTarjeta, CatalogoPermisos.AbrirGaveta, CatalogoPermisos.CerrarTurno,
                      CatalogoPermisos.RetiroEfectivo, CatalogoPermisos.RelevoCajero, CatalogoPermisos.PreCierre,
                      CatalogoPermisos.AutorizarDevolucion, CatalogoPermisos.AutorizarNotaCreditoInterna, CatalogoPermisos.CanjearPuntos,
-                     CatalogoPermisos.MarcarPendiente,
-                     CatalogoPermisos.DespacharPendiente, CatalogoPermisos.AnularPendiente]),
+                     CatalogoPermisos.MarcarPendiente]),
             ],
             Usuarios:
             [

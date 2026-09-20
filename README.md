@@ -283,10 +283,9 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 ### Pendientes de entrega, envíos y despacho
 
 - **Marcar (tecla «Entrega / envío»):** líneas completas o en parte para retiro en un almacén (`almacenes` en los maestros) o envío a dirección, con fecha comprometida; varios destinos por factura. Requiere `Pendientes.Marcar` o clave de supervisor. Los serializados pueden registrarse sin serial si se entregan después.
-- **Al cobrar:** un pendiente por destino (número con el tipo `3`) con voucher de código de barras, copia del cliente y del despacho y la política `Entregas.PoliticaPendiente`. Lo pendiente no se devuelve hasta anular el pendiente.
-- **Pantalla `/despacho`:** se escanea el voucher o la factura; preparación, entrega total o parcial con quien recibe y serial, constancia impresa, y anulación con motivo y `Pendientes.Anular`. Opera con `Pendientes.Despachar`.
-- **En el Central:** los pendientes de todas las sucursales se ven juntos en el Central Manager y, si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda preparado (ver *Despacho en el Central*).
-- **API:** `POST /api/ventas/{id}/entregas`, `DELETE /api/ventas/{id}/entregas/{numero}`, `GET /api/entregas/almacenes`, `GET /api/despacho/pendientes/abiertos`, `GET /api/despacho/pendientes/buscar/{codigo}`, `POST /api/despacho/pendientes/{id}/estado|entregas|anular`.
+- **Al cobrar:** un pendiente por destino (número con el tipo `3`) con voucher de código de barras, copia del cliente y del almacén y la política `Entregas.PoliticaPendiente`. El pendiente viaja al Central en `Entregas.PendienteCreado`.
+- **La caja no despacha:** ahí termina su parte. Preparar, entregar y anular se hacen en el Central (ver *Despacho en el Central*), porque el despacho no emite comprobante fiscal ni toca la gaveta, y quien atiende a un cliente que llama o que llega a otra tienda tiene que verlos todos. Lo pendiente de entregar tampoco se devuelve, y eso lo comprueba el Central al entregarle la factura a la caja.
+- **API:** `POST /api/ventas/{id}/entregas`, `DELETE /api/ventas/{id}/entregas/{numero}`, `GET /api/entregas/almacenes`.
 
 ### Sincronización con el Central y mantenimiento
 
@@ -300,7 +299,7 @@ Balanza y terminal de pago se eligen por configuración, no por código: cada mo
 
 ### Pantalla de ventas secundaria
 
-La caja tiene tres pantallas, cada una en su monitor: **ventas principal** (`/`), **ventas secundaria** (`/venta-secundaria`) y **cliente** (`/cliente`). Se abren con `scripts/caja/abrir-pantallas.ps1`; ninguna navega a otra. Cada pantalla que pide sesión lleva al ingreso **sabiendo a cuál se iba** (`/ingreso?pantalla=principal|secundaria|devoluciones|despacho`), y al entrar abre esa; la del cliente no pide sesión.
+La caja tiene tres pantallas, cada una en su monitor: **ventas principal** (`/`), **ventas secundaria** (`/venta-secundaria`) y **cliente** (`/cliente`). Se abren con `scripts/caja/abrir-pantallas.ps1`; ninguna navega a otra. Cada pantalla que pide sesión lleva al ingreso **sabiendo a cuál se iba** (`/ingreso?pantalla=principal|secundaria|devoluciones`), y al entrar abre esa; la del cliente no pide sesión.
 
 - **Ruta `/venta-secundaria`**, táctil, estilo mostrador de cafetería: a la izquierda la venta con sus líneas, totales y el botón de cobrar; a la derecha el buscador, las pestañas de **departamento** y **categoría**, y los artículos en **mosaicos con imagen y precio**. Un toque agrega el artículo; tocar una línea la selecciona para cambiar cantidad o quitarla (con autorización, igual que en la principal).
 - Es **la misma venta** que la principal: el Agente publica cada cambio por SignalR (el mismo canal de la pantalla del cliente) y las dos pantallas se mantienen iguales. Tiene a mano cliente, consulta de precio, facturas en espera y devoluciones.
@@ -488,9 +487,12 @@ dotnet run --project src/Central/CgPos.Central.Api
 
 ### Despacho en el Central
 
-- Cada pendiente de entrega o envío que crea o actualiza una caja (`Entregas.PendienteCreado` y `Entregas.PendienteActualizado`) se refleja en el Central con su factura, cliente, destino, unidades y estado.
-- **La caja manda:** el Central es una copia para consultar. Un mensaje más viejo que lo ya registrado no pisa el estado más reciente, así que un reenvío tardío no devuelve un pendiente entregado a "pendiente".
-- **Central Manager** (permiso `Central.Despacho.Operar`): tablero con abiertos, atrasados, retiros, envíos y entregados hoy; listado de todas las sucursales ordenado por fecha comprometida (los atrasados primero), filtros por estado, método, solo abiertos y solo atrasados, búsqueda por pendiente, factura, cliente o teléfono, y detalle con artículos y entregas ya hechas.
+- **El Central despacha, la caja solo crea:** el pendiente llega en `Entregas.PendienteCreado` y a partir de ahí lo opera el Central, que guarda el documento completo con sus líneas y entregas. Un reenvío del mensaje de la caja **no lo pisa**: borraría las entregas ya registradas.
+- **Central Manager** (permiso `Central.Despacho.Operar`): tablero con abiertos, atrasados, retiros, envíos y entregados hoy; listado de todas las sucursales ordenado por fecha comprometida (los atrasados primero), filtros por estado, método, solo abiertos y solo atrasados, y búsqueda por pendiente, factura, cliente, teléfono o destino.
+- **Preparación (RF-252):** en preparación → preparado → despachado (esto último solo en envíos). No se saltan pasos.
+- **Entrega (RF-253, RF-254):** total o parcial, línea por línea, con el serial de los serializados y el nombre y la cédula de quien recibe. Una entrega parcial deja el pendiente en `Parcial` con lo que falta; al completarse queda `Entregado`. De cada entrega sale una **constancia en PDF tamaño carta** para firmar: el almacén imprime en una impresora normal, no en la de tickets de 42 columnas.
+- **Anulación (RF-255):** solo si no se ha entregado nada, con motivo, y con su **propio permiso** `Central.Despacho.Anular` — libera mercancía ya facturada.
+- **Lo pendiente no se devuelve (RF-233):** cuando una caja le pide una factura para devolverla, el Central le descuenta lo que todavía está en el almacén, igual que lo ya devuelto. Para devolverlo hay que anular el pendiente primero. La caja no lo comprueba por su cuenta: su copia del pendiente se queda en el estado en que nació.
 - **Aviso al cliente (RF-256):** con `Central.Despacho.AvisarPreparado` activo y el correo de la empresa configurado, el Central le escribe al cliente cuando su pedido queda preparado, usando el correo del maestro de clientes. A quien no tiene correo registrado se le marca para llamarlo por teléfono; si el servidor de correo falla, el aviso se reintenta en el próximo ciclo.
 
 | Parámetro | Uso | Obligatorio |

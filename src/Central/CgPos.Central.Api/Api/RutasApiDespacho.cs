@@ -1,10 +1,16 @@
+using System.Security.Claims;
 using CgPos.Central.Aplicacion.Entregas;
+using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Seguridad;
+using static CgPos.Central.Api.Api.RespuestasAdministracion;
 
 namespace CgPos.Central.Api.Api;
 
-/// <summary>Pendientes de entrega y envíos de todas las sucursales vistos desde el Central Manager.</summary>
+/// <summary>
+/// Pendientes de entrega y envíos de todas las sucursales. El despacho se opera desde el Central: no emite comprobante fiscal
+/// ni toca la gaveta, y quien atiende a un cliente que llama o que llega a otra tienda tiene que verlos todos.
+/// </summary>
 public static class RutasApiDespacho
 {
     private const int TamanoPaginaPredeterminado = 25;
@@ -23,6 +29,29 @@ public static class RutasApiDespacho
 
         manager.MapGet("/resumen", async (IServicioDespachoCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ResumenAsync(cancelacion)));
+
+        // Avanza la preparación: en preparación, preparado y, para envíos, despachado con el transportista (RF-252).
+        manager.MapPost("/pendientes/{pendienteId:int}/estado", async (int pendienteId, SolicitudEstadoPendiente solicitud, ClaimsPrincipal usuario,
+                IServicioDespachoCentral servicio, CancellationToken cancelacion) =>
+            Responder(await servicio.CambiarEstadoAsync(pendienteId, solicitud, Actor(usuario), cancelacion)));
+
+        // Entrega total o parcial, con quien recibe y el serial de los serializados (RF-253, RF-254).
+        manager.MapPost("/pendientes/{pendienteId:int}/entregas", async (int pendienteId, SolicitudEntregaPendiente solicitud, ClaimsPrincipal usuario,
+                IServicioDespachoCentral servicio, CancellationToken cancelacion) =>
+            Responder(await servicio.EntregarAsync(pendienteId, solicitud, Actor(usuario), cancelacion)));
+
+        // La constancia que firma quien recibe, en carta: el almacén imprime en una impresora normal (RF-254).
+        manager.MapGet("/pendientes/{pendienteId:int}/entregas/{numero:int}/pdf", async (int pendienteId, int numero, IServicioDespachoCentral servicio,
+                CancellationToken cancelacion) =>
+            await servicio.ConstanciaAsync(pendienteId, numero, cancelacion) is { } archivo
+                ? Results.File(archivo, "application/pdf", $"constancia-{pendienteId}-{numero}.pdf")
+                : Results.NotFound());
+
+        // Anular libera mercancía ya facturada: lleva su propio permiso, como en la caja (RF-255).
+        aplicacion.MapPost("/api/manager/despacho/pendientes/{pendienteId:int}/anular", async (int pendienteId, SolicitudAnularPendiente solicitud,
+                ClaimsPrincipal usuario, IServicioDespachoCentral servicio, CancellationToken cancelacion) =>
+            Responder(await servicio.AnularAsync(pendienteId, solicitud, Actor(usuario), cancelacion)))
+            .RequireAuthorization(CatalogoPermisosCentral.AnularPendientes);
 
         return aplicacion;
     }

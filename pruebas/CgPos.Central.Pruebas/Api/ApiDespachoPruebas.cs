@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Central;
@@ -11,6 +12,10 @@ using CgPos.Dominio.Seguridad;
 
 namespace CgPos.Central.Pruebas.Api;
 
+/// <summary>
+/// El despacho se opera en el Central: la caja crea el pendiente al cobrar y lo informa una sola vez, y de ahí en adelante el
+/// Central lo prepara, lo entrega y lo anula. Así se atiende a un cliente que llama o que llega a otra tienda.
+/// </summary>
 [Collection(ColeccionCentral.Nombre)]
 public class ApiDespachoPruebas(CentralEnPruebas central)
 {
@@ -48,7 +53,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
-    public async Task La_actualizacion_de_la_caja_manda_y_un_mensaje_viejo_no_pisa_el_estado_mas_nuevo()
+    public async Task El_central_prepara_entrega_por_partes_con_constancia_y_la_caja_no_pisa_lo_despachado()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
         using var cliente = central.CrearCliente();
@@ -57,28 +62,91 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
 
         var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.RetiroAlmacen, EstadoPendiente.Pendiente, DateOnly.FromDateTime(DateTime.Today), 3m, 0m);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
+        var id = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos).Id;
 
-        var entregado = creado with
+        // No se puede saltar pasos: de pendiente no se pasa directamente a despachado, y menos en un retiro.
+        var salto = await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/estado",
+            new SolicitudEstadoPendiente(EstadoPendiente.Despachado));
+        Assert.False(salto.Cuerpo!.Exitosa);
+
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/estado",
+            new SolicitudEstadoPendiente(EstadoPendiente.Preparado))).Cuerpo!.Exitosa);
+
+        // Sin quien recibe no se entrega: la constancia la firma alguien (RF-254).
+        var sinRecibe = await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/entregas",
+            new SolicitudEntregaPendiente([new CantidadEntregada(1, 1m)], null, null));
+        Assert.Contains("quien recibe", sinRecibe.Cuerpo!.Mensaje);
+
+        // Tampoco más de lo que queda.
+        var deMas = await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/entregas",
+            new SolicitudEntregaPendiente([new CantidadEntregada(1, 5m)], "Juan Pérez", "00113918205"));
+        Assert.Contains("quedan 3", deMas.Cuerpo!.Mensaje);
+
+        // Entrega parcial: el pendiente queda Parcial con lo que falta.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/entregas",
+            new SolicitudEntregaPendiente([new CantidadEntregada(1, 1m)], "Juan Pérez", "00113918205"))).Cuerpo!.Exitosa);
+
+        var parcial = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos);
+        Assert.Equal((EstadoPendiente.Parcial, 3m, 1m), (parcial.Estado, parcial.Unidades, parcial.UnidadesEntregadas));
+
+        // La constancia sale en carta, con el pendiente y quien recibió.
+        using (var pdf = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, $"/api/manager/despacho/pendientes/{id}/entregas/1/pdf", admin)))
         {
-            Estado = EstadoPendiente.Entregado,
-            // Entregado ahora: cuenta como entregado hoy a cualquier hora que corra la prueba.
-            ActualizadoEn = DateTimeOffset.UtcNow,
-            Lineas = [creado.Lineas[0] with { CantidadEntregada = 3m }],
-        };
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteActualizado, entregado, CentralEnPruebas.CajaUno)));
+            pdf.EnsureSuccessStatusCode();
+            var texto = Encoding.Latin1.GetString(await pdf.Content.ReadAsByteArrayAsync());
+            Assert.StartsWith("%PDF-1.4", texto, StringComparison.Ordinal);
+            Assert.Contains("612 792", texto, StringComparison.Ordinal);
+            Assert.Contains(creado.Numero, texto, StringComparison.Ordinal);
+            Assert.Contains("Juan P", texto, StringComparison.Ordinal);
+        }
 
-        // Un reenvío tardío del documento viejo no devuelve el pendiente a "Pendiente".
-        var viejo = creado with { ActualizadoEn = creado.ActualizadoEn.AddMinutes(-5) };
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteActualizado, viejo, CentralEnPruebas.CajaUno)));
+        // Con entregas ya no se anula: la mercancía salió.
+        var anular = await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/anular",
+            new SolicitudAnularPendiente("El cliente se arrepintió"));
+        Assert.Contains("no se puede anular", anular.Cuerpo!.Mensaje);
 
-        var pagina = await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}");
-        var resumen = Assert.Single(pagina.Elementos);
-        Assert.Equal((EstadoPendiente.Entregado, 3m, false), (resumen.Estado, resumen.UnidadesEntregadas, resumen.Atrasado));
+        // Se entrega el resto y queda cerrado.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/entregas",
+            new SolicitudEntregaPendiente([new CantidadEntregada(1, 2m)], "Juan Pérez", "00113918205"))).Cuerpo!.Exitosa);
+
+        var cerrado = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos);
+        Assert.Equal((EstadoPendiente.Entregado, 3m, false), (cerrado.Estado, cerrado.UnidadesEntregadas, cerrado.Atrasado));
+
+        // Un reenvío del mensaje de la caja no devuelve el pendiente a "Pendiente": la caja ya no manda sobre él.
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
+        var despues = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos);
+        Assert.Equal(EstadoPendiente.Entregado, despues.Estado);
 
         // Lo entregado ya no cuenta como abierto.
         var abiertos = await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?soloAbiertos=true&buscar={creado.Numero}");
         Assert.Empty(abiertos.Elementos);
         Assert.True((await ObtenerAsync<ResumenDespachoCentral>(cliente, admin, "/api/manager/despacho/resumen")).EntregadosHoy >= 1);
+    }
+
+    [SkippableFact]
+    public async Task Un_pendiente_sin_entregas_se_anula_con_motivo_y_libera_la_mercancia_para_devolverla()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+
+        var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.Envio, EstadoPendiente.Pendiente, DateOnly.FromDateTime(DateTime.Today), 2m, 0m);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
+        var id = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos).Id;
+
+        // Sin motivo no se anula.
+        var sinMotivo = await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/anular", new SolicitudAnularPendiente("  "));
+        Assert.Contains("motivo", sinMotivo.Cuerpo!.Mensaje);
+
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/manager/despacho/pendientes/{id}/anular",
+            new SolicitudAnularPendiente("El cliente canceló el envío"))).Cuerpo!.Exitosa);
+
+        var anulado = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos);
+        Assert.Equal(EstadoPendiente.Anulado, anulado.Estado);
+
+        var detalle = await ObtenerAsync<DetallePendienteCentral>(cliente, admin, $"/api/manager/despacho/pendientes/{id}");
+        Assert.Equal("El cliente canceló el envío", detalle.Pendiente.MotivoAnulacion);
     }
 
     [SkippableFact]
@@ -93,6 +161,25 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/manager/despacho/pendientes", token));
 
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+    }
+
+    [SkippableFact]
+    public async Task Operar_el_despacho_no_da_permiso_para_anular_un_pendiente()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var codigo = $"SOLODES{Guid.NewGuid().ToString("N")[..5].ToUpperInvariant()}";
+        await central.CrearUsuarioAsync(codigo, "Solo.Despacho#2026", false, CatalogoPermisosCentral.OperarDespacho);
+        var token = (await CentralEnPruebas.IngresarAsync(cliente, codigo, "Solo.Despacho#2026")).Cuerpo!.TokenAcceso!;
+
+        // Ve los pendientes...
+        using (var lista = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/manager/despacho/pendientes", token)))
+            lista.EnsureSuccessStatusCode();
+
+        // ...pero anular libera mercancía ya facturada y lleva su propio permiso.
+        using var anular = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/manager/despacho/pendientes/1/anular", token,
+            new SolicitudAnularPendiente("Lo que sea")));
+        Assert.Equal(HttpStatusCode.Forbidden, anular.StatusCode);
     }
 
     private static DocumentoPendienteEntrega Pendiente(int cajaId, MetodoEntrega metodo, EstadoPendiente estado, DateOnly? comprometida, decimal cantidad,
@@ -119,6 +206,13 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
     {
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", token, mensaje));
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;
+    }
+
+    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> EnviarAsync(HttpClient cliente, string token, HttpMethod metodo,
+        string ruta, object cuerpo)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(metodo, ruta, token, cuerpo));
+        return (respuesta.StatusCode, await respuesta.Content.ReadFromJsonAsync<RespuestaAdministracion>(OpcionesJson.Predeterminadas));
     }
 
     private static async Task<T> ObtenerAsync<T>(HttpClient cliente, string token, string ruta)

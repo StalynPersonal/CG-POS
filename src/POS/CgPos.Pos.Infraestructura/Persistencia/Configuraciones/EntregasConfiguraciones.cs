@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Ventas;
 using Microsoft.EntityFrameworkCore;
@@ -81,6 +81,11 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
         constructor.Property(p => p.ActualizadoPorNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre).IsRequired();
         constructor.Property(p => p.MotivoAnulacion).HasMaxLength(PendienteEntrega.LargoMaximoMotivo);
         constructor.Ignore(p => p.EstaAbierto);
+        constructor.Ignore(p => p.Unidades);
+        constructor.Ignore(p => p.UnidadesEntregadas);
+
+        // El aviso al cliente y el seguimiento del despacho son del Central: la caja solo crea el pendiente al cobrar.
+        constructor.Ignore(p => p.AvisoEnviadoEn);
 
         constructor.HasIndex(p => p.Numero).IsUnique();
         constructor.HasIndex(p => p.VentaId);

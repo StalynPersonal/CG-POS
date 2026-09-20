@@ -1,6 +1,8 @@
-@* Detalle de un pendiente de entrega o envío: destino, artículos y entregas ya hechas. *@
+@* Detalle de un pendiente de entrega o envío, y las acciones del despacho: preparar, entregar y anular. *@
+@using CgPos.Contratos.Ventas
 @using CgPos.Dominio.Entregas
 @inject ClienteCentral Central
+@inject IJSRuntime Js
 
 <MudDialog>
     <DialogContent>
@@ -37,16 +39,37 @@
                     }
                 </MudItem>
 
-                @if (_detalle.Pendiente.MotivoAnulacion is { } motivo)
-                {
-                    <MudItem xs="12"><MudAlert Severity="Severity.Warning" Dense="true">Anulado: @motivo</MudAlert></MudItem>
-                }
-                else if (Resumen.Atrasado)
-                {
-                    <MudItem xs="12">
-                        <MudAlert Severity="Severity.Error" Dense="true">
+                @* Estado actual y lo que se puede hacer con él; anulado o entregado, ya no hay nada que hacer. *@
+                <MudItem xs="12">
+                    <MudChip T="string" Color="@ColorEstado(_detalle.Pendiente.Estado)" Variant="Variant.Filled">@_detalle.Pendiente.Estado</MudChip>
+                    @if (_detalle.Pendiente.MotivoAnulacion is { } motivo)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">Anulado: @motivo</MudAlert>
+                    }
+                    else if (Resumen.Atrasado)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">
                             Se pasó de la fecha comprometida (@Resumen.FechaComprometida?.ToString("dd/MM/yyyy")) y aún no se entrega.
                         </MudAlert>
+                    }
+                </MudItem>
+
+                @if (_mensaje is { Length: > 0 })
+                {
+                    <MudItem xs="12"><MudAlert Severity="@(_error ? Severity.Error : Severity.Success)" Dense="true">@_mensaje</MudAlert></MudItem>
+                }
+
+                @* Avanzar la preparación: solo los pasos que el pendiente admite desde donde está. *@
+                @if (Abierto)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1">Preparación</MudText>
+                        <MudButtonGroup Variant="Variant.Outlined" Color="Color.Primary" Class="mt-1">
+                            @foreach (var estado in EstadosPosibles())
+                            {
+                                <MudButton Disabled="_procesando" OnClick="() => CambiarEstadoAsync(estado)">@TextoEstado(estado)</MudButton>
+                            }
+                        </MudButtonGroup>
                     </MudItem>
                 }
 
@@ -54,27 +77,76 @@
                 <MudItem xs="12">
                     <MudSimpleTable Dense="true">
                         <thead>
-                            <tr><th>Artículo</th><th style="text-align: right">Cantidad</th><th style="text-align: right">Entregado</th><th>Serial</th></tr>
+                            <tr>
+                                <th>Artículo</th>
+                                <th style="text-align: right">Cantidad</th>
+                                <th style="text-align: right">Entregado</th>
+                                <th style="text-align: right">Falta</th>
+                                @if (Abierto)
+                                {
+                                    <th style="text-align: right">Se entrega</th>
+                                    <th>Serial</th>
+                                }
+                                else
+                                {
+                                    <th>Serial</th>
+                                }
+                            </tr>
                         </thead>
                         <tbody>
-                            @foreach (var linea in _detalle.Pendiente.Lineas)
+                            @foreach (var fila in _lineas)
                             {
                                 <tr>
-                                    <td>@linea.Descripcion<div class="cg-central__detalle">@linea.Codigo</div></td>
-                                    <td style="text-align: right">@linea.Cantidad.ToString($"N{linea.DecimalesCantidad}")</td>
-                                    <td style="text-align: right">@linea.CantidadEntregada.ToString($"N{linea.DecimalesCantidad}")</td>
-                                    <td>@linea.Serial</td>
+                                    <td>@fila.Datos.Descripcion<div class="cg-central__detalle">@fila.Datos.Codigo</div></td>
+                                    <td style="text-align: right">@fila.Datos.Cantidad.ToString($"N{fila.Datos.DecimalesCantidad}")</td>
+                                    <td style="text-align: right">@fila.Datos.CantidadEntregada.ToString($"N{fila.Datos.DecimalesCantidad}")</td>
+                                    <td style="text-align: right">@fila.Falta.ToString($"N{fila.Datos.DecimalesCantidad}")</td>
+                                    @if (Abierto)
+                                    {
+                                        <td style="text-align: right; width: 120px">
+                                            <MudNumericField T="decimal" @bind-Value="fila.Cantidad" Min="0" Max="@fila.Falta" Margin="Margin.Dense"
+                                                             Variant="Variant.Outlined" HideSpinButtons="true" Disabled="@(fila.Falta <= 0 || _procesando)" />
+                                        </td>
+                                        <td style="width: 180px">
+                                            @if (fila.Datos.Serializado)
+                                            {
+                                                <MudTextField @bind-Value="fila.Serial" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                              Placeholder="Escanee el serial" Disabled="@(fila.Falta <= 0 || _procesando)" />
+                                            }
+                                            else
+                                            {
+                                                @fila.Datos.Serial
+                                            }
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td>@fila.Datos.Serial</td>
+                                    }
                                 </tr>
                             }
                         </tbody>
                     </MudSimpleTable>
                 </MudItem>
 
+                @* Quien retira o recibe queda registrado y firma la constancia (RF-254). *@
+                @if (Abierto)
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_recibeNombre" Label="Nombre de quien recibe" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Disabled="_procesando" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_recibeCedula" Label="Cédula de quien recibe" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Disabled="_procesando" />
+                    </MudItem>
+                }
+
                 <MudItem xs="12"><MudText Typo="Typo.subtitle1">Entregas</MudText></MudItem>
                 <MudItem xs="12">
                     <MudSimpleTable Dense="true">
                         <thead>
-                            <tr><th>#</th><th>Fecha</th><th>Recibió</th><th>Despachó</th><th>Artículos</th></tr>
+                            <tr><th>#</th><th>Fecha</th><th>Recibió</th><th>Despachó</th><th>Artículos</th><th></th></tr>
                         </thead>
                         <tbody>
                             @foreach (var entrega in _detalle.Pendiente.Entregas)
@@ -85,11 +157,15 @@
                                     <td>@entrega.RecibeNombre<div class="cg-central__detalle">@entrega.RecibeCedula</div></td>
                                     <td>@entrega.UsuarioNombre</td>
                                     <td>@string.Join(", ", entrega.Lineas.Select(l => $"{l.Cantidad:N2} × {l.Descripcion}"))</td>
+                                    <td>
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Title="Constancia"
+                                                       OnClick="() => DescargarConstanciaAsync(entrega.Numero)" />
+                                    </td>
                                 </tr>
                             }
                             @if (_detalle.Pendiente.Entregas.Count == 0)
                             {
-                                <tr><td colspan="5">Todavía no se ha entregado nada.</td></tr>
+                                <tr><td colspan="6">Todavía no se ha entregado nada.</td></tr>
                             }
                         </tbody>
                     </MudSimpleTable>
@@ -98,7 +174,15 @@
         }
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cerrar</MudButton>
+        @if (Abierto)
+        {
+            @* Anular libera mercancía ya facturada: pide motivo y lleva su propio permiso. *@
+            <MudTextField @bind-Value="_motivoAnulacion" Label="Motivo de la anulación" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Class="mr-2" Style="max-width: 260px" Disabled="_procesando" />
+            <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_procesando" OnClick="AnularAsync">Anular</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_procesando" OnClick="EntregarAsync">Registrar entrega</MudButton>
+        }
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Close(_huboCambios)">Cerrar</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -108,6 +192,130 @@
     [Parameter] public DatosPendienteCentralResumen Resumen { get; set; } = default!;
 
     private DetallePendienteCentral? _detalle;
+    private readonly List<FilaEntrega> _lineas = [];
+    private string? _recibeNombre;
+    private string? _recibeCedula;
+    private string? _motivoAnulacion;
+    private string? _mensaje;
+    private bool _error;
+    private bool _procesando;
+    private bool _huboCambios;
 
-    protected override async Task OnInitializedAsync() => _detalle = await Central.ObtenerPendienteAsync(Resumen.Id);
+    private bool Abierto => _detalle is { } detalle
+        && detalle.Pendiente.Estado is not (EstadoPendiente.Entregado or EstadoPendiente.Anulado);
+
+    protected override Task OnInitializedAsync() => RecargarAsync();
+
+    private async Task RecargarAsync()
+    {
+        _detalle = await Central.ObtenerPendienteAsync(Resumen.Id);
+        _lineas.Clear();
+        if (_detalle is null)
+            return;
+
+        foreach (var linea in _detalle.Pendiente.Lineas)
+            _lineas.Add(new FilaEntrega(linea));
+
+        _recibeNombre = _detalle.Pendiente.ClienteNombre;
+        _recibeCedula = _detalle.Pendiente.ClienteDocumento;
+    }
+
+    /// <summary>Los pasos que el pendiente admite desde donde está; el despacho solo aplica a los envíos.</summary>
+    private IEnumerable<EstadoPendiente> EstadosPosibles()
+    {
+        if (_detalle is not { } detalle)
+            yield break;
+
+        var estado = detalle.Pendiente.Estado;
+        if (estado is EstadoPendiente.Pendiente or EstadoPendiente.Parcial)
+            yield return EstadoPendiente.EnPreparacion;
+        if (estado is EstadoPendiente.Pendiente or EstadoPendiente.EnPreparacion or EstadoPendiente.Parcial)
+            yield return EstadoPendiente.Preparado;
+        if (detalle.Pendiente.Metodo == MetodoEntrega.Envio && estado is EstadoPendiente.Preparado or EstadoPendiente.Parcial)
+            yield return EstadoPendiente.Despachado;
+    }
+
+    private static string TextoEstado(EstadoPendiente estado) => estado switch
+    {
+        EstadoPendiente.EnPreparacion => "En preparación",
+        EstadoPendiente.Preparado => "Preparado",
+        EstadoPendiente.Despachado => "Despachado",
+        _ => estado.ToString(),
+    };
+
+    private static Color ColorEstado(EstadoPendiente estado) => estado switch
+    {
+        EstadoPendiente.Entregado => Color.Success,
+        EstadoPendiente.Anulado => Color.Error,
+        EstadoPendiente.Parcial => Color.Warning,
+        _ => Color.Info,
+    };
+
+    private async Task CambiarEstadoAsync(EstadoPendiente estado) =>
+        await EjecutarAsync(() => Central.CambiarEstadoPendienteAsync(Resumen.Id, estado), $"Pendiente marcado como {TextoEstado(estado).ToLowerInvariant()}.");
+
+    private async Task EntregarAsync()
+    {
+        var cantidades = _lineas.Where(l => l.Cantidad > 0)
+            .Select(l => new CantidadEntregada(l.Datos.NumeroLineaVenta, l.Cantidad, l.Serial))
+            .ToList();
+
+        if (cantidades.Count == 0)
+        {
+            _mensaje = "Indique qué artículos se entregan.";
+            _error = true;
+            return;
+        }
+
+        await EjecutarAsync(() => Central.EntregarPendienteAsync(Resumen.Id, new SolicitudEntregaPendiente(cantidades, _recibeNombre, _recibeCedula)),
+            "Entrega registrada.");
+    }
+
+    private async Task AnularAsync() =>
+        await EjecutarAsync(() => Central.AnularPendienteAsync(Resumen.Id, _motivoAnulacion ?? string.Empty), "Pendiente anulado.");
+
+    private async Task EjecutarAsync(Func<Task<RespuestaAdministracion>> operacion, string exito)
+    {
+        _procesando = true;
+        _mensaje = null;
+        try
+        {
+            var respuesta = await operacion();
+            _error = !respuesta.Exitosa;
+            _mensaje = respuesta.Exitosa ? exito : respuesta.Mensaje;
+            if (respuesta.Exitosa)
+            {
+                _huboCambios = true;
+                await RecargarAsync();
+            }
+        }
+        finally
+        {
+            _procesando = false;
+        }
+    }
+
+    private async Task DescargarConstanciaAsync(int numeroEntrega)
+    {
+        if (await Central.DescargarConstanciaAsync(Resumen.Id, numeroEntrega) is not { } generado)
+        {
+            _mensaje = "No se pudo generar la constancia.";
+            _error = true;
+            return;
+        }
+
+        await Js.InvokeVoidAsync("cgCentral.descargarArchivo", generado.Nombre, generado.TipoContenido, Convert.ToBase64String(generado.Contenido));
+    }
+
+    /// <summary>Una línea del pendiente con lo que el almacén va a entregar ahora.</summary>
+    private sealed class FilaEntrega(DatosLineaPendiente datos)
+    {
+        public DatosLineaPendiente Datos { get; } = datos;
+
+        public decimal Falta => Datos.Cantidad - Datos.CantidadEntregada;
+
+        public decimal Cantidad { get; set; }
+
+        public string? Serial { get; set; } = datos.Serial;
+    }
 }

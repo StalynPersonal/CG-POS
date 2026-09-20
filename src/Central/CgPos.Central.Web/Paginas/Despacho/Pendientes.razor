@@ -1,4 +1,4 @@
-@page "/despacho/pendientes"
+﻿@page "/despacho/pendientes"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.OperarDespacho)]
 @using CgPos.Dominio.Entregas
 @inject ClienteCentral Cliente
@@ -161,7 +161,11 @@
     private async Task AbrirAsync(DatosPendienteCentralResumen pendiente)
     {
         var parametros = new DialogParameters<DialogoPendienteEntrega> { { d => d.Resumen, pendiente } };
-        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
-        await Dialogos.ShowAsync<DialogoPendienteEntrega>($"Pendiente {pendiente.Numero}", parametros, opciones);
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        var dialogo = await Dialogos.ShowAsync<DialogoPendienteEntrega>($"Pendiente {pendiente.Numero}", parametros, opciones);
+
+        // El diálogo despacha: si cambió algo, la lista y el resumen de arriba se quedaron viejos.
+        if (await dialogo.Result is { Canceled: false, Data: true })
+            await FiltrarAsync(() => { });
     }
 }

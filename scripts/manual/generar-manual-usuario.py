@@ -125,8 +125,7 @@ tabla(['Pantalla', 'Dónde se entra', 'Quién la usa'],
        ['Caja – pantalla de ventas principal', 'http://localhost:5180/ingreso?pantalla=principal', 'Cajero, con lector y teclado'],
        ['Caja – pantalla de ventas secundaria', 'http://localhost:5180/ingreso?pantalla=secundaria', 'Cajero, tocando el catálogo'],
        ['Caja – pantalla de clientes', 'http://localhost:5180/cliente', 'El cliente la ve (no pide usuario)'],
-       ['Caja – devoluciones', 'http://localhost:5180/ingreso?pantalla=devoluciones', 'Cajero o encargado de devoluciones'],
-       ['Caja – despacho de pendientes', 'http://localhost:5180/ingreso?pantalla=despacho', 'Personal de entrega']],
+       ['Caja – devoluciones', 'http://localhost:5180/ingreso?pantalla=devoluciones', 'Cajero o encargado de devoluciones']],
       anchos=[6.0, 7.0, 4.0])
 nota('Las pantallas de la caja se abren solas al encender el equipo, cada una en su monitor, con el acceso directo que deja '
      'instalado el técnico. Ninguna lleva a otra: cada monitor muestra siempre la suya. Cada dirección pide el usuario y, al '
@@ -492,9 +491,25 @@ titulo('2.13. Fidelidad', 2)
 p('Ruta: /fidelidad/miembros. Miembros con su nivel, saldo de puntos, movimientos y ajustes. Los niveles y las reglas de '
   'acumulación se configuran en los catálogos.')
 
-titulo('2.14. Despacho', 2)
-p('Ruta: /despacho/pendientes. Todos los pendientes de entrega y envíos de todas las sucursales, con su estado y sus atrasos; '
-  'si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda preparado.')
+titulo('2.14. Despacho de pendientes y envíos', 2)
+p('Ruta: /despacho/pendientes. Aquí se despacha TODO lo que quedó pendiente de entregar en cualquier sucursal. El despacho se '
+  'hace en el Central y no en la caja: no emite comprobante fiscal ni toca la gaveta, y quien atiende a un cliente que llama o '
+  'que llega a otra tienda necesita verlos todos. La caja solo crea el pendiente al cobrar.')
+p('En la lista se ven el estado, la fecha comprometida y los atrasos; se filtra por sucursal, método, estado, o solo los '
+  'abiertos o los atrasados, y se busca por número, factura, cliente, teléfono o destino.')
+p('Al abrir un pendiente:')
+paso('Preparación: se marca En preparación, Preparado y, si es un envío, Despachado cuando sale con el transportista. No se '
+     'pueden saltar pasos.')
+paso('Entrega: se escribe cuánto se entrega de cada artículo (puede ser todo o una parte), el serial de los serializados, y el '
+     'nombre y la cédula de quien recibe. Con una entrega parcial el pendiente queda en Parcial y guarda lo que falta.')
+paso('Constancia: de cada entrega se imprime un PDF en tamaño carta para que lo firme quien recibe. Se imprime en una '
+     'impresora normal, no en la de tickets.')
+paso('Anular: solo si todavía no se ha entregado nada, con motivo. Libera la mercancía para poder devolverla.')
+nota('Anular un pendiente lleva su propio permiso (Central.Despacho.Anular), aparte del de operar el despacho: libera '
+     'mercancía que ya se facturó.')
+nota('Mientras algo siga pendiente de entregar, no se puede devolver: el cliente todavía no lo tiene. Para devolverlo hay que '
+     'anular primero el pendiente. Si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda '
+     'preparado.')
 
 titulo('2.15. Cierre consolidado de sucursal', 2)
 p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
@@ -635,7 +650,7 @@ tabla(['Tecla', 'Qué hace'],
        ['F12', 'Cliente, comprobante y programa de fidelidad']],
       anchos=[3.0, 14.0])
 p('Segunda página (se cambia con el botón de la misma barra): catálogo en mosaicos, eliminar línea, eliminar por escaneo, '
-  'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, despacho, anular, suspender, gaveta, '
+  'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, anular, suspender, gaveta, '
   'reimprimir, retiro de efectivo, cierre de turno y salir.')
 
 titulo('3.7. Hacer una venta', 2)
@@ -723,8 +738,10 @@ titulo('3.14. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')
 paso('En la segunda página de teclas, elija Entrega / envío.')
 paso('Marque qué líneas y qué cantidad quedan pendientes, y si es retiro en un almacén o envío a una dirección, con la fecha comprometida.')
-paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras.')
-paso('En la pantalla /despacho se escanea ese comprobante para preparar, entregar (total o parcial, con quien recibe) o anular.')
+paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras: una copia para el cliente y otra '
+     'para el almacén.')
+paso('De ahí en adelante el pendiente se despacha desde el Central (Despacho → Pendientes): la caja ya no tiene nada que ver '
+     'con él. Vea «2.14. Despacho de pendientes y envíos».')
 
 titulo('3.15. Devoluciones y notas de crédito', 2)
 p('Se entra con F10 o directamente a /devoluciones.')

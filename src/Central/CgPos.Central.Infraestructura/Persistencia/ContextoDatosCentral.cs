@@ -44,7 +44,7 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Fidelidad.SaldoPuntosCentral> SaldosPuntos => Set<CgPos.Dominio.Fidelidad.SaldoPuntosCentral>();
 
     // Pendientes de entrega y envíos de todas las sucursales (M12)
-    public DbSet<CgPos.Dominio.Entregas.PendienteCentral> PendientesEntrega => Set<CgPos.Dominio.Entregas.PendienteCentral>();
+    public DbSet<CgPos.Dominio.Entregas.PendienteEntrega> PendientesEntrega => Set<CgPos.Dominio.Entregas.PendienteEntrega>();
 
     // Modelo de lectura para los reportes (M16)
     public DbSet<CgPos.Dominio.Reportes.ComprobanteVentaCentral> VentasCentral => Set<CgPos.Dominio.Reportes.ComprobanteVentaCentral>();

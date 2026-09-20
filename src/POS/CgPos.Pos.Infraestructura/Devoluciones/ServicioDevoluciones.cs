@@ -195,24 +195,6 @@ internal sealed class ServicioDevoluciones(
         var lineas = solicitud.Lineas.Select(l => new LineaSolicitadaDevolucion(l.NumeroLinea, l.Cantidad, l.Serial)).ToList();
         var ahora = reloj.Ahora();
 
-        // La mercancía pendiente de entrega no se devuelve: primero se anula el pendiente (RF-233). Solo lo comprueba la caja que
-        // vendió, que es la que tiene el pendiente; el de otra tienda lo descuenta el Central de lo disponible.
-        var porEntregar = venta is null ? [] : await PorEntregarAsync(venta.Id, cancelacion);
-        if (venta is not null && porEntregar.Count > 0)
-        {
-            var devueltoPrevio = await DevueltoDeLaFacturaAsync(venta, copia, cancelacion);
-            foreach (var pedida in lineas.Where(p => porEntregar.ContainsKey(p.NumeroLinea)))
-            {
-                if (venta.Lineas.FirstOrDefault(l => l.NumeroLinea == pedida.NumeroLinea && l.EstaActiva) is not { } lineaFactura)
-                    continue;
-
-                var libre = lineaFactura.Cantidad - (devueltoPrevio.GetValueOrDefault(lineaFactura.NumeroLinea)?.Cantidad ?? 0m) - porEntregar[lineaFactura.NumeroLinea];
-                if (pedida.Cantidad > libre)
-                    return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida,
-                        $"{lineaFactura.Descripcion}: {porEntregar[lineaFactura.NumeroLinea]:0.###} están pendientes de entrega. Anule el pendiente antes de devolverlos.");
-            }
-        }
-
         Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, int? turnoId, ResultadoPermiso? permiso) =>
             Devolucion.Registrar(factura, sesion.SucursalId, sesion.CajaId, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero, turnoId,
                 sesion.UsuarioId, sesion.Nombre, permiso?.SupervisorId ?? sesion.UsuarioId, permiso?.SupervisorNombre ?? sesion.Nombre,
@@ -498,21 +480,10 @@ internal sealed class ServicioDevoluciones(
         return null;
     }
 
-    /// <summary>Cantidad por línea de la factura que sigue pendiente de entrega en pendientes no anulados.</summary>
-    private async Task<Dictionary<int, decimal>> PorEntregarAsync(int ventaId, CancellationToken cancelacion) =>
-        (await contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas)
-            .Where(p => p.VentaId == ventaId && p.Estado != EstadoPendiente.Anulado)
-            .ToListAsync(cancelacion))
-        .SelectMany(p => p.Lineas)
-        .GroupBy(l => l.NumeroLineaVenta)
-        .Select(grupo => (Linea: grupo.Key, Pendiente: grupo.Sum(l => l.CantidadPendiente)))
-        .Where(x => x.Pendiente > 0)
-        .ToDictionary(x => x.Linea, x => x.Pendiente);
-
     /// <summary>
-    /// Lo ya devuelto de la factura, según el Central, que es el único que ve las devoluciones de toda la empresa. Si la vendió esta
-    /// caja se toma además lo de sus propias notas y se queda la mayor de las dos: una nota recién emitida que todavía no ha subido
-    /// no la ve el Central, y sin esto se podría devolver dos veces lo mismo.
+    /// Lo que no se puede devolver de la factura, según el Central: lo ya devuelto en cualquier tienda y la mercancía que todavía
+    /// no se ha entregado (RF-233). Si la vendió esta caja se toma además lo de sus propias notas y se queda la mayor de las dos:
+    /// una nota recién emitida que todavía no ha subido no la ve el Central, y sin esto se devolvería dos veces lo mismo.
     /// </summary>
     private async Task<Dictionary<int, DevueltoLinea>> DevueltoDeLaFacturaAsync(Venta? venta, FacturaConsultada copia, CancellationToken cancelacion) =>
         Devuelto(copia, venta is null
@@ -547,20 +518,19 @@ internal sealed class ServicioDevoluciones(
             ? await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas).Where(d => d.VentaOrigenId == ventaLocalId)
                 .OrderBy(d => d.CreadaEn).ToListAsync(cancelacion)
             : [];
-        var porEntregar = copia.VentaLocalId is { } conPendientes ? await PorEntregarAsync(conPendientes, cancelacion) : [];
         var devuelto = Devuelto(copia, previas);
 
         var lineas = copia.Lineas.OrderBy(l => l.NumeroLinea).Select(l =>
         {
             var previo = devuelto.GetValueOrDefault(l.NumeroLinea) ?? new DevueltoLinea(0m, 0m);
-            var pendiente = porEntregar.GetValueOrDefault(l.NumeroLinea);
-            var disponible = Math.Max(0m, l.Cantidad - previo.Cantidad - pendiente);
+            var disponible = Math.Max(0m, l.Cantidad - previo.Cantidad);
             var precio = decimal.Round(l.ImporteConImpuesto / l.Cantidad, 2, MidpointRounding.AwayFromZero);
 
-            // Con mercancía pendiente de entrega lo disponible no es el resto de la línea: se estima por precio.
-            var importeDisponible = pendiente > 0
+            // Lo que el Central ya descontó —devoluciones de otras tiendas y mercancía sin entregar— no cuadra con el resto
+            // exacto de la línea, así que la parte disponible se estima por precio.
+            var importeDisponible = previo.Cantidad > 0
                 ? decimal.Round(l.ImporteConImpuesto / l.Cantidad * disponible, 2, MidpointRounding.AwayFromZero)
-                : l.ImporteConImpuesto - previo.ImporteFactura;
+                : l.ImporteConImpuesto;
 
             return new DatosLineaFacturaDevolucion(l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
                 l.UnidadMedidaCodigo, l.DecimalesCantidad, l.DecimalesCantidad > 0, l.Cantidad, previo.Cantidad, disponible,

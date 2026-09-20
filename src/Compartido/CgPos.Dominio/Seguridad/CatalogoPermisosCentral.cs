@@ -27,6 +27,9 @@ public static class CatalogoPermisosCentral
     public const string AdministrarListasBoda = "Central.ListasBoda.Administrar";
     public const string AdministrarCotizaciones = "Central.Cotizaciones.Administrar";
     public const string OperarDespacho = "Central.Despacho.Operar";
+
+    /// <summary>Anular un pendiente libera mercancía ya facturada: se separa de operar el despacho, como en la caja.</summary>
+    public const string AnularPendientes = "Central.Despacho.Anular";
     public const string ConsultarReportes = "Central.Reportes.Consultar";
     public const string CerrarSucursal = "Central.CierresSucursal.Operar";
 
@@ -51,7 +54,8 @@ public static class CatalogoPermisosCentral
         new(AdministrarFidelidad, "Fidelidad", "Administrar el programa de fidelidad"),
         new(AdministrarListasBoda, "Listas de boda", "Crear y administrar listas de boda y de regalos"),
         new(AdministrarCotizaciones, "Cotizaciones", "Hacer cotizaciones a clientes y darles seguimiento"),
-        new(OperarDespacho, "Pendientes", "Operar el despacho central de pendientes y envíos"),
+        new(OperarDespacho, "Pendientes", "Operar el despacho central de pendientes y envíos: preparar, despachar y entregar"),
+        new(AnularPendientes, "Pendientes", "Anular un pendiente de entrega con motivo, liberando la mercancía"),
         new(ConsultarReportes, "Reportes", "Consultar y exportar reportes"),
         new(CerrarSucursal, "Reportes", "Hacer el cierre consolidado de sucursal y registrar sus depósitos"),
         new(AjustarCierres, "Reportes", "Corregir el cuadre de un cierre de caja, con motivo y auditoría"),

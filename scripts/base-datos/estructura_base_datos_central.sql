@@ -144,6 +144,10 @@ CREATE SEQUENCE [SecuenciaEmpresas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
+CREATE SEQUENCE [SecuenciaEntregasPendiente] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaFormasPago] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -157,6 +161,14 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaLineasCotizacion] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLineasEntregaPendiente] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLineasPendienteEntrega] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -1170,26 +1182,33 @@ GO
 
 CREATE TABLE [PendientesEntrega] (
     [Id] int NOT NULL,
-    [Numero] nvarchar(30) NOT NULL,
-    [VentaNumero] nvarchar(30) NOT NULL,
+    [Numero] varchar(30) NOT NULL,
+    [VentaId] int NOT NULL,
+    [VentaNumero] varchar(40) NOT NULL,
     [SucursalId] int NOT NULL,
     [CajaId] int NOT NULL,
     [Metodo] int NOT NULL,
-    [Estado] int NOT NULL,
-    [AlmacenNombre] nvarchar(250) NULL,
-    [Ciudad] nvarchar(250) NULL,
-    [ClienteDocumento] nvarchar(250) NULL,
-    [ClienteNombre] nvarchar(250) NULL,
-    [Telefono] nvarchar(250) NULL,
+    [AlmacenId] int NULL,
+    [AlmacenNombre] nvarchar(100) NULL,
+    [Direccion] nvarchar(250) NULL,
+    [Sector] nvarchar(100) NULL,
+    [Ciudad] nvarchar(100) NULL,
+    [Referencia] nvarchar(250) NULL,
+    [Telefono] nvarchar(20) NULL,
+    [Transportista] nvarchar(100) NULL,
+    [CostoEnvio] decimal(18,2) NULL,
     [FechaComprometida] date NULL,
-    [Unidades] decimal(18,3) NOT NULL,
-    [UnidadesEntregadas] decimal(18,3) NOT NULL,
+    [Comentario] nvarchar(250) NULL,
+    [ClienteDocumento] varchar(20) NULL,
+    [ClienteNombre] nvarchar(150) NULL,
+    [VendidoPorNombre] nvarchar(150) NOT NULL,
+    [AutorizadoPorNombre] nvarchar(150) NULL,
+    [Estado] int NOT NULL,
     [CreadoEn] datetimeoffset(3) NOT NULL,
     [ActualizadoEn] datetimeoffset(3) NOT NULL,
-    [RecibidoEn] datetimeoffset(3) NOT NULL,
+    [ActualizadoPorNombre] nvarchar(150) NOT NULL,
+    [MotivoAnulacion] nvarchar(250) NULL,
     [AvisoEnviadoEn] datetimeoffset(3) NULL,
-    [Contenido] nvarchar(max) NOT NULL,
-    [TextoBusqueda] nvarchar(600) NOT NULL,
     CONSTRAINT [PK_PendientesEntrega] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_PendientesEntrega_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_PendientesEntrega_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
@@ -1425,6 +1444,39 @@ CREATE TABLE [ReservasNotaCredito] (
 GO
 
 
+CREATE TABLE [EntregasPendiente] (
+    [Id] int NOT NULL,
+    [PendienteEntregaId] int NOT NULL,
+    [Numero] int NOT NULL,
+    [RecibeNombre] nvarchar(150) NOT NULL,
+    [RecibeCedula] nvarchar(20) NOT NULL,
+    [UsuarioNombre] nvarchar(150) NOT NULL,
+    [Fecha] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_EntregasPendiente] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_EntregasPendiente_PendientesEntrega_PendienteEntregaId] FOREIGN KEY ([PendienteEntregaId]) REFERENCES [PendientesEntrega] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasPendienteEntrega] (
+    [Id] int NOT NULL,
+    [PendienteEntregaId] int NOT NULL,
+    [NumeroLineaVenta] int NOT NULL,
+    [ArticuloId] int NOT NULL,
+    [CodigoInterno] nvarchar(30) NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [UnidadMedidaCodigo] nvarchar(10) NOT NULL,
+    [DecimalesCantidad] int NOT NULL,
+    [Serializado] bit NOT NULL,
+    [Cantidad] decimal(18,3) NOT NULL,
+    [CantidadEntregada] decimal(18,3) NOT NULL,
+    [Serial] nvarchar(50) NULL,
+    CONSTRAINT [PK_LineasPendienteEntrega] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasPendienteEntrega_PendientesEntrega_PendienteEntregaId] FOREIGN KEY ([PendienteEntregaId]) REFERENCES [PendientesEntrega] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [LineasReservaFactura] (
     [Id] int NOT NULL,
     [ReservaId] int NOT NULL,
@@ -1477,6 +1529,19 @@ CREATE TABLE [PagosVenta] (
     [Monto] decimal(18,4) NOT NULL,
     CONSTRAINT [PK_PagosVenta] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_PagosVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasEntregaPendiente] (
+    [Id] int NOT NULL,
+    [EntregaPendienteId] int NOT NULL,
+    [NumeroLineaVenta] int NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [Cantidad] decimal(18,3) NOT NULL,
+    [Serial] nvarchar(50) NULL,
+    CONSTRAINT [PK_LineasEntregaPendiente] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasEntregaPendiente_EntregasPendiente_EntregaPendienteId] FOREIGN KEY ([EntregaPendienteId]) REFERENCES [EntregasPendiente] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1757,6 +1822,10 @@ CREATE UNIQUE INDEX [IX_Empresas_Rnc] ON [Empresas] ([Rnc]);
 GO
 
 
+CREATE UNIQUE INDEX [IX_EntregasPendiente_PendienteEntregaId_Numero] ON [EntregasPendiente] ([PendienteEntregaId], [Numero]);
+GO
+
+
 CREATE UNIQUE INDEX [IX_FormasPago_Codigo] ON [FormasPago] ([Codigo]);
 GO
 
@@ -1778,6 +1847,14 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_LineasCotizacion_CotizacionId_ArticuloCodigo] ON [LineasCotizacion] ([CotizacionId], [ArticuloCodigo]);
+GO
+
+
+CREATE INDEX [IX_LineasEntregaPendiente_EntregaPendienteId] ON [LineasEntregaPendiente] ([EntregaPendienteId]);
+GO
+
+
+CREATE INDEX [IX_LineasPendienteEntrega_PendienteEntregaId] ON [LineasPendienteEntrega] ([PendienteEntregaId]);
 GO
 
 
@@ -2155,6 +2232,7 @@ VALUES
     (1, N'Central.ListasBoda.Administrar'),
     (1, N'Central.Cotizaciones.Administrar'),
     (1, N'Central.Despacho.Operar'),
+    (1, N'Central.Despacho.Anular'),
     (1, N'Central.Reportes.Consultar'),
     (1, N'Central.CierresSucursal.Operar'),
     (1, N'Central.Cierres.Ajustar');

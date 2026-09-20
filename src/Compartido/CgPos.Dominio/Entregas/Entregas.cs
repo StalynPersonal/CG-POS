@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Comun;
 using CgPos.Dominio.Ventas;
 
@@ -222,8 +222,16 @@ public sealed class PendienteEntrega : Entidad
     public string ActualizadoPorNombre { get; private set; } = string.Empty;
     public string? MotivoAnulacion { get; private set; }
 
+    /// <summary>Cuándo se le avisó al cliente que su pedido está listo; nulo si todavía no se le avisó (RF-256).</summary>
+    public DateTimeOffset? AvisoEnviadoEn { get; private set; }
+
     public IReadOnlyList<LineaPendienteEntrega> Lineas => _lineas;
     public IReadOnlyList<EntregaPendiente> Entregas => _entregas;
+
+    /// <summary>El pedido está listo para que el cliente lo retire y todavía no se le ha avisado.</summary>
+    public bool EsperaAviso => AvisoEnviadoEn is null && Estado == EstadoPendiente.Preparado;
+
+    public void MarcarAvisado(DateTimeOffset ahora) => AvisoEnviadoEn = ahora;
 
     public bool EstaAbierto => Estado is not (EstadoPendiente.Entregado or EstadoPendiente.Anulado);
 
@@ -271,6 +279,60 @@ public sealed class PendienteEntrega : Entidad
 
         return pendiente;
     }
+
+    /// <summary>
+    /// Reconstruye en el Central el pendiente que informó una caja, con el estado y las entregas que ya tuviera. A partir de aquí
+    /// quien lo despacha es el Central, que aplica las mismas reglas de este agregado: la caja solo lo creó al cobrar.
+    /// </summary>
+    /// <param name="almacenId">Almacén del Central que corresponde al código informado; nulo si el pendiente es un envío.</param>
+    public static PendienteEntrega Reconstruir(DatosPendienteReconstruido datos, int sucursalId, int cajaId, int? almacenId)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+        var pendiente = new PendienteEntrega
+        {
+            Numero = Validar.Texto(datos.Numero, "Número del pendiente", LargoMaximoNumero),
+            VentaNumero = Validar.TextoOpcional(datos.VentaNumero, "Número de la venta", LargoMaximoNumero) ?? string.Empty,
+            SucursalId = Validar.Id(sucursalId, "Sucursal"),
+            CajaId = Validar.Id(cajaId, "Caja"),
+            Metodo = datos.Metodo,
+            AlmacenId = almacenId,
+            AlmacenNombre = Validar.TextoOpcional(datos.AlmacenNombre, "Almacén", Almacen.LargoMaximoNombre),
+            Direccion = Validar.TextoOpcional(datos.Direccion, "Dirección del envío", DestinoEntrega.LargoMaximoDireccion),
+            Sector = Validar.TextoOpcional(datos.Sector, "Sector", DestinoEntrega.LargoMaximoTexto),
+            Ciudad = Validar.TextoOpcional(datos.Ciudad, "Ciudad o provincia", DestinoEntrega.LargoMaximoTexto),
+            Referencia = Validar.TextoOpcional(datos.Referencia, "Referencia", DestinoEntrega.LargoMaximoDireccion),
+            Telefono = Validar.TextoOpcional(datos.Telefono, "Teléfono de contacto", DestinoEntrega.LargoMaximoTelefono),
+            Transportista = Validar.TextoOpcional(datos.Transportista, "Transportista", DestinoEntrega.LargoMaximoTexto),
+            CostoEnvio = datos.CostoEnvio,
+            FechaComprometida = datos.FechaComprometida,
+            Comentario = Validar.TextoOpcional(datos.Comentario, "Comentario", DestinoEntrega.LargoMaximoComentario),
+            ClienteDocumento = Validar.TextoOpcional(datos.ClienteDocumento, "Documento del cliente", DestinoEntrega.LargoMaximoTexto),
+            ClienteNombre = Validar.TextoOpcional(datos.ClienteNombre, "Nombre del cliente", DestinoEntrega.LargoMaximoNombre),
+            VendidoPorNombre = Validar.TextoOpcional(datos.VendidoPorNombre, "Vendedor", DestinoEntrega.LargoMaximoNombre) ?? string.Empty,
+            AutorizadoPorNombre = Validar.TextoOpcional(datos.AutorizadoPorNombre, "Autorizado por", DestinoEntrega.LargoMaximoNombre),
+            Estado = datos.Estado,
+            CreadoEn = datos.CreadoEn,
+            ActualizadoEn = datos.ActualizadoEn,
+            ActualizadoPorNombre = Validar.TextoOpcional(datos.ActualizadoPorNombre, "Usuario", DestinoEntrega.LargoMaximoNombre) ?? string.Empty,
+            MotivoAnulacion = Validar.TextoOpcional(datos.MotivoAnulacion, "Motivo", LargoMaximoMotivo),
+        };
+
+        foreach (var linea in datos.Lineas.OrderBy(l => l.NumeroLineaVenta))
+            pendiente._lineas.Add(LineaPendienteEntrega.Reconstruir(pendiente.Id, linea));
+
+        foreach (var entrega in datos.Entregas.OrderBy(e => e.Numero))
+            pendiente._entregas.Add(EntregaPendiente.Reconstruir(pendiente.Id, entrega, pendiente._lineas));
+
+        return pendiente;
+    }
+
+    /// <summary>Unidades del pendiente y cuántas se han entregado, para verlo de un vistazo en el listado.</summary>
+    public decimal Unidades => _lineas.Sum(l => l.Cantidad);
+
+    public decimal UnidadesEntregadas => _lineas.Sum(l => l.CantidadEntregada);
+
+    /// <summary>Se pasó de la fecha comprometida y todavía no se entregó (RF-252).</summary>
+    public bool EstaAtrasado(DateOnly hoy) => EstaAbierto && FechaComprometida is { } fecha && fecha < hoy;
 
     /// <summary>Cantidad de la línea de la factura que aún no se entrega (0 si el pendiente se anuló).</summary>
     public decimal CantidadPorEntregar(int numeroLineaVenta) =>
@@ -397,6 +459,22 @@ public sealed class LineaPendienteEntrega : Entidad
             Serial = linea.Serial,
         };
 
+    internal static LineaPendienteEntrega Reconstruir(int pendienteId, DatosLineaPendienteReconstruida linea) =>
+        new()
+        {
+            PendienteEntregaId = pendienteId,
+            NumeroLineaVenta = linea.NumeroLineaVenta,
+            ArticuloId = linea.ArticuloId,
+            CodigoInterno = linea.CodigoInterno,
+            Descripcion = linea.Descripcion,
+            UnidadMedidaCodigo = linea.UnidadMedidaCodigo,
+            DecimalesCantidad = linea.DecimalesCantidad,
+            Serializado = linea.Serializado,
+            Cantidad = linea.Cantidad,
+            CantidadEntregada = linea.CantidadEntregada,
+            Serial = linea.Serial,
+        };
+
     internal void RegistrarEntrega(decimal cantidad, string? serial)
     {
         CantidadEntregada += cantidad;
@@ -433,6 +511,31 @@ public sealed class EntregaPendiente : Entidad
             Fecha = ahora,
         };
 
+    internal static EntregaPendiente Reconstruir(int pendienteId, DatosEntregaReconstruida datos, IReadOnlyList<LineaPendienteEntrega> lineas)
+    {
+        var entrega = new EntregaPendiente
+        {
+            PendienteEntregaId = pendienteId,
+            Numero = datos.Numero,
+            RecibeNombre = Validar.Texto(datos.RecibeNombre, "Nombre de quien recibe", DestinoEntrega.LargoMaximoNombre),
+            RecibeCedula = Validar.Texto(datos.RecibeCedula, "Cédula de quien recibe", 20),
+            UsuarioNombre = Validar.Texto(datos.UsuarioNombre, "Usuario", DestinoEntrega.LargoMaximoNombre),
+            Fecha = datos.Fecha,
+        };
+
+        foreach (var linea in datos.Lineas)
+            entrega._lineas.Add(new LineaEntregaPendiente
+            {
+                EntregaPendienteId = entrega.Id,
+                NumeroLineaVenta = linea.NumeroLineaVenta,
+                Descripcion = linea.Descripcion,
+                Cantidad = linea.Cantidad,
+                Serial = linea.Serial,
+            });
+
+        return entrega;
+    }
+
     internal void AgregarLinea(LineaPendienteEntrega linea, decimal cantidad, string? serial) =>
         _lineas.Add(new LineaEntregaPendiente
         {
@@ -456,3 +559,55 @@ public sealed class LineaEntregaPendiente : Entidad
     public decimal Cantidad { get; internal set; }
     public string? Serial { get; internal set; }
 }
+
+/// <summary>
+/// Lo que hace falta para reconstruir un pendiente en el Central a partir de lo que informó la caja. Es el documento de
+/// sincronización visto por el dominio, sin depender de los contratos.
+/// </summary>
+public sealed record DatosPendienteReconstruido(
+    string Numero,
+    string VentaNumero,
+    MetodoEntrega Metodo,
+    EstadoPendiente Estado,
+    string? AlmacenNombre,
+    string? Direccion,
+    string? Sector,
+    string? Ciudad,
+    string? Referencia,
+    string? Telefono,
+    string? Transportista,
+    decimal? CostoEnvio,
+    DateOnly? FechaComprometida,
+    string? Comentario,
+    string? ClienteDocumento,
+    string? ClienteNombre,
+    string VendidoPorNombre,
+    string? AutorizadoPorNombre,
+    DateTimeOffset CreadoEn,
+    DateTimeOffset ActualizadoEn,
+    string ActualizadoPorNombre,
+    string? MotivoAnulacion,
+    IReadOnlyList<DatosLineaPendienteReconstruida> Lineas,
+    IReadOnlyList<DatosEntregaReconstruida> Entregas);
+
+public sealed record DatosLineaPendienteReconstruida(
+    int NumeroLineaVenta,
+    int ArticuloId,
+    string CodigoInterno,
+    string Descripcion,
+    string UnidadMedidaCodigo,
+    int DecimalesCantidad,
+    bool Serializado,
+    decimal Cantidad,
+    decimal CantidadEntregada,
+    string? Serial);
+
+public sealed record DatosEntregaReconstruida(
+    int Numero,
+    string RecibeNombre,
+    string RecibeCedula,
+    string UsuarioNombre,
+    DateTimeOffset Fecha,
+    IReadOnlyList<DatosLineaEntregaReconstruida> Lineas);
+
+public sealed record DatosLineaEntregaReconstruida(int NumeroLineaVenta, string Descripcion, decimal Cantidad, string? Serial);
