@@ -629,6 +629,7 @@ tabla(['Tecla', 'Qué hace'],
        ['F6', 'Lista de boda: asociar la venta a una lista de regalos'],
        ['F7', 'Facturas en espera (guardar la actual y retomar otra)'],
        ['F8', 'Totalizar: abre el cobro'],
+       ['F9', 'Cotización: traer un presupuesto hecho en el Central'],
        ['F10', 'Ir a devoluciones'],
        ['F11', 'Consultar el precio de un artículo sin venderlo'],
        ['F12', 'Cliente, comprobante y programa de fidelidad']],
@@ -698,21 +699,34 @@ p('Al terminar: se emite y firma la factura electrónica, se imprime el ticket, 
 nota('Si no hay e-NCF disponible o el certificado no está cargado, la venta NO se cobra: primero hay que resolverlo con '
      'administración. El sistema no permite facturar sin comprobante fiscal.')
 
-titulo('3.12. Facturas en espera, anular y suspender', 2)
+titulo('3.12. Facturar una cotización (F9)', 2)
+p('Una cotización es el presupuesto que administración le hizo al cliente desde el Central, con los precios del momento. El '
+  'cliente llega con el papel y se le factura sin volver a digitar nada.')
+paso('Presione F9 y escanee o digite el número de la cotización (empieza con COT).')
+paso('La caja se la pide al Central y carga los artículos con los precios que se le prometieron al cliente: no se les aplican '
+     'ofertas ni se recalculan.')
+paso('Cobre normalmente. El ticket sale con el número de la cotización y en el Central queda marcada como facturada.')
+nota('Si la cotización venció, la caja pide la autorización de un supervisor y el motivo queda registrado. Una cotización ya '
+     'facturada o anulada no se puede volver a usar.')
+nota('La cotización vive en el Central: si la caja está sin comunicación, no se puede traer. La pantalla lo dice con esas '
+     'palabras, y siempre se puede facturar a mano.')
+nota('La venta tiene que estar vacía: si ya tiene artículos, termínela o límpiela antes de traer la cotización.')
+
+titulo('3.13. Facturas en espera, anular y suspender', 2)
 viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y retomarla después.')
 viñeta('Anular (segunda página): cancela la transacción en curso con motivo y autorización.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada y con su reverso en rojo, para que todo quede a la vista.')
 
-titulo('3.13. Entregas y envíos', 2)
+titulo('3.14. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')
 paso('En la segunda página de teclas, elija Entrega / envío.')
 paso('Marque qué líneas y qué cantidad quedan pendientes, y si es retiro en un almacén o envío a una dirección, con la fecha comprometida.')
 paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras.')
 paso('En la pantalla /despacho se escanea ese comprobante para preparar, entregar (total o parcial, con quien recibe) o anular.')
 
-titulo('3.14. Devoluciones y notas de crédito', 2)
+titulo('3.15. Devoluciones y notas de crédito', 2)
 p('Se entra con F10 o directamente a /devoluciones.')
 paso('Escanee el código de barras del ticket o digite el e-NCF de la factura.')
 paso('Indique qué se devuelve de cada línea (el sistema muestra lo vendido, lo ya devuelto y lo disponible).')
@@ -727,7 +741,7 @@ tabla(['Tipo', 'Para qué', 'Importante'],
 nota('La vigencia de las notas de crédito se cuenta desde su emisión con los días configurados HOY en el Central: si una nota '
      'se venció y el negocio decide aceptarla, se suben los días en el Central y vuelve a poder usarse.')
 
-titulo('3.15. Retiros, pre-cierre y cierre de turno', 2)
+titulo('3.16. Retiros, pre-cierre y cierre de turno', 2)
 viñeta('Retiro de efectivo: monto y motivo, autorización de supervisor, comprobante impreso con firmas. No se puede retirar '
        'más del efectivo que hay en la gaveta.')
 viñeta('Pre-cierre: imprime lo esperado, con clave de supervisor (útil antes de cuadrar).')
@@ -739,7 +753,7 @@ viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprob
 viñeta('Al cerrar se imprime el reporte del turno: esperado, declarado y diferencia por forma de pago, denominaciones, '
        'retiros, reembolsos y relevos.')
 
-titulo('3.16. La barra de estado', 2)
+titulo('3.17. La barra de estado', 2)
 p('Abajo de la pantalla, siempre a la vista:')
 viñeta('Sincronización: si la caja está comunicada con el Central y cuántos documentos están pendientes de enviar.')
 viñeta('e-CF: si el certificado está cargado, cuántos comprobantes quedan en el rango y si algo está por vencer. '

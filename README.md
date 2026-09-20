@@ -433,6 +433,16 @@ dotnet run --project src/Central/CgPos.Central.Api
 - **Detalle:** al abrir una se ven sus **líneas tal como las cobró la caja** (código, descripción, cantidad, precio, descuento, ITBIS, importe, serial y oferta aplicada), los totales, el ITBIS por tasa y las formas de pago; en una nota de crédito, además, el comprobante que modifica. Las líneas se guardan al recibir el documento, así que no hace falta abrir el XML; el e-CF firmado se descarga desde el monitor de comprobantes.
 - **API:** `GET /api/manager/facturas?desde=&hasta=&sucursalId=&cajaId=&tipo=&buscar=&pagina=&tamano=` y `GET /api/manager/facturas/{id}`.
 
+### Cotizaciones
+
+- **Se hacen en el Central** (`/cotizaciones`, permiso `Central.Cotizaciones.Administrar`): el mostrador que solo cotiza no necesita instalar nada, le basta el navegador. Se elige el cliente, se buscan los artículos en el maestro —por código, barras, referencia o descripción— y cada línea trae **el precio del día**, que se puede cambiar a mano y admite descuento. El Central la numera (`COT000001`).
+- **Precios congelados:** lo cotizado se respeta mientras la cotización esté vigente, aunque el artículo suba. La vigencia sale de `Central.Cotizaciones.DiasVigencia` y se puede fijar a mano.
+- **El documento** se descarga en PDF tamaño carta, con el encabezado de la empresa, los datos del cliente, el detalle, los totales, hasta cuándo vale y las condiciones (`Central.Cotizaciones.Condiciones`). Se genera sin librerías externas, igual que los reportes.
+- **En la caja (F9):** se escanea o digita el número, la caja **consulta al Central** (las cotizaciones no bajan a la caja) y vuelca las líneas con sus precios: esas líneas **no reciben ofertas ni se recalculan**, porque el precio ya se prometió por escrito. Una ya facturada o anulada se rechaza; una **vencida** se puede facturar con autorización de un supervisor (`Ventas.FacturarCotizacionVencida`), que queda auditada. No se monta sobre una venta que ya tiene artículos, y si el artículo no está en esa caja se avisa que sincronice los maestros.
+- **Al cobrar**, el número viaja en `Venta.Cobrada`, sale en el ticket, y el Central marca la cotización **facturada** con el número de la factura; el mensaje repetido no la duplica. Si la cotización no existe allá, queda un conflicto de sincronización.
+- **El total de la cotización y el de la factura coinciden al centavo:** los dos separan el ITBIS con la misma regla (`CalculoImpuestos`, RF-183).
+- **API:** `GET /api/cotizaciones/{numero}` (caja); `GET/POST/PUT /api/manager/cotizaciones`, `POST /api/manager/cotizaciones/{id}/anular`, `GET /api/manager/cotizaciones/{id}/pdf`, `GET /api/manager/cotizaciones/articulos`.
+
 ### Listas de boda y de regalos (RF-73)
 
 - **Se crean en el Central** (`/listas-boda`, permiso `Central.ListasBoda.Administrar`): datos del cliente (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos pedidos con su cantidad. El Central numera la lista (`LB000001`) y es el número que el cliente da en la tienda. La lista se cierra cuando pasa el evento y se puede reabrir.
