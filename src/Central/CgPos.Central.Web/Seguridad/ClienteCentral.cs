@@ -419,6 +419,19 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    /// <summary>Una sola cotización con sus líneas, para la pantalla que la edita.</summary>
+    public async Task<DatosCotizacion?> ObtenerCotizacionAsync(int cotizacionId, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosCotizacion>($"api/manager/cotizaciones/{cotizacionId}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
     public Task<RespuestaAdministracion> CrearCotizacionAsync(SolicitudCotizacion solicitud) =>
         EnviarAsync(HttpMethod.Post, "api/manager/cotizaciones", solicitud);
 

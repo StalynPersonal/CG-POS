@@ -487,11 +487,27 @@ paso('El Central le asigna un número (por ejemplo LB000001): ese es el número 
 paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
 paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
 
-titulo('2.13. Fidelidad', 2)
+titulo('2.13. Cotizaciones', 2)
+p('Ruta: /cotizaciones. Es el presupuesto que se le arma a un cliente desde cualquier computadora con navegador: no hace '
+  'falta que sea una caja. Los precios quedan congelados mientras la cotización esté vigente, y después cualquier caja de '
+  'cualquier sucursal la convierte en factura buscándola por su número (F9).')
+paso('Para hacer una nueva, use «Nueva cotización» del menú o el botón del listado: se abre una pantalla completa, no una '
+     'ventanita.')
+paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo.')
+paso('Agregue los artículos: se buscan por código interno o descripción y traen el precio del día, que se puede cambiar a '
+     'mano igual que el descuento.')
+paso('Guarde: el Central le asigna su número (por ejemplo COT000001) y su fecha de vencimiento, según los días '
+     'configurados en Parámetros.')
+paso('Con «Imprimir» sale el PDF en tamaño carta para entregárselo o enviárselo al cliente.')
+p('El listado queda solo para buscar: escriba el número, el cliente, su documento o el número de la factura, o filtre por '
+  'estado. Al tocar una fila se abre esa cotización en su pantalla.')
+nota('Una cotización ya facturada o anulada se abre igual, pero solo para consultarla: no se modifica.')
+
+titulo('2.14. Fidelidad', 2)
 p('Ruta: /fidelidad/miembros. Miembros con su nivel, saldo de puntos, movimientos y ajustes. Los niveles y las reglas de '
   'acumulación se configuran en los catálogos.')
 
-titulo('2.14. Despacho de pendientes y envíos', 2)
+titulo('2.15. Despacho de pendientes y envíos', 2)
 p('Ruta: /despacho/pendientes. Aquí se despacha TODO lo que quedó pendiente de entregar en cualquier sucursal. El despacho se '
   'hace en el Central y no en la caja: no emite comprobante fiscal ni toca la gaveta, y quien atiende a un cliente que llama o '
   'que llega a otra tienda necesita verlos todos. La caja solo crea el pendiente al cobrar.')
@@ -511,7 +527,7 @@ nota('Mientras algo siga pendiente de entregar, no se puede devolver: el cliente
      'anular primero el pendiente. Si el negocio lo activa, el Central le avisa por correo al cliente cuando su pedido queda '
      'preparado.')
 
-titulo('2.15. Secuencias de documentos', 2)
+titulo('2.16. Secuencias de documentos', 2)
 p('Ruta: /organizacion/secuencias. Aquí se dice cómo se numera cada documento que emite el Central: el prefijo que lleva '
   'delante, cuántos dígitos tiene el correlativo y por cuál va.')
 nota('Sin su secuencia, el documento NO se puede crear: el sistema lo rechaza diciendo cuál falta. Es a propósito, para que '
@@ -537,7 +553,7 @@ paso('Para continuar una numeración que venía de otro sistema, cambie «Últim
      'bajarlo repetiría números ya usados.')
 paso('Desactivar una secuencia impide crear ese documento y conserva el contador.')
 
-titulo('2.16. Cierre consolidado de sucursal', 2)
+titulo('2.17. Cierre consolidado de sucursal', 2)
 p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
 paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta (si algún turno no ha cerrado, lo dice).')
 paso('El sistema calcula el efectivo a depositar por moneda (las tarjetas y transferencias no se depositan).')
@@ -545,7 +561,7 @@ paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede se
 paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
 nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
 
-titulo('2.17. Reportes', 2)
+titulo('2.18. Reportes', 2)
 p('Ruta: /reportes. Todos por rango de días y, si se quiere, por sucursal o caja. Cada uno se descarga en Excel y en PDF.')
 tabla(['Reporte', 'Qué muestra'],
       [['Ventas', 'Por día, sucursal y caja: facturas, notas de crédito, subtotal, descuento, ITBIS y total.'],
@@ -556,11 +572,11 @@ tabla(['Reporte', 'Qué muestra'],
        ['Sincronización', 'Última comunicación de cada caja, mensajes, rechazos y alertas.']],
       anchos=[4.5, 12.5])
 
-titulo('2.18. Monitor de sincronización', 2)
+titulo('2.19. Monitor de sincronización', 2)
 viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuántos documentos trae pendientes.')
 viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
 
-titulo('2.19. Chequeador de precios', 2)
+titulo('2.20. Chequeador de precios', 2)
 p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla que se pone en el pasillo de la tienda. Tecnología '
   'deja cada pantalla con la dirección de su sucursal, así el cliente nunca elige sucursal y siempre ve el precio y las ofertas '
   'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '

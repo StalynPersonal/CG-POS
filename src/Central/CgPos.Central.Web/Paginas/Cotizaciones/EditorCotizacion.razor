@@ -1,0 +1,298 @@
+@page "/cotizaciones/nueva"
+@page "/cotizaciones/{CotizacionId:int}"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarCotizaciones)]
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Cotizaciones
+@inject ClienteCentral Cliente
+@inject IDialogService Dialogos
+@inject ISnackbar Avisos
+@inject IJSRuntime Js
+@inject NavigationManager Navegacion
+
+<PageTitle>@(CotizacionId is null ? "Nueva cotización" : "Cotización") · CG-POS Central</PageTitle>
+
+@* Encabezado: de qué cotización se trata y cómo volver al listado sin guardar. *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">
+            @(CotizacionId is null ? "Nueva cotización" : $"Cotización {_cotizacion?.Numero}")
+        </MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Los precios que se guarden aquí son los que va a cobrar la caja mientras la cotización esté vigente.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Volver">Volver al listado</MudButton>
+</div>
+
+@if (_noExiste)
+{
+    <MudAlert Severity="Severity.Error">No se encontró la cotización.</MudAlert>
+}
+else if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_cotizacion is { } cotizacion)
+{
+    @* Formulario: los datos del cliente arriba y las líneas con su precio abajo. *@
+    <MudPaper Elevation="1" Class="pa-4">
+        @if (!_editable)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                @(cotizacion.Estado == EstadoCotizacion.Facturada
+                    ? $"Ya se facturó con {cotizacion.VentaNumero}: queda solo para consulta."
+                    : $"Anulada: {cotizacion.MotivoAnulacion}")
+            </MudAlert>
+        }
+
+        @* Datos del cliente y vigencia. *@
+        <div class="d-flex gap-3 flex-wrap">
+            <MudTextField @bind-Value="_clienteNombre" Label="Nombre del cliente" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Style="min-width: 280px" Disabled="!_editable" />
+            <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Style="max-width: 220px" Disabled="!_editable" />
+            <MudTextField @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px"
+                          Disabled="!_editable" />
+            <MudTextField @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 240px"
+                          Disabled="!_editable" />
+            <MudDatePicker @bind-Date="_venceEn" Label="Vale hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense"
+                           Class="cg-central__filtro-fecha" Disabled="!_editable" />
+        </div>
+
+        <MudTextField @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3"
+                      Disabled="!_editable" />
+
+        @* Líneas: el artículo se elige del maestro y trae su precio del día, que se puede cambiar a mano. *@
+        <div class="mt-4">
+            <MudText Typo="Typo.subtitle1">Artículos cotizados</MudText>
+            <MudTable T="LineaEnEdicion" Items="_lineas" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh Style="width: 190px">Código</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh Style="width: 120px">Cantidad</MudTh>
+                    <MudTh Style="width: 140px">Precio</MudTh>
+                    <MudTh Style="width: 130px">Descuento</MudTh>
+                    <MudTh Style="width: 120px; text-align: right">Importe</MudTh>
+                    <MudTh Style="width: 56px"></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudAutocomplete T="ArticuloCarga" Value="@BuscadoDe(context)" ValueChanged="@(articulo => Elegir(context, articulo))"
+                                         SearchFunc="BuscarArticulosAsync" ToStringFunc="@(a => a?.Codigo ?? string.Empty)" Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" ResetValueOnEmptyText="false" CoerceText="true" Placeholder="Código o descripción"
+                                         MinCharacters="2" MaxItems="20" Disabled="!_editable" />
+                    </MudTd>
+                    <MudTd>@context.Descripcion</MudTd>
+                    <MudTd>
+                        <MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" Format="0.###"
+                                         Disabled="!_editable" />
+                    </MudTd>
+                    <MudTd>
+                        <MudNumericField @bind-Value="context.PrecioUnitario" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
+                                         Disabled="!_editable" />
+                    </MudTd>
+                    <MudTd>
+                        <MudNumericField @bind-Value="context.Descuento" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
+                                         Disabled="!_editable" />
+                    </MudTd>
+                    <MudTd Style="text-align: right">@context.Importe.ToString("N2")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Disabled="!_editable" OnClick="() => _lineas.Remove(context)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            @if (_editable)
+            {
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="() => _lineas.Add(new LineaEnEdicion())">
+                    Agregar artículo
+                </MudButton>
+            }
+
+            @* El total que se ve aquí es el mismo que la caja va a cobrar. *@
+            <div class="d-flex justify-end mt-2">
+                <MudText Typo="Typo.h6">Total @TotalEnEdicion.ToString("N2")</MudText>
+            </div>
+        </div>
+    </MudPaper>
+
+    @* Las acciones van abajo, donde termina el formulario. *@
+    <div class="d-flex justify-end gap-2 mt-4">
+        @if (CotizacionId is { } id && _editable)
+        {
+            <MudButton Color="Color.Error" OnClick="() => AnularAsync(id)">Anular</MudButton>
+        }
+        @if (CotizacionId is { } paraImprimir)
+        {
+            <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="() => ImprimirAsync(paraImprimir)">Imprimir</MudButton>
+        }
+        <MudButton OnClick="Volver">Cerrar</MudButton>
+        @if (_editable)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando" OnClick="GuardarAsync">Guardar</MudButton>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>Viene de la ruta: sin él la pantalla arranca en blanco para una cotización nueva.</summary>
+    [Parameter]
+    public int? CotizacionId { get; set; }
+
+    private DatosCotizacion? _cotizacion;
+    private bool _cargando = true;
+    private bool _noExiste;
+    private bool _guardando;
+    private bool _editable = true;
+
+    private string _clienteNombre = string.Empty;
+    private string? _clienteDocumento;
+    private string? _telefono;
+    private string? _correo;
+    private string? _observacion;
+    private DateTime? _venceEn;
+    private readonly List<LineaEnEdicion> _lineas = [];
+
+    /// <summary>Lo que suma la cotización mientras se arma, con el mismo criterio que la caja.</summary>
+    private decimal TotalEnEdicion => _lineas.Sum(l => l.Importe);
+
+    /// <summary>Se ejecuta también al pasar de una cotización a otra sin salir de la pantalla.</summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        _cargando = true;
+        _noExiste = false;
+
+        var cotizacion = CotizacionId is { } id ? await Cliente.ObtenerCotizacionAsync(id) : Vacia();
+        _cargando = false;
+
+        if (cotizacion is null)
+        {
+            _noExiste = true;
+            _cotizacion = null;
+            return;
+        }
+
+        _cotizacion = cotizacion;
+        _editable = CotizacionId is null || cotizacion.Estado == EstadoCotizacion.Abierta;
+        _clienteNombre = cotizacion.ClienteNombre;
+        _clienteDocumento = cotizacion.ClienteDocumento;
+        _telefono = cotizacion.ClienteTelefono;
+        _correo = cotizacion.ClienteCorreo;
+        _observacion = cotizacion.Observacion;
+
+        // Una cotización nueva toma su vigencia del Central; aquí solo se muestra vacía hasta que se guarde.
+        _venceEn = CotizacionId is null ? null : cotizacion.VenceEn.ToDateTime(TimeOnly.MinValue);
+
+        _lineas.Clear();
+        foreach (var linea in cotizacion.Lineas)
+        {
+            _lineas.Add(new LineaEnEdicion
+            {
+                Codigo = linea.ArticuloCodigo,
+                Descripcion = linea.Descripcion,
+                Cantidad = linea.Cantidad,
+                PrecioUnitario = linea.PrecioUnitario,
+                Descuento = linea.Descuento,
+            });
+        }
+
+        if (_lineas.Count == 0)
+            _lineas.Add(new LineaEnEdicion());
+    }
+
+    /// <summary>La cotización en blanco con la que arranca el formulario cuando todavía no existe.</summary>
+    private static DatosCotizacion Vacia() => new(0, string.Empty, string.Empty, null, null, null, null, null,
+        DateOnly.FromDateTime(DateTime.Today), false, EstadoCotizacion.Abierta, null, null, null, string.Empty, DateTimeOffset.Now, 0m, 0m, 0m, 0m, []);
+
+    private void Volver() => Navegacion.NavigateTo("cotizaciones");
+
+    private async Task GuardarAsync()
+    {
+        var lineas = _lineas
+            .Where(l => !string.IsNullOrWhiteSpace(l.Codigo) && l.Cantidad > 0)
+            .Select(l => new SolicitudLineaCotizacion(l.Codigo.Trim(), l.Cantidad, l.PrecioUnitario, l.Descuento))
+            .ToList();
+
+        var solicitud = new SolicitudCotizacion(_clienteNombre, _clienteDocumento, _telefono, _correo, null,
+            _venceEn is { } vence ? DateOnly.FromDateTime(vence) : null, _observacion, lineas);
+
+        _guardando = true;
+        var respuesta = CotizacionId is { } id
+            ? await Cliente.ActualizarCotizacionAsync(id, solicitud)
+            : await Cliente.CrearCotizacionAsync(solicitud);
+        _guardando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo guardar la cotización.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(CotizacionId is null ? "Cotización creada." : "Cotización actualizada.", Severity.Success);
+        Volver();
+    }
+
+    private async Task AnularAsync(int cotizacionId)
+    {
+        var parametros = new DialogParameters<DialogoMotivo>
+        {
+            { d => d.Mensaje, "La cotización deja de poder facturarse. No se borra: queda para consulta con su motivo." },
+            { d => d.Etiqueta, "Motivo de la anulación" },
+            { d => d.TextoConfirmar, "Anular" },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoMotivo>("Anular la cotización", parametros);
+        if (await referencia.Result is not { Canceled: false, Data: string motivo })
+            return;
+
+        var respuesta = await Cliente.AnularCotizacionAsync(cotizacionId, motivo);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo anular la cotización.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add("Cotización anulada.", Severity.Success);
+        Volver();
+    }
+
+    /// <summary>Descarga el PDF en carta para entregárselo o enviárselo al cliente.</summary>
+    private async Task ImprimirAsync(int cotizacionId)
+    {
+        var archivo = await Cliente.DescargarCotizacionAsync(cotizacionId);
+        if (archivo is not { } generado)
+        {
+            Avisos.Add("No se pudo generar el documento.", Severity.Error);
+            return;
+        }
+
+        await Js.InvokeVoidAsync("cgCentral.descargarArchivo", generado.Nombre, generado.TipoContenido, Convert.ToBase64String(generado.Contenido));
+    }
+
+    /// <summary>Artículos del maestro que coinciden con lo que se escribe: por código interno, barras o descripción.</summary>
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Cliente.BuscarArticulosAsync("manager/cotizaciones", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    /// <summary>Lo ya elegido, para que el buscador muestre el código del artículo de esa línea.</summary>
+    private static ArticuloCarga? BuscadoDe(LineaEnEdicion linea) =>
+        linea.Codigo.Length == 0 ? null : new ArticuloCarga(linea.Codigo, linea.Descripcion, 0, 0, string.Empty, 0m);
+
+    /// <summary>Al elegir el artículo, la línea toma del maestro su código, su descripción y el precio del día.</summary>
+    private static void Elegir(LineaEnEdicion linea, ArticuloCarga? articulo)
+    {
+        linea.Codigo = articulo?.Codigo ?? string.Empty;
+        linea.Descripcion = articulo?.Descripcion ?? string.Empty;
+        linea.PrecioUnitario = articulo?.PrecioDetalle ?? 0m;
+    }
+
+    /// <summary>Fila del formulario mientras se arma la cotización.</summary>
+    private sealed class LineaEnEdicion
+    {
+        public string Codigo { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal Cantidad { get; set; } = 1m;
+        public decimal PrecioUnitario { get; set; }
+        public decimal Descuento { get; set; }
+
+        public decimal Importe => Math.Max(0m, decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero) - Descuento);
+    }
+}
