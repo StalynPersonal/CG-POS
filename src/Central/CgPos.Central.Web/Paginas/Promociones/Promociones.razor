@@ -1,4 +1,4 @@
-@page "/promociones"
+﻿@page "/promociones"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPromociones)]
 @using CgPos.Contratos.Catalogo
 @inject ClienteCentral Cliente
@@ -28,8 +28,8 @@
     <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
             <div class="d-flex gap-4 flex-wrap align-center" style="width: 100%">
-                <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por código o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true" Clearable="true" Style="min-width: 240px" />
+                <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por código o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" DebounceInterval="200" Clearable="true" Style="min-width: 240px" />
                 <MudChipSet T="string" @bind-SelectedValue="_vista" SelectionMode="SelectionMode.SingleSelection" CheckMark="true" Color="Color.Secondary" Variant="Variant.Outlined">
                     <MudChip T="string" Value="@("activas")" Text="Vigentes y programadas" />
                     <MudChip T="string" Value="@("vigentes")" Text="Vigentes" />
@@ -115,6 +115,23 @@
     private bool _cargando = true;
     private bool _error;
 
+    private readonly BuscadorEnMemoria<DatosPromocionCentral> _buscador = new();
+    private HashSet<string> _coincidencias = [];
+    private string? _buscado;
+
+    private void Indexar()
+    {
+        _buscador.Indexar(_promociones, p => $"{p.Promocion.Codigo} {p.Promocion.Nombre}");
+        Filtrar();
+    }
+
+    /// <summary>El filtro por texto se resuelve aquí; el de estado sigue en Filtradas, porque depende de la hora.</summary>
+    private void Filtrar()
+    {
+        _buscado = string.IsNullOrWhiteSpace(_filtro) ? null : _filtro;
+        _coincidencias = _buscado is null ? [] : _buscador.Filtrar(_buscado).Select(p => p.Promocion.Codigo).ToHashSet(StringComparer.Ordinal);
+    }
+
     private IEnumerable<DatosPromocionCentral> Filtradas
     {
         get
@@ -130,9 +147,8 @@
                     (EstadoPromocion.Vencida, "vencidas") => true,
                     _ => false,
                 })
-                .Where(p => string.IsNullOrWhiteSpace(_filtro)
-                            || p.Promocion.Codigo.Contains(_filtro.Trim(), StringComparison.CurrentCultureIgnoreCase)
-                            || p.Promocion.Nombre.Contains(_filtro.Trim(), StringComparison.CurrentCultureIgnoreCase));
+                // El texto buscado se compara sin acentos, así que «navidena» encuentra «Navideña».
+                .Where(p => _buscado is null || _coincidencias.Contains(p.Promocion.Codigo));
         }
     }
 
@@ -162,6 +178,7 @@
         _sucursales = await Cliente.ListarSucursalesPromocionesAsync() ?? [];
         _error = promociones is null;
         _promociones = promociones ?? [];
+        Indexar();
         _cargando = false;
     }
 

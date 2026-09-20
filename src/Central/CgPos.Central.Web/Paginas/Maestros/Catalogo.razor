@@ -32,15 +32,16 @@
 }
 
 <MudPaper Elevation="1">
-    <MudTable T="DatosMaestroCentral<JsonObject>" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
+    <MudTable T="DatosMaestroCentral<JsonObject>" Items="_filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
               Elevation="0" RowsPerPage="10">
         <ToolBarContent>
-            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                          Immediate="true" Clearable="true" />
+            @* La espera de 200 ms evita filtrar entre letra y letra mientras se escribe. *@
+            <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" />
             <MudSpacer />
             @* Cuántos registros tiene el catálogo, y cuántos quedan tras filtrar. *@
             <MudText Typo="Typo.body2" Class="cg-central__detalle">
-                @Filtrados.Count() de @_registros.Count
+                @_filtrados.Count de @_registros.Count
             </MudText>
         </ToolBarContent>
         <HeaderContent>
@@ -110,9 +111,21 @@
 
     private IEnumerable<CampoCatalogo> Columnas => _definicion?.Campos.Where(c => c.EnTabla) ?? [];
 
-    private IEnumerable<DatosMaestroCentral<JsonObject>> Filtrados => string.IsNullOrWhiteSpace(_filtro)
-        ? _registros
-        : _registros.Where(r => Columnas.Any(c => Mostrar(r.Dato, c).Contains(_filtro.Trim(), StringComparison.CurrentCultureIgnoreCase)));
+    private readonly BuscadorEnMemoria<DatosMaestroCentral<JsonObject>> _buscador = new();
+    private List<DatosMaestroCentral<JsonObject>> _filtrados = [];
+
+    /// <summary>
+    /// Arma el texto por el que se busca cada fila. Se hace una vez al cargar y no en cada tecla: convertir el JSON de miles
+    /// de registros mientras se escribe es lo que hacía lento el buscador de las marcas.
+    /// </summary>
+    private void ConstruirIndice()
+    {
+        var columnas = Columnas.ToList();
+        _buscador.Indexar(_registros, r => string.Join(' ', columnas.Select(c => Mostrar(r.Dato, c))));
+        Filtrar();
+    }
+
+    private void Filtrar() => _filtrados = _buscador.Filtrar(_filtro);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -146,6 +159,9 @@
             _sucursales = (await Cliente.ListarSucursalesMaestrosAsync() ?? [])
                 .Select(s => new OpcionCatalogo(s.Codigo, $"{s.Codigo} · {s.Nombre}")).ToList();
 
+        // Los textos de búsqueda se arman después de los catálogos auxiliares, porque algunas columnas los usan
+        // para mostrar su valor (la moneda, el departamento, la sucursal).
+        ConstruirIndice();
         _cargando = false;
     }
 

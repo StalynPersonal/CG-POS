@@ -1450,7 +1450,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             new SolicitudDevolucion(cobrada.Venta!.NumeroTransaccion, [new SolicitudLineaDevolucion(cemento, 3m)], "401007551", "Cliente Devolución", caja.Catalogo.CodigoMotivoDevolucion, null, null)));
         Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, devolucion.Resultado);
         Assert.Contains($"solo quedan 1", devolucion.Mensaje);
-        Assert.Equal(lineaCemento.Cantidad, 3m);
+        Assert.Equal(3m, lineaCemento.Cantidad);
     }
 
     [SkippableFact]

@@ -1,4 +1,4 @@
-@page "/seguridad/usuarios"
+﻿@page "/seguridad/usuarios"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarSeguridad)]
 @inject ClienteCentral Cliente
 @inject IDialogService Dialogos
@@ -23,10 +23,10 @@
 }
 
 <MudPaper Elevation="1">
-    <MudTable T="DatosUsuarioCentral" Items="Filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+    <MudTable T="DatosUsuarioCentral" Items="_filtrados" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
-            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por usuario, nombre, correo o rol" Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Clearable="true" />
+            <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por usuario, nombre, correo o rol" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Usuario</MudTh>
@@ -102,11 +102,16 @@
     private bool _cargando = true;
     private bool _error;
 
-    private IEnumerable<DatosUsuarioCentral> Filtrados => string.IsNullOrWhiteSpace(_filtro)
-        ? _usuarios
-        : _usuarios.Where(u => Contiene(u.Codigo) || Contiene(u.Nombre) || Contiene(u.Correo) || Contiene(u.RolNombre));
+    private readonly BuscadorEnMemoria<DatosUsuarioCentral> _buscador = new();
+    private List<DatosUsuarioCentral> _filtrados = [];
 
-    private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
+    private void Indexar()
+    {
+        _buscador.Indexar(_usuarios, u => $"{u.Codigo} {u.Nombre} {u.Correo} {u.RolNombre}");
+        Filtrar();
+    }
+
+    private void Filtrar() => _filtrados = _buscador.Filtrar(_filtro);
 
     private static bool EstaBloqueado(DatosUsuarioCentral usuario) => usuario.BloqueadoHasta > DateTimeOffset.UtcNow;
 
@@ -138,6 +143,7 @@
         var roles = await Cliente.ListarRolesAsync();
         _error = usuarios is null || roles is null;
         _usuarios = usuarios ?? [];
+        Indexar();
         _roles = roles ?? [];
         _cargando = false;
     }

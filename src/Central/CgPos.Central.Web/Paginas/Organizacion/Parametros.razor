@@ -1,4 +1,4 @@
-@page "/organizacion/parametros"
+﻿@page "/organizacion/parametros"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarOrganizacion)]
 @using CgPos.Dominio.Organizacion
 @inject ClienteCentral Cliente
@@ -32,10 +32,10 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
 }
 
 <MudPaper Elevation="1">
-    <MudTable T="DatosParametro" Items="Filtrados" GroupBy="_porModulo" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+    <MudTable T="DatosParametro" Items="_filtrados" GroupBy="_porModulo" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <ToolBarContent>
-            <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por descripción, módulo, ámbito o valor" Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Clearable="true" />
+            <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por descripción, módulo, ámbito o valor" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200" Clearable="true" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Parámetro</MudTh>
@@ -105,12 +105,19 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
 
     private static bool EsSinConfigurar(DatosParametro parametro) => parametro.Id == 0;
 
-    private IEnumerable<DatosParametro> Filtrados => (string.IsNullOrWhiteSpace(_filtro)
-            ? Filas
-            : Filas.Where(p => Contiene(p.Clave) || Contiene(p.Ambito) || Contiene(p.Valor) || Contiene(Descripcion(p)) || Contiene(Modulo(p))))
-        .OrderBy(Modulo).ThenBy(Descripcion).ThenBy(p => p.Ambito);
+    private readonly BuscadorEnMemoria<DatosParametro> _buscador = new();
+    private List<DatosParametro> _filtrados = [];
 
-    private bool Contiene(string? texto) => texto?.Contains(_filtro!.Trim(), StringComparison.CurrentCultureIgnoreCase) == true;
+    /// <summary>Se rehace cuando cambian los parámetros: al cargar y después de guardar un valor.</summary>
+    private void Indexar()
+    {
+        _buscador.Indexar(
+            Filas.OrderBy(Modulo).ThenBy(Descripcion).ThenBy(p => p.Ambito),
+            p => $"{p.Clave} {p.Ambito} {p.Valor} {Descripcion(p)} {Modulo(p)}");
+        Filtrar();
+    }
+
+    private void Filtrar() => _filtrados = _buscador.Filtrar(_filtro);
 
     protected override Task OnInitializedAsync() => CargarAsync();
 
@@ -124,6 +131,7 @@ else if (!_cargando && ObligatoriosSinConfigurar.ToList() is { Count: > 0 } falt
         _error = parametros is null || catalogo is null || sucursales is null || cajas is null;
         _parametros = parametros ?? [];
         _catalogo = catalogo ?? [];
+        Indexar();
         _sucursales = sucursales ?? [];
         _cajas = cajas ?? [];
         _cargando = false;
