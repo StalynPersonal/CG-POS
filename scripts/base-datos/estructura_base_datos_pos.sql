@@ -1080,6 +1080,7 @@ CREATE TABLE [Ventas] (
     [ClienteNombre] nvarchar(150) NULL,
     [TipoComprobante] int NOT NULL,
     [PorcentajeRetencion] decimal(5,2) NOT NULL,
+    [CertificacionExencion] nvarchar(50) NULL,
     [LimiteCompra] decimal(18,2) NULL,
     [ListaBodaNumero] varchar(20) NULL,
     [ListaBodaEvento] nvarchar(150) NULL,

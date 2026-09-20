@@ -328,6 +328,54 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task La_entidad_del_estado_con_certificacion_factura_sin_itbis()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AsignarClienteAsync(caja.Cajero, venta.Id, caja.Catalogo.RncCliente, null));
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Institución del Estado");
+        var gubernamental = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.Gubernamental, autorizacion));
+        Assert.True(gubernamental.Exitosa, gubernamental.Mensaje);
+
+        // Sin certificación, el gubernamental lleva ITBIS como cualquier otra factura.
+        Assert.False(gubernamental.Venta!.ExentaDeImpuesto);
+        Assert.True(gubernamental.Venta.Totales.Impuesto > 0);
+        var conImpuesto = gubernamental.Venta.Totales;
+
+        // Con la certificación que presenta la entidad, la factura se emite exenta (Norma General 05-19).
+        const string Certificacion = "CE-2026-00815";
+        var exenta = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.RegistrarCertificacionExencionAsync(caja.Cajero, venta.Id, Certificacion));
+        Assert.True(exenta.Exitosa, exenta.Mensaje);
+        Assert.True(exenta.Venta!.ExentaDeImpuesto);
+        Assert.Equal(Certificacion, exenta.Venta.CertificacionExencion);
+        Assert.Equal(0m, exenta.Venta.Totales.Impuesto);
+        Assert.Equal(conImpuesto.Subtotal, exenta.Venta.Totales.Total);
+
+        // Quitarla devuelve la factura a su estado con ITBIS.
+        var revertida = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.RegistrarCertificacionExencionAsync(caja.Cajero, venta.Id, null));
+        Assert.False(revertida.Venta!.ExentaDeImpuesto);
+        Assert.Equal(conImpuesto.Total, revertida.Venta.Totales.Total);
+
+        // Y en un comprobante que no es gubernamental no se puede registrar.
+        var autorizacionConsumo = await caja.AutorizarAsync(CatalogoPermisos.CambiarComprobante, "Vuelve a consumo");
+        var consumo = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.CambiarComprobanteAsync(caja.Cajero, venta.Id, TipoComprobante.FacturaConsumo, autorizacionConsumo));
+        Assert.True(consumo.Exitosa, consumo.Mensaje);
+
+        var rechazada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.RegistrarCertificacionExencionAsync(caja.Cajero, venta.Id, Certificacion));
+        Assert.False(rechazada.Exitosa);
+        Assert.Contains("gubernamental", rechazada.Mensaje, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [SkippableFact]
     public async Task La_retencion_de_la_ley_32_23_solo_aplica_a_lo_gubernamental_y_baja_lo_que_paga_el_cliente()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

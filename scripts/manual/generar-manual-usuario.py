@@ -653,12 +653,15 @@ tabla(['Comprobante', 'Cuándo se usa'],
       [['E32 – Consumo', 'Cliente común. Desde el monto configurado (RD$250,000 por defecto) exige cédula o RNC.'],
        ['E31 – Crédito fiscal', 'Empresa que necesita el ITBIS. Exige RNC o cédula.'],
        ['E44 – Régimen especial', 'Zonas francas, diplomáticos y demás acogidos a un régimen especial, que deben presentar su carné o certificación de exención de la DGII. La factura va SIN ITBIS.'],
-       ['E45 – Gubernamental', 'Instituciones del Estado. Exige RNC. Lleva ITBIS normal.']],
+       ['E45 – Gubernamental', 'Instituciones del Estado. Exige RNC. Lleva ITBIS, salvo que la entidad presente su certificación de exención.']],
       anchos=[5.0, 12.0])
 p('Factura exenta (E44): al elegir este comprobante, toda la factura pasa a ser exenta de ITBIS, tengan o no impuesto los '
   'artículos. Los precios bajan a su base, así que el cliente paga menos: un artículo de RD$118 se cobra a RD$100. La '
   'pantalla, la pantalla del cliente y el ticket lo indican con “EXENTA DE ITBIS – RÉGIMEN ESPECIAL”. Si el bien que se '
   'vende no está exento para ese cliente, no se usa el E44: se le factura con E31.')
+p('Entidad del Estado con exención (E45): si la institución presenta su certificación de exención de ITBIS, digite el número '
+  'en el diálogo del cliente y toque “Aplicar exención”. La factura pasa a ser exenta y el ticket lo indica con el número de '
+  'la certificación. Si no la presenta, la factura lleva su ITBIS normal.')
 p('Retención de la Ley 32-23: en las facturas E45, si el negocio configuró el porcentaje, el sistema lo calcula sobre el '
   'subtotal ya con descuentos y se lo descuenta a lo que el cliente paga en caja. La factura mantiene su total; el ticket '
   'muestra “RETENCIÓN LEY 32-23” y “TOTAL A PAGAR”. Normalmente va en cero: quien factura electrónicamente está exento de '

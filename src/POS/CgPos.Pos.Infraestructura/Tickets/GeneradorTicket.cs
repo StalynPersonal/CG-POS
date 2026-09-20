@@ -120,10 +120,13 @@ internal static class GeneradorTicket
         foreach (var tasa in venta.Totales.Desglose.Where(d => d.Impuesto > 0))
             Importe($"ITBIS {tasa.Porcentaje.ToString("0.##", cultura)}%", tasa.Impuesto);
 
-        // Régimen especial (E44): la factura va sin ITBIS y el ticket tiene que decirlo.
+        // La factura va sin ITBIS y el ticket tiene que decirlo, con el motivo: el régimen especial o la certificación.
         if (venta.ExentaDeImpuesto)
         {
-            foreach (var parte in Envolver("EXENTA DE ITBIS - REGIMEN ESPECIAL"))
+            var motivo = venta.CertificacionExencion is { Length: > 0 } certificacion
+                ? $"EXENTA DE ITBIS - CERTIFICACION {certificacion}"
+                : "EXENTA DE ITBIS - REGIMEN ESPECIAL";
+            foreach (var parte in Envolver(motivo))
                 Agregar(parte, Estilo.Negrita);
         }
         if (venta.Totales.Descuento > 0)

@@ -48,6 +48,7 @@ internal sealed class VentaConfiguracion : IEntityTypeConfiguration<Venta>
         constructor.Property(v => v.ClienteNombre).HasMaxLength(Venta.LargoMaximoNombreCliente);
         constructor.Property(v => v.LimiteCompra).HasPrecision(18, 2);
         constructor.Property(v => v.PorcentajeRetencion).HasPrecision(5, 2);
+        constructor.Property(v => v.CertificacionExencion).HasMaxLength(Venta.LargoMaximoCertificacion);
         constructor.Property(v => v.ListaBodaNumero).HasMaxLength(CgPos.Dominio.ListasBoda.ListaBoda.LargoMaximoNumero).IsUnicode(false);
         constructor.Property(v => v.ListaBodaEvento).HasMaxLength(CgPos.Dominio.ListasBoda.ListaBoda.LargoMaximoNombre);
         constructor.Property(v => v.DescuentoFacturaLineas).HasMaxLength(2000).IsUnicode(false);

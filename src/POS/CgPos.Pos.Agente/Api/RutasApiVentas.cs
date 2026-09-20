@@ -86,6 +86,11 @@ public static class RutasApiVentas
         ventas.MapPut("/{ventaId:int}/comprobante", (int ventaId, SolicitudCambiarComprobante solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.CambiarComprobanteAsync(sesion, ventaId, solicitud.TipoComprobante, solicitud.AutorizacionId, cancelacion))));
 
+        // Exención de ITBIS de una entidad del Estado (E45): se guarda el número de su certificación.
+        ventas.MapPut("/{ventaId:int}/certificacion-exencion", (int ventaId, SolicitudCertificacionExencion solicitud, ClaimsPrincipal usuario,
+                IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.RegistrarCertificacionExencionAsync(sesion, ventaId, solicitud.Certificacion, cancelacion))));
+
         // Lista de boda (RF-73): se consulta en el Central, así que esta ruta necesita conexión.
         ventas.MapPut("/{ventaId:int}/lista-boda", (int ventaId, SolicitudListaBodaVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio,
                 CancellationToken cancelacion) =>

@@ -40,6 +40,24 @@
                 }
             </div>
 
+            @* Gubernamental (E45): con la certificación de exención que presente la entidad, la factura va sin ITBIS. *@
+            @if (_venta.TipoComprobante == TipoComprobante.Gubernamental)
+            {
+                <div class="cg-cliente__exencion">
+                    <MudTextField T="string" @bind-Value="_certificacion" Label="Certificación de exención de ITBIS (opcional)" Variant="Variant.Outlined"
+                                  MaxLength="50" Immediate="true" Disabled="_procesando"
+                                  HelperText="Número del documento que presentó la entidad. Con él, la factura se emite exenta." />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_procesando" OnClick="GuardarCertificacionAsync"
+                               Style="min-height: var(--cg-toque-minimo)">
+                        @(_venta.ExentaDeImpuesto ? "Actualizar" : "Aplicar exención")
+                    </MudButton>
+                    @if (_venta.ExentaDeImpuesto)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_procesando" OnClick="QuitarCertificacionAsync">Quitar</MudButton>
+                    }
+                </div>
+            }
+
             <div class="cg-cliente__campos">
                 <div @onclick="() => _campo = Campo.Documento" @onfocusin="() => _campo = Campo.Documento">
                     <MudTextField T="string" @bind-Value="_documento" Label="RNC o cédula" Variant="Variant.Outlined" Immediate="true"
@@ -146,6 +164,7 @@
     private bool _inscribir;
     private bool _procesando;
     private Campo _campo = Campo.Documento;
+    private string? _certificacion;
 
     private string? _documento { get => _valores.GetValueOrDefault(Campo.Documento); set => _valores[Campo.Documento] = value; }
     private string? _nombre { get => _valores.GetValueOrDefault(Campo.Nombre); set => _valores[Campo.Nombre] = value; }
@@ -157,6 +176,7 @@
     protected override async Task OnInitializedAsync()
     {
         _venta = Venta;
+        _certificacion = _venta.CertificacionExencion;
         await CargarMiembroAsync();
     }
 
@@ -243,6 +263,15 @@
             autorizacion => Cliente.CambiarComprobanteAsync(_venta.Id, tipo, autorizacion),
             $"Cambiar el comprobante a {ReglasComprobante.Nombre(tipo)}",
             _venta.NumeroTransaccion));
+    }
+
+    private Task GuardarCertificacionAsync() =>
+        EjecutarAsync(() => Cliente.RegistrarCertificacionExencionAsync(_venta.Id, _certificacion)!);
+
+    private Task QuitarCertificacionAsync()
+    {
+        _certificacion = null;
+        return EjecutarAsync(() => Cliente.RegistrarCertificacionExencionAsync(_venta.Id, null)!);
     }
 
     private async Task CargarMiembroAsync() =>

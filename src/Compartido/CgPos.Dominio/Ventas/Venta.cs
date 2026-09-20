@@ -153,6 +153,7 @@ public static class ReglasComprobante
 public sealed class Venta : Entidad
 {
     public const int LargoMaximoNumero = 40;
+    public const int LargoMaximoCertificacion = 50;
     public const int LargoMaximoMotivo = 500;
     public const int LargoMaximoUsuario = 150;
     public const int LargoMaximoNombreCliente = 150;
@@ -200,6 +201,12 @@ public sealed class Venta : Entidad
     /// porcentaje configurado en el Central. Se calcula sobre el subtotal con descuentos y se descuenta de lo que el cliente paga.
     /// </summary>
     public decimal PorcentajeRetencion { get; private set; }
+
+    /// <summary>
+    /// Número de la certificación de exención de ITBIS que presentó una entidad del Estado (E45). Con ella la factura va
+    /// exenta; sin ella, el gubernamental lleva ITBIS como cualquier otra.
+    /// </summary>
+    public string? CertificacionExencion { get; private set; }
 
     /// <summary>Monto tope que pidió el cliente; se avisa al superarlo (RF-18).</summary>
     public decimal? LimiteCompra { get; private set; }
@@ -585,7 +592,12 @@ public sealed class Venta : Entidad
 
         TipoComprobante = tipo;
         if (tipo != TipoComprobante.Gubernamental)
+        {
             PorcentajeRetencion = 0m;
+
+            // La certificación es de la entidad del Estado: cambiando de comprobante deja de tener sentido.
+            CertificacionExencion = null;
+        }
 
         AplicarExencionDelComprobante();
         ActualizadaEn = ahora;
@@ -608,6 +620,28 @@ public sealed class Venta : Entidad
 
         // El descuento de factura se reparte sobre los importes nuevos.
         ProrratearDescuentoFactura();
+    }
+
+    /// <summary>
+    /// Registra la certificación de exención de ITBIS de una entidad del Estado, o la quita con un número vacío. Con ella,
+    /// la factura gubernamental se emite exenta, igual que la de régimen especial.
+    /// </summary>
+    /// <exception cref="ReglaVentaExcepcion">La venta no es gubernamental.</exception>
+    public void RegistrarCertificacionExencion(string? certificacion, DateTimeOffset ahora)
+    {
+        AsegurarEditable();
+
+        var limpia = string.IsNullOrWhiteSpace(certificacion) ? null : certificacion.Trim();
+        if (limpia is not null && TipoComprobante != TipoComprobante.Gubernamental)
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.ComprobanteNoPermitido,
+                "La certificación de exención solo va en una factura gubernamental (E45).");
+
+        if (limpia == CertificacionExencion)
+            return;
+
+        CertificacionExencion = limpia is null ? null : Validar.Texto(limpia, "Certificación de exención", LargoMaximoCertificacion);
+        AplicarExencionDelComprobante();
+        ActualizadaEn = ahora;
     }
 
     /// <summary>
@@ -1031,8 +1065,13 @@ public sealed class Venta : Entidad
 
     public bool TieneLineasActivas => _lineas.Any(l => l.EstaActiva);
 
-    /// <summary>La factura va sin ITBIS por ser de régimen especial (E44).</summary>
-    public bool ExentaDeImpuesto => TipoComprobante == TipoComprobante.RegimenesEspeciales;
+    /// <summary>
+    /// La factura va sin ITBIS: siempre en régimen especial (E44), y en gubernamental (E45) solo cuando la entidad presentó
+    /// su certificación de exención, que es lo que pide la Norma General 05-19.
+    /// </summary>
+    public bool ExentaDeImpuesto =>
+        TipoComprobante == TipoComprobante.RegimenesEspeciales
+        || (TipoComprobante == TipoComprobante.Gubernamental && CertificacionExencion is not null);
 
     /// <summary>
     /// Totales con ITBIS incluido en los precios: por línea se redondea el importe a 2 decimales y se separa la base,

@@ -127,8 +127,10 @@ public sealed record DatosVenta(
     DatosFidelidadVenta? Fidelidad = null,
     IReadOnlyList<DatosDestinoEntrega>? DestinosEntrega = null,
     DatosListaBodaVenta? ListaBoda = null,
-    /// <summary>La factura va sin ITBIS por ser de régimen especial (E44).</summary>
-    bool ExentaDeImpuesto = false);
+    /// <summary>La factura va sin ITBIS: régimen especial (E44), o gubernamental con certificación de exención.</summary>
+    bool ExentaDeImpuesto = false,
+    /// <summary>Certificación de exención que presentó la entidad del Estado, si la hay.</summary>
+    string? CertificacionExencion = null);
 
 /// <summary>Lista de boda del Central contra la que se está comprando (RF-73).</summary>
 public sealed record DatosListaBodaVenta(string Numero, string Evento);
@@ -176,6 +178,9 @@ public sealed record SolicitudEliminarPorCodigo(string Codigo, Guid? Autorizacio
 public sealed record SolicitudAsignarCliente(string Documento, string? Nombre = null);
 
 public sealed record SolicitudCambiarComprobante(TipoComprobante TipoComprobante, Guid? AutorizacionId = null);
+
+/// <summary>Certificación de exención de ITBIS de una entidad del Estado (E45); vacía la quita y la factura vuelve a llevar ITBIS.</summary>
+public sealed record SolicitudCertificacionExencion(string? Certificacion);
 
 /// <param name="Limite">Nulo para quitar el límite.</param>
 public sealed record SolicitudLimiteCompra(decimal? Limite);

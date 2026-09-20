@@ -531,6 +531,8 @@
 .cg-cliente__comprobante:disabled { opacity: .6; cursor: wait; }
 .cg-cliente__codigo-ecf { font-size: 1.2rem; font-weight: 800; }
 .cg-cliente__campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: center; }
+/* Certificación de exención de una entidad del Estado: el número y los botones en una fila. */
+.cg-cliente__exencion { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .cg-cliente .cg-teclado__tecla { min-height: 50px; font-size: 1.3rem; }
 .cg-venta__numero { font-size: 1.9rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 

@@ -111,7 +111,8 @@ internal static class ConversionesVenta
             fidelidad,
             venta.DestinosEntrega.Count == 0 ? null : venta.DestinosEntrega.OrderBy(d => d.Numero).Select(d => d.ADatos()).ToList(),
             venta.ListaBodaNumero is { } numeroLista ? new DatosListaBodaVenta(numeroLista, venta.ListaBodaEvento ?? string.Empty) : null,
-            venta.ExentaDeImpuesto);
+            venta.ExentaDeImpuesto,
+            venta.CertificacionExencion);
     }
 
     public static ArticuloParaVenta AArticuloParaVenta(this DatosArticuloVenta datos) =>
@@ -1072,6 +1073,31 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.QuitarFidelidad(reloj.Ahora()), cancelacion);
     }
 
+    public async Task<RespuestaVenta> RegistrarCertificacionExencionAsync(SesionUsuario sesion, int ventaId, string? certificacion,
+        CancellationToken cancelacion = default)
+    {
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        if (rechazo is not null)
+            return rechazo;
+
+        try
+        {
+            venta!.RegistrarCertificacionExencion(certificacion, reloj.Ahora());
+        }
+        catch (ReglaVentaExcepcion excepcion)
+        {
+            return new RespuestaVenta(excepcion.Codigo.ACodigoResultado(), excepcion.Message, Datos(venta!));
+        }
+
+        return await EjecutarAsync(venta!, () =>
+        {
+            // Queda quién dijo que la entidad presentó su certificación: es lo que sustenta facturar sin ITBIS.
+            auditoria.Registrar(new EntradaAuditoria("Ventas.CertificacionExencion", TipoEntidadVenta, venta!.NumeroTransaccion,
+                Detalle: new { venta.CertificacionExencion, venta.ClienteDocumento, venta.ExentaDeImpuesto },
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        }, cancelacion);
+    }
+
     public async Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, int ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default)
     {
         var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
@@ -1101,7 +1127,7 @@ internal sealed class ServicioVentas(
         {
             venta.CambiarComprobante(tipo, reloj.Ahora());
 
-            // Régimen especial: la retención de la Ley 32-23 se descuenta de lo que paga el cliente (queda en la factura).
+            // Gubernamental: la retención de la Ley 32-23 se descuenta de lo que paga el cliente (queda en la factura).
             venta.AplicarRetencionLey(porcentajeRetencion, reloj.Ahora());
             auditoria.Registrar(new EntradaAuditoria("Ventas.ComprobanteCambiado", TipoEntidadVenta, venta.NumeroTransaccion,
                 Detalle: new { Anterior = anterior, Nuevo = tipo, venta.ClienteDocumento },

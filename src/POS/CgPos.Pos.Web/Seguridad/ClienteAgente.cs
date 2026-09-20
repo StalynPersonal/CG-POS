@@ -192,6 +192,9 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaFidelidad> InscribirFidelidadAsync(SolicitudInscripcionFidelidad solicitud, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/fidelidad/miembros", solicitud, mensaje => new RespuestaFidelidad(CodigoResultadoFidelidad.DatosInvalidos, mensaje, null), cancelacion);
 
+    public Task<RespuestaVenta> RegistrarCertificacionExencionAsync(int ventaId, string? certificacion, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/certificacion-exencion", new SolicitudCertificacionExencion(certificacion), ErrorVenta, cancelacion);
+
     public Task<RespuestaVenta> CambiarComprobanteAsync(int ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/comprobante", new SolicitudCambiarComprobante(tipo, autorizacionId), ErrorVenta, cancelacion);
 

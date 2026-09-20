@@ -66,6 +66,12 @@ public interface IServicioVentas
     /// <summary>Cambiar el comprobante a mano requiere permiso (RF-108, RF-127).</summary>
     Task<RespuestaVenta> CambiarComprobanteAsync(SesionUsuario sesion, int ventaId, TipoComprobante tipo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
+    /// <summary>
+    /// Registra la certificación de exención de ITBIS que presentó una entidad del Estado (E45), o la quita con un valor
+    /// vacío. Con ella la factura gubernamental se emite exenta (Norma General 05-19).
+    /// </summary>
+    Task<RespuestaVenta> RegistrarCertificacionExencionAsync(SesionUsuario sesion, int ventaId, string? certificacion, CancellationToken cancelacion = default);
+
     Task<RespuestaVenta> EstablecerLimiteCompraAsync(SesionUsuario sesion, int ventaId, decimal? limite, CancellationToken cancelacion = default);
 
     /// <summary>
