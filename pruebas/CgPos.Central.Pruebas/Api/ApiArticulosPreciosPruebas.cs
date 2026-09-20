@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Catalogo;
@@ -37,6 +37,17 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
         var porDescripcion = await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/precios/articulos?buscar={Uri.EscapeDataString($"prueba {sufijo.ToLowerInvariant()}")}");
         Assert.Contains(porDescripcion.Elementos, e => e.Dato.Codigo == articulo.Codigo);
         Assert.Equal(0, (await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, "/api/maestros/articulos?buscar=preciodetalle")).Total);
+
+        // Los códigos se buscan completos: un pedazo del código interno o del de barras no trae el artículo, porque buscar
+        // «040100» devolvía cientos de artículos que solo empiezan igual. La descripción sí sigue encontrándose por parecido.
+        Assert.DoesNotContain(
+            (await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={articulo.Codigo[..4]}")).Elementos,
+            e => e.Dato.Codigo == articulo.Codigo);
+        Assert.DoesNotContain(
+            (await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={barras[..6]}")).Elementos,
+            e => e.Dato.Codigo == articulo.Codigo);
+        Assert.Equal(articulo.Codigo,
+            Assert.Single((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={articulo.Codigo}")).Elementos).Dato.Codigo);
 
         // Desde maestros no se cambian los precios; un código ya usado no se vuelve a crear y un código de barras es de un solo artículo.
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/articulos", articulo with { Descripcion = "Jabón renombrado", PrecioDetalle = 1m })).Cuerpo!.Exitosa);

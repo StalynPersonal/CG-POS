@@ -305,8 +305,10 @@ internal static class TablasMaestros
                 entrada.Property(ArticuloConfiguracion.PreciosVigentesDesde).CurrentValue = d.PreciosVigentesDesde ?? o.Ahora;
             }
         },
-        filtro: texto => e => e.Codigo.Contains(texto) || e.Descripcion.Contains(texto) || (e.Referencia != null && e.Referencia.Contains(texto))
-                              || e.Codigos.Any(c => c.Codigo.Contains(texto)));
+        // Los códigos se comparan completos: un código interno o de barras es el artículo o no lo es, y buscar por parecido
+        // devuelve cientos de familias enteras (digitar 040100 traía todo lo que empieza así). La descripción sí va por parecido.
+        filtro: texto => e => e.Codigo == texto || e.Descripcion.Contains(texto) || e.Referencia == texto
+                              || e.Codigos.Any(c => c.Codigo == texto));
 
     public static TablaMaestro<Cliente, ClienteCarga> Clientes { get; } = new(
         TipoMaestro.Cliente, c => c.Clientes,

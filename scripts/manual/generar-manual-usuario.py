@@ -244,6 +244,9 @@ tabla(['Opción', 'Ruta', 'Para qué sirve'],
        ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
        ['Clientes', '/clientes', 'Clientes con su contacto, sus dos teléfonos, su comprobante habitual, exoneraciones y direcciones de envío.']],
       anchos=[3.8, 4.4, 8.8])
+nota('Al buscar un artículo, el código interno, el de barras y el de proveedor se buscan completos: se escribe el '
+     'código entero o no aparece. Solo la descripción se busca por parecido. Es a propósito: buscar «040100» por '
+     'pedazos devolvía cientos de artículos que solo empiezan igual.')
 
 titulo('2.5.1. Cargar los clientes desde el archivo de la DGII', 3)
 p('La DGII publica un archivo con todos los contribuyentes registrados del país (DGII_RNC.TXT). Ese archivo se puede cargar '
