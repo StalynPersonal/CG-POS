@@ -23,7 +23,7 @@
 }
 else if (_venta is null)
 {
-    <PanelAperturaTurno Estado="_estadoTurno" Mensaje="_mensaje" Procesando="_procesando"
+    <PanelAperturaTurno Estado="_estadoTurno" Mensaje="@_mensaje" Procesando="_procesando"
                         NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
                         AlAbrir="AbrirTurnoAsync" AlReintentar="CargarAsync" AlSalir="SalirAsync" AlRelevar="RelevarTurnoAsync" AlReabrir="ReabrirUltimoCierreAsync" />
 }
