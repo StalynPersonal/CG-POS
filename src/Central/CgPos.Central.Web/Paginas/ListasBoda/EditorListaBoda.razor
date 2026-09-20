@@ -1,0 +1,242 @@
+@page "/listas-boda/nueva"
+@page "/listas-boda/{ListaBodaId:int}"
+@attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarListasBoda)]
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.ListasBoda
+@inject ClienteCentral Cliente
+@inject ISnackbar Avisos
+@inject NavigationManager Navegacion
+
+<PageTitle>@(ListaBodaId is null ? "Nueva lista" : "Lista de boda") · CG-POS Central</PageTitle>
+
+@* Encabezado: de qué lista se trata y cómo volver al listado sin guardar. *@
+<div class="cg-central__encabezado">
+    <div>
+        <MudText Typo="Typo.h4" Class="cg-central__titulo">
+            @(ListaBodaId is null ? "Nueva lista" : $"Lista {_lista?.Numero}")
+        </MudText>
+        <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+            Los artículos que se pidan aquí son los que la caja va a cobrar cuando el cliente dé el número de la lista (F6).
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Volver">Volver al listado</MudButton>
+</div>
+
+@if (_noExiste)
+{
+    <MudAlert Severity="Severity.Error">No se encontró la lista.</MudAlert>
+}
+else if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_lista is { } lista)
+{
+    @* Formulario de la lista: datos del cliente, del evento y los artículos pedidos. *@
+    <MudPaper Elevation="1" Class="pa-4">
+        @* Datos de los festejados y del evento. *@
+        <div class="d-flex gap-3 flex-wrap">
+            <MudTextField @bind-Value="_evento" Label="Evento (ej. Boda de Ana y Luis)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Style="min-width: 320px" />
+            <MudDatePicker @bind-Date="_fechaEvento" Label="Fecha del evento" Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-central__filtro-fecha" />
+            <MudTextField @bind-Value="_lugar" Label="Lugar (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 260px" />
+        </div>
+
+        @* Datos de contacto del cliente que crea la lista. *@
+        <div class="d-flex gap-3 flex-wrap mt-3">
+            <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 220px" />
+            <MudTextField @bind-Value="_clienteNombre" Label="Nombre del cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 280px" />
+            <MudTextField @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px" />
+            <MudTextField @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 240px" />
+        </div>
+
+        <MudTextField @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+        @* Artículos pedidos: se eligen del maestro buscando por su código interno o su descripción; lo comprado se muestra al editar. *@
+        <div class="mt-4">
+            <MudText Typo="Typo.subtitle1">Artículos pedidos</MudText>
+            <MudTable T="ArticuloEnEdicion" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh Style="width: 200px">Código</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh Style="width: 130px">Cantidad</MudTh>
+                    <MudTh Style="width: 120px">Comprado</MudTh>
+                    <MudTh Style="width: 60px"></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudAutocomplete T="ArticuloCarga" Value="@BuscadoDe(context)" ValueChanged="@(articulo => Elegir(context, articulo))"
+                                         SearchFunc="BuscarArticulosAsync" ToStringFunc="@(a => a?.Codigo ?? string.Empty)" Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" ResetValueOnEmptyText="false" CoerceText="true" Placeholder="Código o descripción"
+                                         MinCharacters="2" MaxItems="20" />
+                    </MudTd>
+                    <MudTd>@context.Descripcion</MudTd>
+                    <MudTd><MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" /></MudTd>
+                    <MudTd>@context.Comprado.ToString("0.###")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => _articulos.Remove(context)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" OnClick="() => _articulos.Add(new ArticuloEnEdicion())">
+                Agregar artículo
+            </MudButton>
+        </div>
+
+        @if (lista.Compras is { Count: > 0 } compras)
+        {
+            @* Facturas que las cajas cobraron contra esta lista. *@
+            <div class="mt-4">
+                <MudText Typo="Typo.subtitle1">Compras registradas</MudText>
+                <MudSimpleTable Dense="true" Elevation="0">
+                    <tbody>
+                        @foreach (var compra in compras)
+                        {
+                            <tr>
+                                <td>@compra.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@compra.VentaNumero</td>
+                                <td>Caja @compra.CajaCodigo</td>
+                                <td style="text-align: right">@compra.Monto.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </div>
+        }
+    </MudPaper>
+
+    @* Las acciones van abajo, donde termina el formulario. *@
+    <div class="d-flex justify-end gap-2 mt-4">
+        @if (ListaBodaId is { } id)
+        {
+            <MudButton OnClick="() => CambiarEstadoAsync(id, lista.Estado == EstadoListaBoda.Abierta)">
+                @(lista.Estado == EstadoListaBoda.Abierta ? "Cerrar lista" : "Reabrir lista")
+            </MudButton>
+        }
+        <MudButton OnClick="Volver">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando" OnClick="GuardarAsync">Guardar</MudButton>
+    </div>
+}
+
+@code {
+    /// <summary>Viene de la ruta: sin él la pantalla arranca en blanco para una lista nueva.</summary>
+    [Parameter]
+    public int? ListaBodaId { get; set; }
+
+    private DatosListaBoda? _lista;
+    private bool _cargando = true;
+    private bool _noExiste;
+    private bool _guardando;
+
+    private string _evento = string.Empty;
+    private DateTime? _fechaEvento = DateTime.Today;
+    private string? _lugar;
+    private string _clienteDocumento = string.Empty;
+    private string _clienteNombre = string.Empty;
+    private string? _telefono;
+    private string? _correo;
+    private string? _observacion;
+    private readonly List<ArticuloEnEdicion> _articulos = [];
+
+    /// <summary>Se ejecuta también al pasar de una lista a otra sin salir de la pantalla.</summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        _cargando = true;
+        _noExiste = false;
+
+        var lista = ListaBodaId is { } id ? await Cliente.ObtenerListaBodaAsync(id) : Vacia();
+        _cargando = false;
+
+        if (lista is null)
+        {
+            _noExiste = true;
+            _lista = null;
+            return;
+        }
+
+        _lista = lista;
+        _evento = lista.Evento;
+        _fechaEvento = lista.FechaEvento.ToDateTime(TimeOnly.MinValue);
+        _lugar = lista.Lugar;
+        _clienteDocumento = lista.ClienteDocumento;
+        _clienteNombre = lista.ClienteNombre;
+        _telefono = lista.ClienteTelefono;
+        _correo = lista.ClienteCorreo;
+        _observacion = lista.Observacion;
+
+        _articulos.Clear();
+        foreach (var articulo in lista.Articulos)
+            _articulos.Add(new ArticuloEnEdicion { Codigo = articulo.ArticuloCodigo, Descripcion = articulo.Descripcion, Cantidad = articulo.Cantidad, Comprado = articulo.Comprado });
+
+        if (_articulos.Count == 0)
+            _articulos.Add(new ArticuloEnEdicion());
+    }
+
+    /// <summary>La lista en blanco con la que arranca el formulario cuando todavía no existe.</summary>
+    private static DatosListaBoda Vacia() => new(0, string.Empty, string.Empty, DateOnly.FromDateTime(DateTime.Today), null, string.Empty, string.Empty,
+        null, null, null, null, null, EstadoListaBoda.Abierta, 0m, DateTimeOffset.Now, [], []);
+
+    private void Volver() => Navegacion.NavigateTo("listas-boda");
+
+    private async Task GuardarAsync()
+    {
+        var articulos = _articulos
+            .Where(a => !string.IsNullOrWhiteSpace(a.Codigo) && a.Cantidad > 0)
+            .Select(a => new SolicitudArticuloListaBoda(a.Codigo.Trim(), string.IsNullOrWhiteSpace(a.Descripcion) ? a.Codigo.Trim() : a.Descripcion.Trim(), a.Cantidad))
+            .ToList();
+
+        var solicitud = new SolicitudListaBoda(null, _evento, DateOnly.FromDateTime(_fechaEvento ?? DateTime.Today), _lugar, _clienteDocumento, _clienteNombre,
+            _telefono, _correo, null, _observacion, articulos);
+
+        _guardando = true;
+        var respuesta = ListaBodaId is { } id
+            ? await Cliente.ActualizarListaBodaAsync(id, solicitud)
+            : await Cliente.CrearListaBodaAsync(solicitud);
+        _guardando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo guardar la lista.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(ListaBodaId is null ? "Lista creada." : "Lista actualizada.", Severity.Success);
+        Volver();
+    }
+
+    private async Task CambiarEstadoAsync(int listaBodaId, bool cerrar)
+    {
+        var respuesta = await Cliente.CambiarEstadoListaBodaAsync(listaBodaId, cerrar);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo cambiar el estado.", Severity.Error);
+            return;
+        }
+
+        Volver();
+    }
+
+    /// <summary>Artículos del maestro que coinciden con lo que se escribe: se busca por código interno o por descripción.</summary>
+    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
+        (await Cliente.BuscarArticulosAsync("manager/listas-boda", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
+
+    /// <summary>Lo ya elegido, para que el buscador muestre el código del artículo de esa línea.</summary>
+    private static ArticuloCarga? BuscadoDe(ArticuloEnEdicion linea) =>
+        linea.Codigo.Length == 0 ? null : new ArticuloCarga(linea.Codigo, linea.Descripcion, 0, 0, string.Empty, 0m);
+
+    /// <summary>Al elegir el artículo, la línea toma su código y su descripción del maestro: no se digitan a mano.</summary>
+    private static void Elegir(ArticuloEnEdicion linea, ArticuloCarga? articulo)
+    {
+        linea.Codigo = articulo?.Codigo ?? string.Empty;
+        linea.Descripcion = articulo?.Descripcion ?? string.Empty;
+    }
+
+    /// <summary>Fila del formulario de artículos, mientras se edita.</summary>
+    private sealed class ArticuloEnEdicion
+    {
+        public string Codigo { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal Cantidad { get; set; } = 1m;
+        public decimal Comprado { get; init; }
+    }
+}

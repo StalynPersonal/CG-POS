@@ -491,6 +491,19 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    /// <summary>Una sola lista con sus artículos y sus compras, para la pantalla que la edita.</summary>
+    public async Task<DatosListaBoda?> ObtenerListaBodaAsync(int listaBodaId, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosListaBoda>($"api/manager/listas-boda/{listaBodaId}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
     public Task<RespuestaAdministracion> CrearListaBodaAsync(SolicitudListaBoda solicitud) =>
         EnviarAsync(HttpMethod.Post, "api/manager/listas-boda", solicitud);
 

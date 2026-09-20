@@ -480,12 +480,16 @@ p('Ruta: /notas-credito. Todas las notas emitidas por cualquier caja, con su sal
 
 titulo('2.12. Listas de boda y de regalos', 2)
 p('Ruta: /listas-boda.')
-paso('Nueva lista: datos de los festejados (cédula o RNC, teléfono, correo), del evento (nombre, fecha, lugar) y los artículos '
-     'pedidos con su cantidad. Los artículos se buscan por su código interno o su descripción y se eligen del maestro: no se '
-     'escriben a mano, para que lo pedido sea exactamente lo que la caja cobra.')
+paso('Para hacer una nueva, use «Nueva lista» del menú o el botón del listado: se abre una pantalla completa, no una '
+     'ventanita.')
+paso('Escriba los datos de los festejados (cédula o RNC, teléfono, correo), los del evento (nombre, fecha, lugar) y los '
+     'artículos pedidos con su cantidad. Los artículos se buscan por su código interno o su descripción y se eligen del '
+     'maestro: no se escriben a mano, para que lo pedido sea exactamente lo que la caja cobra.')
 paso('El Central le asigna un número (por ejemplo LB000001): ese es el número que el cliente da en la caja.')
 paso('A medida que la gente compra, la lista muestra lo comprado, lo que falta y las facturas registradas.')
 paso('Cuando pasa el evento, la lista se cierra (y se puede reabrir si hace falta).')
+p('El listado queda solo para buscar: escriba el número, el evento, el cliente o su documento, o filtre por estado. Al tocar '
+  'una fila se abre esa lista en su pantalla, con lo comprado y las facturas registradas.')
 
 titulo('2.13. Cotizaciones', 2)
 p('Ruta: /cotizaciones. Es el presupuesto que se le arma a un cliente desde cualquier computadora con navegador: no hace '

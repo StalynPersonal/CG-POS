@@ -88,7 +88,8 @@
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarListasBoda">
                 <MudNavGroup Title="Listas de boda" Icon="@Icons.Material.Filled.Favorite" Expanded="@EnRuta("listas-boda")">
-                    <MudNavLink Href="listas-boda" Icon="@Icons.Material.Filled.CardGiftcard">Listas de regalos</MudNavLink>
+                    <MudNavLink Href="listas-boda/nueva" Icon="@Icons.Material.Filled.Add" Match="NavLinkMatch.All">Nueva lista</MudNavLink>
+                    <MudNavLink Href="listas-boda" Icon="@Icons.Material.Filled.CardGiftcard" Match="NavLinkMatch.All">Listas de regalos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFidelidad">
