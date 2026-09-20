@@ -51,12 +51,13 @@ public sealed record DatosOrigenFactura(bool DelCentral, string SucursalCodigo, 
 
 public sealed record SolicitudLineaDevolucion(int NumeroLinea, decimal Cantidad, string? Serial = null);
 
+/// <param name="FacturaNumero">Factura que se devuelve, tal como la entregó el Central: es lo único que la identifica en toda la empresa.</param>
 /// <param name="ClienteDocumento">Obligatorio si la factura no tiene cliente (RF-160).</param>
 /// <param name="Reembolso">Cómo se le devuelve el dinero (RF-123); por omisión queda como saldo en la nota de crédito.</param>
 /// <param name="ReembolsoReferencia">Operación del terminal para la tarjeta o número del cheque.</param>
 /// <param name="ReembolsoDetalle">Banco del cheque, tarjeta o quien recibe el efectivo.</param>
 public sealed record SolicitudDevolucion(
-    int? VentaId,
+    string FacturaNumero,
     IReadOnlyList<SolicitudLineaDevolucion> Lineas,
     string? ClienteDocumento,
     string? ClienteNombre,
@@ -66,9 +67,7 @@ public sealed record SolicitudDevolucion(
     TipoReembolso Reembolso = TipoReembolso.SaldoNotaCredito,
     string? ReembolsoReferencia = null,
     string? ReembolsoDetalle = null,
-    bool Interna = false,
-    /// <summary>Número de la factura cuando vino del Central: en esa caja no hay venta a la que apuntar.</summary>
-    string? FacturaNumero = null);
+    bool Interna = false);
 
 public sealed record DatosLineaNotaCredito(
     int NumeroLineaOrigen,

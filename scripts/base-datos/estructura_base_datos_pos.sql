@@ -463,6 +463,7 @@ CREATE TABLE [FacturasConsultadas] (
     [SimboloMoneda] nvarchar(5) NOT NULL,
     [Total] decimal(18,2) NOT NULL,
     [ConsultadaEn] datetimeoffset(3) NOT NULL,
+    [VentaLocalId] int NULL,
     CONSTRAINT [PK_FacturasConsultadas] PRIMARY KEY ([Id])
 );
 GO

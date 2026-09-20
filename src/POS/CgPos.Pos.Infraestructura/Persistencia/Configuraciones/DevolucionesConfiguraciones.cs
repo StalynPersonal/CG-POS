@@ -110,6 +110,9 @@ internal sealed class FacturaConsultadaConfiguracion : IEntityTypeConfiguration<
         constructor.Property(f => f.Total).HasPrecision(18, 2);
         constructor.HasIndex(f => f.Numero).IsUnique();
 
+        // Sin llave foránea a Ventas: la copia se borra y se vuelve a crear a cada consulta, y la venta puede no existir aquí.
+        constructor.Property(f => f.VentaLocalId);
+
         constructor.HasMany(f => f.Lineas).WithOne().HasForeignKey(l => l.FacturaConsultadaId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(f => f.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field);
     }

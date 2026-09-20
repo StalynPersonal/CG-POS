@@ -5,9 +5,10 @@ using CgPos.Dominio.Fiscal;
 namespace CgPos.Dominio.Devoluciones;
 
 /// <summary>
-/// Copia temporal de una factura que la caja le pidió al Central para devolverla (RF-42, Fase 3). No es el histórico de la
-/// empresa: es lo mínimo para emitir una nota de crédito contra una factura de otra tienda, y se borra en cuanto la nota se
-/// emite. Si quedara alguna por un corte de luz, la siguiente consulta de ese mismo número la reemplaza.
+/// Copia temporal de una factura que la caja le pidió al Central para devolverla (RF-42, Fase 3). Toda nota de crédito se emite
+/// contra la factura registrada en el Central —también las de esta misma caja—, porque es el único que sabe cuánto se devolvió
+/// ya de cada línea en toda la empresa. No es el histórico: se borra en cuanto la nota se emite, y si quedara alguna por un
+/// corte de luz, la siguiente consulta de ese mismo número la reemplaza.
 /// </summary>
 public sealed class FacturaConsultada : Entidad
 {
@@ -36,6 +37,14 @@ public sealed class FacturaConsultada : Entidad
 
     /// <summary>Cuándo se le pidió al Central. Sirve para purgar lo que quedó de una devolución que nunca terminó.</summary>
     public DateTimeOffset ConsultadaEn { get; private set; }
+
+    /// <summary>
+    /// La venta de esta caja, si la factura la vendió ella. Los datos y lo disponible siguen saliendo del Central; esto solo sirve
+    /// para lo que únicamente la caja sabe de su propia venta: los puntos que acumuló y la mercancía pendiente de entregar.
+    /// </summary>
+    public int? VentaLocalId { get; private set; }
+
+    public void EnlazarVentaLocal(int? ventaId) => VentaLocalId = ventaId;
 
     public IReadOnlyList<LineaFacturaConsultada> Lineas => _lineas;
 
@@ -86,7 +95,7 @@ public sealed class FacturaConsultada : Entidad
 
     /// <summary>La factura como la ve la devolución. La caja que emite la nota es la de la sesión, no la que vendió.</summary>
     public FacturaParaDevolver ParaDevolver(int sucursalId, int cajaId) =>
-        new(null, Numero, CobradaEn, sucursalId, cajaId, TipoComprobante, Moneda, SimboloMoneda,
+        new(VentaLocalId, Numero, CobradaEn, sucursalId, cajaId, TipoComprobante, Moneda, SimboloMoneda,
             _lineas.OrderBy(l => l.NumeroLinea)
                 .Select(l => new LineaFacturaParaDevolver(l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
                     l.UnidadMedidaCodigo, l.DecimalesCantidad > 0, l.DecimalesCantidad, l.Cantidad, l.ImporteConImpuesto, l.PorcentajeImpuesto,

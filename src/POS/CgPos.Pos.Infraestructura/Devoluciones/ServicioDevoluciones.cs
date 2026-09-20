@@ -74,45 +74,29 @@ internal sealed class ServicioDevoluciones(
     private Task<int> DiasVigenciaAsync(SesionUsuario sesion, CancellationToken cancelacion) =>
         parametros.ObtenerEnteroAsync(ClavesParametros.DiasVigenciaNotaCredito, sesion.CajaId, cancelacion);
 
+    /// <summary>
+    /// La factura siempre se busca en el Central, aunque la haya vendido esta misma caja: es el único que sabe cuánto se devolvió
+    /// ya de cada línea en toda la empresa, y una nota de crédito nunca se emite contra una factura que el Central no tenga
+    /// registrada. Lo que llega se guarda como copia temporal y se borra al emitir la nota.
+    /// </summary>
     public async Task<RespuestaFacturaDevolucion> BuscarFacturaAsync(SesionUsuario sesion, string numero, CancellationToken cancelacion = default)
     {
         var codigo = (numero ?? string.Empty).Trim().ToUpperInvariant();
         if (codigo.Length == 0)
             return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.FacturaNoEncontrada, "Escanee o digite el número de la factura.", null);
 
-        // Primero en esta caja: sus propias facturas se devuelven aunque no haya red.
-        var venta = await BuscarVentaAsync(codigo, seguimiento: false, cancelacion);
-        if (venta is null)
-            return await BuscarEnElCentralAsync(sesion, codigo, cancelacion);
-
-        if (venta.Estado != EstadoVenta.Cobrada)
-            return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.FacturaNoCobrada, $"La transacción {venta.NumeroTransaccion} no es una factura cobrada.", null);
-
-        var factura = await ArmarFacturaAsync(sesion, venta, cancelacion);
-        if (factura.Lineas.All(l => l.CantidadDisponible <= 0))
-            return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.TodoDevuelto,
-                $"Todos los artículos de la factura {venta.NumeroTransaccion} ya fueron devueltos.", factura);
-
-        return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.Correcto, null, factura);
-    }
-
-    /// <summary>
-    /// La factura es de otra tienda: se le pide al Central y se guarda como copia temporal para emitir la nota. La copia se borra al
-    /// emitirla; si quedó una de un intento anterior, esta consulta la reemplaza.
-    /// </summary>
-    private async Task<RespuestaFacturaDevolucion> BuscarEnElCentralAsync(SesionUsuario sesion, string codigo, CancellationToken cancelacion)
-    {
         var consulta = await central.ConsultarFacturaAsync(codigo, cancelacion);
         if (!consulta.CentralRespondio)
             return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.SinConexionCentral,
-                $"La factura {codigo} no es de esta caja y no se pudo consultar al Central. Sin conexión solo se devuelven las facturas de esta caja. ({consulta.Error})",
+                $"No se pudo consultar la factura {codigo} en el Central. Las notas de crédito se emiten contra la factura registrada en el Central, así que sin conexión no se pueden emitir. ({consulta.Error})",
                 null);
         if (consulta.Factura is not { } remota)
             return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.FacturaNoEncontrada,
-                $"La factura {codigo} no existe en la empresa. Verifique el número.", null);
+                $"La factura {codigo} no está registrada en el Central. Verifique el número; si se acaba de facturar, espere a que la caja termine de sincronizar.",
+                null);
 
-        var guardada = await GuardarCopiaAsync(remota, cancelacion);
-        var factura = await ArmarFacturaRemotaAsync(sesion, guardada, cancelacion);
+        var copia = await GuardarCopiaAsync(remota, cancelacion);
+        var factura = await ArmarFacturaAsync(sesion, copia, cancelacion);
         if (factura.Lineas.All(l => l.CantidadDisponible <= 0))
             return new RespuestaFacturaDevolucion(CodigoResultadoDevolucion.TodoDevuelto,
                 $"Todos los artículos de la factura {remota.Numero} ya fueron devueltos.", factura);
@@ -150,14 +134,27 @@ internal sealed class ServicioDevoluciones(
                 articulo?.Indicador ?? 1, articulo?.EsServicio ?? false, linea.Serial, linea.Devuelta);
         }
 
+        // Si la vendió esta caja, se enlaza su venta: de ella salen los puntos acumulados y la mercancía pendiente de entregar,
+        // que el Central no le puede decir a la caja.
+        copia.EnlazarVentaLocal(await contexto.Ventas.AsNoTracking()
+            .Where(v => v.NumeroTransaccion == remota.Numero && v.Estado == EstadoVenta.Cobrada)
+            .Select(v => (int?)v.Id)
+            .FirstOrDefaultAsync(cancelacion));
+
         await contexto.SaveChangesAsync(cancelacion);
         return copia;
     }
 
-    /// <summary>Borra la copia temporal de esa factura, con sus líneas. Se llama al consultar de nuevo y al emitir la nota.</summary>
+    /// <summary>
+    /// Borra la copia temporal de esa factura, con sus líneas. Se llama al consultar de nuevo y al emitir la nota. De paso se lleva
+    /// las copias viejas de otras facturas: cada consulta que el cajero abandona deja una, y nadie más las va a limpiar.
+    /// </summary>
     private async Task BorrarCopiaAsync(string numero, CancellationToken cancelacion)
     {
-        var previas = await contexto.FacturasConsultadas.Include(f => f.Lineas).Where(f => f.Numero == numero).ToListAsync(cancelacion);
+        var caducan = reloj.Ahora().AddDays(-1);
+        var previas = await contexto.FacturasConsultadas.Include(f => f.Lineas)
+            .Where(f => f.Numero == numero || f.ConsultadaEn < caducan)
+            .ToListAsync(cancelacion);
         if (previas.Count == 0)
             return;
 
@@ -167,43 +164,43 @@ internal sealed class ServicioDevoluciones(
 
     public async Task<RespuestaDevolucion> RegistrarAsync(SesionUsuario sesion, SolicitudDevolucion solicitud, CancellationToken cancelacion = default)
     {
-        var venta = solicitud.VentaId is { } ventaId
-            ? await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleOrDefaultAsync(v => v.Id == ventaId, cancelacion)
-            : null;
-
-        // La factura de otra tienda vive en la copia temporal que dejó la consulta al Central.
-        var copia = venta is not null || string.IsNullOrWhiteSpace(solicitud.FacturaNumero)
+        // La factura siempre viene del Central: lo que se devuelve es la copia que dejó la consulta, nunca la venta local.
+        var numero = (solicitud.FacturaNumero ?? string.Empty).Trim().ToUpperInvariant();
+        var copia = numero.Length == 0
             ? null
             : await contexto.FacturasConsultadas.AsNoTracking().Include(f => f.Lineas)
-                .FirstOrDefaultAsync(f => f.Numero == solicitud.FacturaNumero.Trim().ToUpperInvariant(), cancelacion);
+                .FirstOrDefaultAsync(f => f.Numero == numero, cancelacion);
 
-        if (venta is null && copia is null)
+        if (copia is null)
             return Rechazo(CodigoResultadoDevolucion.FacturaNoEncontrada,
                 "La factura ya no está disponible. Vuelva a llamarla para devolverla.");
 
-        var factura = venta is not null ? FacturaParaDevolver.De(venta) : copia!.ParaDevolver(sesion.SucursalId, sesion.CajaId);
+        // La venta de esta caja, si fue ella quien la vendió: de ahí salen los puntos que acumuló y lo pendiente de entregar.
+        var venta = copia.VentaLocalId is { } ventaLocalId
+            ? await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleOrDefaultAsync(v => v.Id == ventaLocalId, cancelacion)
+            : null;
+
+        var factura = copia.ParaDevolver(sesion.SucursalId, sesion.CajaId);
         var numeroFactura = factura.NumeroTransaccion;
 
         var motivo = await contexto.MotivosDevolucion.AsNoTracking()
             .FirstOrDefaultAsync(m => m.Codigo == solicitud.MotivoCodigo && m.Activo, cancelacion);
         var cliente = venta is not null
             ? await ClienteAsync(venta, solicitud, cancelacion)
-            : await ClienteRemotoAsync(copia!, solicitud, cancelacion);
+            : await ClienteRemotoAsync(copia, solicitud, cancelacion);
 
         var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
         var diasVigencia = await DiasVigenciaAsync(sesion, cancelacion);
-        var encfOrigen = venta is not null
-            ? await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id && d.TipoOrigen == OrigenComprobante.Venta).Select(d => d.Encf).FirstOrDefaultAsync(cancelacion)
-            : copia!.Encf;
+        var encfOrigen = copia.Encf;
         var lineas = solicitud.Lineas.Select(l => new LineaSolicitadaDevolucion(l.NumeroLinea, l.Cantidad, l.Serial)).ToList();
         var ahora = reloj.Ahora();
 
-        // La mercancía pendiente de entrega no se devuelve: primero se anula el pendiente (RF-233). Solo aplica a las facturas de
-        // esta caja: los pendientes de otra tienda los ve el Central, que ya descontó de lo disponible lo que no se ha entregado.
+        // La mercancía pendiente de entrega no se devuelve: primero se anula el pendiente (RF-233). Solo lo comprueba la caja que
+        // vendió, que es la que tiene el pendiente; el de otra tienda lo descuenta el Central de lo disponible.
         var porEntregar = venta is null ? [] : await PorEntregarAsync(venta.Id, cancelacion);
         if (venta is not null && porEntregar.Count > 0)
         {
-            var devueltoPrevio = await DevueltoAsync(venta.Id, cancelacion);
+            var devueltoPrevio = await DevueltoDeLaFacturaAsync(venta, copia, cancelacion);
             foreach (var pedida in lineas.Where(p => porEntregar.ContainsKey(p.NumeroLinea)))
             {
                 if (venta.Lineas.FirstOrDefault(l => l.NumeroLinea == pedida.NumeroLinea && l.EstaActiva) is not { } lineaFactura)
@@ -244,18 +241,14 @@ internal sealed class ServicioDevoluciones(
                     ? "La nota de crédito interna requiere la autorización de un supervisor."
                     : "La devolución requiere la autorización del encargado.", permisoRequerido);
 
-        // La factura es de otra tienda: se le piden al Central las líneas antes de emitir, para que dos tiendas no devuelvan la
-        // misma mercancía. La reserva no se libera al terminar: vence sola, y hasta entonces cubre el tiempo que tarda en subir la nota.
-        if (copia is not null)
-        {
-            var reserva = await central.ReservarFacturaAsync(numeroFactura,
-                lineas.ToDictionary(l => l.NumeroLinea, l => l.Cantidad), cancelacion);
-            if (!reserva.Exitosa)
-                return Rechazo(reserva.CentralRespondio ? CodigoResultadoDevolucion.DevolucionInvalida : CodigoResultadoDevolucion.SinConexionCentral,
-                    reserva.CentralRespondio
-                        ? reserva.Error!
-                        : $"No se pudo confirmar la factura {numeroFactura} con el Central. La nota de crédito de una factura de otra tienda necesita conexión. ({reserva.Error})");
-        }
+        // Se le piden al Central las líneas antes de emitir, para que dos cajas no devuelvan la misma mercancía. La reserva no se
+        // libera al terminar: vence sola, y hasta entonces cubre el tiempo que la nota tarda en subir.
+        var reserva = await central.ReservarFacturaAsync(numeroFactura, lineas.ToDictionary(l => l.NumeroLinea, l => l.Cantidad), cancelacion);
+        if (!reserva.Exitosa)
+            return Rechazo(reserva.CentralRespondio ? CodigoResultadoDevolucion.DevolucionInvalida : CodigoResultadoDevolucion.SinConexionCentral,
+                reserva.CentralRespondio
+                    ? reserva.Error!
+                    : $"No se pudo confirmar la factura {numeroFactura} con el Central. Sin conexión no se emiten notas de crédito. ({reserva.Error})");
 
         // Número, nota de crédito, e-CF, mensaje para el Central y auditoría en una sola transacción.
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
@@ -293,7 +286,7 @@ internal sealed class ServicioDevoluciones(
                     await transaccion.RollbackAsync(cancelacion);
                     contexto.ChangeTracker.Clear();
                     DescartarArchivo(emision);
-                    await LiberarReservaAsync(copia, numeroFactura, cancelacion);
+                    await LiberarReservaAsync(numeroFactura, cancelacion);
                     return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, problema);
                 }
             }
@@ -316,14 +309,14 @@ internal sealed class ServicioDevoluciones(
         {
             await transaccion.RollbackAsync(cancelacion);
             contexto.ChangeTracker.Clear();
-            await LiberarReservaAsync(copia, numeroFactura, cancelacion);
+            await LiberarReservaAsync(numeroFactura, cancelacion);
             return Rechazo(CodigoResultadoDevolucion.DevolucionInvalida, excepcion.Message);
         }
         catch (EmisionEcfExcepcion excepcion)
         {
             await transaccion.RollbackAsync(cancelacion);
             contexto.ChangeTracker.Clear();
-            await LiberarReservaAsync(copia, numeroFactura, cancelacion);
+            await LiberarReservaAsync(numeroFactura, cancelacion);
             return Rechazo(excepcion.Codigo switch
             {
                 CodigoResultadoVenta.CertificadoNoCargado => CodigoResultadoDevolucion.CertificadoNoCargado,
@@ -344,7 +337,7 @@ internal sealed class ServicioDevoluciones(
             Detalle: new
             {
                 Factura = numeroFactura,
-                FacturaDelCentral = copia is not null,
+                FacturaPropia = venta is not null,
                 devolucion.Encf,
                 devolucion.EsInterna,
                 devolucion.Total,
@@ -364,13 +357,12 @@ internal sealed class ServicioDevoluciones(
         catch
         {
             DescartarArchivo(emision);
-            await LiberarReservaAsync(copia, numeroFactura, cancelacion);
+            await LiberarReservaAsync(numeroFactura, cancelacion);
             throw;
         }
 
-        // La nota ya está emitida: la copia de la factura del Central se borra, no queda rastro de una factura de otra tienda.
-        if (copia is not null)
-            await BorrarCopiaAsync(numeroFactura, cancelacion);
+        // La nota ya está emitida: la copia que trajo el Central se borra. La caja no guarda facturas que no sean suyas.
+        await BorrarCopiaAsync(numeroFactura, cancelacion);
 
         var aviso = await ImprimirAsync(sesion, datos, esCopia: false, cancelacion);
         var titulo = devolucion.EsInterna
@@ -380,11 +372,8 @@ internal sealed class ServicioDevoluciones(
     }
 
     /// <summary>Suelta en el Central las líneas retenidas cuando la nota no llegó a emitirse; sin red, la reserva vence sola.</summary>
-    private async Task LiberarReservaAsync(FacturaConsultada? copia, string numeroFactura, CancellationToken cancelacion)
+    private async Task LiberarReservaAsync(string numeroFactura, CancellationToken cancelacion)
     {
-        if (copia is null)
-            return;
-
         try
         {
             await central.LiberarReservaFacturaAsync(numeroFactura, cancelacion);
@@ -509,21 +498,6 @@ internal sealed class ServicioDevoluciones(
         return null;
     }
 
-    private async Task<Venta?> BuscarVentaAsync(string codigo, bool seguimiento, CancellationToken cancelacion)
-    {
-        var consulta = contexto.Ventas.Include(v => v.Lineas).AsQueryable();
-        if (!seguimiento)
-            consulta = consulta.AsNoTracking();
-
-        var venta = await consulta.FirstOrDefaultAsync(v => v.NumeroTransaccion == codigo, cancelacion);
-        if (venta is not null || codigo.Length != DocumentoElectronico.LargoEncf)
-            return venta;
-
-        // También por el e-NCF impreso en la factura.
-        var ventaId = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.Encf == codigo && d.TipoOrigen == OrigenComprobante.Venta).Select(d => (int?)d.VentaId).FirstOrDefaultAsync(cancelacion);
-        return ventaId is null ? null : await consulta.FirstOrDefaultAsync(v => v.Id == ventaId, cancelacion);
-    }
-
     /// <summary>Cantidad por línea de la factura que sigue pendiente de entrega en pendientes no anulados.</summary>
     private async Task<Dictionary<int, decimal>> PorEntregarAsync(int ventaId, CancellationToken cancelacion) =>
         (await contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas)
@@ -536,13 +510,74 @@ internal sealed class ServicioDevoluciones(
         .ToDictionary(x => x.Linea, x => x.Pendiente);
 
     /// <summary>
-    /// Lo ya devuelto de la factura. De una venta de esta caja sale de sus propias notas; de una factura del Central sale de lo que
-    /// él informó al entregarla, porque es el único que ve las devoluciones hechas en otras tiendas.
+    /// Lo ya devuelto de la factura, según el Central, que es el único que ve las devoluciones de toda la empresa. Si la vendió esta
+    /// caja se toma además lo de sus propias notas y se queda la mayor de las dos: una nota recién emitida que todavía no ha subido
+    /// no la ve el Central, y sin esto se podría devolver dos veces lo mismo.
     /// </summary>
-    private async Task<Dictionary<int, DevueltoLinea>> DevueltoDeLaFacturaAsync(Venta? venta, FacturaConsultada? copia, CancellationToken cancelacion) =>
-        venta is not null ? await DevueltoAsync(venta.Id, cancelacion) : copia!.Devuelto();
+    private async Task<Dictionary<int, DevueltoLinea>> DevueltoDeLaFacturaAsync(Venta? venta, FacturaConsultada copia, CancellationToken cancelacion) =>
+        Devuelto(copia, venta is null
+            ? []
+            : await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas).Where(d => d.VentaOrigenId == venta.Id).ToListAsync(cancelacion));
 
-    /// <summary>El cliente de una factura del Central; si venía sin identificar, el que digite el cajero (RF-160).</summary>
+    /// <summary>Combina lo devuelto que informó el Central con las notas que esta caja ya emitió, quedándose con lo mayor por línea.</summary>
+    private static Dictionary<int, DevueltoLinea> Devuelto(FacturaConsultada copia, IReadOnlyCollection<Devolucion> locales)
+    {
+        var devuelto = copia.Devuelto();
+        foreach (var (numeroLinea, local) in locales.Devuelto())
+        {
+            var central = devuelto.GetValueOrDefault(numeroLinea);
+            if (central is null || local.Cantidad > central.Cantidad)
+                devuelto[numeroLinea] = local;
+        }
+
+        return devuelto;
+    }
+
+    /// <summary>
+    /// La factura como la ve la pantalla. Los datos y lo ya devuelto salen de la copia que entregó el Central, que es el único que
+    /// ve las devoluciones de toda la empresa. Si además la vendió esta caja se le suman dos cosas que solo ella sabe: la mercancía
+    /// que todavía no ha entregado y las notas de crédito que ya le hizo.
+    /// </summary>
+    private async Task<DatosFacturaDevolucion> ArmarFacturaAsync(SesionUsuario sesion, FacturaConsultada copia, CancellationToken cancelacion)
+    {
+        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
+        var dias = Hoy.DayNumber - DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(copia.CobradaEn, reloj.LocalTimeZone).DateTime).DayNumber;
+
+        var previas = copia.VentaLocalId is { } ventaLocalId
+            ? await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas).Where(d => d.VentaOrigenId == ventaLocalId)
+                .OrderBy(d => d.CreadaEn).ToListAsync(cancelacion)
+            : [];
+        var porEntregar = copia.VentaLocalId is { } conPendientes ? await PorEntregarAsync(conPendientes, cancelacion) : [];
+        var devuelto = Devuelto(copia, previas);
+
+        var lineas = copia.Lineas.OrderBy(l => l.NumeroLinea).Select(l =>
+        {
+            var previo = devuelto.GetValueOrDefault(l.NumeroLinea) ?? new DevueltoLinea(0m, 0m);
+            var pendiente = porEntregar.GetValueOrDefault(l.NumeroLinea);
+            var disponible = Math.Max(0m, l.Cantidad - previo.Cantidad - pendiente);
+            var precio = decimal.Round(l.ImporteConImpuesto / l.Cantidad, 2, MidpointRounding.AwayFromZero);
+
+            // Con mercancía pendiente de entrega lo disponible no es el resto de la línea: se estima por precio.
+            var importeDisponible = pendiente > 0
+                ? decimal.Round(l.ImporteConImpuesto / l.Cantidad * disponible, 2, MidpointRounding.AwayFromZero)
+                : l.ImporteConImpuesto - previo.ImporteFactura;
+
+            return new DatosLineaFacturaDevolucion(l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
+                l.UnidadMedidaCodigo, l.DecimalesCantidad, l.DecimalesCantidad > 0, l.Cantidad, previo.Cantidad, disponible,
+                precio, importeDisponible, l.PorcentajeImpuesto, l.TipoArticulo == TipoArticulo.Serializado);
+        }).ToList();
+
+        var cliente = copia.ClienteNombre is { } nombre && copia.ClienteDocumento is { } documento
+            ? new DatosClienteVenta(null, copia.ClienteTipoDocumento, documento, nombre)
+            : null;
+
+        return new DatosFacturaDevolucion(copia.VentaLocalId, copia.Numero, copia.Encf, copia.TipoComprobante, copia.CobradaEn, dias,
+            dias > diasRetencion, diasRetencion, cliente, lineas, await ListarMotivosAsync(cancelacion),
+            previas.Select(d => new DatosNotaCreditoResumen(d.Id, d.Numero, d.Encf, d.Total, d.CreadaEn)).ToList(),
+            new DatosOrigenFactura(copia.VentaLocalId is null, copia.SucursalCodigo, copia.CajaCodigo));
+    }
+
+    /// <summary>El cliente de una factura que no vendió esta caja; si venía sin identificar, el que digite el cajero (RF-160).</summary>
     private async Task<ClienteDevolucion?> ClienteRemotoAsync(FacturaConsultada copia, SolicitudDevolucion solicitud, CancellationToken cancelacion)
     {
         if (copia.ClienteDocumento is { } documentoFactura && DocumentoIdentidad.Validar(documentoFactura).EsValido)
@@ -557,77 +592,6 @@ internal sealed class ServicioDevoluciones(
             : solicitud.ClienteNombre.Trim();
 
         return nombre is null ? null : new ClienteDevolucion(validacion.Tipo, validacion.Documento, nombre);
-    }
-
-    private async Task<Dictionary<int, DevueltoLinea>> DevueltoAsync(int ventaId, CancellationToken cancelacion) =>
-        (await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas).Where(d => d.VentaOrigenId == ventaId).ToListAsync(cancelacion)).Devuelto();
-
-    private async Task<DatosFacturaDevolucion> ArmarFacturaAsync(SesionUsuario sesion, Venta venta, CancellationToken cancelacion)
-    {
-        var previas = await contexto.Devoluciones.AsNoTracking().Include(d => d.Lineas).Where(d => d.VentaOrigenId == venta.Id)
-            .OrderBy(d => d.CreadaEn).ToListAsync(cancelacion);
-        var devuelto = previas.Devuelto();
-        var porEntregar = await PorEntregarAsync(venta.Id, cancelacion);
-        var encf = await contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id && d.TipoOrigen == OrigenComprobante.Venta).Select(d => d.Encf).FirstOrDefaultAsync(cancelacion);
-        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
-
-        var cobradaEn = venta.CobradaEn!.Value;
-        var dias = Hoy.DayNumber - DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(cobradaEn, reloj.LocalTimeZone).DateTime).DayNumber;
-
-        var lineas = venta.Lineas.Where(l => l.EstaActiva).OrderBy(l => l.NumeroLinea).Select(l =>
-        {
-            var previo = devuelto.GetValueOrDefault(l.NumeroLinea) ?? new DevueltoLinea(0m, 0m);
-            var pendiente = porEntregar.GetValueOrDefault(l.NumeroLinea);
-            var disponible = Math.Max(0m, l.Cantidad - previo.Cantidad - pendiente);
-            var precio = decimal.Round(l.ImporteConImpuesto / l.Cantidad, 2, MidpointRounding.AwayFromZero);
-
-            // Con mercancía pendiente de entrega lo disponible no es el resto de la línea: se estima por precio.
-            var importeDisponible = pendiente > 0
-                ? decimal.Round(l.ImporteConImpuesto / l.Cantidad * disponible, 2, MidpointRounding.AwayFromZero)
-                : l.ImporteConImpuesto - previo.ImporteFactura;
-            return new DatosLineaFacturaDevolucion(l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
-                l.UnidadMedidaCodigo, l.DecimalesCantidad, l.PermiteDecimales, l.Cantidad, previo.Cantidad, disponible,
-                precio, importeDisponible, l.PorcentajeImpuesto, l.TipoArticulo == TipoArticulo.Serializado);
-        }).ToList();
-
-        var cliente = venta.ClienteNombre is { } nombre
-            ? new DatosClienteVenta(venta.ClienteId, venta.ClienteTipoDocumento, venta.ClienteDocumento, nombre)
-            : null;
-
-        return new DatosFacturaDevolucion(venta.Id, venta.NumeroTransaccion, encf, venta.TipoComprobante, cobradaEn, dias, dias > diasRetencion, diasRetencion,
-            cliente, lineas, await ListarMotivosAsync(cancelacion),
-            previas.Select(d => new DatosNotaCreditoResumen(d.Id, d.Numero, d.Encf, d.Total, d.CreadaEn)).ToList());
-    }
-
-    /// <summary>
-    /// La copia del Central como la ve la pantalla. Lo ya devuelto lo dice el Central —es el único que ve todas las tiendas—, y no
-    /// hay pendientes de entrega que consultar: los de otra sucursal no se despachan desde aquí.
-    /// </summary>
-    private async Task<DatosFacturaDevolucion> ArmarFacturaRemotaAsync(SesionUsuario sesion, FacturaConsultada copia, CancellationToken cancelacion)
-    {
-        var diasRetencion = await parametros.ObtenerEnteroAsync(ClavesParametros.DiasRetencionImpuestoDevolucion, sesion.CajaId, cancelacion);
-        var dias = Hoy.DayNumber - DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(copia.CobradaEn, reloj.LocalTimeZone).DateTime).DayNumber;
-
-        var lineas = copia.Lineas.OrderBy(l => l.NumeroLinea).Select(l =>
-        {
-            var disponible = Math.Max(0m, l.Cantidad - l.Devuelta);
-            var precio = decimal.Round(l.ImporteConImpuesto / l.Cantidad, 2, MidpointRounding.AwayFromZero);
-            var importeDisponible = l.Devuelta <= 0m
-                ? l.ImporteConImpuesto
-                : decimal.Round(l.ImporteConImpuesto / l.Cantidad * disponible, 2, MidpointRounding.AwayFromZero);
-
-            return new DatosLineaFacturaDevolucion(l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
-                l.UnidadMedidaCodigo, l.DecimalesCantidad, l.DecimalesCantidad > 0, l.Cantidad, l.Devuelta, disponible,
-                precio, importeDisponible, l.PorcentajeImpuesto, l.TipoArticulo == TipoArticulo.Serializado);
-        }).ToList();
-
-        var cliente = copia.ClienteNombre is { } nombre && copia.ClienteDocumento is { } documento
-            ? new DatosClienteVenta(null, copia.ClienteTipoDocumento, documento, nombre)
-            : null;
-
-        return new DatosFacturaDevolucion(null, copia.Numero, copia.Encf, copia.TipoComprobante, copia.CobradaEn, dias, dias > diasRetencion,
-            diasRetencion, cliente, lineas, await ListarMotivosAsync(cancelacion), [],
-            new DatosOrigenFactura(true, copia.SucursalCodigo, copia.CajaCodigo));
     }
 
     /// <summary>El cliente de la factura; si no tiene, el documento digitado con el nombre del cliente registrado o el digitado (RF-160).</summary>

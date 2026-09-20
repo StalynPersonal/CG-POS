@@ -1021,11 +1021,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(cobro.Exitosa, cobro.Mensaje);
         var factura = cobro.Venta!;
 
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(factura);
         var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
         var linea = Assert.Single(buscada.Factura!.Lineas);
 
         // No pide cliente, pero sí la autorización de un supervisor, con su propio permiso.
-        var solicitud = new SolicitudDevolucion(factura.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], null, null,
+        var solicitud = new SolicitudDevolucion(factura.NumeroTransaccion, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], null, null,
             caja.Catalogo.CodigoMotivoDevolucion, "Error de digitación", null, Interna: true);
         var sinAutorizacion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
         Assert.Equal(CodigoResultadoDevolucion.RequiereAutorizacion, sinAutorizacion.Resultado);
@@ -1062,6 +1064,45 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Contains("es interna", conNotaInterna.Mensaje);
 
         // La factura queda ajustada: lo devuelto por la nota interna no se puede devolver otra vez.
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(factura);
+        var otraVez = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        Assert.Equal(CodigoResultadoDevolucion.TodoDevuelto, otraVez.Resultado);
+    }
+
+    [SkippableFact]
+    public async Task Una_factura_de_esta_misma_caja_tambien_se_devuelve_contra_la_que_tiene_el_Central()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var factura = cobro.Venta!;
+
+        // Todavía no ha subido: aunque la venta esté en esta caja, no se le puede hacer la nota de crédito.
+        var sinSubir = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        Assert.Equal(CodigoResultadoDevolucion.FacturaNoEncontrada, sinSubir.Resultado);
+        Assert.Contains("no está registrada en el Central", sinSubir.Mensaje);
+
+        // Ya sincronizada, el Central la entrega y la caja la reconoce como suya.
+        caja.PublicarFacturaAsync(factura);
+        var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
+        Assert.True(buscada.Exitosa, buscada.Mensaje);
+        Assert.Equal(factura.Id, buscada.Factura!.VentaId);
+        Assert.False(buscada.Factura.Origen!.DelCentral);
+
+        // Y la nota se emite pasando por el Central: se le reservan las líneas igual que a una factura de otra tienda.
+        var linea = Assert.Single(buscada.Factura.Lineas);
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Artículo defectuoso");
+        var emitida = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero,
+            new SolicitudDevolucion(factura.NumeroTransaccion, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
+                caja.Catalogo.CodigoMotivoDevolucion, null, autorizacion)));
+        Assert.True(emitida.Exitosa, emitida.Mensaje);
+        Assert.Equal(factura.Id, emitida.NotaCredito!.VentaOrigenId);
+        Assert.Equal(factura.NumeroTransaccion, caja.Central.ReservasFactura[^1].FacturaNumero);
+
+        // El Central todavía no sabe de esa nota (aún no ha subido), pero la caja sí: no la deja devolver dos veces.
         var otraVez = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
         Assert.Equal(CodigoResultadoDevolucion.TodoDevuelto, otraVez.Resultado);
     }
@@ -1078,11 +1119,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         caja.Central.Facturas[Numero] = FacturaDelCentral(caja, Numero, EncfFactura, cantidad: 5m, devuelta: 2m);
         caja.Central.Facturas[EncfFactura] = caja.Central.Facturas[Numero];
 
-        // Sin red no se promete nada que no se pueda cumplir: se dice que solo se devuelven las facturas de esta caja.
+        // Sin red no se emite ninguna nota de crédito, y se dice con esas palabras en vez de dejar esperando al cajero.
         caja.Central.Responde = false;
         var sinRed = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, Numero));
         Assert.Equal(CodigoResultadoDevolucion.SinConexionCentral, sinRed.Resultado);
-        Assert.Contains("solo se devuelven las facturas de esta caja", sinRed.Mensaje);
+        Assert.Contains("sin conexión no se pueden emitir", sinRed.Mensaje);
 
         caja.Central.Responde = true;
 
@@ -1100,8 +1141,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal((5m, 2m, 3m), (linea.CantidadVendida, linea.CantidadDevuelta, linea.CantidadDisponible));
 
         // No se devuelve más de lo que queda, aunque la factura diga 5.
-        var solicitud = new SolicitudDevolucion(null, [new SolicitudLineaDevolucion(linea.NumeroLinea, 4m)], null, null,
-            caja.Catalogo.CodigoMotivoDevolucion, null, null, FacturaNumero: Numero);
+        var solicitud = new SolicitudDevolucion(Numero, [new SolicitudLineaDevolucion(linea.NumeroLinea, 4m)], null, null,
+            caja.Catalogo.CodigoMotivoDevolucion, null, null);
         var deMas = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
         Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, deMas.Resultado);
         Assert.Contains("solo quedan 3", deMas.Mensaje);
@@ -1137,7 +1178,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal((Numero, 3m), (caja.Central.ReservasFactura[^1].FacturaNumero, caja.Central.ReservasFactura[^1].Lineas[linea.NumeroLinea]));
 
         // Y la copia temporal de la factura se borró: no queda rastro de una factura de otra tienda en esta caja.
-        Assert.Empty(await caja.EjecutarAsync<ContextoDatosPos, List<string>>(contexto =>
+        Assert.DoesNotContain(Numero, await caja.EjecutarAsync<ContextoDatosPos, List<string>>(contexto =>
             contexto.FacturasConsultadas.Select(f => f.Numero).ToListAsync()));
     }
 
@@ -1163,6 +1204,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var factura = cobro.Venta!;
         var total = factura.TotalCobrado!.Value;
 
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(factura);
         var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
         Assert.True(buscada.Exitosa, buscada.Mensaje);
         var linea = Assert.Single(buscada.Factura!.Lineas);
@@ -1170,7 +1213,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.False(buscada.Factura.RetieneImpuesto);
 
         // La factura no tiene cliente: se pide el RNC; la devolución la autoriza el encargado.
-        var solicitud = new SolicitudDevolucion(factura.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
+        var solicitud = new SolicitudDevolucion(factura.NumeroTransaccion, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
             caja.Catalogo.CodigoMotivoDevolucion, null, null);
         var sinAutorizacion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero, solicitud));
         Assert.Equal(CodigoResultadoDevolucion.RequiereAutorizacion, sinAutorizacion.Resultado);
@@ -1314,11 +1357,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100 + 22, saldo.Miembro!.SaldoDisponible);
 
         // La nota de crédito reversa los puntos acumulados en la compra (RF-244, RN-21).
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(cobrada.Venta!);
         var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, cobrada.Venta.NumeroTransaccion));
         var linea = Assert.Single(buscada.Factura!.Lineas);
         var autorizacionDevolucion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Artículo defectuoso");
         var devolucion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero,
-            new SolicitudDevolucion(cobrada.Venta.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
+            new SolicitudDevolucion(cobrada.Venta.NumeroTransaccion, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
                 caja.Catalogo.CodigoMotivoDevolucion, null, autorizacionDevolucion)));
         Assert.True(devolucion.Exitosa, devolucion.Mensaje);
         Assert.Equal(22, devolucion.NotaCredito!.PuntosReversados);
@@ -1395,10 +1440,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal("809-555-1111", pendientes.Single(p => p.Metodo == MetodoEntrega.Envio).Telefono);
 
         // Lo pendiente de entrega no se devuelve (RF-233): solo el cemento que salió en caja.
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(cobrada.Venta!);
         var factura = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, cobrada.Venta!.NumeroTransaccion));
         Assert.Equal(1m, factura.Factura!.Lineas.Single(l => l.NumeroLinea == cemento).CantidadDisponible);
         var devolucion = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaDevolucion>(s => s.RegistrarAsync(caja.Cajero,
-            new SolicitudDevolucion(venta.Id, [new SolicitudLineaDevolucion(cemento, 3m)], "401007551", "Cliente Devolución", caja.Catalogo.CodigoMotivoDevolucion, null, null)));
+            new SolicitudDevolucion(cobrada.Venta!.NumeroTransaccion, [new SolicitudLineaDevolucion(cemento, 3m)], "401007551", "Cliente Devolución", caja.Catalogo.CodigoMotivoDevolucion, null, null)));
         Assert.Equal(CodigoResultadoDevolucion.DevolucionInvalida, devolucion.Resultado);
         Assert.Contains("pendientes de entrega", devolucion.Mensaje);
     }
@@ -1475,6 +1522,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal("SN-500", completa.Pendiente.Lineas.Single(l => l.NumeroLineaVenta == taladro).Serial);
 
         // Entregado, el cemento vuelve a estar disponible para devolución.
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(cobrada.Venta!);
         var factura = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, cobrada.Venta!.NumeroTransaccion));
         Assert.Equal(3m, factura.Factura!.Lineas.Single(l => l.NumeroLinea == cemento).CantidadDisponible);
 
@@ -1759,10 +1808,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var factura = cobro.Venta!;
         var total = factura.TotalCobrado!.Value;
 
+        // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
+        caja.PublicarFacturaAsync(factura);
         var buscada = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaFacturaDevolucion>(s => s.BuscarFacturaAsync(caja.Cajero, factura.NumeroTransaccion));
         var linea = Assert.Single(buscada.Factura!.Lineas);
         var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AutorizarDevolucion, "Cliente pidió su dinero");
-        var solicitud = new SolicitudDevolucion(factura.Id, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Reembolso",
+        var solicitud = new SolicitudDevolucion(factura.NumeroTransaccion, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Reembolso",
             caja.Catalogo.CodigoMotivoDevolucion, null, autorizacion, CgPos.Dominio.Devoluciones.TipoReembolso.Efectivo);
 
         // Sin habilitarlo en los parámetros, el dinero no sale de la gaveta.
@@ -2064,6 +2115,29 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             var venta = await VentaActualAsync();
             await AgregarAsync(venta.Id, Catalogo.BarrasCincel);
             return await EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(Cajero, venta.Id, [new SolicitudPago(Catalogo.FormaEfectivo, 1000m)], null));
+        }
+
+        /// <summary>
+        /// Registra en el Central de prueba la factura que se acaba de cobrar, como haría la sincronización. Hace falta para
+        /// devolverla: la caja siempre le pide la factura al Central, también las suyas.
+        /// </summary>
+        public DatosFacturaParaCaja PublicarFacturaAsync(DatosVenta venta, decimal[]? devueltas = null)
+        {
+            var lineas = venta.Lineas.Where(l => !l.Anulada && !l.EsReverso).OrderBy(l => l.NumeroLinea).Select((l, indice) =>
+                new DatosLineaFacturaParaCaja(l.NumeroLinea, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo, l.UnidadMedidaCodigo,
+                    l.DecimalesCantidad, l.PorcentajeImpuesto, l.Cantidad, l.PrecioUnitario, l.DescuentoPromocion + l.DescuentoManual + l.DescuentoFactura,
+                    l.Importe - decimal.Round(l.Importe / (1m + (l.PorcentajeImpuesto / 100m)), 2, MidpointRounding.AwayFromZero), l.Importe, l.Serial,
+                    devueltas is not null && indice < devueltas.Length ? devueltas[indice] : 0m))
+                .ToList();
+
+            var factura = new DatosFacturaParaCaja(venta.NumeroTransaccion, venta.Comprobante?.Encf, Escenario.CodigoSucursal, Escenario.CodigoCajaUno,
+                true, venta.TipoComprobante, DateOnly.FromDateTime(Reloj.Ahora.Date), venta.CobradaEn ?? Reloj.Ahora,
+                venta.Cliente?.Documento, venta.Cliente?.Nombre, venta.Moneda, venta.Totales.Total, lineas);
+
+            Central.Facturas[factura.Numero] = factura;
+            if (factura.Encf is { } encf)
+                Central.Facturas[encf] = factura;
+            return factura;
         }
 
         public Task<ResultadoCargaMaestros> CargarOfertasAsync(params PromocionCarga[] promociones) =>

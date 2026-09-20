@@ -326,7 +326,7 @@
             return;
 
         var solicitud = new SolicitudDevolucion(
-            factura.VentaId,
+            factura.NumeroTransaccion,
             _lineas.Where(l => l.Cantidad > 0).Select(l => new SolicitudLineaDevolucion(l.Datos.NumeroLinea, l.Cantidad, l.Serial)).ToList(),
             _clienteDocumento,
             _clienteNombre,
@@ -336,8 +336,7 @@
             _reembolso,
             _reembolsoReferencia,
             _reembolsoDetalle,
-            _interna,
-            factura.NumeroTransaccion);
+            _interna);
 
         _procesando = true;
         _mensaje = null;
