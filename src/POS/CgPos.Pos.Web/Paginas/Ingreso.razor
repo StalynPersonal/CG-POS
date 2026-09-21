@@ -81,12 +81,12 @@
             <div class="cg-ingreso__pin">
                 <div class="cg-ingreso__campos">
                     <div @onclick="() => _campo = CampoActivo.Codigo">
-                        <MudTextField T="string" @bind-Value="_codigo" Label="Usuario" Variant="Variant.Outlined"
+                        <MudTextField T="string" @bind-Value="_codigo" Label="Usuario" Variant="Variant.Outlined" Disabled="@Bloqueada"
                                       Immediate="true" Class="@ClaseCampo(CampoActivo.Codigo)" OnKeyDown="AlTeclearCodigo" />
                     </div>
                     <div @onclick="() => _campo = CampoActivo.Clave">
                         <MudTextField T="string" @bind-Value="_clave" Label="Clave" InputType="InputType.Password" Variant="Variant.Outlined"
-                                      Immediate="true" Class="@ClaseCampo(CampoActivo.Clave)" OnKeyDown="AlTeclearClaveAsync" />
+                                      Immediate="true" Class="@ClaseCampo(CampoActivo.Clave)" OnKeyDown="AlTeclearClaveAsync" Disabled="@Bloqueada" />
                     </div>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true"
                                Disabled="@(!PuedeIngresar)" Style="min-height: var(--cg-toque-minimo)" OnClick="IngresarAsync">
@@ -94,10 +94,13 @@
                     </MudButton>
                 </div>
 
-                <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
-                               Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true"
-                               LongitudMaxima="@(_campo == CampoActivo.Clave ? 64 : 20)"
-                               TextoConfirmar="@(_campo == CampoActivo.Codigo ? "Siguiente" : "Ingresar")" />
+                @* Mientras la caja se actualiza el teclado se apaga: es la otra manera de escribir en los campos. *@
+                <div class="@(Bloqueada ? "cg-ingreso__apagado" : null)">
+                    <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
+                                   Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true"
+                                   LongitudMaxima="@(_campo == CampoActivo.Clave ? 64 : 20)"
+                                   TextoConfirmar="@(_campo == CampoActivo.Codigo ? "Siguiente" : "Ingresar")" />
+                </div>
             </div>
 
             @if (_procesando)
@@ -140,8 +143,14 @@
 
     private bool CajaDisponible => _estado is { Habilitada: true };
 
+    /// <summary>
+    /// Mientras la caja baja sus datos no se deja entrar: los artículos, los precios y los permisos del usuario todavía
+    /// están a medio aplicar, y una venta hecha en ese momento saldría con lo que hubiera llegado hasta ahí.
+    /// </summary>
+    private bool Bloqueada => _estado?.Actualizacion is { EnCurso: true };
+
     private bool PuedeIngresar =>
-        CajaDisponible && !_procesando && !string.IsNullOrWhiteSpace(_codigo) && !string.IsNullOrEmpty(_clave);
+        CajaDisponible && !Bloqueada && !_procesando && !string.IsNullOrWhiteSpace(_codigo) && !string.IsNullOrEmpty(_clave);
 
     private string ValorCampoActivo => (_campo == CampoActivo.Codigo ? _codigo : _clave) ?? string.Empty;
 

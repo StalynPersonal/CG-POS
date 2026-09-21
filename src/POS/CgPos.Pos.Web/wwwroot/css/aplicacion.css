@@ -105,6 +105,9 @@
 /* Lo que se está bajando del Central, y el motivo de la última bajada que falló. */
 .cg-ingreso__detalle { font-size: .95rem; opacity: .9; }
 
+/* Mientras la caja se actualiza, el teclado se ve apagado y no responde al toque. */
+.cg-ingreso__apagado { pointer-events: none; opacity: .4; }
+
 .cg-ingreso__formulario {
     display: flex;
     align-items: center;
