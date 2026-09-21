@@ -170,8 +170,9 @@ else
 
         @* Grilla de las líneas de la venta: código, descripción, cantidad, precio, importe y la oferta aplicada. *@
         <div class="cg-venta__lineas">
-            <GrillaTactil TElemento="DatosLineaVenta" Elementos="_venta.Lineas" Seleccionado="LineaSeleccionada" SeleccionadoChanged="AlSeleccionarLinea"
-                          EsAnulada="linea => linea.EsReverso" Altura="100%" TextoSinRegistros="Escanee un artículo para comenzar la venta">
+            @* Los reversos no se pintan: la línea que anulan ya se ve tachada y repetirla solo confunde. *@
+            <GrillaTactil TElemento="DatosLineaVenta" Elementos="LineasVisibles" Seleccionado="LineaSeleccionada" SeleccionadoChanged="AlSeleccionarLinea"
+                          EsAnulada="linea => linea.Anulada" Altura="100%" TextoSinRegistros="Escanee un artículo para comenzar la venta">
                 <Encabezado>
                     <MudTh Style="width: 96px">Ln</MudTh>
                     <MudTh Style="width: 170px">Código</MudTh>
@@ -204,37 +205,32 @@ else
                     </MudTd>
                     <MudTd Class="@ClaseCelda(linea)">
                         @linea.Descripcion
-                        @if (linea.EsReverso)
-                        {
-                            @* Línea de reverso: dice a cuál anula. *@
-                            <div class="cg-venta__nota">Anula la línea @linea.LineaAnuladaNumero</div>
-                        }
                         @if (linea.Serial is not null)
                         {
                             @* Serial del artículo serializado que se escaneó en caja. *@
                             <div class="cg-venta__nota">Serial @linea.Serial</div>
                         }
-                        @if (!linea.EsReverso && linea.SerialPendiente)
+                        @if (linea.SerialPendiente)
                         {
                             @* Serializado que sale pendiente: el serial se captura en el despacho. *@
                             <div class="cg-venta__nota">Serial al entregar</div>
                         }
-                        @if (!linea.EsReverso && linea.CantidadEnEntrega > 0)
+                        @if (linea.CantidadEnEntrega > 0)
                         {
                             @* Cantidad de la línea marcada para entrega o envío posterior. *@
                             <div class="cg-venta__nota">Entrega posterior: @linea.CantidadEnEntrega.ToString("0.###")</div>
                         }
-                        @if (!linea.EsReverso && linea.DescuentoPromocion > 0)
+                        @if (linea.DescuentoPromocion > 0)
                         {
                             @* Ahorro de la oferta del maestro aplicada a la línea. *@
                             <div class="cg-venta__nota cg-venta__nota--ahorro">Oferta @linea.PromocionCodigo: −@linea.DescuentoPromocion.ToString("N2")</div>
                         }
-                        @if (!linea.EsReverso && linea.DescuentoManual > 0)
+                        @if (linea.DescuentoManual > 0)
                         {
                             @* Descuento manual de la línea, con el motivo con que se autorizó. *@
                             <div class="cg-venta__nota cg-venta__nota--ahorro">Descuento (@linea.MotivoDescuento): −@linea.DescuentoManual.ToString("N2")</div>
                         }
-                        @if (!linea.EsReverso && linea.DescuentoFactura > 0)
+                        @if (linea.DescuentoFactura > 0)
                         {
                             @* Parte del descuento a la factura que le tocó a esta línea al prorratearlo. *@
                             <div class="cg-venta__nota cg-venta__nota--ahorro">Descuento a la factura: −@linea.DescuentoFactura.ToString("N2")</div>
@@ -258,29 +254,29 @@ else
                                 @linea.PrecioUnitario.ToString("N2")
                             </span>
                         }
-                        else if (!linea.EsReverso)
+                        else
                         {
                             @linea.PrecioUnitario.ToString("N2")
                         }
                     </MudTd>
                     <MudTd Class="@($"cg-numero {ClaseCelda(linea)}")">@ImporteMostrado(linea).ToString("N2")</MudTd>
                     <MudTd Class="@ClaseCelda(linea)">
-                        @if (!linea.EsReverso && linea.PromocionDescripcion is not null)
+                        @if (linea.PromocionDescripcion is not null)
                         {
                             <button type="button" class="cg-venta__promo" title="@linea.PromocionNombre"
                                     @onclick="() => AbrirOfertaAsync(linea)" @onclick:stopPropagation="true">@linea.PromocionDescripcion</button>
                         }
-                        @if (!linea.EsReverso && linea.DescuentoManual > 0)
+                        @if (linea.DescuentoManual > 0)
                         {
                             <span class="cg-venta__promo cg-venta__promo--manual">
                                 @(linea.DescuentoManualTipo == TipoDescuento.Porcentaje ? $"-{linea.DescuentoManualValor:0.##}%" : "Desc.")
                             </span>
                         }
-                        @if (!linea.EsReverso && linea.Lista == ListaPrecio.Mayor)
+                        @if (linea.Lista == ListaPrecio.Mayor)
                         {
                             <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">Mayor</MudChip>
                         }
-                        @if (!linea.EsReverso && linea.LeidaDeBalanza)
+                        @if (linea.LeidaDeBalanza)
                         {
                             <MudIcon Icon="@Icons.Material.Filled.Scale" Size="Size.Small" Color="Color.Primary" Title="Leído de balanza" />
                         }
@@ -1194,15 +1190,14 @@ else
 
     private static string FormatoCantidad(DatosLineaVenta linea) => linea.Cantidad.ToString("N" + linea.DecimalesCantidad);
 
-    /// <summary>El reverso muestra en negativo el importe de la línea que anula (el total ya lo excluye).</summary>
-    private decimal ImporteMostrado(DatosLineaVenta linea)
-    {
-        if (!linea.EsReverso)
-            return linea.Anulada ? linea.ImporteBruto : linea.Importe;
+    /// <summary>
+    /// Lo que se ve en la columna del subtotal. Una línea eliminada conserva su importe, tachado: así se lee lo que se
+    /// había cobrado antes de quitarla; el total de la venta ya no la cuenta.
+    /// </summary>
+    private static decimal ImporteMostrado(DatosLineaVenta linea) => linea.Anulada ? linea.ImporteBruto : linea.Importe;
 
-        var original = _venta?.Lineas.FirstOrDefault(l => l.NumeroLinea == linea.LineaAnuladaNumero);
-        return original is null ? 0m : -original.ImporteBruto;
-    }
+    /// <summary>Las líneas de la venta tal como se muestran: sin los reversos, que son el contrapeso de las eliminadas.</summary>
+    private IReadOnlyList<DatosLineaVenta> LineasVisibles => _venta?.Lineas.Where(linea => !linea.EsReverso).ToList() ?? [];
 
     private async Task AbrirCertificadoAsync()
     {
