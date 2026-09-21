@@ -639,6 +639,10 @@
 .cg-venta__escaneo--eliminar .cg-venta__campo { border-color: var(--cg-peligro); }
 .cg-venta__campo:focus { box-shadow: 0 0 0 3px rgba(46, 125, 50, .25); }
 
+/* Claves de la caja: son campos de texto con lo escrito tapado por puntos, no de tipo contraseña. Así el navegador no
+   los reconoce como credencial y no ofrece guardarla ni la rellena (con un campo de contraseña ignora autocomplete="off"). */
+.cg-campo-clave input { -webkit-text-security: disc; text-security: disc; }
+
 .cg-venta__aviso { margin: 6px 16px 0; }
 
 /* Buscar y Totalizar, siempre a la vista junto al campo de escaneo. */

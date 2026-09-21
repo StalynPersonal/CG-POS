@@ -51,7 +51,7 @@
                           Required="true" RequiredError="Indique la dirección del Central." />
 
             <MudTextField T="string" @bind-Value="_secreto" Label="Credencial" Variant="Variant.Outlined" MaxLength="500"
-                          InputType="InputType.Password" Immediate="true" Class="mt-3" Required="true" RequiredError="Escriba la credencial que emitió el Central."
+                          InputType="InputType.Text" Immediate="true" Class="cg-campo-clave mt-3" Required="true" RequiredError="Escriba la credencial que emitió el Central."
                           HelperText="Se guarda cifrada en este equipo; no se vuelve a mostrar." />
 
             @* Quien configura se identifica con su usuario del Central: la contraseña solo viaja para comprobarla y no se guarda. *@
@@ -60,7 +60,7 @@
                 <MudTextField T="string" @bind-Value="_usuario" Label="Usuario del Central" Variant="Variant.Outlined" MaxLength="50"
                               Immediate="true" Required="true" RequiredError="Indique el usuario del Central." />
                 <MudTextField T="string" @bind-Value="_contrasena" Label="Contraseña" Variant="Variant.Outlined" MaxLength="150"
-                              InputType="InputType.Password" Immediate="true" Required="true" RequiredError="Escriba la contraseña." />
+                              InputType="InputType.Text" Immediate="true" Class="cg-campo-clave" Required="true" RequiredError="Escriba la contraseña." />
             </div>
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-6"
