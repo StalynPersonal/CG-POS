@@ -46,6 +46,11 @@ internal sealed class DescargaMaestros(
         }
 
         conexion.RegistrarContacto(ahora);
+
+        // Con el registro en Information se ve desde el arranque qué trae cada bajada, sin tener que subir el nivel.
+        registro.LogInformation("Bajando maestros del Central (versión {Desde} a {Hasta}): {Articulos} artículos, {Clientes} clientes, {Promociones} promociones.",
+            paquete.Desde, paquete.Hasta, paquete.Maestros?.Articulos?.Count ?? 0, paquete.Maestros?.Clientes?.Count ?? 0, paquete.Maestros?.Promociones?.Count ?? 0);
+
         var creados = 0;
         var actualizados = 0;
 

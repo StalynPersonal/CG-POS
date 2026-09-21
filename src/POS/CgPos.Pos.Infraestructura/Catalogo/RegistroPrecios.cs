@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,8 +18,17 @@ internal static class RegistroPrecios
         string origen,
         int? usuarioId,
         string? usuarioNombre,
-        CancellationToken cancelacion)
+        CancellationToken cancelacion,
+        bool sinHistorial = false)
     {
+        // Un artículo que se acaba de crear no tiene precios anteriores, ni en la base ni en esta misma unidad de trabajo:
+        // preguntarlo por cada uno es lo que hacía eterna la primera carga de una caja.
+        if (sinHistorial)
+        {
+            contexto.PreciosArticulo.Add(PrecioArticulo.Registrar(articuloId, lista, precio, vigenteDesde, ahora, origen, usuarioId, usuarioNombre));
+            return true;
+        }
+
         bool yaRegistrado;
 
         if (vigenteDesde <= ahora)

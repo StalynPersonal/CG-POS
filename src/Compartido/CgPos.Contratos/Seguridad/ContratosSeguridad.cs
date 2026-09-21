@@ -62,11 +62,21 @@ public sealed record DatosEstadoCaja(
 /// <param name="Etapa">En qué anda: descargando, aplicando la organización, aplicando los maestros…</param>
 /// <param name="DesdeCuando">Desde cuándo lleva en esta actualización.</param>
 /// <param name="UltimoError">Lo que dejó la última actualización que falló; nulo si la última terminó bien.</param>
+/// <param name="Hechos">Cuántos elementos lleva aplicados de la etapa; nulo en las etapas que no se cuentan.</param>
+/// <param name="Total">Cuántos elementos trae la etapa.</param>
 public sealed record DatosActualizacionCaja(
     bool EnCurso,
     string? Etapa = null,
     DateTimeOffset? DesdeCuando = null,
-    string? UltimoError = null);
+    string? UltimoError = null,
+    int? Hechos = null,
+    int? Total = null)
+{
+    /// <summary>La etapa con su conteo, tal como se muestra: «Aplicando artículos · 12,500 de 157,892».</summary>
+    public string? Detalle => Etapa is null ? null
+        : Total is { } total and > 0 ? $"{Etapa} · {Hechos ?? 0:N0} de {total:N0}"
+        : Etapa;
+}
 
 /// <summary>Nombres de los atributos del token de sesión de la caja.</summary>
 public static class AtributosToken

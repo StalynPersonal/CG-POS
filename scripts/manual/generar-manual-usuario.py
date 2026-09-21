@@ -659,7 +659,7 @@ nota('Mientras los datos no cuadren, la caja sigue vendiendo con lo que tiene en
 titulo('3.2. Entrar a la caja', 2)
 paso('En la pantalla de ingreso digite su usuario y su clave (no hay PIN ni carné: siempre usuario y clave).')
 nota('Una caja recién configurada tarda en tener sus datos: mientras el Central se los manda, la pantalla dice '
-     '«Actualizando los datos de la caja…» y en qué anda. No hay nada que hacer, solo esperar: la pantalla se habilita '
+     '«Actualizando los datos de la caja…», en qué anda y cuántos artículos lleva de cuántos. No hay nada que hacer, solo esperar: la pantalla se habilita '
      'sola al terminar. Si en vez de eso sale un aviso rojo, ahí sí hay algo que revisar, y debajo dice qué fue lo que '
      'no se pudo aplicar.')
 paso('Si se equivoca varias veces seguidas, el usuario se bloquea por unos minutos; un supervisor lo desbloquea desde el Central.')

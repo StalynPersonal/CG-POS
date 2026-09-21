@@ -1,4 +1,4 @@
-using CgPos.Contratos.Seguridad;
+﻿using CgPos.Contratos.Seguridad;
 
 namespace CgPos.Pos.Aplicacion.Sincronizacion;
 
@@ -21,6 +21,9 @@ public interface IProgresoActualizacion
 
     /// <summary>Cambia el texto de lo que se está haciendo, sin abrir otra actualización.</summary>
     void Etapa(string etapa);
+
+    /// <summary>Cuántos elementos lleva la etapa, para que en pantalla se vea un número moviéndose.</summary>
+    void Avance(int hechos, int total);
 
     /// <summary>Lo que dejó la última actualización: nulo si terminó bien.</summary>
     void Terminar(string? error);

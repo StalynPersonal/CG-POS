@@ -4,6 +4,7 @@ using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Catalogo;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Catalogo;
+using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,12 +18,24 @@ namespace CgPos.Pos.Infraestructura.Catalogo;
 internal sealed class ServicioCargaMaestros(
     ContextoDatosPos contexto,
     IAuditoria auditoria,
+    IProgresoActualizacion progreso,
     TimeProvider reloj,
     ILogger<ServicioCargaMaestros> registro) : ICargaMaestros
 {
+    /// <summary>Cada cuántos artículos se avisa del avance: mover el número en cada uno solo gasta tiempo.</summary>
+    private const int CadaCuantos = 250;
+
     private int _creados;
     private int _actualizados;
     private int _precios;
+
+    /// <summary>
+    /// Los artículos y las categorías que ya se tocaron en esta carga. EF también los tiene rastreados, pero buscarlos
+    /// ahí es recorrer la lista entera cada vez: con el catálogo completo eso solo no terminaba nunca.
+    /// </summary>
+    private readonly Dictionary<string, Articulo> _articulos = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, Categoria> _categorias = [];
+    private readonly Dictionary<string, CgPos.Dominio.Clientes.Cliente> _clientes = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<ResultadoCargaMaestros> AplicarDesdeArchivoAsync(string ruta, CancellationToken cancelacion = default)
     {
@@ -50,6 +63,9 @@ internal sealed class ServicioCargaMaestros(
         _creados = 0;
         _actualizados = 0;
         _precios = 0;
+        _articulos.Clear();
+        _categorias.Clear();
+        _clientes.Clear();
 
         ValidarRepetidos(paquete);
         await ValidarCodigosArticulosAsync(paquete.Articulos ?? [], cancelacion);
@@ -84,14 +100,47 @@ internal sealed class ServicioCargaMaestros(
                 resolutor.RegistrarImpuesto(d.Codigo.Trim(),
                     await AplicarAsync(contexto.Impuestos, e => e.Codigo == d.Codigo.Trim(), () => MapeoMaestros.Crear(d), e => MapeoMaestros.Actualizar(e, d), cancelacion));
 
-            foreach (var d in paquete.Articulos ?? [])
+            // Los artículos son lo que tarda: una caja nueva recibe el catálogo entero y se avisa del avance mientras entra.
+            var articulos = paquete.Articulos ?? [];
+            if (articulos.Count > 0)
+            {
+                registro.LogInformation("Aplicando {Total} artículos del paquete de maestros ({Origen}).", articulos.Count, origen);
+                progreso.Etapa("Aplicando artículos, precios y catálogos");
+            }
+
+            var hechos = 0;
+            foreach (var d in articulos)
+            {
                 resolutor.RegistrarArticulo(d.Codigo.Trim(), await AplicarArticuloAsync(d, resolutor, origen, ahora, cancelacion));
 
-            foreach (var d in paquete.Clientes ?? [])
-                await AplicarAsync(contexto.Clientes.Include(c => c.Direcciones), contexto.Clientes, e => e.Codigo == d.Codigo.Trim().ToUpper(),
-                    () => MapeoMaestros.Crear(d),
-                    // La corrección del documento ya se auditó en el Central; las ventas anteriores conservan el documento con que se emitieron.
-                    e => MapeoMaestros.Actualizar(e, d, corregirDocumento: true), cancelacion);
+                if (++hechos % CadaCuantos != 0 && hechos != articulos.Count)
+                    continue;
+
+                progreso.Avance(hechos, articulos.Count);
+                if (hechos % 10_000 == 0 || hechos == articulos.Count)
+                    registro.LogInformation("Maestros: {Hechos} de {Total} artículos aplicados.", hechos, articulos.Count);
+            }
+
+            // Los clientes son el padrón de la DGII entero: es la etapa más larga de la primera carga de una caja.
+            var clientes = paquete.Clientes ?? [];
+            if (clientes.Count > 0)
+            {
+                registro.LogInformation("Aplicando {Total} clientes del paquete de maestros ({Origen}).", clientes.Count, origen);
+                progreso.Etapa("Aplicando clientes");
+            }
+
+            hechos = 0;
+            foreach (var d in clientes)
+            {
+                await AplicarClienteAsync(d, cancelacion);
+
+                if (++hechos % CadaCuantos != 0 && hechos != clientes.Count)
+                    continue;
+
+                progreso.Avance(hechos, clientes.Count);
+                if (hechos % 25_000 == 0 || hechos == clientes.Count)
+                    registro.LogInformation("Maestros: {Hechos} de {Total} clientes aplicados.", hechos, clientes.Count);
+            }
             foreach (var d in paquete.FormasPago ?? [])
             {
                 await ValidarMonedaAsync(d.Moneda, $"La forma de pago '{d.Codigo}'", cancelacion);
@@ -150,6 +199,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarAsync(contexto.DescuentosTarjeta, e => e.Codigo == d.Codigo.Trim().ToUpper(), () => MapeoMaestros.Crear(d, resolutor),
                     e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
 
+            // Guardar 150 mil artículos de una vez tarda: sin este aviso parece que el avance se quedó clavado al final.
+            progreso.Etapa("Guardando los datos en la caja");
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
             await contexto.SaveChangesAsync(cancelacion);
@@ -193,22 +244,41 @@ internal sealed class ServicioCargaMaestros(
     private async Task<int> AplicarArticuloAsync(ArticuloCarga dato, ResolutorCodigosPos resolutor, string origen, DateTimeOffset ahora, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
+        var nuevo = false;
+
+        if (!_articulos.TryGetValue(codigo, out var articulo))
+        {
+            articulo = await contexto.Articulos.Include(a => a.Codigos).FirstOrDefaultAsync(a => a.Codigo == codigo, cancelacion);
+            nuevo = articulo is null;
+        }
 
         // El paquete trae miles de artículos: sin el código en el mensaje, un dato malo es imposible de encontrar.
-        int id;
         try
         {
-            id = await AplicarAsync(contexto.Articulos.Include(a => a.Codigos), contexto.Articulos, a => a.Codigo == codigo,
-                () => MapeoMaestros.Crear(dato, resolutor), e => MapeoMaestros.Actualizar(e, dato, resolutor), cancelacion);
+            if (articulo is null)
+            {
+                articulo = MapeoMaestros.Crear(dato, resolutor);
+                contexto.Articulos.Add(articulo);
+                _creados++;
+            }
+            else
+            {
+                MapeoMaestros.Actualizar(articulo, dato, resolutor);
+                _actualizados++;
+            }
         }
         catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
         {
             throw new InvalidOperationException($"Artículo '{codigo}': {excepcion.Message}", excepcion);
         }
 
-        var articulo = contexto.Articulos.Local.Single(a => a.Id == id);
-        var categoria = contexto.Categorias.Local.FirstOrDefault(c => c.Id == articulo.CategoriaId)
-                        ?? await contexto.Categorias.AsNoTracking().FirstAsync(c => c.Id == articulo.CategoriaId, cancelacion);
+        _articulos[codigo] = articulo;
+        var id = articulo.Id;
+
+        // La categoría es obligatoria (la exige el mapeo), pero en la entidad es opcional: si faltara, se dice cuál es.
+        var categoria = articulo.CategoriaId is { } categoriaId
+            ? await CategoriaAsync(categoriaId, cancelacion)
+            : throw new InvalidOperationException($"El artículo '{codigo}' no tiene categoría.");
         if (categoria.DepartamentoId != articulo.DepartamentoId)
             throw new InvalidOperationException($"El artículo '{codigo}' tiene una categoría que no es de su departamento.");
 
@@ -218,13 +288,60 @@ internal sealed class ServicioCargaMaestros(
         // guarda precios de verdad, así que ese artículo se queda sin precio: no se vende, y el día que lo activen habrá
         // que ponérselo.
         if (dato.PrecioDetalle > 0
-            && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Detalle, dato.PrecioDetalle, vigenteDesde, ahora, origen, null, null, cancelacion))
+            && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Detalle, dato.PrecioDetalle, vigenteDesde, ahora, origen, null, null,
+                cancelacion, sinHistorial: nuevo))
             _precios++;
         if (dato.PrecioMayor is { } mayor && mayor > 0
-            && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Mayor, mayor, vigenteDesde, ahora, origen, null, null, cancelacion))
+            && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Mayor, mayor, vigenteDesde, ahora, origen, null, null,
+                cancelacion, sinHistorial: nuevo))
             _precios++;
 
         return id;
+    }
+
+    /// <summary>
+    /// El cliente por su código, recordando los ya vistos. Igual que con los artículos: buscar entre lo que EF lleva
+    /// rastreado es recorrer la lista completa, y aquí son cientos de miles.
+    /// </summary>
+    private async Task AplicarClienteAsync(ClienteCarga dato, CancellationToken cancelacion)
+    {
+        var codigo = dato.Codigo.Trim().ToUpperInvariant();
+        if (!_clientes.TryGetValue(codigo, out var cliente))
+            cliente = await contexto.Clientes.Include(c => c.Direcciones).FirstOrDefaultAsync(c => c.Codigo == codigo, cancelacion);
+
+        try
+        {
+            if (cliente is null)
+            {
+                cliente = MapeoMaestros.Crear(dato);
+                contexto.Clientes.Add(cliente);
+                _creados++;
+            }
+            else
+            {
+                // La corrección del documento ya se auditó en el Central; las ventas anteriores conservan el documento con que se emitieron.
+                MapeoMaestros.Actualizar(cliente, dato, corregirDocumento: true);
+                _actualizados++;
+            }
+        }
+        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+        {
+            throw new InvalidOperationException($"Cliente '{codigo}': {excepcion.Message}", excepcion);
+        }
+
+        _clientes[codigo] = cliente;
+    }
+
+    /// <summary>La categoría del artículo, recordada: si no, cada artículo la vuelve a buscar entre todas las rastreadas.</summary>
+    private async Task<Categoria> CategoriaAsync(int categoriaId, CancellationToken cancelacion)
+    {
+        if (_categorias.TryGetValue(categoriaId, out var categoria))
+            return categoria;
+
+        categoria = contexto.Categorias.Local.FirstOrDefault(c => c.Id == categoriaId)
+                    ?? await contexto.Categorias.AsNoTracking().FirstAsync(c => c.Id == categoriaId, cancelacion);
+        _categorias[categoriaId] = categoria;
+        return categoria;
     }
 
     private static void ValidarRepetidos(PaqueteMaestros paquete)

@@ -1,4 +1,4 @@
-using CgPos.Contratos.Seguridad;
+﻿using CgPos.Contratos.Seguridad;
 using CgPos.Dominio.Comun;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 
@@ -14,13 +14,17 @@ internal sealed class ProgresoActualizacionEnMemoria(TimeProvider reloj) : IProg
     private string? _etapa;
     private DateTimeOffset? _desde;
     private string? _ultimoError;
+    private int? _hechos;
+    private int? _total;
 
     public DatosActualizacionCaja? Actual
     {
         get
         {
             lock (_candado)
-                return _etapa is null && _ultimoError is null ? null : new DatosActualizacionCaja(_etapa is not null, _etapa, _desde, _ultimoError);
+                return _etapa is null && _ultimoError is null
+                    ? null
+                    : new DatosActualizacionCaja(_etapa is not null, _etapa, _desde, _ultimoError, _hechos, _total);
         }
     }
 
@@ -30,6 +34,8 @@ internal sealed class ProgresoActualizacionEnMemoria(TimeProvider reloj) : IProg
         {
             _etapa = etapa;
             _desde = reloj.Ahora();
+            _hechos = null;
+            _total = null;
         }
 
         return new Fin(this);
@@ -40,8 +46,24 @@ internal sealed class ProgresoActualizacionEnMemoria(TimeProvider reloj) : IProg
         lock (_candado)
         {
             // Sin actualización abierta no hay etapa que cambiar: el aviso llegó tarde y se ignora.
-            if (_etapa is not null)
-                _etapa = etapa;
+            if (_etapa is null)
+                return;
+
+            _etapa = etapa;
+            _hechos = null;
+            _total = null;
+        }
+    }
+
+    public void Avance(int hechos, int total)
+    {
+        lock (_candado)
+        {
+            if (_etapa is null)
+                return;
+
+            _hechos = hechos;
+            _total = total;
         }
     }
 
@@ -51,6 +73,8 @@ internal sealed class ProgresoActualizacionEnMemoria(TimeProvider reloj) : IProg
         {
             _etapa = null;
             _desde = null;
+            _hechos = null;
+            _total = null;
             _ultimoError = error;
         }
     }
@@ -64,6 +88,8 @@ internal sealed class ProgresoActualizacionEnMemoria(TimeProvider reloj) : IProg
             {
                 progreso._etapa = null;
                 progreso._desde = null;
+                progreso._hechos = null;
+                progreso._total = null;
             }
         }
     }
