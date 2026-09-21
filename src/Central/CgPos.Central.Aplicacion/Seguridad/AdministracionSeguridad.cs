@@ -1,11 +1,12 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Contratos.Central;
 
 namespace CgPos.Central.Aplicacion.Seguridad;
 
-public sealed record ResultadoAdministracion(bool Exitosa, string? Mensaje, int? Id, bool NoEncontrado = false)
+/// <param name="Advertencia">Se guardó, pero hay algo que quien lo hizo debe saber (ej. un documento sin dígito verificador).</param>
+public sealed record ResultadoAdministracion(bool Exitosa, string? Mensaje, int? Id, bool NoEncontrado = false, string? Advertencia = null)
 {
-    public static ResultadoAdministracion Correcto(int? id = null) => new(true, null, id);
+    public static ResultadoAdministracion Correcto(int? id = null, string? advertencia = null) => new(true, null, id, Advertencia: advertencia);
 
     public static ResultadoAdministracion Error(string mensaje) => new(false, mensaje, null);
 

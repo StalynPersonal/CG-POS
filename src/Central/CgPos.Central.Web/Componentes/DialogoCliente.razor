@@ -1,8 +1,9 @@
-@* Alta o edición de un cliente con sus direcciones de envío. Cambiar el documento de un cliente existente es una corrección auditada: pide motivo. *@
+﻿@* Alta o edición de un cliente con sus direcciones de envío. Cambiar el documento de un cliente existente es una corrección auditada: pide motivo. *@
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Catalogo
 @using CgPos.Dominio.Fiscal
 @inject ClienteCentral Central
+@inject ISnackbar Avisos
 
 <MudDialog>
     <DialogContent>
@@ -237,6 +238,10 @@
                 _mensaje = correccion.Mensaje ?? "No se pudo corregir el documento.";
                 return;
             }
+
+            // El documento se guardó pero algo hay que mirar: casi siempre, un dígito verificador que no cuadra.
+            if (correccion.Advertencia is { Length: > 0 } aviso)
+                Avisos.Add(aviso, Severity.Warning);
 
             Cliente = Cliente with { TipoDocumento = _tipoDocumento, Documento = DocumentoIdentidad.Normalizar(_documento) };
         }

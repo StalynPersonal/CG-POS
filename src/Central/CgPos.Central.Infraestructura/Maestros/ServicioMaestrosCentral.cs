@@ -81,12 +81,20 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
         if (solicitud.TipoDocumento == actual.TipoDocumento && documento == DocumentoIdentidad.Normalizar(actual.Documento))
             return ResultadoAdministracion.Error("El documento es el mismo que ya tiene el cliente.");
 
-        // RNC y cédula deben tener formato y dígito verificador válidos; el pasaporte solo se valida por formato (en el dominio).
+        // RNC y cédula deben tener la forma que les toca (9 y 11 dígitos); el pasaporte solo se valida por formato (en el dominio).
+        // El dígito verificador no bloquea: hay cédulas viejas legítimas que no lo cumplen, así que se guarda y se avisa.
+        string? advertencia = null;
         if (solicitud.TipoDocumento != TipoDocumentoIdentidad.Pasaporte)
         {
+            var nombreTipo = solicitud.TipoDocumento == TipoDocumentoIdentidad.Rnc ? "un RNC" : "una cédula";
             var validacion = DocumentoIdentidad.Validar(documento);
-            if (validacion.Tipo != solicitud.TipoDocumento || !validacion.EsValido)
-                return ResultadoAdministracion.Error($"El documento '{solicitud.Documento}' no es {(solicitud.TipoDocumento == TipoDocumentoIdentidad.Rnc ? "un RNC válido" : "una cédula válida")}.");
+            if (validacion.Tipo != solicitud.TipoDocumento || !validacion.EsAceptable)
+                return ResultadoAdministracion.Error($"El documento '{solicitud.Documento}' no tiene forma de {nombreTipo}: "
+                                                     + $"{(solicitud.TipoDocumento == TipoDocumentoIdentidad.Rnc ? "son 9 dígitos" : "son 11 dígitos")}.");
+
+            if (!validacion.DigitoVerificadorValido)
+                advertencia = $"El documento '{solicitud.Documento}' se guardó, pero su dígito verificador no cuadra. "
+                              + "Revise que esté bien digitado; las cédulas más viejas pueden no cumplirlo.";
         }
 
         if (await contexto.Clientes.AsNoTracking().AnyAsync(c => c.Id != id && c.TipoDocumento == solicitud.TipoDocumento && c.Documento == documento, cancelacion))
@@ -105,7 +113,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
         auditoria.Registrar(new EntradaAuditoria("Maestros.ClienteDocumentoCorregido", "Cliente", actual.Codigo,
             new { Anterior = new { actual.TipoDocumento, actual.Documento }, Nuevo = new { solicitud.TipoDocumento, Documento = documento } }, solicitud.Motivo.Trim(), actor));
         await contexto.SaveChangesAsync(cancelacion);
-        return ResultadoAdministracion.Correcto(id);
+        return ResultadoAdministracion.Correcto(id, advertencia);
     }
 
     public async Task<ResultadoAdministracion> CambiarPreciosAsync(string codigoArticulo, SolicitudPreciosArticulo solicitud, UsuarioAuditoria actor,

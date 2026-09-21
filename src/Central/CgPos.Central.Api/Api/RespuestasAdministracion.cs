@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Api.Seguridad;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Seguridad;
@@ -17,7 +17,7 @@ internal static class RespuestasAdministracion
     public static IResult Responder(ResultadoAdministracion resultado) =>
         resultado switch
         {
-            { Exitosa: true } => Results.Ok(new RespuestaAdministracion(true, resultado.Mensaje, resultado.Id)),
+            { Exitosa: true } => Results.Ok(new RespuestaAdministracion(true, resultado.Mensaje, resultado.Id, resultado.Advertencia)),
             { NoEncontrado: true } => Results.Json(new RespuestaAdministracion(false, resultado.Mensaje), statusCode: StatusCodes.Status404NotFound),
             _ => Results.Json(new RespuestaAdministracion(false, resultado.Mensaje), statusCode: StatusCodes.Status400BadRequest),
         };

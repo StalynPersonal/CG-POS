@@ -1,4 +1,4 @@
-namespace CgPos.Contratos.Central;
+﻿namespace CgPos.Contratos.Central;
 
 public sealed record DatosPermisoCentral(string Codigo, string Modulo, string Descripcion);
 
@@ -27,4 +27,5 @@ public sealed record SolicitudActualizarUsuarioCentral(string Nombre, string? Co
 public sealed record SolicitudContrasenaTemporal(string ContrasenaTemporal);
 
 /// <summary>Resultado de una operación de administración. Con error, <paramref name="Mensaje"/> explica qué corregir.</summary>
-public sealed record RespuestaAdministracion(bool Exitosa, string? Mensaje = null, int? Id = null);
+/// <param name="Advertencia">La operación se hizo, pero hay algo que conviene revisar.</param>
+public sealed record RespuestaAdministracion(bool Exitosa, string? Mensaje = null, int? Id = null, string? Advertencia = null);

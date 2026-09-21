@@ -122,7 +122,7 @@ internal sealed class ServicioDevoluciones(
             .FirstOrDefaultAsync(cancelacion) ?? remota.Moneda;
 
         var copia = FacturaConsultada.Crear(remota.Numero, remota.Encf, remota.SucursalCodigo, remota.CajaCodigo, remota.TipoComprobante,
-            remota.CobradaEn, DocumentoIdentidad.Validar(remota.ClienteDocumento ?? string.Empty) is { EsValido: true } validacion ? validacion.Tipo : null,
+            remota.CobradaEn, DocumentoIdentidad.Validar(remota.ClienteDocumento ?? string.Empty) is { EsAceptable: true } validacion ? validacion.Tipo : null,
             remota.ClienteDocumento, remota.ClienteNombre, remota.Moneda, simbolo, remota.Total, reloj.Ahora());
         contexto.FacturasConsultadas.Add(copia);
 
@@ -550,11 +550,11 @@ internal sealed class ServicioDevoluciones(
     /// <summary>El cliente de una factura que no vendió esta caja; si venía sin identificar, el que digite el cajero (RF-160).</summary>
     private async Task<ClienteDevolucion?> ClienteRemotoAsync(FacturaConsultada copia, SolicitudDevolucion solicitud, CancellationToken cancelacion)
     {
-        if (copia.ClienteDocumento is { } documentoFactura && DocumentoIdentidad.Validar(documentoFactura).EsValido)
+        if (copia.ClienteDocumento is { } documentoFactura && DocumentoIdentidad.Validar(documentoFactura).EsAceptable)
             return new ClienteDevolucion(copia.ClienteTipoDocumento, documentoFactura, copia.ClienteNombre ?? documentoFactura);
 
         var validacion = DocumentoIdentidad.Validar(solicitud.ClienteDocumento);
-        if (!validacion.EsValido)
+        if (!validacion.EsAceptable)
             return null;
 
         var nombre = string.IsNullOrWhiteSpace(solicitud.ClienteNombre)
@@ -571,7 +571,7 @@ internal sealed class ServicioDevoluciones(
             return new ClienteDevolucion(venta.ClienteTipoDocumento, documentoFactura, venta.ClienteNombre ?? documentoFactura);
 
         var validacion = DocumentoIdentidad.Validar(solicitud.ClienteDocumento);
-        if (!validacion.EsValido)
+        if (!validacion.EsAceptable)
             return null;
 
         // El nombre sale del maestro de clientes; si el documento no está registrado, lo digita el cajero.

@@ -178,18 +178,21 @@
     /// <summary>
     /// Mientras la caja no esté lista se sigue preguntando: una caja recién configurada pasa sola de «actualizando» a
     /// habilitada, y sin esto el cajero tendría que recargar la pantalla para enterarse.
+    ///
+    /// Se deja de preguntar solo cuando ya no hay nada que esperar. Son dos condiciones, no una: la caja puede estar
+    /// habilitada y seguir bajando maestros, y mirar solo lo primero dejaba el aviso de «actualizando» clavado en
+    /// pantalla aunque la carga hubiera terminado.
     /// </summary>
     private async Task RevisarEstadoAsync()
     {
-        if (CajaDisponible)
+        _estado = await Cliente.ObtenerEstadoCajaAsync();
+        StateHasChanged();
+
+        if (CajaDisponible && _estado?.Actualizacion is not { EnCurso: true })
         {
             _temporizadorEstado?.Dispose();
             _temporizadorEstado = null;
-            return;
         }
-
-        _estado = await Cliente.ObtenerEstadoCajaAsync();
-        StateHasChanged();
     }
 
     private void IrAConfigurar() => Navegacion.NavigateTo($"/configurar?pantalla={ClavePantalla}");

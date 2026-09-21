@@ -204,7 +204,8 @@ public sealed class Devolucion : Entidad
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.CantidadInvalida, "Cada línea de la factura se indica una sola vez.");
 
         // La nota interna no es un comprobante fiscal: no exige identificar al cliente, pero se guarda el que traiga la factura.
-        if (!esInterna && (cliente is null || !DocumentoIdentidad.Validar(cliente.Documento).EsValido || string.IsNullOrWhiteSpace(cliente.Nombre)))
+        // Se exige la forma del documento, no su dígito verificador: con una cédula vieja también se emite la nota.
+        if (!esInterna && (cliente is null || !DocumentoIdentidad.Validar(cliente.Documento).EsAceptable || string.IsNullOrWhiteSpace(cliente.Nombre)))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.ClienteRequerido, "La nota de crédito requiere la cédula o el RNC válido y el nombre del cliente.");
         if (motivoCodigo is null or < 1 || string.IsNullOrWhiteSpace(motivoNombre))
             throw new ReglaDevolucionExcepcion(CodigoErrorDevolucion.MotivoRequerido, "Seleccione el motivo de la devolución.");

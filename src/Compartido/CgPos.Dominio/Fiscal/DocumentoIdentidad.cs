@@ -29,6 +29,13 @@ public sealed record ResultadoValidacionDocumento(
     bool DigitoVerificadorValido)
 {
     public bool EsValido => FormatoValido && DigitoVerificadorValido;
+
+    /// <summary>
+    /// El documento se puede usar aunque el dígito verificador no cuadre. Hay cédulas anteriores al dígito verificador
+    /// que son legítimas, y rechazarlas dejaría a esa persona sin poder ser cliente ni recibir una nota de crédito.
+    /// Quien lo acepte debe avisar de que el dígito no cuadra, para que se revise el número antes de seguir.
+    /// </summary>
+    public bool EsAceptable => FormatoValido && Tipo is not null;
 }
 
 /// <summary>
