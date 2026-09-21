@@ -3,8 +3,10 @@
 @using System.Text.Json
 @using CgPos.Contratos.Serializacion
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.JSInterop
 @inject NavigationManager Navegacion
 @inject ClienteAgente Cliente
+@inject IJSRuntime Js
 
 @* Pantalla del cliente (segundo monitor, RF-115): artículos y total en tiempo real, con publicidad. No requiere sesión. *@
 
@@ -133,6 +135,9 @@
 
     /// <summary>Segundos que lleva en pantalla la imagen actual; con un video no se cuenta.</summary>
     private int _segundosEnMedio;
+
+    private ElementReference? _video;
+    private string? _videoEnMarcha;
     private DateTime _ahora = DateTime.Now;
 
     private static decimal AhorroDe(DatosLineaVenta linea) => linea.DescuentoPromocion + linea.DescuentoManual + linea.DescuentoFactura;
@@ -148,7 +153,7 @@
                 @* Sin sonido, porque el monitor del cliente no suele tener bocinas y el navegador no deja reproducir
                    solo con audio. La clave hace que Blazor cree otro <video> al cambiar de archivo, en vez de reusar
                    el mismo y quedarse con el anterior cargado. Si el video falla, se pasa al siguiente. *@
-                <video @key="medio.Ruta" class="cg-carrusel__imagen" src="@medio.Ruta" autoplay muted playsinline
+                <video @key="medio.Ruta" @ref="_video" class="cg-carrusel__imagen" src="@medio.Ruta" autoplay muted playsinline preload="auto"
                        @onended="Siguiente" @onerror="Siguiente"></video>
             }
             else
@@ -174,6 +179,7 @@
     {
         _indiceImagen++;
         _segundosEnMedio = 0;
+        _videoEnMarcha = null;
 
         // Al volver a la primera pieza se miran los archivos del equipo: así entran los que alguien copió en la carpeta,
         // que no pasan por el Central y de los que nadie avisa.
@@ -181,6 +187,26 @@
             await RecargarPublicidadAsync();
         else
             StateHasChanged();
+    }
+
+    /// <summary>
+    /// Le pide al navegador que reproduzca el video que acaba de aparecer. El atributo «autoplay» no basta cuando el
+    /// elemento lo crea Blazor después de cargar la página: hay que silenciarlo por propiedad y pedir la reproducción.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (MedioActual is not { EsVideo: true } video || _video is not { } elemento || _videoEnMarcha == video.Ruta)
+            return;
+
+        _videoEnMarcha = video.Ruta;
+        try
+        {
+            await Js.InvokeVoidAsync("cgPantallaCliente.reproducir", elemento);
+        }
+        catch (JSException)
+        {
+            // La pantalla del cliente es informativa: si el navegador no deja reproducir, el carrusel sigue igual.
+        }
     }
 
     protected override async Task OnInitializedAsync()
