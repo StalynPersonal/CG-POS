@@ -176,7 +176,10 @@ public static class CatalogoParametros
         new("Central.Seguridad.MinutosToken", "Seguridad del Central", "Minutos de vigencia del token de acceso del Central Manager", Entero, true, Central, Minimo: 1),
         new("Central.Seguridad.MinutosInactividad", "Seguridad del Central", "Minutos sin actividad tras los que vence la sesión del Central Manager", Entero, true, Central, Minimo: 1),
         new("Central.Seguridad.HorasSesion", "Seguridad del Central", "Horas máximas de una sesión del Central Manager", Entero, true, Central, Minimo: 1),
-        new("Central.Seguridad.LargoMinimoContrasena", "Seguridad del Central", "Largo mínimo de las contraseñas del Central", Entero, true, Central, Minimo: 1),
+        new("Central.Seguridad.LargoMinimoContrasena", "Seguridad del Central", "Largo mínimo de las contraseñas de los usuarios del Central", Entero, true, Central, Minimo: 1),
+        new("Central.Seguridad.LargoMaximoContrasena", "Seguridad del Central", "Largo máximo de las contraseñas de los usuarios del Central (vacío = sin tope)", Entero, false, Central, Minimo: 1),
+        new("Central.Seguridad.LargoMinimoClaveCaja", "Seguridad del Central", "Largo mínimo de la clave de los usuarios de caja", Entero, true, Central, Minimo: 1),
+        new("Central.Seguridad.LargoMaximoClaveCaja", "Seguridad del Central", "Largo máximo de la clave de los usuarios de caja (vacío = sin tope)", Entero, false, Central, Minimo: 1),
         new("Central.Seguridad.ContrasenaCompleja", "Seguridad del Central", "Exige mayúsculas, minúsculas, números y símbolos, sin contener el usuario", Booleano, false, Central),
         new("Central.Dispositivos.MinutosToken", "Seguridad del Central", "Minutos de vigencia del token con el que las cajas se comunican con el Central", Entero, true, Central, Minimo: 1),
 

@@ -31,6 +31,12 @@ public static class ParametrosCentralExtensiones
             ? valor
             : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser un número entero mayor que cero");
 
+    /// <summary>Para topes que el negocio puede no fijar: <c>null</c> si no está configurado, error si no es un entero mayor que cero.</summary>
+    public static async Task<int?> ObtenerEnteroPositivoOpcionalAsync(this IParametrosCentral parametros, string clave, CancellationToken cancelacion = default) =>
+        await parametros.ObtenerAsync(clave, cancelacion) is not { Length: > 0 } texto ? null
+        : int.TryParse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor) && valor > 0 ? valor
+        : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser un número entero mayor que cero");
+
     /// <summary>Para reglas que el negocio puede no activar: <c>false</c> si no está configurado, error si está mal escrito.</summary>
     public static async Task<bool> ObtenerBooleanoOpcionalAsync(this IParametrosCentral parametros, string clave, CancellationToken cancelacion = default) =>
         await parametros.ObtenerAsync(clave, cancelacion) is not { Length: > 0 } texto ? false
@@ -56,8 +62,17 @@ public static class ClavesParametrosCentral
     /// <summary>Horas máximas de una sesión, aunque se siga renovando.</summary>
     public const string HorasSesion = "Central.Seguridad.HorasSesion";
 
-    /// <summary>Largo mínimo de las contraseñas del Central.</summary>
+    /// <summary>Largo mínimo de las contraseñas de los usuarios del Central.</summary>
     public const string LargoMinimoContrasena = "Central.Seguridad.LargoMinimoContrasena";
+
+    /// <summary>Largo máximo de las contraseñas de los usuarios del Central. Opcional: sin él no hay tope.</summary>
+    public const string LargoMaximoContrasena = "Central.Seguridad.LargoMaximoContrasena";
+
+    /// <summary>Largo mínimo de la clave de los usuarios de caja, que se fija en el Central y baja a las cajas.</summary>
+    public const string LargoMinimoClaveCaja = "Central.Seguridad.LargoMinimoClaveCaja";
+
+    /// <summary>Largo máximo de la clave de los usuarios de caja. Opcional: sin él no hay tope.</summary>
+    public const string LargoMaximoClaveCaja = "Central.Seguridad.LargoMaximoClaveCaja";
 
     /// <summary>Exige mayúscula, minúscula, número y símbolo, sin contener el usuario. Opcional: sin él solo se exige el largo.</summary>
     public const string ContrasenaCompleja = "Central.Seguridad.ContrasenaCompleja";

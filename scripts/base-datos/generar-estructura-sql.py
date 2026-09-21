@@ -50,7 +50,8 @@ PARAMETROS_INICIALES = [
     ('Central.Seguridad.MinutosToken', '15', 'Minutos de vigencia del token de acceso'),
     ('Central.Seguridad.MinutosInactividad', '60', 'Minutos sin actividad tras los que vence la sesión'),
     ('Central.Seguridad.HorasSesion', '12', 'Horas máximas de una sesión'),
-    ('Central.Seguridad.LargoMinimoContrasena', '10', 'Largo mínimo de las contraseñas del Central'),
+    ('Central.Seguridad.LargoMinimoContrasena', '10', 'Largo mínimo de las contraseñas de los usuarios del Central'),
+    ('Central.Seguridad.LargoMinimoClaveCaja', '6', 'Largo mínimo de la clave de los usuarios de caja'),
     ('Central.Seguridad.ContrasenaCompleja', 'true', 'Exige mayúscula, minúscula, número y símbolo'),
     ('Central.Dispositivos.MinutosToken', '30', 'Minutos de vigencia del token de una caja'),
 

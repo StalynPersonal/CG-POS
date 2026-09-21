@@ -199,9 +199,11 @@ internal sealed class ServicioConfiguracionCajas(ContextoDatosCentral contexto, 
         var claveNueva = string.IsNullOrEmpty(solicitud.Clave) ? null : solicitud.Clave;
         if (claveNueva is not null)
         {
-            var largoMinimo = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.LargoMinimoContrasena, cancelacion);
-            if (claveNueva.Length < largoMinimo)
-                return ResultadoAdministracion.Error($"La clave debe tener al menos {largoMinimo} caracteres.");
+            // La clave de caja tiene su propio largo, aparte de la contraseña del Central: se escribe en el teclado de la caja.
+            var largoMinimo = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.LargoMinimoClaveCaja, cancelacion);
+            var largoMaximo = await parametros.ObtenerEnteroPositivoOpcionalAsync(ClavesParametrosCentral.LargoMaximoClaveCaja, cancelacion);
+            if (ReglasContrasena.ValidarLargo(claveNueva, largoMinimo, largoMaximo, "La clave") is { } problema)
+                return ResultadoAdministracion.Error(problema);
         }
 
         var rolCodigo = await contexto.RolesCaja.Where(r => r.Id == solicitud.RolId).Select(r => r.Codigo).SingleOrDefaultAsync(cancelacion);

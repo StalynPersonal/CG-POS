@@ -161,8 +161,9 @@ internal sealed class ServicioSesionesCentral(
         }
 
         var largoMinimo = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.LargoMinimoContrasena, cancelacion);
+        var largoMaximo = await parametros.ObtenerEnteroPositivoOpcionalAsync(ClavesParametrosCentral.LargoMaximoContrasena, cancelacion);
         var compleja = await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametrosCentral.ContrasenaCompleja, cancelacion);
-        var problema = ReglasContrasena.Validar(nueva, largoMinimo, compleja, usuario.Codigo)
+        var problema = ReglasContrasena.Validar(nueva, largoMinimo, largoMaximo, compleja, usuario.Codigo)
             ?? (hashContrasenas.Verificar(nueva, usuario.ContrasenaHash) ? "La contraseña nueva debe ser distinta de la actual." : null);
         if (problema is not null)
             return ResultadoSesionCentral.Rechazo(MotivoRechazoCentral.ContrasenaNoCumple, detalle: problema);

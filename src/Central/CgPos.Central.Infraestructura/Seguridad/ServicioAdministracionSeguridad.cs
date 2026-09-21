@@ -1,4 +1,4 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Infraestructura.Persistencia;
@@ -265,8 +265,9 @@ internal sealed class ServicioAdministracionSeguridad(
     private async Task<string?> ValidarContrasenaAsync(string? contrasena, string codigoUsuario, CancellationToken cancelacion)
     {
         var largoMinimo = await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.LargoMinimoContrasena, cancelacion);
+        var largoMaximo = await parametros.ObtenerEnteroPositivoOpcionalAsync(ClavesParametrosCentral.LargoMaximoContrasena, cancelacion);
         var compleja = await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametrosCentral.ContrasenaCompleja, cancelacion);
-        return ReglasContrasena.Validar(contrasena, largoMinimo, compleja, codigoUsuario);
+        return ReglasContrasena.Validar(contrasena, largoMinimo, largoMaximo, compleja, codigoUsuario);
     }
 
     private async Task RevocarSesionesAsync(int usuarioId, string motivo, CancellationToken cancelacion)

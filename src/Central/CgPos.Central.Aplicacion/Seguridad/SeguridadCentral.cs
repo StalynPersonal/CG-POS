@@ -88,16 +88,17 @@ public interface IServicioSesionesCentral
         CancellationToken cancelacion = default);
 }
 
-/// <summary>Política de contraseñas del Central; los valores salen de parámetros.</summary>
+/// <summary>Política de contraseñas y claves; los valores salen de parámetros.</summary>
 public static class ReglasContrasena
 {
+    /// <summary>Contraseña de un usuario del Central: largo y, si el parámetro lo pide, complejidad.</summary>
     /// <returns>El motivo por el que no cumple, o <c>null</c> si cumple.</returns>
-    public static string? Validar(string? contrasena, int largoMinimo, bool compleja, string codigoUsuario)
+    public static string? Validar(string? contrasena, int largoMinimo, int? largoMaximo, bool compleja, string codigoUsuario)
     {
-        if (string.IsNullOrEmpty(contrasena) || contrasena.Length < largoMinimo)
-            return $"La contraseña debe tener al menos {largoMinimo} caracteres.";
+        if (ValidarLargo(contrasena, largoMinimo, largoMaximo, "La contraseña") is { } problema)
+            return problema;
 
-        if (!compleja)
+        if (!compleja || contrasena is null)
             return null;
 
         if (!contrasena.Any(char.IsUpper) || !contrasena.Any(char.IsLower) || !contrasena.Any(char.IsDigit) || contrasena.All(char.IsLetterOrDigit))
@@ -106,6 +107,28 @@ public static class ReglasContrasena
         return contrasena.Contains(codigoUsuario, StringComparison.OrdinalIgnoreCase)
             ? "La contraseña no puede contener el nombre de usuario."
             : null;
+    }
+
+    /// <summary>Largo entre el mínimo y el máximo configurados; sin máximo no hay tope.</summary>
+    /// <param name="nombre">Cómo se llama en el mensaje: «La contraseña» o «La clave».</param>
+    /// <returns>El motivo por el que no cumple, o <c>null</c> si cumple.</returns>
+    public static string? ValidarLargo(string? valor, int largoMinimo, int? largoMaximo, string nombre)
+    {
+        // Un tope menor que el mínimo no deja poner ninguna: es un error de configuración, y se dice así.
+        if (largoMaximo is { } tope && tope < largoMinimo)
+            return $"El largo máximo configurado ({tope}) es menor que el mínimo ({largoMinimo}): corríjalo en Parámetros.";
+
+        var largo = valor?.Length ?? 0;
+        if (largo < largoMinimo)
+            return largoMaximo is { } maximo && maximo == largoMinimo
+                ? $"{nombre} debe tener {largoMinimo} caracteres."
+                : $"{nombre} debe tener al menos {largoMinimo} caracteres.";
+        if (largoMaximo is { } limite && largo > limite)
+            return limite == largoMinimo
+                ? $"{nombre} debe tener {largoMinimo} caracteres."
+                : $"{nombre} no puede tener más de {limite} caracteres.";
+
+        return null;
     }
 }
 

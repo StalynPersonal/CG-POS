@@ -60,6 +60,11 @@
       "descripcion": "Largo mínimo de las contraseñas del Central"
     },
     {
+      "clave": "Central.Seguridad.LargoMinimoClaveCaja",
+      "valor": "6",
+      "descripcion": "Largo mínimo de la clave de los usuarios de caja"
+    },
+    {
       "clave": "Central.Seguridad.ContrasenaCompleja",
       "valor": "true",
       "descripcion": "Exige mayúsculas, minúsculas, números y símbolos"
