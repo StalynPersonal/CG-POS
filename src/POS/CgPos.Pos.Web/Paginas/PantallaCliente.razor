@@ -163,6 +163,9 @@
             _venta = venta;
             StateHasChanged();
         }));
+
+        // El Agente avisa cuando la publicidad cambió en el Central: se vuelve a pedir, sin recargar la pantalla.
+        _conexion.On(ContratoPantallaCliente.MetodoPublicidadActualizada, () => InvokeAsync(RecargarPublicidadAsync));
         _conexion.Reconnecting += _ => CambiarConexionAsync(false);
         _conexion.Reconnected += _ => CambiarConexionAsync(true);
 
@@ -192,6 +195,22 @@
         }
     }
 
+    /// <summary>
+    /// Vuelve a pedir la publicidad. La imagen que se está viendo se queda donde está mientras siga existiendo: cambiar
+    /// los segundos o un mensaje no tiene por qué cortar la imagen a media vista.
+    /// </summary>
+    private async Task RecargarPublicidadAsync()
+    {
+        var actual = _publicidad is { Imagenes.Count: > 0 } antes ? antes.Imagenes[_indiceImagen % antes.Imagenes.Count] : null;
+        var publicidad = await Cliente.ObtenerPublicidadAsync();
+        if (publicidad is null)
+            return;
+
+        _publicidad = publicidad;
+        _indiceImagen = actual is null ? 0 : Math.Max(publicidad.Imagenes.ToList().IndexOf(actual), 0);
+        StateHasChanged();
+    }
+
     private async Task RotarAsync(CancellationToken cancelacion)
     {
         using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -204,7 +223,14 @@
                 // Sin segundos configurados la publicidad no rota.
                 segundos++;
                 if (_publicidad?.SegundosPorImagen is > 0 and var cadaCuanto && segundos % cadaCuanto == 0)
+                {
                     _indiceImagen++;
+
+                    // Al volver a la primera imagen se miran las del equipo: así se ven las que alguien copió en la
+                    // carpeta, que no pasan por el Central y de las que nadie avisa.
+                    if (_publicidad is { Imagenes.Count: > 0 } publicidad && _indiceImagen % publicidad.Imagenes.Count == 0)
+                        await InvokeAsync(RecargarPublicidadAsync);
+                }
 
                 await InvokeAsync(StateHasChanged);
             }

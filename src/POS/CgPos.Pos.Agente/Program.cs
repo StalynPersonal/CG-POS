@@ -56,6 +56,8 @@ try
         opciones.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
     constructor.Services.AddSingleton<PublicadorPantallaCliente>();
+    // El mismo publicador es quien avisa a las pantallas de que su publicidad cambió.
+    constructor.Services.AddSingleton<IAvisosPantallaCliente>(s => s.GetRequiredService<PublicadorPantallaCliente>());
 
     // /salud es el diagnóstico de la caja: dice qué le falta y qué hacer, para revisarla antes de ponerla a vender.
     constructor.Services.AddHealthChecks()

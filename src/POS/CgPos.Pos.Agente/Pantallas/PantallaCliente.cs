@@ -22,7 +22,7 @@ public sealed class HubPantallaCliente(PublicadorPantallaCliente publicador) : H
 }
 
 /// <summary>Guarda la última venta publicada y la envía a todas las pantallas del cliente conectadas.</summary>
-public sealed class PublicadorPantallaCliente(IHubContext<HubPantallaCliente> hub)
+public sealed class PublicadorPantallaCliente(IHubContext<HubPantallaCliente> hub) : IAvisosPantallaCliente
 {
     private DatosVenta? _ultima;
 
@@ -33,6 +33,13 @@ public sealed class PublicadorPantallaCliente(IHubContext<HubPantallaCliente> hu
         Volatile.Write(ref _ultima, venta);
         return hub.Clients.All.SendAsync(ContratoPantallaCliente.MetodoVentaActualizada, venta, cancelacion);
     }
+
+    /// <summary>
+    /// La publicidad cambió en el Central y ya bajó: se le dice a la pantalla, que la vuelve a pedir. No se le manda el
+    /// contenido, solo el aviso, porque cada pantalla arma el suyo con las imágenes que tenga su equipo.
+    /// </summary>
+    public Task PublicidadCambiadaAsync(CancellationToken cancelacion = default) =>
+        hub.Clients.All.SendAsync(ContratoPantallaCliente.MetodoPublicidadActualizada, cancelacion);
 }
 
 /// <summary>Después de cada operación de venta publica la venta resultante en la pantalla del cliente.</summary>

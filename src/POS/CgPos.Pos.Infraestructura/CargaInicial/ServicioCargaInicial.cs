@@ -5,6 +5,7 @@ using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.CargaInicial;
+using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ internal sealed class ServicioCargaInicial(
     IHashCredenciales hashCredenciales,
     IAuditoria auditoria,
     IConfiguracionCaja configuracionCaja,
+    IAvisosPantallaCliente avisosPantalla,
     ILogger<ServicioCargaInicial> logger) : ICargaInicial
 {
     private const string TodosLosPermisos = "*";
@@ -104,6 +106,10 @@ internal sealed class ServicioCargaInicial(
                 "Carga inicial aplicada: {Creados} creados, {Actualizados} actualizados ({Sucursales} sucursales, {Cajas} cajas, {Roles} roles, {Usuarios} usuarios, {Parametros} parámetros)",
                 resultado.Creados, resultado.Actualizados, resultado.Sucursales, resultado.Cajas, resultado.Roles, resultado.Usuarios, resultado.Parametros);
 
+            // La pantalla del cliente lee su publicidad al abrirse y nadie la recarga: si cambió algo suyo, se le avisa.
+            if (parametros.Any(p => p.Clave.StartsWith(PrefijoParametrosPantalla, StringComparison.OrdinalIgnoreCase)))
+                await avisosPantalla.PublicidadCambiadaAsync(cancelacion);
+
             return resultado;
         }
         catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException or DbUpdateException)
@@ -114,6 +120,9 @@ internal sealed class ServicioCargaInicial(
             throw new CargaInicialInvalidaExcepcion([detalle]);
         }
     }
+
+    /// <summary>Los parámetros del segundo monitor: los segundos por imagen y los mensajes de bienvenida y despedida.</summary>
+    private const string PrefijoParametrosPantalla = "Pantallas.";
 
     /// <summary>Los códigos vienen de dos dígitos y se comparan tal cual, sin espacios.</summary>
     private static bool EsPropia(string? codigo, string propio) =>

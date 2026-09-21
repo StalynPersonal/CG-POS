@@ -1,4 +1,4 @@
-namespace CgPos.Contratos.Pantallas;
+﻿namespace CgPos.Contratos.Pantallas;
 
 /// <summary>Canal en tiempo real entre el Agente y la pantalla del cliente (segundo monitor, RF-115).</summary>
 public static class ContratoPantallaCliente
@@ -7,6 +7,9 @@ public static class ContratoPantallaCliente
 
     /// <summary>El Agente envía la venta actual (o nulo si no hay) cada vez que cambia.</summary>
     public const string MetodoVentaActualizada = "VentaActualizada";
+
+    /// <summary>El Agente avisa de que la publicidad cambió; la pantalla la vuelve a pedir.</summary>
+    public const string MetodoPublicidadActualizada = "PublicidadActualizada";
 
     public const string RutaImagenes = "/publicidad";
 }

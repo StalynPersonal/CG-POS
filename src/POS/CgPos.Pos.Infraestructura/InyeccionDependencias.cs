@@ -59,6 +59,9 @@ public static class InyeccionDependencias
         servicios.AddScoped<IParametros, ServicioParametros>();
         servicios.AddScoped<IEstadoCaja, ServicioEstadoCaja>();
 
+        // El Agente lo reemplaza por el que avisa de verdad a las pantallas conectadas; fuera de él no hay a quién avisar.
+        servicios.TryAddSingleton<IAvisosPantallaCliente, AvisosPantallaClienteInactivos>();
+
         // De todo el Agente: lo escribe el servicio de sincronización y lo lee la pantalla, cada uno en su propio ámbito.
         servicios.AddSingleton<IProgresoActualizacion, ProgresoActualizacionEnMemoria>();
 

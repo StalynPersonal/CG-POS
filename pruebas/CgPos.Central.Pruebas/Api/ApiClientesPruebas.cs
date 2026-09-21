@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Catalogo;
@@ -75,8 +75,9 @@ public class ApiClientesPruebas(CentralEnPruebas central)
         var correcta = CedulaValida();
         Assert.Equal("Indique el motivo de la corrección.",
             (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, correcta, " "))).Cuerpo!.Mensaje);
-        Assert.Contains("no es una cédula válida",
-            (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, CedulaInvalida(), "Mal digitado"))).Cuerpo!.Mensaje);
+        // Sin forma de cédula no se acepta: once dígitos son once dígitos.
+        Assert.Contains("no tiene forma de una cédula",
+            (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, "12345", "Mal digitado"))).Cuerpo!.Mensaje);
         Assert.Contains("ya tiene ese documento",
             (await CorregirAsync(cliente, admin, ruta, new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, otro.Documento, "Mal digitado"))).Cuerpo!.Mensaje);
 
@@ -90,6 +91,12 @@ public class ApiClientesPruebas(CentralEnPruebas central)
             .SingleAsync(a => a.Accion == "Maestros.ClienteDocumentoCorregido" && a.EntidadId == datos.Codigo));
         Assert.Equal("Se digitó mal la cédula", auditado.Motivo);
         Assert.Contains(original, auditado.Detalle);
+
+        // Una cédula vieja, con el dígito verificador que no cuadra, se acepta avisando: hay cédulas legítimas así.
+        var sinDigito = await CorregirAsync(cliente, admin, $"/api/maestros/clientes/{otro.Codigo}/documento",
+            new SolicitudCorreccionDocumentoCliente(TipoDocumentoIdentidad.Cedula, CedulaInvalida(), "Cédula vieja"));
+        Assert.True(sinDigito.Cuerpo!.Exitosa, sinDigito.Cuerpo.Mensaje);
+        Assert.Contains("dígito verificador no cuadra", sinDigito.Cuerpo.Advertencia);
 
         // Sin el permiso de corrección no se puede, aunque administre maestros.
         var codigo = $"MAE{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
