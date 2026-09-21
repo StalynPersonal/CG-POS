@@ -616,6 +616,44 @@
 
 .cg-venta__aviso { margin: 6px 16px 0; }
 
+/* Buscar y Totalizar, siempre a la vista junto al campo de escaneo. */
+.cg-venta__tecla-fija { flex-direction: row; min-height: 52px; min-width: 150px; padding: 6px 14px; font-weight: 700; }
+.cg-venta__tecla-fija .cg-tecla-f__icono { font-size: 1.6rem !important; }
+
+/* Panel de funciones: se despliega desde la derecha, a toda la altura, sobre la venta. */
+.cg-venta__panel-fondo { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 1200; }
+
+.cg-venta__panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(380px, 92vw);
+    display: flex;
+    flex-direction: column;
+    background: #f4f7f5;
+    box-shadow: -6px 0 18px rgba(0, 0, 0, .25);
+    z-index: 1201;
+    overflow-y: auto;
+    animation: cg-panel-entrada .15s ease-out;
+}
+
+@keyframes cg-panel-entrada { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+.cg-venta__panel-encabezado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 8px 8px 16px;
+    background: var(--cg-primario-oscuro);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.cg-venta__panel-titulo { padding: 12px 16px 4px; font-size: .85rem; font-weight: 700; text-transform: uppercase; color: var(--cg-primario); }
+.cg-venta__panel-teclas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 4px 12px 8px; }
+
 /* La grilla ocupa el alto sobrante y desplaza por dentro; el encabezado verde queda fijo. */
 .cg-venta__lineas { flex: 1; min-height: 0; background: #fff; display: flex; flex-direction: column; overflow: hidden; }
 .cg-venta__lineas > .mud-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }

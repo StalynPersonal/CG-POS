@@ -122,6 +122,12 @@ else
                    value="@_entrada" @oninput="evento => _entrada = evento.Value?.ToString() ?? string.Empty" @onkeydown="AlTeclearAsync" />
             <MudIconButton Icon="@Icons.Material.Filled.GridView" Size="Size.Large" Color="Color.Primary" OnClick="AbrirCatalogoAsync" aria-label="Catálogo en mosaicos" />
             <MudIconButton Icon="@Icons.Material.Filled.Keyboard" Size="Size.Large" Color="Color.Primary" OnClick="DigitarCodigoAsync" aria-label="Teclado en pantalla" />
+            @* Las dos acciones de cada venta quedan siempre a la vista; el resto está en el menú. *@
+            <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" Clase="cg-venta__tecla-fija" AlPresionar="BuscarArticuloAsync" />
+            <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" Clase="cg-venta__tecla-fija"
+                          AlPresionar="TotalizarAsync" />
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Size="Size.Large" Color="Color.Primary" OnClick="AlternarPanel"
+                           aria-label="Menú de funciones" title="Funciones" />
         </div>
 
         @if (_mensaje is not null)
@@ -285,37 +291,55 @@ else
             </GrillaTactil>
         </div>
 
-        <BarraTeclasFuncion @ref="_barra">
-            <PaginaPrincipal>
-                <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" AlPresionar="BuscarArticuloAsync" />
-                <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" AlPresionar="EstablecerLimiteAsync" />
-                <TeclaFuncion Atajo="F4" Texto="Cantidad" Icono="@Icons.Material.Filled.Numbers" AlPresionar="CambiarCantidadSeleccionadaAsync" />
-                <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" AlPresionar="PesarAsync" />
-                <TeclaFuncion Atajo="F6" Texto="Lista boda" Icono="@Icons.Material.Filled.Favorite" AlPresionar="AsignarListaBodaAsync" />
-                <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="AbrirEsperaAsync" />
-                <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="TotalizarAsync" />
-                <TeclaFuncion Atajo="F9" Texto="Cotización" Icono="@Icons.Material.Filled.RequestQuote" AlPresionar="FacturarCotizacionAsync" />
-                <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" AlPresionar="IrADevolucionesAsync" />
-                <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="ConsultarPrecioAsync" />
-                <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" AlPresionar="AbrirClienteAsync" />
-            </PaginaPrincipal>
-            <PaginaSecundaria>
-                <TeclaFuncion Texto="Catálogo" Icono="@Icons.Material.Filled.GridView" AlPresionar="AbrirCatalogoAsync" />
-                <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="EliminarSeleccionadaAsync" />
-                <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="AlternarModoEliminar" />
-                <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="LimpiarAsync" />
-                <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" AlPresionar="DescuentoLineaSeleccionadaAsync" />
-                <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="AbrirDescuentoFacturaAsync" />
-                <TeclaFuncion Texto="Entrega / envío" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="AbrirEntregaAsync" />
-                <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="AnularAsync" />
-                <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="SuspenderAsync" />
-                <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="AbrirGavetaAsync" />
-                <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="ReimprimirAsync" />
-                <TeclaFuncion Texto="Retiro" Icono="@Icons.Material.Filled.Savings" AlPresionar="RetirarEfectivoAsync" />
-                <TeclaFuncion Texto="Cierre de turno" Icono="@Icons.Material.Filled.LockClock" AlPresionar="CerrarTurnoAsync" />
-                <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="SalirAsync" />
-            </PaginaSecundaria>
-        </BarraTeclasFuncion>
+        @if (_panelAbierto)
+        {
+            @* Fondo detrás del panel de funciones: tocarlo lo cierra. *@
+            <div class="cg-venta__panel-fondo" @onclick="CerrarPanel"></div>
+
+            @* Panel de funciones desde la derecha, a toda la altura. No toma el foco: el lector sigue escribiendo en el campo de escaneo. *@
+            <aside class="cg-venta__panel" aria-label="Funciones" @onmousedown:preventDefault="true">
+                @* Encabezado del panel con el botón para cerrarlo. *@
+                <div class="cg-venta__panel-encabezado">
+                    <span>Funciones</span>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" OnClick="CerrarPanel" aria-label="Cerrar" />
+                </div>
+
+                @* Teclas de función: las mismas que responden al teclado físico (F2 a F12). *@
+                <div class="cg-venta__panel-titulo">Teclas de función</div>
+                <div class="cg-venta__panel-teclas">
+                    <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" AlPresionar="() => DesdePanelAsync(BuscarArticuloAsync)" />
+                    <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" AlPresionar="() => DesdePanelAsync(EstablecerLimiteAsync)" />
+                    <TeclaFuncion Atajo="F4" Texto="Cantidad" Icono="@Icons.Material.Filled.Numbers" AlPresionar="() => DesdePanelAsync(CambiarCantidadSeleccionadaAsync)" />
+                    <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" AlPresionar="() => DesdePanelAsync(PesarAsync)" />
+                    <TeclaFuncion Atajo="F6" Texto="Lista boda" Icono="@Icons.Material.Filled.Favorite" AlPresionar="() => DesdePanelAsync(AsignarListaBodaAsync)" />
+                    <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="() => DesdePanelAsync(AbrirEsperaAsync)" />
+                    <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="() => DesdePanelAsync(TotalizarAsync)" />
+                    <TeclaFuncion Atajo="F9" Texto="Cotización" Icono="@Icons.Material.Filled.RequestQuote" AlPresionar="() => DesdePanelAsync(FacturarCotizacionAsync)" />
+                    <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" AlPresionar="() => DesdePanelAsync(IrADevolucionesAsync)" />
+                    <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="() => DesdePanelAsync(ConsultarPrecioAsync)" />
+                    <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" AlPresionar="() => DesdePanelAsync(AbrirClienteAsync)" />
+                </div>
+
+                @* Operaciones sin tecla física: líneas, descuentos, entregas, caja y turno. *@
+                <div class="cg-venta__panel-titulo">Más operaciones</div>
+                <div class="cg-venta__panel-teclas">
+                    <TeclaFuncion Texto="Catálogo" Icono="@Icons.Material.Filled.GridView" AlPresionar="() => DesdePanelAsync(AbrirCatalogoAsync)" />
+                    <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="() => DesdePanelAsync(EliminarSeleccionadaAsync)" />
+                    <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="() => DesdePanel(AlternarModoEliminar)" />
+                    <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="() => DesdePanelAsync(LimpiarAsync)" />
+                    <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" AlPresionar="() => DesdePanelAsync(DescuentoLineaSeleccionadaAsync)" />
+                    <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="() => DesdePanelAsync(AbrirDescuentoFacturaAsync)" />
+                    <TeclaFuncion Texto="Entrega / envío" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="() => DesdePanelAsync(AbrirEntregaAsync)" />
+                    <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="() => DesdePanelAsync(AnularAsync)" />
+                    <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="() => DesdePanelAsync(SuspenderAsync)" />
+                    <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="() => DesdePanelAsync(AbrirGavetaAsync)" />
+                    <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="() => DesdePanelAsync(ReimprimirAsync)" />
+                    <TeclaFuncion Texto="Retiro" Icono="@Icons.Material.Filled.Savings" AlPresionar="() => DesdePanelAsync(RetirarEfectivoAsync)" />
+                    <TeclaFuncion Texto="Cierre de turno" Icono="@Icons.Material.Filled.LockClock" AlPresionar="() => DesdePanelAsync(CerrarTurnoAsync)" />
+                    <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="() => DesdePanelAsync(SalirAsync)" />
+                </div>
+            </aside>
+        }
 
         <footer class="cg-venta__estado">
             <span>Usuario: @Almacen.Sesion?.Nombre</span>
@@ -354,7 +378,7 @@ else
     private string? _empresaNombre;
     private DatosEstadoEcf? _ecf;
     private bool _certificadoSolicitado;
-    private BarraTeclasFuncion? _barra;
+    private bool _panelAbierto;
     private ElementReference _campoEscaneo;
     private string _entrada = string.Empty;
     private string? _mensaje;
@@ -462,7 +486,6 @@ else
 
     private async Task RetirarEfectivoAsync()
     {
-        _barra?.MostrarPrincipal();
         var texto = await PedirTextoAsync("Retiro de efectivo", $"Monto a retirar ({MonedaPantalla.Simbolo})", ayuda: "Se imprime el comprobante y se abre la gaveta.");
         if (texto is null || !decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var monto))
             return;
@@ -483,7 +506,6 @@ else
 
     private async Task CerrarTurnoAsync()
     {
-        _barra?.MostrarPrincipal();
         var respuesta = await MostrarDialogoAsync<DialogoCierreTurno, RespuestaCaja>("Cierre de turno", new DialogParameters(), MaxWidth.ExtraLarge);
 
         // Se recarga siempre: si el turno quedó cerrado, la pantalla vuelve a la apertura.
@@ -494,8 +516,36 @@ else
 
     // ---------- Escaneo y líneas ----------
 
+    private void AlternarPanel()
+    {
+        _panelAbierto = !_panelAbierto;
+        _enfocar = true;
+    }
+
+    private void CerrarPanel()
+    {
+        _panelAbierto = false;
+        _enfocar = true;
+    }
+
+    /// <summary>El panel se cierra antes de la acción: si abre un diálogo, el panel no queda detrás.</summary>
+    private Task DesdePanelAsync(Func<Task> accion)
+    {
+        CerrarPanel();
+        return accion();
+    }
+
+    private void DesdePanel(Action accion)
+    {
+        CerrarPanel();
+        accion();
+    }
+
     private async Task AlTeclearAsync(KeyboardEventArgs evento)
     {
+        // Lo que se escribe o se escanea con el panel abierto va a la venta: el panel se aparta.
+        _panelAbierto = false;
+
         if (evento.Key != "Enter")
             return;
 
@@ -593,7 +643,6 @@ else
         if (_venta is null)
             return;
 
-        _barra?.MostrarPrincipal();
         var codigo = await MostrarDialogoAsync<DialogoCatalogo, string>("Catálogo", [], MaxWidth.ExtraLarge);
         if (codigo is not null)
             await AgregarAsync(codigo); // un pesado toma el peso de la balanza automáticamente
@@ -677,7 +726,6 @@ else
         _modoEliminar = !_modoEliminar;
         _mensaje = null;
         _enfocar = true;
-        _barra?.MostrarPrincipal();
     }
 
     private async Task LimpiarAsync()
@@ -693,7 +741,6 @@ else
         if (!confirmado)
             return;
 
-        _barra?.MostrarPrincipal();
         await EjecutarConAutorizacionAsync(
             autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, autorizacion),
             $"Limpiar la transacción {_venta.NumeroTransaccion}");
@@ -744,7 +791,6 @@ else
             return;
         }
 
-        _barra?.MostrarPrincipal();
         var parametros = new DialogParameters<DialogoCobro> { { dialogo => dialogo.Venta, _venta } };
         var respuesta = await MostrarDialogoAsync<DialogoCobro, RespuestaCobro>($"Cobro · {_venta.NumeroTransaccion}", parametros, MaxWidth.ExtraLarge);
         if (respuesta is not { Exitosa: true, NuevaVenta: { } nueva })
@@ -760,7 +806,6 @@ else
 
     private async Task ReimprimirAsync()
     {
-        _barra?.MostrarPrincipal();
         var respuesta = await Cliente.ReimprimirUltimoAsync();
         _aviso = respuesta.Correcto ? respuesta.Mensaje : null;
         _mensaje = respuesta.Correcto ? null : respuesta.Mensaje;
@@ -769,7 +814,6 @@ else
 
     private async Task AbrirGavetaAsync()
     {
-        _barra?.MostrarPrincipal();
         await EjecutarConAutorizacionAsync(autorizacion => Cliente.AbrirGavetaAsync(autorizacion), "Abrir la gaveta sin venta");
     }
 
@@ -802,7 +846,6 @@ else
 
     private Task DescuentoLineaSeleccionadaAsync()
     {
-        _barra?.MostrarPrincipal();
         var linea = LineaSeleccionada is { } seleccionada && EsEditable(seleccionada)
             ? seleccionada
             : _venta?.Lineas.LastOrDefault(EsEditable);
@@ -824,7 +867,6 @@ else
             return;
         }
 
-        _barra?.MostrarPrincipal();
         var parametros = new DialogParameters<DialogoDescuento> { { dialogo => dialogo.Venta, _venta } };
         AplicarResultadoDialogo(await MostrarDialogoAsync<DialogoDescuento, RespuestaVenta>("Descuento a la factura", parametros, MaxWidth.Medium));
     }
@@ -871,7 +913,6 @@ else
             return;
         }
 
-        _barra?.MostrarPrincipal();
         var parametros = new DialogParameters<DialogoEntrega> { { dialogo => dialogo.Venta, _venta }, { dialogo => dialogo.NumeroLinea, _numeroSeleccionado } };
         var venta = await MostrarDialogoAsync<DialogoEntrega, DatosVenta>("Entrega y envío", parametros, MaxWidth.Large);
         if (venta is not null)
@@ -981,7 +1022,6 @@ else
                 return;
         }
 
-        _barra?.MostrarPrincipal();
         await EjecutarConAutorizacionAsync(
             autorizacion => Cliente.AnularVentaAsync(_venta!.Id, motivo, autorizacion),
             $"Anular la transacción {_venta.NumeroTransaccion} por {_venta.Totales.Total:C}");
@@ -993,7 +1033,6 @@ else
         var respuesta = await EjecutarConAutorizacionAsync(autorizacion => Cliente.SuspenderCajaAsync(autorizacion), "Suspender las operaciones de la caja");
         if (respuesta is { Exitosa: true })
         {
-            _barra?.MostrarPrincipal();
             _suspendida = true;
         }
     }
@@ -1059,6 +1098,12 @@ else
             _numeroSeleccionado = _venta.Lineas.Where(linea => !linea.EsReverso).Select(linea => (int?)linea.NumeroLinea).Max();
     }
 
+    /// <summary>
+    /// Códigos, documentos y textos pueden llevar letras: su teclado pasa de números a letras (ABC / 123). Las cantidades
+    /// y los montos, que llevan decimales, se quedan en el numérico.
+    /// </summary>
+    private static bool PermiteCambioModo(ModoTeclado modo, bool decimales) => modo == ModoTeclado.Alfanumerico || !decimales;
+
     private async Task<string?> PedirTextoAsync(string titulo, string etiqueta, string valorInicial = "", string? ayuda = null, bool decimales = true,
         ModoTeclado modo = ModoTeclado.Numerico)
     {
@@ -1069,10 +1114,10 @@ else
             { dialogo => dialogo.Ayuda, ayuda },
             { dialogo => dialogo.PermitirDecimal, decimales },
             { dialogo => dialogo.Modo, modo },
-            { dialogo => dialogo.PermitirCambioModo, modo == ModoTeclado.Alfanumerico },
+            { dialogo => dialogo.PermitirCambioModo, PermiteCambioModo(modo, decimales) },
         };
 
-        return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, modo == ModoTeclado.Alfanumerico ? MaxWidth.Medium : MaxWidth.Small);
+        return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, PermiteCambioModo(modo, decimales) ? MaxWidth.Medium : MaxWidth.Small);
     }
 
     private async Task<TResultado?> MostrarDialogoAsync<TDialogo, TResultado>(string titulo, DialogParameters parametros, MaxWidth ancho)
@@ -1101,6 +1146,9 @@ else
     {
         if (_venta is null || _dialogoAbierto)
             return;
+
+        // Cualquier tecla de función (y Esc) cierra el panel antes de actuar.
+        _panelAbierto = false;
 
         var accion = tecla switch
         {

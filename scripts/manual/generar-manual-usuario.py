@@ -688,12 +688,14 @@ titulo('3.4. La pantalla de ventas principal', 2)
 p('La pantalla está dividida en cinco zonas:')
 tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
-       ['Encabezado central', 'Cliente de la factura, identificación de la venta (B-000015 mientras se arma; el número de factura se le da al cobrar), '
-        'cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
+       ['Encabezado central', 'Cliente de la factura, número de factura que le tocará (se toma de verdad al cobrar: si otra venta '
+        'se cobra antes, esta pasa al siguiente), cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
        ['Encabezado derecho', 'Subtotal, ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL y, en facturas gubernamentales con retención, el total a pagar.'],
-       ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar.'],
+       ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar. A su derecha: catálogo, teclado en '
+        'pantalla, Buscar (F2), Totalizar (F8) y el botón ☰ que abre el panel de funciones.'],
        ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio, importe y la oferta aplicada.'],
-       ['Barra de teclas F', 'Las funciones, en dos páginas.'],
+       ['Panel de funciones (☰)', 'Se despliega desde la derecha con todas las funciones. Se cierra solo al elegir una, al tocar '
+        'fuera o al escanear: lo que se lee va a la venta.'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],
       anchos=[5.0, 12.0])
 
@@ -715,7 +717,9 @@ nota('Los artículos que se pesan o que piden serial se atienden mejor en la pan
      'una unidad y luego se ajusta la cantidad.')
 
 titulo('3.6. Las teclas de función', 2)
-p('Primera página:')
+p('Buscar (F2) y Totalizar (F8) están siempre a la vista, junto al campo de escaneo. Todas las demás están en el panel de '
+  'funciones, que se abre con el botón ☰. Las teclas F del teclado físico funcionan siempre, con el panel abierto o cerrado.')
+p('Teclas de función:')
 tabla(['Tecla', 'Qué hace'],
       [['F2', 'Buscar un artículo por descripción'],
        ['F3', 'Límite de compra que pidió el cliente (avisa al pasarse)'],
@@ -729,9 +733,11 @@ tabla(['Tecla', 'Qué hace'],
        ['F11', 'Consultar el precio de un artículo sin venderlo'],
        ['F12', 'Cliente, comprobante y programa de fidelidad']],
       anchos=[3.0, 14.0])
-p('Segunda página (se cambia con el botón de la misma barra): catálogo en mosaicos, eliminar línea, eliminar por escaneo, '
+p('Más operaciones (en el mismo panel, debajo): catálogo en mosaicos, eliminar línea, eliminar por escaneo, '
   'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, anular, suspender, gaveta, '
   'reimprimir, retiro de efectivo, cierre de turno y salir.')
+nota('El teclado en pantalla de códigos, documentos y textos cambia entre números y letras con la tecla ABC / 123. El de '
+     'cantidades y montos es solo numérico.')
 
 titulo('3.7. Hacer una venta', 2)
 paso('Pase el código del artículo por el lector (o dígitelo y presione Enter). Para varias unidades: 12*CEM-425.')
@@ -772,7 +778,7 @@ nota('La lista se consulta en el Central: si no hay comunicación, no se puede a
 titulo('3.10. Descuentos y ofertas', 2)
 viñeta('Ofertas: se aplican solas según lo configurado en el Central. La columna Promo muestra cuál se aplicó; al tocarla '
        'se ve el detalle y se puede desactivar (con permiso).')
-viñeta('Descuento a la línea: toque el precio de la línea. Descuento a la factura: segunda página de teclas. Ambos piden '
+viñeta('Descuento a la línea: toque el precio de la línea. Descuento a la factura: panel de funciones (☰). Ambos piden '
        'motivo y la autorización de quien tenga tope suficiente; si el descuento pasa su tope, se pide una clave de nivel superior.')
 viñeta('No se aplican descuentos manuales a artículos en oferta ni a departamentos que el negocio excluyó.')
 viñeta('Descuento del banco por tarjeta: se aplica solo, al pasar la tarjeta en el cobro (ver 3.11).')
@@ -813,11 +819,11 @@ viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y 
        'Dos facturas en espera del mismo turno no pueden llamarse igual.')
 viñeta('Para retomar una factura con otra venta en pantalla, escriba también la referencia de la que está en pantalla: las dos '
        'se intercambian. Si la de pantalla no tiene artículos, simplemente se descarta.')
-viñeta('Mientras la venta se arma o está en espera no tiene número de factura: se identifica como B-000015. El número se le da '
-       'al cobrar, en el orden en que se cobra; así una factura en espera no se lleva el número de otro cliente, y una venta '
-       'que no se cobró no deja un hueco en la numeración.')
+viñeta('Mientras la venta se arma, la pantalla muestra el número de factura que le tocaría, pero el número se le da de verdad '
+       'al cobrar, en el orden en que se cobra: una factura en espera no se lleva el número de otro cliente, y una venta que no '
+       'se cobró no deja un hueco en la numeración. En la auditoría, la venta sin cobrar aparece como B-000015.')
 viñeta('Una venta con tarjeta ya aprobada no se pone en espera: cóbrela o anule la tarjeta primero.')
-viñeta('Anular (segunda página): cancela la transacción en curso con motivo y autorización. Como todavía no era una factura, '
+viñeta('Anular (panel de funciones ☰): cancela la transacción en curso con motivo y autorización. Como todavía no era una factura, '
        'desaparece de la caja; lo que tenía, quién la anuló, quién lo autorizó y el motivo quedan en la auditoría.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
@@ -825,7 +831,7 @@ viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autoriza
 
 titulo('3.14. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')
-paso('En la segunda página de teclas, elija Entrega / envío.')
+paso('En el panel de funciones (☰), elija Entrega / envío.')
 paso('Marque qué líneas y qué cantidad quedan pendientes, y si el cliente lo retira en una sucursal (la suya u otra) o se le envía a una dirección, con la fecha comprometida.')
 paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras: una copia para el cliente y otra '
      'para quien despacha.')
