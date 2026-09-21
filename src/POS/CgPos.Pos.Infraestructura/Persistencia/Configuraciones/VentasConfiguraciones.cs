@@ -203,6 +203,8 @@ internal sealed class SecuenciaCajaConfiguracion : IEntityTypeConfiguration<Secu
         constructor.ToTable("SecuenciasCaja");
         constructor.HasKey(s => new { s.CajaId, s.Tipo });
         constructor.Property(s => s.Tipo).HasMaxLength(SecuenciaCaja.LargoMaximoTipo).IsUnicode(false);
+        constructor.Property(s => s.SucursalCodigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(s => s.CajaCodigo).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja).IsFixedLength().IsUnicode(false).IsRequired();
     }
 }
 

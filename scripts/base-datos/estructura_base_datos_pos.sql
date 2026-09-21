@@ -720,6 +720,8 @@ CREATE TABLE [SecuenciasCaja] (
     [CajaId] int NOT NULL,
     [Tipo] varchar(30) NOT NULL,
     [Ultimo] bigint NOT NULL,
+    [SucursalCodigo] char(2) NOT NULL,
+    [CajaCodigo] char(2) NOT NULL,
     CONSTRAINT [PK_SecuenciasCaja] PRIMARY KEY ([CajaId], [Tipo])
 );
 GO
@@ -735,6 +737,8 @@ CREATE TABLE [SecuenciasEcf] (
     [Ultimo] bigint NOT NULL,
     [VenceEn] date NOT NULL,
     [Activa] bit NOT NULL,
+    [CajaCodigo] char(2) NOT NULL,
+    [SucursalCodigo] char(2) NOT NULL,
     CONSTRAINT [PK_SecuenciasEcf] PRIMARY KEY ([Id])
 );
 GO

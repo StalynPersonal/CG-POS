@@ -17,9 +17,23 @@ internal sealed class SecuenciaEcfConfiguracion : IEntityTypeConfiguration<Secue
         constructor.Ignore(s => s.Restantes);
         constructor.Ignore(s => s.PorcentajeRestante);
         constructor.HasIndex(s => new { s.CajaId, s.TipoComprobante, s.Activa, s.Desde });
+
+        // De qué sucursal y caja es el rango, por código: los Id son de esta base, y el rango de e-NCF es lo último que
+        // se puede confundir si la base se recrea o se restaura otra. Solo existen aquí; el Central lo sabe por su caja.
+        constructor.Property<string>(CodigosSecuenciaEcf.Sucursal).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja)
+            .IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property<string>(CodigosSecuenciaEcf.Caja).HasMaxLength(CgPos.Dominio.Comun.CodigosCatalogo.LargoSucursalCaja)
+            .IsFixedLength().IsUnicode(false).IsRequired();
         // Un rango se identifica por su tipo y su inicio: los rangos no se solapan en la empresa.
         constructor.HasIndex(s => new { s.TipoComprobante, s.Desde }).IsUnique();
     }
+}
+
+/// <summary>Nombres de las columnas con los códigos de sucursal y caja del rango de e-CF (solo en la base de la caja).</summary>
+internal static class CodigosSecuenciaEcf
+{
+    public const string Sucursal = "SucursalCodigo";
+    public const string Caja = "CajaCodigo";
 }
 
 internal sealed class DocumentoElectronicoConfiguracion : IEntityTypeConfiguration<DocumentoElectronico>

@@ -186,8 +186,16 @@ internal sealed class ServicioCargaMaestros(
                     e => MapeoMaestros.Actualizar(e, d), cancelacion);
             }
             foreach (var d in paquete.SecuenciasEcf ?? [])
+            {
                 await AplicarAsync(contexto.SecuenciasEcf, e => e.TipoComprobante == d.TipoComprobante && e.Desde == d.Desde, () => MapeoMaestros.Crear(d, resolutor),
                     e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
+
+                // El rango queda marcado con los códigos de su caja, que no cambian aunque la base se recree.
+                var rango = contexto.SecuenciasEcf.Local.First(e => e.TipoComprobante == d.TipoComprobante && e.Desde == d.Desde);
+                var entrada = contexto.Entry(rango);
+                entrada.Property<string>(Persistencia.Configuraciones.CodigosSecuenciaEcf.Sucursal).CurrentValue = d.SucursalCodigo.Trim();
+                entrada.Property<string>(Persistencia.Configuraciones.CodigosSecuenciaEcf.Caja).CurrentValue = d.CajaCodigo.Trim();
+            }
             foreach (var d in paquete.MotivosDevolucion ?? [])
                 await AplicarAsync(contexto.MotivosDevolucion, e => e.Codigo == d.Codigo, () => MapeoMaestros.Crear(d), e => MapeoMaestros.Actualizar(e, d), cancelacion);
             foreach (var d in paquete.NivelesFidelidad ?? [])

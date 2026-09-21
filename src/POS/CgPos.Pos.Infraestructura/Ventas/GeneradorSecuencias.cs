@@ -14,6 +14,10 @@ internal sealed class SecuenciaCaja
     public int CajaId { get; set; }
     public string Tipo { get; set; } = string.Empty;
     public long Ultimo { get; set; }
+
+    // Los Id son de esta base: si se recrea o se restaura otra, el código dice de qué caja es la numeración.
+    public string SucursalCodigo { get; set; } = string.Empty;
+    public string CajaCodigo { get; set; } = string.Empty;
 }
 
 internal static class TiposSecuencia
@@ -35,16 +39,34 @@ internal sealed class GeneradorSecuencias(ContextoDatosPos contexto)
     /// Valor mínimo que puede entregar (el que se configuró para continuar una numeración, ej. tras reinstalar la caja). Solo empuja la secuencia
     /// hacia adelante: si ya va más alta, sigue desde donde iba y nunca repite un número.
     /// </param>
+    /// <summary>
+    /// El número que entregaría <see cref="SiguienteAsync"/> ahora, sin consumirlo: es lo que se muestra mientras la venta
+    /// se arma. Puede cambiar si otra venta se cobra antes; el número de verdad se toma al cobrar.
+    /// </summary>
+    public async Task<long> VerSiguienteAsync(int cajaId, string tipo, CancellationToken cancelacion, long minimo = 1)
+    {
+        var ultimo = await contexto.Set<SecuenciaCaja>().AsNoTracking()
+            .Where(s => s.CajaId == cajaId && s.Tipo == tipo)
+            .Select(s => (long?)s.Ultimo)
+            .SingleOrDefaultAsync(cancelacion);
+
+        return ultimo is { } valor ? Math.Max(valor + 1, minimo) : minimo;
+    }
+
     public async Task<long> SiguienteAsync(int cajaId, string tipo, CancellationToken cancelacion, long minimo = 1)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(minimo, 1);
 
         var valores = await contexto.Database.SqlQuery<long>($"""
             MERGE SecuenciasCaja WITH (HOLDLOCK) AS destino
-            USING (SELECT {cajaId} AS CajaId, {tipo} AS Tipo, {minimo} AS Minimo) AS origen
+            USING (SELECT Id AS CajaId, SucursalCodigo, Codigo AS CajaCodigo, {tipo} AS Tipo, {minimo} AS Minimo FROM Cajas WHERE Id = {cajaId}) AS origen
                 ON destino.CajaId = origen.CajaId AND destino.Tipo = origen.Tipo
-            WHEN MATCHED THEN UPDATE SET Ultimo = CASE WHEN destino.Ultimo + 1 < origen.Minimo THEN origen.Minimo ELSE destino.Ultimo + 1 END
-            WHEN NOT MATCHED THEN INSERT (CajaId, Tipo, Ultimo) VALUES (origen.CajaId, origen.Tipo, origen.Minimo)
+            WHEN MATCHED THEN UPDATE SET
+                Ultimo = CASE WHEN destino.Ultimo + 1 < origen.Minimo THEN origen.Minimo ELSE destino.Ultimo + 1 END,
+                SucursalCodigo = origen.SucursalCodigo,
+                CajaCodigo = origen.CajaCodigo
+            WHEN NOT MATCHED THEN INSERT (CajaId, Tipo, Ultimo, SucursalCodigo, CajaCodigo)
+                VALUES (origen.CajaId, origen.Tipo, origen.Minimo, origen.SucursalCodigo, origen.CajaCodigo)
             OUTPUT inserted.Ultimo AS Value;
             """).ToListAsync(cancelacion);
 

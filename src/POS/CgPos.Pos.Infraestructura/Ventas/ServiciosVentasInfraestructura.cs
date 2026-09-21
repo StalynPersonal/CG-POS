@@ -36,7 +36,9 @@ internal static class ConversionesVenta
     public static DatosTurno ADatos(this Turno turno) =>
         new(turno.Id, turno.Numero, turno.FechaOperacion, turno.CajaId, turno.UsuarioActualId, turno.UsuarioActualNombre, turno.FondoInicial, turno.Estado, turno.AbiertoEn);
 
-    public static DatosVenta ADatos(this Venta venta, decimal montoIdentificacion, DocumentoElectronico? documento = null, DateOnly? venceSecuencia = null)
+    /// <param name="numeroMostrado">El número que se muestra en lugar de la identificación: el próximo de la caja, mientras la venta se arma.</param>
+    public static DatosVenta ADatos(this Venta venta, decimal montoIdentificacion, DocumentoElectronico? documento = null, DateOnly? venceSecuencia = null,
+        string? numeroMostrado = null)
     {
         var totales = venta.CalcularTotales();
 
@@ -63,7 +65,7 @@ internal static class ConversionesVenta
 
         return new DatosVenta(
             venta.Id,
-            venta.Identificacion,
+            numeroMostrado ?? venta.Identificacion,
             venta.Estado,
             venta.TurnoId,
             venta.UsuarioNombre,
@@ -849,6 +851,9 @@ internal sealed class ServicioVentas(
     private decimal _montoIdentificacion;
 
     private IReadOnlyList<Promocion>? _promociones;
+
+    /// <summary>El próximo número de factura de la caja, para mostrarlo en la venta que se arma.</summary>
+    private string? _proximoNumero;
 
     public async Task<RespuestaVenta> ObtenerActualAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
     {
@@ -1815,7 +1820,21 @@ internal sealed class ServicioVentas(
             return (null, new RespuestaVenta(CodigoResultadoVenta.TurnoDeOtroUsuario, $"La caja tiene abierto el turno {turno.Numero} de {turno.UsuarioActualNombre}.", null));
 
         _montoIdentificacion = await parametros.ObtenerDecimalAsync(ClavesParametros.MontoIdentificacionConsumo, sesion.CajaId, cancelacion);
+        _proximoNumero = await ProximoNumeroAsync(sesion, cancelacion);
         return (turno, null);
+    }
+
+    /// <summary>
+    /// El número de factura que le tocaría a la venta si se cobrara ahora, para la pantalla. No consume la secuencia: si
+    /// otra venta se cobra antes, esta toma el siguiente.
+    /// </summary>
+    private async Task<string> ProximoNumeroAsync(SesionUsuario sesion, CancellationToken cancelacion)
+    {
+        var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
+        var digitos = await NumeracionDocumentos.DigitosAsync(parametros, sesion.CajaId, cancelacion);
+        var minimo = await NumeracionDocumentos.MinimoAsync(parametros, CgPos.Dominio.Organizacion.CatalogoParametros.ProximaFactura, sesion.CajaId, cancelacion);
+        var secuencia = await secuencias.VerSiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion, minimo);
+        return NumeroDocumento.Formatear(codigoSucursal, sesion.CajaCodigo, TipoDocumentoNumerado.Factura, secuencia, digitos);
     }
 
     private async Task<(VentaEnProceso? Venta, RespuestaVenta? Rechazo)> CargarVentaEditableAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion)
@@ -1843,7 +1862,8 @@ internal sealed class ServicioVentas(
                 $"El comprobante {ReglasComprobante.Nombre(tipo)} requiere asignar primero un cliente con {(tipo == TipoComprobante.Gubernamental ? "RNC" : "RNC o cédula")}.");
     }
 
-    private DatosVenta Datos(Venta venta) => venta.ADatos(_montoIdentificacion);
+    private DatosVenta Datos(Venta venta) =>
+        venta.ADatos(_montoIdentificacion, numeroMostrado: venta is VentaEnProceso ? _proximoNumero : null);
 
     private RespuestaVenta Correcta(Venta venta) => new(CodigoResultadoVenta.Correcto, null, Datos(venta));
 
