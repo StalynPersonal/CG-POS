@@ -857,7 +857,7 @@ else
             return;
 
         var parametros = new DialogParameters<DialogoCliente> { { dialogo => dialogo.Venta, _venta } };
-        var venta = await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Medium);
+        var venta = await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Large);
 
         // Los cambios ya quedaron en el Agente: si el diálogo se cerró con Esc, se relee la venta.
         if (venta is not null)

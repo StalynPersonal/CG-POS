@@ -6,133 +6,140 @@
 <MudDialog>
     <DialogContent>
         <div class="cg-cliente">
-            <div class="cg-cliente__actual">
-                <div>
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Cliente de la transacción @_venta.NumeroTransaccion</MudText>
-                    @if (_venta.Cliente is { } cliente)
-                    {
-                        <MudText Typo="Typo.h6" Style="font-weight: 700">@cliente.Nombre</MudText>
-                        <MudText Typo="Typo.body2">
-                            @NombreDocumento(cliente.TipoDocumento) @cliente.Documento · @(cliente.ClienteId is null ? "no registrado" : "cliente registrado")
-                        </MudText>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.h6" Style="font-weight: 700; color: #6d7a74">CLIENTE CONTADO</MudText>
-                    }
-                </div>
-                @if (_venta.Cliente is not null)
-                {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarAsync"
-                               StartIcon="@Icons.Material.Filled.PersonRemove" Style="min-height: var(--cg-toque-minimo)">Quitar cliente</MudButton>
-                }
-            </div>
-
-            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Comprobante fiscal</MudText>
-            <div class="cg-cliente__comprobantes">
-                @foreach (var tipo in ReglasComprobante.DeVenta)
-                {
-                    <button type="button" class="cg-cliente__comprobante @(tipo == _venta.TipoComprobante ? "cg-cliente__comprobante--activo" : null)"
-                            disabled="@_procesando" @onclick="() => CambiarComprobanteAsync(tipo)">
-                        <span class="cg-cliente__codigo-ecf">E@((int)tipo)</span>
-                        <span>@ReglasComprobante.Nombre(tipo)</span>
-                    </button>
-                }
-            </div>
-
-            @* Gubernamental (E45): con la certificación de exención que presente la entidad, la factura va sin ITBIS. *@
-            @if (_venta.TipoComprobante == TipoComprobante.Gubernamental)
-            {
-                <div class="cg-cliente__exencion">
-                    <MudTextField T="string" @bind-Value="_certificacion" Label="Certificación de exención de ITBIS (opcional)" Variant="Variant.Outlined"
-                                  MaxLength="50" Immediate="true" Disabled="_procesando"
-                                  HelperText="Número del documento que presentó la entidad. Con él, la factura se emite exenta." />
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_procesando" OnClick="GuardarCertificacionAsync"
-                               Style="min-height: var(--cg-toque-minimo)">
-                        @(_venta.ExentaDeImpuesto ? "Actualizar" : "Aplicar exención")
-                    </MudButton>
-                    @if (_venta.ExentaDeImpuesto)
-                    {
-                        <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_procesando" OnClick="QuitarCertificacionAsync">Quitar</MudButton>
-                    }
-                </div>
-            }
-
-            <div class="cg-cliente__campos">
-                <div @onclick="() => _campo = Campo.Documento" @onfocusin="() => _campo = Campo.Documento">
-                    <MudTextField T="string" @bind-Value="_documento" Label="RNC o cédula" Variant="Variant.Outlined" Immediate="true"
-                                  AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Documento)" />
-                </div>
-                @if (_pedirNombre)
-                {
-                    <div @onclick="() => _campo = Campo.Nombre" @onfocusin="() => _campo = Campo.Nombre">
-                        <MudTextField T="string" @bind-Value="_nombre" Label="Nombre del cliente" Variant="Variant.Outlined" Immediate="true"
-                                      OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Nombre)" />
-                    </div>
-                }
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarAsync"
-                           StartIcon="@Icons.Material.Filled.PersonSearch" Style="min-height: var(--cg-toque-minimo)">Asignar</MudButton>
-            </div>
-
-            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Programa de fidelidad</MudText>
-            @if (_venta.Fidelidad is { } fidelidad)
-            {
+            @* Todo lo que se llena, en una sola columna; el teclado va al lado y no empuja nada hacia abajo. *@
+            <div class="cg-cliente__formulario">
                 <div class="cg-cliente__actual">
                     <div>
-                        <MudText Typo="Typo.h6" Style="font-weight: 700">★ @fidelidad.Nombre@(fidelidad.Nivel is null ? null : $" · {fidelidad.Nivel}")</MudText>
-                        <MudText Typo="Typo.body2">
-                            Cédula @fidelidad.Cedula
-                            @if (_miembro is { } miembro)
-                            {
-                                <span> · @miembro.SaldoDisponible.ToString("N0") puntos disponibles</span>
-                                @if (miembro.ProximoVencimiento is { } vence && miembro.PuntosPorVencer > 0)
-                                {
-                                    <span> · @miembro.PuntosPorVencer.ToString("N0") vencen el @vence.ToString("dd/MM/yyyy")</span>
-                                }
-                            }
-                        </MudText>
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Cliente de la transacción @_venta.NumeroTransaccion</MudText>
+                        @if (_venta.Cliente is { } cliente)
+                        {
+                            <MudText Typo="Typo.h6" Style="font-weight: 700">@cliente.Nombre</MudText>
+                            <MudText Typo="Typo.body2">
+                                @NombreDocumento(cliente.TipoDocumento) @cliente.Documento · @(cliente.ClienteId is null ? "no registrado" : "cliente registrado")
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h6" Style="font-weight: 700; color: #6d7a74">CLIENTE CONTADO</MudText>
+                        }
                     </div>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarFidelidadAsync"
-                               StartIcon="@Icons.Material.Filled.StarBorder" Style="min-height: var(--cg-toque-minimo)">Quitar miembro</MudButton>
-                </div>
-            }
-            else
-            {
-                <div class="cg-cliente__campos">
-                    <div @onclick="() => _campo = Campo.Cedula" @onfocusin="() => _campo = Campo.Cedula">
-                        <MudTextField T="string" @bind-Value="_cedula" Label="Cédula o tarjeta de fidelidad" Variant="Variant.Outlined" Immediate="true"
-                                      OnKeyDown="AlTeclearFidelidadAsync" Class="@ClaseCampo(Campo.Cedula)" />
-                    </div>
-                    @if (_inscribir)
+                    @if (_venta.Cliente is not null)
                     {
-                        <div @onclick="() => _campo = Campo.NombreMiembro" @onfocusin="() => _campo = Campo.NombreMiembro">
-                            <MudTextField T="string" @bind-Value="_nombreMiembro" Label="Nombre (vacío = el del cliente registrado)" Variant="Variant.Outlined" Immediate="true"
-                                          Class="@ClaseCampo(Campo.NombreMiembro)" />
-                        </div>
-                        <div @onclick="() => _campo = Campo.Telefono" @onfocusin="() => _campo = Campo.Telefono">
-                            <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Telefono)" />
-                        </div>
-                        <div @onclick="() => _campo = Campo.Correo" @onfocusin="() => _campo = Campo.Correo">
-                            <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Correo)" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarAsync"
+                                   StartIcon="@Icons.Material.Filled.PersonRemove" Style="min-height: var(--cg-toque-minimo)">Quitar cliente</MudButton>
+                    }
+                </div>
+
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Comprobante fiscal</MudText>
+                <div class="cg-cliente__comprobantes">
+                    @foreach (var tipo in ReglasComprobante.DeVenta)
+                    {
+                        <button type="button" class="cg-cliente__comprobante @(tipo == _venta.TipoComprobante ? "cg-cliente__comprobante--activo" : null)"
+                                disabled="@_procesando" @onclick="() => CambiarComprobanteAsync(tipo)">
+                            <span class="cg-cliente__codigo-ecf">E@((int)tipo)</span>
+                            <span>@ReglasComprobante.Nombre(tipo)</span>
+                        </button>
+                    }
+                </div>
+
+                @* Gubernamental (E45): con la certificación de exención que presente la entidad, la factura va sin ITBIS. *@
+                @if (_venta.TipoComprobante == TipoComprobante.Gubernamental)
+                {
+                    <div class="cg-cliente__exencion">
+                        <MudTextField T="string" @bind-Value="_certificacion" Label="Certificación de exención de ITBIS (opcional)" Variant="Variant.Outlined"
+                                      MaxLength="50" Immediate="true" Disabled="_procesando"
+                                      HelperText="Número del documento que presentó la entidad. Con él, la factura se emite exenta." />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_procesando" OnClick="GuardarCertificacionAsync"
+                                   Style="min-height: var(--cg-toque-minimo)">
+                            @(_venta.ExentaDeImpuesto ? "Actualizar" : "Aplicar exención")
+                        </MudButton>
+                        @if (_venta.ExentaDeImpuesto)
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_procesando" OnClick="QuitarCertificacionAsync">Quitar</MudButton>
+                        }
+                    </div>
+                }
+
+                <div class="cg-cliente__campos">
+                    <div @onclick="() => _campo = Campo.Documento" @onfocusin="() => _campo = Campo.Documento">
+                        <MudTextField T="string" @bind-Value="_documento" Label="RNC o cédula" Variant="Variant.Outlined" Immediate="true"
+                                      AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Documento)" />
+                    </div>
+                    @if (_pedirNombre)
+                    {
+                        <div @onclick="() => _campo = Campo.Nombre" @onfocusin="() => _campo = Campo.Nombre">
+                            <MudTextField T="string" @bind-Value="_nombre" Label="Nombre del cliente" Variant="Variant.Outlined" Immediate="true"
+                                          OnKeyDown="AlTeclearAsync" Class="@ClaseCampo(Campo.Nombre)" />
                         </div>
                     }
-                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarFidelidadAsync"
-                               StartIcon="@Icons.Material.Filled.Stars" Style="min-height: var(--cg-toque-minimo)">@(_inscribir ? "Inscribir y asignar" : "Asignar")</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarAsync"
+                               StartIcon="@Icons.Material.Filled.PersonSearch" Style="min-height: var(--cg-toque-minimo)">Asignar</MudButton>
                 </div>
-            }
 
-            @if (_procesando)
-            {
-                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
-            }
-            @if (_mensaje is not null)
-            {
-                <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
-            }
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Programa de fidelidad</MudText>
+                @if (_venta.Fidelidad is { } fidelidad)
+                {
+                    <div class="cg-cliente__actual">
+                        <div>
+                            <MudText Typo="Typo.h6" Style="font-weight: 700">★ @fidelidad.Nombre@(fidelidad.Nivel is null ? null : $" · {fidelidad.Nivel}")</MudText>
+                            <MudText Typo="Typo.body2">
+                                Cédula @fidelidad.Cedula
+                                @if (_miembro is { } miembro)
+                                {
+                                    <span> · @miembro.SaldoDisponible.ToString("N0") puntos disponibles</span>
+                                    @if (miembro.ProximoVencimiento is { } vence && miembro.PuntosPorVencer > 0)
+                                    {
+                                        <span> · @miembro.PuntosPorVencer.ToString("N0") vencen el @vence.ToString("dd/MM/yyyy")</span>
+                                    }
+                                }
+                            </MudText>
+                        </div>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Large" Disabled="_procesando" OnClick="QuitarFidelidadAsync"
+                                   StartIcon="@Icons.Material.Filled.StarBorder" Style="min-height: var(--cg-toque-minimo)">Quitar miembro</MudButton>
+                    </div>
+                }
+                else
+                {
+                    <div class="cg-cliente__campos">
+                        <div @onclick="() => _campo = Campo.Cedula" @onfocusin="() => _campo = Campo.Cedula">
+                            <MudTextField T="string" @bind-Value="_cedula" Label="Cédula o tarjeta de fidelidad" Variant="Variant.Outlined" Immediate="true"
+                                          OnKeyDown="AlTeclearFidelidadAsync" Class="@ClaseCampo(Campo.Cedula)" />
+                        </div>
+                        @if (_inscribir)
+                        {
+                            <div @onclick="() => _campo = Campo.NombreMiembro" @onfocusin="() => _campo = Campo.NombreMiembro">
+                                <MudTextField T="string" @bind-Value="_nombreMiembro" Label="Nombre (vacío = el del cliente registrado)" Variant="Variant.Outlined" Immediate="true"
+                                              Class="@ClaseCampo(Campo.NombreMiembro)" />
+                            </div>
+                            <div @onclick="() => _campo = Campo.Telefono" @onfocusin="() => _campo = Campo.Telefono">
+                                <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Telefono)" />
+                            </div>
+                            <div @onclick="() => _campo = Campo.Correo" @onfocusin="() => _campo = Campo.Correo">
+                                <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Immediate="true" Class="@ClaseCampo(Campo.Correo)" />
+                            </div>
+                        }
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarFidelidadAsync"
+                                   StartIcon="@Icons.Material.Filled.Stars" Style="min-height: var(--cg-toque-minimo)">@(_inscribir ? "Inscribir y asignar" : "Asignar")</MudButton>
+                    </div>
+                }
 
-            <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => ConfirmarAsync()"
-                           Modo="@(CampoNumerico ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)" PermitirDecimal="false"
-                           PermitirCambioModo="@(!CampoNumerico)" LongitudMaxima="@LongitudCampo" TextoConfirmar="Asignar" />
+                @if (_procesando)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                }
+                @if (_mensaje is not null)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+                }
+
+            </div>
+
+            @* El teclado, a la mano y siempre a la vista: escribe en el campo que esté activo. *@
+            <aside class="cg-cliente__teclado">
+                <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => ConfirmarAsync()"
+                               Modo="@(CampoNumerico ? ModoTeclado.Numerico : ModoTeclado.Alfanumerico)" PermitirDecimal="false"
+                               PermitirCambioModo="@(!CampoNumerico)" LongitudMaxima="@LongitudCampo" TextoConfirmar="Asignar" />
+            </aside>
         </div>
     </DialogContent>
     <DialogActions>

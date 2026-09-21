@@ -1,4 +1,4 @@
-@page "/venta-secundaria"
+﻿@page "/venta-secundaria"
 @attribute [Authorize]
 @using System.Globalization
 @using System.Text.Json
@@ -346,7 +346,7 @@ else
             return;
 
         var parametros = new DialogParameters<DialogoCliente> { { dialogo => dialogo.Venta, _venta } };
-        if (await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Medium) is { } venta)
+        if (await MostrarDialogoAsync<DialogoCliente, DatosVenta>("Cliente y comprobante", parametros, MaxWidth.Large) is { } venta)
             _venta = venta;
     }
 

@@ -500,7 +500,25 @@
 }
 
 /* ---------- Diálogo de cliente y comprobante ---------- */
-.cg-cliente { display: flex; flex-direction: column; gap: 12px; }
+/*
+    Cliente y comprobante: lo que se llena a la izquierda y el teclado a la derecha, para que la cajera vea el campo y
+    las teclas sin desplazar la pantalla. En monitores angostos vuelve a una sola columna, con el teclado al final.
+*/
+.cg-cliente {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: start;
+    gap: 16px;
+}
+
+.cg-cliente__formulario { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.cg-cliente__teclado { position: sticky; top: 0; }
+
+@media (max-width: 1000px) {
+    .cg-cliente { grid-template-columns: minmax(0, 1fr); }
+    .cg-cliente__teclado { position: static; }
+}
 
 .cg-cliente__actual {
     display: flex;
