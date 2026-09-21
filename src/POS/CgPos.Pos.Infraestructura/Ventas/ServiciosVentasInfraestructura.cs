@@ -43,16 +43,14 @@ internal static class ConversionesVenta
         var totales = venta.CalcularTotales();
 
         var lineas = venta.Lineas
-            .OrderBy(l => l.LineaAnuladaNumero ?? l.NumeroLinea)
-            .ThenBy(l => l.EsReverso ? 1 : 0)
-            .ThenBy(l => l.NumeroLinea)
+            .OrderBy(l => l.NumeroLinea)
             .Select(l => new DatosLineaVenta(
                 l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo, l.UnidadMedidaCodigo,
                 l.DecimalesCantidad, l.Cantidad, l.PrecioUnitario, l.ImporteConImpuesto, l.PorcentajeImpuesto, l.Lista, l.MotivoPrecio,
-                l.LeidaDeBalanza, l.EsReverso, l.LineaAnuladaNumero, l.Anulada, l.Serial,
+                l.LeidaDeBalanza, l.Anulada, l.Serial,
                 l.PromocionCodigo, l.PromocionNombre, l.PromocionDescripcion, l.DescuentoPromocion, l.PromocionDesactivada,
                 l.DescuentoManual, l.DescuentoManualTipo, l.DescuentoManualValor, l.MotivoDescuento, l.DescuentoAutorizadoPorNombre,
-                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual, l.SerialPendiente, l.EsReverso ? 0m : venta.CantidadEnEntregas(l.NumeroLinea)))
+                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual, l.SerialPendiente, venta.CantidadEnEntregas(l.NumeroLinea)))
             .ToList();
 
         var cliente = venta.ClienteNombre is { } nombre
@@ -1464,8 +1462,7 @@ internal sealed class ServicioVentas(
 
         return await EjecutarAsync(venta, () =>
         {
-            var reverso = eliminar(venta);
-            var original = venta.Lineas.Single(l => l.NumeroLinea == reverso.LineaAnuladaNumero);
+            var original = eliminar(venta);
             auditoria.Registrar(new EntradaAuditoria("Ventas.LineaEliminada", TipoEntidadVenta, venta.Identificacion,
                 Detalle: new { Linea = original.NumeroLinea, original.CodigoInterno, original.Descripcion, original.Cantidad, Importe = original.ImporteConImpuesto },
                 Motivo: permiso.Motivo,

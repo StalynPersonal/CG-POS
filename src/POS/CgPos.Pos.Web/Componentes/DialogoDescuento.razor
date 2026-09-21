@@ -1,4 +1,4 @@
-@* Descuento manual a una línea (tocar el precio) o a la factura: monto o porcentaje, motivo y líneas elegidas (RF-141, RF-199 a RF-203). *@
+﻿@* Descuento manual a una línea (tocar el precio) o a la factura: monto o porcentaje, motivo y líneas elegidas (RF-141, RF-199 a RF-203). *@
 @using System.Globalization
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
@@ -128,7 +128,7 @@
 
     private DatosLineaVenta? Linea => NumeroLinea is { } numero ? Venta.Lineas.FirstOrDefault(l => l.NumeroLinea == numero) : null;
 
-    private IEnumerable<DatosLineaVenta> LineasActivas => Venta.Lineas.Where(l => !l.EsReverso && !l.Anulada);
+    private IEnumerable<DatosLineaVenta> LineasActivas => Venta.Lineas.Where(l => !l.Anulada);
 
     private bool TieneDescuento => EsFactura ? Venta.DescuentoFactura is not null : Linea is { DescuentoManual: > 0 };
 

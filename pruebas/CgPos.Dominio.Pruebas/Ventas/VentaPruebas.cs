@@ -172,24 +172,24 @@ public class VentaPruebas
     }
 
     [Fact]
-    public void Eliminar_linea_agrega_reverso_negativo_con_precio_cero_y_la_saca_del_total()
+    public void Eliminar_linea_la_deja_anulada_en_su_lugar_sin_agregar_otra_y_la_saca_del_total()
     {
         var venta = NuevaVenta();
         var cincel = venta.AgregarArticulo(Cincel(), 2m, Ahora);
         venta.AgregarArticulo(Cemento(), 1m, Ahora);
 
-        var reverso = venta.EliminarLinea(cincel.NumeroLinea, Ahora);
+        var anulada = venta.EliminarLinea(cincel.NumeroLinea, Ahora);
 
-        Assert.True(cincel.Anulada);
-        Assert.True(reverso.EsReverso);
-        Assert.Equal(-2m, reverso.Cantidad);
-        Assert.Equal(0m, reverso.PrecioUnitario);
-        Assert.Equal(cincel.NumeroLinea, reverso.LineaAnuladaNumero);
-        Assert.Equal(3, reverso.NumeroLinea);
+        Assert.Same(cincel, anulada);
+        Assert.True(anulada.Anulada);
+        Assert.Equal(Ahora, anulada.AnuladaEn);
+        Assert.Equal(2, venta.Lineas.Count);
         Assert.Equal(485m, venta.CalcularTotales().Total);
 
+        // La numeración sigue continua: la próxima línea es la 3, sin huecos.
+        Assert.Equal(3, venta.AgregarArticulo(Cemento(), 1m, Ahora).NumeroLinea);
+
         Assert.Equal(CodigoErrorVenta.LineaNoEncontrada, Assert.Throws<ReglaVentaExcepcion>(() => venta.EliminarLinea(cincel.NumeroLinea, Ahora)).Codigo);
-        Assert.Equal(CodigoErrorVenta.LineaNoEncontrada, Assert.Throws<ReglaVentaExcepcion>(() => venta.EliminarLinea(reverso.NumeroLinea, Ahora)).Codigo);
     }
 
     [Fact]
@@ -385,8 +385,8 @@ public class VentaPruebas
         Assert.Equal(CodigoErrorVenta.CantidadInvalida, Assert.Throws<ReglaVentaExcepcion>(() => venta.CambiarCantidad(linea.NumeroLinea, 2m, Ahora)).Codigo);
 
         // Al eliminar la línea, el serial queda libre para volver a escanearlo.
-        var reverso = venta.EliminarLinea(linea.NumeroLinea, Ahora);
-        Assert.Equal("SN-001", reverso.Serial);
+        var anulada = venta.EliminarLinea(linea.NumeroLinea, Ahora);
+        Assert.Equal("SN-001", anulada.Serial);
         venta.AgregarArticulo(taladro, null, Ahora, "SN-001");
 
         // A un artículo normal no se le guarda serial.

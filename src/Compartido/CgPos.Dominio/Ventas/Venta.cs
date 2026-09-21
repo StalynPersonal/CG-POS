@@ -488,7 +488,8 @@ public abstract class Venta : Entidad
     }
 
     /// <summary>
-    /// Elimina una línea: queda marcada como anulada y se agrega debajo su reverso en negativo con precio cero (RF-114).
+    /// Elimina una línea (RF-114): queda en la venta con su mismo número, marcada como anulada, y sale de los totales. No
+    /// se agrega otra línea, así la numeración sigue continua; quién la eliminó y quién lo autorizó queda en la auditoría.
     /// </summary>
     public LineaVenta EliminarLinea(int numeroLinea, DateTimeOffset ahora)
     {
@@ -496,12 +497,10 @@ public abstract class Venta : Entidad
         var linea = LineaActiva(numeroLinea);
         AsegurarSinEntrega(linea);
 
-        linea.MarcarAnulada();
-        var reverso = LineaVenta.CrearReverso(NuevaLinea(), Id, SiguienteNumeroLinea(), linea);
-        AgregarLinea(reverso);
+        linea.MarcarAnulada(ahora);
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
-        return reverso;
+        return linea;
     }
 
     /// <summary>Elimina la última línea activa del código escaneado (RF-21).</summary>
@@ -1344,21 +1343,18 @@ public abstract class LineaVenta : Entidad
 
     public bool LeidaDeBalanza { get; private set; }
 
-    /// <summary>Línea en negativo que representa la eliminación de otra (RF-114).</summary>
-    public bool EsReverso { get; private set; }
-
-    public int? LineaAnuladaNumero { get; private set; }
+    /// <summary>La línea se eliminó (RF-114): se ve tachada y no cuenta en los totales.</summary>
     public bool Anulada { get; private set; }
 
-    public bool EstaActiva => !Anulada && !EsReverso;
+    public DateTimeOffset? AnuladaEn { get; private set; }
+
+    public bool EstaActiva => !Anulada;
 
     /// <summary>Importe antes de descuentos, con impuesto.</summary>
-    public decimal ImporteBruto => EsReverso
-        ? 0m
-        : ImporteEtiqueta ?? decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero);
+    public decimal ImporteBruto => ImporteEtiqueta ?? decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>Importe a cobrar, con impuesto y después de ofertas y descuentos.</summary>
-    public decimal ImporteConImpuesto => EsReverso ? 0m : Math.Max(0m, ImporteBruto - DescuentoTotal);
+    public decimal ImporteConImpuesto => Math.Max(0m, ImporteBruto - DescuentoTotal);
 
     /// <summary>
     /// Esta misma línea en la variante de otra tabla. El Id y la venta los asigna la tabla de destino al guardarla.
@@ -1403,40 +1399,6 @@ public abstract class LineaVenta : Entidad
         linea.MotivoPrecio = precio.Motivo;
         linea.ImporteEtiqueta = importeEtiqueta;
         linea.LeidaDeBalanza = leidaDeBalanza;
-        return linea;
-    }
-
-    internal static LineaVenta CrearReverso(LineaVenta linea, int ventaId, int numeroLinea, LineaVenta original)
-    {
-        linea.Serial = original.Serial;
-        linea.VentaId = ventaId;
-        linea.NumeroLinea = numeroLinea;
-        linea.ArticuloId = original.ArticuloId;
-        linea.CodigoInterno = original.CodigoInterno;
-        linea.CodigoLeido = original.CodigoLeido;
-        linea.Descripcion = original.Descripcion;
-        linea.TipoArticulo = original.TipoArticulo;
-        linea.DepartamentoId = original.DepartamentoId;
-        linea.CategoriaId = original.CategoriaId;
-        linea.MarcaId = original.MarcaId;
-        linea.PermiteDescuentoManual = original.PermiteDescuentoManual;
-        linea.UnidadMedidaCodigo = original.UnidadMedidaCodigo;
-        linea.PermiteDecimales = original.PermiteDecimales;
-        linea.DecimalesCantidad = original.DecimalesCantidad;
-        linea.ImpuestoId = original.ImpuestoId;
-        linea.PorcentajeImpuesto = original.PorcentajeImpuesto;
-        linea.IndicadorFacturacion = original.IndicadorFacturacion;
-        linea.PrecioDetalle = original.PrecioDetalle;
-        linea.PrecioMayor = original.PrecioMayor;
-        linea.CantidadMinimaMayor = original.CantidadMinimaMayor;
-        linea.PrecioMinimo = original.PrecioMinimo;
-        linea.Cantidad = -original.Cantidad;
-        linea.PrecioUnitario = 0m;
-        linea.Lista = original.Lista;
-        linea.MotivoPrecio = original.MotivoPrecio;
-        linea.LeidaDeBalanza = original.LeidaDeBalanza;
-        linea.EsReverso = true;
-        linea.LineaAnuladaNumero = original.NumeroLinea;
         return linea;
     }
 
@@ -1577,5 +1539,9 @@ public abstract class LineaVenta : Entidad
             : Math.Min(valor, ImporteBruto);
     }
 
-    internal void MarcarAnulada() => Anulada = true;
+    internal void MarcarAnulada(DateTimeOffset ahora)
+    {
+        Anulada = true;
+        AnuladaEn = ahora;
+    }
 }

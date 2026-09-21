@@ -55,8 +55,6 @@ public sealed record DatosLineaVenta(
     ListaPrecio Lista,
     MotivoPrecio MotivoPrecio,
     bool LeidaDeBalanza,
-    bool EsReverso,
-    int? LineaAnuladaNumero,
     bool Anulada,
     string? Serial = null,
     string? PromocionCodigo = null,
@@ -98,7 +96,7 @@ public sealed record DatosDescuentoFactura(TipoDescuento Tipo, decimal Valor, IR
 
 public sealed record DatosClienteVenta(int? ClienteId, TipoDocumentoIdentidad? TipoDocumento, string? Documento, string Nombre);
 
-/// <param name="Lineas">En orden de pantalla: cada reverso aparece justo debajo de la línea que anula.</param>
+/// <param name="Lineas">En orden de número de línea; las eliminadas siguen en su lugar, marcadas como anuladas.</param>
 /// <param name="RequiereIdentificacion">Factura de consumo desde <paramref name="MontoIdentificacion"/> sin cédula o RNC (RF-26).</param>
 public sealed record DatosVenta(
     int Id,

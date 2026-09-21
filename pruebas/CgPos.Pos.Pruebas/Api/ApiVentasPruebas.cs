@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CgPos.Contratos.Seguridad;
@@ -48,7 +48,7 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
             venta = (await Leer<RespuestaVenta>(agregada)).Venta!;
         }
 
-        var linea = venta.Lineas.Last(l => !l.EsReverso && !l.Anulada);
+        var linea = venta.Lineas.Last(l => !l.Anulada);
         Assert.Equal(2m, linea.Cantidad);
 
         // Los maestros de desarrollo traen ofertas para el cincel: el importe es 2 × 850 menos la oferta vigente.
@@ -82,7 +82,7 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
             Assert.Equal(HttpStatusCode.OK, eliminada.StatusCode);
             var respuesta = await Leer<RespuestaVenta>(eliminada);
             Assert.Equal(totalInicial, respuesta.Venta!.Totales.Total);
-            Assert.Contains(respuesta.Venta.Lineas, l => l.EsReverso && l.LineaAnuladaNumero == linea.NumeroLinea);
+            Assert.Contains(respuesta.Venta.Lineas, l => l.Anulada && l.NumeroLinea == linea.NumeroLinea);
         }
 
         var sincronizacion = await cliente.GetFromJsonAsync<DatosEstadoSincronizacion>("/api/sincronizacion/estado", OpcionesJson.Predeterminadas);

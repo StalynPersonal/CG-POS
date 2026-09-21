@@ -118,7 +118,7 @@ public class ApiFacturasParaCajaPruebas(CentralEnPruebas central)
         return new DocumentoVentaCobrada(numero, 1, "C001", "Cajero Desarrollo", cobrada.AddMinutes(-5), cobrada, TipoComprobante.FacturaConsumo,
             new DocumentoClienteVenta(null, TipoDocumentoIdentidad.Rnc, "401007551", "Cliente de Devoluciones"), "DOP",
             [new DocumentoLineaVenta(1, "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, "UND", 0, cantidad, Precio, total, 18m,
-                ListaPrecio.Detalle, MotivoPrecio.PrecioDetalle, false, false, null, false, null, null, 0m, 0m, null, null, null, null, 0m, total, 0m)],
+                ListaPrecio.Detalle, MotivoPrecio.PrecioDetalle, false, false, null, null, 0m, 0m, null, null, null, null, 0m, total, 0m)],
             new DatosTotalesVenta(baseImponible, total - baseImponible, total, 1, cantidad,
                 [new DatosDesgloseImpuesto(18m, 1, baseImponible, total - baseImponible, total)]),
             null,

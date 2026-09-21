@@ -29,8 +29,6 @@ public sealed record DocumentoLineaVenta(
     ListaPrecio Lista,
     MotivoPrecio MotivoPrecio,
     bool LeidaDeBalanza,
-    bool EsReverso,
-    int? LineaAnuladaNumero,
     bool Anulada,
     string? Serial,
     string? PromocionCodigo,

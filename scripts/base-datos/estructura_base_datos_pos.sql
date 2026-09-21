@@ -1449,9 +1449,8 @@ CREATE TABLE [LineasVenta] (
     [MotivoPrecio] int NOT NULL,
     [ImporteEtiqueta] decimal(18,4) NULL,
     [LeidaDeBalanza] bit NOT NULL,
-    [EsReverso] bit NOT NULL,
-    [LineaAnuladaNumero] int NULL,
     [Anulada] bit NOT NULL,
+    [AnuladaEn] datetimeoffset(3) NULL,
     CONSTRAINT [PK_LineasVenta] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_LineasVenta_Ventas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [Ventas] ([Id]) ON DELETE CASCADE
 );
@@ -1563,9 +1562,8 @@ CREATE TABLE [LineasVentaGuardadas] (
     [MotivoPrecio] int NOT NULL,
     [ImporteEtiqueta] decimal(18,4) NULL,
     [LeidaDeBalanza] bit NOT NULL,
-    [EsReverso] bit NOT NULL,
-    [LineaAnuladaNumero] int NULL,
     [Anulada] bit NOT NULL,
+    [AnuladaEn] datetimeoffset(3) NULL,
     CONSTRAINT [PK_LineasVentaGuardadas] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_LineasVentaGuardadas_VentasGuardadas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [VentasGuardadas] ([Id]) ON DELETE CASCADE
 );
@@ -1649,9 +1647,8 @@ CREATE TABLE [LineasVentaTemp] (
     [MotivoPrecio] int NOT NULL,
     [ImporteEtiqueta] decimal(18,4) NULL,
     [LeidaDeBalanza] bit NOT NULL,
-    [EsReverso] bit NOT NULL,
-    [LineaAnuladaNumero] int NULL,
     [Anulada] bit NOT NULL,
+    [AnuladaEn] datetimeoffset(3) NULL,
     CONSTRAINT [PK_LineasVentaTemp] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_LineasVentaTemp_VentasTemp_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [VentasTemp] ([Id]) ON DELETE CASCADE
 );

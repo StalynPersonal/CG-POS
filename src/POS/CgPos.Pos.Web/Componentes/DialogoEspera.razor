@@ -62,7 +62,7 @@
     private bool _cargando = true;
     private bool _procesando;
 
-    private bool TieneArticulos => Venta.Lineas.Any(linea => !linea.EsReverso && !linea.Anulada);
+    private bool TieneArticulos => Venta.Lineas.Any(linea => !linea.Anulada);
 
     protected override async Task OnInitializedAsync()
     {

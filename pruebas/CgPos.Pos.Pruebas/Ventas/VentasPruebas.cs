@@ -157,11 +157,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var eliminada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.EliminarLineaAsync(caja.Cajero, venta.Id, 1, autorizacion));
 
         Assert.True(eliminada.Exitosa, eliminada.Mensaje);
-        Assert.Equal(new[] { 1, 3, 2 }, eliminada.Venta!.Lineas.Select(l => l.NumeroLinea)); // el reverso (3) va debajo de la 1
-        var reverso = eliminada.Venta.Lineas[1];
-        Assert.True(reverso.EsReverso);
-        Assert.Equal(-1m, reverso.Cantidad);
-        Assert.Equal(0m, reverso.Importe);
+        // La eliminada queda en su lugar, anulada: no se agrega otra línea y la numeración sigue continua.
+        Assert.Equal(new[] { 1, 2 }, eliminada.Venta!.Lineas.Select(l => l.NumeroLinea));
+        Assert.True(eliminada.Venta.Lineas[0].Anulada);
+        Assert.False(eliminada.Venta.Lineas[1].Anulada);
         Assert.Equal(485m, eliminada.Venta.Totales.Total);
 
         var reutilizada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.EliminarLineaAsync(caja.Cajero, venta.Id, 2, autorizacion));
@@ -2084,7 +2083,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         /// </param>
         public DatosFacturaParaCaja PublicarFacturaAsync(DatosVenta venta, IReadOnlyDictionary<int, decimal>? noDisponible = null)
         {
-            var lineas = venta.Lineas.Where(l => !l.Anulada && !l.EsReverso).OrderBy(l => l.NumeroLinea).Select(l =>
+            var lineas = venta.Lineas.Where(l => !l.Anulada).OrderBy(l => l.NumeroLinea).Select(l =>
                 new DatosLineaFacturaParaCaja(l.NumeroLinea, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo, l.UnidadMedidaCodigo,
                     l.DecimalesCantidad, l.PorcentajeImpuesto, l.Cantidad, l.PrecioUnitario, l.DescuentoPromocion + l.DescuentoManual + l.DescuentoFactura,
                     l.Importe - decimal.Round(l.Importe / (1m + (l.PorcentajeImpuesto / 100m)), 2, MidpointRounding.AwayFromZero), l.Importe, l.Serial,

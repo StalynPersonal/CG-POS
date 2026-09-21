@@ -341,7 +341,7 @@ internal sealed class ServicioRecepcion(
 
         var descontar = await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametrosCentral.ListasBodaDescontarCompras, cancelacion);
         lista.RegistrarCompra(venta.Numero, documento.CajaId, venta.TotalCobrado,
-            venta.Lineas.Where(l => !l.EsReverso).Select(l => (l.CodigoInterno, l.Cantidad)), descontar, venta.CobradaEn, ahora);
+            venta.Lineas.Where(l => !l.Anulada).Select(l => (l.CodigoInterno, l.Cantidad)), descontar, venta.CobradaEn, ahora);
     }
 
     /// <summary>El cierre de turno alimenta el reporte de cuadres (RF-267).</summary>

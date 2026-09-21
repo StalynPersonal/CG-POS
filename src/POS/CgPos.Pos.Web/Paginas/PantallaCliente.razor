@@ -143,7 +143,7 @@
     private static decimal AhorroDe(DatosLineaVenta linea) => linea.DescuentoPromocion + linea.DescuentoManual + linea.DescuentoFactura;
 
     private IReadOnlyList<DatosLineaVenta> LineasActivas =>
-        _venta?.Lineas.Where(linea => !linea.EsReverso && !linea.Anulada).ToList() ?? [];
+        _venta?.Lineas.Where(linea => !linea.Anulada).ToList() ?? [];
 
     private RenderFragment Carrusel => @<div class="cg-carrusel">
         @if (MedioActual is { } medio)

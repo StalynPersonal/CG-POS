@@ -71,7 +71,7 @@ public class ApiFacturasPruebas(CentralEnPruebas central)
         var cobrada = DateTimeOffset.Now;
         DocumentoLineaVenta Linea(int numeroLinea, string codigoArticulo, string descripcion, decimal cantidad, decimal precio) =>
             new(numeroLinea, codigoArticulo, codigoArticulo, descripcion, TipoArticulo.Normal, "UND", 0, cantidad, precio, precio * cantidad, 18m,
-                ListaPrecio.Detalle, MotivoPrecio.PrecioDetalle, false, false, null, false, null, null, 0m, 0m, null, null, null, null, 0m,
+                ListaPrecio.Detalle, MotivoPrecio.PrecioDetalle, false, false, null, null, 0m, 0m, null, null, null, null, 0m,
                 precio * cantidad, 0m);
 
         return new DocumentoVentaCobrada(numero, 1, "C001", "Cajero Desarrollo", cobrada.AddMinutes(-5), cobrada, TipoComprobante.FacturaConsumo, null, "DOP",

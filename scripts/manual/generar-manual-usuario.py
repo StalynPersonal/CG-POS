@@ -827,7 +827,8 @@ viñeta('Anular (panel de funciones ☰): cancela la transacción en curso con m
        'desaparece de la caja; lo que tenía, quién la anuló, quién lo autorizó y el motivo quedan en la auditoría.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
-       'tachada y con su reverso en rojo, para que todo quede a la vista.')
+       'tachada en su lugar, con su mismo número, y sale del total. La numeración de las líneas sigue continua; quién la '
+       'eliminó y quién lo autorizó queda en la auditoría.')
 
 titulo('3.14. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')

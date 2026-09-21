@@ -91,7 +91,7 @@ internal static class GeneradorTicket
         }
         Separador();
 
-        foreach (var linea in venta.Lineas.Where(l => !l.EsReverso && !l.Anulada))
+        foreach (var linea in venta.Lineas.Where(l => !l.Anulada))
         {
             foreach (var parte in Envolver(linea.Descripcion))
                 Agregar(parte);

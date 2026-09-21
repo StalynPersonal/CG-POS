@@ -176,7 +176,7 @@ else
 
         @* Grilla de las líneas de la venta: código, descripción, cantidad, precio, importe y la oferta aplicada. *@
         <div class="cg-venta__lineas">
-            @* Los reversos no se pintan: la línea que anulan ya se ve tachada y repetirla solo confunde. *@
+            @* La línea eliminada se ve tachada en su lugar, con su mismo número. *@
             <GrillaTactil TElemento="DatosLineaVenta" Elementos="LineasVisibles" Seleccionado="LineaSeleccionada" SeleccionadoChanged="AlSeleccionarLinea"
                           EsAnulada="linea => linea.Anulada" Altura="100%" TextoSinRegistros="Escanee un artículo para comenzar la venta">
                 <Encabezado>
@@ -1095,7 +1095,7 @@ else
         _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
 
         if (respuesta.Exitosa && seleccionarUltima && _venta is not null)
-            _numeroSeleccionado = _venta.Lineas.Where(linea => !linea.EsReverso).Select(linea => (int?)linea.NumeroLinea).Max();
+            _numeroSeleccionado = _venta.Lineas.Where(linea => !linea.Anulada).Select(linea => (int?)linea.NumeroLinea).Max();
     }
 
     /// <summary>
@@ -1234,7 +1234,7 @@ else
         _enfocar = true;
     }
 
-    private static bool EsEditable(DatosLineaVenta linea) => !linea.EsReverso && !linea.Anulada;
+    private static bool EsEditable(DatosLineaVenta linea) => !linea.Anulada;
 
     private static string? ClaseCelda(DatosLineaVenta linea) => linea.Anulada ? "cg-venta__tachada" : null;
 
@@ -1246,8 +1246,8 @@ else
     /// </summary>
     private static decimal ImporteMostrado(DatosLineaVenta linea) => linea.Anulada ? linea.ImporteBruto : linea.Importe;
 
-    /// <summary>Las líneas de la venta tal como se muestran: sin los reversos, que son el contrapeso de las eliminadas.</summary>
-    private IReadOnlyList<DatosLineaVenta> LineasVisibles => _venta?.Lineas.Where(linea => !linea.EsReverso).ToList() ?? [];
+    /// <summary>Las líneas de la venta tal como se muestran: todas, las eliminadas tachadas en su lugar.</summary>
+    private IReadOnlyList<DatosLineaVenta> LineasVisibles => _venta?.Lineas ?? [];
 
     private async Task AbrirCertificadoAsync()
     {

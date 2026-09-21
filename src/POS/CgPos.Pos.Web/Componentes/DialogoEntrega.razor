@@ -146,7 +146,7 @@
     }
 
     private IEnumerable<DatosLineaVenta> LineasMarcables =>
-        _venta.Lineas.Where(l => !l.EsReverso && !l.Anulada && Disponible(l) > 0);
+        _venta.Lineas.Where(l => !l.Anulada && Disponible(l) > 0);
 
     private static decimal Disponible(DatosLineaVenta linea) => linea.Cantidad - linea.CantidadEnEntrega;
 

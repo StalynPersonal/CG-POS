@@ -38,11 +38,11 @@ else
 
             @* Líneas de la venta: tocar una la selecciona para cambiar cantidad o quitarla. *@
             <div class="cg-venta2__lineas">
-                @if (!_venta.Lineas.Any(l => !l.EsReverso))
+                @if (_venta.Lineas.Count == 0)
                 {
                     <div class="cg-venta2__vacia">Toque un artículo del catálogo para empezar</div>
                 }
-                @foreach (var linea in _venta.Lineas.Where(l => !l.EsReverso).OrderByDescending(l => l.NumeroLinea))
+                @foreach (var linea in _venta.Lineas.OrderByDescending(l => l.NumeroLinea))
                 {
                     <button type="button" class="cg-venta2__linea @(linea.NumeroLinea == _seleccionada ? "cg-venta2__linea--activa" : null)"
                             @onclick="() => _seleccionada = linea.NumeroLinea">
@@ -317,7 +317,7 @@ else
 
     private async Task CobrarAsync()
     {
-        if (_venta is null || !_venta.Lineas.Any(l => !l.EsReverso))
+        if (_venta is null || _venta.Lineas.Count == 0)
         {
             _mensaje = "No hay artículos que cobrar.";
             return;

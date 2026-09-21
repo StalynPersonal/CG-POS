@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
@@ -79,7 +79,7 @@ public class ApiListasBodaPruebas(CentralEnPruebas central)
         return new DocumentoVentaCobrada(numero, 1, "C001", "Cajero Desarrollo", cobrada.AddMinutes(-5), cobrada, TipoComprobante.FacturaConsumo, null, "DOP",
             [
                 new DocumentoLineaVenta(1, codigoArticulo, codigoArticulo, "Juego de copas", CgPos.Dominio.Catalogo.TipoArticulo.Normal, "UND", 0, cantidad,
-                    precio, importe, 18m, CgPos.Dominio.Catalogo.ListaPrecio.Detalle, CgPos.Dominio.Catalogo.MotivoPrecio.PrecioDetalle, false, false, null,
+                    precio, importe, 18m, CgPos.Dominio.Catalogo.ListaPrecio.Detalle, CgPos.Dominio.Catalogo.MotivoPrecio.PrecioDetalle, false,
                     false, null, null, 0m, 0m, null, null, null, null, 0m, importe, 0m),
             ],
             new DatosTotalesVenta(importe / 1.18m, importe - (importe / 1.18m), importe, 1, cantidad, []), null,
