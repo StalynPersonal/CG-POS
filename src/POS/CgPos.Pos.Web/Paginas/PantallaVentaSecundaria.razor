@@ -315,6 +315,23 @@ else
         _seleccionada = null;
     }
 
+    /// <summary>
+    /// El límite de compra lo pone el cliente: superarlo no impide cobrar, pero el cajero tiene que confirmarlo (con el
+    /// cliente) antes de abrir el cobro. Devuelve si se sigue con el cobro.
+    /// </summary>
+    private async Task<bool> ConfirmarLimiteCompraAsync()
+    {
+        if (_venta is not { LimiteCompraExcedido: true, LimiteCompra: { } limite } venta)
+            return true;
+
+        _dialogoAbierto = true;
+        var cobrar = await Dialogos.ConfirmarAsync("Límite de compra superado",
+            $"El total ({venta.Totales.Total:C}) supera el límite de {limite:C} que indicó el cliente. ¿Cobrar de todas formas?",
+            "Cobrar", textoCancelar: "Volver a la venta");
+        _dialogoAbierto = false;
+        return cobrar;
+    }
+
     private async Task CobrarAsync()
     {
         if (_venta is null || _venta.Lineas.Count == 0)
@@ -329,6 +346,9 @@ else
             await AbrirClienteAsync();
             return;
         }
+
+        if (!await ConfirmarLimiteCompraAsync())
+            return;
 
         var parametros = new DialogParameters<DialogoCobro> { { dialogo => dialogo.Venta, _venta } };
         var respuesta = await MostrarDialogoAsync<DialogoCobro, RespuestaCobro>($"Cobro · {_venta.NumeroTransaccion}", parametros, MaxWidth.ExtraLarge);

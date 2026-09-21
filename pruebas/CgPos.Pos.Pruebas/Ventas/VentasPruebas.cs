@@ -755,6 +755,35 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Cobrar_por_encima_del_limite_de_compra_se_permite_y_queda_en_la_auditoria()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        // El límite lo pone el cliente: superarlo no bloquea el cobro, pero deja constancia de que se cobró igual.
+        var venta = await caja.VentaActualAsync();
+        await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.EstablecerLimiteCompraAsync(caja.Cajero, venta.Id, 500m));
+        var conArticulo = await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        Assert.True(conArticulo.LimiteCompraExcedido);
+
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
+            a.Accion == "Ventas.LimiteCompraSuperado" && a.EntidadId == cobro.Venta!.NumeroTransaccion)));
+
+        // Dentro del límite no hay nada que anotar.
+        var dentro = await caja.VentaActualAsync();
+        await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.EstablecerLimiteCompraAsync(caja.Cajero, dentro.Id, 5000m));
+        await caja.AgregarAsync(dentro.Id, caja.Catalogo.BarrasCincel);
+        var cobroDentro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, dentro.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
+        Assert.True(cobroDentro.Exitosa, cobroDentro.Mensaje);
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
+            a.Accion == "Ventas.LimiteCompraSuperado" && a.EntidadId == cobroDentro.Venta!.NumeroTransaccion)));
+    }
+
+    [SkippableFact]
     public async Task Cobro_en_efectivo_guarda_pagos_mensaje_para_el_central_y_ticket_y_empieza_otra_venta()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

@@ -1,4 +1,4 @@
-using CgPos.Interfaz.Componentes;
+﻿using CgPos.Interfaz.Componentes;
 using MudBlazor;
 
 namespace CgPos.Interfaz.Servicios;
@@ -11,12 +11,14 @@ public static class ExtensionesServicioDialogos
         string titulo,
         string mensaje,
         string textoConfirmar = "Aceptar",
-        bool esPeligrosa = false)
+        bool esPeligrosa = false,
+        string textoCancelar = "Cancelar")
     {
         var parametros = new DialogParameters<DialogoConfirmacion>
         {
             { d => d.Mensaje, mensaje },
             { d => d.TextoConfirmar, textoConfirmar },
+            { d => d.TextoCancelar, textoCancelar },
             { d => d.EsPeligrosa, esPeligrosa },
         };
 

@@ -491,6 +491,11 @@ internal sealed class ServicioVentas(
         var datosVenta = cobrada.ADatos(_montoIdentificacion, emision?.Documento, emision?.VenceSecuencia);
         bandejaSalida.Encolar("Venta.Cobrada", cobrada.NumeroTransaccion,
             await contexto.VentaCobradaAsync(cobrada, datosVenta, emision?.ParaCentral, ahora, cancelacion));
+        if (cobrada.LimiteCompra is { } limite && cobrada.LimiteCompraExcedido())
+            auditoria.Registrar(new EntradaAuditoria("Ventas.LimiteCompraSuperado", TipoEntidadVenta, cobrada.NumeroTransaccion,
+                Detalle: new { Limite = limite, resultado.Total },
+                Motivo: "El cajero confirmó cobrar por encima del límite que indicó el cliente",
+                Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
         auditoria.Registrar(new EntradaAuditoria("Ventas.Cobrada", TipoEntidadVenta, cobrada.NumeroTransaccion,
             Detalle: new
             {

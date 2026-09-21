@@ -726,7 +726,7 @@ p('Buscar (F2) y Totalizar (F8) están siempre a la vista, junto al campo de esc
 p('Teclas de función:')
 tabla(['Tecla', 'Qué hace'],
       [['F2', 'Buscar un artículo por descripción'],
-       ['F3', 'Límite de compra que pidió el cliente (avisa al pasarse)'],
+       ['F3', 'Límite de compra que pidió el cliente: avisa al pasarse y, al totalizar, pide confirmar «¿Cobrar de todas formas?» (queda en la auditoría)'],
        ['F4', 'Cambiar la cantidad de la línea seleccionada'],
        ['F5', 'Tomar el peso de la balanza'],
        ['F6', 'Lista de boda: asociar la venta a una lista de regalos'],
