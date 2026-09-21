@@ -46,7 +46,7 @@
 
      sqlcmd -S .\SQLEXPRESS -E -i "estructura_base_datos.sql"
 
- (el archivo es scripts\base-datos\pos\estructura_base_datos.sql; cópielo al
+ (el archivo es scripts\base-datos\estructura_base_datos_pos.sql; cópielo al
  equipo con una memoria o por la red)
 
  Crea la base CgPosCaja vacía. No lleva datos: los artículos, los precios, los
@@ -124,7 +124,10 @@
      Catálogo táctil      http://localhost:5180/ingreso?pantalla=secundaria
      Pantalla del cliente http://localhost:5180/cliente
      Devoluciones         http://localhost:5180/ingreso?pantalla=devoluciones
-     Despacho             http://localhost:5180/ingreso?pantalla=despacho
+
+ El despacho de pendientes y envíos NO se hace desde la caja: se hace en el
+ Central, que ve los de todas las sucursales. La caja solo crea el pendiente
+ al cobrar.
 
  Deje el atajo en el escritorio o en el arranque de Windows, para que el cajero
  solo tenga que encender el equipo.

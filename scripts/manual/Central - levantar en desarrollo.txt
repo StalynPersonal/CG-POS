@@ -21,7 +21,7 @@
  PASO 1. CREAR LA BASE
 -------------------------------------------------------------------------------
 
-     sqlcmd -S . -i "scripts\base-datos\central\estructura_base_datos.sql"
+     sqlcmd -S . -i "scripts\base-datos\estructura_base_datos_central.sql"
 
  Crea CgPosCentral con sus tablas y sus datos de arranque (monedas, impuestos,
  unidades, formas de pago, denominaciones, motivos, parámetros, el rol de
@@ -93,6 +93,15 @@
  En el manual de usuario hay una lista de artículos, categorías, marcas y
  promociones ya pensados para un negocio de bebidas, con precios y códigos,
  para copiarlos tal cual.
+
+ Si lo que quiere es probar con datos de verdad, en scripts\datosStellar están
+ los departamentos, categorías, marcas, artículos y códigos de barra migrados
+ desde Stellar, en scripts SQL que se ejecutan en orden. Lea su LEEME.md: son
+ más de 150 mil artículos y hay cosas que revisar después de cargarlos.
+
+ Revise también los permisos de los roles: los módulos que se fueron agregando
+ traen los suyos (cotizaciones, despacho, anulación de despacho) y un rol
+ creado antes no los tiene. Seguridad -> Roles.
 
 
 -------------------------------------------------------------------------------

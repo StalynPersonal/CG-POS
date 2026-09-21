@@ -37,11 +37,11 @@
 
  Abra SQL Server Management Studio, conéctese al servidor y ejecute:
 
-     scripts\base-datos\central\estructura_base_datos.sql
+     scripts\base-datos\estructura_base_datos_central.sql
 
  O desde una consola:
 
-     sqlcmd -S .\SQLSERVER -E -i "scripts\base-datos\central\estructura_base_datos.sql"
+     sqlcmd -S .\SQLSERVER -E -i "scripts\base-datos\estructura_base_datos_central.sql"
 
  Ese archivo crea la base CgPosCentral con todas sus tablas y con los datos con
  los que arranca el sistema: monedas, impuestos (ITBIS 18 %, 16 %, 0 % y
@@ -158,14 +158,18 @@
       sus códigos de barras y sus precios.
    7. Maestros -> Clientes: los que facturan con crédito fiscal. Si quiere
       cargar todos los contribuyentes del país, use
-      scripts\base-datos\central\cargar-clientes-dgii.sql con el archivo
+      scripts\base-datos\cargar-clientes-dgii.sql con el archivo
       DGII_RNC.TXT que publica la DGII.
    8. Fiscal -> Rangos de e-CF: reparta por caja los números que le asignó la
       DGII (E31, E32, E34, E44, E45). Sin esto una caja no puede facturar.
    9. Usuarios de caja: cree al menos un cajero, un supervisor y un gerente,
       con sus niveles.
 
- Ya puede instalar las cajas (vea "Instalar una caja.txt").
+ Revise los permisos de los roles antes de repartir usuarios: cada módulo tiene
+ el suyo (cotizaciones, listas de boda, despacho y su anulación, fidelidad,
+ reportes), y un rol creado antes de agregarse un módulo no lo tiene.
+
+ Ya puede instalar las cajas (vea "Caja - instalar en produccion.txt").
 
 
 -------------------------------------------------------------------------------

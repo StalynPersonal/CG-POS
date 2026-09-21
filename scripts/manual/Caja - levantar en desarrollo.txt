@@ -23,7 +23,7 @@
  PASO 1. CREAR LA BASE DE LA CAJA
 -------------------------------------------------------------------------------
 
-     sqlcmd -S . -i "scripts\base-datos\pos\estructura_base_datos.sql"
+     sqlcmd -S . -i "scripts\base-datos\estructura_base_datos_pos.sql"
 
  Crea CgPosCaja con todas sus tablas y SIN datos: los artículos, los precios,
  los usuarios y los parámetros bajan del Central en la primera sincronización.
@@ -101,7 +101,7 @@
 
 
 -------------------------------------------------------------------------------
- PASO 6. USARLA
+ PASO 5. USARLA
 -------------------------------------------------------------------------------
 
  Las pantallas de la caja, cada una en su dirección:
@@ -110,10 +110,13 @@
      Catálogo táctil      http://localhost:5180/ingreso?pantalla=secundaria
      Pantalla del cliente http://localhost:5180/cliente
      Devoluciones         http://localhost:5180/ingreso?pantalla=devoluciones
-     Despacho             http://localhost:5180/ingreso?pantalla=despacho
 
  Entre con uno de los usuarios de caja que creó en el Central. Se entra siempre
  con usuario y clave.
+
+ El despacho de pendientes ya no se hace en la caja: se hace en el Central, en
+ Despacho -> Pendientes. La caja crea el pendiente al cobrar y el Central lo
+ entrega.
 
  En desarrollo la caja simula la balanza, el terminal de tarjetas y la
  impresora (los tickets salen como archivos en logs\impresiones), y crea un
