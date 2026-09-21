@@ -74,7 +74,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var inicio = await caja.VentaActualAsync();
 
-        Assert.Matches($@"^{caja.Escenario.CodigoSucursal}{caja.Escenario.CodigoCajaUno}1\d{{7}}$", inicio.NumeroTransaccion);
+        Assert.Matches(@"^B-\d{6}$", inicio.NumeroTransaccion); // todavía no tiene número de factura: se le da al cobrar
 
         await caja.AgregarAsync(inicio.Id, caja.Catalogo.BarrasCincel);
         var conMayor = await caja.AgregarAsync(inicio.Id, $"12*{caja.Catalogo.CodigoCemento}");
@@ -198,7 +198,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task Limpiar_pantalla_anula_la_venta_y_empieza_otra_con_nuevo_numero()
+    public async Task Limpiar_pantalla_descarta_el_borrador_sin_gastar_numero_y_queda_en_la_auditoria()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
@@ -210,12 +210,14 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         Assert.True(limpia.Exitosa, limpia.Mensaje);
         Assert.NotEqual(venta.Id, limpia.Venta!.Id);
-        Assert.NotEqual(venta.NumeroTransaccion, limpia.Venta.NumeroTransaccion);
+        Assert.StartsWith("B-", limpia.Venta.NumeroTransaccion);
         Assert.Empty(limpia.Venta.Lineas);
 
-        var anulada = await caja.EjecutarAsync<ContextoDatosPos, Venta>(contexto => contexto.Ventas.SingleAsync(v => v.Id == venta.Id));
-        Assert.Equal(EstadoVenta.Anulada, anulada.Estado);
-        Assert.Equal("Pantalla limpiada", anulada.MotivoAnulacion);
+        // El borrador no era un documento: sale de la mesa de trabajo y lo que tenía queda en la auditoría.
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasTemp.AnyAsync(v => v.Id == venta.Id)));
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
+            a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == venta.NumeroTransaccion && a.Motivo == "Pantalla limpiada")));
+        Assert.Equal(0, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.Ventas.CountAsync(v => v.CajaId == caja.Escenario.CajaUno)));
     }
 
     [SkippableFact]
@@ -223,9 +225,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-        var primera = await caja.VentaActualAsync();
-
-        async Task<string> LimpiarConProximaAsync(int ventaId, string proxima)
+        async Task<string> CobrarConProximaAsync(string proxima)
         {
             await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
             {
@@ -238,20 +238,16 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
                 return await contexto.SaveChangesAsync();
             });
 
-            await caja.AgregarAsync(ventaId, caja.Catalogo.BarrasCincel);
-            var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.LimpiarPantalla, "Prueba de numeración");
-            var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, ventaId, autorizacion));
-            Assert.True(limpia.Exitosa, limpia.Mensaje);
-            return limpia.Venta!.NumeroTransaccion;
+            var cobro = await caja.CobrarCincelEnEfectivoAsync();
+            Assert.True(cobro.Exitosa, cobro.Mensaje);
+            return cobro.Cobro!.NumeroTransaccion;
         }
 
-        var prefijo = primera.NumeroTransaccion[..^7];
-        var adelantada = await LimpiarConProximaAsync(primera.Id, "5000");
-        Assert.Equal(prefijo + "0005000", adelantada);
+        var adelantada = await CobrarConProximaAsync("5000");
+        Assert.EndsWith("0005000", adelantada);
 
         // Un valor menor al que ya se usó no repite números: la secuencia sigue desde donde iba.
-        var ventaAdelantada = await caja.VentaActualAsync();
-        Assert.Equal(prefijo + "0005001", await LimpiarConProximaAsync(ventaAdelantada.Id, "10"));
+        Assert.Equal(adelantada[..^7] + "0005001", await CobrarConProximaAsync("10"));
     }
 
     [SkippableFact]
@@ -372,7 +368,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // En el e-CF todo va como exento: sin ITBIS y con el total igual a la base.
         var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
-            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.RutaXml).SingleAsync());
+            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == cobro.Venta!.Id).Select(d => d.RutaXml).SingleAsync());
         var xml = await File.ReadAllTextAsync(rutaXml);
         var total = exentos.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
         Assert.Contains($"<MontoExento>{total}</MontoExento>", xml, StringComparison.Ordinal);
@@ -380,7 +376,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.DoesNotContain("<TotalITBIS>", xml, StringComparison.Ordinal);
 
         // Y el ticket lo dice, que es lo que se lleva el cliente.
-        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{venta.NumeroTransaccion}.txt")));
+        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{cobro.Venta!.NumeroTransaccion}.txt")));
         Assert.Contains("EXENTA DE ITBIS", ticket, StringComparison.Ordinal);
     }
 
@@ -469,7 +465,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // El e-CF lleva el total de la factura y, aparte, lo que el cliente pagó.
         var rutaXml = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
-            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == venta.Id).Select(d => d.RutaXml).SingleAsync());
+            contexto.DocumentosElectronicos.AsNoTracking().Where(d => d.VentaId == cobro.Venta!.Id).Select(d => d.RutaXml).SingleAsync());
         var xml = await File.ReadAllTextAsync(rutaXml);
         Assert.Contains($"<MontoTotal>{totales.Total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}</MontoTotal>", xml, StringComparison.Ordinal);
         Assert.Contains($"<ValorPagar>{totales.TotalAPagar.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}</ValorPagar>", xml, StringComparison.Ordinal);
@@ -512,35 +508,79 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task Facturas_en_espera_quedan_en_el_turno_y_se_retoman_intercambiando_la_actual()
+    public async Task Facturas_en_espera_se_nombran_con_una_referencia_y_se_retoman_intercambiando_la_actual()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var primera = await caja.VentaActualAsync();
         await caja.AgregarAsync(primera.Id, caja.Catalogo.BarrasCincel);
 
-        var vacia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, primera.Id));
+        Assert.Equal(CodigoResultadoVenta.NombreRequerido,
+            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, primera.Id, " "))).Resultado);
+
+        var vacia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, primera.Id, "Sra. María"));
         Assert.True(vacia.Exitosa, vacia.Mensaje);
         var segunda = vacia.Venta!;
         Assert.NotEqual(primera.Id, segunda.Id);
         Assert.Empty(segunda.Lineas);
 
-        var sinArticulos = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, segunda.Id));
+        var sinArticulos = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, segunda.Id, "102"));
         Assert.Equal(CodigoResultadoVenta.SinLineas, sinArticulos.Resultado);
 
         await caja.AgregarAsync(segunda.Id, caja.Catalogo.BarrasCemento);
-        var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, primera.Id));
+        var guardada = Assert.Single(await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero)));
+        Assert.Equal("Sra. María", guardada.Referencia);
+        Assert.Equal(850m, guardada.Total);
+
+        // La que está en pantalla tiene artículos: para retomar otra hay que nombrarla, y no con una referencia repetida.
+        Assert.Equal(CodigoResultadoVenta.NombreRequerido,
+            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, null))).Resultado);
+        Assert.Equal(CodigoResultadoVenta.NombreRequerido,
+            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, "Sra. María"))).Resultado);
+
+        var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, "Camioneta azul"));
         Assert.True(retomada.Exitosa, retomada.Mensaje);
-        Assert.Equal(primera.Id, retomada.Venta!.Id);
+        Assert.StartsWith("B-", retomada.Venta!.NumeroTransaccion);
         Assert.Equal(850m, retomada.Venta.Totales.Total);
 
-        var enEspera = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero));
-        var pendiente = Assert.Single(enEspera);
-        Assert.Equal(segunda.Id, pendiente.Id);
+        var pendiente = Assert.Single(await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero)));
+        Assert.Equal("Camioneta azul", pendiente.Referencia);
         Assert.Equal(485m, pendiente.Total);
 
         var actual = await caja.VentaActualAsync();
-        Assert.Equal(primera.Id, actual.Id);
+        Assert.Equal(retomada.Venta.Id, actual.Id);
+    }
+
+    [SkippableFact]
+    public async Task La_factura_en_espera_no_se_lleva_un_numero_los_numeros_salen_en_el_orden_en_que_se_cobra()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var primera = await caja.VentaActualAsync();
+        await caja.AgregarAsync(primera.Id, caja.Catalogo.BarrasCincel);
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, primera.Id, "Primero"))).Exitosa);
+
+        // El segundo cliente se cobra antes: toma el primer número.
+        var cobroSegundo = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobroSegundo.Exitosa, cobroSegundo.Mensaje);
+
+        var guardada = Assert.Single(await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero)));
+        var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, null));
+        Assert.True(retomada.Exitosa, retomada.Mensaje);
+        var cobroPrimero = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
+            s.CobrarAsync(caja.Cajero, retomada.Venta!.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+        Assert.True(cobroPrimero.Exitosa, cobroPrimero.Mensaje);
+
+        var numeroSegundo = cobroSegundo.Cobro!.NumeroTransaccion;
+        var numeroPrimero = cobroPrimero.Cobro!.NumeroTransaccion;
+        Assert.Equal(long.Parse(numeroSegundo[^7..]) + 1, long.Parse(numeroPrimero[^7..]));
+
+        // En la tabla de ventas solo está lo cobrado, con Ids correlativos; las tablas de trabajo quedan sin esas ventas.
+        var ids = await caja.EjecutarAsync<ContextoDatosPos, List<int>>(contexto => contexto.Ventas.Where(v => v.CajaId == caja.Escenario.CajaUno).OrderBy(v => v.Id).Select(v => v.Id).ToListAsync());
+        Assert.Equal(2, ids.Count);
+        Assert.Equal(ids[0] + 1, ids[1]);
+        Assert.Equal(0, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasGuardadas.CountAsync(v => v.CajaId == caja.Escenario.CajaUno)));
+        Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasTemp.CountAsync(v => v.CajaId == caja.Escenario.CajaUno))); // la nueva, vacía
     }
 
     [SkippableFact]
@@ -559,9 +599,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(nueva.Exitosa, nueva.Mensaje);
         Assert.NotEqual(venta.Id, nueva.Venta!.Id);
 
-        var anulada = await caja.EjecutarAsync<ContextoDatosPos, Venta>(contexto => contexto.Ventas.SingleAsync(v => v.Id == venta.Id));
-        Assert.Equal(EstadoVenta.Anulada, anulada.Estado);
-        Assert.Equal("Cliente se retiró", anulada.MotivoAnulacion);
+        // Anulada antes de cobrar no es un documento: se borra y el rastro queda en la auditoría.
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasTemp.AnyAsync(v => v.Id == venta.Id)));
+        Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
+            a.Accion == "Ventas.Anulada" && a.EntidadId == venta.NumeroTransaccion && a.Motivo == "Cliente se retiró" && a.AutorizadoPorId != null)));
 
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion,
             (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null))).Resultado);
@@ -733,13 +774,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Empty(cobro.NuevaVenta.Lineas);
 
         var mensajes = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.BandejaSalida.CountAsync(m => m.TipoMensaje == "Venta.Cobrada" && m.Referencia == venta.NumeroTransaccion));
+            contexto.BandejaSalida.CountAsync(m => m.TipoMensaje == "Venta.Cobrada" && m.Referencia == cobro.Venta.NumeroTransaccion));
         Assert.Equal(1, mensajes);
 
-        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{venta.NumeroTransaccion}.txt")));
+        var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{cobro.Venta.NumeroTransaccion}.txt")));
         Assert.Contains("DEVUELTA", ticket);
         Assert.Contains("150.00", ticket);
-        Assert.Contains(venta.NumeroTransaccion, ticket);
+        Assert.Contains(cobro.Venta.NumeroTransaccion, ticket);
 
         var repetido = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
             s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
@@ -794,7 +835,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(cobrada.Exitosa, cobrada.Mensaje);
 
         var paraConciliar = await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto =>
-            contexto.Set<PagoVenta>().Where(p => p.VentaId == venta.Id).Select(p => p.ParaConciliar).SingleAsync());
+            contexto.Set<PagoVenta>().Where(p => p.VentaId == cobrada.Venta!.Id).Select(p => p.ParaConciliar).SingleAsync());
         Assert.True(paraConciliar);
     }
 
@@ -969,13 +1010,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
-        var espera = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, venta.Id));
+        var espera = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, venta.Id, "Sra. María"));
         Assert.True(espera.Exitosa, espera.Mensaje);
 
         var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
 
         Assert.Equal(CodigoResultadoCaja.CierreBloqueado, cierre.Resultado);
-        Assert.Contains(cierre.Bloqueos!, bloqueo => bloqueo.Contains(venta.NumeroTransaccion));
+        Assert.Contains(cierre.Bloqueos!, bloqueo => bloqueo.Contains("Sra. María"));
         var estado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.Cajero));
         Assert.NotNull(estado.TurnoAbierto);
     }
@@ -1299,9 +1340,12 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.TipoMensaje == "NotaCredito.Consumida" && m.Referencia == numeroNota));
         Assert.Contains(encf, mensaje.Contenido);
 
-        // La reserva y su liberación van por el número de la nota y el de la factura: el Central no conoce los Id de la caja.
+        // La reserva se hace mientras la venta es un borrador, así que va con su identificación; el consumo lleva el número de
+        // la factura y, aparte, esa identificación, para que el Central cierre la reserva que corresponde.
         Assert.All(caja.Central.Reservas, r => Assert.Equal((numeroNota, venta.NumeroTransaccion), (r.NotaCreditoNumero, r.VentaNumero)));
-        Assert.Contains(venta.NumeroTransaccion, mensaje.Contenido);
+        var consumo = System.Text.Json.JsonSerializer.Deserialize<DocumentoConsumoNotaCredito>(mensaje.Contenido, OpcionesJson.Predeterminadas)!;
+        Assert.Equal(cobro.Venta!.NumeroTransaccion, consumo.VentaNumero);
+        Assert.Equal(venta.NumeroTransaccion, consumo.VentaReserva);
     }
 
     [SkippableFact]
@@ -1350,7 +1394,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var fidelidad = cobrada.Venta!.Fidelidad!;
         Assert.Equal(22, fidelidad.PuntosAcumulados);
         Assert.Equal(100, fidelidad.PuntosCanjeados);
-        Assert.Equal(2, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.MovimientosPuntos.CountAsync(m => m.VentaId == venta.Id)));
+        Assert.Equal(2, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.MovimientosPuntos.CountAsync(m => m.VentaId == cobrada.Venta.Id)));
 
         var saldo = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s => s.ConsultarAsync(caja.Cajero, caja.Catalogo.CedulaMiembro));
         Assert.True(saldo.Exitosa, saldo.Mensaje);
@@ -1431,7 +1475,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         }
 
         var pendientes = await caja.EjecutarAsync<ContextoDatosPos, List<CgPos.Dominio.Entregas.PendienteEntrega>>(contexto =>
-            contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas).Where(p => p.VentaId == venta.Id).ToListAsync());
+            contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas).Where(p => p.VentaId == cobrada.Venta!.Id).ToListAsync());
         Assert.Equal(2m, pendientes.Single(p => p.Metodo == MetodoEntrega.RetiroSucursal).CantidadPorEntregar(cemento));
         Assert.Equal("809-555-1111", pendientes.Single(p => p.Metodo == MetodoEntrega.Envio).Telefono);
 

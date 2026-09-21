@@ -23,7 +23,7 @@ public class EntregasPruebas
 
     private static Venta VentaConCementoYTaladroSinSerial()
     {
-        var venta = Venta.Iniciar(Ids.Siguiente(), "01", Ids.Siguiente(), "01", Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora);
+        var venta = VentaCobrada.DesdeBorrador(VentaEnProceso.Iniciar(Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora));
         venta.AgregarArticulo(Cemento, 3m, Ahora);
         venta.AgregarArticulo(Taladro, null, Ahora, serialEnDespacho: true);
         return venta;

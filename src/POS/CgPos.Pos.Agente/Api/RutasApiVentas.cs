@@ -116,11 +116,13 @@ public static class RutasApiVentas
         ventas.MapGet("/espera", (ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Results.Ok(await servicio.ListarEnEsperaAsync(sesion, cancelacion))));
 
-        ventas.MapPost("/{ventaId:int}/espera", (int ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.PonerEnEsperaAsync(sesion, ventaId, cancelacion))));
+        ventas.MapPost("/{ventaId:int}/espera", (int ventaId, SolicitudPonerEnEspera solicitud, ClaimsPrincipal usuario, IServicioVentas servicio,
+                CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.PonerEnEsperaAsync(sesion, ventaId, solicitud.Referencia, cancelacion))));
 
-        ventas.MapPost("/{ventaId:int}/retomar", (int ventaId, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.RetomarAsync(sesion, ventaId, cancelacion))));
+        ventas.MapPost("/{ventaId:int}/retomar", (int ventaId, SolicitudRetomarVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio,
+                CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.RetomarAsync(sesion, ventaId, solicitud.ReferenciaActual, cancelacion))));
 
         ventas.MapPost("/{ventaId:int}/anular", (int ventaId, SolicitudAnularVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.AnularAsync(sesion, ventaId, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));

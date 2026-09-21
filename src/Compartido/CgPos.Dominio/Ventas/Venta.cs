@@ -148,9 +148,13 @@ public static class ReglasComprobante
 
 /// <summary>
 /// Transacción de venta en la caja. Se guarda en cada cambio para poder recuperarla tras un corte (RF-195).
-/// Su número (sucursal-caja-secuencia) es único e independiente del NCF (RF-193).
+/// Su número (sucursal-caja-secuencia) es único e independiente del NCF (RF-193), y se le da al cobrarla.
+///
+/// Vive en tres tablas según su momento: armándose (<see cref="VentaEnProceso"/>), en espera (<see cref="VentaGuardada"/>)
+/// y cobrada (<see cref="VentaCobrada"/>). Las reglas son las mismas y están aquí; cada variante solo dice qué tipo de
+/// línea y de destino le toca, porque también viven en su tabla.
 /// </summary>
-public sealed class Venta : Entidad
+public abstract class Venta : Entidad
 {
     public const int LargoMaximoNumero = 40;
     public const int LargoMaximoCertificacion = 50;
@@ -161,15 +165,61 @@ public sealed class Venta : Entidad
     public const int LargoMaximoDocumento = 20;
     public const decimal CantidadMaxima = 99_999m;
 
-    private readonly List<LineaVenta> _lineas = [];
-    private readonly List<PagoVenta> _pagos = [];
-    private readonly List<DestinoEntrega> _destinosEntrega = [];
-
-    private Venta()
+    private protected Venta()
     {
     }
 
+    /// <summary>La línea vacía que corresponde a la tabla donde vive esta venta.</summary>
+    private protected abstract LineaVenta NuevaLinea();
+
+    /// <summary>El destino de entrega vacío que corresponde a la tabla donde vive esta venta.</summary>
+    private protected abstract DestinoEntrega NuevoDestino();
+
+    /// <summary>La línea de destino vacía que corresponde a la tabla donde vive esta venta.</summary>
+    private protected abstract LineaDestinoEntrega NuevaLineaDestino();
+
+    // Cada variante guarda sus líneas, destinos y pagos en una lista de su propio tipo, que es lo que le permite vivir en
+    // su tabla con sus llaves foráneas. Las reglas de aquí abajo las ven a través de estos miembros, sin saber cuál es.
+    private protected abstract IReadOnlyList<LineaVenta> LineasInternas { get; }
+
+    private protected abstract void AgregarLinea(LineaVenta linea);
+
+    private protected abstract IReadOnlyList<DestinoEntrega> DestinosInternos { get; }
+
+    private protected abstract void AgregarDestino(DestinoEntrega destino);
+
+    private protected abstract void QuitarDestino(DestinoEntrega destino);
+
+    private protected abstract IReadOnlyList<PagoVenta> PagosInternos { get; }
+
+    private protected abstract void AgregarPago(PagoVenta pago);
+
+    /// <summary>
+    /// Trae todo lo de otra venta: sus datos, sus líneas y sus destinos, cada uno creado con el tipo de esta tabla. El Id
+    /// no viaja: la venta estrena el de su tabla, y así las tres numeraciones son independientes.
+    /// </summary>
+    /// <remarks>Los pagos no se copian porque no existen todavía: nacen al cobrar, sobre la venta cobrada.</remarks>
+    private protected void CopiarDe(Venta origen)
+    {
+        ArgumentNullException.ThrowIfNull(origen);
+        if (origen.PagosInternos.Count > 0)
+            throw new InvalidOperationException("Una venta con pagos ya está cobrada: no se mueve de tabla.");
+
+        CopiaPropiedades.Copiar(origen, this, typeof(Venta));
+
+        foreach (var linea in origen.LineasInternas.OrderBy(l => l.NumeroLinea))
+            AgregarLinea(linea.CopiarEn(NuevaLinea()));
+        foreach (var destino in origen.DestinosInternos.OrderBy(d => d.Numero))
+            AgregarDestino(destino.CopiarEn(NuevoDestino(), NuevaLineaDestino));
+    }
+
     public string NumeroTransaccion { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Cómo se nombra la venta en pantalla, en la auditoría y en las autorizaciones: el borrador por su Id, la guardada
+    /// por la referencia del cajero y la cobrada por su número de factura.
+    /// </summary>
+    public abstract string Identificacion { get; }
     public long Secuencia { get; private set; }
     public int SucursalId { get; private set; }
     public int CajaId { get; private set; }
@@ -255,34 +305,42 @@ public sealed class Venta : Entidad
     /// <summary>Diferencia por redondeo del efectivo (RF-216). No altera el total fiscal de la factura.</summary>
     public decimal RedondeoEfectivo { get; private set; }
 
-    public IReadOnlyCollection<PagoVenta> Pagos => _pagos;
+    public IReadOnlyCollection<PagoVenta> Pagos => PagosInternos;
 
     /// <summary>Destinos de entrega o envío de parte de la mercancía (M12); lo demás se despacha en caja.</summary>
-    public IReadOnlyCollection<DestinoEntrega> DestinosEntrega => _destinosEntrega;
+    public IReadOnlyCollection<DestinoEntrega> DestinosEntrega => DestinosInternos;
 
-    public IReadOnlyCollection<LineaVenta> Lineas => _lineas;
+    public IReadOnlyCollection<LineaVenta> Lineas => LineasInternas;
 
-    /// <summary>Menor cantidad de dígitos que admite la secuencia de un número de documento.</summary>
-    public static Venta Iniciar(int sucursalId, string codigoSucursal, int cajaId, string codigoCaja, int turnoId, long secuencia, int digitosSecuencia,
-        int usuarioId, string usuarioNombre, string moneda, string simboloMoneda, DateTimeOffset ahora)
+    /// <summary>Deja la venta lista para recibir artículos. Todavía sin número: se le da al cobrarla.</summary>
+    private protected void Abrir(int sucursalId, int cajaId, int turnoId, int usuarioId, string usuarioNombre, string moneda, string simboloMoneda,
+        DateTimeOffset ahora)
+    {
+        SucursalId = Validar.Id(sucursalId, "Sucursal");
+        CajaId = Validar.Id(cajaId, "Caja");
+        TurnoId = Validar.Id(turnoId, "Turno");
+        UsuarioId = Validar.Id(usuarioId, "Usuario");
+        UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario);
+        Moneda = FormaPago.ValidarMoneda(moneda);
+        SimboloMoneda = Validar.Texto(simboloMoneda, "Símbolo de la moneda", CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo);
+        Estado = EstadoVenta.EnCurso;
+        IniciadaEn = ahora;
+        ActualizadaEn = ahora;
+    }
+
+    /// <summary>
+    /// Le da a la venta su número de factura. Solo se llama una vez y solo sobre la cobrada, con la secuencia pedida al
+    /// cobrar: por eso lo primero que se cobra se lleva el número primero, aunque se haya empezado después.
+    /// </summary>
+    private protected void AsignarNumero(string codigoSucursal, string codigoCaja, long secuencia, int digitosSecuencia)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
+        if (NumeroTransaccion.Length > 0)
+            throw new InvalidOperationException($"La venta ya tiene el número {NumeroTransaccion}.");
 
-        return new Venta
-        {
-            NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(codigoSucursal, codigoCaja, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia), "Número de transacción", LargoMaximoNumero),
-            Secuencia = secuencia,
-            SucursalId = Validar.Id(sucursalId, "Sucursal"),
-            CajaId = Validar.Id(cajaId, "Caja"),
-            TurnoId = Validar.Id(turnoId, "Turno"),
-            UsuarioId = Validar.Id(usuarioId, "Usuario"),
-            UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario),
-            Moneda = FormaPago.ValidarMoneda(moneda),
-            SimboloMoneda = Validar.Texto(simboloMoneda, "Símbolo de la moneda", CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo),
-            Estado = EstadoVenta.EnCurso,
-            IniciadaEn = ahora,
-            ActualizadaEn = ahora,
-        };
+        NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(codigoSucursal, codigoCaja, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia),
+            "Número de transacción", LargoMaximoNumero);
+        Secuencia = secuencia;
     }
 
     /// <summary>
@@ -315,7 +373,7 @@ public sealed class Venta : Entidad
                 throw new ReglaVentaExcepcion(CodigoErrorVenta.CantidadInvalida, "Los artículos con serial se registran de uno en uno.");
             if (serialLimpio.Length > LineaVenta.LargoMaximoSerial)
                 throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereSerial, $"El serial no puede superar {LineaVenta.LargoMaximoSerial} caracteres.");
-            if (_lineas.Any(l => l.EstaActiva && l.ArticuloId == articulo.ArticuloId && l.Serial == serialLimpio))
+            if (LineasInternas.Any(l => l.EstaActiva && l.ArticuloId == articulo.ArticuloId && l.Serial == serialLimpio))
                 throw new ReglaVentaExcepcion(CodigoErrorVenta.SerialDuplicado, $"El serial {serialLimpio} ya está en esta venta.");
         }
         else
@@ -355,13 +413,13 @@ public sealed class Venta : Entidad
         var precio = ReglasPrecio.Determinar(articulo.CodigoInterno, articulo.Tipo, articulo.CantidadMinimaMayor,
             new PreciosVigentes(precioDetalle, articulo.PrecioMayor), cantidad, SeleccionListaPrecio.Automatica);
 
-        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio, serialPendiente);
+        var linea = LineaVenta.Crear(NuevaLinea(), Id, SiguienteNumeroLinea(), articulo, cantidad, precio, importeEtiqueta, leidaDeBalanza, serialLimpio, serialPendiente);
 
         // En una factura de régimen especial lo que se agrega ya entra sin ITBIS, como el resto.
         if (ExentaDeImpuesto)
             linea.Exentar();
 
-        _lineas.Add(linea);
+        AgregarLinea(linea);
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
         return linea;
@@ -383,14 +441,14 @@ public sealed class Venta : Entidad
 
         var normalizada = NormalizarCantidad(cantidad, articulo.PermiteDecimales, articulo.DecimalesCantidad);
         var precio = new PrecioDeterminado(ListaPrecio.Detalle, precioUnitario, MotivoPrecio.PrecioCotizado, RequiereAutorizacion: false);
-        var linea = LineaVenta.Crear(Id, SiguienteNumeroLinea(),
+        var linea = LineaVenta.Crear(NuevaLinea(), Id, SiguienteNumeroLinea(),
             articulo with { PrecioDetalle = precioUnitario, PrecioMayor = null, CantidadMinimaMayor = null },
             normalizada, precio, importeEtiqueta: null, leidaDeBalanza: false, serial: null, serialPendiente: false);
 
         if (ExentaDeImpuesto)
             linea.Exentar();
 
-        _lineas.Add(linea);
+        AgregarLinea(linea);
 
         if (descuento > 0)
             linea.AplicarDescuentoCotizado(decimal.Round(descuento, 2, MidpointRounding.AwayFromZero));
@@ -439,8 +497,8 @@ public sealed class Venta : Entidad
         AsegurarSinEntrega(linea);
 
         linea.MarcarAnulada();
-        var reverso = LineaVenta.CrearReverso(Id, SiguienteNumeroLinea(), linea);
-        _lineas.Add(reverso);
+        var reverso = LineaVenta.CrearReverso(NuevaLinea(), Id, SiguienteNumeroLinea(), linea);
+        AgregarLinea(reverso);
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
         return reverso;
@@ -450,7 +508,7 @@ public sealed class Venta : Entidad
     public LineaVenta EliminarPorCodigo(string codigo, DateTimeOffset ahora)
     {
         var buscado = codigo?.Trim() ?? string.Empty;
-        var linea = _lineas
+        var linea = LineasInternas
             .Where(l => l.EstaActiva && (l.CodigoLeido == buscado || l.CodigoInterno == buscado))
             .OrderByDescending(l => l.NumeroLinea)
             .FirstOrDefault()
@@ -553,9 +611,9 @@ public sealed class Venta : Entidad
                     : $"{linea.Descripcion}: solo quedan {disponible:0.###} por marcar.");
         }
 
-        var numero = _destinosEntrega.Count == 0 ? 1 : _destinosEntrega.Max(d => d.Numero) + 1;
-        var destino = DestinoEntrega.Crear(Id, numero, metodo, sucursalRetiroId, sucursalRetiroNombre, envio, fechaComprometida, comentario, autorizadoPorId, autorizadoPorNombre, pedidas);
-        _destinosEntrega.Add(destino);
+        var numero = DestinosInternos.Count == 0 ? 1 : DestinosInternos.Max(d => d.Numero) + 1;
+        var destino = DestinoEntrega.Crear(NuevoDestino(), NuevaLineaDestino, Id, numero, metodo, sucursalRetiroId, sucursalRetiroNombre, envio, fechaComprometida, comentario, autorizadoPorId, autorizadoPorNombre, pedidas);
+        AgregarDestino(destino);
         ActualizadaEn = ahora;
         return destino;
     }
@@ -564,15 +622,15 @@ public sealed class Venta : Entidad
     public void QuitarEntrega(int numeroDestino, DateTimeOffset ahora)
     {
         AsegurarEditable();
-        var destino = _destinosEntrega.FirstOrDefault(d => d.Numero == numeroDestino)
+        var destino = DestinosInternos.FirstOrDefault(d => d.Numero == numeroDestino)
             ?? throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, $"El destino de entrega {numeroDestino} no existe.");
 
-        _destinosEntrega.Remove(destino);
+        QuitarDestino(destino);
         ActualizadaEn = ahora;
     }
 
     /// <summary>Cantidad de la línea marcada para entrega o envío en todos los destinos.</summary>
-    public decimal CantidadEnEntregas(int numeroLinea) => _destinosEntrega.SelectMany(d => d.Lineas).Where(l => l.NumeroLinea == numeroLinea).Sum(l => l.Cantidad);
+    public decimal CantidadEnEntregas(int numeroLinea) => DestinosInternos.SelectMany(d => d.Lineas).Where(l => l.NumeroLinea == numeroLinea).Sum(l => l.Cantidad);
 
     private void AsegurarSinEntrega(LineaVenta linea)
     {
@@ -652,7 +710,7 @@ public sealed class Venta : Entidad
     /// </summary>
     private void AplicarExencionDelComprobante()
     {
-        foreach (var linea in _lineas)
+        foreach (var linea in LineasInternas)
         {
             if (ExentaDeImpuesto)
                 linea.Exentar();
@@ -729,7 +787,7 @@ public sealed class Venta : Entidad
     public void PonerEnEspera(DateTimeOffset ahora)
     {
         AsegurarEditable();
-        if (!_lineas.Any(l => l.EstaActiva))
+        if (!LineasInternas.Any(l => l.EstaActiva))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.SinLineas, "Una venta sin artículos no se pone en espera.");
 
         Estado = EstadoVenta.EnEspera;
@@ -737,10 +795,11 @@ public sealed class Venta : Entidad
         ActualizadaEn = ahora;
     }
 
-    public void Retomar(DateTimeOffset ahora)
+    /// <summary>La venta que estaba en espera vuelve a poder recibir artículos.</summary>
+    private protected void VolverACurso(DateTimeOffset ahora)
     {
         if (Estado != EstadoVenta.EnEspera)
-            throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, $"La venta {NumeroTransaccion} no está en espera.");
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, "La venta no está en espera.");
 
         Estado = EstadoVenta.EnCurso;
         PuestaEnEsperaEn = null;
@@ -763,7 +822,7 @@ public sealed class Venta : Entidad
 
         var vigentes = promociones.Where(p => p.EstaVigente(sucursalId, ahoraLocal) && (TieneFidelidad || !p.SoloFidelidad)).ToList();
 
-        foreach (var grupo in _lineas.Where(l => l.EstaActiva).GroupBy(l => l.ArticuloId))
+        foreach (var grupo in LineasInternas.Where(l => l.EstaActiva).GroupBy(l => l.ArticuloId))
         {
             var lineas = grupo.OrderBy(l => l.NumeroLinea).ToList();
             var desactivada = lineas.Any(l => l.PromocionDesactivada);
@@ -821,7 +880,7 @@ public sealed class Venta : Entidad
         if (!linea.TienePromocionActiva)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.DescuentoInvalido, $"La línea {numeroLinea} no tiene una oferta aplicada.");
 
-        foreach (var delArticulo in _lineas.Where(l => l.EstaActiva && l.ArticuloId == linea.ArticuloId))
+        foreach (var delArticulo in LineasInternas.Where(l => l.EstaActiva && l.ArticuloId == linea.ArticuloId))
         {
             delArticulo.QuitarPromocion(desactivada: true);
             if (delArticulo.ImporteEtiqueta is null)
@@ -903,7 +962,7 @@ public sealed class Venta : Entidad
 
         ProrratearDescuentoFactura();
         ActualizadaEn = ahora;
-        return new ResultadoDescuentoFactura(_lineas.Sum(l => l.DescuentoFactura), PorcentajeDe(monto, baseTotal), excluidas);
+        return new ResultadoDescuentoFactura(LineasInternas.Sum(l => l.DescuentoFactura), PorcentajeDe(monto, baseTotal), excluidas);
     }
 
     /// <summary>Calcula el descuento a la factura sin aplicarlo, para revisar el tope del autorizador (RF-202).</summary>
@@ -936,7 +995,7 @@ public sealed class Venta : Entidad
 
     private void ProrratearDescuentoFactura()
     {
-        foreach (var linea in _lineas)
+        foreach (var linea in LineasInternas)
             linea.AsignarDescuentoFactura(0m);
 
         if (DescuentoFacturaTipo is not { } tipo || DescuentoFacturaValor is not { } valor)
@@ -965,7 +1024,7 @@ public sealed class Venta : Entidad
 
     private (List<LineaVenta> Elegibles, List<int> Excluidas) ClasificarParaDescuentoFactura(IReadOnlyCollection<int>? seleccion)
     {
-        var candidatas = _lineas
+        var candidatas = LineasInternas
             .Where(l => l.EstaActiva && (seleccion is null || seleccion.Contains(l.NumeroLinea)))
             .OrderBy(l => l.NumeroLinea)
             .ToList();
@@ -1020,7 +1079,7 @@ public sealed class Venta : Entidad
             throw new ReglaVentaExcepcion(CodigoErrorVenta.SinLineas, "No hay artículos que cobrar.");
 
         // Un serializado sin serial solo sale de caja si se entrega después: el serial se captura en el despacho (RN-16).
-        if (_lineas.FirstOrDefault(l => l.EstaActiva && l.SerialPendiente && CantidadEnEntregas(l.NumeroLinea) < l.Cantidad) is { } sinSerial)
+        if (LineasInternas.FirstOrDefault(l => l.EstaActiva && l.SerialPendiente && CantidadEnEntregas(l.NumeroLinea) < l.Cantidad) is { } sinSerial)
             throw new ReglaVentaExcepcion(CodigoErrorVenta.RequiereSerial,
                 $"{sinSerial.Descripcion} no tiene serial: márquelo para entrega o envío, o elimínelo y escanéelo con su serial.");
 
@@ -1051,7 +1110,7 @@ public sealed class Venta : Entidad
                 "La devuelta solo aplica al efectivo: los demás medios deben cubrir su monto exacto.");
 
         for (var i = 0; i < pagos.Count; i++)
-            _pagos.Add(PagoVenta.Crear(Id, Moneda, i + 1, pagos[i], aplicados[i]));
+            AgregarPago(PagoVenta.Crear(Id, Moneda, i + 1, pagos[i], aplicados[i]));
 
         Estado = EstadoVenta.Cobrada;
         CobradaEn = ahora;
@@ -1107,7 +1166,7 @@ public sealed class Venta : Entidad
 
     public bool LimiteCompraExcedido() => LimiteCompra is { } limite && CalcularTotales().Total > limite;
 
-    public bool TieneLineasActivas => _lineas.Any(l => l.EstaActiva);
+    public bool TieneLineasActivas => LineasInternas.Any(l => l.EstaActiva);
 
     /// <summary>Número de la cotización del Central que se facturó en esta venta; nulo si no vino de ninguna.</summary>
     public string? CotizacionNumero { get; private set; }
@@ -1126,7 +1185,7 @@ public sealed class Venta : Entidad
     /// </summary>
     public TotalesVenta CalcularTotales()
     {
-        var activas = _lineas.Where(l => l.EstaActiva).ToList();
+        var activas = LineasInternas.Where(l => l.EstaActiva).ToList();
 
         var desglose = activas
             .Select(l =>
@@ -1159,14 +1218,14 @@ public sealed class Venta : Entidad
     private void AsegurarEditable()
     {
         if (Estado != EstadoVenta.EnCurso)
-            throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, $"La venta {NumeroTransaccion} no se puede modificar (estado {Estado}).");
+            throw new ReglaVentaExcepcion(CodigoErrorVenta.VentaNoEditable, $"La venta {Identificacion} no se puede modificar (estado {Estado}).");
     }
 
     private LineaVenta LineaActiva(int numeroLinea) =>
-        _lineas.FirstOrDefault(l => l.NumeroLinea == numeroLinea && l.EstaActiva)
+        LineasInternas.FirstOrDefault(l => l.NumeroLinea == numeroLinea && l.EstaActiva)
         ?? throw new ReglaVentaExcepcion(CodigoErrorVenta.LineaNoEncontrada, $"La línea {numeroLinea} no existe o ya fue eliminada.");
 
-    private int SiguienteNumeroLinea() => _lineas.Count == 0 ? 1 : _lineas.Max(l => l.NumeroLinea) + 1;
+    private int SiguienteNumeroLinea() => LineasInternas.Count == 0 ? 1 : LineasInternas.Max(l => l.NumeroLinea) + 1;
 
     private static decimal NormalizarCantidad(decimal cantidad, bool permiteDecimales, int decimales)
     {
@@ -1183,11 +1242,11 @@ public sealed class Venta : Entidad
     }
 }
 
-public sealed class LineaVenta : Entidad
+public abstract class LineaVenta : Entidad
 {
     public const int LargoMaximoSerial = 50;
 
-    private LineaVenta()
+    private protected LineaVenta()
     {
     }
 
@@ -1301,75 +1360,85 @@ public sealed class LineaVenta : Entidad
     /// <summary>Importe a cobrar, con impuesto y después de ofertas y descuentos.</summary>
     public decimal ImporteConImpuesto => EsReverso ? 0m : Math.Max(0m, ImporteBruto - DescuentoTotal);
 
-    internal static LineaVenta Crear(int ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad, PrecioDeterminado precio,
-        decimal? importeEtiqueta, bool leidaDeBalanza, string? serial, bool serialPendiente) =>
-        new()
-        {
-            Serial = serial,
-            SerialPendiente = serialPendiente,
-            VentaId = ventaId,
-            NumeroLinea = numeroLinea,
-            ArticuloId = articulo.ArticuloId,
-            CodigoInterno = articulo.CodigoInterno,
-            CodigoLeido = articulo.CodigoLeido,
-            Descripcion = articulo.Descripcion,
-            TipoArticulo = articulo.Tipo,
-            DepartamentoId = articulo.DepartamentoId,
-            CategoriaId = articulo.CategoriaId,
-            MarcaId = articulo.MarcaId,
-            PermiteDescuentoManual = articulo.PermiteDescuentoManual,
-            UnidadMedidaCodigo = articulo.UnidadMedidaCodigo,
-            PermiteDecimales = articulo.PermiteDecimales,
-            DecimalesCantidad = articulo.DecimalesCantidad,
-            ImpuestoId = articulo.ImpuestoId,
-            PorcentajeImpuesto = articulo.PorcentajeImpuesto,
-            IndicadorFacturacion = articulo.IndicadorFacturacion,
-            EsServicio = articulo.EsServicio,
-            PrecioDetalle = articulo.PrecioDetalle!.Value,
-            PrecioMayor = articulo.PrecioMayor,
-            CantidadMinimaMayor = articulo.CantidadMinimaMayor,
-            PrecioMinimo = articulo.PrecioMinimo,
-            Cantidad = cantidad,
-            PrecioUnitario = precio.PrecioUnitario,
-            Lista = precio.Lista,
-            MotivoPrecio = precio.Motivo,
-            ImporteEtiqueta = importeEtiqueta,
-            LeidaDeBalanza = leidaDeBalanza,
-        };
+    /// <summary>
+    /// Esta misma línea en la variante de otra tabla. El Id y la venta los asigna la tabla de destino al guardarla.
+    /// </summary>
+    internal LineaVenta CopiarEn(LineaVenta destino)
+    {
+        CopiaPropiedades.Copiar(this, destino, typeof(LineaVenta), [nameof(VentaId)]);
+        return destino;
+    }
 
-    internal static LineaVenta CrearReverso(int ventaId, int numeroLinea, LineaVenta original) =>
-        new()
-        {
-            Serial = original.Serial,
-            VentaId = ventaId,
-            NumeroLinea = numeroLinea,
-            ArticuloId = original.ArticuloId,
-            CodigoInterno = original.CodigoInterno,
-            CodigoLeido = original.CodigoLeido,
-            Descripcion = original.Descripcion,
-            TipoArticulo = original.TipoArticulo,
-            DepartamentoId = original.DepartamentoId,
-            CategoriaId = original.CategoriaId,
-            MarcaId = original.MarcaId,
-            PermiteDescuentoManual = original.PermiteDescuentoManual,
-            UnidadMedidaCodigo = original.UnidadMedidaCodigo,
-            PermiteDecimales = original.PermiteDecimales,
-            DecimalesCantidad = original.DecimalesCantidad,
-            ImpuestoId = original.ImpuestoId,
-            PorcentajeImpuesto = original.PorcentajeImpuesto,
-            IndicadorFacturacion = original.IndicadorFacturacion,
-            PrecioDetalle = original.PrecioDetalle,
-            PrecioMayor = original.PrecioMayor,
-            CantidadMinimaMayor = original.CantidadMinimaMayor,
-            PrecioMinimo = original.PrecioMinimo,
-            Cantidad = -original.Cantidad,
-            PrecioUnitario = 0m,
-            Lista = original.Lista,
-            MotivoPrecio = original.MotivoPrecio,
-            LeidaDeBalanza = original.LeidaDeBalanza,
-            EsReverso = true,
-            LineaAnuladaNumero = original.NumeroLinea,
-        };
+    /// <param name="linea">Instancia vacía del tipo que corresponde a la tabla donde vive la venta.</param>
+    internal static LineaVenta Crear(LineaVenta linea, int ventaId, int numeroLinea, ArticuloParaVenta articulo, decimal cantidad,
+        PrecioDeterminado precio, decimal? importeEtiqueta, bool leidaDeBalanza, string? serial, bool serialPendiente)
+    {
+        linea.Serial = serial;
+        linea.SerialPendiente = serialPendiente;
+        linea.VentaId = ventaId;
+        linea.NumeroLinea = numeroLinea;
+        linea.ArticuloId = articulo.ArticuloId;
+        linea.CodigoInterno = articulo.CodigoInterno;
+        linea.CodigoLeido = articulo.CodigoLeido;
+        linea.Descripcion = articulo.Descripcion;
+        linea.TipoArticulo = articulo.Tipo;
+        linea.DepartamentoId = articulo.DepartamentoId;
+        linea.CategoriaId = articulo.CategoriaId;
+        linea.MarcaId = articulo.MarcaId;
+        linea.PermiteDescuentoManual = articulo.PermiteDescuentoManual;
+        linea.UnidadMedidaCodigo = articulo.UnidadMedidaCodigo;
+        linea.PermiteDecimales = articulo.PermiteDecimales;
+        linea.DecimalesCantidad = articulo.DecimalesCantidad;
+        linea.ImpuestoId = articulo.ImpuestoId;
+        linea.PorcentajeImpuesto = articulo.PorcentajeImpuesto;
+        linea.IndicadorFacturacion = articulo.IndicadorFacturacion;
+        linea.EsServicio = articulo.EsServicio;
+        linea.PrecioDetalle = articulo.PrecioDetalle!.Value;
+        linea.PrecioMayor = articulo.PrecioMayor;
+        linea.CantidadMinimaMayor = articulo.CantidadMinimaMayor;
+        linea.PrecioMinimo = articulo.PrecioMinimo;
+        linea.Cantidad = cantidad;
+        linea.PrecioUnitario = precio.PrecioUnitario;
+        linea.Lista = precio.Lista;
+        linea.MotivoPrecio = precio.Motivo;
+        linea.ImporteEtiqueta = importeEtiqueta;
+        linea.LeidaDeBalanza = leidaDeBalanza;
+        return linea;
+    }
+
+    internal static LineaVenta CrearReverso(LineaVenta linea, int ventaId, int numeroLinea, LineaVenta original)
+    {
+        linea.Serial = original.Serial;
+        linea.VentaId = ventaId;
+        linea.NumeroLinea = numeroLinea;
+        linea.ArticuloId = original.ArticuloId;
+        linea.CodigoInterno = original.CodigoInterno;
+        linea.CodigoLeido = original.CodigoLeido;
+        linea.Descripcion = original.Descripcion;
+        linea.TipoArticulo = original.TipoArticulo;
+        linea.DepartamentoId = original.DepartamentoId;
+        linea.CategoriaId = original.CategoriaId;
+        linea.MarcaId = original.MarcaId;
+        linea.PermiteDescuentoManual = original.PermiteDescuentoManual;
+        linea.UnidadMedidaCodigo = original.UnidadMedidaCodigo;
+        linea.PermiteDecimales = original.PermiteDecimales;
+        linea.DecimalesCantidad = original.DecimalesCantidad;
+        linea.ImpuestoId = original.ImpuestoId;
+        linea.PorcentajeImpuesto = original.PorcentajeImpuesto;
+        linea.IndicadorFacturacion = original.IndicadorFacturacion;
+        linea.PrecioDetalle = original.PrecioDetalle;
+        linea.PrecioMayor = original.PrecioMayor;
+        linea.CantidadMinimaMayor = original.CantidadMinimaMayor;
+        linea.PrecioMinimo = original.PrecioMinimo;
+        linea.Cantidad = -original.Cantidad;
+        linea.PrecioUnitario = 0m;
+        linea.Lista = original.Lista;
+        linea.MotivoPrecio = original.MotivoPrecio;
+        linea.LeidaDeBalanza = original.LeidaDeBalanza;
+        linea.EsReverso = true;
+        linea.LineaAnuladaNumero = original.NumeroLinea;
+        return linea;
+    }
 
     internal void CambiarCantidad(decimal cantidad, PrecioDeterminado precio)
     {

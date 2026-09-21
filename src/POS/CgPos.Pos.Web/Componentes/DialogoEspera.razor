@@ -1,4 +1,4 @@
-@* Facturas en espera del cajero en su turno (F7): poner la actual en espera o retomar una (RF-22, RF-197). *@
+﻿@* Facturas en espera del cajero en su turno (F7): poner la actual en espera o retomar una (RF-22, RF-197). *@
 @inject ClienteAgente Cliente
 
 <MudDialog>
@@ -12,20 +12,28 @@
             <GrillaTactil TElemento="DatosVentaEnEspera" Elementos="_enEspera" Seleccionado="_seleccionada" SeleccionadoChanged="venta => _seleccionada = venta"
                           Altura="clamp(160px, calc(100vh - 380px), 420px)" TextoSinRegistros="No hay facturas en espera en su turno">
                 <Encabezado>
-                    <MudTh>Transacción</MudTh>
+                    <MudTh>Referencia</MudTh>
                     <MudTh>Cliente</MudTh>
                     <MudTh Class="cg-numero">Líneas</MudTh>
                     <MudTh Class="cg-numero">Total</MudTh>
                     <MudTh>Desde</MudTh>
                 </Encabezado>
                 <Fila Context="venta">
-                    <MudTd>@venta.NumeroTransaccion</MudTd>
+                    <MudTd>@venta.Referencia</MudTd>
                     <MudTd>@(venta.ClienteNombre ?? "Cliente contado")</MudTd>
                     <MudTd Class="cg-numero">@venta.CantidadLineas</MudTd>
                     <MudTd Class="cg-numero">@venta.Total.ToString("N2")</MudTd>
                     <MudTd>@venta.PuestaEnEsperaEn.ToLocalTime().ToString("h:mm tt")</MudTd>
                 </Fila>
             </GrillaTactil>
+
+            @* La venta en pantalla se guarda con un nombre del cajero: todavía no tiene número de factura. *@
+            @if (TieneArticulos)
+            {
+                <MudTextField @bind-Value="_referencia" Label="Referencia de la venta actual (nombre del cliente o unos dígitos)"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" MaxLength="40" Immediate="true" AutoFocus="true"
+                              HelperText="Con ella la encuentra al volver. Se pide también al retomar otra, para guardar esta." />
+            }
         }
 
         @if (_mensaje is not null)
@@ -35,7 +43,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
-        <MudButton Size="Size.Large" Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || !TieneArticulos)"
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || !TieneArticulos || string.IsNullOrWhiteSpace(_referencia))"
                    StartIcon="@Icons.Material.Filled.PanTool" Style="min-height: var(--cg-toque-minimo)" OnClick="PonerEnEsperaAsync">Poner la actual en espera</MudButton>
         <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="@(_procesando || _seleccionada is null)"
                    StartIcon="@Icons.Material.Filled.PlayArrow" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="RetomarAsync">Retomar</MudButton>
@@ -50,6 +58,7 @@
     private IReadOnlyList<DatosVentaEnEspera> _enEspera = [];
     private DatosVentaEnEspera? _seleccionada;
     private string? _mensaje;
+    private string? _referencia;
     private bool _cargando = true;
     private bool _procesando;
 
@@ -62,9 +71,9 @@
         _cargando = false;
     }
 
-    private Task PonerEnEsperaAsync() => EjecutarAsync(() => Cliente.PonerEnEsperaAsync(Venta.Id));
+    private Task PonerEnEsperaAsync() => EjecutarAsync(() => Cliente.PonerEnEsperaAsync(Venta.Id, _referencia ?? string.Empty));
 
-    private Task RetomarAsync() => _seleccionada is { } venta ? EjecutarAsync(() => Cliente.RetomarVentaAsync(venta.Id)) : Task.CompletedTask;
+    private Task RetomarAsync() => _seleccionada is { } venta ? EjecutarAsync(() => Cliente.RetomarVentaAsync(venta.Id, _referencia)) : Task.CompletedTask;
 
     private async Task EjecutarAsync(Func<Task<RespuestaVenta>> operacion)
     {

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Pagos;
 
@@ -81,10 +81,15 @@ public sealed class OperacionTerminal : Entidad
 
     public bool DisponibleParaCobro => Tipo == TipoOperacionTerminal.Venta && Estado == EstadoOperacionTerminal.Aprobada && !UsadaEnCobro;
 
-    public void MarcarUsada()
+    /// <summary>
+    /// La aprobación se aplica como pago y queda enlazada con la venta cobrada: se aprobó sobre el borrador, que
+    /// desaparece al cobrar, y la venta cobrada nace con su propio Id.
+    /// </summary>
+    public void MarcarUsada(int ventaCobradaId)
     {
         if (!DisponibleParaCobro)
             throw new InvalidOperationException("La operación del terminal no está aprobada o ya se usó.");
+        VentaId = Validar.Id(ventaCobradaId, "Venta");
         UsadaEnCobro = true;
     }
 

@@ -6,24 +6,52 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CgPos.Pos.Infraestructura.Persistencia.Configuraciones;
 
-internal sealed class DestinoEntregaConfiguracion : IEntityTypeConfiguration<DestinoEntrega>
+internal sealed class DestinoEntregaEnProcesoConfiguracion : IEntityTypeConfiguration<DestinoEntregaEnProceso>
 {
-    public void Configure(EntityTypeBuilder<DestinoEntrega> constructor)
+    public void Configure(EntityTypeBuilder<DestinoEntregaEnProceso> constructor) =>
+        constructor.ConfigurarDestino<DestinoEntregaEnProceso, LineaDestinoEntregaEnProceso>("DestinosEntregaVentaTemp");
+}
+
+internal sealed class DestinoEntregaGuardadaConfiguracion : IEntityTypeConfiguration<DestinoEntregaGuardada>
+{
+    public void Configure(EntityTypeBuilder<DestinoEntregaGuardada> constructor) =>
+        constructor.ConfigurarDestino<DestinoEntregaGuardada, LineaDestinoEntregaGuardada>("DestinosEntregaVentaGuardadas");
+}
+
+internal sealed class DestinoEntregaCobradaConfiguracion : IEntityTypeConfiguration<DestinoEntregaCobrada>
+{
+    public void Configure(EntityTypeBuilder<DestinoEntregaCobrada> constructor) =>
+        constructor.ConfigurarDestino<DestinoEntregaCobrada, LineaDestinoEntregaCobrada>("DestinosEntregaVenta");
+}
+
+internal sealed class LineaDestinoEntregaEnProcesoConfiguracion : IEntityTypeConfiguration<LineaDestinoEntregaEnProceso>
+{
+    public void Configure(EntityTypeBuilder<LineaDestinoEntregaEnProceso> constructor) => constructor.ConfigurarLineaDestino("LineasDestinoEntregaTemp");
+}
+
+internal sealed class LineaDestinoEntregaGuardadaConfiguracion : IEntityTypeConfiguration<LineaDestinoEntregaGuardada>
+{
+    public void Configure(EntityTypeBuilder<LineaDestinoEntregaGuardada> constructor) => constructor.ConfigurarLineaDestino("LineasDestinoEntregaGuardadas");
+}
+
+internal sealed class LineaDestinoEntregaCobradaConfiguracion : IEntityTypeConfiguration<LineaDestinoEntregaCobrada>
+{
+    public void Configure(EntityTypeBuilder<LineaDestinoEntregaCobrada> constructor) => constructor.ConfigurarLineaDestino("LineasDestinoEntrega");
+}
+
+/// <summary>
+/// Lo común de los destinos de las tres tablas de la venta. Cada juego es independiente, con su numeración de Id y sus
+/// llaves foráneas.
+/// </summary>
+internal static class ConfiguracionComunDestino
+{
+    public static void ConfigurarDestino<TDestino, TLinea>(this EntityTypeBuilder<TDestino> constructor, string tabla)
+        where TDestino : DestinoEntrega
+        where TLinea : LineaDestinoEntrega
     {
-        constructor.ToTable("DestinosEntregaVenta");
+        constructor.ToTable(tabla);
         constructor.HasKey(d => d.Id);
         constructor.Property(d => d.SucursalRetiroNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
-        ConfigurarEnvio(constructor);
-        constructor.Property(d => d.Comentario).HasMaxLength(DestinoEntrega.LargoMaximoComentario);
-        constructor.Property(d => d.AutorizadoPorNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
-        constructor.HasIndex(d => new { d.VentaId, d.Numero }).IsUnique();
-
-        constructor.HasMany(d => d.Lineas).WithOne().HasForeignKey(l => l.DestinoEntregaId).OnDelete(DeleteBehavior.Cascade);
-        constructor.Navigation(d => d.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field).AutoInclude();
-    }
-
-    private static void ConfigurarEnvio(EntityTypeBuilder<DestinoEntrega> constructor)
-    {
         constructor.Property(d => d.Direccion).HasMaxLength(DestinoEntrega.LargoMaximoDireccion);
         constructor.Property(d => d.Sector).HasMaxLength(DestinoEntrega.LargoMaximoTexto);
         constructor.Property(d => d.Ciudad).HasMaxLength(DestinoEntrega.LargoMaximoTexto);
@@ -31,14 +59,18 @@ internal sealed class DestinoEntregaConfiguracion : IEntityTypeConfiguration<Des
         constructor.Property(d => d.Telefono).HasMaxLength(DestinoEntrega.LargoMaximoTelefono);
         constructor.Property(d => d.Transportista).HasMaxLength(DestinoEntrega.LargoMaximoTexto);
         constructor.Property(d => d.CostoEnvio).HasPrecision(18, 2);
-    }
-}
+        constructor.Property(d => d.Comentario).HasMaxLength(DestinoEntrega.LargoMaximoComentario);
+        constructor.Property(d => d.AutorizadoPorNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
+        constructor.HasIndex(d => new { d.VentaId, d.Numero }).IsUnique();
 
-internal sealed class LineaDestinoEntregaConfiguracion : IEntityTypeConfiguration<LineaDestinoEntrega>
-{
-    public void Configure(EntityTypeBuilder<LineaDestinoEntrega> constructor)
+        constructor.Ignore(d => d.Lineas);
+        constructor.HasMany<TLinea>("_lineas").WithOne().HasForeignKey(l => l.DestinoEntregaId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation("_lineas").UsePropertyAccessMode(PropertyAccessMode.Field).AutoInclude();
+    }
+
+    public static void ConfigurarLineaDestino<TLinea>(this EntityTypeBuilder<TLinea> constructor, string tabla) where TLinea : LineaDestinoEntrega
     {
-        constructor.ToTable("LineasDestinoEntrega");
+        constructor.ToTable(tabla);
         constructor.HasKey(l => l.Id);
         constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
     }
@@ -125,15 +157,5 @@ internal sealed class LineaEntregaPendienteConfiguracion : IEntityTypeConfigurat
         constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
         constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
         constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);
-    }
-}
-
-internal static class EntregasVentaConfiguracion
-{
-    /// <summary>Los destinos se cargan siempre con la venta: sus cantidades condicionan los cambios de línea y el cobro.</summary>
-    public static void ConfigurarEntregas(this EntityTypeBuilder<Venta> constructor)
-    {
-        constructor.HasMany(v => v.DestinosEntrega).WithOne().HasForeignKey(d => d.VentaId).OnDelete(DeleteBehavior.Cascade);
-        constructor.Navigation(v => v.DestinosEntrega).UsePropertyAccessMode(PropertyAccessMode.Field).AutoInclude();
     }
 }

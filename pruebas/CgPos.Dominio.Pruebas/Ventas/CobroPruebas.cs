@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Ventas;
@@ -22,7 +22,7 @@ public class CobroPruebas
 
     private static Venta VentaCon(int cinceles = 1)
     {
-        var venta = Venta.Iniciar(Ids.Siguiente(), "01", Ids.Siguiente(), "01", Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora);
+        var venta = VentaCobrada.DesdeBorrador(VentaEnProceso.Iniciar(Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), "Cajera", "DOP", "RD$", Ahora));
         venta.AgregarArticulo(Cincel, cinceles, Ahora);
         return venta;
     }

@@ -259,16 +259,16 @@ internal sealed class ServicioCaja(
 
         contexto.CierresTurno.Add(cierre);
 
-        // Las transacciones en curso sin artículos activos no son documentos: se descartan o anulan al cerrar.
-        var enCurso = await contexto.Ventas.Include(v => v.Lineas)
-            .Where(v => v.TurnoId == turno.Id && v.Estado == EstadoVenta.EnCurso)
-            .ToListAsync(cancelacion);
+        // Las transacciones en curso sin artículos activos no son documentos: salen de la mesa de trabajo al cerrar. Si
+        // tuvieron líneas, lo que pasó queda en la auditoría.
+        var enCurso = await contexto.VentasTemp.Where(v => v.TurnoId == turno.Id).ToListAsync(cancelacion);
         foreach (var venta in enCurso)
         {
-            if (venta.Lineas.Count == 0)
-                contexto.Ventas.Remove(venta);
-            else
-                venta.Anular("Sin artículos al cerrar el turno", sesion.UsuarioId, sesion.Nombre, ahora);
+            contexto.VentasTemp.Remove(venta);
+            if (venta.Lineas.Count > 0)
+                auditoria.Registrar(new EntradaAuditoria("Ventas.Descartada", "Venta", venta.Identificacion,
+                    Motivo: "Sin artículos al cerrar el turno",
+                    Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
         }
 
         var datos = cierre.ADatos(calculo.Movimientos);
@@ -326,10 +326,9 @@ internal sealed class ServicioCaja(
         var fondoEnCuadre = await parametros.ObtenerBooleanoAsync(ClavesParametros.FondoEnCuadre, turno.CajaId, cancelacion);
         var monedaLocal = await contexto.MonedaLocalAsync(parametros, turno.CajaId, cancelacion);
 
-        var ventas = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).Include(v => v.Pagos)
-            .Where(v => v.TurnoId == turno.Id && v.Estado != EstadoVenta.Anulada)
+        var cobradas = await contexto.Ventas.AsNoTracking()
+            .Where(v => v.TurnoId == turno.Id && v.Estado == EstadoVenta.Cobrada)
             .ToListAsync(cancelacion);
-        var cobradas = ventas.Where(v => v.Estado == EstadoVenta.Cobrada).ToList();
         var pagos = cobradas.SelectMany(v => v.Pagos).ToList();
 
         var formas = await contexto.FormasPago.AsNoTracking().OrderBy(f => f.Orden).ToListAsync(cancelacion);
@@ -348,11 +347,15 @@ internal sealed class ServicioCaja(
 
         // Validaciones de cierre (RF-265, RN-22).
         var bloqueos = new List<string>();
-        var enEspera = ventas.Where(v => v.Estado == EstadoVenta.EnEspera).Select(v => v.NumeroTransaccion).ToList();
+        // Las que no se cobraron están en las tablas de trabajo: la guardada se nombra por la referencia del cajero y la
+        // que está en curso por su borrador, porque ninguna tiene número de factura.
+        var enEspera = await contexto.VentasGuardadas.AsNoTracking().Where(v => v.TurnoId == turno.Id)
+            .OrderBy(v => v.PuestaEnEsperaEn).Select(v => v.Referencia).ToListAsync(cancelacion);
         if (enEspera.Count > 0)
             bloqueos.Add($"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. Retómelas y cóbrelas o anúlelas.");
-        foreach (var venta in ventas.Where(v => v.Estado == EstadoVenta.EnCurso && v.TieneLineasActivas))
-            bloqueos.Add($"La transacción {venta.NumeroTransaccion} de {venta.UsuarioNombre} está en curso con artículos: cóbrela o anúlela.");
+        var enCurso = await contexto.VentasTemp.AsNoTracking().Where(v => v.TurnoId == turno.Id).ToListAsync(cancelacion);
+        foreach (var venta in enCurso.Where(v => v.TieneLineasActivas))
+            bloqueos.Add($"La transacción {venta.Identificacion} de {venta.UsuarioNombre} está en curso con artículos: cóbrela o anúlela.");
 
         var idsCobradas = cobradas.Select(v => v.Id).ToList();
         var conEcf = idsCobradas.Count == 0

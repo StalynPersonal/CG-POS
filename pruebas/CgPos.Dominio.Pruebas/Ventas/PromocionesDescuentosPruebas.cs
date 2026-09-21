@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Ventas;
 
@@ -31,7 +31,7 @@ public class PromocionesDescuentosPruebas
         "UND", false, 0, Ids.Siguiente(), 0m, 4, 10m, null, null, null, null, null);
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Sucursal, "01", Ids.Siguiente(), "01", Ids.Siguiente(), 1, 7, Ids.Siguiente(), "Cajera", "DOP", "RD$", Martes10);
+        VentaEnProceso.Iniciar(Sucursal, Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), "Cajera", "DOP", "RD$", Martes10);
 
     private static Promocion Oferta(string codigo, TipoPromocion tipo, decimal valor, ArticuloParaVenta articulo)
     {

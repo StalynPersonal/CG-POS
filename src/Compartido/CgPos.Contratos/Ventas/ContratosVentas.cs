@@ -149,13 +149,20 @@ public sealed record RespuestaListaBoda(CodigoResultadoVenta Resultado, string? 
 /// <summary>Miembro del programa de fidelidad de la venta y los puntos que acumuló y canjeó al cobrar.</summary>
 public sealed record DatosFidelidadVenta(int MiembroId, string Cedula, string Nombre, string? Nivel, int PuntosAcumulados, int PuntosCanjeados);
 
+/// <summary>Referencia con que el cajero nombra la factura que deja en espera («Sra. María», «102»).</summary>
+public sealed record SolicitudPonerEnEspera(string Referencia);
+
+/// <param name="ReferenciaActual">Con qué nombre se guarda la venta que está en pantalla, si tiene artículos.</param>
+public sealed record SolicitudRetomarVenta(string? ReferenciaActual = null);
+
 /// <summary>Cédula del miembro del programa de fidelidad (ID/PIN, RF-236).</summary>
 public sealed record SolicitudAsignarFidelidad(string Cedula);
 
 /// <summary>Resumen de una factura en espera del cajero en su turno (RF-22, RF-197).</summary>
+/// <param name="Referencia">Cómo la nombró el cajero al guardarla: todavía no tiene número de factura.</param>
 public sealed record DatosVentaEnEspera(
     int Id,
-    string NumeroTransaccion,
+    string Referencia,
     string? ClienteNombre,
     decimal Total,
     int CantidadLineas,

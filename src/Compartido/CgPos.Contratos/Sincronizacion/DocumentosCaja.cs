@@ -144,7 +144,12 @@ public sealed record DocumentoNotaCreditoEmitida(
     bool EsInterna = false);
 
 /// <summary>Mensaje <c>NotaCredito.Consumida</c>: una factura consumió saldo de una nota de crédito. La llave es la nota y la factura.</summary>
-public sealed record DocumentoConsumoNotaCredito(string NotaCreditoNumero, string? Encf, string VentaNumero, decimal Monto, decimal SaldoRestante, DateTimeOffset Fecha);
+/// <param name="VentaReserva">
+/// Con qué se reservó el saldo en el Central, si fue distinto del número de la factura: la reserva se hace mientras la
+/// venta es un borrador sin número, y el Central la cierra con esto al registrar el consumo.
+/// </param>
+public sealed record DocumentoConsumoNotaCredito(string NotaCreditoNumero, string? Encf, string VentaNumero, decimal Monto, decimal SaldoRestante, DateTimeOffset Fecha,
+    string? VentaReserva = null);
 
 /// <summary>Retiro, relevo o reembolso de un turno; se identifica por el número del turno y el suyo.</summary>
 public sealed record DocumentoMovimientoTurno(

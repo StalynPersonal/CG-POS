@@ -1,6 +1,7 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Ventas;
 
@@ -11,7 +12,7 @@ public class VentaPruebas
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
 
     private static Venta NuevaVenta() =>
-        Venta.Iniciar(Ids.Siguiente(), "01", Ids.Siguiente(), "02", Ids.Siguiente(), 123, 7, Ids.Siguiente(), "Cajera Prueba", "DOP", "RD$", Ahora);
+        VentaEnProceso.Iniciar(Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), "Cajera Prueba", "DOP", "RD$", Ahora);
 
     private static ArticuloParaVenta Cincel() => new(
         Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
@@ -30,12 +31,25 @@ public class VentaPruebas
         "LB", true, 3, Ids.Siguiente(), 0m, 4, 45.00m, null, null, null, peso, precioEtiqueta);
 
     [Fact]
-    public void Numero_de_transaccion_combina_sucursal_caja_tipo_y_secuencia()
+    public void La_venta_recibe_su_numero_al_cobrarse_y_no_antes()
     {
         var venta = NuevaVenta();
-
-        Assert.Equal("010210000123", venta.NumeroTransaccion);
+        Assert.Equal(string.Empty, venta.NumeroTransaccion);
         Assert.Equal(EstadoVenta.EnCurso, venta.Estado);
+
+        venta.AgregarArticulo(Cincel(), null, Ahora);
+        var cobrada = VentaCobrada.DesdeBorrador((VentaEnProceso)venta);
+
+        // Sin cobrar no se numera: un cobro rechazado no puede dejar un número sin usar.
+        Assert.Throws<InvalidOperationException>(() => cobrada.Numerar("01", "02", 123, 7));
+
+        var efectivo = new FormaPagoParaCobro(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
+        cobrada.Cobrar([new PagoSolicitado(efectivo, 2_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora);
+        cobrada.Numerar("01", "02", 123, 7);
+        Assert.Equal("010210000123", cobrada.NumeroTransaccion);
+
+        // Una sola vez: el número de una factura no se cambia.
+        Assert.Throws<InvalidOperationException>(() => cobrada.Numerar("01", "02", 124, 7));
     }
 
     [Fact]
@@ -285,24 +299,75 @@ public class VentaPruebas
     }
 
     [Fact]
+    public void Ir_y_volver_de_la_espera_no_pierde_ningun_dato_de_la_venta_ni_de_sus_lineas()
+    {
+        var venta = (VentaEnProceso)NuevaVenta();
+        venta.AgregarArticulo(Cincel(), 3m, Ahora);
+        venta.AgregarArticulo(Cincel(), null, Ahora);
+        venta.EliminarLinea(2, Ahora);
+        venta.AsignarCliente(new ClienteVenta(null, TipoDocumentoIdentidad.Rnc, "131246796", "Constructora", TipoComprobante.FacturaCreditoFiscal), Ahora);
+        venta.EstablecerLimiteCompra(10_000m, Ahora);
+
+        var retomada = VentaEnProceso.Retomar(VentaGuardada.Guardar(venta, "102", Ahora), Ahora);
+
+        // Se compara todo lo que tiene la venta, propiedad por propiedad. Si mañana se agrega un campo y la copia no lo
+        // lleva, esta prueba lo dice sola: no hay que acordarse de agregarlo aquí.
+        foreach (var propiedad in PropiedadesComparables(typeof(Venta), "Estado", "PuestaEnEsperaEn", "ActualizadaEn"))
+            Assert.True(Equals(propiedad.GetValue(venta), propiedad.GetValue(retomada)), $"La venta perdió {propiedad.Name} al ir y volver de la espera.");
+
+        Assert.Equal(venta.Lineas.Count, retomada.Lineas.Count);
+        foreach (var (original, copia) in venta.Lineas.OrderBy(l => l.NumeroLinea).Zip(retomada.Lineas.OrderBy(l => l.NumeroLinea)))
+        {
+            Assert.IsType<LineaVentaEnProceso>(copia);
+            foreach (var propiedad in PropiedadesComparables(typeof(LineaVenta), "VentaId"))
+                Assert.True(Equals(propiedad.GetValue(original), propiedad.GetValue(copia)),
+                    $"La línea {original.NumeroLinea} perdió {propiedad.Name} al ir y volver de la espera.");
+        }
+
+        // Los totales traen el desglose por tasa en una lista, que un record compara por referencia: se comparan sus valores.
+        var (antes, despues) = (venta.CalcularTotales(), retomada.CalcularTotales());
+        Assert.Equal((antes.Subtotal, antes.Impuesto, antes.Total), (despues.Subtotal, despues.Impuesto, despues.Total));
+        Assert.Equal(antes.Desglose, despues.Desglose);
+    }
+
+    /// <summary>Las propiedades con valor de una entidad, sin el Id —cada tabla da el suyo— ni las colecciones.</summary>
+    private static IEnumerable<System.Reflection.PropertyInfo> PropiedadesComparables(Type tipo, params string[] excepto)
+    {
+        for (var actual = tipo; actual is not null && actual != typeof(object); actual = actual.BaseType)
+        {
+            foreach (var propiedad in actual.GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                         | System.Reflection.BindingFlags.DeclaredOnly))
+            {
+                if (propiedad.Name == "Id" || excepto.Contains(propiedad.Name) || propiedad.GetSetMethod(nonPublic: true) is null)
+                    continue;
+                if (propiedad.PropertyType != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(propiedad.PropertyType))
+                    continue;
+
+                yield return propiedad;
+            }
+        }
+    }
+
+    [Fact]
     public void Venta_en_espera_no_se_modifica_hasta_retomarla_y_no_se_guarda_vacia()
     {
         var vacia = NuevaVenta();
         Assert.Equal(CodigoErrorVenta.SinLineas, Assert.Throws<ReglaVentaExcepcion>(() => vacia.PonerEnEspera(Ahora)).Codigo);
 
-        var venta = NuevaVenta();
+        var venta = (VentaEnProceso)NuevaVenta();
         venta.AgregarArticulo(Cincel(), null, Ahora);
-        venta.PonerEnEspera(Ahora);
+        var guardada = VentaGuardada.Guardar(venta, "Sra. María", Ahora);
 
-        Assert.Equal(EstadoVenta.EnEspera, venta.Estado);
-        Assert.Equal(Ahora, venta.PuestaEnEsperaEn);
-        Assert.Equal(CodigoErrorVenta.VentaNoEditable, Assert.Throws<ReglaVentaExcepcion>(() => venta.AgregarArticulo(Cincel(), null, Ahora)).Codigo);
+        Assert.Equal("Sra. María", guardada.Referencia);
+        Assert.Equal(EstadoVenta.EnEspera, guardada.Estado);
+        Assert.Equal(Ahora, guardada.PuestaEnEsperaEn);
+        Assert.Equal(CodigoErrorVenta.VentaNoEditable, Assert.Throws<ReglaVentaExcepcion>(() => guardada.AgregarArticulo(Cincel(), null, Ahora)).Codigo);
 
-        venta.Retomar(Ahora.AddMinutes(5));
-        Assert.Equal(EstadoVenta.EnCurso, venta.Estado);
-        Assert.Null(venta.PuestaEnEsperaEn);
-        venta.AgregarArticulo(Cincel(), null, Ahora);
-        Assert.Equal(1700m, venta.CalcularTotales().Total);
+        var retomada = VentaEnProceso.Retomar(guardada, Ahora.AddMinutes(5));
+        Assert.Equal(EstadoVenta.EnCurso, retomada.Estado);
+        Assert.Null(retomada.PuestaEnEsperaEn);
+        retomada.AgregarArticulo(Cincel(), null, Ahora);
+        Assert.Equal(1700m, retomada.CalcularTotales().Total);
     }
 
     [Fact]

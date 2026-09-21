@@ -181,8 +181,8 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> EstablecerLimiteCompraAsync(int ventaId, decimal? limite, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Put, $"api/ventas/{ventaId}/limite", new SolicitudLimiteCompra(limite), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> PonerEnEsperaAsync(int ventaId, CancellationToken cancelacion = default) =>
-        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Post, $"api/ventas/{ventaId}/espera", null, ErrorVenta, cancelacion);
+    public Task<RespuestaVenta> PonerEnEsperaAsync(int ventaId, string referencia, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/espera", new SolicitudPonerEnEspera(referencia), ErrorVenta, cancelacion);
 
     public async Task<IReadOnlyList<DatosVentaEnEspera>> ListarEnEsperaAsync(CancellationToken cancelacion = default)
     {
@@ -196,8 +196,8 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    public Task<RespuestaVenta> RetomarVentaAsync(int ventaId, CancellationToken cancelacion = default) =>
-        EnviarAsync<object?, RespuestaVenta>(HttpMethod.Post, $"api/ventas/{ventaId}/retomar", null, ErrorVenta, cancelacion);
+    public Task<RespuestaVenta> RetomarVentaAsync(int ventaId, string? referenciaActual, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/retomar", new SolicitudRetomarVenta(referenciaActual), ErrorVenta, cancelacion);
 
     public Task<RespuestaVenta> AnularVentaAsync(int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/anular", new SolicitudAnularVenta(motivo, autorizacionId), ErrorVenta, cancelacion);

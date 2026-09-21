@@ -177,7 +177,7 @@ internal sealed class ServicioDevoluciones(
 
         // La venta de esta caja, si fue ella quien la vendió: de ahí salen los puntos que acumuló y lo pendiente de entregar.
         var venta = copia.VentaLocalId is { } ventaLocalId
-            ? await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleOrDefaultAsync(v => v.Id == ventaLocalId, cancelacion)
+            ? await contexto.Ventas.AsNoTracking().SingleOrDefaultAsync(v => v.Id == ventaLocalId, cancelacion)
             : null;
 
         var factura = copia.ParaDevolver(sesion.SucursalId, sesion.CajaId);

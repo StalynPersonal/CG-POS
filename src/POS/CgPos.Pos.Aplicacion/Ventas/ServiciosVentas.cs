@@ -88,12 +88,12 @@ public interface IServicioVentas
     Task<RespuestaListaBoda> AsignarListaBodaAsync(SesionUsuario sesion, int ventaId, string? numero, CancellationToken cancelacion = default);
 
     /// <summary>Pone la venta en espera y empieza otra (RF-22).</summary>
-    Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default);
+    Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, string referencia, CancellationToken cancelacion = default);
 
     Task<IReadOnlyList<DatosVentaEnEspera>> ListarEnEsperaAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
     /// <summary>Retoma una venta en espera del cajero en su turno; la venta en curso pasa a espera (o se descarta si está vacía).</summary>
-    Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default);
+    Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, int ventaId, string? referenciaActual, CancellationToken cancelacion = default);
 
     /// <summary>Anula la transacción con motivo y autorización; no consume NCF (RF-194).</summary>
     Task<RespuestaVenta> AnularAsync(SesionUsuario sesion, int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);

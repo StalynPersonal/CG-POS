@@ -514,8 +514,12 @@ internal sealed class ServicioRecepcion(
             return;
 
         nota.AplicarConsumo(consumo.Monto);
+
+        // La caja reserva mientras la venta es un borrador sin número: la reserva se encuentra por lo que ella informa.
+        var numeroReserva = string.IsNullOrWhiteSpace(consumo.VentaReserva) ? ventaNumero : consumo.VentaReserva.Trim();
         var reserva = await contexto.ReservasNotaCredito
-            .Where(r => r.NotaCreditoId == nota.Id && r.CajaId == documento.CajaId && r.VentaNumero == ventaNumero && r.CerradaEn == null)
+            .Where(r => r.NotaCreditoId == nota.Id && r.CajaId == documento.CajaId && (r.VentaNumero == ventaNumero || r.VentaNumero == numeroReserva)
+                && r.CerradaEn == null)
             .FirstOrDefaultAsync(cancelacion);
         reserva?.Cerrar("Consumida", ahora);
     }

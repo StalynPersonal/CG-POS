@@ -127,7 +127,7 @@ public class CotizacionPruebas
     /// <summary>Una venta de caja con esos artículos, para comparar totales con la cotización.</summary>
     private static Venta VentaCon(params (string Codigo, decimal Cantidad, decimal Precio, decimal Impuesto)[] articulos)
     {
-        var venta = Venta.Iniciar(Ids.Siguiente(), "01", Ids.Siguiente(), "01", Ids.Siguiente(), 1, 5, Ids.Siguiente(), "Cajero", "DOP", "RD$", Ahora);
+        var venta = VentaEnProceso.Iniciar(Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), Ids.Siguiente(), "Cajero", "DOP", "RD$", Ahora);
         foreach (var (codigo, cantidad, precio, impuesto) in articulos)
         {
             venta.AgregarArticulo(

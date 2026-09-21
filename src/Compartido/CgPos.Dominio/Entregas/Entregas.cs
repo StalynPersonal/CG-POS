@@ -21,7 +21,7 @@ public sealed record CantidadEntrega(int NumeroLinea, decimal Cantidad);
 /// Destino de entrega marcado en la venta en curso: retiro en un almacén o envío a dirección, con las líneas y cantidades que
 /// incluye (RF-246 a RF-248). Al cobrar se convierte en un <see cref="PendienteEntrega"/>.
 /// </summary>
-public sealed class DestinoEntrega : Entidad
+public abstract class DestinoEntrega : Entidad
 {
     public const int LargoMaximoTexto = 100;
     public const int LargoMaximoDireccion = 250;
@@ -29,9 +29,8 @@ public sealed class DestinoEntrega : Entidad
     public const int LargoMaximoComentario = 250;
     public const int LargoMaximoNombre = 150;
 
-    private readonly List<LineaDestinoEntrega> _lineas = [];
 
-    private DestinoEntrega()
+    private protected DestinoEntrega()
     {
     }
 
@@ -57,21 +56,43 @@ public sealed class DestinoEntrega : Entidad
 
     public string? AutorizadoPorNombre { get; private set; }
 
-    public IReadOnlyList<LineaDestinoEntrega> Lineas => _lineas;
+    public IReadOnlyList<LineaDestinoEntrega> Lineas => LineasInternas;
 
-    internal static DestinoEntrega Crear(int ventaId, int numero, MetodoEntrega metodo, int? sucursalRetiroId, string? sucursalRetiroNombre, DatosEnvio? envio,
-        DateOnly? fechaComprometida, string? comentario, int? autorizadoPorId, string? autorizadoPorNombre, IEnumerable<CantidadEntrega> cantidades)
+    // Cada variante guarda sus líneas en una lista de su propio tipo: así vive en su tabla con su llave foránea.
+    private protected abstract IReadOnlyList<LineaDestinoEntrega> LineasInternas { get; }
+
+    private protected abstract void AgregarLinea(LineaDestinoEntrega linea);
+
+    /// <summary>
+    /// Este mismo destino, con sus líneas, en la variante de otra tabla. Los Id y la venta los pone la tabla de destino.
+    /// </summary>
+    internal DestinoEntrega CopiarEn(DestinoEntrega destino, Func<LineaDestinoEntrega> nuevaLinea)
     {
-        var destino = new DestinoEntrega
+        CopiaPropiedades.Copiar(this, destino, typeof(DestinoEntrega), [nameof(VentaId)]);
+        foreach (var linea in LineasInternas.OrderBy(l => l.NumeroLinea))
         {
-            VentaId = ventaId,
-            Numero = numero,
-            Metodo = metodo,
-            FechaComprometida = fechaComprometida,
-            Comentario = Validar.TextoOpcional(comentario, "Comentario", LargoMaximoComentario),
-            AutorizadoPorId = autorizadoPorId,
-            AutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoNombre),
-        };
+            var copia = nuevaLinea();
+            copia.NumeroLinea = linea.NumeroLinea;
+            copia.Cantidad = linea.Cantidad;
+            destino.AgregarLinea(copia);
+        }
+
+        return destino;
+    }
+
+    /// <param name="destino">Instancia vacía del tipo que corresponde a la tabla donde vive la venta.</param>
+    /// <param name="nuevaLinea">Con qué crear cada línea del destino: también depende de la tabla.</param>
+    internal static DestinoEntrega Crear(DestinoEntrega destino, Func<LineaDestinoEntrega> nuevaLinea, int ventaId, int numero, MetodoEntrega metodo,
+        int? sucursalRetiroId, string? sucursalRetiroNombre, DatosEnvio? envio, DateOnly? fechaComprometida, string? comentario, int? autorizadoPorId,
+        string? autorizadoPorNombre, IEnumerable<CantidadEntrega> cantidades)
+    {
+        destino.VentaId = ventaId;
+        destino.Numero = numero;
+        destino.Metodo = metodo;
+        destino.FechaComprometida = fechaComprometida;
+        destino.Comentario = Validar.TextoOpcional(comentario, "Comentario", LargoMaximoComentario);
+        destino.AutorizadoPorId = autorizadoPorId;
+        destino.AutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoNombre);
 
         if (metodo == MetodoEntrega.RetiroSucursal)
         {
@@ -90,15 +111,21 @@ public sealed class DestinoEntrega : Entidad
         }
 
         foreach (var cantidad in cantidades)
-            destino._lineas.Add(new LineaDestinoEntrega { DestinoEntregaId = destino.Id, NumeroLinea = cantidad.NumeroLinea, Cantidad = cantidad.Cantidad });
+        {
+            var linea = nuevaLinea();
+            linea.DestinoEntregaId = destino.Id;
+            linea.NumeroLinea = cantidad.NumeroLinea;
+            linea.Cantidad = cantidad.Cantidad;
+            destino.AgregarLinea(linea);
+        }
 
         return destino;
     }
 }
 
-public sealed class LineaDestinoEntrega : Entidad
+public abstract class LineaDestinoEntrega : Entidad
 {
-    internal LineaDestinoEntrega()
+    private protected LineaDestinoEntrega()
     {
     }
 

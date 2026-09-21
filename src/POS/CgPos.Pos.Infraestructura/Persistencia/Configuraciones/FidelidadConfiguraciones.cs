@@ -1,4 +1,4 @@
-using CgPos.Dominio.Fidelidad;
+﻿using CgPos.Dominio.Fidelidad;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
 using Microsoft.EntityFrameworkCore;
@@ -61,7 +61,7 @@ internal sealed class MovimientoPuntosConfiguracion : IEntityTypeConfiguration<M
 
 internal static class FidelidadVentaConfiguracion
 {
-    public static void ConfigurarFidelidad(this EntityTypeBuilder<Venta> constructor)
+    public static void ConfigurarFidelidad<TVenta>(this EntityTypeBuilder<TVenta> constructor) where TVenta : Venta
     {
         constructor.Property(v => v.FidelidadCedula).HasMaxLength(Venta.LargoMaximoDocumento).IsUnicode(false);
         constructor.Property(v => v.FidelidadNombre).HasMaxLength(Venta.LargoMaximoNombreCliente);

@@ -42,7 +42,7 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
         constructor.Property(d => d.SimboloMoneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo).IsRequired();
 
         // La venta de origen es opcional: la factura pudo venir del Central y no existir en esta caja.
-        constructor.HasOne<Venta>().WithMany().HasForeignKey(d => d.VentaOrigenId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasOne<VentaCobrada>().WithMany().HasForeignKey(d => d.VentaOrigenId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         constructor.HasIndex(d => d.VentaOrigenId);
         constructor.HasIndex(d => new { d.CajaId, d.Numero }).IsUnique();
         constructor.HasIndex(d => d.Encf).IsUnique().HasFilter("[Encf] IS NOT NULL");

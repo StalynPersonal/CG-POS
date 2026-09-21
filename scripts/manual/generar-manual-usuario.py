@@ -688,7 +688,8 @@ titulo('3.4. La pantalla de ventas principal', 2)
 p('La pantalla está dividida en cinco zonas:')
 tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
-       ['Encabezado central', 'Cliente de la factura, número de transacción, cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
+       ['Encabezado central', 'Cliente de la factura, identificación de la venta (B-000015 mientras se arma; el número de factura se le da al cobrar), '
+        'cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
        ['Encabezado derecho', 'Subtotal, ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL y, en facturas gubernamentales con retención, el total a pagar.'],
        ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar.'],
        ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio, importe y la oferta aplicada.'],
@@ -807,8 +808,17 @@ nota('La cotización vive en el Central: si la caja está sin comunicación, no 
 nota('La venta tiene que estar vacía: si ya tiene artículos, termínela o límpiela antes de traer la cotización.')
 
 titulo('3.13. Facturas en espera, anular y suspender', 2)
-viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y retomarla después.')
-viñeta('Anular (segunda página): cancela la transacción en curso con motivo y autorización.')
+viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y retomarla después. Se le pone una referencia '
+       'corta, el nombre del cliente o unos dígitos («Sra. María», «102»), que es con lo que se encuentra en la lista al volver. '
+       'Dos facturas en espera del mismo turno no pueden llamarse igual.')
+viñeta('Para retomar una factura con otra venta en pantalla, escriba también la referencia de la que está en pantalla: las dos '
+       'se intercambian. Si la de pantalla no tiene artículos, simplemente se descarta.')
+viñeta('Mientras la venta se arma o está en espera no tiene número de factura: se identifica como B-000015. El número se le da '
+       'al cobrar, en el orden en que se cobra; así una factura en espera no se lleva el número de otro cliente, y una venta '
+       'que no se cobró no deja un hueco en la numeración.')
+viñeta('Una venta con tarjeta ya aprobada no se pone en espera: cóbrela o anule la tarjeta primero.')
+viñeta('Anular (segunda página): cancela la transacción en curso con motivo y autorización. Como todavía no era una factura, '
+       'desaparece de la caja; lo que tenía, quién la anuló, quién lo autorizó y el motivo quedan en la auditoría.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada y con su reverso en rojo, para que todo quede a la vista.')

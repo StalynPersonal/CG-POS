@@ -92,6 +92,14 @@ CREATE SEQUENCE [SecuenciaDestinosEntregaVenta] AS int START WITH 1 INCREMENT BY
 GO
 
 
+CREATE SEQUENCE [SecuenciaDestinosEntregaVentaGuardadas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaDestinosEntregaVentaTemp] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaDevoluciones] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -132,6 +140,14 @@ CREATE SEQUENCE [SecuenciaLineasDestinoEntrega] AS int START WITH 1 INCREMENT BY
 GO
 
 
+CREATE SEQUENCE [SecuenciaLineasDestinoEntregaGuardadas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLineasDestinoEntregaTemp] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaLineasDevolucion] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -149,6 +165,14 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaLineasVenta] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLineasVentaGuardadas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLineasVentaTemp] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -249,6 +273,14 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaVentas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaVentasGuardadas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaVentasTemp] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -1148,6 +1180,115 @@ CREATE TABLE [Ventas] (
 GO
 
 
+CREATE TABLE [VentasGuardadas] (
+    [Id] int NOT NULL,
+    [Referencia] nvarchar(40) NOT NULL,
+    [NumeroTransaccion] varchar(40) NOT NULL,
+    [Secuencia] bigint NOT NULL,
+    [SucursalId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TurnoId] int NOT NULL,
+    [UsuarioId] int NOT NULL,
+    [UsuarioNombre] nvarchar(150) NOT NULL,
+    [Moneda] varchar(3) NOT NULL,
+    [SimboloMoneda] nvarchar(5) NOT NULL,
+    [Estado] int NOT NULL,
+    [IniciadaEn] datetimeoffset(3) NOT NULL,
+    [ActualizadaEn] datetimeoffset(3) NOT NULL,
+    [AnuladaEn] datetimeoffset(3) NULL,
+    [MotivoAnulacion] nvarchar(500) NULL,
+    [AnuladaPorId] int NULL,
+    [AnuladaPorNombre] nvarchar(150) NULL,
+    [ClienteId] int NULL,
+    [ClienteTipoDocumento] int NULL,
+    [ClienteDocumento] varchar(20) NULL,
+    [ClienteNombre] nvarchar(150) NULL,
+    [TipoComprobante] int NOT NULL,
+    [PorcentajeRetencion] decimal(5,2) NOT NULL,
+    [CertificacionExencion] nvarchar(50) NULL,
+    [LimiteCompra] decimal(18,2) NULL,
+    [ListaBodaNumero] varchar(20) NULL,
+    [ListaBodaEvento] nvarchar(150) NULL,
+    [FidelidadMiembroId] int NULL,
+    [FidelidadCedula] varchar(20) NULL,
+    [FidelidadNombre] nvarchar(150) NULL,
+    [FidelidadNivel] nvarchar(150) NULL,
+    [PuntosAcumulados] int NOT NULL,
+    [PuntosCanjeados] int NOT NULL,
+    [PuestaEnEsperaEn] datetimeoffset(3) NULL,
+    [DescuentoFacturaTipo] int NULL,
+    [DescuentoFacturaValor] decimal(18,4) NULL,
+    [DescuentoFacturaLineas] varchar(2000) NULL,
+    [MotivoDescuentoFactura] nvarchar(500) NULL,
+    [DescuentoFacturaAutorizadoPorId] int NULL,
+    [DescuentoFacturaAutorizadoPorNombre] nvarchar(150) NULL,
+    [CobradaEn] datetimeoffset(3) NULL,
+    [CobradaPorId] int NULL,
+    [CobradaPorNombre] nvarchar(150) NULL,
+    [TotalCobrado] decimal(18,2) NULL,
+    [Devuelta] decimal(18,2) NOT NULL,
+    [RedondeoEfectivo] decimal(18,2) NOT NULL,
+    [CotizacionNumero] varchar(20) NULL,
+    CONSTRAINT [PK_VentasGuardadas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_VentasGuardadas_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [VentasTemp] (
+    [Id] int NOT NULL,
+    [NumeroTransaccion] varchar(40) NOT NULL,
+    [Secuencia] bigint NOT NULL,
+    [SucursalId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TurnoId] int NOT NULL,
+    [UsuarioId] int NOT NULL,
+    [UsuarioNombre] nvarchar(150) NOT NULL,
+    [Moneda] varchar(3) NOT NULL,
+    [SimboloMoneda] nvarchar(5) NOT NULL,
+    [Estado] int NOT NULL,
+    [IniciadaEn] datetimeoffset(3) NOT NULL,
+    [ActualizadaEn] datetimeoffset(3) NOT NULL,
+    [AnuladaEn] datetimeoffset(3) NULL,
+    [MotivoAnulacion] nvarchar(500) NULL,
+    [AnuladaPorId] int NULL,
+    [AnuladaPorNombre] nvarchar(150) NULL,
+    [ClienteId] int NULL,
+    [ClienteTipoDocumento] int NULL,
+    [ClienteDocumento] varchar(20) NULL,
+    [ClienteNombre] nvarchar(150) NULL,
+    [TipoComprobante] int NOT NULL,
+    [PorcentajeRetencion] decimal(5,2) NOT NULL,
+    [CertificacionExencion] nvarchar(50) NULL,
+    [LimiteCompra] decimal(18,2) NULL,
+    [ListaBodaNumero] varchar(20) NULL,
+    [ListaBodaEvento] nvarchar(150) NULL,
+    [FidelidadMiembroId] int NULL,
+    [FidelidadCedula] varchar(20) NULL,
+    [FidelidadNombre] nvarchar(150) NULL,
+    [FidelidadNivel] nvarchar(150) NULL,
+    [PuntosAcumulados] int NOT NULL,
+    [PuntosCanjeados] int NOT NULL,
+    [PuestaEnEsperaEn] datetimeoffset(3) NULL,
+    [DescuentoFacturaTipo] int NULL,
+    [DescuentoFacturaValor] decimal(18,4) NULL,
+    [DescuentoFacturaLineas] varchar(2000) NULL,
+    [MotivoDescuentoFactura] nvarchar(500) NULL,
+    [DescuentoFacturaAutorizadoPorId] int NULL,
+    [DescuentoFacturaAutorizadoPorNombre] nvarchar(150) NULL,
+    [CobradaEn] datetimeoffset(3) NULL,
+    [CobradaPorId] int NULL,
+    [CobradaPorNombre] nvarchar(150) NULL,
+    [TotalCobrado] decimal(18,2) NULL,
+    [Devuelta] decimal(18,2) NOT NULL,
+    [RedondeoEfectivo] decimal(18,2) NOT NULL,
+    [CotizacionNumero] varchar(20) NULL,
+    CONSTRAINT [PK_VentasTemp] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_VentasTemp_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
 CREATE TABLE [CierresTurnoDenominaciones] (
     [Id] int NOT NULL,
     [CierreTurnoId] int NOT NULL,
@@ -1341,6 +1482,178 @@ CREATE TABLE [PagosVenta] (
 GO
 
 
+CREATE TABLE [DestinosEntregaVentaGuardadas] (
+    [Id] int NOT NULL,
+    [VentaId] int NOT NULL,
+    [Numero] int NOT NULL,
+    [Metodo] int NOT NULL,
+    [SucursalRetiroId] int NULL,
+    [SucursalRetiroNombre] nvarchar(150) NULL,
+    [Direccion] nvarchar(250) NULL,
+    [Sector] nvarchar(100) NULL,
+    [Ciudad] nvarchar(100) NULL,
+    [Referencia] nvarchar(250) NULL,
+    [Telefono] nvarchar(20) NULL,
+    [Transportista] nvarchar(100) NULL,
+    [CostoEnvio] decimal(18,2) NULL,
+    [FechaComprometida] date NULL,
+    [Comentario] nvarchar(250) NULL,
+    [AutorizadoPorId] int NULL,
+    [AutorizadoPorNombre] nvarchar(150) NULL,
+    CONSTRAINT [PK_DestinosEntregaVentaGuardadas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_DestinosEntregaVentaGuardadas_VentasGuardadas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [VentasGuardadas] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasVentaGuardadas] (
+    [Id] int NOT NULL,
+    [Serial] nvarchar(50) NULL,
+    [SerialPendiente] bit NOT NULL,
+    [PromocionId] int NULL,
+    [PromocionCodigo] nvarchar(30) NULL,
+    [PromocionNombre] nvarchar(150) NULL,
+    [PromocionDescripcion] nvarchar(60) NULL,
+    [DescuentoPromocion] decimal(18,2) NOT NULL,
+    [PromocionDesactivada] bit NOT NULL,
+    [DescuentoManual] decimal(18,2) NOT NULL,
+    [DescuentoManualTipo] int NULL,
+    [DescuentoManualValor] decimal(18,4) NULL,
+    [MotivoDescuento] nvarchar(500) NULL,
+    [DescuentoAutorizadoPorId] int NULL,
+    [DescuentoAutorizadoPorNombre] nvarchar(150) NULL,
+    [DescuentoFactura] decimal(18,2) NOT NULL,
+    [VentaId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [ArticuloId] int NOT NULL,
+    [CodigoInterno] nvarchar(30) NOT NULL,
+    [CodigoLeido] nvarchar(30) NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [TipoArticulo] int NOT NULL,
+    [DepartamentoId] int NOT NULL,
+    [CategoriaId] int NULL,
+    [MarcaId] int NULL,
+    [PermiteDescuentoManual] bit NOT NULL,
+    [UnidadMedidaCodigo] nvarchar(10) NOT NULL,
+    [PermiteDecimales] bit NOT NULL,
+    [DecimalesCantidad] int NOT NULL,
+    [ImpuestoId] int NOT NULL,
+    [PorcentajeImpuesto] decimal(5,2) NOT NULL,
+    [IndicadorFacturacion] int NOT NULL,
+    [PorcentajeImpuestoGravado] decimal(18,4) NULL,
+    [IndicadorFacturacionGravado] int NULL,
+    [PrecioUnitarioGravado] decimal(18,4) NULL,
+    [PrecioDetalleGravado] decimal(18,4) NULL,
+    [PrecioMayorGravado] decimal(18,4) NULL,
+    [PrecioMinimoGravado] decimal(18,4) NULL,
+    [ImporteEtiquetaGravado] decimal(18,4) NULL,
+    [DescuentoPromocionGravado] decimal(18,4) NULL,
+    [EsServicio] bit NOT NULL,
+    [PrecioDetalle] decimal(18,4) NOT NULL,
+    [PrecioMayor] decimal(18,4) NULL,
+    [CantidadMinimaMayor] decimal(18,4) NULL,
+    [PrecioMinimo] decimal(18,4) NULL,
+    [Cantidad] decimal(18,4) NOT NULL,
+    [PrecioUnitario] decimal(18,4) NOT NULL,
+    [Lista] int NOT NULL,
+    [MotivoPrecio] int NOT NULL,
+    [ImporteEtiqueta] decimal(18,4) NULL,
+    [LeidaDeBalanza] bit NOT NULL,
+    [EsReverso] bit NOT NULL,
+    [LineaAnuladaNumero] int NULL,
+    [Anulada] bit NOT NULL,
+    CONSTRAINT [PK_LineasVentaGuardadas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasVentaGuardadas_VentasGuardadas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [VentasGuardadas] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [DestinosEntregaVentaTemp] (
+    [Id] int NOT NULL,
+    [VentaId] int NOT NULL,
+    [Numero] int NOT NULL,
+    [Metodo] int NOT NULL,
+    [SucursalRetiroId] int NULL,
+    [SucursalRetiroNombre] nvarchar(150) NULL,
+    [Direccion] nvarchar(250) NULL,
+    [Sector] nvarchar(100) NULL,
+    [Ciudad] nvarchar(100) NULL,
+    [Referencia] nvarchar(250) NULL,
+    [Telefono] nvarchar(20) NULL,
+    [Transportista] nvarchar(100) NULL,
+    [CostoEnvio] decimal(18,2) NULL,
+    [FechaComprometida] date NULL,
+    [Comentario] nvarchar(250) NULL,
+    [AutorizadoPorId] int NULL,
+    [AutorizadoPorNombre] nvarchar(150) NULL,
+    CONSTRAINT [PK_DestinosEntregaVentaTemp] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_DestinosEntregaVentaTemp_VentasTemp_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [VentasTemp] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasVentaTemp] (
+    [Id] int NOT NULL,
+    [Serial] nvarchar(50) NULL,
+    [SerialPendiente] bit NOT NULL,
+    [PromocionId] int NULL,
+    [PromocionCodigo] nvarchar(30) NULL,
+    [PromocionNombre] nvarchar(150) NULL,
+    [PromocionDescripcion] nvarchar(60) NULL,
+    [DescuentoPromocion] decimal(18,2) NOT NULL,
+    [PromocionDesactivada] bit NOT NULL,
+    [DescuentoManual] decimal(18,2) NOT NULL,
+    [DescuentoManualTipo] int NULL,
+    [DescuentoManualValor] decimal(18,4) NULL,
+    [MotivoDescuento] nvarchar(500) NULL,
+    [DescuentoAutorizadoPorId] int NULL,
+    [DescuentoAutorizadoPorNombre] nvarchar(150) NULL,
+    [DescuentoFactura] decimal(18,2) NOT NULL,
+    [VentaId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [ArticuloId] int NOT NULL,
+    [CodigoInterno] nvarchar(30) NOT NULL,
+    [CodigoLeido] nvarchar(30) NOT NULL,
+    [Descripcion] nvarchar(200) NOT NULL,
+    [TipoArticulo] int NOT NULL,
+    [DepartamentoId] int NOT NULL,
+    [CategoriaId] int NULL,
+    [MarcaId] int NULL,
+    [PermiteDescuentoManual] bit NOT NULL,
+    [UnidadMedidaCodigo] nvarchar(10) NOT NULL,
+    [PermiteDecimales] bit NOT NULL,
+    [DecimalesCantidad] int NOT NULL,
+    [ImpuestoId] int NOT NULL,
+    [PorcentajeImpuesto] decimal(5,2) NOT NULL,
+    [IndicadorFacturacion] int NOT NULL,
+    [PorcentajeImpuestoGravado] decimal(18,4) NULL,
+    [IndicadorFacturacionGravado] int NULL,
+    [PrecioUnitarioGravado] decimal(18,4) NULL,
+    [PrecioDetalleGravado] decimal(18,4) NULL,
+    [PrecioMayorGravado] decimal(18,4) NULL,
+    [PrecioMinimoGravado] decimal(18,4) NULL,
+    [ImporteEtiquetaGravado] decimal(18,4) NULL,
+    [DescuentoPromocionGravado] decimal(18,4) NULL,
+    [EsServicio] bit NOT NULL,
+    [PrecioDetalle] decimal(18,4) NOT NULL,
+    [PrecioMayor] decimal(18,4) NULL,
+    [CantidadMinimaMayor] decimal(18,4) NULL,
+    [PrecioMinimo] decimal(18,4) NULL,
+    [Cantidad] decimal(18,4) NOT NULL,
+    [PrecioUnitario] decimal(18,4) NOT NULL,
+    [Lista] int NOT NULL,
+    [MotivoPrecio] int NOT NULL,
+    [ImporteEtiqueta] decimal(18,4) NULL,
+    [LeidaDeBalanza] bit NOT NULL,
+    [EsReverso] bit NOT NULL,
+    [LineaAnuladaNumero] int NULL,
+    [Anulada] bit NOT NULL,
+    CONSTRAINT [PK_LineasVentaTemp] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasVentaTemp_VentasTemp_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [VentasTemp] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [LineasDestinoEntrega] (
     [Id] int NOT NULL,
     [DestinoEntregaId] int NOT NULL,
@@ -1390,6 +1703,28 @@ CREATE TABLE [LineasDevolucion] (
     [Serial] nvarchar(100) NULL,
     CONSTRAINT [PK_LineasDevolucion] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_LineasDevolucion_Devoluciones_DevolucionId] FOREIGN KEY ([DevolucionId]) REFERENCES [Devoluciones] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasDestinoEntregaGuardadas] (
+    [Id] int NOT NULL,
+    [DestinoEntregaId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [Cantidad] decimal(18,3) NOT NULL,
+    CONSTRAINT [PK_LineasDestinoEntregaGuardadas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasDestinoEntregaGuardadas_DestinosEntregaVentaGuardadas_DestinoEntregaId] FOREIGN KEY ([DestinoEntregaId]) REFERENCES [DestinosEntregaVentaGuardadas] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LineasDestinoEntregaTemp] (
+    [Id] int NOT NULL,
+    [DestinoEntregaId] int NOT NULL,
+    [NumeroLinea] int NOT NULL,
+    [Cantidad] decimal(18,3) NOT NULL,
+    CONSTRAINT [PK_LineasDestinoEntregaTemp] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LineasDestinoEntregaTemp_DestinosEntregaVentaTemp_DestinoEntregaId] FOREIGN KEY ([DestinoEntregaId]) REFERENCES [DestinosEntregaVentaTemp] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1522,6 +1857,14 @@ CREATE UNIQUE INDEX [IX_DestinosEntregaVenta_VentaId_Numero] ON [DestinosEntrega
 GO
 
 
+CREATE UNIQUE INDEX [IX_DestinosEntregaVentaGuardadas_VentaId_Numero] ON [DestinosEntregaVentaGuardadas] ([VentaId], [Numero]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_DestinosEntregaVentaTemp_VentaId_Numero] ON [DestinosEntregaVentaTemp] ([VentaId], [Numero]);
+GO
+
+
 CREATE UNIQUE INDEX [IX_Devoluciones_CajaId_Numero] ON [Devoluciones] ([CajaId], [Numero]);
 GO
 
@@ -1578,6 +1921,14 @@ CREATE INDEX [IX_LineasDestinoEntrega_DestinoEntregaId] ON [LineasDestinoEntrega
 GO
 
 
+CREATE INDEX [IX_LineasDestinoEntregaGuardadas_DestinoEntregaId] ON [LineasDestinoEntregaGuardadas] ([DestinoEntregaId]);
+GO
+
+
+CREATE INDEX [IX_LineasDestinoEntregaTemp_DestinoEntregaId] ON [LineasDestinoEntregaTemp] ([DestinoEntregaId]);
+GO
+
+
 CREATE INDEX [IX_LineasDevolucion_DevolucionId] ON [LineasDevolucion] ([DevolucionId]);
 GO
 
@@ -1599,6 +1950,22 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_LineasVenta_VentaId_NumeroLinea] ON [LineasVenta] ([VentaId], [NumeroLinea]);
+GO
+
+
+CREATE INDEX [IX_LineasVentaGuardadas_PromocionId] ON [LineasVentaGuardadas] ([PromocionId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_LineasVentaGuardadas_VentaId_NumeroLinea] ON [LineasVentaGuardadas] ([VentaId], [NumeroLinea]);
+GO
+
+
+CREATE INDEX [IX_LineasVentaTemp_PromocionId] ON [LineasVentaTemp] ([PromocionId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_LineasVentaTemp_VentaId_NumeroLinea] ON [LineasVentaTemp] ([VentaId], [NumeroLinea]);
 GO
 
 
@@ -1767,6 +2134,26 @@ GO
 
 
 CREATE INDEX [IX_Ventas_TurnoId_UsuarioId_Estado] ON [Ventas] ([TurnoId], [UsuarioId], [Estado]);
+GO
+
+
+CREATE INDEX [IX_VentasGuardadas_TurnoId_Estado] ON [VentasGuardadas] ([TurnoId], [Estado]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_VentasGuardadas_TurnoId_Referencia] ON [VentasGuardadas] ([TurnoId], [Referencia]);
+GO
+
+
+CREATE INDEX [IX_VentasGuardadas_TurnoId_UsuarioId_Estado] ON [VentasGuardadas] ([TurnoId], [UsuarioId], [Estado]);
+GO
+
+
+CREATE INDEX [IX_VentasTemp_TurnoId_Estado] ON [VentasTemp] ([TurnoId], [Estado]);
+GO
+
+
+CREATE INDEX [IX_VentasTemp_TurnoId_UsuarioId_Estado] ON [VentasTemp] ([TurnoId], [UsuarioId], [Estado]);
 GO
 
 PRINT 'Base de la caja creada. Al abrirla le pedirá su sucursal, su caja, su IP, el servidor y la credencial.';

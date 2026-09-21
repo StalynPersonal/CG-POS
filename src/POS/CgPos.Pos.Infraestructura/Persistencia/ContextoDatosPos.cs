@@ -54,7 +54,14 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Turno> Turnos => Set<Turno>();
     public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
     public DbSet<CierreTurno> CierresTurno => Set<CierreTurno>();
-    public DbSet<Venta> Ventas => Set<Venta>();
+    /// <summary>La venta que el cajero está armando: todavía no tiene número de factura.</summary>
+    public DbSet<VentaEnProceso> VentasTemp => Set<VentaEnProceso>();
+
+    /// <summary>Las ventas que el cajero dejó en espera, nombradas con su referencia.</summary>
+    public DbSet<VentaGuardada> VentasGuardadas => Set<VentaGuardada>();
+
+    /// <summary>Las ventas cobradas: los documentos, con su número de factura.</summary>
+    public DbSet<VentaCobrada> Ventas => Set<VentaCobrada>();
     public DbSet<AutorizacionOtorgada> AutorizacionesOtorgadas => Set<AutorizacionOtorgada>();
 
     // Devoluciones y notas de crédito (M10)
@@ -93,6 +100,13 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     {
         // Cada tabla tiene su propia secuencia de Id, así sus números empiezan en 1 y no se mezclan con los de otra tabla.
         // EF reserva bloques de la secuencia al agregar la entidad (HiLo), así que el Id está listo antes de guardar.
+        // La venta, su línea y su destino son solo las reglas: lo que se guarda son sus tres variantes (en proceso,
+        // guardada y cobrada), cada una en su tabla y con su propia numeración de Id. Sin esto EF las tomaría por herencia.
+        constructorModelo.Ignore<Venta>();
+        constructorModelo.Ignore<LineaVenta>();
+        constructorModelo.Ignore<CgPos.Dominio.Entregas.DestinoEntrega>();
+        constructorModelo.Ignore<CgPos.Dominio.Entregas.LineaDestinoEntrega>();
+
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosPos).Assembly);
 
         foreach (var entidad in constructorModelo.Model.GetEntityTypes())
