@@ -370,9 +370,33 @@
 .cg-pantalla-cliente__publicidad--completa { flex: 1; }
 .cg-pantalla-cliente__mensaje { padding: 20px; text-align: center; font-size: 2.4rem; font-weight: 800; color: #fff; background: var(--cg-accion); }
 
-.cg-carrusel { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.cg-carrusel__imagen { width: 100%; height: 100%; object-fit: contain; animation: cg-aparecer .6s ease; }
-.cg-carrusel__vacio { color: #fff; font-size: 4rem; font-weight: 800; opacity: .85; }
+/*
+    El hueco manda sobre la pieza. Antes el carrusel era flex y la imagen se ajustaba sola, pero un video trae su propio
+    tamaño (le llega con los metadatos) y no se estiraba igual: podía verse pequeño o desbordar. Colocando la pieza sobre
+    el hueco completo, imagen y video se ven iguales, ajustados y sin recortarse.
+*/
+.cg-carrusel { position: relative; flex: 1; overflow: hidden; }
+
+.cg-carrusel__imagen {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    animation: cg-aparecer .6s ease;
+}
+
+.cg-carrusel__vacio {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 4rem;
+    font-weight: 800;
+    opacity: .85;
+}
 
 @keyframes cg-aparecer { from { opacity: 0; } to { opacity: 1; } }
 

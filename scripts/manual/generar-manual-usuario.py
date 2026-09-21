@@ -643,7 +643,21 @@ nota('La gaveta del dinero se conecta a la impresora, no al equipo: se abre con 
      'no se configura aparte.')
 nota('Si cambia la impresora de una caja, hay que reiniciar el servicio de la caja para que lo tome.')
 
-titulo('3.1.2. Cambiar una caja de equipo', 3)
+titulo('3.1.2. La publicidad de la pantalla del cliente', 3)
+p('El segundo monitor muestra la venta y, al lado, la publicidad del negocio. Los archivos se copian en la carpeta '
+  r'C:\CGPOS\Publicidad' ' del equipo de esa caja y se muestran en orden alfabético, así que conviene nombrarlos '
+  '01-..., 02-... y así.')
+tabla(['Qué se puede poner', 'Formatos', 'Cuánto dura en pantalla'],
+      [['Imágenes', '.png, .jpg, .jpeg, .webp, .svg', 'Los segundos del parámetro Pantallas.SegundosPorImagen'],
+       ['Videos', '.mp4, .webm', 'Lo que dure el video: se reproduce completo y sin sonido']],
+      anchos=[3.2, 5.5, 8.1])
+nota('Los archivos se pueden cambiar con la caja encendida: entran solos cuando el carrusel termina la vuelta, sin '
+     'reiniciar nada. Y si cambia los segundos por imagen en el Central, la pantalla lo toma en cuanto la caja '
+     'sincroniza.')
+nota('Un video .avi o .mov no se ve: conviértalo a .mp4 antes de copiarlo. Sin bocinas no se pierde nada, porque el '
+     'video va siempre sin sonido.')
+
+titulo('3.1.3. Cambiar una caja de equipo', 3)
 p('El equipo de la caja se dañó, se reinstaló Windows o se reemplaza por otro. La caja es la misma; lo que cambia es la máquina.')
 paso('En el Central, Organización → Cajas, edite la caja y ponga la IP del equipo nuevo; después emítale una credencial nueva.')
 paso('Instale la caja en el equipo nuevo, con la misma sucursal y el mismo número.')

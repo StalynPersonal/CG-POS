@@ -122,26 +122,26 @@ internal static class VerificacionesCaja
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext contexto, CancellationToken cancelacion = default)
         {
             var carpeta = Pantallas.RutasPantallaCliente.CarpetaPublicidad(configuracion, entorno.ContentRootPath);
-            var imagenes = Pantallas.RutasPantallaCliente.ImagenesDe(carpeta);
+            var medios = Pantallas.RutasPantallaCliente.MediosDe(carpeta);
             var datos = new Dictionary<string, object>
             {
                 ["carpeta"] = carpeta,
                 ["url"] = CgPos.Contratos.Pantallas.ContratoPantallaCliente.RutaImagenes,
-                ["imagenes"] = imagenes.Count,
-                ["extensiones"] = Pantallas.RutasPantallaCliente.ExtensionesImagen,
+                ["archivos"] = medios.Count,
+                ["extensiones"] = Pantallas.RutasPantallaCliente.ExtensionesPublicidad.ToArray(),
             };
 
-            // Los nombres ayudan a ver si falta una o si hay algo que la pantalla ignora por su extensión.
-            if (imagenes.Count > 0)
-                datos["archivos"] = imagenes;
+            // Los nombres ayudan a ver si falta uno o si hay algo que la pantalla ignora por su extensión.
+            if (medios.Count > 0)
+                datos["nombres"] = medios;
 
             if (!Directory.Exists(carpeta))
-                return Task.FromResult(Aviso($"La carpeta de publicidad no existe: {carpeta}. Créela y copie ahí las imágenes.", datos));
+                return Task.FromResult(Aviso($"La carpeta de publicidad no existe: {carpeta}. Créela y copie ahí las imágenes o los videos.", datos));
 
-            // Sin imágenes la pantalla del cliente funciona igual: muestra la venta y no rota nada.
-            return Task.FromResult(imagenes.Count == 0
-                ? Aviso($"No hay imágenes de publicidad en {carpeta}: copie ahí los archivos ({string.Join(", ", Pantallas.RutasPantallaCliente.ExtensionesImagen)}).", datos)
-                : Bien($"{imagenes.Count} imagen(es) de publicidad en {carpeta}, servidas en {CgPos.Contratos.Pantallas.ContratoPantallaCliente.RutaImagenes}.", datos));
+            // Sin publicidad la pantalla del cliente funciona igual: muestra la venta y no rota nada.
+            return Task.FromResult(medios.Count == 0
+                ? Aviso($"No hay publicidad en {carpeta}: copie ahí los archivos ({string.Join(", ", Pantallas.RutasPantallaCliente.ExtensionesPublicidad)}).", datos)
+                : Bien($"{medios.Count} archivo(s) de publicidad en {carpeta}, servidas en {CgPos.Contratos.Pantallas.ContratoPantallaCliente.RutaImagenes}.", datos));
         }
     }
 

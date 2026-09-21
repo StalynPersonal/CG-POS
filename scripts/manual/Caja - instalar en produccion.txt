@@ -132,9 +132,17 @@
  Deje el atajo en el escritorio o en el arranque de Windows, para que el cajero
  solo tenga que encender el equipo.
 
- PUBLICIDAD DE LA PANTALLA DEL CLIENTE: ponga las imágenes en
+ PUBLICIDAD DE LA PANTALLA DEL CLIENTE: ponga las imágenes y los videos en
  C:\CGPOS\Publicidad. Se muestran en orden alfabético, así que conviene
- nombrarlas 01-..., 02-... Se pueden cambiar con la caja encendida.
+ nombrarlos 01-..., 02-... Se pueden cambiar con la caja encendida: entran
+ solos cuando el carrusel termina la vuelta.
+
+ Formatos: imágenes .png, .jpg, .jpeg, .webp y .svg; videos .mp4 y .webm. Un
+ .avi o un .mov no se ven y se ignoran: conviértalos antes de copiarlos.
+
+ Cada imagen dura los segundos del parámetro Pantallas.SegundosPorImagen (se
+ configura en el Central). Los videos duran lo que duren: se reproducen
+ completos, sin sonido, y al terminar pasa el siguiente.
 
 
 

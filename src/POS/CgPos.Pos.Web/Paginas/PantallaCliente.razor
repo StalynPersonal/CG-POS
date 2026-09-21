@@ -130,6 +130,9 @@
     private DatosPublicidad? _publicidad;
     private bool _conectado;
     private int _indiceImagen;
+
+    /// <summary>Segundos que lleva en pantalla la imagen actual; con un video no se cuenta.</summary>
+    private int _segundosEnMedio;
     private DateTime _ahora = DateTime.Now;
 
     private static decimal AhorroDe(DatosLineaVenta linea) => linea.DescuentoPromocion + linea.DescuentoManual + linea.DescuentoFactura;
@@ -138,15 +141,47 @@
         _venta?.Lineas.Where(linea => !linea.EsReverso && !linea.Anulada).ToList() ?? [];
 
     private RenderFragment Carrusel => @<div class="cg-carrusel">
-        @if (_publicidad is { Imagenes.Count: > 0 } publicidad)
+        @if (MedioActual is { } medio)
         {
-            <img class="cg-carrusel__imagen" src="@publicidad.Imagenes[_indiceImagen % publicidad.Imagenes.Count]" alt="Publicidad" />
+            @if (medio.EsVideo)
+            {
+                @* Sin sonido, porque el monitor del cliente no suele tener bocinas y el navegador no deja reproducir
+                   solo con audio. La clave hace que Blazor cree otro <video> al cambiar de archivo, en vez de reusar
+                   el mismo y quedarse con el anterior cargado. Si el video falla, se pasa al siguiente. *@
+                <video @key="medio.Ruta" class="cg-carrusel__imagen" src="@medio.Ruta" autoplay muted playsinline
+                       @onended="Siguiente" @onerror="Siguiente"></video>
+            }
+            else
+            {
+                <img class="cg-carrusel__imagen" src="@medio.Ruta" alt="Publicidad" />
+            }
         }
         else
         {
             <div class="cg-carrusel__vacio">@(_publicidad?.EmpresaNombre ?? "CG-POS")</div>
         }
     </div>;
+
+    /// <summary>Lo que se está mostrando; nulo si el equipo no tiene publicidad.</summary>
+    private MedioPublicidad? MedioActual =>
+        _publicidad is { Medios.Count: > 0 } publicidad ? publicidad.Medios[_indiceImagen % publicidad.Medios.Count] : null;
+
+    /// <summary>
+    /// Pasa a la pieza siguiente. Lo llaman el reloj, cuando una imagen cumplió sus segundos, y el propio video al
+    /// terminar: por eso el conteo se reinicia aquí y no donde se cuenta.
+    /// </summary>
+    private async Task Siguiente()
+    {
+        _indiceImagen++;
+        _segundosEnMedio = 0;
+
+        // Al volver a la primera pieza se miran los archivos del equipo: así entran los que alguien copió en la carpeta,
+        // que no pasan por el Central y de los que nadie avisa.
+        if (_publicidad is { Medios.Count: > 0 } publicidad && _indiceImagen % publicidad.Medios.Count == 0)
+            await RecargarPublicidadAsync();
+        else
+            StateHasChanged();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,35 +236,34 @@
     /// </summary>
     private async Task RecargarPublicidadAsync()
     {
-        var actual = _publicidad is { Imagenes.Count: > 0 } antes ? antes.Imagenes[_indiceImagen % antes.Imagenes.Count] : null;
+        var actual = MedioActual?.Ruta;
         var publicidad = await Cliente.ObtenerPublicidadAsync();
         if (publicidad is null)
             return;
 
         _publicidad = publicidad;
-        _indiceImagen = actual is null ? 0 : Math.Max(publicidad.Imagenes.ToList().IndexOf(actual), 0);
+        var mismo = actual is null ? -1 : publicidad.Medios.ToList().FindIndex(m => m.Ruta == actual);
+        _indiceImagen = Math.Max(mismo, 0);
+        _segundosEnMedio = 0;
         StateHasChanged();
     }
 
     private async Task RotarAsync(CancellationToken cancelacion)
     {
         using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        var segundos = 0;
         try
         {
             while (await temporizador.WaitForNextTickAsync(cancelacion))
             {
                 _ahora = DateTime.Now;
-                // Sin segundos configurados la publicidad no rota.
-                segundos++;
-                if (_publicidad?.SegundosPorImagen is > 0 and var cadaCuanto && segundos % cadaCuanto == 0)
-                {
-                    _indiceImagen++;
 
-                    // Al volver a la primera imagen se miran las del equipo: así se ven las que alguien copió en la
-                    // carpeta, que no pasan por el Central y de las que nadie avisa.
-                    if (_publicidad is { Imagenes.Count: > 0 } publicidad && _indiceImagen % publicidad.Imagenes.Count == 0)
-                        await InvokeAsync(RecargarPublicidadAsync);
+                // El video manda su duración: mientras se reproduce, el reloj no lo apura. Las imágenes sí duran los
+                // segundos configurados, y sin ese parámetro la publicidad no rota.
+                if (MedioActual is { EsVideo: false } && _publicidad?.SegundosPorImagen is > 0 and var cadaCuanto)
+                {
+                    _segundosEnMedio++;
+                    if (_segundosEnMedio >= cadaCuanto)
+                        await InvokeAsync(Siguiente);
                 }
 
                 await InvokeAsync(StateHasChanged);

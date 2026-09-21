@@ -71,6 +71,11 @@ public static class RutasPantallaCliente
     /// <summary>Lo que la pantalla del cliente sabe mostrar; lo demás que haya en la carpeta se ignora.</summary>
     internal static readonly string[] ExtensionesImagen = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
 
+    /// <summary>Videos que un navegador reproduce sin instalar nada. Un .avi o un .mov no se ven, y por eso no se listan.</summary>
+    internal static readonly string[] ExtensionesVideo = [".mp4", ".webm"];
+
+    internal static IEnumerable<string> ExtensionesPublicidad => ExtensionesImagen.Concat(ExtensionesVideo);
+
     /// <summary>Dónde se dejan las imágenes si no se configura otra carpeta.</summary>
     internal const string CarpetaPublicidadPredeterminada = @"C:\CGPOS\Publicidad";
 
@@ -81,15 +86,18 @@ public static class RutasPantallaCliente
     internal static string CarpetaPublicidad(IConfiguration configuracion, string raizContenido) =>
         Path.GetFullPath(configuracion[ClaveCarpetaPublicidad] is { Length: > 0 } ruta ? ruta : CarpetaPublicidadPredeterminada, raizContenido);
 
-    /// <summary>Las imágenes que hay ahora mismo en la carpeta, en el orden en que se muestran.</summary>
-    internal static IReadOnlyList<string> ImagenesDe(string carpeta) =>
+    /// <summary>Lo que hay ahora mismo en la carpeta, en el orden en que se muestra: por nombre de archivo.</summary>
+    internal static IReadOnlyList<string> MediosDe(string carpeta) =>
         Directory.Exists(carpeta)
             ? [.. Directory.EnumerateFiles(carpeta)
-                .Where(ruta => ExtensionesImagen.Contains(Path.GetExtension(ruta), StringComparer.OrdinalIgnoreCase))
+                .Where(ruta => ExtensionesPublicidad.Contains(Path.GetExtension(ruta), StringComparer.OrdinalIgnoreCase))
                 .Select(Path.GetFileName)
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .Select(nombre => nombre!)]
             : [];
+
+    internal static bool EsVideo(string nombre) =>
+        ExtensionesVideo.Contains(Path.GetExtension(nombre), StringComparer.OrdinalIgnoreCase);
 
     public static WebApplication MapearPantallaCliente(this WebApplication aplicacion)
     {
@@ -121,8 +129,8 @@ public static class RutasPantallaCliente
         aplicacion.MapGet("/api/pantallas/publicidad", async (IEstadoCaja estadoCaja, IParametros parametros, IContextoCaja contextoCaja,
             CancellationToken cancelacion) =>
         {
-            var imagenes = ImagenesDe(carpeta)
-                .Select(nombre => $"{ContratoPantallaCliente.RutaImagenes}/{Uri.EscapeDataString(nombre)}")
+            var medios = MediosDe(carpeta)
+                .Select(nombre => new MedioPublicidad($"{ContratoPantallaCliente.RutaImagenes}/{Uri.EscapeDataString(nombre)}", EsVideo(nombre)))
                 .ToList();
 
             // Los textos y el tiempo de la publicidad los configura el negocio; si no están, la pantalla no los muestra.
@@ -131,7 +139,7 @@ public static class RutasPantallaCliente
             var segundos = (int?)await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.SegundosPorImagenPantalla, cajaId, cancelacion);
 
             return Results.Ok(new DatosPublicidad(
-                imagenes,
+                medios,
                 segundos is > 0 ? segundos : null,
                 await parametros.ObtenerAsync(ClavesParametros.MensajeBienvenidaPantalla, cajaId, cancelacion),
                 estado.EmpresaNombre,
