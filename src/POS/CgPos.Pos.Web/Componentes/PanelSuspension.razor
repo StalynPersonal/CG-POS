@@ -20,7 +20,7 @@
             <div class="cg-turno__fondo">
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary">Clave de @NombreUsuario para reanudar</MudText>
                 <MudTextField T="string" Value="_clave" ValueChanged="valor => _clave = valor" InputType="InputType.Text" Variant="Variant.Outlined"
-                              Immediate="true" AutoFocus="true" OnKeyDown="AlTeclearAsync" Class="cg-campo-clave cg-campo-activo" />
+                              Immediate="true" AutoFocus="true" OnKeyDown="AlTeclearAsync" Style="-webkit-text-security: disc" Class="cg-campo-clave cg-campo-activo" />
                 <div class="cg-turno__acciones">
                     <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="_procesando" Class="cg-turno__boton"
                                StartIcon="@Icons.Material.Filled.SwitchAccount">Cambiar de usuario</MudButton>

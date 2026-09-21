@@ -86,7 +86,7 @@
                     </div>
                     <div @onclick="() => _campo = CampoActivo.Clave">
                         <MudTextField T="string" @bind-Value="_clave" Label="Clave" InputType="InputType.Text" Variant="Variant.Outlined"
-                                      Immediate="true" Class="@($"cg-campo-clave {ClaseCampo(CampoActivo.Clave)}")" OnKeyDown="AlTeclearClaveAsync" Disabled="@Bloqueada" />
+                                      Immediate="true" Style="-webkit-text-security: disc" Class="@($"cg-campo-clave {ClaseCampo(CampoActivo.Clave)}")" OnKeyDown="AlTeclearClaveAsync" Disabled="@Bloqueada" />
                     </div>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" FullWidth="true"
                                Disabled="@(!PuedeIngresar)" Style="min-height: var(--cg-toque-minimo)" OnClick="IngresarAsync">

@@ -22,7 +22,7 @@
                 </div>
                 <div @onclick="() => _campo = CampoActivo.Clave" @onfocusin="() => _campo = CampoActivo.Clave">
                     <MudTextField T="string" @bind-Value="_clave" Label="Clave" InputType="InputType.Text" Variant="Variant.Outlined"
-                                  Immediate="true" Class="@($"cg-campo-clave {ClaseCampo(CampoActivo.Clave)}")" OnKeyDown="AlTeclearClaveAsync" />
+                                  Immediate="true" Style="-webkit-text-security: disc" Class="@($"cg-campo-clave {ClaseCampo(CampoActivo.Clave)}")" OnKeyDown="AlTeclearClaveAsync" />
                 </div>
             </div>
             <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"

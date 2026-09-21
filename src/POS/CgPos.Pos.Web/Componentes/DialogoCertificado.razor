@@ -13,7 +13,7 @@
                 <MudAlert Severity="Severity.Error" Dense="true">La caja no tiene certificado digital instalado. Llame a soporte.</MudAlert>
             }
             <MudTextField T="string" @bind-Value="_pin" Label="PIN del certificado" Variant="Variant.Outlined" Immediate="true" InputType="InputType.Text"
-                          AutoFocus="true" OnKeyDown="AlTeclear" Disabled="_procesando" Class="cg-campo-clave cg-campo-activo cg-dialogo-teclado__campo" />
+                          AutoFocus="true" OnKeyDown="AlTeclear" Disabled="_procesando" Style="-webkit-text-security: disc" Class="cg-campo-clave cg-campo-activo cg-dialogo-teclado__campo" />
             @if (_mensaje is not null)
             {
                 <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
