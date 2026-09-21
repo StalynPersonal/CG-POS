@@ -46,9 +46,12 @@
                 @if (_venta.TipoComprobante == TipoComprobante.Gubernamental)
                 {
                     <div class="cg-cliente__exencion">
-                        <MudTextField T="string" @bind-Value="_certificacion" Label="Certificación de exención de ITBIS (opcional)" Variant="Variant.Outlined"
-                                      MaxLength="50" Immediate="true" Disabled="_procesando"
-                                      HelperText="Número del documento que presentó la entidad. Con él, la factura se emite exenta." />
+                        @* Se escribe también con el teclado en pantalla: al tocarlo queda como campo activo. *@
+                        <div @onclick="() => _campo = Campo.Certificacion" @onfocusin="() => _campo = Campo.Certificacion">
+                            <MudTextField T="string" @bind-Value="_certificacion" Label="Certificación de exención de ITBIS (opcional)" Variant="Variant.Outlined"
+                                          MaxLength="50" Immediate="true" Disabled="_procesando" Class="@ClaseCampo(Campo.Certificacion)"
+                                          HelperText="Número del documento que presentó la entidad. Con él, la factura se emite exenta." />
+                        </div>
                         <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_procesando" OnClick="GuardarCertificacionAsync"
                                    Style="min-height: var(--cg-toque-minimo)">
                             @(_venta.ExentaDeImpuesto ? "Actualizar" : "Aplicar exención")
@@ -151,6 +154,7 @@
 @code {
     private enum Campo
     {
+        Certificacion,
         Documento,
         Nombre,
         Cedula,
@@ -171,7 +175,7 @@
     private bool _inscribir;
     private bool _procesando;
     private Campo _campo = Campo.Documento;
-    private string? _certificacion;
+    private string? _certificacion { get => _valores.GetValueOrDefault(Campo.Certificacion); set => _valores[Campo.Certificacion] = value; }
 
     private string? _documento { get => _valores.GetValueOrDefault(Campo.Documento); set => _valores[Campo.Documento] = value; }
     private string? _nombre { get => _valores.GetValueOrDefault(Campo.Nombre); set => _valores[Campo.Nombre] = value; }
@@ -195,6 +199,7 @@
     {
         Campo.Documento or Campo.Cedula => 13,
         Campo.Telefono => 20,
+        Campo.Certificacion => 50,
         _ => 150,
     };
 
@@ -212,7 +217,9 @@
 
     private void AlCambiarTeclado(string valor) => _valores[_campo] = valor;
 
-    private Task ConfirmarAsync() => CampoDeFidelidad ? AsignarFidelidadAsync() : AsignarAsync();
+    private Task ConfirmarAsync() => _campo == Campo.Certificacion
+        ? GuardarCertificacionAsync()
+        : CampoDeFidelidad ? AsignarFidelidadAsync() : AsignarAsync();
 
     private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? AsignarAsync() : Task.CompletedTask;
 

@@ -41,8 +41,12 @@
                         </button>
                     </div>
 
-                    <MudTextField T="string" @bind-Value="_valor" Label="@(_tipo == TipoDescuento.Porcentaje ? "Porcentaje (%)" : $"Monto ({MonedaPantalla.Simbolo})")"
-                                  Variant="Variant.Outlined" Immediate="true" AutoFocus="true" Class="cg-campo-activo cg-dialogo-teclado__campo" />
+                    @* El teclado escribe en el valor o en el motivo, según cuál se tocó. *@
+                    <div @onclick="() => _escribeMotivo = false" @onfocusin="() => _escribeMotivo = false">
+                        <MudTextField T="string" @bind-Value="_valor" Label="@(_tipo == TipoDescuento.Porcentaje ? "Porcentaje (%)" : $"Monto ({MonedaPantalla.Simbolo})")"
+                                      Variant="Variant.Outlined" Immediate="true" AutoFocus="true"
+                                      Class="@($"cg-dialogo-teclado__campo {(_escribeMotivo ? null : "cg-campo-activo")}")" />
+                    </div>
                     @if (MontoEstimado is { } monto)
                     {
                         <MudText Typo="Typo.subtitle1" Class="cg-descuento__estimado">Descuento estimado: @monto.ToString("C")</MudText>
@@ -61,7 +65,10 @@
                     }
                     else
                     {
-                        <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" Immediate="true" />
+                        <div @onclick="() => _escribeMotivo = true" @onfocusin="() => _escribeMotivo = true">
+                            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" Immediate="true"
+                                          Class="@(_escribeMotivo ? "cg-campo-activo" : null)" />
+                        </div>
                     }
 
                     @if (EsFactura)
@@ -88,7 +95,9 @@
                     }
                 </div>
 
-                <TecladoTactil @bind-Valor="_valor" AlConfirmar="_ => AplicarAsync()" PermitirCambioModo="false" LongitudMaxima="10" TextoConfirmar="Aplicar" />
+                <TecladoTactil Valor="@(_escribeMotivo ? _motivo ?? string.Empty : _valor)" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => AplicarAsync()"
+                               Modo="@(_escribeMotivo ? ModoTeclado.Alfanumerico : ModoTeclado.Numerico)" PermitirCambioModo="_escribeMotivo"
+                               LongitudMaxima="@(_escribeMotivo ? 200 : 10)" TextoConfirmar="Aplicar" />
             </div>
 
             @if (_procesando)
@@ -121,6 +130,17 @@
     private TipoDescuento _tipo = TipoDescuento.Porcentaje;
     private string _valor = string.Empty;
     private string? _motivo;
+
+    /// <summary>El teclado en pantalla escribe en el motivo libre (cuando no hay motivos configurados) y no en el valor.</summary>
+    private bool _escribeMotivo;
+
+    private void AlCambiarTeclado(string valor)
+    {
+        if (_escribeMotivo)
+            _motivo = valor;
+        else
+            _valor = valor;
+    }
     private string? _mensaje;
     private bool _procesando;
 

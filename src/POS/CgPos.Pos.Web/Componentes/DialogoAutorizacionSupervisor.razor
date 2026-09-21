@@ -8,23 +8,27 @@
             Esta operación requiere autorización de un supervisor: <strong>@DescripcionOperacion</strong>
         </MudAlert>
 
-        <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" MaxLength="500" Immediate="true" Class="mb-2" />
+        @* El motivo también se escribe con el teclado en pantalla: al tocarlo queda como campo activo. *@
+        <div @onclick="() => _campo = CampoActivo.Motivo" @onfocusin="() => _campo = CampoActivo.Motivo">
+            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" MaxLength="500" Immediate="true"
+                          Class="@($"mb-2 {ClaseCampo(CampoActivo.Motivo)}")" />
+        </div>
 
         <div class="cg-autorizacion__pin">
             <div class="cg-autorizacion__campos">
-                <div @onclick="() => _campo = CampoActivo.Codigo">
+                <div @onclick="() => _campo = CampoActivo.Codigo" @onfocusin="() => _campo = CampoActivo.Codigo">
                     <MudTextField T="string" @bind-Value="_codigo" Label="Usuario del supervisor" Variant="Variant.Outlined"
                                   Immediate="true" Class="@ClaseCampo(CampoActivo.Codigo)" />
                 </div>
-                <div @onclick="() => _campo = CampoActivo.Clave">
+                <div @onclick="() => _campo = CampoActivo.Clave" @onfocusin="() => _campo = CampoActivo.Clave">
                     <MudTextField T="string" @bind-Value="_clave" Label="Clave" InputType="InputType.Password" Variant="Variant.Outlined"
                                   Immediate="true" Class="@ClaseCampo(CampoActivo.Clave)" OnKeyDown="AlTeclearClaveAsync" />
                 </div>
             </div>
             <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
                            Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true"
-                           LongitudMaxima="@(_campo == CampoActivo.Clave ? 64 : 20)"
-                           TextoConfirmar="@(_campo == CampoActivo.Codigo ? "Siguiente" : "Autorizar")" />
+                           LongitudMaxima="@(_campo switch { CampoActivo.Motivo => 500, CampoActivo.Clave => 64, _ => 20 })"
+                           TextoConfirmar="@(_campo == CampoActivo.Clave ? "Autorizar" : "Siguiente")" />
         </div>
 
         @if (_procesando)
@@ -46,6 +50,7 @@
 @code {
     private enum CampoActivo
     {
+        Motivo,
         Codigo,
         Clave,
     }
@@ -64,30 +69,48 @@
     private string? _codigo;
     private string? _clave;
     private string? _mensaje;
-    private CampoActivo _campo = CampoActivo.Codigo;
+    private CampoActivo _campo = CampoActivo.Motivo;
     private bool _procesando;
 
-    private string ValorCampoActivo => (_campo == CampoActivo.Codigo ? _codigo : _clave) ?? string.Empty;
+    private string ValorCampoActivo => _campo switch
+    {
+        CampoActivo.Motivo => _motivo,
+        CampoActivo.Codigo => _codigo,
+        _ => _clave,
+    } ?? string.Empty;
 
     private string? ClaseCampo(CampoActivo campo) => _campo == campo ? "cg-campo-activo" : null;
 
     private void AlCambiarTeclado(string valor)
     {
-        if (_campo == CampoActivo.Codigo)
-            _codigo = valor;
-        else
-            _clave = valor;
+        switch (_campo)
+        {
+            case CampoActivo.Motivo:
+                _motivo = valor;
+                break;
+            case CampoActivo.Codigo:
+                _codigo = valor;
+                break;
+            default:
+                _clave = valor;
+                break;
+        }
     }
 
+    /// <summary>El Enter del teclado va de campo en campo (motivo, usuario, clave) y en la clave autoriza.</summary>
     private Task AlConfirmarTecladoAsync(string _)
     {
-        if (_campo == CampoActivo.Codigo)
+        switch (_campo)
         {
-            _campo = CampoActivo.Clave;
-            return Task.CompletedTask;
+            case CampoActivo.Motivo:
+                _campo = CampoActivo.Codigo;
+                return Task.CompletedTask;
+            case CampoActivo.Codigo:
+                _campo = CampoActivo.Clave;
+                return Task.CompletedTask;
+            default:
+                return AutorizarAsync();
         }
-
-        return AutorizarAsync();
     }
 
     private Task AlTeclearClaveAsync(KeyboardEventArgs evento) =>

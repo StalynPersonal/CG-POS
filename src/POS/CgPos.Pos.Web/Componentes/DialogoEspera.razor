@@ -1,7 +1,8 @@
 ﻿@* Facturas en espera del cajero en su turno (F7): poner la actual en espera o retomar una (RF-22, RF-197). *@
 @inject ClienteAgente Cliente
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que la lista, la referencia y el teclado quepan. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         @if (_cargando)
         {
@@ -10,7 +11,8 @@
         else
         {
             <GrillaTactil TElemento="DatosVentaEnEspera" Elementos="_enEspera" Seleccionado="_seleccionada" SeleccionadoChanged="venta => _seleccionada = venta"
-                          Altura="clamp(160px, calc(100vh - 380px), 420px)" TextoSinRegistros="No hay facturas en espera en su turno">
+                          Altura="@(TieneArticulos ? "clamp(120px, calc(100vh - 640px), 300px)" : "clamp(160px, calc(100vh - 380px), 420px)")"
+                          TextoSinRegistros="No hay facturas en espera en su turno">
                 <Encabezado>
                     <MudTh>Referencia</MudTh>
                     <MudTh>Cliente</MudTh>
@@ -27,12 +29,17 @@
                 </Fila>
             </GrillaTactil>
 
-            @* La venta en pantalla se guarda con un nombre del cajero: todavía no tiene número de factura. *@
+            @* La venta en pantalla se guarda con un nombre del cajero: todavía no tiene número de factura. Se escribe con el
+               teclado físico o con el de la pantalla, que es el que hay en la caja táctil. *@
             @if (TieneArticulos)
             {
-                <MudTextField @bind-Value="_referencia" Label="Referencia de la venta actual (nombre del cliente o unos dígitos)"
-                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" MaxLength="40" Immediate="true" AutoFocus="true"
-                              HelperText="Con ella la encuentra al volver. Se pide también al retomar otra, para guardar esta." />
+                <div class="cg-dialogo-teclado mt-3">
+                    <MudTextField @bind-Value="_referencia" Label="Referencia de la venta actual (nombre del cliente o unos dígitos)"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="40" Immediate="true" AutoFocus="true" Class="cg-campo-activo"
+                                  HelperText="Con ella la encuentra al volver. Se pide también al retomar otra, para guardar esta." />
+                    <TecladoTactil Valor="@(_referencia ?? string.Empty)" ValorChanged="valor => _referencia = valor" AlConfirmar="_ => PonerEnEsperaAsync()"
+                                   Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" LongitudMaxima="40" TextoConfirmar="Poner en espera" />
+                </div>
             }
         }
 

@@ -110,8 +110,11 @@
                         @if (seleccionada.Tipo == TipoFormaPago.Tarjeta)
                         {
                             <div class="cg-cobro__bin">
-                                <MudTextField T="string" @bind-Value="_bin" Label="Primeros dígitos de la tarjeta (si el terminal no la lee)" Variant="Variant.Outlined"
-                                              Margin="Margin.Dense" Immediate="true" />
+                                @* Se escribe también con el teclado en pantalla: al tocarlo queda como campo activo. *@
+                                <div @onclick="() => _campo = Campo.Bin" @onfocusin="() => _campo = Campo.Bin">
+                                    <MudTextField T="string" @bind-Value="_bin" Label="Primeros dígitos de la tarjeta (si el terminal no la lee)" Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense" Immediate="true" Class="@ClaseCampo(Campo.Bin)" />
+                                </div>
                                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || string.IsNullOrWhiteSpace(_bin))"
                                            OnClick="AplicarDescuentoTarjetaAsync">Aplicar descuento</MudButton>
                             </div>
@@ -145,9 +148,11 @@
                             </div>
                         }
 
-                        <TecladoTactil Valor="@ValorCampo" ValorChanged="AlCambiarTeclado" AlConfirmar="_ => AgregarPagoAsync()"
+                        <TecladoTactil Valor="@ValorCampo" ValorChanged="AlCambiarTeclado"
+                                       AlConfirmar="@(_ => _campo == Campo.Bin ? AplicarDescuentoTarjetaAsync() : AgregarPagoAsync())"
                                        Modo="@(_campo == Campo.Referencia ? ModoTeclado.Alfanumerico : ModoTeclado.Numerico)" PermitirDecimal="@(_campo == Campo.Monto)"
-                                       PermitirCambioModo="@(_campo == Campo.Referencia)" TextoConfirmar="@TextoAgregar" />
+                                       PermitirCambioModo="@(_campo == Campo.Referencia)"
+                                       TextoConfirmar="@(_campo == Campo.Bin ? "Aplicar descuento" : TextoAgregar)" />
                     }
                     else
                     {
@@ -186,6 +191,7 @@
         Monto,
         Referencia,
         Digitos,
+        Bin,
     }
 
     private sealed record PagoAgregado(SolicitudPago Solicitud, string Descripcion, string? Detalle, decimal Aplicado, bool EsTerminal);
@@ -221,6 +227,7 @@
     {
         Campo.Monto => _monto,
         Campo.Referencia => _referencia,
+        Campo.Bin => _bin ?? string.Empty,
         _ => _digitos,
     };
 
@@ -320,6 +327,9 @@
                 break;
             case Campo.Referencia:
                 _referencia = valor;
+                break;
+            case Campo.Bin:
+                _bin = valor.Length > 10 ? valor[..10] : valor;
                 break;
             default:
                 _digitos = valor.Length > 4 ? valor[..4] : valor;
