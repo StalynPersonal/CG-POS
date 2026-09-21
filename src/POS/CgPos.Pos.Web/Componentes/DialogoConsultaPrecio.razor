@@ -1,7 +1,8 @@
-@* Consulta de precio sin agregar a la venta (F11): escanear o digitar el código. *@
+﻿@* Consulta de precio sin agregar a la venta (F11): escanear o digitar el código. *@
 @inject ClienteAgente Cliente
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que los campos y el teclado se vean juntos. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         <div class="cg-dialogo-teclado">
             <MudTextField T="string" @bind-Value="_codigo" Label="Código del artículo" Variant="Variant.Outlined" Immediate="true"

@@ -1,7 +1,8 @@
-@* Autorización de supervisor para una operación que el usuario no tiene permitida. Se abre con ServicioAutorizacionPantalla. *@
+﻿@* Autorización de supervisor para una operación que el usuario no tiene permitida. Se abre con ServicioAutorizacionPantalla. *@
 @inject ClienteAgente Cliente
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que los campos y el teclado se vean juntos. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
             Esta operación requiere autorización de un supervisor: <strong>@DescripcionOperacion</strong>

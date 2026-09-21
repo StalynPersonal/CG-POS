@@ -1,7 +1,8 @@
-@* PIN del certificado digital de la caja (RF-217). El PIN solo viaja al Agente local y no se guarda. *@
+﻿@* PIN del certificado digital de la caja (RF-217). El PIN solo viaja al Agente local y no se guarda. *@
 @inject ClienteAgente Cliente
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que los campos y el teclado se vean juntos. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         <div class="cg-dialogo-teclado">
             <MudText Typo="Typo.body1">
