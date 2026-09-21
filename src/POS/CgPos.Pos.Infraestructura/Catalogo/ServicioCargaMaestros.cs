@@ -213,9 +213,14 @@ internal sealed class ServicioCargaMaestros(
             throw new InvalidOperationException($"El artículo '{codigo}' tiene una categoría que no es de su departamento.");
 
         var vigenteDesde = dato.PreciosVigentesDesde ?? ahora;
-        if (await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Detalle, dato.PrecioDetalle, vigenteDesde, ahora, origen, null, null, cancelacion))
+
+        // Un artículo inactivo puede venir sin precio (lo descontinuado de un sistema viejo queda en cero). La bitácora
+        // guarda precios de verdad, así que ese artículo se queda sin precio: no se vende, y el día que lo activen habrá
+        // que ponérselo.
+        if (dato.PrecioDetalle > 0
+            && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Detalle, dato.PrecioDetalle, vigenteDesde, ahora, origen, null, null, cancelacion))
             _precios++;
-        if (dato.PrecioMayor is { } mayor
+        if (dato.PrecioMayor is { } mayor && mayor > 0
             && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, id, ListaPrecio.Mayor, mayor, vigenteDesde, ahora, origen, null, null, cancelacion))
             _precios++;
 
