@@ -257,9 +257,9 @@ paso('Descargue el archivo del portal de la DGII y déjelo en una carpeta del se
 paso('Abra scripts/base-datos/cargar-clientes-dgii.sql, cambie la ruta del archivo arriba y ejecútelo.')
 paso('Al terminar informa cuántos clientes creó y cuántos actualizó. Las cajas los reciben en su próxima sincronización.')
 tabla(['Qué hace', 'Detalle'],
-      [['Si el cliente ya existe', 'Le actualiza la razón social y lo deja activo. El teléfono, el correo, el contacto, el tipo de comprobante, la lista de precios y las direcciones no se tocan: eso lo llenó usted.'],
-       ['Si no existe', 'Lo crea. Un RNC de 9 dígitos nace con crédito fiscal (E31) y una cédula de 11 con consumo (E32). El código del cliente es su propio documento.'],
-       ['Estado', 'Solo se cargan los contribuyentes ACTIVO. Un cliente que usted había desactivado vuelve a quedar activo si la DGII lo reporta activo.'],
+      [['Si el cliente ya existe', 'Le actualiza la razón social y el estado: activo o, si la DGII lo tiene suspendido, inactivo. El teléfono, el correo, el contacto, el tipo de comprobante, la lista de precios y las direcciones no se tocan: eso lo llenó usted.'],
+       ['Si no existe', 'Lo crea (inactivo si está suspendido). Un RNC de 9 dígitos nace con crédito fiscal (E31) y una cédula de 11 con consumo (E32). El código del cliente es su propio documento.'],
+       ['Estado', 'Se cargan los contribuyentes ACTIVO, que quedan activos, y los SUSPENDIDO, que quedan inactivos. Los demás estados se ignoran. Un cliente que usted había desactivado vuelve a quedar activo si la DGII lo reporta activo.'],
        ['Lo que no hace', 'No borra clientes: lo que ya no venga en el archivo se queda como está.']],
       anchos=[4.0, 12.0])
 nota('La ruta la abre SQL Server, no su equipo: el archivo debe estar en el servidor o en una carpeta compartida a la que '

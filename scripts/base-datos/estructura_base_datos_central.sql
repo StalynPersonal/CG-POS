@@ -2232,7 +2232,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$8ndCgYo1prge/akZZY1N/A==$5wnz3eLn/R2xtZ7mwk/LsO6jkgr9x5GyerslYASP0/s=', 1, NULL, 0, NULL, NULL,
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$nJDUZS2OXrmlEOMMJz/DRw==$XZhbG+dQqpww75SbrY2vkEUBjBjMipoM6HbZekU0OIo=', 1, NULL, 0, NULL, NULL,
         SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO

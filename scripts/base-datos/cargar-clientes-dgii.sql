@@ -3,7 +3,7 @@
 
     Toma el archivo que publica la DGII y lo lleva a la tabla Clientes: si el RNC o la cédula ya existe, le actualiza
     la razón social y el estado; si no existe, lo crea. Los clientes bajan solos a las cajas en la siguiente
-    sincronización, como cualquier otro maestro.
+    sincronización, como cualquier otro maestro. ACTIVO en la DGII es cliente activo; SUSPENDIDO es cliente inactivo.
 
         1. Descargue el archivo de la DGII y déjelo en una carpeta del SERVIDOR de base de datos.
         2. Cambie la ruta de @archivo, aquí abajo.
@@ -12,7 +12,8 @@
     IMPORTANTE:
       · La ruta la lee SQL Server, no su equipo: el archivo debe estar en el servidor o en una carpeta compartida
         a la que tenga acceso la cuenta del servicio de SQL Server.
-      · Solo se cargan los contribuyentes en estado ACTIVO.
+      · Se cargan los contribuyentes en estado ACTIVO y SUSPENDIDO. El ACTIVO queda activo; el SUSPENDIDO queda
+        inactivo: si ya existía se desactiva, y si no existía se crea inactivo. Los demás estados se ignoran.
       · De un cliente que ya existe se actualizan únicamente la razón social y el estado. El teléfono, el correo,
         el contacto, el tipo de comprobante, la lista de precios y las direcciones NO se tocan: eso lo llenó usted.
       · Un cliente que usted desactivó vuelve a quedar activo si la DGII lo reporta activo.
@@ -67,48 +68,53 @@ BEGIN CATCH
     RETURN;
 END CATCH
 
-/* Solo los activos, con documento de 9 dígitos (RNC) u 11 (cédula) y con razón social. */
+/* Activos y suspendidos (estos quedan inactivos), con documento de 9 dígitos (RNC) u 11 (cédula) y con razón social. */
 IF OBJECT_ID(N'tempdb..#Limpio') IS NOT NULL DROP TABLE #Limpio;
 SELECT
     Documento   = LTRIM(RTRIM(REPLACE(REPLACE(Documento, '-', ''), CHAR(13), ''))),
-    RazonSocial = LTRIM(RTRIM(RazonSocial))
+    RazonSocial = LTRIM(RTRIM(RazonSocial)),
+    Activo      = CASE WHEN LTRIM(RTRIM(UPPER(REPLACE(Estado, CHAR(13), '')))) = N'ACTIVO' THEN 1 ELSE 0 END
 INTO #Limpio
 FROM #Padron
-WHERE LTRIM(RTRIM(UPPER(REPLACE(Estado, CHAR(13), '')))) = N'ACTIVO'
+WHERE LTRIM(RTRIM(UPPER(REPLACE(Estado, CHAR(13), '')))) IN (N'ACTIVO', N'SUSPENDIDO')
   AND LTRIM(RTRIM(RazonSocial)) <> N'';
 
 DELETE FROM #Limpio
 WHERE LEN(Documento) NOT IN (9, 11)
    OR Documento LIKE '%[^0-9]%';
 
-/* Si el archivo trae el mismo documento dos veces, se queda con uno. */
+/* Si el archivo trae el mismo documento dos veces, se queda con uno; si alguna de las dos está activa, queda activo. */
 IF OBJECT_ID(N'tempdb..#Unicos') IS NOT NULL DROP TABLE #Unicos;
-SELECT Documento, RazonSocial = MIN(RazonSocial)
+SELECT Documento, RazonSocial = MIN(RazonSocial), Activo = CAST(MAX(Activo) AS bit)
 INTO #Unicos
 FROM #Limpio
 GROUP BY Documento;
 
 CREATE UNIQUE CLUSTERED INDEX IX_Unicos ON #Unicos (Documento);
 
-DECLARE @leidos int = (SELECT COUNT(*) FROM #Unicos);
-PRINT 'Contribuyentes activos en el archivo: ' + CAST(@leidos AS varchar(20));
+DECLARE @activos int = (SELECT COUNT(*) FROM #Unicos WHERE Activo = 1);
+DECLARE @suspendidos int = (SELECT COUNT(*) FROM #Unicos WHERE Activo = 0);
+PRINT 'Contribuyentes activos en el archivo:     ' + CAST(@activos AS varchar(20));
+PRINT 'Contribuyentes suspendidos en el archivo: ' + CAST(@suspendidos AS varchar(20));
 
 /* ------------------------------------------------------------------------
-   Existe: se actualiza la razón social y el estado.
+   Existe: se actualiza la razón social y el estado (activo o, si está
+   suspendido en la DGII, inactivo).
    ------------------------------------------------------------------------ */
 UPDATE c
 SET c.Nombre        = u.RazonSocial,
-    c.Activo        = 1,
+    c.Activo        = u.Activo,
     c.ModificadoEn  = SYSDATETIMEOFFSET(),
     c.ModificadoPor = N'Padrón DGII'
 FROM [Clientes] c
 JOIN #Unicos u ON u.Documento = c.Documento
-WHERE c.Nombre <> u.RazonSocial OR c.Activo = 0;
+WHERE c.Nombre <> u.RazonSocial OR c.Activo <> u.Activo;
 
 DECLARE @actualizados int = @@ROWCOUNT;
 
 /* ------------------------------------------------------------------------
    No existe: se crea. El tipo sale del documento (9 dígitos RNC, 11 cédula).
+   El suspendido se crea inactivo.
    ------------------------------------------------------------------------ */
 INSERT INTO [Clientes]
     ([Id], [Codigo], [TipoDocumento], [Documento], [Nombre], [TipoComprobantePredeterminado],
@@ -120,7 +126,7 @@ SELECT
     u.Documento,
     u.RazonSocial,
     CASE WHEN LEN(u.Documento) = 9 THEN 31 ELSE 32 END, /* E31 crédito fiscal, E32 consumo */
-    0, 0, 0, 1,
+    0, 0, 0, u.Activo,
     SYSDATETIMEOFFSET(),
     N'Padrón DGII'
 FROM #Unicos u
