@@ -38,8 +38,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
         foreach (var linea in venta.Lineas.Where(l => !l.Anulada))
             comprobante.AgregarLinea(linea.NumeroLinea, linea.CodigoInterno, linea.Descripcion, linea.UnidadMedidaCodigo, linea.Cantidad,
                 linea.PrecioUnitario, linea.DescuentoPromocion + linea.DescuentoManual + linea.DescuentoFactura,
-                linea.Importe - decimal.Round(linea.Importe / (1 + (linea.PorcentajeImpuesto / 100m)), 2, MidpointRounding.AwayFromZero),
-                linea.Importe, linea.Serial, linea.PromocionCodigo);
+                linea.Impuesto, linea.ImporteConImpuesto, linea.Serial, linea.PromocionCodigo);
 
         await NumerarAsync(comprobante, DocumentosNumerados.Factura, cancelacion);
         contexto.VentasCentral.Add(comprobante);

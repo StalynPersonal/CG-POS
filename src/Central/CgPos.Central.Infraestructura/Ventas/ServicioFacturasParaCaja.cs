@@ -63,8 +63,8 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
             documento.Lineas.Where(l => !l.Anulada).OrderBy(l => l.NumeroLinea)
                 .Select(l => new DatosLineaFacturaParaCaja(l.NumeroLinea, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo,
                     l.UnidadMedidaCodigo, l.DecimalesCantidad, l.PorcentajeImpuesto, l.Cantidad, l.PrecioUnitario,
-                    l.DescuentoPromocion + l.DescuentoManual + l.DescuentoFactura, decimal.Round(l.Importe - (l.Importe / (1m + l.PorcentajeImpuesto / 100m)), 2,
-                        MidpointRounding.AwayFromZero), l.Importe, l.Serial, devuelto.GetValueOrDefault(l.NumeroLinea)))
+                    l.DescuentoPromocion + l.DescuentoManual + l.DescuentoFactura, l.Impuesto, l.ImporteConImpuesto, l.Serial,
+                    devuelto.GetValueOrDefault(l.NumeroLinea)))
                 .ToList());
     }
 

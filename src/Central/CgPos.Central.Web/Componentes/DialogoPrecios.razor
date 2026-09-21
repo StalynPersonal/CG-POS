@@ -1,4 +1,4 @@
-@* Cambio de precios de un artículo con su vigencia: de inmediato o desde una fecha y hora. *@
+﻿@* Cambio de precios de un artículo con su vigencia: de inmediato o desde una fecha y hora. *@
 @using CgPos.Contratos.Catalogo
 @inject ClienteCentral Cliente
 
@@ -7,7 +7,7 @@
         <div class="cg-central__dialogo">
             <MudText Typo="Typo.body2">@Articulo.Descripcion</MudText>
             <MudNumericField T="decimal?" @bind-Value="_detalle" Label="Precio detalle" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2"
-                             HelperText="Con impuesto incluido." />
+                             HelperText="Sin impuesto: el ITBIS se suma al vender." />
             <div class="d-flex gap-3">
                 <MudNumericField T="decimal?" @bind-Value="_mayor" Label="Precio por mayor" Variant="Variant.Outlined" HideSpinButtons="true" Format="N2" />
                 <MudNumericField T="decimal?" @bind-Value="_cantidadMayor" Label="Desde la cantidad" Variant="Variant.Outlined" HideSpinButtons="true" />

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 
 namespace CgPos.Dominio.Pruebas.Catalogo;
 
@@ -95,23 +95,23 @@ public class ReglasPrecioPruebas
     }
 
     [Theory]
-    [InlineData(399.99, true)]    // bajo el precio mínimo con ITBIS (400)
+    [InlineData(399.99, true)]    // bajo el precio mínimo (400), todo sin ITBIS
     [InlineData(400.00, false)]
-    public void Precio_minimo_se_compara_con_impuesto(decimal precio, bool bajoMinimo)
+    public void Precio_minimo_se_compara_sin_impuesto(decimal precio, bool bajoMinimo)
     {
         var articulo = CrearArticulo(precioMinimo: 400m);
 
-        Assert.Equal(bajoMinimo, ReglasPrecio.EstaBajoMinimo(articulo, Itbis18, precio));
+        Assert.Equal(bajoMinimo, ReglasPrecio.EstaBajoMinimo(articulo, precio));
     }
 
     [Theory]
-    [InlineData(353.99, true)]    // base 299.99 < costo 300
-    [InlineData(354.00, false)]   // base 300.00
-    public void Costo_se_compara_con_la_base_sin_impuesto(decimal precio, bool bajoMinimo)
+    [InlineData(299.99, true)]    // bajo el costo (300), los dos sin ITBIS
+    [InlineData(300.00, false)]
+    public void Costo_se_compara_con_el_precio_sin_impuesto(decimal precio, bool bajoMinimo)
     {
         var articulo = CrearArticulo(costo: 300m);
 
-        Assert.Equal(bajoMinimo, ReglasPrecio.EstaBajoMinimo(articulo, Itbis18, precio));
+        Assert.Equal(bajoMinimo, ReglasPrecio.EstaBajoMinimo(articulo, precio));
     }
 
     [Fact]

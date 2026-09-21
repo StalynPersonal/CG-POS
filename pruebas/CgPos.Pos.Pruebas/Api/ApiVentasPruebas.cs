@@ -53,7 +53,7 @@ public class ApiVentasPruebas(AgenteEnPruebas agente)
 
         // Los maestros de desarrollo traen ofertas para el cincel: el importe es 2 × 850 menos la oferta vigente.
         Assert.Equal(1700m, linea.Importe + linea.DescuentoPromocion);
-        Assert.Equal(totalInicial + linea.Importe, venta.Totales.Total);
+        Assert.Equal(totalInicial + linea.ImporteConImpuesto, venta.Totales.Total);
 
         using (var inexistente = await cliente.PostAsJsonAsync($"/api/ventas/{venta.Id}/lineas", new SolicitudAgregarArticulo("NO-EXISTE"), OpcionesJson.Predeterminadas))
         {

@@ -13,7 +13,10 @@ namespace CgPos.Contratos.Sincronizacion;
 // Documentos que la caja envía al Central. No llevan Id: cada documento se identifica por su número (sucursal + caja + tipo + secuencia)
 // o por su llave natural, y cada referencia va por código. La caja que lo envía la conoce el Central por la credencial.
 
-/// <summary>Línea de la venta cobrada; el artículo va por su código interno.</summary>
+/// <summary>
+/// Línea de la venta cobrada; el artículo va por su código interno. El precio y el importe van sin ITBIS; el ITBIS de la
+/// línea va aparte.
+/// </summary>
 public sealed record DocumentoLineaVenta(
     int NumeroLinea,
     string CodigoInterno,
@@ -40,7 +43,12 @@ public sealed record DocumentoLineaVenta(
     string? DescuentoAutorizadoPorNombre,
     decimal DescuentoFactura,
     decimal ImporteBruto,
-    decimal CantidadEnEntrega);
+    decimal CantidadEnEntrega,
+    decimal Impuesto)
+{
+    /// <summary>Lo que pagó el cliente por la línea: su importe sin ITBIS más su ITBIS.</summary>
+    public decimal ImporteConImpuesto => Importe + Impuesto;
+}
 
 /// <param name="ClienteCodigo">Código del cliente registrado; nulo si se identificó solo con el documento.</param>
 public sealed record DocumentoClienteVenta(string? ClienteCodigo, TipoDocumentoIdentidad? TipoDocumento, string? Documento, string Nombre);

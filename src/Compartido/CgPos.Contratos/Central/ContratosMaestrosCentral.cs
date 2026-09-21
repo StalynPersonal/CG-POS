@@ -21,7 +21,7 @@ public static class CamposBusquedaArticulo
 /// <summary>Corrección del documento de un cliente mal digitado; el motivo queda en la auditoría.</summary>
 public sealed record SolicitudCorreccionDocumentoCliente(CgPos.Dominio.Fiscal.TipoDocumentoIdentidad TipoDocumento, string Documento, string Motivo);
 
-/// <summary>Precios de un artículo (RF-190): detalle, mayor y mínimo con impuesto incluido; el costo sin impuesto.</summary>
+/// <summary>Precios de un artículo (RF-190): detalle, mayor, mínimo y costo, todos sin impuesto.</summary>
 /// <param name="VigenteDesde">Desde cuándo rigen el detalle y el mayor; nulo = desde ahora.</param>
 public sealed record SolicitudPreciosArticulo(
     decimal PrecioDetalle,

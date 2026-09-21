@@ -290,8 +290,9 @@ tabla(['Código', 'Descripción', 'Departamento', 'Categoría', 'Marca', 'Unidad
 nota('La marca es opcional: un artículo genérico como el hielo o un servicio puede quedarse sin ella. La categoría sí la '
      'exige el Central al publicar, y siempre pertenece a un departamento.')
 
-p('Precios, impuesto y código de barras del mismo artículo. El precio de detalle y el de mayor se cargan con impuesto '
-  'incluido; el precio por mayor se aplica solo, desde la cantidad indicada.')
+p('Precios, impuesto y código de barras del mismo artículo. El precio de detalle y el de mayor se cargan SIN ITBIS, como '
+  'en Stellar: al vender, el ITBIS se calcula sobre cada línea y se suma aparte. El precio por mayor se aplica solo, desde '
+  'la cantidad indicada.')
 tabla(['Código', 'ITBIS', 'Precio detalle', 'Precio mayor', 'Desde', 'Código de barras (ejemplo)', 'Sirve para probar'],
       [['CER-PRE-650', '18 %', '230.00', '205.00', '12', '7401000000011', 'Venta normal y precio por mayor automático'],
        ['CER-PRE-CJ', '18 %', '2,460.00', '2,400.00', '5', '7401000000028', 'Venta por caja y segundo código del mismo empaque'],
@@ -599,7 +600,8 @@ titulo('2.20. Chequeador de precios', 2)
 p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla que se pone en el pasillo de la tienda. Tecnología '
   'deja cada pantalla con la dirección de su sucursal, así el cliente nunca elige sucursal y siempre ve el precio y las ofertas '
   'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '
-  'por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos segundos para el siguiente cliente.')
+  'por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos segundos para el siguiente cliente. Los precios '
+  'se muestran con el ITBIS ya sumado, que es lo que el cliente paga.')
 nota('El chequeador viene apagado: se enciende en Parámetros, con Central.Chequeador.Habilitado.')
 nota('Si la dirección trae un código de sucursal que no existe o está inactiva, la pantalla dice «Página no encontrada» y no '
      'consulta nada: mostrar el precio de otra sucursal sería engañar al cliente.')
@@ -690,10 +692,10 @@ tabla(['Zona', 'Para qué sirve'],
       [['Encabezado izquierdo', 'Tipo de comprobante que se va a emitir (E31, E32, E44 o E45). Al tocarlo se abre el cliente.'],
        ['Encabezado central', 'Cliente de la factura, número de factura que le tocará (se toma de verdad al cobrar: si otra venta '
         'se cobra antes, esta pasa al siguiente), cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
-       ['Encabezado derecho', 'Subtotal, ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL y, en facturas gubernamentales con retención, el total a pagar.'],
+       ['Encabezado derecho', 'Subtotal (la suma de las líneas, sin ITBIS), ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL (subtotal más ITBIS) y, en facturas gubernamentales con retención, el total a pagar.'],
        ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar. A su derecha: catálogo, teclado en '
         'pantalla, Buscar (F2), Totalizar (F8) y el botón ☰ que abre el panel de funciones.'],
-       ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio, importe y la oferta aplicada.'],
+       ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio y subtotal sin ITBIS, y la oferta aplicada.'],
        ['Panel de funciones (☰)', 'Se despliega desde la derecha con todas las funciones. Se cierra solo al elegir una, al tocar '
         'fuera o al escanear: lo que se lee va a la venta.'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],
@@ -758,7 +760,8 @@ tabla(['Comprobante', 'Cuándo se usa'],
        ['E45 – Gubernamental', 'Instituciones del Estado. Exige RNC. Lleva ITBIS, salvo que la entidad presente su certificación de exención.']],
       anchos=[5.0, 12.0])
 p('Factura exenta (E44): al elegir este comprobante, toda la factura pasa a ser exenta de ITBIS, tengan o no impuesto los '
-  'artículos. Los precios bajan a su base, así que el cliente paga menos: un artículo de RD$118 se cobra a RD$100. La '
+  'artículos. Como los precios ya van sin ITBIS, simplemente no se le suma: un artículo de RD$100 se cobra a RD$100 y no a '
+  'RD$118. La '
   'pantalla, la pantalla del cliente y el ticket lo indican con “EXENTA DE ITBIS – RÉGIMEN ESPECIAL”. Si el bien que se '
   'vende no está exento para ese cliente, no se usa el E44: se le factura con E31.')
 p('Entidad del Estado con exención (E45): si la institución presenta su certificación de exención de ITBIS, digite el número '

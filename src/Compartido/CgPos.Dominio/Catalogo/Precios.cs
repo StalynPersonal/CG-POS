@@ -24,7 +24,7 @@ public sealed class PrecioArticulo : Entidad
     public int ArticuloId { get; private set; }
     public ListaPrecio Lista { get; private set; }
 
-    /// <summary>Precio unitario con impuesto incluido.</summary>
+    /// <summary>Precio unitario sin impuesto.</summary>
     public decimal Precio { get; private set; }
 
     public DateTimeOffset VigenteDesde { get; private set; }
@@ -136,17 +136,16 @@ public static class ReglasPrecio
     }
 
     /// <summary>
-    /// Verdadero si el precio final (con impuesto) queda por debajo del precio mínimo del artículo,
-    /// o si su base sin impuesto queda por debajo del costo. Venderlo así requiere autorización (RF-189).
+    /// Verdadero si el precio final queda por debajo del precio mínimo del artículo o de su costo. Todo va sin impuesto,
+    /// como los precios. Venderlo así requiere autorización (RF-189).
     /// </summary>
-    public static bool EstaBajoMinimo(Articulo articulo, Impuesto impuesto, decimal precioUnitarioConImpuesto)
+    public static bool EstaBajoMinimo(Articulo articulo, decimal precioUnitario)
     {
         ArgumentNullException.ThrowIfNull(articulo);
-        ArgumentNullException.ThrowIfNull(impuesto);
 
-        if (articulo.PrecioMinimo is { } minimo && precioUnitarioConImpuesto < minimo)
+        if (articulo.PrecioMinimo is { } minimo && precioUnitario < minimo)
             return true;
 
-        return articulo.Costo is { } costo && impuesto.BaseDesdePrecioConImpuesto(precioUnitarioConImpuesto) < costo;
+        return articulo.Costo is { } costo && precioUnitario < costo;
     }
 }

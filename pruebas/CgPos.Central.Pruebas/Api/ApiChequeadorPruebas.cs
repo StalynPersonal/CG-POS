@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
@@ -23,7 +23,7 @@ public class ApiChequeadorPruebas(CentralEnPruebas central)
         // Un artículo con su código de barras y su precio publicado, sobre los maestros que ya trae el Central.
         var categoria = (await ListarAsync<DatosMaestroCentral<CategoriaCarga>>(cliente, admin, "/api/maestros/categorias")).First(c => c.Dato.Activa).Dato;
         var unidad = (await ListarAsync<DatosMaestroCentral<UnidadMedidaCarga>>(cliente, admin, "/api/maestros/unidades-medida")).First().Dato;
-        var impuesto = (await ListarAsync<DatosMaestroCentral<ImpuestoCarga>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo).Dato;
+        var impuesto = (await ListarAsync<DatosMaestroCentral<ImpuestoCarga>>(cliente, admin, "/api/maestros/impuestos")).First(i => i.Dato.Activo && i.Dato.Porcentaje == 18m).Dato;
 
         var articulo = new ArticuloCarga($"CHQ{sufijo}", $"Cemento chequeador {sufijo}", categoria.DepartamentoCodigo, unidad.Codigo, impuesto.Codigo, 500m,
             PrecioMayor: 470m, CantidadMinimaMayor: 10m, CodigosBarras: [barras], CategoriaCodigo: categoria.Codigo);
@@ -43,8 +43,9 @@ public class ApiChequeadorPruebas(CentralEnPruebas central)
         Assert.NotEmpty(configuracion.Sucursales);
 
         var porCodigo = await ObtenerAsync<DatosPrecioChequeador>(cliente, $"/api/chequeador/articulos/{articulo.Codigo}");
-        Assert.Equal((articulo.Codigo, articulo.Descripcion, 500m), (porCodigo.Codigo, porCodigo.Descripcion, porCodigo.Precio));
-        Assert.Equal((470m, 10m), (porCodigo.PrecioMayor, porCodigo.CantidadMinimaMayor));
+        // El maestro guarda el precio sin ITBIS; el cliente ve lo que paga: 500 + 90 y 470 + 84.60.
+        Assert.Equal((articulo.Codigo, articulo.Descripcion, 590m), (porCodigo.Codigo, porCodigo.Descripcion, porCodigo.Precio));
+        Assert.Equal((554.60m, 10m), (porCodigo.PrecioMayor, porCodigo.CantidadMinimaMayor));
 
         var porBarras = await ObtenerAsync<DatosPrecioChequeador>(cliente, $"/api/chequeador/articulos/{barras}");
         Assert.Equal(articulo.Codigo, porBarras.Codigo);

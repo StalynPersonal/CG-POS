@@ -46,20 +46,22 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
                 a.RutaImagen,
                 a.DepartamentoId,
                 a.CategoriaId,
-                a.MarcaId))
+                a.MarcaId,
+                contexto.Impuestos.Where(i => i.Id == a.ImpuestoId).Select(i => i.Porcentaje).FirstOrDefault()))
             .FirstOrDefaultAsync(cancelacion);
         if (encontrado is null)
             return null;
 
+        // Los precios del maestro van sin ITBIS; el cliente ve lo que paga, con el ITBIS del artículo ya sumado.
         return new DatosPrecioChequeador(
             encontrado.Codigo,
             encontrado.Descripcion,
             encontrado.UnidadMedida,
-            encontrado.Precio,
-            encontrado.PrecioMayor,
+            ConImpuesto(encontrado.Precio, encontrado.PorcentajeImpuesto),
+            encontrado.PrecioMayor is { } mayor ? ConImpuesto(mayor, encontrado.PorcentajeImpuesto) : null,
             encontrado.CantidadMinimaMayor,
             encontrado.RutaImagen,
-            await OfertasAsync(encontrado, sucursalId, encontrado.Precio, cancelacion));
+            await OfertasAsync(encontrado, sucursalId, cancelacion));
     }
 
     /// <summary>Lo que se trae de la base para responder: nada más que lo que se muestra o decide qué ofertas aplican.</summary>
@@ -74,10 +76,15 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
         string? RutaImagen,
         int DepartamentoId,
         int? CategoriaId,
-        int? MarcaId);
+        int? MarcaId,
+        decimal PorcentajeImpuesto);
+
+    /// <summary>Un monto sin ITBIS con su ITBIS sumado, redondeado igual que en la caja.</summary>
+    private static decimal ConImpuesto(decimal monto, decimal porcentajeImpuesto) =>
+        monto + CgPos.Dominio.Fiscal.CalculoImpuestos.ImpuestoSobre(monto, porcentajeImpuesto);
 
     /// <summary>Ofertas vigentes ahora que alcanzan al artículo; las de fidelidad no se anuncian porque no son para todo el mundo.</summary>
-    private async Task<IReadOnlyList<DatosOfertaChequeador>> OfertasAsync(DatosArticuloChequeador articulo, int? sucursalId, decimal precio, CancellationToken cancelacion)
+    private async Task<IReadOnlyList<DatosOfertaChequeador>> OfertasAsync(DatosArticuloChequeador articulo, int? sucursalId, CancellationToken cancelacion)
     {
         var ahora = reloj.Ahora();
         var candidatas = await contexto.Promociones.AsNoTracking()
@@ -86,21 +93,22 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
 
         return candidatas
             .Where(p => (sucursalId is not { } sucursal || p.EstaVigente(sucursal, ahora)) && p.AplicaA(articulo.Id, articulo.DepartamentoId, articulo.CategoriaId, articulo.MarcaId))
-            .Select(p => new DatosOfertaChequeador(p.Codigo, p.Nombre, Descripcion(p, precio), DateOnly.FromDateTime(p.VigenteHasta.LocalDateTime)))
+            .Select(p => new DatosOfertaChequeador(p.Codigo, p.Nombre, Descripcion(p, articulo.PorcentajeImpuesto), DateOnly.FromDateTime(p.VigenteHasta.LocalDateTime)))
             .ToList();
     }
 
-    /// <summary>Lo que dice la oferta en pantalla, en palabras del cliente.</summary>
-    private static string Descripcion(Promocion promocion, decimal precio)
+    /// <summary>Lo que dice la oferta en pantalla, en palabras del cliente: los montos, con su ITBIS, como los paga.</summary>
+    private static string Descripcion(Promocion promocion, decimal porcentajeImpuesto)
     {
         var cultura = CultureInfo.GetCultureInfo("es-DO");
+        var monto = ConImpuesto(promocion.Valor, porcentajeImpuesto).ToString("C2", cultura);
         return promocion.Tipo switch
         {
             TipoPromocion.Porcentaje => $"{promocion.Valor.ToString("0.##", cultura)}% de descuento",
-            TipoPromocion.MontoPorUnidad => $"{promocion.Valor.ToString("C2", cultura)} menos por unidad",
-            TipoPromocion.PrecioEspecial => $"Precio especial {promocion.Valor.ToString("C2", cultura)}",
+            TipoPromocion.MontoPorUnidad => $"{monto} menos por unidad",
+            TipoPromocion.PrecioEspecial => $"Precio especial {monto}",
             TipoPromocion.LlevaPaga => $"Lleve {promocion.CantidadLleva} y pague {promocion.CantidadPaga}",
-            TipoPromocion.PrecioPorCantidad => $"{promocion.Valor.ToString("C2", cultura)} llevando {promocion.CantidadMinima?.ToString("0.##", cultura)} o más",
+            TipoPromocion.PrecioPorCantidad => $"{monto} llevando {promocion.CantidadMinima?.ToString("0.##", cultura)} o más",
             _ => promocion.Nombre,
         };
     }

@@ -85,16 +85,17 @@ public class VentaPruebas
     }
 
     [Fact]
-    public void Totales_separan_itbis_de_precios_con_impuesto_incluido()
+    public void El_precio_va_sin_itbis_y_el_itbis_se_suma_al_total()
     {
         var venta = NuevaVenta();
 
         venta.AgregarArticulo(Cincel(), null, Ahora);
         var totales = venta.CalcularTotales();
 
-        Assert.Equal(720.34m, totales.Subtotal);
-        Assert.Equal(129.66m, totales.Impuesto);
-        Assert.Equal(850.00m, totales.Total);
+        // Como en Stellar: la línea suma al subtotal sin ITBIS y el ITBIS se calcula aparte.
+        Assert.Equal(850.00m, totales.Subtotal);
+        Assert.Equal(153.00m, totales.Impuesto);
+        Assert.Equal(1003.00m, totales.Total);
         Assert.Equal(1, totales.CantidadLineas);
     }
 
@@ -112,7 +113,8 @@ public class VentaPruebas
         Assert.Equal(totales.Subtotal, totales.Desglose.Sum(d => d.Base));
         Assert.Equal(totales.Impuesto, totales.Desglose.Sum(d => d.Impuesto));
         Assert.Equal(totales.Total, totales.Subtotal + totales.Impuesto);
-        Assert.Equal(1700.00m + 194.25m + 105.53m, totales.Total); // 2×850 + 10.5×18.50 + 2.345×45 (redondeado por línea)
+        Assert.Equal(1700.00m + 194.25m + 105.53m, totales.Subtotal); // 2×850 + 10.5×18.50 + 2.345×45, sin ITBIS
+        Assert.Equal(306.00m + 34.97m, totales.Impuesto); // 18 % de cada línea gravada, redondeado por línea; el tomate es exento
         Assert.Equal(0m, totales.Desglose.Single(d => d.IndicadorFacturacion == 4).Impuesto);
     }
 
@@ -129,7 +131,7 @@ public class VentaPruebas
 
         Assert.Equal(ListaPrecio.Detalle, linea.Lista);
         Assert.Equal(485m, linea.PrecioUnitario);
-        Assert.Equal(2425m, venta.CalcularTotales().Total);
+        Assert.Equal(2425m, venta.CalcularTotales().Subtotal);
     }
 
     [Fact]
@@ -184,7 +186,7 @@ public class VentaPruebas
         Assert.True(anulada.Anulada);
         Assert.Equal(Ahora, anulada.AnuladaEn);
         Assert.Equal(2, venta.Lineas.Count);
-        Assert.Equal(485m, venta.CalcularTotales().Total);
+        Assert.Equal(485m, venta.CalcularTotales().Subtotal);
 
         // La numeración sigue continua: la próxima línea es la 3, sin huecos.
         Assert.Equal(3, venta.AgregarArticulo(Cemento(), 1m, Ahora).NumeroLinea);
@@ -272,10 +274,10 @@ public class VentaPruebas
     public void Factura_de_consumo_desde_el_monto_minimo_exige_identificacion()
     {
         var venta = NuevaVenta();
-        venta.AgregarArticulo(Cemento(), 600m, Ahora); // 600 × 450 = 270,000
+        venta.AgregarArticulo(Cemento(), 600m, Ahora); // 600 × 450 = 270,000 + ITBIS = 318,600
 
         Assert.True(venta.RequiereIdentificacion(250_000m));
-        Assert.False(venta.RequiereIdentificacion(300_000m));
+        Assert.False(venta.RequiereIdentificacion(320_000m));
 
         venta.AsignarCliente(new ClienteVenta(null, TipoDocumentoIdentidad.Cedula, "00113918205", "Cliente con cédula", TipoComprobante.FacturaConsumo), Ahora);
         Assert.False(venta.RequiereIdentificacion(250_000m));
@@ -285,8 +287,8 @@ public class VentaPruebas
     public void Limite_de_compra_avisa_cuando_el_total_lo_supera()
     {
         var venta = NuevaVenta();
-        venta.EstablecerLimiteCompra(1000m, Ahora);
-        venta.AgregarArticulo(Cincel(), null, Ahora);
+        venta.EstablecerLimiteCompra(1100m, Ahora);
+        venta.AgregarArticulo(Cincel(), null, Ahora); // 1,003 con ITBIS
 
         Assert.False(venta.LimiteCompraExcedido());
 
@@ -367,7 +369,7 @@ public class VentaPruebas
         Assert.Equal(EstadoVenta.EnCurso, retomada.Estado);
         Assert.Null(retomada.PuestaEnEsperaEn);
         retomada.AgregarArticulo(Cincel(), null, Ahora);
-        Assert.Equal(1700m, retomada.CalcularTotales().Total);
+        Assert.Equal(1700m, retomada.CalcularTotales().Subtotal);
     }
 
     [Fact]

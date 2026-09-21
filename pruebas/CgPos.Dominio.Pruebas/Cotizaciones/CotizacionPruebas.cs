@@ -27,10 +27,10 @@ public class CotizacionPruebas
 
         var totales = cotizacion.Totales();
 
-        // 354.00 + 59.90 con ITBIS, más 200.00 exento.
-        Assert.Equal(613.90m, totales.Total);
-        Assert.Equal(550.76m, totales.Subtotal);
-        Assert.Equal(63.14m, totales.Impuesto);
+        // 354.00 + 59.90 gravados y 200.00 exento, todo sin ITBIS; el ITBIS (63.72 + 10.78) se suma aparte.
+        Assert.Equal(613.90m, totales.Subtotal);
+        Assert.Equal(74.50m, totales.Impuesto);
+        Assert.Equal(688.40m, totales.Total);
         Assert.Equal(totales.Total, totales.Subtotal + totales.Impuesto);
 
         // La misma venta en la caja tiene que dar el mismo total, centavo por centavo.
@@ -46,10 +46,11 @@ public class CotizacionPruebas
         cotizacion.ReemplazarLineas([Linea("A1", 2, 118m, descuento: 36m)], Ahora);
 
         var totales = cotizacion.Totales();
-        Assert.Equal(200m, totales.Total);
+        // 2 × 118 − 36 = 200 sin ITBIS; el ITBIS se calcula sobre lo que queda después del descuento.
+        Assert.Equal(200m, totales.Subtotal);
         Assert.Equal(36m, totales.Descuento);
-        Assert.Equal(169.49m, totales.Subtotal);
-        Assert.Equal(30.51m, totales.Impuesto);
+        Assert.Equal(36m, totales.Impuesto);
+        Assert.Equal(236m, totales.Total);
     }
 
     [Fact]

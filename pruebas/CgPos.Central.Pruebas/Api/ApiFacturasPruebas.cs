@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Central.Pruebas.Soporte;
@@ -72,7 +72,7 @@ public class ApiFacturasPruebas(CentralEnPruebas central)
         DocumentoLineaVenta Linea(int numeroLinea, string codigoArticulo, string descripcion, decimal cantidad, decimal precio) =>
             new(numeroLinea, codigoArticulo, codigoArticulo, descripcion, TipoArticulo.Normal, "UND", 0, cantidad, precio, precio * cantidad, 18m,
                 ListaPrecio.Detalle, MotivoPrecio.PrecioDetalle, false, false, null, null, 0m, 0m, null, null, null, null, 0m,
-                precio * cantidad, 0m);
+                precio * cantidad, 0m, 0m);
 
         return new DocumentoVentaCobrada(numero, 1, "C001", "Cajero Desarrollo", cobrada.AddMinutes(-5), cobrada, TipoComprobante.FacturaConsumo, null, "DOP",
             [Linea(1, codigo, "Cemento gris", 2m, 500m), Linea(2, $"{codigo}B", "Cincel", 1m, 180m)],

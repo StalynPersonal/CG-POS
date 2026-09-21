@@ -1,4 +1,4 @@
-using CgPos.Dominio.Cotizaciones;
+﻿using CgPos.Dominio.Cotizaciones;
 
 namespace CgPos.Contratos.Central;
 
@@ -27,7 +27,7 @@ public sealed record DatosCotizacion(
     decimal Total,
     IReadOnlyList<DatosLineaCotizacionCentral> Lineas);
 
-/// <param name="PrecioUnitario">Con impuesto incluido, congelado al cotizar.</param>
+/// <param name="PrecioUnitario">Sin impuesto, congelado al cotizar.</param>
 public sealed record DatosLineaCotizacionCentral(
     int NumeroLinea,
     string ArticuloCodigo,
@@ -51,7 +51,7 @@ public sealed record SolicitudCotizacion(
     string? Observacion,
     IReadOnlyList<SolicitudLineaCotizacion> Lineas);
 
-/// <param name="PrecioUnitario">Con impuesto incluido; si no viene, se toma el precio vigente del artículo.</param>
+/// <param name="PrecioUnitario">Sin impuesto; si no viene, se toma el precio vigente del artículo.</param>
 public sealed record SolicitudLineaCotizacion(string ArticuloCodigo, decimal Cantidad, decimal? PrecioUnitario, decimal Descuento = 0m);
 
 public sealed record SolicitudAnularCotizacion(string Motivo);

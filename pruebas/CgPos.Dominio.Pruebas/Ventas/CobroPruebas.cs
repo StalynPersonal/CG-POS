@@ -18,7 +18,7 @@ public class CobroPruebas
 
     private static readonly ArticuloParaVenta Cincel = new(
         Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
-        "UND", false, 0, Ids.Siguiente(), 18m, 1, 850.37m, null, null, null, null, null);
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 720.65m, null, null, null, null, null); // 720.65 + 129.72 de ITBIS = 850.37
 
     private static Venta VentaCon(int cinceles = 1)
     {
@@ -48,13 +48,13 @@ public class CobroPruebas
     [Fact]
     public void Pago_mixto_cierra_el_saldo_y_la_tarjeta_sola_no_abre_gaveta()
     {
-        var venta = VentaCon(2); // 1,700.74
+        var venta = VentaCon(2); // 1,441.30 + 259.43 de ITBIS = 1,700.73
 
         var resultado = Cobrar(venta, 0m,
             new PagoSolicitado(Tarjeta, 1000m, Referencia: "123456", UltimosDigitos: "4242"),
             new PagoSolicitado(Efectivo, 800m));
 
-        Assert.Equal(99.26m, resultado.Devuelta);
+        Assert.Equal(99.27m, resultado.Devuelta);
         Assert.Equal(2, venta.Pagos.Count);
         Assert.Equal("123456", venta.Pagos.First().Referencia);
 

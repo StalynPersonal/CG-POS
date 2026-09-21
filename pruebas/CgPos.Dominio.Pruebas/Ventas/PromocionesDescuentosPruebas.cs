@@ -52,10 +52,10 @@ public class PromocionesDescuentosPruebas
 
         Assert.Equal("OFE15", linea.PromocionCodigo);
         Assert.Equal(127.50m, linea.DescuentoPromocion);
-        Assert.Equal(722.50m, linea.ImporteConImpuesto);
+        Assert.Equal(722.50m, linea.Importe);
 
         var totales = venta.CalcularTotales();
-        Assert.Equal(722.50m, totales.Total);
+        Assert.Equal(722.50m, totales.Subtotal);
         Assert.Equal(127.50m, totales.Descuento);
         Assert.Equal(totales.Total, totales.Subtotal + totales.Impuesto);
     }
@@ -97,12 +97,12 @@ public class PromocionesDescuentosPruebas
         Recalcular(venta, Oferta("CEM5", TipoPromocion.Porcentaje, 5m, Cemento)); // 12 × 485 − 5% = 5,529
         Assert.Null(linea.PromocionCodigo);
         Assert.Equal(ListaPrecio.Mayor, linea.Lista);
-        Assert.Equal(5400m, venta.CalcularTotales().Total);
+        Assert.Equal(5400m, venta.CalcularTotales().Subtotal);
 
         Recalcular(venta, Oferta("CEM10", TipoPromocion.Porcentaje, 10m, Cemento)); // 5,820 − 582 = 5,238
         Assert.Equal("CEM10", linea.PromocionCodigo);
         Assert.Equal(ListaPrecio.Detalle, linea.Lista);
-        Assert.Equal(5238m, venta.CalcularTotales().Total);
+        Assert.Equal(5238m, venta.CalcularTotales().Subtotal);
 
         // Sin ofertas vigentes vuelve al precio por mayor.
         Recalcular(venta);
@@ -182,11 +182,11 @@ public class PromocionesDescuentosPruebas
 
         venta.AplicarDescuentoLinea(cincel.NumeroLinea, TipoDescuento.Porcentaje, 10m, "Cliente frecuente", Ids.Siguiente(), "Supervisor", Martes10);
         Assert.Equal(85m, cincel.DescuentoManual);
-        Assert.Equal(765m, cincel.ImporteConImpuesto);
+        Assert.Equal(765m, cincel.Importe);
         Assert.Equal("Cliente frecuente", cincel.MotivoDescuento);
 
         venta.QuitarDescuentoLinea(cincel.NumeroLinea, Martes10);
-        Assert.Equal(850m, cincel.ImporteConImpuesto);
+        Assert.Equal(850m, cincel.Importe);
     }
 
     [Fact]
@@ -232,6 +232,6 @@ public class PromocionesDescuentosPruebas
 
         venta.EliminarLinea(martillo.NumeroLinea, Martes10);
         Assert.Equal(145m, cincel.DescuentoFactura + cemento.DescuentoFactura);
-        Assert.Equal(1190m, venta.CalcularTotales().Total); // 850 + 485 − 145
+        Assert.Equal(1190m, venta.CalcularTotales().Subtotal); // 850 + 485 − 145
     }
 }

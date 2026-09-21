@@ -429,7 +429,7 @@ public abstract class Venta : Entidad
     /// Agrega una línea con el precio que se le cotizó al cliente. No pasa por las reglas de precio ni por las ofertas: lo
     /// cotizado es un compromiso por escrito y se respeta tal cual mientras la cotización esté vigente.
     /// </summary>
-    /// <param name="precioUnitario">Con impuesto incluido, el de la cotización.</param>
+    /// <param name="precioUnitario">Sin impuesto, el de la cotización.</param>
     /// <param name="descuento">Descuento de esa línea en la cotización; 0 si no lleva.</param>
     public LineaVenta AgregarArticuloCotizado(ArticuloParaVenta articulo, decimal cantidad, decimal precioUnitario, decimal descuento, DateTimeOffset ahora)
     {
@@ -1179,20 +1179,15 @@ public abstract class Venta : Entidad
         || (TipoComprobante == TipoComprobante.Gubernamental && CertificacionExencion is not null);
 
     /// <summary>
-    /// Totales con ITBIS incluido en los precios: por línea se redondea el importe a 2 decimales y se separa la base,
-    /// así el ITBIS total coincide con la suma del desglose por línea (RF-183).
+    /// Totales como en Stellar (RF-183): el importe de cada línea, sin ITBIS, suma al subtotal; el ITBIS se calcula por línea,
+    /// redondeado al centavo, y se suma aparte. Así el ITBIS total coincide con la suma del desglose por línea.
     /// </summary>
     public TotalesVenta CalcularTotales()
     {
         var activas = LineasInternas.Where(l => l.EstaActiva).ToList();
 
         var desglose = activas
-            .Select(l =>
-            {
-                var importe = l.ImporteConImpuesto;
-                var baseImponible = Fiscal.CalculoImpuestos.BaseDe(importe, l.PorcentajeImpuesto);
-                return (l.PorcentajeImpuesto, l.IndicadorFacturacion, Base: baseImponible, Impuesto: importe - baseImponible, Total: importe);
-            })
+            .Select(l => (l.PorcentajeImpuesto, l.IndicadorFacturacion, Base: l.Importe, l.Impuesto, Total: l.ImporteConImpuesto))
             .GroupBy(x => (x.PorcentajeImpuesto, x.IndicadorFacturacion))
             .OrderByDescending(g => g.Key.PorcentajeImpuesto)
             .ThenBy(g => g.Key.IndicadorFacturacion)
@@ -1307,15 +1302,9 @@ public abstract class LineaVenta : Entidad
     /// <summary>Indicador de facturación de un e-CF exento, según la tabla de la DGII.</summary>
     public const int IndicadorExento = 4;
 
-    // Lo que valía la línea con impuesto, guardado al exentarla para poder deshacerlo si cambia el comprobante.
+    // El impuesto que llevaba la línea, guardado al exentarla para poder deshacerlo si cambia el comprobante.
     public decimal? PorcentajeImpuestoGravado { get; private set; }
     public int? IndicadorFacturacionGravado { get; private set; }
-    public decimal? PrecioUnitarioGravado { get; private set; }
-    public decimal? PrecioDetalleGravado { get; private set; }
-    public decimal? PrecioMayorGravado { get; private set; }
-    public decimal? PrecioMinimoGravado { get; private set; }
-    public decimal? ImporteEtiquetaGravado { get; private set; }
-    public decimal? DescuentoPromocionGravado { get; private set; }
 
     /// <summary>La línea se está facturando sin ITBIS, por ser de una factura de régimen especial.</summary>
     public bool Exenta => PorcentajeImpuestoGravado is not null;
@@ -1332,7 +1321,7 @@ public abstract class LineaVenta : Entidad
 
     public decimal Cantidad { get; private set; }
 
-    /// <summary>Precio unitario con impuesto incluido.</summary>
+    /// <summary>Precio unitario sin impuesto: el ITBIS se calcula sobre el importe de la línea y se suma aparte.</summary>
     public decimal PrecioUnitario { get; private set; }
 
     public ListaPrecio Lista { get; private set; }
@@ -1350,11 +1339,17 @@ public abstract class LineaVenta : Entidad
 
     public bool EstaActiva => !Anulada;
 
-    /// <summary>Importe antes de descuentos, con impuesto.</summary>
+    /// <summary>Cantidad por precio, sin impuesto y antes de descuentos.</summary>
     public decimal ImporteBruto => ImporteEtiqueta ?? decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero);
 
-    /// <summary>Importe a cobrar, con impuesto y después de ofertas y descuentos.</summary>
-    public decimal ImporteConImpuesto => Math.Max(0m, ImporteBruto - DescuentoTotal);
+    /// <summary>Importe de la línea sin impuesto, después de ofertas y descuentos: es lo que suma al subtotal.</summary>
+    public decimal Importe => Math.Max(0m, ImporteBruto - DescuentoTotal);
+
+    /// <summary>ITBIS de la línea, calculado sobre su importe y redondeado al centavo.</summary>
+    public decimal Impuesto => Fiscal.CalculoImpuestos.ImpuestoSobre(Importe, PorcentajeImpuesto);
+
+    /// <summary>Lo que paga el cliente por la línea: su importe más su ITBIS.</summary>
+    public decimal ImporteConImpuesto => Importe + Impuesto;
 
     /// <summary>
     /// Esta misma línea en la variante de otra tabla. El Id y la venta los asigna la tabla de destino al guardarla.
@@ -1409,9 +1404,9 @@ public abstract class LineaVenta : Entidad
     }
 
     /// <summary>
-    /// La línea se vende exenta (factura de régimen especial): el precio baja a su base y el impuesto sale. Se guardan los
-    /// valores con impuesto para poder volver atrás si el comprobante cambia. Una línea sin impuesto también se marca, así
-    /// toda la factura habla el mismo idioma.
+    /// La línea se vende exenta (factura de régimen especial): el precio ya es sin ITBIS, así que solo sale el impuesto.
+    /// Se guarda el que tenía para volver atrás si el comprobante cambia. Una línea sin impuesto también se marca, así toda
+    /// la factura habla el mismo idioma.
     /// </summary>
     internal void Exentar()
     {
@@ -1420,27 +1415,11 @@ public abstract class LineaVenta : Entidad
 
         PorcentajeImpuestoGravado = PorcentajeImpuesto;
         IndicadorFacturacionGravado = IndicadorFacturacion;
-        PrecioUnitarioGravado = PrecioUnitario;
-        PrecioDetalleGravado = PrecioDetalle;
-        PrecioMayorGravado = PrecioMayor;
-        PrecioMinimoGravado = PrecioMinimo;
-        ImporteEtiquetaGravado = ImporteEtiqueta;
-        DescuentoPromocionGravado = DescuentoPromocion;
-
-        var factor = 1m + PorcentajeImpuesto / 100m;
-        PrecioUnitario = SinImpuesto(PrecioUnitario, factor);
-        PrecioDetalle = SinImpuesto(PrecioDetalle, factor);
-        PrecioMayor = PrecioMayor is { } mayor ? SinImpuesto(mayor, factor) : null;
-        PrecioMinimo = PrecioMinimo is { } minimo ? SinImpuesto(minimo, factor) : null;
-        ImporteEtiqueta = ImporteEtiqueta is { } etiqueta ? SinImpuesto(etiqueta, factor) : null;
-        DescuentoPromocion = SinImpuesto(DescuentoPromocion, factor);
         PorcentajeImpuesto = 0m;
         IndicadorFacturacion = IndicadorExento;
-
-        RecalcularDescuentoManual();
     }
 
-    /// <summary>Vuelve al precio con impuesto: el comprobante dejó de ser de régimen especial.</summary>
+    /// <summary>Vuelve a llevar su ITBIS: el comprobante dejó de ser de régimen especial.</summary>
     internal void Gravar()
     {
         if (!Exenta)
@@ -1448,27 +1427,9 @@ public abstract class LineaVenta : Entidad
 
         PorcentajeImpuesto = PorcentajeImpuestoGravado!.Value;
         IndicadorFacturacion = IndicadorFacturacionGravado!.Value;
-        PrecioUnitario = PrecioUnitarioGravado!.Value;
-        PrecioDetalle = PrecioDetalleGravado!.Value;
-        PrecioMayor = PrecioMayorGravado;
-        PrecioMinimo = PrecioMinimoGravado;
-        ImporteEtiqueta = ImporteEtiquetaGravado;
-        DescuentoPromocion = DescuentoPromocionGravado!.Value;
-
         PorcentajeImpuestoGravado = null;
         IndicadorFacturacionGravado = null;
-        PrecioUnitarioGravado = null;
-        PrecioDetalleGravado = null;
-        PrecioMayorGravado = null;
-        PrecioMinimoGravado = null;
-        ImporteEtiquetaGravado = null;
-        DescuentoPromocionGravado = null;
-
-        RecalcularDescuentoManual();
     }
-
-    private static decimal SinImpuesto(decimal monto, decimal factor) =>
-        factor == 1m ? monto : decimal.Round(monto / factor, 2, MidpointRounding.AwayFromZero);
 
     internal void EstablecerPrecio(PrecioDeterminado precio)
     {

@@ -46,11 +46,11 @@ internal static class ConversionesVenta
             .OrderBy(l => l.NumeroLinea)
             .Select(l => new DatosLineaVenta(
                 l.NumeroLinea, l.ArticuloId, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo, l.UnidadMedidaCodigo,
-                l.DecimalesCantidad, l.Cantidad, l.PrecioUnitario, l.ImporteConImpuesto, l.PorcentajeImpuesto, l.Lista, l.MotivoPrecio,
+                l.DecimalesCantidad, l.Cantidad, l.PrecioUnitario, l.Importe, l.PorcentajeImpuesto, l.Lista, l.MotivoPrecio,
                 l.LeidaDeBalanza, l.Anulada, l.Serial,
                 l.PromocionCodigo, l.PromocionNombre, l.PromocionDescripcion, l.DescuentoPromocion, l.PromocionDesactivada,
                 l.DescuentoManual, l.DescuentoManualTipo, l.DescuentoManualValor, l.MotivoDescuento, l.DescuentoAutorizadoPorNombre,
-                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual, l.SerialPendiente, venta.CantidadEnEntregas(l.NumeroLinea)))
+                l.DescuentoFactura, l.ImporteBruto, l.PermiteDescuentoManual, l.SerialPendiente, venta.CantidadEnEntregas(l.NumeroLinea), l.Impuesto))
             .ToList();
 
         var cliente = venta.ClienteNombre is { } nombre
@@ -1623,8 +1623,9 @@ internal sealed class ServicioVentas(
         if (digitos.Length < DescuentoTarjeta.LargoMinimoBin || EsDescuentoManual(venta))
             return null;
 
-        // El descuento del banco se calcula sobre el total sin otro descuento de factura, para que pasar dos tarjetas no lo encadene.
-        var total = venta.CalcularTotales().Total + venta.Lineas.Sum(l => l.DescuentoFactura);
+        // El descuento del banco se calcula sobre el subtotal sin ITBIS, como todo descuento a la factura, y sin otro descuento
+        // de factura, para que pasar dos tarjetas no lo encadene. El ITBIS se recalcula después sobre lo que queda.
+        var total = venta.CalcularTotales().Subtotal + venta.Lineas.Sum(l => l.DescuentoFactura);
         var ahoraLocal = reloj.Ahora();
         var candidatos = await contexto.DescuentosTarjeta.AsNoTracking()
             .Where(d => d.Activo && d.VigenteDesde <= ahoraLocal && d.VigenteHasta >= ahoraLocal)

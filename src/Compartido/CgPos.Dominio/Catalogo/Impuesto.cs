@@ -1,10 +1,10 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Catalogo;
 
 /// <summary>
 /// Impuesto asociado al artículo (RF-183): ITBIS 18 %, 16 %, 0 % o exento.
-/// Los precios de venta se guardan con el impuesto incluido; la base y el monto se calculan a partir de ellos.
+/// Los precios de venta se guardan sin impuesto; el ITBIS se calcula sobre el importe de cada línea (CalculoImpuestos).
 /// </summary>
 public sealed class Impuesto : Entidad
 {

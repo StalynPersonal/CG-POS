@@ -90,8 +90,8 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(tomate.LeidaDeBalanza);
         Assert.Equal(2.345m, tomate.Cantidad);
 
-        // 850 + 12×450 + 2.345×45 (105.53)
-        Assert.Equal(6355.53m, conTomate.Totales.Total);
+        // 850 + 12×450 + 2.345×45 (105.53), sin ITBIS
+        Assert.Equal(6355.53m, conTomate.Totales.Subtotal);
         Assert.Equal(conTomate.Totales.Total, conTomate.Totales.Subtotal + conTomate.Totales.Impuesto);
 
         var menosCemento = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.CambiarCantidadAsync(caja.Cajero, inicio.Id, cemento.NumeroLinea, 2m));
@@ -136,7 +136,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
             Assert.Equal(ventaId, recuperada.Id);
             Assert.Equal(20, recuperada.Lineas.Count);
-            Assert.Equal(17_000m, recuperada.Totales.Total);
+            Assert.Equal(17_000m, recuperada.Totales.Subtotal);
         }
     }
 
@@ -161,7 +161,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(new[] { 1, 2 }, eliminada.Venta!.Lineas.Select(l => l.NumeroLinea));
         Assert.True(eliminada.Venta.Lineas[0].Anulada);
         Assert.False(eliminada.Venta.Lineas[1].Anulada);
-        Assert.Equal(485m, eliminada.Venta.Totales.Total);
+        Assert.Equal(485m, eliminada.Venta.Totales.Subtotal);
 
         var reutilizada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.EliminarLineaAsync(caja.Cajero, venta.Id, 2, autorizacion));
         Assert.Equal(CodigoResultadoVenta.AutorizacionInvalida, reutilizada.Resultado);
@@ -297,7 +297,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // Se respeta lo cotizado, no el precio del maestro: 2 × 700 − 50.
         var linea = Assert.Single(facturada.Venta!.Lineas);
-        Assert.Equal((700m, 1350m), (linea.PrecioUnitario, facturada.Venta.Totales.Total));
+        Assert.Equal((700m, 1350m), (linea.PrecioUnitario, facturada.Venta.Totales.Subtotal));
         Assert.Equal(Numero, facturada.Venta.CotizacionNumero);
 
         // Ya con artículos, la venta no acepta otra cotización encima: primero se termina o se limpia.
@@ -530,7 +530,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await caja.AgregarAsync(segunda.Id, caja.Catalogo.BarrasCemento);
         var guardada = Assert.Single(await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero)));
         Assert.Equal("Sra. María", guardada.Referencia);
-        Assert.Equal(850m, guardada.Total);
+        Assert.Equal(1003m, guardada.Total); // 850 + 153 de ITBIS
 
         // La que está en pantalla tiene artículos: para retomar otra hay que nombrarla, y no con una referencia repetida.
         Assert.Equal(CodigoResultadoVenta.NombreRequerido,
@@ -541,11 +541,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, "Camioneta azul"));
         Assert.True(retomada.Exitosa, retomada.Mensaje);
         Assert.Equal(primera.NumeroTransaccion, retomada.Venta!.NumeroTransaccion); // nada se cobró: sigue el mismo próximo número
-        Assert.Equal(850m, retomada.Venta.Totales.Total);
+        Assert.Equal(1003m, retomada.Venta.Totales.Total); // 850 + 153 de ITBIS
 
         var pendiente = Assert.Single(await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero)));
         Assert.Equal("Camioneta azul", pendiente.Referencia);
-        Assert.Equal(485m, pendiente.Total);
+        Assert.Equal(572.30m, pendiente.Total); // 485 + 87.30 de ITBIS
 
         var actual = await caja.VentaActualAsync();
         Assert.Equal(retomada.Venta.Id, actual.Id);
@@ -568,7 +568,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, null));
         Assert.True(retomada.Exitosa, retomada.Mensaje);
         var cobroPrimero = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
-            s.CobrarAsync(caja.Cajero, retomada.Venta!.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            s.CobrarAsync(caja.Cajero, retomada.Venta!.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.True(cobroPrimero.Exitosa, cobroPrimero.Mensaje);
 
         var numeroSegundo = cobroSegundo.Cobro!.NumeroTransaccion;
@@ -712,7 +712,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var conDescuento = aplicado.Venta!.Lineas.Single();
         Assert.Equal(24.25m, conDescuento.DescuentoManual);
         Assert.Equal("Supervisor Seguridad", conDescuento.DescuentoAutorizadoPorNombre);
-        Assert.Equal(460.75m, aplicado.Venta.Totales.Total);
+        Assert.Equal(460.75m, aplicado.Venta.Totales.Subtotal);
 
         var registro = await caja.EjecutarAsync<ContextoDatosPos, Dominio.Auditoria.RegistroAuditoria>(contexto =>
             contexto.Auditoria.SingleAsync(r => r.Accion == "Ventas.DescuentoLinea" && r.EntidadId == $"B-{venta.Id:000000}"));
@@ -751,7 +751,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Null(lineas.Single(l => l.NumeroLinea == 1).PromocionCodigo);
         Assert.True(lineas.Single(l => l.NumeroLinea == 1).PromocionDesactivada);
         Assert.Equal(50m, lineas.Sum(l => l.DescuentoFactura));
-        Assert.Equal(850m + 485m - 50m, sinOferta.Venta.Totales.Total);
+        Assert.Equal(850m + 485m - 50m, sinOferta.Venta.Totales.Subtotal);
     }
 
     [SkippableFact]
@@ -763,10 +763,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
 
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
-            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
 
         Assert.True(cobro.Exitosa, cobro.Mensaje);
-        Assert.Equal(150m, cobro.Cobro!.Devuelta);
+        Assert.Equal(97m, cobro.Cobro!.Devuelta); // 1,100 − (850 + 153 de ITBIS)
         Assert.True(cobro.Cobro.Impreso);
         Assert.True(cobro.Cobro.GavetaAbierta);
         Assert.Equal(EstadoVenta.Cobrada, cobro.Venta!.Estado);
@@ -779,11 +779,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var ticket = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(baseDatos.CarpetaImpresiones, $"*ticket-{cobro.Venta.NumeroTransaccion}.txt")));
         Assert.Contains("DEVUELTA", ticket);
-        Assert.Contains("150.00", ticket);
+        Assert.Contains("97.00", ticket);
         Assert.Contains(cobro.Venta.NumeroTransaccion, ticket);
 
         var repetido = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
-            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.Equal(CodigoResultadoVenta.VentaNoEditable, repetido.Resultado);
     }
 
@@ -795,20 +795,20 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
 
-        var primera = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 850m));
+        var primera = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 1003m));
         Assert.True(primera.Exitosa, primera.Mensaje);
 
         var anulada = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.AnularUltimaOperacionAsync(caja.Cajero, venta.Id));
         Assert.True(anulada.Exitosa, anulada.Mensaje);
 
         var conAnulada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
-            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaTarjeta, 850m, OperacionTerminalId: primera.Operacion!.Id)], null));
+            s.CobrarAsync(caja.Cajero, venta.Id, [new SolicitudPago(caja.Catalogo.FormaTarjeta, 1003m, OperacionTerminalId: primera.Operacion!.Id)], null));
         Assert.Equal(CodigoResultadoVenta.OperacionTerminalInvalida, conAnulada.Resultado);
 
-        var segunda = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 850m));
+        var segunda = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 1003m));
         var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
             s.CobrarAsync(caja.Cajero, venta.Id,
-                [new SolicitudPago(caja.Catalogo.FormaTarjeta, 850m, TipoTarjetaId: caja.Catalogo.TipoTarjeta, OperacionTerminalId: segunda.Operacion!.Id)], null));
+                [new SolicitudPago(caja.Catalogo.FormaTarjeta, 1003m, TipoTarjetaId: caja.Catalogo.TipoTarjeta, OperacionTerminalId: segunda.Operacion!.Id)], null));
 
         Assert.True(cobrada.Exitosa, cobrada.Mensaje);
         var pago = Assert.Single(cobrada.Venta!.Pagos!);
@@ -824,7 +824,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
-        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaTarjeta, 850m, Referencia: "MAN-778", UltimosDigitos: "1111", AprobacionManual: true)];
+        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaTarjeta, 1003m, Referencia: "MAN-778", UltimosDigitos: "1111", AprobacionManual: true)];
 
         var sinPermiso = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, null));
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
@@ -864,7 +864,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(cobrada.Exitosa, cobrada.Mensaje);
         var pago = Assert.Single(cobrada.Venta!.Pagos!);
         Assert.Equal(1205m, pago.MontoAplicado);
-        Assert.Equal(355m, cobrada.Cobro!.Devuelta);
+        Assert.Equal(202m, cobrada.Cobro!.Devuelta); // 1,205 − 1,003
     }
 
     [SkippableFact]
@@ -1286,7 +1286,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
         var mitad = decimal.Round(total / 2, 2);
         var segundoCobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, mitad, encfNota), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, mitad, encfNota), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.True(segundoCobro.Exitosa, segundoCobro.Mensaje);
 
         var saldo = await caja.EjecutarAsync<IServicioDevoluciones, RespuestaSaldoNotaCredito>(s => s.ConsultarNotaCreditoAsync(caja.Cajero, encfNota));
@@ -1331,7 +1331,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // Cobro con la nota de otra sucursal: el consumo se le informa al Central por la bandeja de salida (RF-43).
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, 50m, encf), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            [new SolicitudPago(caja.Catalogo.FormaNotaCredito, 50m, encf), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.True(cobro.Exitosa, cobro.Mensaje);
         Assert.Equal(2, caja.Central.Reservas.Count);
         Assert.Single(caja.Central.ReservasLiberadas);
@@ -1377,11 +1377,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // Canje (RF-239): primero se valida el saldo y después se pide la clave del supervisor.
         var excedido = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaPuntos, EscenarioCatalogo.SaldoMiembro + 1m), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            [new SolicitudPago(caja.Catalogo.FormaPuntos, EscenarioCatalogo.SaldoMiembro + 1m), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.Equal(CodigoResultadoVenta.PagoInvalido, excedido.Resultado);
         Assert.Contains("puntos disponibles", excedido.Mensaje);
 
-        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaPuntos, 100m), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)];
+        SolicitudPago[] pagos = [new SolicitudPago(caja.Catalogo.FormaPuntos, 100m), new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)];
         var sinAutorizacion = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, null));
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinAutorizacion.Resultado);
         Assert.Equal(CatalogoPermisos.CanjearPuntos, sinAutorizacion.PermisoRequerido);
@@ -1390,15 +1390,16 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id, pagos, autorizacion));
         Assert.True(cobrada.Exitosa, cobrada.Mensaje);
 
-        // Cincel de 850 en ferretería: 2 puntos por cada 100 = 17, × 1.5 del nivel Oro, sobre lo no pagado con puntos (750 de 850) = 22.
+        // Cincel de 850 + 153 de ITBIS = 1,003 en ferretería: 2 puntos por cada 100 = 20.06, × 1.5 del nivel Oro, sobre lo no
+        // pagado con puntos (903 de 1,003) = 27. Los puntos se ganan sobre lo que paga el cliente.
         var fidelidad = cobrada.Venta!.Fidelidad!;
-        Assert.Equal(22, fidelidad.PuntosAcumulados);
+        Assert.Equal(27, fidelidad.PuntosAcumulados);
         Assert.Equal(100, fidelidad.PuntosCanjeados);
         Assert.Equal(2, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.MovimientosPuntos.CountAsync(m => m.VentaId == cobrada.Venta.Id)));
 
         var saldo = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s => s.ConsultarAsync(caja.Cajero, caja.Catalogo.CedulaMiembro));
         Assert.True(saldo.Exitosa, saldo.Mensaje);
-        Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100 + 22, saldo.Miembro!.SaldoDisponible);
+        Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100 + 27, saldo.Miembro!.SaldoDisponible);
 
         // La nota de crédito reversa los puntos acumulados en la compra (RF-244, RN-21).
         // La factura sube al Central: toda nota de crédito se emite contra la que él tiene registrada.
@@ -1410,7 +1411,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             new SolicitudDevolucion(cobrada.Venta.NumeroTransaccion, [new SolicitudLineaDevolucion(linea.NumeroLinea, 1m)], "401007551", "Cliente Devolución",
                 caja.Catalogo.CodigoMotivoDevolucion, null, autorizacionDevolucion)));
         Assert.True(devolucion.Exitosa, devolucion.Mensaje);
-        Assert.Equal(22, devolucion.NotaCredito!.PuntosReversados);
+        Assert.Equal(27, devolucion.NotaCredito!.PuntosReversados);
 
         var despues = await caja.EjecutarAsync<IServicioFidelidad, RespuestaFidelidad>(s => s.ConsultarAsync(caja.Cajero, caja.Catalogo.CedulaMiembro));
         Assert.Equal(EscenarioCatalogo.SaldoMiembro - 100, despues.Miembro!.SaldoDisponible);
@@ -1671,7 +1672,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(esperado, conDescuento.Venta!.Totales.Total);
 
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.True(cobro.Exitosa, cobro.Mensaje);
         Assert.Equal(esperado, cobro.Venta!.TotalCobrado);
     }
@@ -1734,7 +1735,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
             [new SolicitudPago(caja.Catalogo.FormaTarjeta, 100m, OperacionTerminalId: operacion.Operacion!.Id),
-             new SolicitudPago(caja.Catalogo.FormaEfectivo, 1000m)], null));
+             new SolicitudPago(caja.Catalogo.FormaEfectivo, 1100m)], null));
         Assert.True(cobro.Exitosa, cobro.Mensaje);
 
         // El terminal simulado cierra el lote sin detallarlo: se informa lo de la caja para compararlo con su comprobante.
@@ -2070,7 +2071,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         {
             var venta = await VentaActualAsync();
             await AgregarAsync(venta.Id, Catalogo.BarrasCincel);
-            return await EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(Cajero, venta.Id, [new SolicitudPago(Catalogo.FormaEfectivo, 1000m)], null));
+            return await EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(Cajero, venta.Id, [new SolicitudPago(Catalogo.FormaEfectivo, 1100m)], null));
         }
 
         /// <summary>
@@ -2086,7 +2087,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             var lineas = venta.Lineas.Where(l => !l.Anulada).OrderBy(l => l.NumeroLinea).Select(l =>
                 new DatosLineaFacturaParaCaja(l.NumeroLinea, l.CodigoInterno, l.CodigoLeido, l.Descripcion, l.TipoArticulo, l.UnidadMedidaCodigo,
                     l.DecimalesCantidad, l.PorcentajeImpuesto, l.Cantidad, l.PrecioUnitario, l.DescuentoPromocion + l.DescuentoManual + l.DescuentoFactura,
-                    l.Importe - decimal.Round(l.Importe / (1m + (l.PorcentajeImpuesto / 100m)), 2, MidpointRounding.AwayFromZero), l.Importe, l.Serial,
+                    l.Impuesto, l.ImporteConImpuesto, l.Serial,
                     noDisponible?.GetValueOrDefault(l.NumeroLinea) ?? 0m))
                 .ToList();
 

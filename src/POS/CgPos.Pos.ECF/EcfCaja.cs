@@ -266,12 +266,11 @@ internal static class ConversionEcf
         for (var i = 0; i < lineas.Count; i++)
         {
             var linea = lineas[i];
-            var factor = 1m + linea.PorcentajeImpuesto / 100m;
-            var neto = linea.ImporteConImpuesto;
-            var baseNeta = Redondear(neto / factor);
-            var baseBruta = Redondear(linea.ImporteBruto / factor);
-            var itbis = neto - baseNeta;
-            var precioUnitario = linea.Cantidad == 0 ? 0m : decimal.Round(linea.ImporteBruto / linea.Cantidad / factor, 4, MidpointRounding.AwayFromZero);
+            // Los precios van sin ITBIS: la base es el importe de la línea y su ITBIS ya viene calculado.
+            var baseNeta = linea.Importe;
+            var baseBruta = linea.ImporteBruto;
+            var itbis = linea.Impuesto;
+            var precioUnitario = linea.Cantidad == 0 ? 0m : decimal.Round(linea.ImporteBruto / linea.Cantidad, 4, MidpointRounding.AwayFromZero);
             var indicador = linea.IndicadorFacturacion is >= 1 and <= 4 ? linea.IndicadorFacturacion : linea.PorcentajeImpuesto == 0 ? 4 : 1;
 
             // La unidad de medida de la DGII usa una tabla de códigos propia; se omite hasta homologarla.

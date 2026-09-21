@@ -104,12 +104,12 @@ else
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Descuentos</span><span class="cg-numero">−@_venta.Totales.Descuento.ToString("N2")</span></div>
                 }
                 @* Total de la factura, el número grande de la pantalla. *@
-                <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
+                <div class="cg-venta__total-fila cg-venta__total-final"><span>Total (@_venta.SimboloMoneda)</span><span class="cg-total-grande">@_venta.Totales.Total.ToString("N2")</span></div>
                 @if (_venta.Totales.Retencion > 0)
                 {
                     @* Gubernamental (E45): la retención de la Ley 32-23 y lo que el cliente paga en caja. *@
                     <div class="cg-venta__total-fila cg-venta__total-fila--descuento"><span>Retención Ley 32-23</span><span class="cg-numero">−@_venta.Totales.Retencion.ToString("N2")</span></div>
-                    <div class="cg-venta__total-fila cg-venta__total-final"><span>A pagar (@MonedaPantalla.Simbolo)</span><span class="cg-total-grande">@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
+                    <div class="cg-venta__total-fila cg-venta__total-final"><span>A pagar (@_venta.SimboloMoneda)</span><span class="cg-total-grande">@_venta.Totales.TotalAPagar.ToString("N2")</span></div>
                 }
             </section>
         </header>
@@ -432,6 +432,10 @@ else
         {
             var respuesta = await Cliente.ObtenerVentaActualAsync();
             AplicarRespuesta(respuesta);
+
+            // Si la pantalla arrancó cuando el Agente no respondía, la cultura quedó sin símbolo de moneda: la venta lo trae.
+            if (string.IsNullOrEmpty(MonedaPantalla.Simbolo) && _venta?.SimboloMoneda is { Length: > 0 } simbolo)
+                CgPos.Dominio.Globalizacion.CulturaRd.Aplicar(simbolo);
         }
         else
         {

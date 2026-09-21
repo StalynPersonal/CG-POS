@@ -168,7 +168,7 @@ public sealed class Cotizacion : Entidad
 }
 
 /// <summary>Una línea tal como se cotiza: el artículo, su cantidad y el precio con el que se le prometió al cliente.</summary>
-/// <param name="PrecioUnitario">Con impuesto incluido, igual que en la caja.</param>
+/// <param name="PrecioUnitario">Sin impuesto, igual que en la caja.</param>
 /// <param name="Descuento">Monto descontado de esa línea; 0 si no lleva.</param>
 public sealed record DatosLineaCotizacion(
     string ArticuloCodigo,
@@ -197,22 +197,23 @@ public sealed class LineaCotizacion : Entidad
     public string? UnidadMedida { get; private set; }
     public decimal Cantidad { get; private set; }
 
-    /// <summary>Precio congelado al cotizar, con impuesto incluido.</summary>
+    /// <summary>Precio congelado al cotizar, sin impuesto.</summary>
     public decimal PrecioUnitario { get; private set; }
 
     public decimal Descuento { get; private set; }
     public decimal PorcentajeImpuesto { get; private set; }
     public int IndicadorFacturacion { get; private set; }
 
-    /// <summary>Cantidad por precio, antes del descuento.</summary>
+    /// <summary>Cantidad por precio, sin impuesto y antes del descuento.</summary>
     public decimal ImporteBruto => decimal.Round(Cantidad * PrecioUnitario, 2, MidpointRounding.AwayFromZero);
 
+    /// <summary>Importe de la línea sin impuesto, ya con el descuento: suma al subtotal.</summary>
+    public decimal Base => ImporteBruto - Descuento;
+
+    public decimal Impuesto => CalculoImpuestos.ImpuestoSobre(Base, PorcentajeImpuesto);
+
     /// <summary>Lo que se cobra por esta línea, con impuesto.</summary>
-    public decimal Importe => ImporteBruto - Descuento;
-
-    public decimal Base => CalculoImpuestos.BaseDe(Importe, PorcentajeImpuesto);
-
-    public decimal Impuesto => Importe - Base;
+    public decimal Importe => Base + Impuesto;
 
     internal static LineaCotizacion Crear(int cotizacionId, int numeroLinea, DatosLineaCotizacion datos)
     {

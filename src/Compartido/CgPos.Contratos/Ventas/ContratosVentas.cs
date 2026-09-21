@@ -39,6 +39,9 @@ public sealed record RespuestaTurno(CodigoResultadoTurno Resultado, string? Mens
     public bool Exitosa => Resultado == CodigoResultadoTurno.Correcto;
 }
 
+/// <param name="PrecioUnitario">Sin ITBIS, como en Stellar.</param>
+/// <param name="Importe">Importe de la línea sin ITBIS, ya con ofertas y descuentos: es lo que suma al subtotal.</param>
+/// <param name="Impuesto">ITBIS de la línea, que se suma aparte.</param>
 public sealed record DatosLineaVenta(
     int NumeroLinea,
     int ArticuloId,
@@ -71,7 +74,12 @@ public sealed record DatosLineaVenta(
     decimal ImporteBruto = 0m,
     bool PermiteDescuentoManual = true,
     bool SerialPendiente = false,
-    decimal CantidadEnEntrega = 0m);
+    decimal CantidadEnEntrega = 0m,
+    decimal Impuesto = 0m)
+{
+    /// <summary>Lo que paga el cliente por la línea: su importe sin ITBIS más su ITBIS.</summary>
+    public decimal ImporteConImpuesto => Importe + Impuesto;
+}
 
 public sealed record DatosDesgloseImpuesto(decimal Porcentaje, int IndicadorFacturacion, decimal Base, decimal Impuesto, decimal Total);
 

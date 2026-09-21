@@ -16,7 +16,7 @@ public class DevolucionPruebas
 
     private static readonly ArticuloParaVenta Cincel = new(
         Ids.Siguiente(), "43138", "7891114119695", "Cincel de punta", TipoArticulo.Normal, Ids.Siguiente(), true,
-        "UND", false, 0, Ids.Siguiente(), 18m, 1, 850m, null, null, null, null, null);
+        "UND", false, 0, Ids.Siguiente(), 18m, 1, 720.34m, null, null, null, null, null); // 720.34 + 129.66 de ITBIS = 850
 
     private static Venta VentaCobrada(decimal cinceles)
     {

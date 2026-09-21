@@ -151,8 +151,8 @@ public sealed record UnidadMedidaCarga(int Codigo, string Abreviatura, string No
 
 public sealed record ImpuestoCarga(string Codigo, string Nombre, decimal Porcentaje, int IndicadorFacturacion, bool Activo = true);
 
-/// <param name="PrecioDetalle">Precio con impuesto incluido.</param>
-/// <param name="PrecioMayor">Precio por mayor con impuesto incluido; nulo si no aplica.</param>
+/// <param name="PrecioDetalle">Precio sin impuesto: el ITBIS se calcula aparte al vender, como en Stellar.</param>
+/// <param name="PrecioMayor">Precio por mayor sin impuesto; nulo si no aplica.</param>
 /// <param name="PreciosVigentesDesde">Vigencia de los precios del paquete; nulo = desde el momento de la carga.</param>
 public sealed record ArticuloCarga(
     string Codigo,

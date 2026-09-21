@@ -43,7 +43,7 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
         Assert.StartsWith("COT", cotizacion.Numero, StringComparison.Ordinal);
         Assert.Equal((EstadoCotizacion.Abierta, false), (cotizacion.Estado, cotizacion.Vencida));
 
-        Assert.Equal(esperado, cotizacion.Total);
+        Assert.Equal(esperado, cotizacion.Subtotal); // los precios van sin ITBIS; el ITBIS se suma aparte
         Assert.Equal(cotizacion.Subtotal + cotizacion.Impuesto, cotizacion.Total);
         Assert.Equal(200m, cotizacion.Descuento);
 
@@ -59,7 +59,7 @@ public class ApiCotizacionesPruebas(CentralEnPruebas central)
         {
             respuesta.EnsureSuccessStatusCode();
             var paraCaja = (await respuesta.Content.ReadFromJsonAsync<DatosCotizacionParaCaja>(OpcionesJson.Predeterminadas))!;
-            Assert.Equal((cotizacion.Numero, esperado, false), (paraCaja.Numero, paraCaja.Total, paraCaja.Vencida));
+            Assert.Equal((cotizacion.Numero, cotizacion.Total, false), (paraCaja.Numero, paraCaja.Total, paraCaja.Vencida));
             Assert.Equal(450m, Assert.Single(paraCaja.Lineas, l => l.ArticuloCodigo == Cemento).PrecioUnitario);
         }
 

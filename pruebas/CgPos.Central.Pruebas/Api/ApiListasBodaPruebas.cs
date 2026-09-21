@@ -80,7 +80,7 @@ public class ApiListasBodaPruebas(CentralEnPruebas central)
             [
                 new DocumentoLineaVenta(1, codigoArticulo, codigoArticulo, "Juego de copas", CgPos.Dominio.Catalogo.TipoArticulo.Normal, "UND", 0, cantidad,
                     precio, importe, 18m, CgPos.Dominio.Catalogo.ListaPrecio.Detalle, CgPos.Dominio.Catalogo.MotivoPrecio.PrecioDetalle, false,
-                    false, null, null, 0m, 0m, null, null, null, null, 0m, importe, 0m),
+                    false, null, null, 0m, 0m, null, null, null, null, 0m, importe, 0m, 0m),
             ],
             new DatosTotalesVenta(importe / 1.18m, importe - (importe / 1.18m), importe, 1, cantidad, []), null,
             [new DocumentoPagoVenta(1, "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", importe, null, importe, null, null, null, null, false)],
