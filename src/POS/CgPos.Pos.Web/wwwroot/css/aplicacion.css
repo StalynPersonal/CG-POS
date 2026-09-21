@@ -684,6 +684,15 @@
 .cg-venta__lineas > .mud-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .cg-venta__lineas .mud-table-container { flex: 1; min-height: 0; height: auto !important; overflow-y: auto; }
 
+/* Grilla compacta de la venta: filas más bajas para ver más artículos a la vez. El botón de eliminar y los números
+   tocables conservan un tamaño que se acierta con el dedo. */
+.cg-venta__lineas .mud-table-head .mud-table-cell { padding: 8px 12px; font-size: .95rem; }
+.cg-venta__lineas .mud-table-body .mud-table-row { height: 48px; }
+.cg-venta__lineas .mud-table-body .mud-table-cell { padding: 4px 12px; font-size: 1rem; line-height: 1.25; }
+.cg-venta__lineas .cg-venta__eliminar { width: 36px; height: 36px; }
+.cg-venta__lineas .cg-venta__cantidad { padding: 4px 0; }
+.cg-venta__lineas .cg-venta__nota { font-size: .75rem; line-height: 1.15; }
+
 .cg-venta__ln { display: flex; align-items: center; gap: 8px; }
 
 .cg-venta__eliminar {
