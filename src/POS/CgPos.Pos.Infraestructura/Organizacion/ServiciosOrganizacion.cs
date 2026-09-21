@@ -2,6 +2,7 @@
 using CgPos.Contratos.Seguridad;
 using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Aplicacion.Organizacion;
+using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -74,12 +75,21 @@ internal sealed class ServicioParametros(ContextoDatosPos contexto) : IParametro
     }
 }
 
-internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaja contextoCaja, IParametros parametros) : IEstadoCaja
+internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaja contextoCaja, IParametros parametros,
+    IProgresoActualizacion progreso) : IEstadoCaja
 {
     public async Task<DatosEstadoCaja> ObtenerAsync(CancellationToken cancelacion = default)
     {
+        var actualizacion = progreso.Actual;
+
         if (contextoCaja.CajaId is not { } cajaId)
-            return new DatosEstadoCaja(false, false, Problema: "Esta caja todavía no llegó del Central. Revise su configuración y que el Central la acepte.");
+            return new DatosEstadoCaja(false, false,
+                // Mientras los datos están bajando no hay nada que revisar: hay que esperar. Decir que la caja no llegó
+                // del Central en ese momento manda al cajero a buscar un problema que no existe.
+                Problema: actualizacion is { EnCurso: true }
+                    ? "Bajando los datos del Central. Espere: la pantalla se habilita sola al terminar."
+                    : "Esta caja todavía no llegó del Central. Revise su configuración y que el Central la acepte.",
+                Actualizacion: actualizacion);
 
         var datos = await (
                 from caja in contexto.Cajas
@@ -99,7 +109,11 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
             .SingleOrDefaultAsync(cancelacion);
 
         if (datos is null)
-            return new DatosEstadoCaja(true, false, cajaId, Problema: "La caja configurada no existe en la base local. Aplique la carga inicial.");
+            return new DatosEstadoCaja(true, false, cajaId,
+                Problema: actualizacion is { EnCurso: true }
+                    ? "Bajando los datos del Central. Espere: la pantalla se habilita sola al terminar."
+                    : "La caja configurada no existe en la base local. Aplique la carga inicial.",
+                Actualizacion: actualizacion);
 
         var problema = !datos.Habilitada
             ? "Esta caja está deshabilitada desde el Central."
@@ -117,6 +131,7 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
         {
         }
 
-        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda);
+        return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda,
+            actualizacion);
     }
 }

@@ -1,4 +1,4 @@
-namespace CgPos.Contratos.Seguridad;
+﻿namespace CgPos.Contratos.Seguridad;
 
 /// <summary>Ingreso a la caja con código de usuario y clave.</summary>
 public sealed record SolicitudIngreso(string CodigoUsuario, string Clave);
@@ -51,7 +51,22 @@ public sealed record DatosEstadoCaja(
     string? SucursalNombre = null,
     string? EmpresaNombre = null,
     string? Problema = null,
-    Catalogo.DatosMoneda? MonedaLocal = null);
+    Catalogo.DatosMoneda? MonedaLocal = null,
+    DatosActualizacionCaja? Actualizacion = null);
+
+/// <summary>
+/// Qué está bajando la caja del Central en este momento, para que la pantalla lo diga en vez de dejar al cajero
+/// mirando un error mientras el Agente todavía está trabajando.
+/// </summary>
+/// <param name="EnCurso">Verdadero mientras se está bajando o aplicando algo.</param>
+/// <param name="Etapa">En qué anda: descargando, aplicando la organización, aplicando los maestros…</param>
+/// <param name="DesdeCuando">Desde cuándo lleva en esta actualización.</param>
+/// <param name="UltimoError">Lo que dejó la última actualización que falló; nulo si la última terminó bien.</param>
+public sealed record DatosActualizacionCaja(
+    bool EnCurso,
+    string? Etapa = null,
+    DateTimeOffset? DesdeCuando = null,
+    string? UltimoError = null);
 
 /// <summary>Nombres de los atributos del token de sesión de la caja.</summary>
 public static class AtributosToken

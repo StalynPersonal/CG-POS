@@ -658,6 +658,10 @@ nota('Mientras los datos no cuadren, la caja sigue vendiendo con lo que tiene en
 
 titulo('3.2. Entrar a la caja', 2)
 paso('En la pantalla de ingreso digite su usuario y su clave (no hay PIN ni carné: siempre usuario y clave).')
+nota('Una caja recién configurada tarda en tener sus datos: mientras el Central se los manda, la pantalla dice '
+     '«Actualizando los datos de la caja…» y en qué anda. No hay nada que hacer, solo esperar: la pantalla se habilita '
+     'sola al terminar. Si en vez de eso sale un aviso rojo, ahí sí hay algo que revisar, y debajo dice qué fue lo que '
+     'no se pudo aplicar.')
 paso('Si se equivoca varias veces seguidas, el usuario se bloquea por unos minutos; un supervisor lo desbloquea desde el Central.')
 paso('Si la caja no tiene turno abierto, el sistema le pide abrirlo.')
 
@@ -850,7 +854,9 @@ viñeta('Al cerrar se imprime el reporte del turno: esperado, declarado y difere
 
 titulo('3.17. La barra de estado', 2)
 p('Abajo de la pantalla, siempre a la vista:')
-viñeta('Sincronización: si la caja está comunicada con el Central y cuántos documentos están pendientes de enviar.')
+viñeta('Sincronización: si la caja está comunicada con el Central y cuántos documentos están pendientes de enviar. '
+       'Mientras baja datos dice «Actualizando» y en qué anda, y al pasar el mouse por encima se lee el detalle del '
+       'último error, si lo hubo.')
 viñeta('e-CF: si el certificado está cargado, cuántos comprobantes quedan en el rango y si algo está por vencer. '
        'Al tocarlo se digita el PIN del certificado cuando hace falta.')
 viñeta('Avisos de la base de datos, la hora del equipo y el respaldo.')
@@ -907,6 +913,7 @@ tabla(['Situación', 'Qué pasa y qué hacer'],
       [['La caja o el Central avisan que falta la base de datos', 'No se ejecutó el script de creación en ese equipo, o el sistema está apuntando a otra base. Ejecute scripts/base-datos/estructura_base_datos_central.sql en el servidor o scripts/base-datos/estructura_base_datos_pos.sql en la caja.'],
        ['No hay internet', 'La caja sigue vendiendo, cobrando y facturando normal: todo se guarda y se envía cuando vuelva la comunicación. Solo quedan sin servicio las listas de boda, las notas de crédito de otra sucursal y el chequeador.'],
        ['El terminal de tarjeta no responde', 'La caja lo avisa. Se puede registrar la aprobación manual del banco con autorización de supervisor, y queda marcada para conciliar.'],
+       ['La caja no baja los artículos nuevos', 'Pase el mouse por el indicador de sincronización de la barra de estado: si la última actualización falló, ahí dice por qué y de qué artículo se trata. Casi siempre es un dato del Central que la caja no acepta (un artículo activo sin precio, una categoría que no es de su departamento). Se corrige en el Central y la caja lo aplica sola en el siguiente ciclo, sin perder nada.'],
        ['Se acabaron los e-NCF o venció el rango', 'No se puede facturar. Administración debe asignar un rango nuevo en el Central; la caja lo recibe en su próxima sincronización. La barra de estado avisa antes de que se acabe.'],
        ['El certificado pide PIN', 'Toque el indicador e-CF de la barra de estado y digite el PIN. Queda solo en memoria: si se reinicia el equipo, se vuelve a pedir.'],
        ['La nota de crédito está vencida', 'Si el negocio decide aceptarla, se suben los días de vigencia en los parámetros del Central y la nota vuelve a poder usarse.'],

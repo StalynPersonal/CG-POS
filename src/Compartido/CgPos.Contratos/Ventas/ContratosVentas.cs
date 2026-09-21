@@ -302,7 +302,8 @@ public sealed record DatosEstadoSincronizacion(
     string? UltimoError = null,
     IReadOnlyList<string>? Alertas = null,
     DateTimeOffset? UltimoRespaldo = null,
-    string? SinConexionPor = null);
+    string? SinConexionPor = null,
+    Seguridad.DatosActualizacionCaja? Actualizacion = null);
 
 /// <summary>Por qué la caja no está comunicada. La caja vende igual en los dos casos.</summary>
 public static class MotivosSinConexion

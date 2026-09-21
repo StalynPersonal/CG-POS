@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Serializacion;
 using CgPos.Dominio.Catalogo;
@@ -193,8 +193,18 @@ internal sealed class ServicioCargaMaestros(
     private async Task<int> AplicarArticuloAsync(ArticuloCarga dato, ResolutorCodigosPos resolutor, string origen, DateTimeOffset ahora, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim();
-        var id = await AplicarAsync(contexto.Articulos.Include(a => a.Codigos), contexto.Articulos, a => a.Codigo == codigo,
-            () => MapeoMaestros.Crear(dato, resolutor), e => MapeoMaestros.Actualizar(e, dato, resolutor), cancelacion);
+
+        // El paquete trae miles de artículos: sin el código en el mensaje, un dato malo es imposible de encontrar.
+        int id;
+        try
+        {
+            id = await AplicarAsync(contexto.Articulos.Include(a => a.Codigos), contexto.Articulos, a => a.Codigo == codigo,
+                () => MapeoMaestros.Crear(dato, resolutor), e => MapeoMaestros.Actualizar(e, dato, resolutor), cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException)
+        {
+            throw new InvalidOperationException($"Artículo '{codigo}': {excepcion.Message}", excepcion);
+        }
 
         var articulo = contexto.Articulos.Local.Single(a => a.Id == id);
         var categoria = contexto.Categorias.Local.FirstOrDefault(c => c.Id == articulo.CategoriaId)

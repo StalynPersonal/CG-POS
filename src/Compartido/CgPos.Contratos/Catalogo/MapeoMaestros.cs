@@ -96,7 +96,9 @@ public static class MapeoMaestros
 
         if (d.CategoriaCodigo is null)
             throw new ArgumentException("Indique la categoría del artículo.");
-        if (d.PrecioDetalle <= 0)
+        // Un artículo inactivo no se vende, así que puede venir sin precio: es lo que trae cualquier migración de un
+        // sistema viejo, donde lo descontinuado queda con precio cero. Exigírselo dejaría a la caja sin bajar nada.
+        if (d.PrecioDetalle <= 0 && d.Activo)
             throw new ArgumentException("El precio detalle debe ser mayor que cero.");
         if (d.PrecioMayor <= 0)
             throw new ArgumentException("El precio por mayor debe ser mayor que cero.");

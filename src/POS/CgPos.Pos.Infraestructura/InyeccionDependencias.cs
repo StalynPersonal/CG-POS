@@ -9,6 +9,7 @@ using CgPos.Pos.Infraestructura.Perifericos;
 using CgPos.Pos.Infraestructura.Ventas;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
+using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Infraestructura.Auditoria;
 using CgPos.Pos.Infraestructura.CargaInicial;
 using CgPos.Pos.Infraestructura.Organizacion;
@@ -57,6 +58,9 @@ public static class InyeccionDependencias
             proveedor.GetRequiredService<IServiceScopeFactory>()));
         servicios.AddScoped<IParametros, ServicioParametros>();
         servicios.AddScoped<IEstadoCaja, ServicioEstadoCaja>();
+
+        // De todo el Agente: lo escribe el servicio de sincronización y lo lee la pantalla, cada uno en su propio ámbito.
+        servicios.AddSingleton<IProgresoActualizacion, ProgresoActualizacionEnMemoria>();
 
         servicios.AddScoped<VerificadorCredenciales>();
         servicios.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();

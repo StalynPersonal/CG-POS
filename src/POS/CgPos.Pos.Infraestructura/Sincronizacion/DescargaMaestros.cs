@@ -17,6 +17,7 @@ internal sealed class DescargaMaestros(
     IEstadoConexionCentral conexion,
     ICargaInicial cargaInicial,
     ICargaMaestros cargaMaestros,
+    IProgresoActualizacion progreso,
     TimeProvider reloj,
     ILogger<DescargaMaestros> registro) : IDescargaMaestros
 {
@@ -28,6 +29,9 @@ internal sealed class DescargaMaestros(
         var marca = await contexto.MarcasSincronizacion.SingleOrDefaultAsync(m => m.Clave == MarcaSincronizacion.VersionMaestros, cancelacion);
         var desde = marca?.Valor ?? 0;
 
+        // Desde aquí hasta el final la pantalla muestra que se está actualizando: una caja nueva tarda, y sin este aviso
+        // parece que está rota.
+        using var enCurso = progreso.Comenzar("Pidiendo los datos al Central");
         var resultado = await central.DescargarMaestrosAsync(desde, cancelacion);
         var ahora = reloj.Ahora();
         if (resultado.Paquete is not { } paquete)
@@ -37,6 +41,7 @@ internal sealed class DescargaMaestros(
             else
                 conexion.RegistrarFallo(ahora, resultado.Error);
 
+            progreso.Terminar(resultado.Error);
             return new ResultadoDescargaMaestros(false, desde, 0, 0, resultado.Error);
         }
 
@@ -49,6 +54,7 @@ internal sealed class DescargaMaestros(
             // Primero la organización y la seguridad: los maestros referencian cajas y sucursales.
             if (paquete.Organizacion is { } organizacion)
             {
+                progreso.Etapa("Aplicando la empresa, la sucursal y los usuarios");
                 var carga = await cargaInicial.AplicarAsync(organizacion, cancelacion);
                 creados += carga.Creados;
                 actualizados += carga.Actualizados;
@@ -56,6 +62,7 @@ internal sealed class DescargaMaestros(
 
             if (paquete.Maestros is { } maestros)
             {
+                progreso.Etapa("Aplicando artículos, precios y catálogos");
                 var carga = await cargaMaestros.AplicarAsync(maestros, "Central", cancelacion);
                 creados += carga.Creados;
                 actualizados += carga.Actualizados;
@@ -71,9 +78,11 @@ internal sealed class DescargaMaestros(
         {
             // La marca no avanza: el próximo ciclo vuelve a pedir lo mismo y lo aplica cuando el Central lo corrija.
             registro.LogError("Los maestros del Central (versión {Desde} a {Hasta}) no se pudieron aplicar: {Error}", paquete.Desde, paquete.Hasta, excepcion.Message);
+            progreso.Terminar(excepcion.Message);
             return new ResultadoDescargaMaestros(false, desde, 0, 0, excepcion.Message);
         }
 
+        progreso.Terminar(null);
         if (paquete.Hasta > desde)
         {
             if (marca is null)

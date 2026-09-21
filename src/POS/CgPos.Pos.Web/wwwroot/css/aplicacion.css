@@ -102,6 +102,8 @@
 .cg-ingreso__hora { font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .cg-ingreso__fecha { font-size: 1.1rem; opacity: .85; }
 .cg-ingreso__fecha::first-letter { text-transform: uppercase; }
+/* Lo que se está bajando del Central, y el motivo de la última bajada que falló. */
+.cg-ingreso__detalle { font-size: .95rem; opacity: .9; }
 
 .cg-ingreso__formulario {
     display: flex;

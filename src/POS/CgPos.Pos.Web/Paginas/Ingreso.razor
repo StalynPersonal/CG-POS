@@ -30,9 +30,27 @@
                     <div>@_estado.CajaNombre · @_estado.SucursalNombre</div>
                 }
 
-                @if (_estado.Problema is not null)
+                @* Bajar los datos de una caja nueva tarda: mientras dura no es un error, es esperar. *@
+                @if (_estado.Actualizacion is { EnCurso: true } actualizacion)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mt-4">
+                        <div class="d-flex align-center gap-3">
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Inherit" />
+                            <div>
+                                <div>Actualizando los datos de la caja…</div>
+                                <div class="cg-ingreso__detalle">@actualizacion.Etapa</div>
+                            </div>
+                        </div>
+                    </MudAlert>
+                }
+                else if (_estado.Problema is not null)
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">@_estado.Problema</MudAlert>
+                    @if (_estado.Actualizacion?.UltimoError is { } fallo)
+                    {
+                        @* Lo que rechazó el Central en la última bajada: sin esto hay que ir a leer el registro del Agente. *@
+                        <div class="cg-ingreso__detalle mt-2">La última actualización no se pudo aplicar: @fallo</div>
+                    }
                 }
                 else
                 {
@@ -115,6 +133,10 @@
     private string? _clave;
     private DateTime _ahora = DateTime.Now;
     private Timer? _temporizadorReloj;
+    private Timer? _temporizadorEstado;
+
+    /// <summary>Cada cuánto se vuelve a preguntar por el estado de la caja mientras no esté lista.</summary>
+    private static readonly TimeSpan Espera = TimeSpan.FromSeconds(3);
 
     private bool CajaDisponible => _estado is { Habilitada: true };
 
@@ -149,6 +171,25 @@
 
         _estado = await Cliente.ObtenerEstadoCajaAsync();
         _cargando = false;
+
+        _temporizadorEstado = new Timer(_ => InvokeAsync(RevisarEstadoAsync), null, Espera, Espera);
+    }
+
+    /// <summary>
+    /// Mientras la caja no esté lista se sigue preguntando: una caja recién configurada pasa sola de «actualizando» a
+    /// habilitada, y sin esto el cajero tendría que recargar la pantalla para enterarse.
+    /// </summary>
+    private async Task RevisarEstadoAsync()
+    {
+        if (CajaDisponible)
+        {
+            _temporizadorEstado?.Dispose();
+            _temporizadorEstado = null;
+            return;
+        }
+
+        _estado = await Cliente.ObtenerEstadoCajaAsync();
+        StateHasChanged();
     }
 
     private void IrAConfigurar() => Navegacion.NavigateTo($"/configurar?pantalla={ClavePantalla}");
@@ -208,5 +249,9 @@
         _clave = string.Empty;
     }
 
-    public void Dispose() => _temporizadorReloj?.Dispose();
+    public void Dispose()
+    {
+        _temporizadorReloj?.Dispose();
+        _temporizadorEstado?.Dispose();
+    }
 }

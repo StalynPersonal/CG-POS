@@ -1246,7 +1246,12 @@ else
         _ => "sinconexion",
     };
 
-    private string IconoSincronizacion => _sincronizacion is { EnLinea: true } ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudOff;
+    private string IconoSincronizacion => _sincronizacion switch
+    {
+        { Actualizacion.EnCurso: true } => Icons.Material.Filled.CloudSync,
+        { EnLinea: true } => Icons.Material.Filled.CloudDone,
+        _ => Icons.Material.Filled.CloudOff,
+    };
 
     /// <summary>
     /// Se distingue quedarse sin red de que el Central no acepte esta caja: lo primero se arregla solo cuando vuelva la
@@ -1255,6 +1260,8 @@ else
     private string TextoSincronizacion => _sincronizacion switch
     {
         null => "Agente sin respuesta",
+        // Mientras bajan datos se dice, porque es cuando la caja puede tardar en tener un artículo que ya está en el Central.
+        { Actualizacion: { EnCurso: true, Etapa: { } etapa } } => $"Actualizando · {etapa}",
         { EnLinea: true } estado => $"En línea · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
         { SinConexionPor: MotivosSinConexion.Credenciales } estado =>
             $"Sin conexión (credenciales) · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
@@ -1265,7 +1272,7 @@ else
 
     /// <summary>Último error de sincronización y alertas de mantenimiento (base, documentos atrasados, hora, respaldo).</summary>
     private string? DetalleSincronizacion => _sincronizacion is { } estado
-        ? string.Join("\n", new[] { estado.UltimoError }.Concat(estado.Alertas ?? []).Where(texto => !string.IsNullOrWhiteSpace(texto)))
+        ? string.Join("\n", new[] { estado.UltimoError, estado.Actualizacion?.UltimoError }.Concat(estado.Alertas ?? []).Where(texto => !string.IsNullOrWhiteSpace(texto)))
         : null;
 
     /// <summary>Iniciales de la empresa configurada en la caja, para el recuadro del logo.</summary>
