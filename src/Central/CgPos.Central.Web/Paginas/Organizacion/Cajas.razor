@@ -84,8 +84,12 @@
                     }
                     <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarDispositivos" Context="autorizacion">
                         <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.Key" OnClick="() => DesdeMenu(() => EmitirCredencialAsync(context))">Emitir credencial</MudMenuItem>
-                        @if (context.CredencialEmitidaEn is not null)
+                        @* Emitir y revocar no se ofrecen a la vez: para cambiar la credencial hay que revocar la actual primero. *@
+                        @if (context.CredencialEmitidaEn is null)
+                        {
+                            <MudMenuItem Icon="@Icons.Material.Filled.Key" OnClick="() => DesdeMenu(() => EmitirCredencialAsync(context))">Emitir credencial</MudMenuItem>
+                        }
+                        else
                         {
                             <MudMenuItem Icon="@Icons.Material.Filled.KeyOff" OnClick="() => DesdeMenu(() => RevocarCredencialAsync(context))">Revocar credencial</MudMenuItem>
                         }
@@ -164,10 +168,6 @@
 
     private async Task EmitirCredencialAsync(DatosCaja caja)
     {
-        if (caja.CredencialEmitidaEn is not null && !await Dialogos.ConfirmarAsync("Emitir credencial nueva",
-                $"La credencial actual de la caja {caja.Codigo} dejará de funcionar: la caja no sincronizará hasta configurar el secreto nuevo.", "Emitir", esPeligrosa: true))
-            return;
-
         var (credencial, error) = await Cliente.EmitirCredencialAsync(caja.Id);
         if (credencial is null)
         {

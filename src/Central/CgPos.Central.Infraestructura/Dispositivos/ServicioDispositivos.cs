@@ -16,33 +16,30 @@ internal sealed class ServicioDispositivos(ContextoDatosCentral contexto, IAudit
 {
     private const string TipoEntidad = "Caja";
 
-    public async Task<CredencialEmitida?> EmitirCredencialAsync(int cajaId, UsuarioAuditoria emisor, CancellationToken cancelacion = default)
+    public async Task<ResultadoEmisionCredencial> EmitirCredencialAsync(int cajaId, UsuarioAuditoria emisor, CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(emisor);
 
         var caja = await contexto.Cajas.AsNoTracking().SingleOrDefaultAsync(c => c.Id == cajaId, cancelacion);
         if (caja is null)
-            return null;
+            return new ResultadoEmisionCredencial(null, CajaNoExiste: true);
+
+        // Con una credencial vigente no se emite otra: hay que revocarla, que pide el motivo y queda auditado. Reemplazarla
+        // en silencio dejaba a la caja sin sincronizar y sin nada escrito que dijera por qué.
+        if (await contexto.CredencialesDispositivo.AsNoTracking().AnyAsync(c => c.CajaId == cajaId && c.RevocadaEn == null, cancelacion))
+            return new ResultadoEmisionCredencial(null,
+                Rechazo: $"La caja {caja.Codigo} ya tiene una credencial vigente. Revóquela antes de emitir otra.");
 
         var ahora = reloj.Ahora();
-        await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
-
-        // Primero se revoca la anterior: el índice único solo admite una credencial activa por caja.
-        var anteriores = await contexto.CredencialesDispositivo.Where(c => c.CajaId == cajaId && c.RevocadaEn == null).ToListAsync(cancelacion);
-        foreach (var anterior in anteriores)
-            anterior.Revocar(ahora, "Reemplazada por una credencial nueva");
-        await contexto.SaveChangesAsync(cancelacion);
-
         var secreto = TokensSeguros.Generar();
         var credencial = CredencialDispositivo.Emitir(cajaId, TokensSeguros.Hash(secreto), ahora, emisor.Nombre);
         contexto.CredencialesDispositivo.Add(credencial);
         auditoria.Registrar(new EntradaAuditoria("Dispositivos.CredencialEmitida", TipoEntidad, cajaId.ToString(),
-            new { Caja = caja.Codigo, Credencial = credencial.Id, Reemplazadas = anteriores.Count }, Usuario: emisor));
+            new { Caja = caja.Codigo, Credencial = credencial.Id }, Usuario: emisor));
         await contexto.SaveChangesAsync(cancelacion);
-        await transaccion.CommitAsync(cancelacion);
 
         var sucursalCodigo = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
-        return new CredencialEmitida(caja.Id, sucursalCodigo, caja.Codigo, secreto, ahora);
+        return new ResultadoEmisionCredencial(new CredencialEmitida(caja.Id, sucursalCodigo, caja.Codigo, secreto, ahora));
     }
 
     public async Task<bool> RevocarCredencialAsync(int cajaId, string motivo, UsuarioAuditoria usuario, CancellationToken cancelacion = default)

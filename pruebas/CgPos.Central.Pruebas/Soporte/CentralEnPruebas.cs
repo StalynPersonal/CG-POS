@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using CgPos.Central.Api.Seguridad;
@@ -174,12 +175,28 @@ public sealed class CentralEnPruebas : IAsyncLifetime
     public static async Task<string> TokenAdministradorAsync(HttpClient cliente) =>
         (await IngresarAsync(cliente, "ADMIN", ContrasenaAdministrador)).Cuerpo!.TokenAcceso!;
 
-    /// <summary>Emite una credencial nueva para la caja (reemplaza la anterior) y devuelve su secreto.</summary>
+    /// <summary>
+    /// Deja la caja con una credencial recién emitida y devuelve su secreto. Si ya tenía una, la revoca primero: el
+    /// Central no emite dos credenciales vigentes para la misma caja.
+    /// </summary>
     public static async Task<string> EmitirCredencialAsync(HttpClient cliente, int cajaId)
     {
-        using var respuesta = await cliente.SendAsync(Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", await TokenAdministradorAsync(cliente)));
-        respuesta.EnsureSuccessStatusCode();
-        return (await respuesta.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!.Secreto;
+        var token = await TokenAdministradorAsync(cliente);
+        using var primera = await cliente.SendAsync(Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", token));
+        if (primera.StatusCode == HttpStatusCode.Conflict)
+        {
+            using var revocada = await cliente.SendAsync(Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial/revocar", token,
+                new SolicitudRevocacionCredencial("Credencial nueva para la prueba")));
+            // Responde 204 al revocar y 404 si ya no había ninguna vigente: las dos dejan la caja lista para la nueva.
+            Assert.True(revocada.IsSuccessStatusCode || revocada.StatusCode == HttpStatusCode.NotFound);
+
+            using var segunda = await cliente.SendAsync(Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", token));
+            segunda.EnsureSuccessStatusCode();
+            return (await segunda.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!.Secreto;
+        }
+
+        primera.EnsureSuccessStatusCode();
+        return (await primera.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!.Secreto;
     }
 
     /// <summary>Códigos de sucursal y caja con que se identifica una caja del Central (así viajan sus mensajes).</summary>

@@ -103,6 +103,8 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
                 HttpStatusCode.Forbidden => "No tiene permiso para emitir credenciales de caja.",
                 HttpStatusCode.NotFound => "La caja no existe.",
                 HttpStatusCode.Unauthorized => "La sesión venció. Ingrese nuevamente.",
+                // El Central explica por qué no se emitió (por ejemplo, que ya tiene una vigente).
+                HttpStatusCode.Conflict => await respuesta.Content.ReadAsStringAsync(),
                 _ => $"El Central respondió {(int)respuesta.StatusCode}.",
             });
         }

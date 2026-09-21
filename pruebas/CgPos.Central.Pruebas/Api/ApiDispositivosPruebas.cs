@@ -57,7 +57,14 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
 
         var (_, tokenPrimera) = await PedirTokenAsync(cliente, CentralEnPruebas.CajaUno, primera.Secreto);
 
-        // Emitir otra reemplaza la anterior: su secreto y sus tokens dejan de valer.
+        // Con una credencial vigente no se emite otra: primero hay que revocarla, y así queda escrito el motivo.
+        using (var repetida = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{CentralEnPruebas.CajaUno}/credencial", administrador)))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, repetida.StatusCode);
+            Assert.Contains("ya tiene una credencial vigente", await repetida.Content.ReadAsStringAsync());
+        }
+
+        // Revocada la anterior y emitida la nueva, el secreto viejo y sus tokens dejan de valer.
         var segunda = await EmitirAsync(cliente, administrador, CentralEnPruebas.CajaUno);
         Assert.Equal(HttpStatusCode.Unauthorized, (await PedirTokenAsync(cliente, CentralEnPruebas.CajaUno, primera.Secreto)).Estado);
         using (var tokenViejo = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/dispositivos/actual", tokenPrimera!.Token)))
@@ -163,11 +170,22 @@ public class ApiDispositivosPruebas(CentralEnPruebas central)
     private static async Task<string> TokenAdministradorAsync(HttpClient cliente) =>
         (await CentralEnPruebas.IngresarAsync(cliente, "ADMIN", CentralEnPruebas.ContrasenaAdministrador)).Cuerpo!.TokenAcceso!;
 
+    /// <summary>Deja la caja con una credencial recién emitida; si tenía una vigente la revoca antes, que es lo que exige el Central.</summary>
     private static async Task<DatosCredencialDispositivo> EmitirAsync(HttpClient cliente, string tokenAdministrador, int cajaId)
     {
+        await RevocarAsync(cliente, tokenAdministrador, cajaId);
+
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial", tokenAdministrador));
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         return (await respuesta.Content.ReadFromJsonAsync<DatosCredencialDispositivo>(OpcionesJson.Predeterminadas))!;
+    }
+
+    /// <summary>Revoca la credencial vigente de la caja, si la tiene.</summary>
+    private static async Task RevocarAsync(HttpClient cliente, string tokenAdministrador, int cajaId)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{cajaId}/credencial/revocar", tokenAdministrador,
+            new SolicitudRevocacionCredencial("Credencial nueva para la prueba")));
+        Assert.True(respuesta.IsSuccessStatusCode || respuesta.StatusCode == HttpStatusCode.NotFound, $"Revocar devolvió {respuesta.StatusCode}.");
     }
 
     private static async Task<(HttpStatusCode Estado, RespuestaTokenDispositivo? Cuerpo)> PedirTokenAsync(HttpClient cliente, int cajaId, string secreto)

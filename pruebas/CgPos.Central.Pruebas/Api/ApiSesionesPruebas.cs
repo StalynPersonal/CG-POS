@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Pruebas.Soporte;
@@ -147,8 +147,10 @@ public class ApiSesionesPruebas(CentralEnPruebas central)
         using (var anterior = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, "/api/sesion/actual", ingreso.TokenAcceso)))
             Assert.Equal(HttpStatusCode.Unauthorized, anterior.StatusCode);
 
+        // Lo que se comprueba es que el permiso ya no lo frena. Si esa caja tiene credencial vigente el Central responde
+        // que hay que revocarla primero, y eso también sirve: lo que no puede volver a salir es un 403.
         using var conPermiso = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/cajas/{CentralEnPruebas.CajaDos}/credencial", cambio.Cuerpo.TokenAcceso));
-        Assert.Equal(HttpStatusCode.OK, conPermiso.StatusCode);
+        Assert.True(conPermiso.StatusCode is HttpStatusCode.OK or HttpStatusCode.Conflict, $"Respondió {conPermiso.StatusCode}.");
         Assert.True((await CentralEnPruebas.IngresarAsync(cliente, "TEMPORAL", "Segura.Nueva#2026")).Cuerpo!.Exitoso);
     }
 

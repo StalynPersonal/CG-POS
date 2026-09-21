@@ -55,10 +55,16 @@ public static class RutasApiDispositivos
             if (EmisorTokensCentral.LeerSesion(usuario) is not { } sesion)
                 return Results.Unauthorized();
 
-            var emitida = await servicio.EmitirCredencialAsync(cajaId, new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre), cancelacion);
-            return emitida is null
-                ? Results.NotFound()
-                : Results.Ok(new DatosCredencialDispositivo(emitida.CajaId, emitida.SucursalCodigo, emitida.CajaCodigo, emitida.Secreto, emitida.EmitidaEn));
+            var resultado = await servicio.EmitirCredencialAsync(cajaId, new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre), cancelacion);
+            if (resultado.CajaNoExiste)
+                return Results.NotFound();
+
+            // La caja ya tiene credencial: no es un error del que llama, es que falta revocar primero.
+            if (resultado.Rechazo is { } rechazo)
+                return Results.Text(rechazo, statusCode: StatusCodes.Status409Conflict);
+
+            var emitida = resultado.Credencial!;
+            return Results.Ok(new DatosCredencialDispositivo(emitida.CajaId, emitida.SucursalCodigo, emitida.CajaCodigo, emitida.Secreto, emitida.EmitidaEn));
         });
 
         credencial.MapPost("/revocar", async (int cajaId, SolicitudRevocacionCredencial solicitud, ClaimsPrincipal usuario, IServicioDispositivos servicio,

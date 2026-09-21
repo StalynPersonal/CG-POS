@@ -27,11 +27,19 @@ public sealed record ResultadoDispositivo(DispositivoAutenticado? Dispositivo, M
 
 public sealed record CredencialEmitida(int CajaId, string SucursalCodigo, string CajaCodigo, string Secreto, DateTimeOffset EmitidaEn);
 
+/// <summary>Lo que dejó el intento de emitir una credencial.</summary>
+/// <param name="Credencial">La credencial recién emitida; nula si no se emitió.</param>
+/// <param name="CajaNoExiste">El Id no corresponde a ninguna caja del Central.</param>
+/// <param name="Rechazo">Por qué no se emitió, cuando la caja sí existe.</param>
+public sealed record ResultadoEmisionCredencial(CredencialEmitida? Credencial, bool CajaNoExiste = false, string? Rechazo = null);
+
 public interface IServicioDispositivos
 {
-    /// <summary>Emite una credencial nueva para la caja y revoca la anterior. El secreto solo se devuelve aquí.</summary>
-    /// <returns>Nulo si la caja no existe.</returns>
-    Task<CredencialEmitida?> EmitirCredencialAsync(int cajaId, UsuarioAuditoria emisor, CancellationToken cancelacion = default);
+    /// <summary>
+    /// Emite la credencial de una caja que no tiene. El secreto solo se devuelve aquí, y no se puede volver a ver.
+    /// Si la caja ya tiene una vigente hay que revocarla primero: así queda el motivo de por qué se cambió.
+    /// </summary>
+    Task<ResultadoEmisionCredencial> EmitirCredencialAsync(int cajaId, UsuarioAuditoria emisor, CancellationToken cancelacion = default);
 
     /// <returns><c>false</c> si la caja no tiene una credencial activa.</returns>
     Task<bool> RevocarCredencialAsync(int cajaId, string motivo, UsuarioAuditoria usuario, CancellationToken cancelacion = default);
