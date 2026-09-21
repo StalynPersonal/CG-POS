@@ -1,4 +1,4 @@
-@* Entrega posterior de mercancía (M12): cada línea, completa o en parte, se marca para retiro en un almacén o envío a dirección (RF-246 a RF-250).
+﻿@* Entrega posterior de mercancía (M12): cada línea, completa o en parte, se marca para retiro en una sucursal o envío a dirección (RF-246 a RF-250).
    Marcar pendientes requiere clave de supervisor (RF-53); los serializados no piden serial hasta el despacho (RN-16). *@
 @using System.Globalization
 @inject ClienteAgente Cliente
@@ -15,7 +15,7 @@
                     <div class="cg-cliente__actual">
                         <div>
                             <MudText Typo="Typo.h6" Style="font-weight: 700">
-                                @(destino.Metodo == MetodoEntrega.Envio ? $"Envío a {destino.Direccion}" : $"Retiro en {destino.AlmacenNombre}")
+                                @(destino.Metodo == MetodoEntrega.Envio ? $"Envío a {destino.Direccion}" : $"Retiro en {destino.SucursalRetiroNombre}")
                             </MudText>
                             <MudText Typo="Typo.body2">
                                 @string.Join(" · ", destino.Lineas.Select(l => $"{Descripcion(l.NumeroLinea)} × {l.Cantidad:0.###}"))
@@ -33,9 +33,9 @@
 
             <MudText Typo="Typo.subtitle2" Color="Color.Primary">Nuevo destino</MudText>
             <div class="cg-cliente__comprobantes">
-                <button type="button" class="cg-cliente__comprobante @(_metodo == MetodoEntrega.RetiroAlmacen ? "cg-cliente__comprobante--activo" : null)"
-                        @onclick="() => _metodo = MetodoEntrega.RetiroAlmacen">
-                    <MudIcon Icon="@Icons.Material.Filled.Warehouse" /><span>Retiro en almacén o sucursal</span>
+                <button type="button" class="cg-cliente__comprobante @(_metodo == MetodoEntrega.RetiroSucursal ? "cg-cliente__comprobante--activo" : null)"
+                        @onclick="() => _metodo = MetodoEntrega.RetiroSucursal">
+                    <MudIcon Icon="@Icons.Material.Filled.Store" /><span>Retiro en sucursal</span>
                 </button>
                 <button type="button" class="cg-cliente__comprobante @(_metodo == MetodoEntrega.Envio ? "cg-cliente__comprobante--activo" : null)"
                         @onclick="() => _metodo = MetodoEntrega.Envio">
@@ -43,18 +43,19 @@
                 </button>
             </div>
 
-            @if (_metodo == MetodoEntrega.RetiroAlmacen)
+            @if (_metodo == MetodoEntrega.RetiroSucursal)
             {
+                @* La sucursal de esta caja viene elegida; se puede cambiar si el cliente retira en otra tienda. *@
                 <div class="cg-descuento__motivos">
-                    @foreach (var almacen in _almacenes)
+                    @foreach (var sucursal in _sucursales)
                     {
-                        <button type="button" class="cg-catalogo__departamento @(almacen.Id == _almacenId ? "cg-catalogo__departamento--activa" : null)"
-                                @onclick="() => _almacenId = almacen.Id">@almacen.Nombre</button>
+                        <button type="button" class="cg-catalogo__departamento @(sucursal.Id == _sucursalRetiroId ? "cg-catalogo__departamento--activa" : null)"
+                                @onclick="() => _sucursalRetiroId = sucursal.Id">@sucursal.Nombre</button>
                     }
                 </div>
-                @if (_almacenes.Count == 0)
+                @if (_sucursales.Count == 0)
                 {
-                    <MudAlert Severity="Severity.Info" Dense="true">No hay almacenes configurados. Se definen en el Central.</MudAlert>
+                    <MudAlert Severity="Severity.Info" Dense="true">No hay sucursales activas. Se definen en el Central.</MudAlert>
                 }
             }
             else
@@ -120,9 +121,9 @@
 
     private readonly Dictionary<int, decimal> _cantidades = [];
     private DatosVenta _venta = default!;
-    private IReadOnlyList<DatosAlmacen> _almacenes = [];
-    private MetodoEntrega _metodo = MetodoEntrega.RetiroAlmacen;
-    private int? _almacenId;
+    private IReadOnlyList<DatosSucursalRetiro> _sucursales = [];
+    private MetodoEntrega _metodo = MetodoEntrega.RetiroSucursal;
+    private int? _sucursalRetiroId;
     private string? _direccion;
     private string? _sector;
     private string? _ciudad;
@@ -138,8 +139,8 @@
     protected override async Task OnInitializedAsync()
     {
         _venta = Venta;
-        _almacenes = await Cliente.ListarAlmacenesAsync();
-        _almacenId = _almacenes.FirstOrDefault(a => a.EsDeLaSucursal)?.Id ?? _almacenes.FirstOrDefault()?.Id;
+        _sucursales = await Cliente.ListarSucursalesRetiroAsync();
+        _sucursalRetiroId = _sucursales.FirstOrDefault(s => s.EsDeLaCaja)?.Id ?? _sucursales.FirstOrDefault()?.Id;
         if (NumeroLinea is { } numero && LineasMarcables.FirstOrDefault(l => l.NumeroLinea == numero) is { } linea)
             _cantidades[numero] = Disponible(linea);
     }
@@ -177,7 +178,7 @@
         var envio = _metodo == MetodoEntrega.Envio
             ? new DatosEnvio(_direccion ?? string.Empty, _sector, _ciudad, _referencia, _telefono ?? string.Empty, _transportista, costo)
             : null;
-        var solicitud = new SolicitudMarcarEntrega(_metodo, _metodo == MetodoEntrega.RetiroAlmacen ? _almacenId : null, envio,
+        var solicitud = new SolicitudMarcarEntrega(_metodo, _metodo == MetodoEntrega.RetiroSucursal ? _sucursalRetiroId : null, envio,
             _fecha is { } fecha ? DateOnly.FromDateTime(fecha) : null, _comentario, lineas);
 
         await EjecutarAsync(() => Autorizaciones.EjecutarVentaAsync(

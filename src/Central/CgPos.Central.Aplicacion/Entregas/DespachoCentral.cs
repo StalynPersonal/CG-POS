@@ -35,7 +35,7 @@ public interface IServicioDespachoCentral
         CancellationToken cancelacion = default);
 
     /// <summary>
-    /// Constancia de entrega en carta para que la firme quien recibe (RF-254). El almacén imprime en una impresora normal, no en
+    /// Constancia de entrega en carta para que la firme quien recibe (RF-254). La sucursal imprime en una impresora normal, no en
     /// la de tickets de la caja. Nula si el pendiente o esa entrega no existen.
     /// </summary>
     Task<byte[]?> ConstanciaAsync(int pendienteId, int numeroEntrega, CancellationToken cancelacion = default);

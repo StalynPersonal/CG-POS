@@ -166,7 +166,7 @@ tabla(['La base recién creada trae', 'No trae (lo crea usted)'],
        ['Monedas: peso dominicano y dólar', 'Departamentos, categorías y marcas'],
        ['Impuestos: ITBIS 18 %, 16 %, 0 % y exento', 'Artículos y sus precios'],
        ['Unidades de medida: unidad, libra, pie, yarda, galón', 'Clientes'],
-       ['Denominaciones de billetes y monedas, para el cuadre', 'Bancos y almacenes'],
+       ['Denominaciones de billetes y monedas, para el cuadre', 'Bancos'],
        ['Formas de pago: efectivo, tarjeta, transferencia, cheque, dólares, nota de crédito, bonos, puntos…', 'Promociones'],
        ['Tipos de tarjeta y motivos de descuento y de devolución', 'Rangos de comprobantes fiscales']],
       anchos=[8.5, 8.5])
@@ -354,30 +354,27 @@ tabla(['Código', 'Banco'],
        ['SCO', 'Scotiabank'], ['APA', 'Asociación Popular de Ahorros y Préstamos']],
       anchos=[2.5, 10.0])
 
-p('5. Almacenes, para las entregas y los envíos: uno por sucursal y, si aplica, el depósito desde donde se despacha.')
-tabla(['Código', 'Almacén', 'Para qué'],
-      [['ALM-01', 'Almacén de la sucursal', 'Retiro del cliente en el local'],
-       ['DEP-CEN', 'Depósito central', 'Pedidos grandes que salen del depósito (cajas, barriles)']],
-      anchos=[2.8, 5.0, 7.0])
+nota('Las entregas no necesitan nada más: lo que el cliente deja para retirar se retira en una sucursal, la suya o la '
+     'que él diga, y las sucursales ya están creadas.')
 
-p('6. Programa de fidelidad (si lo van a usar): niveles y cómo se acumulan los puntos.')
+p('5. Programa de fidelidad (si lo van a usar): niveles y cómo se acumulan los puntos.')
 tabla(['Nivel', 'Factor', 'Regla de acumulación sugerida'],
       [['Clásico', '1.0', '1 punto por cada RD$100 de compra'],
        ['Oro', '1.5', 'El mismo acumulado, multiplicado por el factor del nivel']],
       anchos=[3.0, 2.5, 9.5])
 
-p('7. Topes de descuento por nivel de quien autoriza, para que nadie descuente de más.')
+p('6. Topes de descuento por nivel de quien autoriza, para que nadie descuente de más.')
 tabla(['Nivel', 'Tope sugerido'],
       [['Supervisor (nivel 5)', 'Hasta 10 % o RD$2,000 por factura'],
        ['Gerente (nivel 8)', 'Hasta 30 % o RD$20,000 por factura']],
       anchos=[5.0, 9.0])
 
-p('8. Usuarios y roles de caja: al menos un cajero (solo vender y cobrar), un supervisor (autoriza descuentos, '
+p('7. Usuarios y roles de caja: al menos un cajero (solo vender y cobrar), un supervisor (autoriza descuentos, '
   'devoluciones, retiros y notas internas) y un gerente (además autoriza lo de mayor monto).')
 
-p('9. Rangos de comprobantes fiscales por caja (E31, E32, E34, E44 y E45), con los números que le asignó la DGII.')
+p('8. Rangos de comprobantes fiscales por caja (E31, E32, E34, E44 y E45), con los números que le asignó la DGII.')
 
-p('10. Clientes: los colmados, bares y restaurantes a los que les factura con crédito fiscal conviene registrarlos, con su '
+p('9. Clientes: los colmados, bares y restaurantes a los que les factura con crédito fiscal conviene registrarlos, con su '
   'contacto, sus teléfonos y su dirección de entrega. Los demás se buscan en la caja por cédula o RNC, y el listado de la '
   'DGII se puede cargar completo como se explica en 2.5.1.')
 
@@ -805,9 +802,9 @@ viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autoriza
 titulo('3.14. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')
 paso('En la segunda página de teclas, elija Entrega / envío.')
-paso('Marque qué líneas y qué cantidad quedan pendientes, y si es retiro en un almacén o envío a una dirección, con la fecha comprometida.')
+paso('Marque qué líneas y qué cantidad quedan pendientes, y si el cliente lo retira en una sucursal (la suya u otra) o se le envía a una dirección, con la fecha comprometida.')
 paso('Al cobrar se imprime un comprobante de pendiente por cada destino, con código de barras: una copia para el cliente y otra '
-     'para el almacén.')
+     'para quien despacha.')
 paso('De ahí en adelante el pendiente se despacha desde el Central (Despacho → Pendientes): la caja ya no tiene nada que ver '
      'con él. Vea «2.14. Despacho de pendientes y envíos».')
 
@@ -873,7 +870,7 @@ paso('Revise Organización: cree la empresa, la sucursal y la caja. La credencia
 paso('En Parámetros, configure lo que el negocio necesita: fondo de caja, redondeo, días de vigencia de notas de crédito, '
      'retención de la Ley 32-23 (si aplica), chequeador y listas de boda.')
 paso('Revise los catálogos que ya trae la base (monedas, impuestos, unidades, formas de pago, denominaciones, motivos) y '
-     'cree los suyos: departamentos, categorías, marcas, bancos y almacenes.')
+     'cree los suyos: departamentos, categorías, marcas y bancos.')
 paso('Cree los artículos sugeridos en el manual (o los suyos) con sus códigos de barras y precios, y al menos una promoción.')
 paso('Asigne los rangos de e-CF a la caja (E31, E32, E34, E44, E45).')
 paso('Cree los usuarios de caja: un cajero, un supervisor y un gerente, con sus niveles.')

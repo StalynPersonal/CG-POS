@@ -20,7 +20,7 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
         constructor.HasKey(p => p.Id);
         constructor.Property(p => p.Numero).HasMaxLength(PendienteEntrega.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(p => p.VentaNumero).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
-        constructor.Property(p => p.AlmacenNombre).HasMaxLength(Almacen.LargoMaximoNombre);
+        constructor.Property(p => p.SucursalRetiroNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
         constructor.Property(p => p.Direccion).HasMaxLength(DestinoEntrega.LargoMaximoDireccion);
         constructor.Property(p => p.Sector).HasMaxLength(DestinoEntrega.LargoMaximoTexto);
         constructor.Property(p => p.Ciudad).HasMaxLength(DestinoEntrega.LargoMaximoTexto);
@@ -38,7 +38,7 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
         constructor.Property(p => p.NumeroCentral).HasMaxLength(PendienteEntrega.LargoMaximoNumero).IsUnicode(false);
         constructor.HasIndex(p => p.NumeroCentral).IsUnique().HasFilter("[NumeroCentral] IS NOT NULL");
 
-        // La venta y el almacén son de la caja que lo emitió: aquí se guardan sus Id como referencia, sin llave foránea.
+        // La venta y la sucursal de retiro son de la caja que lo emitió: aquí se guardan sus Id como referencia, sin llave foránea.
         constructor.Ignore(p => p.EstaAbierto);
         constructor.Ignore(p => p.Unidades);
         constructor.Ignore(p => p.UnidadesEntregadas);

@@ -440,22 +440,6 @@ internal sealed class MiembroFidelidadConfiguracion : IEntityTypeConfiguration<M
     }
 }
 
-internal sealed class AlmacenConfiguracion : IEntityTypeConfiguration<Almacen>
-{
-    public void Configure(EntityTypeBuilder<Almacen> constructor)
-    {
-        constructor.ToTable("Almacenes");
-        constructor.HasKey(a => a.Id);
-        constructor.Property(a => a.Codigo).HasMaxLength(Almacen.LargoMaximoCodigo).IsRequired();
-        constructor.Property(a => a.Nombre).HasMaxLength(Almacen.LargoMaximoNombre).IsRequired();
-        constructor.Property(a => a.Direccion).HasMaxLength(Almacen.LargoMaximoDireccion);
-        constructor.HasIndex(a => a.Codigo).IsUnique();
-        constructor.HasOne<Sucursal>().WithMany().HasForeignKey(a => a.SucursalId).OnDelete(DeleteBehavior.Restrict);
-        ColumnasMaestro.Configurar(constructor);
-    }
-}
-
-/// <summary>Roles de los usuarios de caja (con su nivel y los permisos del catálogo de la caja).</summary>
 internal sealed class RolCajaConfiguracion : IEntityTypeConfiguration<Rol>
 {
     public void Configure(EntityTypeBuilder<Rol> constructor)

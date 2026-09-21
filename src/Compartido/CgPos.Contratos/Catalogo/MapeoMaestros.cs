@@ -332,15 +332,6 @@ public static class MapeoMaestros
         e.Actualizar(d.Nombre, d.Bines, d.Tipo, d.Valor, d.MontoMinimo, d.MontoMaximo, BancoDe(d, r), d.VigenteDesde, d.VigenteHasta, d.Dias, d.Activo);
     }
 
-    public static Almacen Crear(AlmacenCarga d, IResolutorCodigos r) =>
-        Activar(Almacen.Crear(d.Codigo, d.Nombre, r.Sucursal(d.SucursalCodigo), d.Direccion), d.Activo, x => x.Activar(), x => x.Desactivar());
-
-    public static void Actualizar(Almacen e, AlmacenCarga d, IResolutorCodigos r)
-    {
-        e.Actualizar(d.Nombre, r.Sucursal(d.SucursalCodigo), d.Direccion);
-        Activar(e, d.Activo, x => x.Activar(), x => x.Desactivar());
-    }
-
     /// <summary>Código de la referencia de una regla de acumulación según su tipo.</summary>
     public static int? ReferenciaRegla(ReglaAcumulacionCarga d, IResolutorCodigos r)
     {

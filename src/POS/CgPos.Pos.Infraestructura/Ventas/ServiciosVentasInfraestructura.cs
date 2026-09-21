@@ -972,12 +972,13 @@ internal sealed class ServicioVentas(
         if (rechazo is not null)
             return rechazo;
 
-        string? almacenNombre = null;
-        if (solicitud.Metodo == MetodoEntrega.RetiroAlmacen && solicitud.AlmacenId is { } almacenId)
+        string? sucursalRetiroNombre = null;
+        if (solicitud.Metodo == MetodoEntrega.RetiroSucursal && solicitud.SucursalRetiroId is { } sucursalRetiroId)
         {
-            almacenNombre = await contexto.Almacenes.AsNoTracking().Where(a => a.Id == almacenId && a.Activo).Select(a => a.Nombre).FirstOrDefaultAsync(cancelacion);
-            if (almacenNombre is null)
-                return new RespuestaVenta(CodigoResultadoVenta.EntregaInvalida, "El almacén seleccionado no existe o está inactivo.", Datos(venta!));
+            sucursalRetiroNombre = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == sucursalRetiroId && s.Activa)
+                .Select(s => s.Nombre).FirstOrDefaultAsync(cancelacion);
+            if (sucursalRetiroNombre is null)
+                return new RespuestaVenta(CodigoResultadoVenta.EntregaInvalida, "La sucursal seleccionada no existe o está inactiva.", Datos(venta!));
         }
 
         var hoy = reloj.Ahora().Dia();
@@ -988,7 +989,7 @@ internal sealed class ServicioVentas(
         try
         {
             var copia = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas).SingleAsync(v => v.Id == venta!.Id, cancelacion);
-            copia.MarcarEntrega(solicitud.Metodo, solicitud.AlmacenId, almacenNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario, lineas,
+            copia.MarcarEntrega(solicitud.Metodo, solicitud.SucursalRetiroId, sucursalRetiroNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario, lineas,
                 null, null, hoy, ahora);
         }
         catch (ReglaVentaExcepcion excepcion)
@@ -1007,14 +1008,14 @@ internal sealed class ServicioVentas(
 
         return await EjecutarAsync(venta, () =>
         {
-            var destino = venta.MarcarEntrega(solicitud.Metodo, solicitud.AlmacenId, almacenNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario,
+            var destino = venta.MarcarEntrega(solicitud.Metodo, solicitud.SucursalRetiroId, sucursalRetiroNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario,
                 lineas, permiso.SupervisorId ?? sesion.UsuarioId, permiso.SupervisorNombre ?? sesion.Nombre, hoy, ahora);
             auditoria.Registrar(new EntradaAuditoria("Entregas.PendienteMarcado", TipoEntidadVenta, venta.NumeroTransaccion,
                 Detalle: new
                 {
                     destino.Numero,
                     destino.Metodo,
-                    destino.AlmacenNombre,
+                    destino.SucursalRetiroNombre,
                     destino.Direccion,
                     destino.FechaComprometida,
                     Lineas = destino.Lineas.Select(l => new { l.NumeroLinea, l.Cantidad }),
@@ -1034,10 +1035,10 @@ internal sealed class ServicioVentas(
         return await EjecutarAsync(venta!, () => venta!.QuitarEntrega(numeroDestino, reloj.Ahora()), cancelacion);
     }
 
-    public async Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(SesionUsuario sesion, CancellationToken cancelacion = default) =>
-        (await contexto.Almacenes.AsNoTracking().Where(a => a.Activo).OrderBy(a => a.Nombre).ToListAsync(cancelacion))
-            .Select(a => new DatosAlmacen(a.Id, a.Codigo, a.Nombre, a.SucursalId, a.Direccion, a.SucursalId == sesion.SucursalId))
-            .OrderByDescending(a => a.EsDeLaSucursal)
+    public async Task<IReadOnlyList<DatosSucursalRetiro>> ListarSucursalesRetiroAsync(SesionUsuario sesion, CancellationToken cancelacion = default) =>
+        (await contexto.Sucursales.AsNoTracking().Where(s => s.Activa).OrderBy(s => s.Nombre).ToListAsync(cancelacion))
+            .Select(s => new DatosSucursalRetiro(s.Id, s.Codigo, s.Nombre, s.Direccion, s.Id == sesion.SucursalId))
+            .OrderByDescending(s => s.EsDeLaCaja)
             .ToList();
 
     public async Task<RespuestaVenta> AsignarFidelidadAsync(SesionUsuario sesion, int ventaId, string cedula, CancellationToken cancelacion = default)

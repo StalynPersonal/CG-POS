@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Maestros;
@@ -199,7 +199,6 @@ internal sealed class PublicadorMaestros(
             .Concat(De(TablasMaestros.NivelesFidelidad, paquete.NivelesFidelidad, d => $"Nivel de fidelidad {d.Codigo}"))
             .Concat(De(TablasMaestros.ReglasAcumulacion, paquete.ReglasAcumulacion, d => $"Regla de acumulación {d.Codigo}"))
             .Concat(De(TablasMaestros.MiembrosFidelidad, paquete.MiembrosFidelidad, d => $"Miembro de fidelidad '{d.Cedula}'"))
-            .Concat(De(TablasMaestros.Almacenes, paquete.Almacenes, d => $"Almacén '{d.Codigo}'"))
             .Concat(De(TablasMaestros.DescuentosTarjeta, paquete.DescuentosTarjeta, d => $"Descuento por tarjeta '{d.Codigo}'"));
     }
 
@@ -491,7 +490,6 @@ public static class ExtensionesPublicacionMaestros
             await Nuevos(TablasMaestros.NivelesFidelidad, paquete.NivelesFidelidad),
             await Nuevos(TablasMaestros.ReglasAcumulacion, paquete.ReglasAcumulacion),
             await Nuevos(TablasMaestros.MiembrosFidelidad, paquete.MiembrosFidelidad),
-            await Nuevos(TablasMaestros.Almacenes, paquete.Almacenes),
             await Nuevos(TablasMaestros.DescuentosTarjeta, paquete.DescuentosTarjeta),
             await Nuevos(TablasMaestros.Categorias, paquete.Categorias),
             await Nuevos(TablasMaestros.Marcas, paquete.Marcas));

@@ -28,15 +28,15 @@ public interface IServicioVentas
         CancellationToken cancelacion = default);
 
     /// <summary>
-    /// Marca líneas, completas o en parte, para retiro en almacén o envío a dirección (RF-246 a RF-250), con permiso o clave de supervisor (RF-53).
+    /// Marca líneas, completas o en parte, para retiro en una sucursal o envío a dirección (RF-246 a RF-250), con permiso o clave de supervisor (RF-53).
     /// Al cobrar cada destino genera su pendiente de entrega.
     /// </summary>
     Task<RespuestaVenta> MarcarEntregaAsync(SesionUsuario sesion, int ventaId, SolicitudMarcarEntrega solicitud, CancellationToken cancelacion = default);
 
     Task<RespuestaVenta> QuitarEntregaAsync(SesionUsuario sesion, int ventaId, int numeroDestino, CancellationToken cancelacion = default);
 
-    /// <summary>Almacenes y sucursales para retiro; primero los de la sucursal de la caja (RF-138, RF-140).</summary>
-    Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
+    /// <summary>Sucursales donde el cliente puede retirar; primero la de esta caja (RF-138, RF-140).</summary>
+    Task<IReadOnlyList<DatosSucursalRetiro>> ListarSucursalesRetiroAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
 
     /// <summary>Agrega un artículo pesado con el peso estable de la balanza menos el de su empaque (RF-19, RF-196).</summary>
     Task<RespuestaVenta> AgregarDesdeBalanzaAsync(SesionUsuario sesion, int ventaId, string codigo, CancellationToken cancelacion = default);

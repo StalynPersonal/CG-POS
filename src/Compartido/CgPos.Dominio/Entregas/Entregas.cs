@@ -4,49 +4,10 @@ using CgPos.Dominio.Ventas;
 
 namespace CgPos.Dominio.Entregas;
 
-/// <summary>Almacén o sucursal donde el cliente retira mercancía pendiente (RF-140). Lo define el Central.</summary>
-public sealed class Almacen : Entidad
-{
-    public const int LargoMaximoCodigo = 20;
-    public const int LargoMaximoNombre = 100;
-    public const int LargoMaximoDireccion = 250;
-
-    private Almacen()
-    {
-    }
-
-    public string Codigo { get; private set; } = string.Empty;
-    public string Nombre { get; private set; } = string.Empty;
-    public int SucursalId { get; private set; }
-    public string? Direccion { get; private set; }
-    public bool Activo { get; private set; } = true;
-
-    public static Almacen Crear(string codigo, string nombre, int sucursalId, string? direccion)
-    {
-        var almacen = new Almacen
-        {
-            Codigo = Validar.Texto(codigo, "Código del almacén", LargoMaximoCodigo).ToUpperInvariant(),
-        };
-        almacen.Actualizar(nombre, sucursalId, direccion);
-        return almacen;
-    }
-
-    public void Actualizar(string nombre, int sucursalId, string? direccion)
-    {
-        Nombre = Validar.Texto(nombre, "Nombre del almacén", LargoMaximoNombre);
-        SucursalId = Validar.Id(sucursalId, "Sucursal");
-        Direccion = Validar.TextoOpcional(direccion, "Dirección", LargoMaximoDireccion);
-    }
-
-    public void Activar() => Activo = true;
-
-    public void Desactivar() => Activo = false;
-}
-
 /// <summary>Cómo recibe el cliente lo que no se lleva en caja (RF-246). El despacho en caja no genera pendiente.</summary>
 public enum MetodoEntrega
 {
-    RetiroAlmacen,
+    RetiroSucursal,
     Envio,
 }
 
@@ -77,8 +38,10 @@ public sealed class DestinoEntrega : Entidad
     public int VentaId { get; private set; }
     public int Numero { get; private set; }
     public MetodoEntrega Metodo { get; private set; }
-    public int? AlmacenId { get; private set; }
-    public string? AlmacenNombre { get; private set; }
+    /// <summary>Sucursal donde el cliente pasa a retirar; puede no ser la que vendió.</summary>
+    public int? SucursalRetiroId { get; private set; }
+
+    public string? SucursalRetiroNombre { get; private set; }
     public string? Direccion { get; private set; }
     public string? Sector { get; private set; }
     public string? Ciudad { get; private set; }
@@ -96,7 +59,7 @@ public sealed class DestinoEntrega : Entidad
 
     public IReadOnlyList<LineaDestinoEntrega> Lineas => _lineas;
 
-    internal static DestinoEntrega Crear(int ventaId, int numero, MetodoEntrega metodo, int? almacenId, string? almacenNombre, DatosEnvio? envio,
+    internal static DestinoEntrega Crear(int ventaId, int numero, MetodoEntrega metodo, int? sucursalRetiroId, string? sucursalRetiroNombre, DatosEnvio? envio,
         DateOnly? fechaComprometida, string? comentario, int? autorizadoPorId, string? autorizadoPorNombre, IEnumerable<CantidadEntrega> cantidades)
     {
         var destino = new DestinoEntrega
@@ -110,10 +73,10 @@ public sealed class DestinoEntrega : Entidad
             AutorizadoPorNombre = Validar.TextoOpcional(autorizadoPorNombre, "Autorizado por", LargoMaximoNombre),
         };
 
-        if (metodo == MetodoEntrega.RetiroAlmacen)
+        if (metodo == MetodoEntrega.RetiroSucursal)
         {
-            destino.AlmacenId = almacenId;
-            destino.AlmacenNombre = Validar.Texto(almacenNombre, "Almacén", Almacen.LargoMaximoNombre);
+            destino.SucursalRetiroId = sucursalRetiroId;
+            destino.SucursalRetiroNombre = Validar.Texto(sucursalRetiroNombre, "Sucursal de retiro", LargoMaximoNombre);
         }
         else if (envio is not null)
         {
@@ -201,8 +164,10 @@ public sealed class PendienteEntrega : Entidad
     public int SucursalId { get; private set; }
     public int CajaId { get; private set; }
     public MetodoEntrega Metodo { get; private set; }
-    public int? AlmacenId { get; private set; }
-    public string? AlmacenNombre { get; private set; }
+    /// <summary>Sucursal donde el cliente pasa a retirar; puede no ser la que vendió.</summary>
+    public int? SucursalRetiroId { get; private set; }
+
+    public string? SucursalRetiroNombre { get; private set; }
     public string? Direccion { get; private set; }
     public string? Sector { get; private set; }
     public string? Ciudad { get; private set; }
@@ -265,8 +230,8 @@ public sealed class PendienteEntrega : Entidad
             SucursalId = venta.SucursalId,
             CajaId = venta.CajaId,
             Metodo = destino.Metodo,
-            AlmacenId = destino.AlmacenId,
-            AlmacenNombre = destino.AlmacenNombre,
+            SucursalRetiroId = destino.SucursalRetiroId,
+            SucursalRetiroNombre = destino.SucursalRetiroNombre,
             Direccion = destino.Direccion,
             Sector = destino.Sector,
             Ciudad = destino.Ciudad,
@@ -299,8 +264,8 @@ public sealed class PendienteEntrega : Entidad
     /// Reconstruye en el Central el pendiente que informó una caja, con el estado y las entregas que ya tuviera. A partir de aquí
     /// quien lo despacha es el Central, que aplica las mismas reglas de este agregado: la caja solo lo creó al cobrar.
     /// </summary>
-    /// <param name="almacenId">Almacén del Central que corresponde al código informado; nulo si el pendiente es un envío.</param>
-    public static PendienteEntrega Reconstruir(DatosPendienteReconstruido datos, int sucursalId, int cajaId, int? almacenId)
+    /// <param name="sucursalRetiroId">Sucursal de retiro que corresponde al código informado; nulo si el pendiente es un envío.</param>
+    public static PendienteEntrega Reconstruir(DatosPendienteReconstruido datos, int sucursalId, int cajaId, int? sucursalRetiroId)
     {
         ArgumentNullException.ThrowIfNull(datos);
         var pendiente = new PendienteEntrega
@@ -310,8 +275,8 @@ public sealed class PendienteEntrega : Entidad
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             CajaId = Validar.Id(cajaId, "Caja"),
             Metodo = datos.Metodo,
-            AlmacenId = almacenId,
-            AlmacenNombre = Validar.TextoOpcional(datos.AlmacenNombre, "Almacén", Almacen.LargoMaximoNombre),
+            SucursalRetiroId = sucursalRetiroId,
+            SucursalRetiroNombre = Validar.TextoOpcional(datos.SucursalRetiroNombre, "Sucursal de retiro", DestinoEntrega.LargoMaximoNombre),
             Direccion = Validar.TextoOpcional(datos.Direccion, "Dirección del envío", DestinoEntrega.LargoMaximoDireccion),
             Sector = Validar.TextoOpcional(datos.Sector, "Sector", DestinoEntrega.LargoMaximoTexto),
             Ciudad = Validar.TextoOpcional(datos.Ciudad, "Ciudad o provincia", DestinoEntrega.LargoMaximoTexto),
@@ -584,7 +549,7 @@ public sealed record DatosPendienteReconstruido(
     string VentaNumero,
     MetodoEntrega Metodo,
     EstadoPendiente Estado,
-    string? AlmacenNombre,
+    string? SucursalRetiroNombre,
     string? Direccion,
     string? Sector,
     string? Ciudad,

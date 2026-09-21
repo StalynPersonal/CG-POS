@@ -206,7 +206,6 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
         NivelFidelidadCarga d => new PaqueteMaestros(NivelesFidelidad: [d]),
         ReglaAcumulacionCarga d => new PaqueteMaestros(ReglasAcumulacion: [d]),
         MiembroFidelidadCarga d => new PaqueteMaestros(MiembrosFidelidad: [d]),
-        AlmacenCarga d => new PaqueteMaestros(Almacenes: [d]),
         DescuentoTarjetaCarga d => new PaqueteMaestros(DescuentosTarjeta: [d]),
         _ => throw new InvalidOperationException($"{typeof(T).Name} no se publica con el paquete de maestros."),
     };

@@ -1,11 +1,11 @@
-using System.Globalization;
+﻿using System.Globalization;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Globalizacion;
 
 namespace CgPos.Central.Infraestructura.Reportes;
 
 /// <summary>
-/// Constancia de la mercancía entregada, para que la firme quien la recibe (RF-254). Sale en carta porque el almacén imprime
+/// Constancia de la mercancía entregada, para que la firme quien la recibe (RF-254). Sale en carta porque la sucursal imprime
 /// en una impresora normal, no en la de tickets de 42 columnas de la caja. No es un comprobante fiscal: la factura ya se
 /// emitió cuando se cobró.
 /// </summary>
@@ -43,7 +43,7 @@ internal sealed class GeneradorPdfConstanciaEntrega
 
         lineas.Add(pendiente.Metodo == MetodoEntrega.Envio
             ? ($"Envío a: {Destino(pendiente)}", false)
-            : ($"Retiro en: {pendiente.AlmacenNombre}", false));
+            : ($"Retiro en: {pendiente.SucursalRetiroNombre}", false));
         if (pendiente.Transportista is { Length: > 0 } transportista)
             lineas.Add(($"Transportista: {transportista}", false));
 

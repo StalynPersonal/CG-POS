@@ -325,9 +325,9 @@ internal static class GeneradorTicket
             Agregar($"Autorizó: {autorizo}");
         Separador();
 
-        if (pendiente.Metodo == MetodoEntrega.RetiroAlmacen)
+        if (pendiente.Metodo == MetodoEntrega.RetiroSucursal)
         {
-            Envuelto($"Retira en: {pendiente.AlmacenNombre}");
+            Envuelto($"Retira en: {pendiente.SucursalRetiroNombre}");
         }
         else
         {

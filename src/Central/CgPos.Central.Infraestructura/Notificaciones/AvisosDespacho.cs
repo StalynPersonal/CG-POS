@@ -52,7 +52,7 @@ internal sealed class AvisosDespacho(
 
             var lugar = pendiente.Metodo == MetodoEntrega.Envio
                 ? $"Su pedido va en camino a {pendiente.Ciudad}."
-                : $"Puede retirarlo en {pendiente.AlmacenNombre ?? sucursales.GetValueOrDefault(pendiente.SucursalId) ?? "la tienda"}.";
+                : $"Puede retirarlo en {pendiente.SucursalRetiroNombre ?? sucursales.GetValueOrDefault(pendiente.SucursalId) ?? "la tienda"}.";
 
             var cuerpo = $"""
                 Hola {pendiente.ClienteNombre},

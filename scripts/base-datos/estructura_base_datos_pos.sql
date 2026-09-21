@@ -32,10 +32,6 @@ SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
 
-CREATE SEQUENCE [SecuenciaAlmacenes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
 CREATE SEQUENCE [SecuenciaArticulos] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -253,18 +249,6 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaVentas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
-CREATE TABLE [Almacenes] (
-    [Id] int NOT NULL,
-    [Codigo] nvarchar(20) NOT NULL,
-    [Nombre] nvarchar(100) NOT NULL,
-    [SucursalId] int NOT NULL,
-    [Direccion] nvarchar(250) NULL,
-    [Activo] bit NOT NULL,
-    CONSTRAINT [PK_Almacenes] PRIMARY KEY ([Id])
-);
 GO
 
 
@@ -611,8 +595,8 @@ CREATE TABLE [PendientesEntrega] (
     [SucursalId] int NOT NULL,
     [CajaId] int NOT NULL,
     [Metodo] int NOT NULL,
-    [AlmacenId] int NULL,
-    [AlmacenNombre] nvarchar(100) NULL,
+    [SucursalRetiroId] int NULL,
+    [SucursalRetiroNombre] nvarchar(150) NULL,
     [Direccion] nvarchar(250) NULL,
     [Sector] nvarchar(100) NULL,
     [Ciudad] nvarchar(100) NULL,
@@ -1203,8 +1187,8 @@ CREATE TABLE [DestinosEntregaVenta] (
     [VentaId] int NOT NULL,
     [Numero] int NOT NULL,
     [Metodo] int NOT NULL,
-    [AlmacenId] int NULL,
-    [AlmacenNombre] nvarchar(100) NULL,
+    [SucursalRetiroId] int NULL,
+    [SucursalRetiroNombre] nvarchar(150) NULL,
     [Direccion] nvarchar(250) NULL,
     [Sector] nvarchar(100) NULL,
     [Ciudad] nvarchar(100) NULL,
@@ -1407,10 +1391,6 @@ CREATE TABLE [LineasDevolucion] (
     CONSTRAINT [PK_LineasDevolucion] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_LineasDevolucion_Devoluciones_DevolucionId] FOREIGN KEY ([DevolucionId]) REFERENCES [Devoluciones] ([Id]) ON DELETE CASCADE
 );
-GO
-
-
-CREATE UNIQUE INDEX [IX_Almacenes_Codigo] ON [Almacenes] ([Codigo]);
 GO
 
 

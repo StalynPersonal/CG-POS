@@ -40,7 +40,7 @@ internal sealed class ServicioDespachoCentral(
                 || (p.ClienteNombre != null && p.ClienteNombre.Contains(texto))
                 || (p.ClienteDocumento != null && p.ClienteDocumento.Contains(texto))
                 || (p.Telefono != null && p.Telefono.Contains(texto))
-                || (p.AlmacenNombre != null && p.AlmacenNombre.Contains(texto))
+                || (p.SucursalRetiroNombre != null && p.SucursalRetiroNombre.Contains(texto))
                 || (p.Ciudad != null && p.Ciudad.Contains(texto)));
         }
 
@@ -83,7 +83,7 @@ internal sealed class ServicioDespachoCentral(
         return new ResumenDespachoCentral(
             await abiertos.CountAsync(cancelacion),
             await abiertos.CountAsync(p => p.FechaComprometida != null && p.FechaComprometida < hoy, cancelacion),
-            await abiertos.CountAsync(p => p.Metodo == MetodoEntrega.RetiroAlmacen, cancelacion),
+            await abiertos.CountAsync(p => p.Metodo == MetodoEntrega.RetiroSucursal, cancelacion),
             await abiertos.CountAsync(p => p.Metodo == MetodoEntrega.Envio, cancelacion),
             await contexto.PendientesEntrega.AsNoTracking().CountAsync(p => p.Estado == EstadoPendiente.Entregado && p.ActualizadoEn >= inicioDia, cancelacion));
     }
@@ -204,7 +204,7 @@ internal sealed class ServicioDespachoCentral(
 
     /// <summary>El pendiente en el mismo formato que informa la caja: es lo que espera la pantalla de detalle.</summary>
     private static DocumentoPendienteEntrega Documento(PendienteEntrega pendiente) =>
-        new(pendiente.Numero, pendiente.VentaNumero, pendiente.Metodo, pendiente.Estado, null, pendiente.AlmacenNombre, pendiente.Direccion,
+        new(pendiente.Numero, pendiente.VentaNumero, pendiente.Metodo, pendiente.Estado, null, pendiente.SucursalRetiroNombre, pendiente.Direccion,
             pendiente.Sector, pendiente.Ciudad, pendiente.Referencia, pendiente.Telefono, pendiente.Transportista, pendiente.CostoEnvio,
             pendiente.FechaComprometida, pendiente.Comentario, pendiente.ClienteDocumento, pendiente.ClienteNombre, pendiente.VendidoPorNombre,
             pendiente.AutorizadoPorNombre, pendiente.CreadoEn, pendiente.ActualizadoEn, pendiente.ActualizadoPorNombre, pendiente.MotivoAnulacion,
@@ -229,7 +229,7 @@ internal sealed class ServicioDespachoCentral(
 
         return pendientes.Select(p => new DatosPendienteCentralResumen(p.Id, p.Numero, p.NumeroCentral, p.VentaNumero,
             sucursales.GetValueOrDefault(p.SucursalId) ?? string.Empty, cajas.GetValueOrDefault(p.CajaId) ?? string.Empty, p.Metodo, p.Estado,
-            p.Metodo == MetodoEntrega.Envio ? p.Ciudad : p.AlmacenNombre, p.ClienteNombre, p.ClienteDocumento, p.Telefono, p.FechaComprometida,
+            p.Metodo == MetodoEntrega.Envio ? p.Ciudad : p.SucursalRetiroNombre, p.ClienteNombre, p.ClienteDocumento, p.Telefono, p.FechaComprometida,
             p.EstaAtrasado(hoy), p.Unidades, p.UnidadesEntregadas, p.CreadoEn, p.ActualizadoEn)).ToList();
     }
 }

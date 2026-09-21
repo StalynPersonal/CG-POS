@@ -1,4 +1,4 @@
-using CgPos.Dominio.Entregas;
+﻿using CgPos.Dominio.Entregas;
 
 namespace CgPos.Contratos.Ventas;
 
@@ -8,8 +8,8 @@ public sealed record DatosLineaDestinoEntrega(int NumeroLinea, decimal Cantidad)
 public sealed record DatosDestinoEntrega(
     int Numero,
     MetodoEntrega Metodo,
-    int? AlmacenId,
-    string? AlmacenNombre,
+    int? SucursalRetiroId,
+    string? SucursalRetiroNombre,
     string? Direccion,
     string? Sector,
     string? Ciudad,
@@ -22,20 +22,21 @@ public sealed record DatosDestinoEntrega(
     string? AutorizadoPorNombre,
     IReadOnlyList<DatosLineaDestinoEntrega> Lineas);
 
-/// <param name="AlmacenId">Obligatorio para retiro en almacén o sucursal.</param>
+/// <param name="SucursalRetiroId">Obligatorio para retiro: la sucursal donde el cliente pasa a buscar.</param>
 /// <param name="Envio">Obligatorio para envío a dirección (RF-250).</param>
 /// <param name="AutorizacionId">Marcar mercancía como pendiente requiere autorización de supervisor (RF-53, RN-15).</param>
 public sealed record SolicitudMarcarEntrega(
     MetodoEntrega Metodo,
-    int? AlmacenId,
+    int? SucursalRetiroId,
     DatosEnvio? Envio,
     DateOnly? FechaComprometida,
     string? Comentario,
     IReadOnlyList<CantidadEntrega>? Lineas,
     Guid? AutorizacionId = null);
 
-/// <param name="EsDeLaSucursal">Almacén de la sucursal de la caja: se propone por defecto (RF-138).</param>
-public sealed record DatosAlmacen(int Id, string Codigo, string Nombre, int SucursalId, string? Direccion, bool EsDeLaSucursal);
+/// <summary>Sucursal donde se puede dejar mercancía para que el cliente la retire (RF-138, RF-140).</summary>
+/// <param name="EsDeLaCaja">La sucursal de esta caja: se propone por defecto.</param>
+public sealed record DatosSucursalRetiro(int Id, string Codigo, string Nombre, string? Direccion, bool EsDeLaCaja);
 
 public sealed record DatosLineaPendiente(
     int NumeroLineaVenta,
@@ -94,8 +95,8 @@ public sealed record DatosPendienteEntrega(
     int CajaId,
     MetodoEntrega Metodo,
     EstadoPendiente Estado,
-    int? AlmacenId,
-    string? AlmacenNombre,
+    int? SucursalRetiroId,
+    string? SucursalRetiroNombre,
     string? Direccion,
     string? Sector,
     string? Ciudad,

@@ -40,7 +40,7 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
             devuelto[linea] = devuelto.GetValueOrDefault(linea) + cantidad;
 
         // La mercancía que todavía no se ha entregado tampoco se devuelve (RF-233): el cliente no la tiene. El Central es quien
-        // despacha, así que es el único que sabe qué se entregó ya y qué sigue en el almacén.
+        // despacha, así que es el único que sabe qué se entregó ya y qué sigue pendiente.
         foreach (var (linea, cantidad) in await PorEntregarAsync(factura.Numero, cancelacion))
             devuelto[linea] = devuelto.GetValueOrDefault(linea) + cantidad;
 
@@ -194,7 +194,7 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
 
     /// <summary>
     /// Cantidad por línea de la factura que sigue pendiente de entregar, en pendientes no anulados (RF-233). Mientras esté en el
-    /// almacén no se puede devolver: primero se anula el pendiente, que libera la mercancía.
+    /// pendiente no se puede devolver: primero se anula, que libera la mercancía.
     /// </summary>
     private async Task<Dictionary<int, decimal>> PorEntregarAsync(string facturaNumero, CancellationToken cancelacion)
     {

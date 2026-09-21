@@ -37,6 +37,13 @@ internal sealed class ServicioCargaMaestros(
     private readonly Dictionary<int, Categoria> _categorias = [];
     private readonly Dictionary<string, CgPos.Dominio.Clientes.Cliente> _clientes = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Los códigos que la caja ya tiene, pedidos de una sola vez. Sin esto cada registro del paquete pregunta a la base
+    /// si existe, y en la primera carga de una caja son más de medio millón de preguntas cuya respuesta siempre es no.
+    /// </summary>
+    private HashSet<string> _articulosEnLaCaja = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _clientesEnLaCaja = new(StringComparer.OrdinalIgnoreCase);
+
     public async Task<ResultadoCargaMaestros> AplicarDesdeArchivoAsync(string ruta, CancellationToken cancelacion = default)
     {
         if (!File.Exists(ruta))
@@ -106,6 +113,8 @@ internal sealed class ServicioCargaMaestros(
             {
                 registro.LogInformation("Aplicando {Total} artículos del paquete de maestros ({Origen}).", articulos.Count, origen);
                 progreso.Etapa("Aplicando artículos, precios y catálogos");
+                _articulosEnLaCaja = (await contexto.Articulos.AsNoTracking().Select(a => a.Codigo).ToListAsync(cancelacion))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
 
             var hechos = 0;
@@ -127,6 +136,8 @@ internal sealed class ServicioCargaMaestros(
             {
                 registro.LogInformation("Aplicando {Total} clientes del paquete de maestros ({Origen}).", clientes.Count, origen);
                 progreso.Etapa("Aplicando clientes");
+                _clientesEnLaCaja = (await contexto.Clientes.AsNoTracking().Select(c => c.Codigo).ToListAsync(cancelacion))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
 
             hechos = 0;
@@ -192,9 +203,6 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarAsync(contexto.MiembrosFidelidad, e => e.Cedula == cedula, () => MapeoMaestros.Crear(d, resolutor, ahora),
                     e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
             }
-            foreach (var d in paquete.Almacenes ?? [])
-                await AplicarAsync(contexto.Almacenes, e => e.Codigo == d.Codigo.Trim().ToUpper(), () => MapeoMaestros.Crear(d, resolutor),
-                    e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
             foreach (var d in paquete.DescuentosTarjeta ?? [])
                 await AplicarAsync(contexto.DescuentosTarjeta, e => e.Codigo == d.Codigo.Trim().ToUpper(), () => MapeoMaestros.Crear(d, resolutor),
                     e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
@@ -248,7 +256,10 @@ internal sealed class ServicioCargaMaestros(
 
         if (!_articulos.TryGetValue(codigo, out var articulo))
         {
-            articulo = await contexto.Articulos.Include(a => a.Codigos).FirstOrDefaultAsync(a => a.Codigo == codigo, cancelacion);
+            // A la base solo se le pregunta por los códigos que ya estaban; los demás son altas y no hay nada que buscar.
+            articulo = _articulosEnLaCaja.Contains(codigo)
+                ? await contexto.Articulos.Include(a => a.Codigos).FirstOrDefaultAsync(a => a.Codigo == codigo, cancelacion)
+                : null;
             nuevo = articulo is null;
         }
 
@@ -306,7 +317,7 @@ internal sealed class ServicioCargaMaestros(
     private async Task AplicarClienteAsync(ClienteCarga dato, CancellationToken cancelacion)
     {
         var codigo = dato.Codigo.Trim().ToUpperInvariant();
-        if (!_clientes.TryGetValue(codigo, out var cliente))
+        if (!_clientes.TryGetValue(codigo, out var cliente) && _clientesEnLaCaja.Contains(codigo))
             cliente = await contexto.Clientes.Include(c => c.Direcciones).FirstOrDefaultAsync(c => c.Codigo == codigo, cancelacion);
 
         try

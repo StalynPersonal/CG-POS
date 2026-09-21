@@ -40,7 +40,7 @@ public static class RutasApiDespacho
                 IServicioDespachoCentral servicio, CancellationToken cancelacion) =>
             Responder(await servicio.EntregarAsync(pendienteId, solicitud, Actor(usuario), cancelacion)));
 
-        // La constancia que firma quien recibe, en carta: el almacén imprime en una impresora normal (RF-254).
+        // La constancia que firma quien recibe, en carta: la sucursal imprime en una impresora normal (RF-254).
         manager.MapGet("/pendientes/{pendienteId:int}/entregas/{numero:int}/pdf", async (int pendienteId, int numero, IServicioDespachoCentral servicio,
                 CancellationToken cancelacion) =>
             await servicio.ConstanciaAsync(pendienteId, numero, cancelacion) is { } archivo

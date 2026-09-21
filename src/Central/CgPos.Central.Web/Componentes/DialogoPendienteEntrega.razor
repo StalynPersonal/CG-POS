@@ -35,7 +35,7 @@
                     }
                     else
                     {
-                        @_detalle.Pendiente.AlmacenNombre
+                        @_detalle.Pendiente.SucursalRetiroNombre
                     }
                 </MudItem>
 
@@ -307,7 +307,7 @@
         await Js.InvokeVoidAsync("cgCentral.descargarArchivo", generado.Nombre, generado.TipoContenido, Convert.ToBase64String(generado.Contenido));
     }
 
-    /// <summary>Una línea del pendiente con lo que el almacén va a entregar ahora.</summary>
+    /// <summary>Una línea del pendiente con lo que se va a entregar ahora.</summary>
     private sealed class FilaEntrega(DatosLineaPendiente datos)
     {
         public DatosLineaPendiente Datos { get; } = datos;

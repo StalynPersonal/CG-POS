@@ -93,9 +93,6 @@ public static class ValidacionMaestros
         foreach (var d in paquete.DescuentosTarjeta ?? [])
             Probar($"Descuento por tarjeta '{d.Codigo}'", () => MapeoMaestros.Crear(d, r));
 
-        foreach (var d in paquete.Almacenes ?? [])
-            Probar($"Almacén '{d.Codigo}'", () => MapeoMaestros.Crear(d, r));
-
         return errores;
     }
 

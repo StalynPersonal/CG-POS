@@ -111,7 +111,7 @@ public class AvisosDespachoPruebas(CentralEnPruebas central)
         var creado = DateTimeOffset.UtcNow.AddHours(-1);
         return new DocumentoPendienteEntrega(CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.PendienteEntrega),
             CentralEnPruebas.NumeroDocumento(CentralEnPruebas.CajaUno, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura),
-            MetodoEntrega.RetiroAlmacen, estado, "ALM01", "Almacén Central", null, null, null, null, "8095551234",
+            MetodoEntrega.RetiroSucursal, estado, "01", "Sucursal Kennedy", null, null, null, null, "8095551234",
             null, null, DateOnly.FromDateTime(DateTime.Today), null, documento, nombre, "Cajero Desarrollo", null, creado, creado, "Cajero Desarrollo", null,
             [new DatosLineaPendiente(1, "CINCEL", "Cincel", "UND", 0, false, 1m, 0m, null)],
             []);

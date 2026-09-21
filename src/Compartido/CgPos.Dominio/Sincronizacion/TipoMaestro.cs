@@ -21,7 +21,6 @@ public enum TipoMaestro
     NivelFidelidad,
     ReglaAcumulacion,
     MiembroFidelidad,
-    Almacen,
 
     /// <summary>Descuento del banco por BIN de tarjeta (RF-98).</summary>
     DescuentoTarjeta,

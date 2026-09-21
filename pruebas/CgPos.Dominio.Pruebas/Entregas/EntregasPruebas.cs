@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Pagos;
 using CgPos.Dominio.Ventas;
@@ -9,7 +9,7 @@ public class EntregasPruebas
 {
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 10, 0, 0, TimeSpan.FromHours(-4));
     private static readonly DateOnly Hoy = DateOnly.FromDateTime(Ahora.DateTime);
-    private static readonly int Almacen = Ids.Siguiente();
+    private static readonly int SucursalRetiro = Ids.Siguiente();
 
     private static readonly ArticuloParaVenta Cemento = new(Ids.Siguiente(), "CEM", "CEM", "Cemento gris", TipoArticulo.Normal, Ids.Siguiente(), true, "UN",
         false, 0, Ids.Siguiente(), 18m, 1, 485m, null, null, null, null, null);
@@ -37,15 +37,15 @@ public class EntregasPruebas
         var venta = VentaConCementoYTaladroSinSerial();
 
         Assert.Equal(CodigoErrorVenta.EntregaInvalida, Rechazo(() =>
-            venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, null, null, null, null, null, [new CantidadEntrega(1, 2m)], null, null, Hoy, Ahora)));
+            venta.MarcarEntrega(MetodoEntrega.RetiroSucursal, null, null, null, null, null, [new CantidadEntrega(1, 2m)], null, null, Hoy, Ahora)));
         Assert.Equal(CodigoErrorVenta.EntregaInvalida, Rechazo(() =>
             venta.MarcarEntrega(MetodoEntrega.Envio, null, null, Envio with { Telefono = " " }, null, null, [new CantidadEntrega(1, 2m)], null, null, Hoy, Ahora)));
         Assert.Equal(CodigoErrorVenta.EntregaInvalida, Rechazo(() =>
-            venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, Hoy.AddDays(-1), null, [new CantidadEntrega(1, 2m)], null, null, Hoy, Ahora)));
+            venta.MarcarEntrega(MetodoEntrega.RetiroSucursal, SucursalRetiro, "Kennedy", null, Hoy.AddDays(-1), null, [new CantidadEntrega(1, 2m)], null, null, Hoy, Ahora)));
         Assert.Equal(CodigoErrorVenta.EntregaInvalida, Rechazo(() =>
-            venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, null, null, [new CantidadEntrega(1, 4m)], null, null, Hoy, Ahora)));
+            venta.MarcarEntrega(MetodoEntrega.RetiroSucursal, SucursalRetiro, "Kennedy", null, null, null, [new CantidadEntrega(1, 4m)], null, null, Hoy, Ahora)));
 
-        var retiro = venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, Hoy.AddDays(2), "Retira el jueves", [new CantidadEntrega(1, 2m)],
+        var retiro = venta.MarcarEntrega(MetodoEntrega.RetiroSucursal, SucursalRetiro, "Kennedy", null, Hoy.AddDays(2), "Retira el jueves", [new CantidadEntrega(1, 2m)],
             Ids.Siguiente(), "Supervisor", Hoy, Ahora);
         Assert.Equal(1, retiro.Numero);
         Assert.Equal(2m, venta.CantidadEnEntregas(1));
@@ -85,7 +85,7 @@ public class EntregasPruebas
     public void Pendiente_se_prepara_entrega_por_partes_con_serial_y_no_se_anula_con_entregas()
     {
         var venta = VentaConCementoYTaladroSinSerial();
-        venta.MarcarEntrega(MetodoEntrega.RetiroAlmacen, Almacen, "Kennedy", null, null, null, [new CantidadEntrega(1, 3m), new CantidadEntrega(2, 1m)],
+        venta.MarcarEntrega(MetodoEntrega.RetiroSucursal, SucursalRetiro, "Kennedy", null, null, null, [new CantidadEntrega(1, 3m), new CantidadEntrega(2, 1m)],
             Ids.Siguiente(), "Supervisor", Hoy, Ahora);
         venta.Cobrar([new PagoSolicitado(Efectivo, 10_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora);
         var pendiente = PendienteEntrega.Crear(venta, venta.DestinosEntrega.Single(), "PE-01-00000002", Ahora);

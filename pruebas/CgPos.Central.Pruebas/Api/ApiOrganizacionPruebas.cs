@@ -71,11 +71,11 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         Assert.Null(listada.CredencialEmitidaEn);
         Assert.Equal(1, Assert.Single(await ListarAsync<DatosSucursal>(cliente, admin, "/api/organizacion/sucursales"), s => s.Id == sucursalId).Cajas);
 
-        // A cada caja solo le baja lo suyo: la sucursal y la caja nuevas son de otra sucursal y no le llegan.
+        // Las sucursales bajan todas (la caja las necesita para el retiro en otra tienda); las terminales ajenas no.
         var bajada = await BajarAsync(cliente, tokenCaja, marca);
         IReadOnlyList<CgPos.Contratos.CargaInicial.SucursalCarga> sucursalesBajadas = bajada.Organizacion?.Sucursales ?? [];
         IReadOnlyList<CgPos.Contratos.CargaInicial.CajaCarga> cajasBajadas = bajada.Organizacion?.Cajas ?? [];
-        Assert.DoesNotContain(sucursalesBajadas, s => s.Codigo == codigoSucursal);
+        Assert.Contains(sucursalesBajadas, s => s.Codigo == codigoSucursal);
         Assert.DoesNotContain(cajasBajadas, c => c.SucursalCodigo == codigoSucursal);
     }
 

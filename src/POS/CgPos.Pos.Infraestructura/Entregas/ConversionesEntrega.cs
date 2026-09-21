@@ -1,4 +1,4 @@
-using CgPos.Contratos.Ventas;
+﻿using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
 
 namespace CgPos.Pos.Infraestructura.Entregas;
@@ -6,13 +6,13 @@ namespace CgPos.Pos.Infraestructura.Entregas;
 internal static class ConversionesEntrega
 {
     public static DatosDestinoEntrega ADatos(this DestinoEntrega destino) =>
-        new(destino.Numero, destino.Metodo, destino.AlmacenId, destino.AlmacenNombre, destino.Direccion, destino.Sector, destino.Ciudad, destino.Referencia,
+        new(destino.Numero, destino.Metodo, destino.SucursalRetiroId, destino.SucursalRetiroNombre, destino.Direccion, destino.Sector, destino.Ciudad, destino.Referencia,
             destino.Telefono, destino.Transportista, destino.CostoEnvio, destino.FechaComprometida, destino.Comentario, destino.AutorizadoPorNombre,
             destino.Lineas.OrderBy(l => l.NumeroLinea).Select(l => new DatosLineaDestinoEntrega(l.NumeroLinea, l.Cantidad)).ToList());
 
     public static DatosPendienteEntrega ADatos(this PendienteEntrega pendiente) =>
         new(pendiente.Id, pendiente.Numero, pendiente.VentaId, pendiente.VentaNumero, pendiente.SucursalId, pendiente.CajaId, pendiente.Metodo, pendiente.Estado,
-            pendiente.AlmacenId, pendiente.AlmacenNombre, pendiente.Direccion, pendiente.Sector, pendiente.Ciudad, pendiente.Referencia, pendiente.Telefono,
+            pendiente.SucursalRetiroId, pendiente.SucursalRetiroNombre, pendiente.Direccion, pendiente.Sector, pendiente.Ciudad, pendiente.Referencia, pendiente.Telefono,
             pendiente.Transportista, pendiente.CostoEnvio, pendiente.FechaComprometida, pendiente.Comentario, pendiente.ClienteDocumento, pendiente.ClienteNombre,
             pendiente.VendidoPorNombre, pendiente.AutorizadoPorNombre, pendiente.CreadoEn, pendiente.ActualizadoEn, pendiente.ActualizadoPorNombre,
             pendiente.MotivoAnulacion,

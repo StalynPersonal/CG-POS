@@ -30,7 +30,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
 
         var atrasado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.Envio, EstadoPendiente.Pendiente,
             DateOnly.FromDateTime(DateTime.Today).AddDays(-3), 4m, 0m);
-        var aTiempo = Pendiente(CentralEnPruebas.CajaDos, MetodoEntrega.RetiroAlmacen, EstadoPendiente.Preparado,
+        var aTiempo = Pendiente(CentralEnPruebas.CajaDos, MetodoEntrega.RetiroSucursal, EstadoPendiente.Preparado,
             DateOnly.FromDateTime(DateTime.Today).AddDays(5), 2m, 0m);
 
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, tokenUno, Mensaje(TiposMensaje.PendienteCreado, atrasado, CentralEnPruebas.CajaUno)));
@@ -60,7 +60,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
-        var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.RetiroAlmacen, EstadoPendiente.Pendiente, DateOnly.FromDateTime(DateTime.Today), 3m, 0m);
+        var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.RetiroSucursal, EstadoPendiente.Pendiente, DateOnly.FromDateTime(DateTime.Today), 3m, 0m);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
         var id = Assert.Single((await ObtenerAsync<PaginaPendientesCentral>(cliente, admin, $"/api/manager/despacho/pendientes?buscar={creado.Numero}")).Elementos).Id;
 
@@ -136,7 +136,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
         // 3. Lo que va a pasar: la caja crea un pendiente al cobrar y lo informa al Central.
-        var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.RetiroAlmacen, EstadoPendiente.Pendiente,
+        var creado = Pendiente(CentralEnPruebas.CajaUno, MetodoEntrega.RetiroSucursal, EstadoPendiente.Pendiente,
             DateOnly.FromDateTime(DateTime.Today), 2m, 0m);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.PendienteCreado, creado, CentralEnPruebas.CajaUno)));
 
@@ -218,7 +218,7 @@ public class ApiDespachoPruebas(CentralEnPruebas central)
         var creado = DateTimeOffset.UtcNow.AddHours(-2);
         return new DocumentoPendienteEntrega(CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.PendienteEntrega),
             CentralEnPruebas.NumeroDocumento(cajaId, CgPos.Dominio.Comun.TipoDocumentoNumerado.Factura),
-            metodo, estado, metodo == MetodoEntrega.RetiroAlmacen ? "ALM01" : null, metodo == MetodoEntrega.RetiroAlmacen ? "Almacén Central" : null,
+            metodo, estado, metodo == MetodoEntrega.RetiroSucursal ? "01" : null, metodo == MetodoEntrega.RetiroSucursal ? "Sucursal Kennedy" : null,
             metodo == MetodoEntrega.Envio ? "Calle Principal 10" : null, "Los Prados", "Santo Domingo", "Casa azul", "8095551234", "Transporte Veloz", 350m,
             comprometida, "Llamar antes", "00113918205", "Cliente de Despacho", "Cajero Desarrollo", null, creado, creado, "Cajero Desarrollo", null,
             [new DatosLineaPendiente(1, "CINCEL", "Cincel", "UND", 0, false, cantidad, entregada, null)],

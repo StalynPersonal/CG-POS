@@ -6,26 +6,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CgPos.Pos.Infraestructura.Persistencia.Configuraciones;
 
-internal sealed class AlmacenConfiguracion : IEntityTypeConfiguration<Almacen>
-{
-    public void Configure(EntityTypeBuilder<Almacen> constructor)
-    {
-        constructor.ToTable("Almacenes");
-        constructor.HasKey(a => a.Id);
-        constructor.Property(a => a.Codigo).HasMaxLength(Almacen.LargoMaximoCodigo).IsRequired();
-        constructor.Property(a => a.Nombre).HasMaxLength(Almacen.LargoMaximoNombre).IsRequired();
-        constructor.Property(a => a.Direccion).HasMaxLength(Almacen.LargoMaximoDireccion);
-        constructor.HasIndex(a => a.Codigo).IsUnique();
-    }
-}
-
 internal sealed class DestinoEntregaConfiguracion : IEntityTypeConfiguration<DestinoEntrega>
 {
     public void Configure(EntityTypeBuilder<DestinoEntrega> constructor)
     {
         constructor.ToTable("DestinosEntregaVenta");
         constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.AlmacenNombre).HasMaxLength(Almacen.LargoMaximoNombre);
+        constructor.Property(d => d.SucursalRetiroNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
         ConfigurarEnvio(constructor);
         constructor.Property(d => d.Comentario).HasMaxLength(DestinoEntrega.LargoMaximoComentario);
         constructor.Property(d => d.AutorizadoPorNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
@@ -65,7 +52,7 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
         constructor.HasKey(p => p.Id);
         constructor.Property(p => p.Numero).HasMaxLength(PendienteEntrega.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(p => p.VentaNumero).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
-        constructor.Property(p => p.AlmacenNombre).HasMaxLength(Almacen.LargoMaximoNombre);
+        constructor.Property(p => p.SucursalRetiroNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre);
         constructor.Property(p => p.Direccion).HasMaxLength(DestinoEntrega.LargoMaximoDireccion);
         constructor.Property(p => p.Sector).HasMaxLength(DestinoEntrega.LargoMaximoTexto);
         constructor.Property(p => p.Ciudad).HasMaxLength(DestinoEntrega.LargoMaximoTexto);

@@ -40,10 +40,6 @@ CREATE SEQUENCE [SecuenciaAjustesCierreTurno] AS int START WITH 1 INCREMENT BY 1
 GO
 
 
-CREATE SEQUENCE [SecuenciaAlmacenes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
 CREATE SEQUENCE [SecuenciaAnulacionesEcf] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -827,22 +823,6 @@ CREATE TABLE [Articulos] (
 GO
 
 
-CREATE TABLE [Almacenes] (
-    [Id] int NOT NULL,
-    [Codigo] nvarchar(20) NOT NULL,
-    [Nombre] nvarchar(100) NOT NULL,
-    [SucursalId] int NOT NULL,
-    [Direccion] nvarchar(250) NULL,
-    [Activo] bit NOT NULL,
-    [ModificadoEn] datetimeoffset(3) NOT NULL,
-    [ModificadoPor] nvarchar(150) NOT NULL,
-    [Version] rowversion NOT NULL,
-    CONSTRAINT [PK_Almacenes] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_Almacenes_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
-);
-GO
-
-
 CREATE TABLE [Cajas] (
     [Id] int NOT NULL,
     [SucursalId] int NOT NULL,
@@ -1193,8 +1173,8 @@ CREATE TABLE [PendientesEntrega] (
     [SucursalId] int NOT NULL,
     [CajaId] int NOT NULL,
     [Metodo] int NOT NULL,
-    [AlmacenId] int NULL,
-    [AlmacenNombre] nvarchar(100) NULL,
+    [SucursalRetiroId] int NULL,
+    [SucursalRetiroNombre] nvarchar(150) NULL,
     [Direccion] nvarchar(250) NULL,
     [Sector] nvarchar(100) NULL,
     [Ciudad] nvarchar(100) NULL,
@@ -1562,18 +1542,6 @@ GO
 
 
 CREATE INDEX [IX_AjustesCierreTurno_CierreId] ON [AjustesCierreTurno] ([CierreId]);
-GO
-
-
-CREATE UNIQUE INDEX [IX_Almacenes_Codigo] ON [Almacenes] ([Codigo]);
-GO
-
-
-CREATE INDEX [IX_Almacenes_SucursalId] ON [Almacenes] ([SucursalId]);
-GO
-
-
-CREATE INDEX [IX_Almacenes_Version] ON [Almacenes] ([Version]);
 GO
 
 
@@ -2264,7 +2232,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$xum8WSC0XiiHZLid0EyXhA==$cQMDAHM6w/PZWnB8ILuTGyrMaZ0+SV3e1hZ2b/K7bWs=', 1, NULL, 0, NULL, NULL,
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$TNrx+Yc5SqiuE9v/ZM62cw==$iYdVo5WJ5tGkk1p39grkxuQxhWx6wzOEXxsCU4NZcro=', 1, NULL, 0, NULL, NULL,
         SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO

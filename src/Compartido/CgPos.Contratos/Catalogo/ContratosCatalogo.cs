@@ -31,7 +31,6 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<NivelFidelidadCarga>? NivelesFidelidad = null,
     IReadOnlyList<ReglaAcumulacionCarga>? ReglasAcumulacion = null,
     IReadOnlyList<MiembroFidelidadCarga>? MiembrosFidelidad = null,
-    IReadOnlyList<AlmacenCarga>? Almacenes = null,
     IReadOnlyList<DescuentoTarjetaCarga>? DescuentosTarjeta = null,
     IReadOnlyList<CategoriaCarga>? Categorias = null,
     IReadOnlyList<MarcaCarga>? Marcas = null);
@@ -52,8 +51,6 @@ public sealed record DescuentoTarjetaCarga(
     bool Activo = true);
 
 /// <summary>Almacén o sucursal donde se retira mercancía pendiente (RF-140).</summary>
-public sealed record AlmacenCarga(string Codigo, string Nombre, string SucursalCodigo, string? Direccion = null, bool Activo = true);
-
 /// <summary>Nivel del programa de fidelidad (RF-241): el factor multiplica los puntos que acumula.</summary>
 public sealed record NivelFidelidadCarga(int Codigo, string Nombre, int Orden, decimal FactorAcumulacion, bool Activo = true);
 

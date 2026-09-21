@@ -23,7 +23,7 @@ internal static class DocumentosParaCentral
         var clienteCodigo = datos.Cliente?.ClienteId is { } clienteId
             ? await contexto.Clientes.AsNoTracking().Where(c => c.Id == clienteId).Select(c => c.Codigo).SingleOrDefaultAsync(cancelacion)
             : null;
-        var almacenes = await CodigosAlmacenesAsync(contexto, (datos.DestinosEntrega ?? []).Select(d => d.AlmacenId), cancelacion);
+        var sucursales = await CodigosSucursalesAsync(contexto, (datos.DestinosEntrega ?? []).Select(d => d.SucursalRetiroId), cancelacion);
 
         return new DocumentoVentaCobrada(
             datos.NumeroTransaccion,
@@ -50,8 +50,8 @@ internal static class DocumentosParaCentral
             datos.Fidelidad is { } fidelidad
                 ? new DocumentoFidelidadVenta(fidelidad.Cedula, fidelidad.Nombre, fidelidad.PuntosAcumulados, fidelidad.PuntosCanjeados)
                 : null,
-            (datos.DestinosEntrega ?? []).Select(d => new DocumentoDestinoEntrega(d.Numero, d.Metodo, d.AlmacenId is { } id ? almacenes.GetValueOrDefault(id) : null,
-                d.AlmacenNombre, d.Direccion, d.Sector, d.Ciudad, d.Referencia, d.Telefono, d.Transportista, d.CostoEnvio, d.FechaComprometida, d.Comentario,
+            (datos.DestinosEntrega ?? []).Select(d => new DocumentoDestinoEntrega(d.Numero, d.Metodo, d.SucursalRetiroId is { } id ? sucursales.GetValueOrDefault(id) : null,
+                d.SucursalRetiroNombre, d.Direccion, d.Sector, d.Ciudad, d.Referencia, d.Telefono, d.Transportista, d.CostoEnvio, d.FechaComprometida, d.Comentario,
                 d.AutorizadoPorNombre, d.Lineas)).ToList(),
             ecf,
             datos.ListaBoda?.Numero,
@@ -61,8 +61,8 @@ internal static class DocumentosParaCentral
     public static async Task<DocumentoPendienteEntrega> PendienteAsync(this ContextoDatosPos contexto, PendienteEntrega pendiente, CancellationToken cancelacion)
     {
         var datos = pendiente.ADatos();
-        var almacenCodigo = (await CodigosAlmacenesAsync(contexto, [datos.AlmacenId], cancelacion)).Values.SingleOrDefault();
-        return new DocumentoPendienteEntrega(datos.Numero, datos.VentaNumero, datos.Metodo, datos.Estado, almacenCodigo, datos.AlmacenNombre, datos.Direccion,
+        var sucursalRetiroCodigo = (await CodigosSucursalesAsync(contexto, [datos.SucursalRetiroId], cancelacion)).Values.SingleOrDefault();
+        return new DocumentoPendienteEntrega(datos.Numero, datos.VentaNumero, datos.Metodo, datos.Estado, sucursalRetiroCodigo, datos.SucursalRetiroNombre, datos.Direccion,
             datos.Sector, datos.Ciudad, datos.Referencia, datos.Telefono, datos.Transportista, datos.CostoEnvio, datos.FechaComprometida, datos.Comentario,
             datos.ClienteDocumento, datos.ClienteNombre, datos.VendidoPorNombre, datos.AutorizadoPorNombre, datos.CreadoEn, datos.ActualizadoEn,
             datos.ActualizadoPorNombre, datos.MotivoAnulacion, datos.Lineas, datos.Entregas);
@@ -93,11 +93,12 @@ internal static class DocumentosParaCentral
     /// <summary>Referencia del mensaje de un movimiento de puntos: el documento que lo originó y el tipo.</summary>
     public static string ReferenciaPuntos(MovimientoPuntos movimiento) => $"{movimiento.Documento}-{movimiento.Tipo}";
 
-    private static async Task<Dictionary<int, string>> CodigosAlmacenesAsync(ContextoDatosPos contexto, IEnumerable<int?> ids, CancellationToken cancelacion)
+    /// <summary>El Central conoce las sucursales por su código, no por el Id de esta caja.</summary>
+    private static async Task<Dictionary<int, string>> CodigosSucursalesAsync(ContextoDatosPos contexto, IEnumerable<int?> ids, CancellationToken cancelacion)
     {
         var buscar = ids.OfType<int>().Distinct().ToList();
         return buscar.Count == 0
             ? []
-            : await contexto.Almacenes.AsNoTracking().Where(a => buscar.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Codigo, cancelacion);
+            : await contexto.Sucursales.AsNoTracking().Where(s => buscar.Contains(s.Id)).ToDictionaryAsync(s => s.Id, s => s.Codigo, cancelacion);
     }
 }

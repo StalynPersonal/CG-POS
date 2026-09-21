@@ -113,11 +113,11 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> QuitarEntregaAsync(int ventaId, int numeroDestino, CancellationToken cancelacion = default) =>
         EnviarAsync<object?, RespuestaVenta>(HttpMethod.Delete, $"api/ventas/{ventaId}/entregas/{numeroDestino}", null, ErrorVenta, cancelacion);
 
-    public async Task<IReadOnlyList<DatosAlmacen>> ListarAlmacenesAsync(CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosSucursalRetiro>> ListarSucursalesRetiroAsync(CancellationToken cancelacion = default)
     {
         try
         {
-            return await Http.GetFromJsonAsync<List<DatosAlmacen>>("api/entregas/almacenes", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+            return await Http.GetFromJsonAsync<List<DatosSucursalRetiro>>("api/entregas/sucursales", OpcionesJson.Predeterminadas, cancelacion) ?? [];
         }
         catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
         {

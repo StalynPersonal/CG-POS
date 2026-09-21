@@ -34,7 +34,7 @@ SET NOCOUNT ON;
 /* ------------------------------------------------------------------------
    Ruta del archivo de la DGII, vista desde el servidor de base de datos.
    ------------------------------------------------------------------------ */
-DECLARE @archivo nvarchar(4000) = N'C:\Users\scontreras\Desktop\mio\cg-pos\scripts\datosStellar\DGII_RNC.TXT';
+DECLARE @archivo nvarchar(4000) = N'C:\CGPOS\DGII_RNC.TXT';
 
 IF OBJECT_ID(N'tempdb..#Padron') IS NOT NULL DROP TABLE #Padron;
 CREATE TABLE #Padron

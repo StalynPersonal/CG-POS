@@ -152,8 +152,8 @@
       redondeo, vigencia de las notas de crédito, retención de la Ley 32-23,
       montos que exigen identificación, fidelidad) y también el ritmo de las
       cajas (cada cuánto sincronizan, desde qué hora respaldan).
-   5. Maestros -> Catálogos: departamentos, categorías, marcas, bancos,
-      almacenes. Los catálogos técnicos ya vienen cargados.
+   5. Maestros -> Catálogos: departamentos, categorías, marcas y bancos. Los
+      catálogos técnicos ya vienen cargados.
    6. Maestros -> Artículos y Precios: sus productos, con su código interno,
       sus códigos de barras y sus precios.
    7. Maestros -> Clientes: los que facturan con crédito fiscal. Si quiere

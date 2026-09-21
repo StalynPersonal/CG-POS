@@ -20,7 +20,6 @@ public static class RutasApiMaestros
     {
         var maestros = aplicacion.MapGroup("/api/maestros").RequireAuthorization(CatalogoPermisosCentral.AdministrarMaestros);
 
-        // Referencia para los almacenes, sin exigir el permiso de organización.
         maestros.MapGet("/sucursales", async (IServicioOrganizacion servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarSucursalesAsync(cancelacion)));
 
@@ -37,7 +36,6 @@ public static class RutasApiMaestros
         Catalogo<TasaCambioCarga>(maestros, "tasas-cambio");
         Catalogo<MotivoDescuentoCarga>(maestros, "motivos-descuento", codigoNumerico: true);
         Catalogo<MotivoDevolucionCarga>(maestros, "motivos-devolucion", codigoNumerico: true);
-        Catalogo<AlmacenCarga>(maestros, "almacenes");
         Catalogo<NivelFidelidadCarga>(maestros, "niveles-fidelidad", codigoNumerico: true);
         Catalogo<ReglaAcumulacionCarga>(maestros, "reglas-acumulacion", codigoNumerico: true);
         Catalogo<DescuentoTarjetaCarga>(maestros, "descuentos-tarjeta");

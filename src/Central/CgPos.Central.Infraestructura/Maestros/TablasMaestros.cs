@@ -470,14 +470,6 @@ internal static class TablasMaestros
         filtro: texto => e => e.Cedula.Contains(texto) || e.Nombre.Contains(texto) || (e.Telefono != null && e.Telefono.Contains(texto))
                               || (e.Correo != null && e.Correo.Contains(texto)));
 
-    public static TablaMaestro<Almacen, AlmacenCarga> Almacenes { get; } = new(
-        TipoMaestro.Almacen, c => c.Almacenes,
-        d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
-        (d, r, o) => MapeoMaestros.Crear(d, r),
-        (e, d, r, o) => MapeoMaestros.Actualizar(e, d, r),
-        (e, r, p) => new AlmacenCarga(e.Codigo, e.Nombre, r.CodigoSucursal(e.SucursalId), e.Direccion, e.Activo),
-        q => q.OrderBy(e => e.Codigo));
-
     public static TablaMaestro<DescuentoTarjeta, DescuentoTarjetaCarga> DescuentosTarjeta { get; } = new(
         TipoMaestro.DescuentoTarjeta, c => c.DescuentosTarjeta,
         d => e => e.Codigo == d.Codigo.Trim().ToUpper(),
@@ -534,7 +526,7 @@ internal static class TablasMaestros
     [
         Monedas, Departamentos, Categorias, Marcas, UnidadesMedida, Impuestos, Articulos, Clientes, FormasPago, Bancos, TiposTarjeta, Denominaciones,
         Promociones, MotivosDescuento, TopesDescuento, TasasCambio, SecuenciasEcf, MotivosDevolucion, NivelesFidelidad, ReglasAcumulacion,
-        MiembrosFidelidad, Almacenes, DescuentosTarjeta, RolesCaja, UsuariosCaja,
+        MiembrosFidelidad, DescuentosTarjeta, RolesCaja, UsuariosCaja,
     ];
 
     /// <summary>La tabla de un tipo de carga (ej. <see cref="ArticuloCarga"/>).</summary>

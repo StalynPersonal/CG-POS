@@ -1377,13 +1377,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
-        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(
-            Almacenes: [new AlmacenCarga($"ALM{caja.Catalogo.Sufijo}", $"Almacén Kennedy {caja.Catalogo.Sufijo}", caja.Escenario.CodigoSucursal)]), "Pruebas"));
-        var almacen = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.Almacenes.Where(a => a.Codigo == $"ALM{caja.Catalogo.Sufijo}").Select(a => a.Id).SingleAsync());
-
-        var almacenes = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosAlmacen>>(s => s.ListarAlmacenesAsync(caja.Cajero));
-        Assert.True(almacenes.Single(a => a.Id == almacen).EsDeLaSucursal);
+        // El retiro se ofrece por sucursal: la de la caja viene marcada para proponerla por defecto.
+        var sucursales = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosSucursalRetiro>>(s => s.ListarSucursalesRetiroAsync(caja.Cajero));
+        var sucursalRetiro = sucursales.Single(s => s.EsDeLaCaja).Id;
 
         // Tres cementos y un taladro sin serial: el serial se captura al entregar (RN-16).
         var venta = await caja.VentaActualAsync();
@@ -1401,7 +1397,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // Marcar pendientes: primero se validan las cantidades y después se pide la clave del supervisor (RF-53, RN-15).
         var hoy = DateOnly.FromDateTime(caja.Reloj.Ahora.ToLocalTime().DateTime);
-        var retiro = new SolicitudMarcarEntrega(MetodoEntrega.RetiroAlmacen, almacen, null, hoy.AddDays(2), "Retira el jueves", [new CantidadEntrega(cemento, 2m)]);
+        var retiro = new SolicitudMarcarEntrega(MetodoEntrega.RetiroSucursal, sucursalRetiro, null, hoy.AddDays(2), "Retira el jueves", [new CantidadEntrega(cemento, 2m)]);
         var excedido = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
             s.MarcarEntregaAsync(caja.Cajero, venta.Id, retiro with { Lineas = [new CantidadEntrega(cemento, 4m)] }));
         Assert.Equal(CodigoResultadoVenta.EntregaInvalida, excedido.Resultado);
@@ -1436,7 +1432,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var pendientes = await caja.EjecutarAsync<ContextoDatosPos, List<CgPos.Dominio.Entregas.PendienteEntrega>>(contexto =>
             contexto.PendientesEntrega.AsNoTracking().Include(p => p.Lineas).Where(p => p.VentaId == venta.Id).ToListAsync());
-        Assert.Equal(2m, pendientes.Single(p => p.Metodo == MetodoEntrega.RetiroAlmacen).CantidadPorEntregar(cemento));
+        Assert.Equal(2m, pendientes.Single(p => p.Metodo == MetodoEntrega.RetiroSucursal).CantidadPorEntregar(cemento));
         Assert.Equal("809-555-1111", pendientes.Single(p => p.Metodo == MetodoEntrega.Envio).Telefono);
 
         // Lo pendiente de entrega no se devuelve (RF-233). Quien lo descuenta es el Central, que es quien despacha: aquí lo

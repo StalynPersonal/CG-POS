@@ -28,7 +28,7 @@
         </MudPaper>
         <MudPaper Elevation="1" Class="cg-central__tarjeta">
             <MudText Typo="Typo.h4">@resumen.Retiros</MudText>
-            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Retiros en almacén</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">Retiros en sucursal</MudText>
         </MudPaper>
         <MudPaper Elevation="1" Class="cg-central__tarjeta">
             <MudText Typo="Typo.h4">@resumen.Envios</MudText>
@@ -63,7 +63,7 @@
                 </MudSelect>
                 <MudSelect T="MetodoEntrega?" Value="_metodo" ValueChanged="@(v => FiltrarAsync(() => _metodo = v))" Label="Método" Dense="true"
                            Clearable="true" ToStringFunc="@(m => m is { } valor ? EtiquetaMetodo(valor) : "Todos")" Style="max-width: 200px">
-                    <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.RetiroAlmacen">Retiro en almacén</MudSelectItem>
+                    <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.RetiroSucursal">Retiro en sucursal</MudSelectItem>
                     <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.Envio">Envío</MudSelectItem>
                 </MudSelect>
                 <MudSwitch T="bool" Value="_soloAbiertos" ValueChanged="@(v => FiltrarAsync(() => _soloAbiertos = v))" Label="Solo abiertos" Color="Color.Primary" />
@@ -132,7 +132,7 @@
         _ => "Pendiente",
     };
 
-    private static string EtiquetaMetodo(MetodoEntrega metodo) => metodo == MetodoEntrega.Envio ? "Envío" : "Retiro en almacén";
+    private static string EtiquetaMetodo(MetodoEntrega metodo) => metodo == MetodoEntrega.Envio ? "Envío" : "Retiro en sucursal";
 
     private static Color ColorEstado(EstadoPendiente estado) => estado switch
     {

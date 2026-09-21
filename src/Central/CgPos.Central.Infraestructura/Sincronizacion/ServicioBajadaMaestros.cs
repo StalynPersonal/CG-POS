@@ -32,8 +32,9 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
 
         if (hasta > desde)
         {
-            // A la caja solo le baja su propia sucursal y su propia terminal: lo de las demás lo consulta al Central cuando lo necesita.
-            var sucursales = await EnRango(contexto.Sucursales.AsNoTracking().Where(s => s.Id == caja.SucursalId), desde, hasta).ToListAsync(cancelacion);
+            // Bajan todas las sucursales de la empresa (son pocas y es solo su ficha): la caja las necesita para el retiro en
+            // otra tienda: el cliente puede pasar a buscar por cualquiera. La terminal sí es solo la suya.
+            var sucursales = await EnRango(contexto.Sucursales.AsNoTracking(), desde, hasta).ToListAsync(cancelacion);
             var cajas = await EnRango(contexto.Cajas.AsNoTracking().Where(c => c.Id == caja.CajaId), desde, hasta).ToListAsync(cancelacion);
             var parametros = await EnRango(ParametrosDeCaja(caja), desde, hasta).ToListAsync(cancelacion);
             var empresaCambio = await EnRango(contexto.Empresas.AsNoTracking(), desde, hasta).AnyAsync(cancelacion);
@@ -92,6 +93,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         var (sucursal, codigoCaja) = resolutor.CodigoCaja(caja.CajaId);
         var secuencias = (await Lista<SecuenciaEcfCarga>(TablasMaestros.SecuenciasEcf))?.Where(s => s.SucursalCodigo == sucursal && s.CajaCodigo == codigoCaja).ToList();
 
+
         var paquete = new PaqueteMaestros(
             Departamentos: await Lista<DepartamentoCarga>(TablasMaestros.Departamentos),
             UnidadesMedida: await Lista<UnidadMedidaCarga>(TablasMaestros.UnidadesMedida),
@@ -112,7 +114,6 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
             NivelesFidelidad: await Lista<NivelFidelidadCarga>(TablasMaestros.NivelesFidelidad),
             ReglasAcumulacion: await Lista<ReglaAcumulacionCarga>(TablasMaestros.ReglasAcumulacion),
             MiembrosFidelidad: await Lista<MiembroFidelidadCarga>(TablasMaestros.MiembrosFidelidad),
-            Almacenes: await Lista<AlmacenCarga>(TablasMaestros.Almacenes),
             DescuentosTarjeta: await Lista<DescuentoTarjetaCarga>(TablasMaestros.DescuentosTarjeta),
             Categorias: await Lista<CategoriaCarga>(TablasMaestros.Categorias),
             Marcas: await Lista<MarcaCarga>(TablasMaestros.Marcas));

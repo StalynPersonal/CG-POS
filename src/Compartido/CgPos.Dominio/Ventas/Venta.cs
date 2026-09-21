@@ -515,7 +515,7 @@ public sealed class Venta : Entidad
     /// Marca líneas, completas o en parte, para retiro en un almacén o envío a dirección (RF-246 a RF-248, RN-12 a RN-14). Quien llama
     /// valida la autorización del supervisor (RF-53, RN-15). Una factura admite varios destinos.
     /// </summary>
-    public DestinoEntrega MarcarEntrega(MetodoEntrega metodo, int? almacenId, string? almacenNombre, DatosEnvio? envio, DateOnly? fechaComprometida,
+    public DestinoEntrega MarcarEntrega(MetodoEntrega metodo, int? sucursalRetiroId, string? sucursalRetiroNombre, DatosEnvio? envio, DateOnly? fechaComprometida,
         string? comentario, IReadOnlyCollection<CantidadEntrega> cantidades, int? autorizadoPorId, string? autorizadoPorNombre, DateOnly hoy, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(cantidades);
@@ -523,7 +523,7 @@ public sealed class Venta : Entidad
 
         if (!Enum.IsDefined(metodo))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "Método de entrega no válido.");
-        if (metodo == MetodoEntrega.RetiroAlmacen && (almacenId is null || string.IsNullOrWhiteSpace(almacenNombre)))
+        if (metodo == MetodoEntrega.RetiroSucursal && (sucursalRetiroId is null || string.IsNullOrWhiteSpace(sucursalRetiroNombre)))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "Seleccione el almacén o la sucursal donde el cliente retira.");
         if (metodo == MetodoEntrega.Envio && (envio is null || string.IsNullOrWhiteSpace(envio.Direccion) || string.IsNullOrWhiteSpace(envio.Telefono)))
             throw new ReglaVentaExcepcion(CodigoErrorVenta.EntregaInvalida, "El envío requiere la dirección y un teléfono de contacto.");
@@ -554,7 +554,7 @@ public sealed class Venta : Entidad
         }
 
         var numero = _destinosEntrega.Count == 0 ? 1 : _destinosEntrega.Max(d => d.Numero) + 1;
-        var destino = DestinoEntrega.Crear(Id, numero, metodo, almacenId, almacenNombre, envio, fechaComprometida, comentario, autorizadoPorId, autorizadoPorNombre, pedidas);
+        var destino = DestinoEntrega.Crear(Id, numero, metodo, sucursalRetiroId, sucursalRetiroNombre, envio, fechaComprometida, comentario, autorizadoPorId, autorizadoPorNombre, pedidas);
         _destinosEntrega.Add(destino);
         ActualizadaEn = ahora;
         return destino;

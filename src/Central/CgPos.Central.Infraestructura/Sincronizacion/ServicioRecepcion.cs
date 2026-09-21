@@ -398,11 +398,11 @@ internal sealed class ServicioRecepcion(
         if (await contexto.PendientesEntrega.AnyAsync(p => p.Numero == numero, cancelacion))
             return;
 
-        var almacenId = pendiente.AlmacenCodigo is { Length: > 0 } codigoAlmacen
-            ? await contexto.Almacenes.AsNoTracking().Where(a => a.Codigo == codigoAlmacen).Select(a => (int?)a.Id).FirstOrDefaultAsync(cancelacion)
+        var sucursalRetiroId = pendiente.SucursalRetiroCodigo is { Length: > 0 } codigoRetiro
+            ? await contexto.Sucursales.AsNoTracking().Where(s => s.Codigo == codigoRetiro).Select(s => (int?)s.Id).FirstOrDefaultAsync(cancelacion)
             : null;
 
-        var datos = new DatosPendienteReconstruido(numero, pendiente.VentaNumero, pendiente.Metodo, pendiente.Estado, pendiente.AlmacenNombre,
+        var datos = new DatosPendienteReconstruido(numero, pendiente.VentaNumero, pendiente.Metodo, pendiente.Estado, pendiente.SucursalRetiroNombre,
             pendiente.Direccion, pendiente.Sector, pendiente.Ciudad, pendiente.Referencia, pendiente.Telefono, pendiente.Transportista,
             pendiente.CostoEnvio, pendiente.FechaComprometida, pendiente.Comentario, pendiente.ClienteDocumento, pendiente.ClienteNombre,
             pendiente.VendidoPorNombre, pendiente.AutorizadoPorNombre, pendiente.CreadoEn, pendiente.ActualizadoEn, pendiente.ActualizadoPorNombre,
@@ -414,7 +414,7 @@ internal sealed class ServicioRecepcion(
 
         try
         {
-            var pendiente_ = PendienteEntrega.Reconstruir(datos, documento.SucursalId, documento.CajaId, almacenId);
+            var pendiente_ = PendienteEntrega.Reconstruir(datos, documento.SucursalId, documento.CajaId, sucursalRetiroId);
 
             // El Central le pone su propio número. Si falta su secuencia el pendiente entra igual: la caja ya lo creó al
             // cobrar, y perderlo dejaría mercancía sin despachar por una configuración.

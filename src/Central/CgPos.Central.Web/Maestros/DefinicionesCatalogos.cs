@@ -211,15 +211,6 @@ public static class DefinicionesCatalogos
             Icons.Material.Filled.AssignmentReturn,
             [CodigoNumerico(), Nombre, Estado()]),
 
-        new("almacenes", "Almacenes", "Nuevo almacén", "Dónde se retira la mercancía pendiente de entrega.",
-            Icons.Material.Filled.Warehouse,
-            [
-                Codigo(), Nombre,
-                new("sucursalCodigo", "Sucursal", TipoCampoCatalogo.Sucursal) { Obligatorio = true },
-                new("direccion", "Dirección") { EnTabla = false },
-                Estado(),
-            ]),
-
         new("niveles-fidelidad", "Niveles de fidelidad", "Nuevo nivel", "Categorías del programa: el factor multiplica los puntos que acumula el cliente.",
             Icons.Material.Filled.MilitaryTech,
             [
