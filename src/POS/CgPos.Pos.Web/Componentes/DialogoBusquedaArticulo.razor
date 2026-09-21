@@ -2,15 +2,16 @@
 @inject ClienteAgente Cliente
 
 @* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que el campo, la lista y el teclado se vean juntos. *@
-<MudDialog Class="cg-dialogo-ajustado">
+<MudDialog Class="cg-dialogo-ajustado cg-dialogo-busqueda">
     <DialogContent>
         <div class="cg-busqueda">
             <MudTextField T="string" Value="_texto" ValueChanged="AlCambiarTextoAsync" Label="Descripción, código o referencia"
                           Variant="Variant.Outlined" Immediate="true" DebounceInterval="250" AutoFocus="true"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="cg-campo-activo" />
 
+            @* La lista toma todo el alto que dejan el campo y el teclado: es lo que el cajero necesita ver. *@
             <GrillaTactil TElemento="DatosArticuloResumen" Elementos="_resultados" Seleccionado="_seleccionado" SeleccionadoChanged="AlSeleccionar"
-                          Altura="clamp(120px, calc(100vh - 640px), 360px)" TextoSinRegistros="@(_texto.Length < 2 ? "Escriba al menos 2 caracteres" : "Sin resultados")">
+                          Altura="100%" Clase="cg-busqueda__lista" TextoSinRegistros="@(_texto.Length < 2 ? "Escriba al menos 2 caracteres" : "Sin resultados")">
                 <Encabezado>
                     <MudTh>Código</MudTh>
                     <MudTh>Descripción</MudTh>
@@ -22,7 +23,7 @@
                     <MudTd>@articulo.Codigo</MudTd>
                     <MudTd>
                         @articulo.Descripcion
-                        <div class="cg-venta__nota">@articulo.DepartamentoNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</div>
+                        <span class="cg-busqueda__nota">· @articulo.DepartamentoNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</span>
                     </MudTd>
                     <MudTd>@articulo.UnidadMedidaCodigo</MudTd>
                     <MudTd Class="cg-numero">@(articulo.PrecioDetalle?.ToString("N2") ?? "—")</MudTd>

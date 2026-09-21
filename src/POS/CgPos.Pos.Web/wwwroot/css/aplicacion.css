@@ -173,6 +173,19 @@
 
 .cg-dialogo-ajustado .cg-teclado__fila { flex: 1 1 var(--cg-toque-minimo); min-height: 38px; }
 .cg-dialogo-ajustado .cg-teclado__tecla { min-height: 0; }
+
+/* Búsqueda de artículos: el diálogo ocupa el alto de la ventana y la lista de resultados se queda con todo lo que sobra.
+   El teclado tiene alto fijo y compacto, y las filas de la lista son bajas, para ver varios artículos a la vez. */
+.mud-dialog.cg-dialogo-busqueda { height: calc(100dvh - 24px); }
+.mud-dialog.cg-dialogo-ajustado .cg-busqueda > .cg-busqueda__lista { flex: 1 1 auto; min-height: 150px; display: flex; flex-direction: column; }
+.cg-busqueda__lista .mud-table-container { flex: 1; min-height: 0; height: auto !important; overflow-y: auto; }
+.cg-busqueda__lista .mud-table-head .mud-table-cell { padding: 6px 10px; font-size: .85rem; }
+.cg-busqueda__lista .mud-table-body .mud-table-row { height: 34px; }
+.cg-busqueda__lista .mud-table-body .mud-table-cell { padding: 2px 10px; font-size: .92rem; line-height: 1.15; }
+/* El departamento y la referencia van en la misma línea que la descripción, más tenues: una sola línea por artículo. */
+.cg-busqueda__nota { margin-left: 6px; font-size: .78rem; opacity: .7; }
+.mud-dialog.cg-dialogo-ajustado .cg-busqueda > .cg-teclado { flex: 0 0 auto; }
+.cg-dialogo-ajustado .cg-busqueda .cg-teclado__fila { flex: 0 0 44px; min-height: 44px; }
 .cg-dialogo-teclado__campo input { font-size: 1.75rem; font-variant-numeric: tabular-nums; }
 
 /* ---------- Apertura de turno ---------- */
