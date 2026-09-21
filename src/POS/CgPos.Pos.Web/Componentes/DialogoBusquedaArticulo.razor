@@ -1,38 +1,70 @@
-﻿@* Búsqueda de artículos por descripción, código o referencia (F2). Devuelve el código del artículo elegido. *@
+@* Búsqueda de artículos por descripción, código o referencia (F2). Devuelve el código del artículo elegido. *@
 @inject ClienteAgente Cliente
 
-@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que el campo, la lista y el teclado se vean juntos. *@
+@* Primero se escribe y se presiona Buscar; después la lista ocupa todo el diálogo. Así el teclado y los resultados no se
+   pelean por el espacio. *@
 <MudDialog Class="cg-dialogo-ajustado cg-dialogo-busqueda">
     <DialogContent>
         <div class="cg-busqueda">
-            <MudTextField T="string" Value="_texto" ValueChanged="AlCambiarTextoAsync" Label="Descripción, código o referencia"
-                          Variant="Variant.Outlined" Immediate="true" DebounceInterval="250" AutoFocus="true"
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="cg-campo-activo" />
+            @* Campo de búsqueda y botón Buscar. Tocar el campo vuelve a mostrar el teclado para cambiar la búsqueda. *@
+            <div class="cg-busqueda__barra" @onclick="MostrarTeclado">
+                <MudTextField T="string" @bind-Value="_texto" Label="Descripción, código o referencia" Variant="Variant.Outlined" Immediate="true"
+                              AutoFocus="true" OnKeyDown="AlTeclearAsync" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Class="cg-campo-activo" />
+                @* El botón no vuelve a abrir el teclado: busca. *@
+                <div @onclick:stopPropagation="true">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Search"
+                               Disabled="_buscando" OnClick="BuscarAsync" Class="cg-busqueda__buscar">Buscar</MudButton>
+                </div>
+            </div>
 
-            @* La lista toma todo el alto que dejan el campo y el teclado: es lo que el cajero necesita ver. *@
-            <GrillaTactil TElemento="DatosArticuloResumen" Elementos="_resultados" Seleccionado="_seleccionado" SeleccionadoChanged="AlSeleccionar"
-                          Altura="100%" Clase="cg-busqueda__lista" TextoSinRegistros="@(_texto.Length < 2 ? "Escriba al menos 2 caracteres" : "Sin resultados")">
-                <Encabezado>
-                    <MudTh>Código</MudTh>
-                    <MudTh>Descripción</MudTh>
-                    <MudTh>UM</MudTh>
-                    <MudTh Class="cg-numero">Precio</MudTh>
-                    <MudTh Class="cg-numero">Mayor</MudTh>
-                </Encabezado>
-                <Fila Context="articulo">
-                    <MudTd>@articulo.Codigo</MudTd>
-                    <MudTd>
-                        @articulo.Descripcion
-                        <span class="cg-busqueda__nota">· @articulo.DepartamentoNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</span>
-                    </MudTd>
-                    <MudTd>@articulo.UnidadMedidaCodigo</MudTd>
-                    <MudTd Class="cg-numero">@(articulo.PrecioDetalle?.ToString("N2") ?? "—")</MudTd>
-                    <MudTd Class="cg-numero">@(articulo.PrecioMayor?.ToString("N2") ?? "—")</MudTd>
-                </Fila>
-            </GrillaTactil>
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">@_mensaje</MudAlert>
+            }
 
-            <TecladoTactil Valor="@_texto" ValorChanged="AlCambiarTextoAsync" Modo="ModoTeclado.Alfanumerico" TextoConfirmar="Agregar"
-                           AlConfirmar="_ => Agregar()" />
+            @if (_buscando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+
+            @if (_mostrandoResultados)
+            {
+                @* Cuántos artículos coinciden y el botón para volver al teclado. *@
+                <div class="cg-busqueda__resumen">
+                    <span>@(_resultados.Count == 0 ? "Sin resultados" : $"{_resultados.Count:N0} artículo(s)")</span>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Keyboard" OnClick="MostrarTeclado">
+                        Cambiar búsqueda
+                    </MudButton>
+                </div>
+
+                @* La lista toma todo el alto del diálogo. Tocar una fila la elige; Agregar la pasa a la venta. *@
+                <GrillaTactil TElemento="DatosArticuloResumen" Elementos="_resultados" Seleccionado="_seleccionado" SeleccionadoChanged="AlSeleccionar"
+                              Altura="100%" Clase="cg-busqueda__lista" TextoSinRegistros="No hay artículos que coincidan con la búsqueda">
+                    <Encabezado>
+                        <MudTh>Código</MudTh>
+                        <MudTh>Descripción</MudTh>
+                        <MudTh>UM</MudTh>
+                        <MudTh Class="cg-numero">Precio</MudTh>
+                        <MudTh Class="cg-numero">Mayor</MudTh>
+                    </Encabezado>
+                    <Fila Context="articulo">
+                        <MudTd>@articulo.Codigo</MudTd>
+                        <MudTd>
+                            @articulo.Descripcion
+                            <span class="cg-busqueda__nota">· @articulo.DepartamentoNombre@(articulo.Referencia is null ? null : $" · Ref. {articulo.Referencia}")</span>
+                        </MudTd>
+                        <MudTd>@articulo.UnidadMedidaCodigo</MudTd>
+                        <MudTd Class="cg-numero">@(articulo.PrecioDetalle?.ToString("N2") ?? "—")</MudTd>
+                        <MudTd Class="cg-numero">@(articulo.PrecioMayor?.ToString("N2") ?? "—")</MudTd>
+                    </Fila>
+                </GrillaTactil>
+            }
+            else
+            {
+                <TecladoTactil Valor="@_texto" ValorChanged="valor => _texto = valor" Modo="ModoTeclado.Alfanumerico" TextoConfirmar="Buscar"
+                               AlConfirmar="_ => BuscarAsync()" />
+            }
         </div>
     </DialogContent>
     <DialogActions>
@@ -43,41 +75,43 @@
 </MudDialog>
 
 @code {
+    /// <summary>
+    /// Tope de resultados de una búsqueda. Se traen todos los que coinciden hasta aquí: una búsqueda de una o dos letras entre
+    /// miles de artículos no debe trabar la caja; si se llega al tope, se pide afinar.
+    /// </summary>
+    private const int MaximoResultados = 1000;
+
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
     private string _texto = string.Empty;
     private IReadOnlyList<DatosArticuloResumen> _resultados = [];
     private DatosArticuloResumen? _seleccionado;
-    private CancellationTokenSource? _busqueda;
+    private bool _mostrandoResultados;
+    private bool _buscando;
+    private string? _mensaje;
 
-    private async Task AlCambiarTextoAsync(string texto)
+    private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? BuscarAsync() : Task.CompletedTask;
+
+    private void MostrarTeclado() => _mostrandoResultados = false;
+
+    private async Task BuscarAsync()
     {
-        _texto = texto ?? string.Empty;
-
-        // Solo cuenta la última búsqueda: una respuesta tardía no pisa la más reciente.
-        _busqueda?.Cancel();
-        _busqueda = new CancellationTokenSource();
-        var cancelacion = _busqueda.Token;
-
-        if (_texto.Trim().Length < 2)
+        var texto = _texto.Trim();
+        if (texto.Length < 2)
         {
-            _resultados = [];
-            _seleccionado = null;
+            _mensaje = "Escriba al menos 2 caracteres para buscar.";
             return;
         }
 
-        try
-        {
-            var resultados = await Cliente.BuscarArticulosAsync(_texto.Trim(), cancelacion);
-            if (cancelacion.IsCancellationRequested)
-                return;
+        _buscando = true;
+        _mensaje = null;
+        _resultados = await Cliente.BuscarArticulosAsync(texto, MaximoResultados);
+        _buscando = false;
 
-            _resultados = resultados;
-            _seleccionado = resultados.Count > 0 ? resultados[0] : null;
-        }
-        catch (OperationCanceledException)
-        {
-        }
+        _seleccionado = _resultados.Count > 0 ? _resultados[0] : null;
+        _mostrandoResultados = true;
+        if (_resultados.Count >= MaximoResultados)
+            _mensaje = $"Se muestran los primeros {MaximoResultados:N0}. Escriba algo más para afinar la búsqueda.";
     }
 
     private void AlSeleccionar(DatosArticuloResumen articulo) => _seleccionado = articulo;

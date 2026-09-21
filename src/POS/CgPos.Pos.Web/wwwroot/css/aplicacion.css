@@ -184,6 +184,11 @@
 .cg-busqueda__lista .mud-table-body .mud-table-cell { padding: 2px 10px; font-size: .92rem; line-height: 1.15; }
 /* El departamento y la referencia van en la misma línea que la descripción, más tenues: una sola línea por artículo. */
 .cg-busqueda__nota { margin-left: 6px; font-size: .78rem; opacity: .7; }
+/* Campo y botón Buscar en una fila; el resumen de resultados con el botón para volver al teclado. */
+.cg-busqueda__barra { display: flex; gap: 12px; align-items: center; }
+.cg-busqueda__barra .mud-input-control { flex: 1; }
+.cg-busqueda__buscar { min-height: var(--cg-toque-minimo); min-width: 160px; }
+.cg-busqueda__resumen { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
 .mud-dialog.cg-dialogo-ajustado .cg-busqueda > .cg-teclado { flex: 0 0 auto; }
 .cg-dialogo-ajustado .cg-busqueda .cg-teclado__fila { flex: 0 0 44px; min-height: 44px; }
 .cg-dialogo-teclado__campo input { font-size: 1.75rem; font-variant-numeric: tabular-nums; }

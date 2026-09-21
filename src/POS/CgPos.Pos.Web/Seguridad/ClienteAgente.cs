@@ -393,11 +393,12 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaCertificado> CargarCertificadoAsync(string pin, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/ecf/certificado", new SolicitudCargarCertificado(pin), mensaje => new RespuestaCertificado(false, mensaje, null), cancelacion);
 
-    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarArticulosAsync(string texto, CancellationToken cancelacion = default)
+    /// <param name="maximo">Cuántos artículos traer como mucho.</param>
+    public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarArticulosAsync(string texto, int maximo = 50, CancellationToken cancelacion = default)
     {
         try
         {
-            return await Http.GetFromJsonAsync<List<DatosArticuloResumen>>($"api/articulos?texto={Uri.EscapeDataString(texto)}&maximo=50", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+            return await Http.GetFromJsonAsync<List<DatosArticuloResumen>>($"api/articulos?texto={Uri.EscapeDataString(texto)}&maximo={maximo}", OpcionesJson.Predeterminadas, cancelacion) ?? [];
         }
         catch (HttpRequestException)
         {

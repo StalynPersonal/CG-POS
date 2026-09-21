@@ -53,7 +53,9 @@ internal sealed class ConsultaArticulos(
 
     public async Task<IReadOnlyList<DatosArticuloResumen>> BuscarAsync(string? texto, int? departamentoId = null, int maximo = 50, CancellationToken cancelacion = default)
     {
-        maximo = Math.Clamp(maximo, 1, 200);
+        // Hasta mil: la búsqueda de artículos trae todo lo que coincide, pero una o dos letras entre miles de artículos no
+        // deben trabar la caja.
+        maximo = Math.Clamp(maximo, 1, 1000);
         var consulta = Vendibles();
 
         if (departamentoId is { } departamento)
