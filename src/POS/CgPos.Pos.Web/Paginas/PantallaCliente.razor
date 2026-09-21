@@ -137,6 +137,12 @@
     private int _segundosEnMedio;
 
     private ElementReference? _video;
+
+    /// <summary>
+    /// El elemento &lt;video&gt; al que ya se le pidió reproducir. Se compara el elemento y no el archivo: cuando entra el
+    /// primer artículo (o se cobra) la publicidad cambia de lugar en la pantalla, Blazor crea otro &lt;video&gt; con el
+    /// mismo archivo, y a ese también hay que pedirle que arranque.
+    /// </summary>
     private string? _videoEnMarcha;
     private DateTime _ahora = DateTime.Now;
 
@@ -179,7 +185,6 @@
     {
         _indiceImagen++;
         _segundosEnMedio = 0;
-        _videoEnMarcha = null;
 
         // Al volver a la primera pieza se miran los archivos del equipo: así entran los que alguien copió en la carpeta,
         // que no pasan por el Central y de los que nadie avisa.
@@ -195,18 +200,25 @@
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool primeraVez)
     {
-        if (MedioActual is not { EsVideo: true } video || _video is not { } elemento || _videoEnMarcha == video.Ruta)
+        if (MedioActual is not { EsVideo: true } || _video is not { } elemento || _videoEnMarcha == elemento.Id)
             return;
 
-        _videoEnMarcha = video.Ruta;
+        _videoEnMarcha = elemento.Id;
+        bool reproduce;
         try
         {
-            await Js.InvokeVoidAsync("cgPantallaCliente.reproducir", elemento);
+            // Un script anterior guardado en la caché del navegador no responde nada: se da por reproducido, como antes.
+            reproduce = await Js.InvokeAsync<bool?>("cgPantallaCliente.reproducir", elemento) ?? true;
         }
         catch (JSException)
         {
-            // La pantalla del cliente es informativa: si el navegador no deja reproducir, el carrusel sigue igual.
+            reproduce = false;
         }
+
+        // La pantalla del cliente es informativa: si el navegador no deja reproducir el video, se pasa a la pieza
+        // siguiente en vez de quedarse detenida en su primer cuadro.
+        if (!reproduce)
+            await Siguiente();
     }
 
     protected override async Task OnInitializedAsync()
