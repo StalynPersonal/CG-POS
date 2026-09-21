@@ -148,6 +148,20 @@
 
 /* ---------- Diálogo de teclado ---------- */
 .cg-dialogo-teclado { display: flex; flex-direction: column; gap: 12px; }
+
+/* Diálogos con teclado que no se desplazan: el diálogo cabe en la ventana y lo que cede es el alto de las teclas (de 64 px
+   hasta 38 px). Así el campo, la lista y el teclado se ven siempre juntos, sin barra de desplazamiento. */
+.mud-dialog.cg-dialogo-ajustado { max-height: calc(100dvh - 24px); overflow: hidden; }
+.cg-dialogo-ajustado .mud-dialog-title { flex-shrink: 0; }
+.mud-dialog.cg-dialogo-ajustado .mud-dialog-content { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.cg-dialogo-ajustado .cg-dialogo-teclado,
+.cg-dialogo-ajustado .cg-busqueda { flex: 1 1 auto; min-height: 0; }
+.cg-dialogo-ajustado .cg-dialogo-teclado > *,
+.cg-dialogo-ajustado .cg-busqueda > * { flex-shrink: 0; }
+.cg-dialogo-ajustado .cg-teclado { flex: 0 1 auto; min-height: 0; flex-shrink: 1; }
+.cg-dialogo-ajustado .cg-teclado__fila { flex: 1 1 var(--cg-toque-minimo); min-height: 38px; }
+.cg-dialogo-ajustado .cg-teclado__tecla { min-height: 0; }
+.cg-dialogo-ajustado .mud-dialog-actions { flex-shrink: 0; padding-top: 4px; padding-bottom: 8px; }
 .cg-dialogo-teclado__campo input { font-size: 1.75rem; font-variant-numeric: tabular-nums; }
 
 /* ---------- Apertura de turno ---------- */

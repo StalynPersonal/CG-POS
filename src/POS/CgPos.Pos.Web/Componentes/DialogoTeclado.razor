@@ -1,6 +1,7 @@
-@* Captura un valor con el teclado en pantalla (cantidad, código, monto). Devuelve el texto confirmado. *@
+﻿@* Captura un valor con el teclado en pantalla (cantidad, código, monto). Devuelve el texto confirmado. *@
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que el campo y el teclado se vean juntos. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         <div class="cg-dialogo-teclado">
             <MudTextField T="string" @bind-Value="_valor" Label="@Etiqueta" Variant="Variant.Outlined" Immediate="true"
@@ -9,7 +10,7 @@
             {
                 <MudText Typo="Typo.body2" Color="Color.Secondary">@Ayuda</MudText>
             }
-            <TecladoTactil @bind-Valor="_valor" AlConfirmar="_ => Confirmar()" Modo="Modo" PermitirDecimal="PermitirDecimal"
+            <TecladoTactil @bind-Valor="_valor" AlConfirmar="_ => Confirmar()" Modo="Modo" PermitirDecimal="PermitirDecimal" PermitirAsterisco="PermitirAsterisco"
                            PermitirCambioModo="PermitirCambioModo" LongitudMaxima="LongitudMaxima" TextoConfirmar="@TextoConfirmar" />
         </div>
     </DialogContent>
@@ -27,6 +28,7 @@
     [Parameter] public ModoTeclado Modo { get; set; } = ModoTeclado.Numerico;
     [Parameter] public bool PermitirDecimal { get; set; } = true;
     [Parameter] public bool PermitirCambioModo { get; set; }
+    [Parameter] public bool PermitirAsterisco { get; set; }
     [Parameter] public int? LongitudMaxima { get; set; }
     [Parameter] public string TextoConfirmar { get; set; } = "Aceptar";
 

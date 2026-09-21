@@ -1,4 +1,4 @@
-@* Teclado en pantalla: numérico (cantidades, montos, PIN) o alfanumérico (búsquedas, nombres). *@
+﻿@* Teclado en pantalla: numérico (cantidades, montos, PIN) o alfanumérico (búsquedas, nombres). *@
 <div class="cg-teclado @Clase" role="group" aria-label="Teclado en pantalla">
     @if (_modo == ModoTeclado.Numerico)
     {
@@ -16,6 +16,10 @@
             {
                 <button type="button" class="cg-teclado__tecla" @onclick='() => Escribir(".")'>.</button>
             }
+            @if (PermitirAsterisco)
+            {
+                <button type="button" class="cg-teclado__tecla" @onclick='() => Escribir("*")'>*</button>
+            }
             <button type="button" class="cg-teclado__tecla" @onclick='() => Escribir("0")'>0</button>
             <button type="button" class="cg-teclado__tecla cg-teclado__tecla--control" aria-label="Borrar" @onclick="Borrar">⌫</button>
         </div>
@@ -28,6 +32,10 @@
                 @foreach (var tecla in fila)
                 {
                     <button type="button" class="cg-teclado__tecla" @onclick="() => Escribir(tecla)">@tecla</button>
+                }
+                @if (PermitirAsterisco && ReferenceEquals(fila, FilasAlfabeticas[^1]))
+                {
+                    <button type="button" class="cg-teclado__tecla" @onclick='() => Escribir("*")'>*</button>
                 }
             </div>
         }
@@ -69,6 +77,9 @@
     [Parameter] public ModoTeclado Modo { get; set; } = ModoTeclado.Numerico;
     [Parameter] public bool PermitirCambioModo { get; set; } = true;
     [Parameter] public bool PermitirDecimal { get; set; } = true;
+
+    /// <summary>Muestra la tecla *, para escribir cantidad*código.</summary>
+    [Parameter] public bool PermitirAsterisco { get; set; }
     [Parameter] public int? LongitudMaxima { get; set; }
     [Parameter] public string TextoConfirmar { get; set; } = "Enter";
     [Parameter] public string? Clase { get; set; }

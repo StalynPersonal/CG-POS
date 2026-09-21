@@ -1,7 +1,8 @@
-@* Búsqueda de artículos por descripción, código o referencia (F2). Devuelve el código del artículo elegido. *@
+﻿@* Búsqueda de artículos por descripción, código o referencia (F2). Devuelve el código del artículo elegido. *@
 @inject ClienteAgente Cliente
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que el campo, la lista y el teclado se vean juntos. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         <div class="cg-busqueda">
             <MudTextField T="string" Value="_texto" ValueChanged="AlCambiarTextoAsync" Label="Descripción, código o referencia"

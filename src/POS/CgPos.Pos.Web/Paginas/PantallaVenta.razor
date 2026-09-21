@@ -618,7 +618,7 @@ else
     private async Task DigitarCodigoAsync()
     {
         var codigo = await PedirTextoAsync(_modoEliminar ? "Eliminar por código" : "Agregar artículo", "Código del artículo",
-            ayuda: "También acepta cantidad*código, ej. 12*7891114119695", decimales: false);
+            ayuda: "También acepta cantidad*código, ej. 12*7891114119695", decimales: false, cantidadPorCodigo: true);
         if (codigo is null)
             return;
 
@@ -1104,8 +1104,9 @@ else
     /// </summary>
     private static bool PermiteCambioModo(ModoTeclado modo, bool decimales) => modo == ModoTeclado.Alfanumerico || !decimales;
 
+    /// <param name="cantidadPorCodigo">El valor admite cantidad*código: el teclado muestra la tecla *.</param>
     private async Task<string?> PedirTextoAsync(string titulo, string etiqueta, string valorInicial = "", string? ayuda = null, bool decimales = true,
-        ModoTeclado modo = ModoTeclado.Numerico)
+        ModoTeclado modo = ModoTeclado.Numerico, bool cantidadPorCodigo = false)
     {
         var parametros = new DialogParameters<DialogoTeclado>
         {
@@ -1115,6 +1116,7 @@ else
             { dialogo => dialogo.PermitirDecimal, decimales },
             { dialogo => dialogo.Modo, modo },
             { dialogo => dialogo.PermitirCambioModo, PermiteCambioModo(modo, decimales) },
+            { dialogo => dialogo.PermitirAsterisco, cantidadPorCodigo },
         };
 
         return await MostrarDialogoAsync<DialogoTeclado, string>(titulo, parametros, PermiteCambioModo(modo, decimales) ? MaxWidth.Medium : MaxWidth.Small);
