@@ -40,8 +40,7 @@ public static class RutasApiMaestros
         Catalogo<ReglaAcumulacionCarga>(maestros, "reglas-acumulacion", codigoNumerico: true);
         Catalogo<DescuentoTarjetaCarga>(maestros, "descuentos-tarjeta");
 
-        maestros.MapGet("/clientes", async (string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
-            Results.Ok(await servicio.BuscarAsync<ClienteCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion: cancelacion)));
+        maestros.MapGet("/clientes", BuscarClientesAsync);
         Catalogo<ClienteCarga>(maestros, "clientes", listar: false);
         maestros.MapPost("/clientes/{codigo}/documento", async (string codigo, SolicitudCorreccionDocumentoCliente solicitud, ClaimsPrincipal usuario,
                 IServicioMaestrosCentral servicio, CancellationToken cancelacion) =>
@@ -60,6 +59,10 @@ public static class RutasApiMaestros
 
         // Lo mismo para quien cotiza: elige artículos del maestro y necesita ver su precio, sin administrarlo.
         aplicacion.MapGet("/api/manager/cotizaciones/articulos", BuscarArticulosAsync)
+            .RequireAuthorization(CatalogoPermisosCentral.AdministrarCotizaciones);
+
+        // Y busca al cliente por su documento para completar sus datos, sin necesitar el permiso de maestros.
+        aplicacion.MapGet("/api/manager/cotizaciones/clientes", BuscarClientesAsync)
             .RequireAuthorization(CatalogoPermisosCentral.AdministrarCotizaciones);
 
         var precios = aplicacion.MapGroup("/api/precios").RequireAuthorization(CatalogoPermisosCentral.AdministrarPrecios);
@@ -83,6 +86,10 @@ public static class RutasApiMaestros
 
         return aplicacion;
     }
+
+    private static async Task<IResult> BuscarClientesAsync(string? buscar, int? pagina, int? tamano, IServicioMaestrosCentral servicio,
+        CancellationToken cancelacion) =>
+        Results.Ok(await servicio.BuscarAsync<ClienteCarga>(buscar, pagina ?? 0, tamano ?? TamanoPaginaPredeterminado, cancelacion: cancelacion));
 
     private static async Task<IResult> BuscarArticulosAsync(string? buscar, int? pagina, int? tamano, string? campo, IServicioMaestrosCentral servicio,
         CancellationToken cancelacion) =>

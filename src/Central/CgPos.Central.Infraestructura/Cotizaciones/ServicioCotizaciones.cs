@@ -66,6 +66,9 @@ internal sealed class ServicioCotizaciones(
         return await DatosAsync(cotizaciones, cancelacion);
     }
 
+    public async Task<DateOnly> VencimientoPredeterminadoAsync(CancellationToken cancelacion = default) =>
+        Hoy().AddDays(await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.CotizacionesDiasVigencia, cancelacion));
+
     public async Task<DatosCotizacion?> ObtenerAsync(int cotizacionId, CancellationToken cancelacion = default)
     {
         var cotizacion = await contexto.Cotizaciones.AsNoTracking().Include(c => c.Lineas).FirstOrDefaultAsync(c => c.Id == cotizacionId, cancelacion);
@@ -85,7 +88,7 @@ internal sealed class ServicioCotizaciones(
             return ResultadoAdministracion.Error(faltan);
 
         var ahora = reloj.Ahora();
-        var vence = solicitud.VenceEn ?? Hoy().AddDays(await parametros.ObtenerEnteroPositivoAsync(ClavesParametrosCentral.CotizacionesDiasVigencia, cancelacion));
+        var vence = solicitud.VenceEn ?? await VencimientoPredeterminadoAsync(cancelacion);
 
         try
         {

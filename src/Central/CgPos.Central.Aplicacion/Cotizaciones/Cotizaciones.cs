@@ -20,6 +20,9 @@ public interface IServicioCotizaciones
 
     Task<DatosCotizacion?> ObtenerAsync(int cotizacionId, CancellationToken cancelacion = default);
 
+    /// <summary>Hasta cuándo vale una cotización hecha hoy, según los días de vigencia configurados.</summary>
+    Task<DateOnly> VencimientoPredeterminadoAsync(CancellationToken cancelacion = default);
+
     Task<ResultadoAdministracion> CrearAsync(SolicitudCotizacion solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     Task<ResultadoAdministracion> ActualizarAsync(int cotizacionId, SolicitudCotizacion solicitud, UsuarioAuditoria actor,

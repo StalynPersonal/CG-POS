@@ -3,6 +3,7 @@
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarCotizaciones)]
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Cotizaciones
+@using CgPos.Dominio.Fiscal
 @inject ClienteCentral Cliente
 @inject IDialogService Dialogos
 @inject ISnackbar Avisos
@@ -49,8 +50,11 @@ else if (_cotizacion is { } cotizacion)
         <div class="d-flex gap-3 flex-wrap">
             <MudTextField @bind-Value="_clienteNombre" Label="Nombre del cliente" Variant="Variant.Outlined" Margin="Margin.Dense"
                           Style="min-width: 280px" Disabled="!_editable" />
+            @* La lupa (o Enter) busca el documento en el maestro de clientes y completa sus datos. *@
             <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Style="max-width: 220px" Disabled="!_editable" />
+                          Style="max-width: 220px" Disabled="!_editable" OnKeyDown="AlTeclearDocumento"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="BuscarClienteAsync"
+                          AdornmentAriaLabel="Buscar cliente" />
             <MudTextField @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px"
                           Disabled="!_editable" />
             <MudTextField @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 240px"
@@ -72,21 +76,32 @@ else if (_cotizacion is { } cotizacion)
 
             @if (_editable)
             {
+                @* Cada campo va en un contenedor con su ancho (el estilo puesto al campo cae en una caja interna y deja huecos): la
+                   descripción ocupa todo lo que sobra junto al código, y cantidad, precio y descuento quedan juntos. *@
                 <div class="d-flex gap-2 flex-wrap align-end">
-                    <MudTextField @ref="_campoCodigo" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                  Immediate="true" Style="width: 200px" OnKeyDown="AlTeclearCodigo"
-                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="BuscarEnElMaestroAsync"
-                                  AdornmentAriaLabel="Buscar artículo" />
-                    <MudTextField Value="_descripcion" Label="Descripción" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true"
-                                  Class="flex-grow-1" Style="min-width: 240px" />
+                    <div style="width: 200px">
+                        <MudTextField @ref="_campoCodigo" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Immediate="true" OnKeyDown="AlTeclearCodigo"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="BuscarEnElMaestroAsync"
+                                      AdornmentAriaLabel="Buscar artículo" />
+                    </div>
+                    <div class="flex-grow-1" style="min-width: 240px">
+                        <MudTextField Value="_descripcion" Label="Descripción" Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true" />
+                    </div>
                     @* Cantidad y descuento salen vacíos: se escribe el número y ya. Vacío vale 1 y 0. *@
-                    <MudNumericField @ref="_campoCantidad" Immediate="true" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                     Min="0.001m" Format="0.###" Style="width: 120px" OnKeyDown="AlTeclearCantidad" Placeholder="1" HideSpinButtons="true" />
+                    <div style="width: 110px">
+                        <MudNumericField @ref="_campoCantidad" Immediate="true" @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0.001m" Format="0.###" OnKeyDown="AlTeclearCantidad" Placeholder="1" HideSpinButtons="true" />
+                    </div>
                     @* El precio es el del maestro y no se cambia aquí: lo que se cotiza es el precio del día. *@
-                    <MudNumericField Value="_precio" T="decimal" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
-                                     Style="width: 140px" ReadOnly="true" HideSpinButtons="true" />
-                    <MudNumericField @ref="_campoDescuento" Immediate="true" @bind-Value="_descuento" Label="Descuento" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                     Min="0m" Format="N2" Style="width: 130px" OnKeyDown="AlTeclearDescuento" Placeholder="0.00" HideSpinButtons="true" />
+                    <div style="width: 130px">
+                        <MudNumericField Value="_precio" T="decimal" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2"
+                                         ReadOnly="true" HideSpinButtons="true" />
+                    </div>
+                    <div style="width: 120px">
+                        <MudNumericField @ref="_campoDescuento" Immediate="true" @bind-Value="_descuento" Label="Descuento" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0m" Format="N2" OnKeyDown="AlTeclearDescuento" Placeholder="0.00" HideSpinButtons="true" />
+                    </div>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AgregarAsync">Agregar</MudButton>
                 </div>
             }
@@ -103,19 +118,20 @@ else if (_cotizacion is { } cotizacion)
                     <MudTh Style="width: 56px"></MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.Codigo</MudTd>
-                    <MudTd>@context.Descripcion</MudTd>
-                    <MudTd>
-                        <MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.001m" Format="0.###"
+                    @* Filas bajas: cantidad y descuento se corrigen en la misma fila con un campo de una línea en vez del recuadro. *@
+                    <MudTd Style="padding-block: 2px">@context.Codigo</MudTd>
+                    <MudTd Style="padding-block: 2px">@context.Descripcion</MudTd>
+                    <MudTd Style="padding-block: 2px">
+                        <MudNumericField @bind-Value="context.Cantidad" Variant="Variant.Text" Margin="Margin.None" Min="0.001m" Format="0.###"
                                          Disabled="!_editable" HideSpinButtons="true" />
                     </MudTd>
-                    <MudTd Style="text-align: right">@context.PrecioUnitario.ToString("N2")</MudTd>
-                    <MudTd>
-                        <MudNumericField @bind-Value="context.Descuento" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2"
+                    <MudTd Style="padding-block: 2px; text-align: right">@context.PrecioUnitario.ToString("N2")</MudTd>
+                    <MudTd Style="padding-block: 2px">
+                        <MudNumericField @bind-Value="context.Descuento" Variant="Variant.Text" Margin="Margin.None" Min="0m" Format="N2"
                                          Disabled="!_editable" HideSpinButtons="true" />
                     </MudTd>
-                    <MudTd Style="text-align: right">@context.Importe.ToString("N2")</MudTd>
-                    <MudTd>
+                    <MudTd Style="padding-block: 2px; text-align: right">@context.Importe.ToString("N2")</MudTd>
+                    <MudTd Style="padding-block: 2px">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Disabled="!_editable" OnClick="() => _lineas.Remove(context)" />
                     </MudTd>
                 </RowTemplate>
@@ -202,8 +218,10 @@ else if (_cotizacion is { } cotizacion)
         _correo = cotizacion.ClienteCorreo;
         _observacion = cotizacion.Observacion;
 
-        // Una cotización nueva toma su vigencia del Central; aquí solo se muestra vacía hasta que se guarde.
-        _venceEn = CotizacionId is null ? null : cotizacion.VenceEn.ToDateTime(TimeOnly.MinValue);
+        // Una cotización nueva propone hoy más los días de vigencia configurados en el Central; se puede cambiar antes de guardar.
+        _venceEn = CotizacionId is null
+            ? (await Cliente.VencimientoCotizacionAsync())?.ToDateTime(TimeOnly.MinValue)
+            : cotizacion.VenceEn.ToDateTime(TimeOnly.MinValue);
 
         _lineas.Clear();
         foreach (var linea in cotizacion.Lineas)
@@ -224,6 +242,49 @@ else if (_cotizacion is { } cotizacion)
         DateOnly.FromDateTime(DateTime.Today), false, EstadoCotizacion.Abierta, null, null, null, string.Empty, DateTimeOffset.Now, 0m, 0m, 0m, 0m, []);
 
     private void Volver() => Navegacion.NavigateTo("cotizaciones");
+
+    // ---------- El cliente ----------
+
+    /// <summary>Enter en el documento: lo busca en el maestro de clientes, igual que la lupa.</summary>
+    private async Task AlTeclearDocumento(KeyboardEventArgs tecla)
+    {
+        if (tecla.Key is "Enter" or "NumpadEnter")
+            await BuscarClienteAsync();
+    }
+
+    /// <summary>Busca el cliente con ese documento y completa nombre, teléfono y correo con los del maestro.</summary>
+    private async Task BuscarClienteAsync()
+    {
+        if (!_editable)
+            return;
+
+        var documento = DocumentoIdentidad.Normalizar(_clienteDocumento);
+        if (documento.Length == 0)
+        {
+            Avisos.Add("Digite la cédula o el RNC del cliente para buscarlo.", Severity.Warning);
+            return;
+        }
+
+        var pagina = await Cliente.BuscarClientesCotizacionAsync(documento);
+        if (pagina is null)
+        {
+            Avisos.Add("No se pudo consultar el maestro de clientes. Verifique la comunicación con el Central.", Severity.Error);
+            return;
+        }
+
+        // La búsqueda también encuentra por código o nombre: aquí solo vale el cliente cuyo documento es exactamente ese.
+        var cliente = pagina.Elementos.Select(e => e.Dato).FirstOrDefault(c => DocumentoIdentidad.Normalizar(c.Documento) == documento);
+        if (cliente is null)
+        {
+            Avisos.Add("No hay un cliente registrado con ese documento: complete sus datos a mano.", Severity.Info);
+            return;
+        }
+
+        _clienteDocumento = cliente.Documento;
+        _clienteNombre = cliente.Nombre;
+        _telefono = cliente.Telefono;
+        _correo = cliente.Correo;
+    }
 
     // ---------- La captura ----------
 

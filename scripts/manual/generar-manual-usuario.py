@@ -512,7 +512,11 @@ p('Ruta: /cotizaciones. Es el presupuesto que se le arma a un cliente desde cual
   'cualquier sucursal la convierte en factura buscándola por su número (F9).')
 paso('Para hacer una nueva, use «Nueva cotización» del menú o el botón del listado: se abre una pantalla completa, no una '
      'ventanita.')
-paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo.')
+paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo. Si el cliente ya está registrado, '
+     'digite su cédula o RNC y presione la lupa del campo (o Enter): el nombre, el teléfono y el correo se completan solos '
+     'con los del maestro de clientes.')
+paso('«Vale hasta» ya viene con la fecha de vencimiento: hoy más los días configurados en Parámetros '
+     '(Central.Cotizaciones.DiasVigencia, 15 de fábrica). Se puede cambiar antes de guardar.')
 paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y el precio del '
      'día y salta a la cantidad), escriba la cantidad y Enter (salta al descuento), y otro Enter lo pasa a la lista y '
      'vuelve al código, vacío y listo para el siguiente. La cantidad y el descuento salen vacíos: si no escribe nada, '
@@ -523,8 +527,8 @@ paso('Si no se sabe el código, presione la lupa del campo: se abre una ventana 
 p('Lo último agregado queda arriba en la lista. El precio es el del maestro y no se digita: lo que se cotiza es el precio '
   'del día. La cantidad y el descuento sí se pueden corregir en la línea, y el total se ve arriba, al lado de la '
   'observación.')
-paso('Guarde: el Central le asigna su número (por ejemplo COT000001) y su fecha de vencimiento, según los días '
-     'configurados en Parámetros.')
+paso('Guarde: el Central le asigna su número (por ejemplo COT000001). Si se borró la fecha de «Vale hasta», la pone '
+     'él con los días configurados.')
 paso('Con «Imprimir» sale el PDF en tamaño carta para entregárselo o enviárselo al cliente.')
 p('El listado queda solo para buscar: escriba el número, el cliente, su documento o el número de la factura, o filtre por '
   'estado. Al tocar una fila se abre esa cotización en su pantalla.')

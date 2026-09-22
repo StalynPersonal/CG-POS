@@ -437,6 +437,23 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
         }
     }
 
+    /// <summary>Hasta cuándo vale una cotización hecha hoy; nulo si no hay comunicación con el Central.</summary>
+    public async Task<DateOnly?> VencimientoCotizacionAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DateOnly>("api/manager/cotizaciones/vencimiento", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Clientes del maestro que coinciden con el documento, buscados con el permiso de cotizaciones.</summary>
+    public Task<PaginaMaestros<CgPos.Contratos.Catalogo.ClienteCarga>?> BuscarClientesCotizacionAsync(string documento, CancellationToken cancelacion = default) =>
+        BuscarAsync<CgPos.Contratos.Catalogo.ClienteCarga>("api/manager/cotizaciones/clientes", documento, 0, 20, cancelacion);
+
     public Task<RespuestaAdministracion> CrearCotizacionAsync(SolicitudCotizacion solicitud) =>
         EnviarAsync(HttpMethod.Post, "api/manager/cotizaciones", solicitud);
 

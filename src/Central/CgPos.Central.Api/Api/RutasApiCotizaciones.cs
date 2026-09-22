@@ -21,6 +21,10 @@ public static class RutasApiCotizaciones
         manager.MapGet("/", async (string? buscar, EstadoCotizacion? estado, IServicioCotizaciones servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarAsync(buscar, estado, cancelacion)));
 
+        // La fecha que propone el formulario de una cotización nueva: hoy más los días de vigencia configurados.
+        manager.MapGet("/vencimiento", async (IServicioCotizaciones servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.VencimientoPredeterminadoAsync(cancelacion)));
+
         manager.MapGet("/{cotizacionId:int}", async (int cotizacionId, IServicioCotizaciones servicio, CancellationToken cancelacion) =>
             await servicio.ObtenerAsync(cotizacionId, cancelacion) is { } cotizacion ? Results.Ok(cotizacion) : Results.NotFound());
 
