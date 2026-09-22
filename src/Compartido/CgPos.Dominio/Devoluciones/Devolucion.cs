@@ -109,6 +109,21 @@ public sealed class Devolucion : Entidad
     public int SucursalId { get; private set; }
     public int CajaId { get; private set; }
     public int? TurnoId { get; private set; }
+
+    /// <summary>
+    /// Foto de la sucursal, la caja y el turno que emitieron la nota. Los Id la relacionan dentro de la base; esto guarda
+    /// cómo se llamaban entonces, para que el histórico no cambie si después se renombra o recodifica algo.
+    /// </summary>
+    public string SucursalCodigo { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string SucursalNombre { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string CajaCodigo { get; private set; } = string.Empty;
+
+    /// <summary>Número del turno en su caja al emitir la nota; nulo si se emitió sin turno abierto.</summary>
+    public long? TurnoNumero { get; private set; }
     public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
@@ -186,14 +201,16 @@ public sealed class Devolucion : Entidad
 
     /// <param name="sucursalId">Sucursal que emite la nota, que no es la que vendió cuando la factura vino del Central.</param>
     /// <param name="cajaId">Caja que emite la nota: es la que tiene el rango de e-NCF y el certificado.</param>
+    /// <param name="origen">Sucursal, caja y turno que emiten la nota, tal como están hoy: quedan en ella como foto.</param>
     public static Devolucion Registrar(FacturaParaDevolver venta, int sucursalId, int cajaId, string? encfOrigen,
         IReadOnlyCollection<LineaSolicitadaDevolucion> solicitadas,
         IReadOnlyDictionary<int, DevueltoLinea> devuelto, ClienteDevolucion? cliente, int? motivoCodigo, string? motivoNombre, string? observacion,
-        string numero, int? turnoId, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
+        string numero, OrigenDocumento origen, int? turnoId, int usuarioId, string usuarioNombre, int? autorizadoPorId, string? autorizadoPorNombre,
         int diasRetencionImpuesto, DateOnly hoy, DateTimeOffset ahora, TimeZoneInfo zonaHoraria, bool esInterna = false)
     {
         ArgumentNullException.ThrowIfNull(zonaHoraria);
         ArgumentNullException.ThrowIfNull(venta);
+        ArgumentNullException.ThrowIfNull(origen);
 
         var cobradaEn = venta.CobradaEn;
 
@@ -218,6 +235,10 @@ public sealed class Devolucion : Entidad
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
             CajaId = Validar.Id(cajaId, "Caja"),
             TurnoId = turnoId,
+            SucursalCodigo = origen.SucursalCodigo,
+            SucursalNombre = origen.SucursalNombre,
+            CajaCodigo = origen.CajaCodigo,
+            TurnoNumero = origen.TurnoNumero,
             UsuarioId = Validar.Id(usuarioId, "Usuario"),
             UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoNombre),
             VentaOrigenId = venta.VentaId,

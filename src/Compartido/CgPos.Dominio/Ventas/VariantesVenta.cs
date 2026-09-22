@@ -136,7 +136,7 @@ public sealed class VentaCobrada : Venta
     /// número sin usar.
     /// </summary>
     /// <param name="origen">Sucursal, caja y turno tal como están al cobrar: quedan en la venta como foto.</param>
-    public void Numerar(OrigenVenta origen, long secuencia, int digitosSecuencia)
+    public void Numerar(OrigenDocumento origen, long secuencia, int digitosSecuencia)
     {
         if (Estado != EstadoVenta.Cobrada)
             throw new InvalidOperationException("Solo se numera una venta cobrada.");
@@ -173,6 +173,3 @@ public sealed class LineaVentaGuardada : LineaVenta;
 
 /// <summary>Línea de la venta cobrada: es la que viaja al Central y la que se devuelve.</summary>
 public sealed class LineaVentaCobrada : LineaVenta;
-
-/// <summary>Dónde se cobró la venta: sucursal, caja y turno tal como estaban en ese momento.</summary>
-public sealed record OrigenVenta(string SucursalCodigo, string SucursalNombre, string CajaCodigo, long TurnoNumero);

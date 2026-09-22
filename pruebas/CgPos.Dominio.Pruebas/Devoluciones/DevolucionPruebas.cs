@@ -1,4 +1,5 @@
 ﻿using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Comun;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -12,6 +13,7 @@ public class DevolucionPruebas
     private static readonly DateOnly DiaCobro = new(2026, 9, 1);
     private static readonly TimeZoneInfo HoraCaja = TimeZoneInfo.CreateCustomTimeZone("Caja de prueba", TimeSpan.FromHours(-4), "Caja de prueba", "Caja de prueba");
     private static readonly ClienteDevolucion Cliente = new(TipoDocumentoIdentidad.Rnc, "401007551", "Cliente de prueba");
+    private static readonly OrigenDocumento Origen = new("01", "Sucursal Centro", "02", null);
     private static readonly FormaPagoParaCobro Efectivo = new(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
 
     private static readonly ArticuloParaVenta Cincel = new(
@@ -29,8 +31,18 @@ public class DevolucionPruebas
     private static Devolucion Devolver(Venta venta, decimal cantidad, IReadOnlyDictionary<int, DevueltoLinea>? devuelto = null, DateOnly? hoy = null,
         string? serial = null) =>
         Devolucion.Registrar(FacturaParaDevolver.De(venta), venta.SucursalId, venta.CajaId, "E320000000001", [new LineaSolicitadaDevolucion(1, cantidad, serial)], devuelto ?? new Dictionary<int, DevueltoLinea>(),
-            Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", null, Ids.Siguiente(), "Cajera", Ids.Siguiente(), "Encargado",
+            Cliente, 1, "Artículo defectuoso", null, "NC-01-00000001", Origen, null, Ids.Siguiente(), "Cajera", Ids.Siguiente(), "Encargado",
             diasRetencionImpuesto: 30, hoy ?? DiaCobro.AddDays(3), Cobro.AddDays(3), HoraCaja);
+
+    [Fact]
+    public void La_nota_guarda_la_foto_de_la_sucursal_la_caja_y_el_turno_que_la_emitieron()
+    {
+        var devolucion = Devolver(VentaCobrada(1), 1);
+
+        Assert.Equal(("01", "Sucursal Centro", "02", (long?)null),
+            (devolucion.SucursalCodigo, devolucion.SucursalNombre, devolucion.CajaCodigo, devolucion.TurnoNumero));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new OrigenDocumento("01", "Sucursal Centro", "02", 0));
+    }
 
     [Fact]
     public void Devolucion_parcial_acredita_la_parte_proporcional_y_la_ultima_toma_el_resto_exacto()
@@ -74,12 +86,12 @@ public class DevolucionPruebas
         var venta = VentaCobrada(1);
 
         var sinCliente = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(FacturaParaDevolver.De(venta), venta.SucursalId, venta.CajaId, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", null, Ids.Siguiente(), "Cajera",
+            new Dictionary<int, DevueltoLinea>(), new ClienteDevolucion(null, "123", "X"), 1, "Defecto", null, "NC-1", Origen, null, Ids.Siguiente(), "Cajera",
             null, null, 30, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.ClienteRequerido, sinCliente.Codigo);
 
         var sinMotivo = Assert.Throws<ReglaDevolucionExcepcion>(() => Devolucion.Registrar(FacturaParaDevolver.De(venta), venta.SucursalId, venta.CajaId, null, [new LineaSolicitadaDevolucion(1, 1)],
-            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", null, Ids.Siguiente(), "Cajera", null, null, 30, DiaCobro, Cobro, HoraCaja));
+            new Dictionary<int, DevueltoLinea>(), Cliente, null, null, null, "NC-1", Origen, null, Ids.Siguiente(), "Cajera", null, null, 30, DiaCobro, Cobro, HoraCaja));
         Assert.Equal(CodigoErrorDevolucion.MotivoRequerido, sinMotivo.Codigo);
     }
 

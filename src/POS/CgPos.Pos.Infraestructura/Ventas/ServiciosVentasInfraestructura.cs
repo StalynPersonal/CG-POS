@@ -428,7 +428,7 @@ internal sealed class ServicioVentas(
         var turnoNumero = await contexto.Turnos.Where(t => t.Id == cobrada.TurnoId).Select(t => t.Numero).SingleAsync(cancelacion);
         var digitos = await NumeracionDocumentos.DigitosAsync(parametros, cobrada.CajaId, cancelacion);
         var minimo = await NumeracionDocumentos.MinimoAsync(parametros, CgPos.Dominio.Organizacion.CatalogoParametros.ProximaFactura, sesion.CajaId, cancelacion);
-        cobrada.Numerar(new OrigenVenta(sucursal.Codigo, sucursal.Nombre, sesion.CajaCodigo, turnoNumero),
+        cobrada.Numerar(new OrigenDocumento(sucursal.Codigo, sucursal.Nombre, sesion.CajaCodigo, turnoNumero),
             await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion, minimo), digitos);
         await contexto.Ventas.AddAsync(cobrada, cancelacion);
         contexto.VentasTemp.Remove(borrador);

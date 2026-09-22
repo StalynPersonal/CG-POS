@@ -163,8 +163,6 @@ public abstract class Venta : Entidad
     public const int LargoMaximoUsuario = 150;
     public const int LargoMaximoNombreCliente = 150;
     public const int LargoMaximoDocumento = 20;
-    public const int LargoCodigoOrigen = 2;
-    public const int LargoMaximoNombreSucursal = CgPos.Dominio.Organizacion.Empresa.LargoMaximoNombre;
     public const decimal CantidadMaxima = 99_999m;
 
     private protected Venta()
@@ -350,23 +348,22 @@ public abstract class Venta : Entidad
     /// Le da a la venta su número de factura. Solo se llama una vez y solo sobre la cobrada, con la secuencia pedida al
     /// cobrar: por eso lo primero que se cobra se lleva el número primero, aunque se haya empezado después.
     /// </summary>
-    private protected void AsignarNumero(OrigenVenta origen, long secuencia, int digitosSecuencia)
+    private protected void AsignarNumero(OrigenDocumento origen, long secuencia, int digitosSecuencia)
     {
         ArgumentNullException.ThrowIfNull(origen);
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(origen.TurnoNumero, 1);
+        if (origen.TurnoNumero is not >= 1)
+            throw new ArgumentException("La venta se cobra siempre dentro de un turno.", nameof(origen));
         if (NumeroTransaccion.Length > 0)
             throw new InvalidOperationException($"La venta ya tiene el número {NumeroTransaccion}.");
 
-        var sucursalCodigo = Validar.CodigoDosDigitos(origen.SucursalCodigo, "Código de sucursal");
-        var cajaCodigo = Validar.CodigoDosDigitos(origen.CajaCodigo, "Código de caja");
-        NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(sucursalCodigo, cajaCodigo, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia),
+        NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(origen.SucursalCodigo, origen.CajaCodigo, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia),
             "Número de transacción", LargoMaximoNumero);
         Secuencia = secuencia;
-        SucursalCodigo = sucursalCodigo;
-        SucursalNombre = Validar.Texto(origen.SucursalNombre, "Nombre de sucursal", LargoMaximoNombreSucursal);
-        CajaCodigo = cajaCodigo;
-        TurnoNumero = origen.TurnoNumero;
+        SucursalCodigo = origen.SucursalCodigo;
+        SucursalNombre = origen.SucursalNombre;
+        CajaCodigo = origen.CajaCodigo;
+        TurnoNumero = origen.TurnoNumero.Value;
     }
 
     /// <summary>

@@ -195,8 +195,12 @@ internal sealed class ServicioDevoluciones(
         var lineas = solicitud.Lineas.Select(l => new LineaSolicitadaDevolucion(l.NumeroLinea, l.Cantidad, l.Serial)).ToList();
         var ahora = reloj.Ahora();
 
-        Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, int? turnoId, ResultadoPermiso? permiso) =>
-            Devolucion.Registrar(factura, sesion.SucursalId, sesion.CajaId, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero, turnoId,
+        // La sucursal que emite la nota, para la foto que queda en ella (y para su número).
+        var sucursal = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == sesion.SucursalId).Select(s => new { s.Codigo, s.Nombre }).SingleAsync(cancelacion);
+
+        Devolucion Armar(IReadOnlyDictionary<int, DevueltoLinea> devuelto, string numero, int? turnoId, long? turnoNumero, ResultadoPermiso? permiso) =>
+            Devolucion.Registrar(factura, sesion.SucursalId, sesion.CajaId, encfOrigen, lineas, devuelto, cliente, motivo?.Codigo, motivo?.Nombre, solicitud.Observacion, numero,
+                new OrigenDocumento(sucursal.Codigo, sucursal.Nombre, sesion.CajaCodigo, turnoNumero), turnoId,
                 sesion.UsuarioId, sesion.Nombre, permiso?.SupervisorId ?? sesion.UsuarioId, permiso?.SupervisorNombre ?? sesion.Nombre,
                 diasRetencion, Hoy, ahora, reloj.LocalTimeZone, solicitud.Interna);
 
@@ -207,7 +211,7 @@ internal sealed class ServicioDevoluciones(
         // Se validan las reglas antes de pedir la clave del encargado.
         try
         {
-            Armar(await DevueltoDeLaFacturaAsync(venta, copia, cancelacion), "VALIDACION", null, null);
+            Armar(await DevueltoDeLaFacturaAsync(venta, copia, cancelacion), "VALIDACION", null, null, null);
         }
         catch (ReglaDevolucionExcepcion excepcion)
         {
@@ -242,14 +246,15 @@ internal sealed class ServicioDevoluciones(
             var digitos = await NumeracionDocumentos.DigitosAsync(parametros, sesion.CajaId, cancelacion);
             var minimo = await NumeracionDocumentos.MinimoAsync(parametros, CgPos.Dominio.Organizacion.CatalogoParametros.ProximaNotaCredito, sesion.CajaId, cancelacion);
             var secuencia = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.NotaCredito, cancelacion, minimo);
-            var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
-            var turnoId = await contexto.Turnos.AsNoTracking()
+            var turno = await contexto.Turnos.AsNoTracking()
                 .Where(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto)
-                .Select(t => (int?)t.Id)
+                .Select(t => new { t.Id, t.Numero })
                 .FirstOrDefaultAsync(cancelacion);
+            var turnoId = turno?.Id;
 
             // Lo ya devuelto se relee dentro de la transacción para no devolver dos veces lo mismo (RF-42).
-            devolucion = Armar(await DevueltoDeLaFacturaAsync(venta, copia, cancelacion), NumeroDocumento.Formatear(codigoSucursal, sesion.CajaCodigo, TipoDocumentoNumerado.NotaCredito, secuencia, digitos), turnoId, permiso);
+            devolucion = Armar(await DevueltoDeLaFacturaAsync(venta, copia, cancelacion),
+                NumeroDocumento.Formatear(sucursal.Codigo, sesion.CajaCodigo, TipoDocumentoNumerado.NotaCredito, secuencia, digitos), turnoId, turno?.Numero, permiso);
             contexto.Devoluciones.Add(devolucion);
 
             // La nota interna no es un comprobante fiscal: no consume e-NCF ni se le firma XML (no va al 607).
@@ -308,10 +313,7 @@ internal sealed class ServicioDevoluciones(
         }
 
         var datos = devolucion.ADatos(emision?.Documento, Hoy, diasVigencia);
-        var turnoNumero = devolucion.TurnoId is { } turnoDevolucion
-            ? await contexto.Turnos.AsNoTracking().Where(t => t.Id == turnoDevolucion).Select(t => (long?)t.Numero).SingleOrDefaultAsync(cancelacion)
-            : null;
-        bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Numero, DocumentosParaCentral.NotaCreditoEmitida(datos, turnoNumero, emision?.ParaCentral));
+        bandejaSalida.Encolar("Devolucion.NotaCreditoEmitida", devolucion.Numero, DocumentosParaCentral.NotaCreditoEmitida(datos, devolucion.TurnoNumero, emision?.ParaCentral));
         if (reversoPuntos is not null)
             bandejaSalida.Encolar("Fidelidad.MovimientoPuntos", DocumentosParaCentral.ReferenciaPuntos(reversoPuntos), DocumentosParaCentral.MovimientoPuntos(reversoPuntos));
         auditoria.Registrar(new EntradaAuditoria(devolucion.EsInterna ? "Devoluciones.NotaCreditoInterna" : "Devoluciones.NotaCreditoEmitida",

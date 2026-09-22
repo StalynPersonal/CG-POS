@@ -41,7 +41,7 @@ public class VentaPruebas
         var cobrada = VentaCobrada.DesdeBorrador((VentaEnProceso)venta);
 
         // Sin cobrar no se numera: un cobro rechazado no puede dejar un número sin usar.
-        var origen = new OrigenVenta("01", "Sucursal Centro", "02", 5);
+        var origen = new OrigenDocumento("01", "Sucursal Centro", "02", 5);
         Assert.Throws<InvalidOperationException>(() => cobrada.Numerar(origen, 123, 7));
         Assert.Equal(string.Empty, cobrada.SucursalCodigo);
 

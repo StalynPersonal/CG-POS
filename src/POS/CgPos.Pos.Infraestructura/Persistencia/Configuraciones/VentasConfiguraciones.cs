@@ -1,4 +1,5 @@
 ﻿using CgPos.Dominio.Catalogo;
+using CgPos.Dominio.Comun;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Organizacion;
 using CgPos.Dominio.Promociones;
@@ -120,9 +121,9 @@ internal static class ConfiguracionComunVenta
         constructor.ToTable(tabla);
         constructor.HasKey(v => v.Id);
         constructor.Property(v => v.NumeroTransaccion).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
-        constructor.Property(v => v.SucursalCodigo).HasMaxLength(Venta.LargoCodigoOrigen).IsUnicode(false).IsRequired();
-        constructor.Property(v => v.SucursalNombre).HasMaxLength(Venta.LargoMaximoNombreSucursal).IsRequired();
-        constructor.Property(v => v.CajaCodigo).HasMaxLength(Venta.LargoCodigoOrigen).IsUnicode(false).IsRequired();
+        constructor.Property(v => v.SucursalCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(v => v.SucursalNombre).HasMaxLength(OrigenDocumento.LargoMaximoNombreSucursal).IsRequired();
+        constructor.Property(v => v.CajaCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(v => v.UsuarioNombre).HasMaxLength(Venta.LargoMaximoUsuario).IsRequired();
         constructor.Property(v => v.Moneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(v => v.SimboloMoneda).HasMaxLength(CgPos.Dominio.Pagos.Moneda.LargoMaximoSimbolo).IsRequired();

@@ -1,4 +1,5 @@
-﻿using CgPos.Dominio.Devoluciones;
+﻿using CgPos.Dominio.Comun;
+using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Ventas;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,9 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
         constructor.ToTable("Devoluciones");
         constructor.HasKey(d => d.Id);
         constructor.Property(d => d.Numero).HasMaxLength(Devolucion.LargoMaximoNumero).IsUnicode(false).IsRequired();
+        constructor.Property(d => d.SucursalCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(d => d.SucursalNombre).HasMaxLength(OrigenDocumento.LargoMaximoNombreSucursal).IsRequired();
+        constructor.Property(d => d.CajaCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(d => d.UsuarioNombre).HasMaxLength(Devolucion.LargoMaximoNombre).IsRequired();
         constructor.Property(d => d.VentaOrigenNumero).HasMaxLength(30).IsUnicode(false).IsRequired();
         constructor.Property(d => d.EncfOrigen).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false);
