@@ -160,6 +160,11 @@
       "descripcion": "Múltiplo de redondeo del total cobrado en efectivo (0 = sin redondeo)"
     },
     {
+      "clave": "Ventas.CantidadMaximaDigitada",
+      "valor": "10",
+      "descripcion": "Cantidad máxima que el cajero puede digitar de un artículo de unidad entera"
+    },
+    {
       "clave": "Caja.CierreCiego",
       "valor": "true",
       "descripcion": "El cajero declara el cierre sin ver lo esperado"

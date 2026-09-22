@@ -920,6 +920,9 @@ internal sealed class ServicioVentas(
         if (articulo is null)
             return new RespuestaVenta(CodigoResultadoVenta.ArticuloNoEncontrado, $"No se encontró el artículo {codigoLimpio}.", Datos(venta!));
 
+        if (cantidadFinal is { } digitada && await TopeCantidadAsync(sesion, articulo.Tipo, articulo.PermiteDecimales, digitada, cancelacion) is { } excedido)
+            return new RespuestaVenta(CodigoResultadoVenta.CantidadInvalida, excedido, Datos(venta!));
+
         return await EjecutarAsync(venta!, () => venta!.AgregarArticulo(articulo.AArticuloParaVenta(), cantidadFinal, reloj.Ahora(), serial, serialEnDespacho), cancelacion);
     }
 
@@ -929,7 +932,28 @@ internal sealed class ServicioVentas(
         if (rechazo is not null)
             return rechazo;
 
+        if (venta!.Lineas.FirstOrDefault(l => l.NumeroLinea == numeroLinea) is { } linea
+            && await TopeCantidadAsync(sesion, linea.TipoArticulo, linea.PermiteDecimales, cantidad, cancelacion) is { } excedido)
+            return new RespuestaVenta(CodigoResultadoVenta.CantidadInvalida, excedido, Datos(venta));
+
         return await EjecutarAsync(venta!, () => venta!.CambiarCantidad(numeroLinea, cantidad, reloj.Ahora()), cancelacion);
+    }
+
+    /// <summary>
+    /// El cajero solo digita hasta la cantidad que permita el parámetro (RN de la caja): de ahí en adelante el artículo se
+    /// pasa uno a uno por el lector, que es lo que evita teclear cantidades grandes por comodidad. La regla es solo para los
+    /// artículos de unidad entera: en los pesados y en los de unidad con decimales la cantidad la da la balanza o la etiqueta.
+    /// Devuelve el aviso para el cajero, o nulo si la cantidad se puede digitar.
+    /// </summary>
+    private async Task<string?> TopeCantidadAsync(SesionUsuario sesion, TipoArticulo tipo, bool permiteDecimales, decimal cantidad, CancellationToken cancelacion)
+    {
+        if (tipo == TipoArticulo.Pesado || permiteDecimales)
+            return null;
+
+        var tope = await parametros.ObtenerEnteroAsync(ClavesParametros.CantidadMaximaDigitada, sesion.CajaId, cancelacion);
+        return cantidad <= tope
+            ? null
+            : $"Solo se pueden digitar hasta {tope} unidades. Para {cantidad:0.##}, pase el artículo por el lector uno a uno.";
     }
 
     public Task<RespuestaVenta> EliminarLineaAsync(SesionUsuario sesion, int ventaId, int numeroLinea, Guid? autorizacionId, CancellationToken cancelacion = default) =>

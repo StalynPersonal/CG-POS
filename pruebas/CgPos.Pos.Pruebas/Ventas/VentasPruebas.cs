@@ -1993,6 +1993,37 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task El_cajero_solo_digita_hasta_la_cantidad_del_parametro()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        await caja.CambiarParametroAsync(CgPos.Dominio.Organizacion.CatalogoParametros.CantidadMaximaDigitada, "10");
+        var venta = await caja.VentaActualAsync();
+
+        // Hasta el tope se digita; más, hay que pasar el artículo por el lector uno a uno.
+        var permitida = await caja.AgregarAsync(venta.Id, $"10*{caja.Catalogo.CodigoCemento}");
+        Assert.Equal(10m, Assert.Single(permitida.Lineas).Cantidad);
+
+        var excedida = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.AgregarArticuloAsync(caja.Cajero, venta.Id, $"11*{caja.Catalogo.CodigoCemento}", null));
+        Assert.Equal(CodigoResultadoVenta.CantidadInvalida, excedida.Resultado);
+        Assert.Contains("10", excedida.Mensaje);
+
+        var cambio = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s =>
+            s.CambiarCantidadAsync(caja.Cajero, venta.Id, 1, 25m));
+        Assert.Equal(CodigoResultadoVenta.CantidadInvalida, cambio.Resultado);
+
+        // Bajarla sí: 3 no pasa del tope.
+        var bajada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.CambiarCantidadAsync(caja.Cajero, venta.Id, 1, 3m));
+        Assert.True(bajada.Exitosa, bajada.Mensaje);
+        Assert.Equal(3m, Assert.Single(bajada.Venta!.Lineas).Cantidad);
+
+        // El pesado se queda fuera de la regla: su cantidad la da la balanza o la etiqueta, no el cajero.
+        var conPeso = await caja.AgregarAsync(venta.Id, caja.Catalogo.EtiquetaPesoTomate(25.500m));
+        Assert.Equal(25.5m, conPeso.Lineas.Single(l => l.CodigoInterno == caja.Catalogo.PluTomate).Cantidad);
+    }
+
+    [SkippableFact]
     public async Task Las_secuencias_no_se_repiten_con_pedidos_simultaneos()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

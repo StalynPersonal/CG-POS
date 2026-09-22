@@ -82,6 +82,12 @@ public static class CatalogoParametros
     /// <summary>Porcentaje de retención de la Ley 32-23 en facturas de régimen especial (E44); 0 = sin retención.</summary>
     public const string PorcentajeRetencionLey3223 = "Fiscal.PorcentajeRetencionLey3223";
 
+    /// <summary>
+    /// Hasta cuántas unidades puede digitar el cajero de un artículo de unidad entera (F4, cantidad*código o tocando la
+    /// cantidad). De ahí en adelante tiene que pasarlo uno a uno por el lector.
+    /// </summary>
+    public const string CantidadMaximaDigitada = "Ventas.CantidadMaximaDigitada";
+
     public const string ProximaFactura = "Numeracion.ProximaFactura";
     public const string ProximaNotaCredito = "Numeracion.ProximaNotaCredito";
 
@@ -116,6 +122,10 @@ public static class CatalogoParametros
             Entero, false, Minimo: 1),
         new(ProximaNotaCredito, "Numeración de documentos",
             "Secuencia mínima de la próxima nota de crédito de la caja; nunca hace retroceder la numeración", Entero, false, Minimo: 1),
+
+        new(CantidadMaximaDigitada, "Venta",
+            "Cantidad máxima que el cajero puede digitar de un artículo de unidad entera; de ahí en adelante tiene que pasarlo uno a uno por el lector",
+            Entero, true, Minimo: 1),
 
         new("Caja.PasoRedondeoEfectivo", "Caja y cierre", "Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)", Decimal, true, Minimo: 0),
         new("Caja.CierreCiego", "Caja y cierre", "El cajero declara el cierre sin ver lo esperado", Booleano, true),

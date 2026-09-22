@@ -770,6 +770,10 @@ nota('El teclado en pantalla de códigos, documentos y textos cambia entre núme
 titulo('3.7. Hacer una venta', 2)
 paso('Pase el código del artículo por el lector (o dígitelo y presione Enter). Para varias unidades: 12*CEM-425.')
 paso('Para cambiar una cantidad, toque la cantidad en la línea o use F4. Para ver el otro código del artículo, toque el código.')
+nota('La cantidad que se digita tiene un tope: el que diga el parámetro Ventas.CantidadMaximaDigitada (10 de fábrica). Si el '
+     'cliente lleva más, el artículo se pasa por el lector una vez por unidad. Vale para F4, para tocar la cantidad y para '
+     'escanear con cantidad*código. No aplica a los artículos que se venden por peso ni a los de unidad con decimales, porque '
+     'ahí la cantidad la da la balanza o la etiqueta.')
 paso('Si el artículo se vende por peso, se toma el peso de la balanza (F5) o se digita.')
 paso('Si el artículo lleva serial, el sistema lo pide al escanearlo.')
 paso('Con F12 asigne el cliente si lleva comprobante fiscal, y su cédula del programa de fidelidad.')

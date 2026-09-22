@@ -131,6 +131,9 @@ public static class ClavesParametros
     public const string HorasSesion = "Seguridad.HorasSesion";
     public const string FondoPredeterminado = "Caja.FondoPredeterminado";
 
+    /// <summary>Hasta cuántas unidades puede digitar el cajero de un artículo de unidad entera; más, pasándolo por el lector.</summary>
+    public const string CantidadMaximaDigitada = CatalogoParametros.CantidadMaximaDigitada;
+
     /// <summary>Cierre ciego: el cajero declara sin ver lo esperado (RF-9, RN-23). Por defecto true.</summary>
     public const string CierreCiego = "Caja.CierreCiego";
 

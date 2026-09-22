@@ -78,6 +78,7 @@ PARAMETROS_INICIALES = [
     ('Seguridad.HorasSesion', '12', 'Horas que dura la sesión en la caja'),
     ('General.MonedaLocal', 'DOP', 'Moneda local del negocio'),
     ('Caja.FondoPredeterminado', '0.00', 'Fondo sugerido al abrir turno'),
+    ('Ventas.CantidadMaximaDigitada', '10', 'Cantidad máxima que el cajero puede digitar de un artículo de unidad entera'),
     ('Caja.PasoRedondeoEfectivo', '0', 'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)'),
     ('Caja.CierreCiego', 'true', 'El cajero declara el cierre sin ver lo esperado'),
     ('Caja.FondoEnCuadre', 'false', 'El fondo forma parte del efectivo esperado en el cierre'),
