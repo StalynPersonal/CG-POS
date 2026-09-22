@@ -17,7 +17,7 @@ namespace CgPos.Pos.Pruebas.Catalogo;
 public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
     [SkippableFact]
-    public async Task Carga_de_maestros_es_idempotente_y_la_bitacora_solo_registra_cambios_de_precio()
+    public async Task Carga_de_maestros_es_idempotente_y_solo_cuenta_los_precios_que_cambian()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
@@ -28,16 +28,15 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         await ResolverAsync(escenario);
 
         Assert.True(primera.Creados > 0);
-        Assert.Equal(10, primera.PreciosRegistrados); // 8 precios detalle + 2 por mayor
+        Assert.Equal(8, primera.PreciosRegistrados); // los 8 artículos del escenario estrenan precio
         Assert.Equal(0, segunda.Creados);
-        Assert.Equal(0, segunda.PreciosRegistrados);
-        Assert.Equal(1, tercera.PreciosRegistrados);
+        Assert.Equal(0, segunda.PreciosRegistrados); // volver a cargar lo mismo no toca ningún precio
+        Assert.Equal(1, tercera.PreciosRegistrados); // solo el cemento cambió
 
+        // El precio se guarda encima del anterior, en el propio artículo: no hay bitácora en la caja.
         await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
-        var historial = await ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>().ObtenerHistorialPreciosAsync(escenario.ArticuloCemento);
-        Assert.Equal(3, historial.Count);
-        Assert.Equal(499m, historial.First(p => p.Lista == ListaPrecio.Detalle).Precio);
-        Assert.All(historial, p => Assert.Equal("Pruebas", p.Origen));
+        var articulo = await ambito.ServiceProvider.GetRequiredService<IConsultaArticulos>().BuscarPorCodigoAsync(escenario.CodigoCemento);
+        Assert.Equal(499m, articulo!.PrecioDetalle);
     }
 
     [SkippableFact]
@@ -154,7 +153,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
     }
 
     [SkippableFact]
-    public async Task Precio_programado_a_futuro_aplica_solo_desde_su_vigencia()
+    public async Task El_precio_que_baja_del_central_se_guarda_encima_del_anterior()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = new EscenarioCatalogo();
@@ -162,11 +161,10 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         await using var proveedor = baseDatos.CrearProveedor(servicios => servicios.AddSingleton<TimeProvider>(reloj));
 
         await AplicarAsync(escenario.Paquete(), proveedor);
-        await AplicarAsync(escenario.Paquete(precioCemento: 520m, vigenciaPrecios: reloj.Ahora.AddDays(2)), proveedor);
-
         Assert.Equal(485m, (await BuscarAsync(proveedor, escenario.CodigoCemento))!.PrecioDetalle);
 
-        reloj.Avanzar(TimeSpan.FromDays(2));
+        // El precio del artículo es uno solo: el que baja del Central reemplaza al anterior y rige desde que llega.
+        await AplicarAsync(escenario.Paquete(precioCemento: 520m), proveedor);
         Assert.Equal(520m, (await BuscarAsync(proveedor, escenario.CodigoCemento))!.PrecioDetalle);
     }
 
@@ -268,7 +266,7 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
 
         Assert.Equal(1, resultado.Creados);
         Assert.Equal(1, resultado.Actualizados);
-        Assert.Equal(3, resultado.PreciosRegistrados); // nuevo: detalle + mayor; cemento: detalle 510
+        Assert.Equal(2, resultado.PreciosRegistrados); // el artículo nuevo y el cemento, que cambió de precio
         Assert.Equal(3, resultado.Errores.Count);
         Assert.Contains(resultado.Errores, e => e.Linea == 6 && e.Mensaje.Contains("categoría"));
         Assert.Contains(resultado.Errores, e => e.Linea == 4 && e.Mensaje.Contains("NOEXISTE"));

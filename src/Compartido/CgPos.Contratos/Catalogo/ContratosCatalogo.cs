@@ -282,14 +282,6 @@ public sealed record DatosArticuloResumen(
     string? RutaImagen,
     string? CategoriaNombre = null);
 
-public sealed record DatosPrecioHistorico(
-    ListaPrecio Lista,
-    decimal Precio,
-    DateTimeOffset VigenteDesde,
-    DateTimeOffset RegistradoEn,
-    string Origen,
-    string? UsuarioNombre);
-
 public sealed record DatosDireccionCliente(
     int Id,
     string Alias,

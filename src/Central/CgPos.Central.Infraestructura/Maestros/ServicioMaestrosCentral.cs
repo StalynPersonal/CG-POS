@@ -150,7 +150,21 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
             PreciosVigentesDesde = solicitud.VigenteDesde ?? reloj.Ahora(),
         };
 
-        return await GuardarAsync(articulo, nuevo: false, actor, cancelacion);
+        var resultado = await GuardarAsync(articulo, nuevo: false, actor, cancelacion);
+        if (!resultado.Exitosa)
+            return resultado;
+
+        // El precio se guarda encima del anterior, aquí y en las cajas: el histórico de cambios vive en la auditoría.
+        auditoria.Registrar(new EntradaAuditoria("Maestros.PrecioCambiado", "Articulo", anterior.Codigo,
+            new
+            {
+                Anterior = new { anterior.PrecioDetalle, anterior.PrecioMayor, anterior.PrecioMinimo, anterior.Costo },
+                Nuevo = new { articulo.PrecioDetalle, articulo.PrecioMayor, articulo.PrecioMinimo, articulo.Costo },
+                articulo.PreciosVigentesDesde,
+            },
+            Usuario: actor));
+        await contexto.SaveChangesAsync(cancelacion);
+        return resultado;
     }
 
     public async Task<IReadOnlyList<DatosTopeDescuentoCentral>> ListarTopesAsync(CancellationToken cancelacion = default)

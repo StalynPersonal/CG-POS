@@ -216,10 +216,6 @@ CREATE SEQUENCE [SecuenciaPendientesEntrega] AS int START WITH 1 INCREMENT BY 1 
 GO
 
 
-CREATE SEQUENCE [SecuenciaPreciosArticulo] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
 CREATE SEQUENCE [SecuenciaPromociones] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -947,6 +943,9 @@ CREATE TABLE [Articulos] (
     [MostrarEnCatalogo] bit NOT NULL,
     [VentaEnPos] bit NOT NULL,
     [Activo] bit NOT NULL,
+    [PrecioDetalle] decimal(18,2) NOT NULL,
+    [PrecioMayor] decimal(18,2) NULL,
+    [PreciosVigentesDesde] datetimeoffset(3) NULL,
     CONSTRAINT [PK_Articulos] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Articulos_Categorias_CategoriaId] FOREIGN KEY ([CategoriaId]) REFERENCES [Categorias] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_Articulos_Departamentos_DepartamentoId] FOREIGN KEY ([DepartamentoId]) REFERENCES [Departamentos] ([Id]) ON DELETE NO ACTION,
@@ -979,22 +978,6 @@ CREATE TABLE [CodigosArticulo] (
     [Tipo] int NOT NULL,
     CONSTRAINT [PK_CodigosArticulo] PRIMARY KEY ([ArticuloId], [Codigo]),
     CONSTRAINT [FK_CodigosArticulo_Articulos_ArticuloId] FOREIGN KEY ([ArticuloId]) REFERENCES [Articulos] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
-CREATE TABLE [PreciosArticulo] (
-    [Id] int NOT NULL,
-    [ArticuloId] int NOT NULL,
-    [Lista] int NOT NULL,
-    [Precio] decimal(18,4) NOT NULL,
-    [VigenteDesde] datetimeoffset(3) NOT NULL,
-    [RegistradoEn] datetimeoffset(3) NOT NULL,
-    [Origen] nvarchar(50) NOT NULL,
-    [UsuarioId] int NULL,
-    [UsuarioNombre] nvarchar(150) NULL,
-    CONSTRAINT [PK_PreciosArticulo] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_PreciosArticulo_Articulos_ArticuloId] FOREIGN KEY ([ArticuloId]) REFERENCES [Articulos] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1999,10 +1982,6 @@ GO
 
 
 CREATE INDEX [IX_PendientesEntrega_VentaId] ON [PendientesEntrega] ([VentaId]);
-GO
-
-
-CREATE INDEX [IX_PreciosArticulo_ArticuloId_Lista_VigenteDesde] ON [PreciosArticulo] ([ArticuloId], [Lista], [VigenteDesde]);
 GO
 
 

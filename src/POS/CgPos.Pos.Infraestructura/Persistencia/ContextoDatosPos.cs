@@ -48,7 +48,6 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Denominacion> Denominaciones => Set<Denominacion>();
 
     // Precios (M04)
-    public DbSet<PrecioArticulo> PreciosArticulo => Set<PrecioArticulo>();
 
     // Turnos y ventas (M13, M05)
     public DbSet<Turno> Turnos => Set<Turno>();

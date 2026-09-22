@@ -1,4 +1,4 @@
-using CgPos.Dominio.Seguridad;
+﻿using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Catalogo;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,9 +22,6 @@ public static class RutasApiCatalogo
 
         api.MapGet("/articulos/no-codificados", async (int? departamentoId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.ListarNoCodificadosAsync(departamentoId, cancelacion)));
-
-        api.MapGet("/articulos/{articuloId:int}/precios", async (int articuloId, IConsultaArticulos consulta, CancellationToken cancelacion) =>
-            Results.Ok(await consulta.ObtenerHistorialPreciosAsync(articuloId, cancelacion)));
 
         api.MapGet("/departamentos", async (IConsultaArticulos consulta, CancellationToken cancelacion) =>
             Results.Ok(await consulta.ListarDepartamentosAsync(cancelacion)));

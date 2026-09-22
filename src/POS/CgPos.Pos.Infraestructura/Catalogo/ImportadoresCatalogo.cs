@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Globalization;
 using System.Text;
 using CgPos.Contratos.Importacion;
@@ -134,10 +134,7 @@ internal sealed class ImportadorArticulosCsv(ContextoDatosPos contexto, IAuditor
 
                 if (activo) articulo.Activar(); else articulo.Desactivar();
 
-                if (await RegistroPrecios.RegistrarSiCambiaAsync(contexto, articulo.Id, ListaPrecio.Detalle, precioDetalle, ahora, ahora, origen, null, null, cancelacion))
-                    precios++;
-                if (precioMayor is { } mayor
-                    && await RegistroPrecios.RegistrarSiCambiaAsync(contexto, articulo.Id, ListaPrecio.Mayor, mayor, ahora, ahora, origen, null, null, cancelacion))
+                if (PreciosDelArticulo.Establecer(contexto, articulo, precioDetalle, precioMayor, ahora))
                     precios++;
             }
             catch (Exception excepcion) when (excepcion is FormatException or ArgumentException)

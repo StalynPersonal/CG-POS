@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Pruebas.Infraestructura;
@@ -30,27 +30,22 @@ public class RendimientoBusquedaPruebas(BaseDatosPruebas baseDatos, ITestOutputH
             var cronometroCarga = Stopwatch.StartNew();
             // Los Id salen de las mismas secuencias que usa EF: se reserva un rango por tabla, así no chocan con los que entrega EF.
             await contexto.Database.ExecuteSqlInterpolatedAsync($"""
-                DECLARE @primero sql_variant, @primerPrecio sql_variant;
+                DECLARE @primero sql_variant;
                 EXEC sys.sp_sequence_get_range @sequence_name = N'SecuenciaArticulos', @range_size = {CantidadArticulos}, @range_first_value = @primero OUTPUT;
                 DECLARE @incremento int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'SecuenciaArticulos');
-                EXEC sys.sp_sequence_get_range @sequence_name = N'SecuenciaPreciosArticulo', @range_size = {CantidadArticulos}, @range_first_value = @primerPrecio OUTPUT;
-                DECLARE @incrementoPrecio int = (SELECT CAST(increment AS int) FROM sys.sequences WHERE name = 'SecuenciaPreciosArticulo');
 
                 WITH numeros AS (
                     SELECT TOP ({CantidadArticulos}) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
                     FROM sys.all_objects a CROSS JOIN sys.all_objects b)
-                INSERT INTO Articulos (Id, Codigo, Descripcion, DepartamentoId, UnidadMedidaId, ImpuestoId, Tipo, MostrarEnCatalogo, VentaEnPos, Activo, EsServicio)
+                INSERT INTO Articulos (Id, Codigo, Descripcion, DepartamentoId, UnidadMedidaId, ImpuestoId, Tipo, MostrarEnCatalogo, VentaEnPos, Activo, EsServicio,
+                                       PrecioDetalle, PreciosVigentesDesde)
                 SELECT CAST(@primero AS int) + (n - 1) * @incremento, CONCAT('R', {escenario.Sufijo}, '-', n), CONCAT('Tornillo acero inoxidable ', n, ' mm'),
-                       {escenario.DepartamentoFerreteria}, {escenario.UnidadUnidad}, {escenario.ImpuestoItbis18}, 0, 0, 1, 1, 0
+                       {escenario.DepartamentoFerreteria}, {escenario.UnidadUnidad}, {escenario.ImpuestoItbis18}, 0, 0, 1, 1, 0,
+                       25.00, SYSDATETIMEOFFSET()
                 FROM numeros;
 
                 INSERT INTO CodigosArticulo (ArticuloId, Codigo, Tipo)
                 SELECT Id, CONCAT('77', {escenario.Sufijo}, RIGHT(CONCAT('0000000', SUBSTRING(Codigo, 9, 10)), 7)), 0
-                FROM Articulos WHERE Codigo LIKE CONCAT('R', {escenario.Sufijo}, '-%');
-
-                INSERT INTO PreciosArticulo (Id, ArticuloId, Lista, Precio, VigenteDesde, RegistradoEn, Origen)
-                SELECT CAST(@primerPrecio AS int) + (ROW_NUMBER() OVER (ORDER BY Id) - 1) * @incrementoPrecio, Id, 0, 25.00,
-                       '2020-01-01T00:00:00+00:00', SYSDATETIMEOFFSET(), 'Rendimiento'
                 FROM Articulos WHERE Codigo LIKE CONCAT('R', {escenario.Sufijo}, '-%');
                 """);
             salida.WriteLine($"Carga de {CantidadArticulos} artículos: {cronometroCarga.ElapsedMilliseconds} ms");

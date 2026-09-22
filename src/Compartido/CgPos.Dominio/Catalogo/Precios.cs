@@ -1,6 +1,4 @@
-﻿using CgPos.Dominio.Comun;
-
-namespace CgPos.Dominio.Catalogo;
+﻿namespace CgPos.Dominio.Catalogo;
 
 public enum ListaPrecio
 {
@@ -9,70 +7,10 @@ public enum ListaPrecio
 }
 
 /// <summary>
-/// Precio de un artículo en una lista, con fecha de vigencia. Cada cambio es un registro nuevo:
-/// el conjunto forma la bitácora de precios (RF-190) y el vigente es el más reciente ya iniciado.
+/// Precios del artículo: los que rigen ahora. Viven en el propio artículo, igual en la caja y en el Central; el histórico de
+/// cambios queda en la auditoría del Central, que es donde se cambian.
 /// </summary>
-public sealed class PrecioArticulo : Entidad
-{
-    public const int LargoMaximoOrigen = 50;
-    public const int LargoMaximoUsuario = 150;
-
-    private PrecioArticulo()
-    {
-    }
-
-    public int ArticuloId { get; private set; }
-    public ListaPrecio Lista { get; private set; }
-
-    /// <summary>Precio unitario sin impuesto.</summary>
-    public decimal Precio { get; private set; }
-
-    public DateTimeOffset VigenteDesde { get; private set; }
-    public DateTimeOffset RegistradoEn { get; private set; }
-
-    /// <summary>De dónde vino el cambio: "Central", "Carga inicial", "Importación CSV"…</summary>
-    public string Origen { get; private set; } = string.Empty;
-
-    public int? UsuarioId { get; private set; }
-    public string? UsuarioNombre { get; private set; }
-
-    public static PrecioArticulo Registrar(int articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde,
-        DateTimeOffset registradoEn, string origen, int? usuarioId = null, string? usuarioNombre = null)
-    {
-        if (precio <= 0)
-            throw new ArgumentOutOfRangeException(nameof(precio), precio, "El precio debe ser mayor que cero.");
-        if (!Enum.IsDefined(lista))
-            throw new ArgumentOutOfRangeException(nameof(lista), lista, "Lista de precio no válida.");
-
-        return new PrecioArticulo
-        {
-            ArticuloId = Validar.Id(articuloId, "Artículo"),
-            Lista = lista,
-            Precio = precio,
-            VigenteDesde = vigenteDesde,
-            RegistradoEn = registradoEn,
-            Origen = Validar.Texto(origen, "Origen", LargoMaximoOrigen),
-            UsuarioId = usuarioId,
-            UsuarioNombre = Validar.TextoOpcional(usuarioNombre, "Usuario", LargoMaximoUsuario),
-        };
-    }
-}
-
-/// <summary>Precios vigentes de un artículo en un momento dado.</summary>
-public sealed record PreciosVigentes(decimal? Detalle, decimal? Mayor)
-{
-    public static PreciosVigentes Resolver(IEnumerable<PrecioArticulo> historial, DateTimeOffset ahora)
-    {
-        decimal? Vigente(ListaPrecio lista) => historial
-            .Where(p => p.Lista == lista && p.VigenteDesde <= ahora)
-            .OrderByDescending(p => p.VigenteDesde)
-            .ThenByDescending(p => p.RegistradoEn)
-            .Select(p => (decimal?)p.Precio)
-            .FirstOrDefault();
-
-        return new PreciosVigentes(Vigente(ListaPrecio.Detalle), Vigente(ListaPrecio.Mayor));
-    }
-}
+public sealed record PreciosVigentes(decimal? Detalle, decimal? Mayor);
 
 public enum SeleccionListaPrecio
 {

@@ -7,7 +7,7 @@ namespace CgPos.Pos.Aplicacion.Catalogo;
 /// <summary>Aplica un <see cref="PaqueteMaestros"/> de forma idempotente, en una sola transacción.</summary>
 public interface ICargaMaestros
 {
-    /// <param name="origen">De dónde vienen los datos (queda en la bitácora de precios), ej. "Central", "Carga inicial".</param>
+    /// <param name="origen">De dónde vienen los datos (queda en la auditoría de la carga), ej. "Central", "Carga inicial".</param>
     /// <exception cref="CargaMaestrosInvalidaExcepcion">El paquete tiene errores; no se guarda nada.</exception>
     Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete, string origen, CancellationToken cancelacion = default);
 
@@ -54,9 +54,6 @@ public interface IConsultaArticulos
     /// <summary>Artículos de departamentos no codificadas en orden alfabético (RF-134).</summary>
     Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(int? departamentoId = null, CancellationToken cancelacion = default);
 
-    /// <summary>Histórico de precios del artículo, del más reciente al más antiguo (RF-190).</summary>
-    Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(int articuloId, CancellationToken cancelacion = default);
-
     Task<IReadOnlyList<DatosDepartamento>> ListarDepartamentosAsync(CancellationToken cancelacion = default);
 }
 
@@ -69,11 +66,4 @@ public interface IConsultaDocumentos
 public interface IConsultaCatalogoCobro
 {
     Task<DatosCatalogoCobro> ObtenerAsync(CancellationToken cancelacion = default);
-}
-
-public interface IServicioPrecios
-{
-    /// <summary>Registra un cambio de precio con su vigencia y lo deja en la bitácora y en auditoría (RF-190).</summary>
-    Task RegistrarCambioAsync(int articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde, string origen,
-        SesionUsuario? usuario = null, CancellationToken cancelacion = default);
 }

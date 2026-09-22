@@ -75,7 +75,6 @@ public static class InyeccionDependencias
         servicios.AddScoped<IConsultaArticulos, ConsultaArticulos>();
         servicios.AddScoped<IConsultaDocumentos, ConsultaDocumentos>();
         servicios.AddScoped<IConsultaCatalogoCobro, ConsultaCatalogoCobro>();
-        servicios.AddScoped<IServicioPrecios, ServicioPrecios>();
 
         // Periféricos (simulados hasta definir modelos; la impresora se elige por configuración)
         servicios.AddSingleton<IBalanza>(proveedor => Perifericos.FabricaPerifericos.CrearBalanza(proveedor, configuracion));

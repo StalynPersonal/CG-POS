@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -71,7 +71,6 @@ public class CatalogoPruebas
 
         Assert.Throws<ArgumentOutOfRangeException>(() => articulo.ConfigurarPrecios(-1m, null, null));
         Assert.Throws<ArgumentOutOfRangeException>(() => articulo.ConfigurarPrecios(null, null, 0m));
-        Assert.Throws<ArgumentOutOfRangeException>(() => PrecioArticulo.Registrar(articulo.Id, ListaPrecio.Detalle, 0m, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "Prueba"));
     }
 
     [Theory]

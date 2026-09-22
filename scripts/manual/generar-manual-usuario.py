@@ -245,7 +245,7 @@ titulo('2.5. Maestros, artículos y precios', 2)
 tabla(['Opción', 'Ruta', 'Para qué sirve'],
       [['Catálogos', '/maestros', 'Monedas, tasas de cambio, departamentos, categorías, marcas, unidades, impuestos, formas de pago, denominaciones, bancos, tipos de tarjeta, motivos de descuento y devolución, almacenes, niveles y reglas de fidelidad y descuentos por tarjeta (BIN).'],
        ['Artículos', '/articulos', 'Alta y edición de artículos, con sus códigos de barras y de proveedor.'],
-       ['Precios', '/precios/articulos', 'Precio de detalle, precio por mayor con su cantidad mínima, precio mínimo y costo; de inmediato o a partir de una fecha.'],
+       ['Precios', '/precios/articulos', 'Precio de detalle, precio por mayor con su cantidad mínima, precio mínimo y costo. El precio nuevo reemplaza al anterior; quién lo cambió y de cuánto a cuánto queda en Auditoría.'],
        ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
        ['Clientes', '/clientes', 'Clientes con su contacto, sus dos teléfonos, su comprobante habitual, exoneraciones y direcciones de envío.']],
       anchos=[3.8, 4.4, 8.8])

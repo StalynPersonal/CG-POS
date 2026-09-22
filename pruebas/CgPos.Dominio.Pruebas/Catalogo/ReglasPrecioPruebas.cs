@@ -75,46 +75,6 @@ public class ReglasPrecioPruebas
     }
 
     [Fact]
-    public void Precio_vigente_es_el_mas_reciente_ya_iniciado_y_los_futuros_no_aplican_todavia()
-    {
-        var articuloId = Ids.Siguiente();
-        var historial = new[]
-        {
-            PrecioArticulo.Registrar(articuloId, ListaPrecio.Detalle, 450m, Ahora.AddDays(-30), Ahora.AddDays(-30), "SAP B1"),
-            PrecioArticulo.Registrar(articuloId, ListaPrecio.Detalle, 485m, Ahora.AddDays(-1), Ahora.AddDays(-2), "SAP B1"),
-            PrecioArticulo.Registrar(articuloId, ListaPrecio.Detalle, 500m, Ahora.AddDays(3), Ahora.AddDays(-1), "SAP B1"),
-            PrecioArticulo.Registrar(articuloId, ListaPrecio.Mayor, 440m, Ahora.AddDays(-10), Ahora.AddDays(-10), "SAP B1"),
-        };
-
-        var hoy = PreciosVigentes.Resolver(historial, Ahora);
-        var enCuatroDias = PreciosVigentes.Resolver(historial, Ahora.AddDays(4));
-
-        Assert.Equal(485m, hoy.Detalle);
-        Assert.Equal(440m, hoy.Mayor);
-        Assert.Equal(500m, enCuatroDias.Detalle);
-    }
-
-    [Theory]
-    [InlineData(399.99, true)]    // bajo el precio mínimo (400), todo sin ITBIS
-    [InlineData(400.00, false)]
-    public void Precio_minimo_se_compara_sin_impuesto(decimal precio, bool bajoMinimo)
-    {
-        var articulo = CrearArticulo(precioMinimo: 400m);
-
-        Assert.Equal(bajoMinimo, ReglasPrecio.EstaBajoMinimo(articulo, precio));
-    }
-
-    [Theory]
-    [InlineData(299.99, true)]    // bajo el costo (300), los dos sin ITBIS
-    [InlineData(300.00, false)]
-    public void Costo_se_compara_con_el_precio_sin_impuesto(decimal precio, bool bajoMinimo)
-    {
-        var articulo = CrearArticulo(costo: 300m);
-
-        Assert.Equal(bajoMinimo, ReglasPrecio.EstaBajoMinimo(articulo, precio));
-    }
-
-    [Fact]
     public void Impuesto_separa_base_y_monto_de_un_precio_con_itbis()
     {
         Assert.Equal(720.34m, decimal.Round(Itbis18.BaseDesdePrecioConImpuesto(850.00m), 2));

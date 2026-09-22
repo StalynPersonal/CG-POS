@@ -1,4 +1,4 @@
-using CgPos.Dominio.Catalogo;
+﻿using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Clientes;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -66,10 +66,19 @@ internal sealed class ImpuestoConfiguracion : IEntityTypeConfiguration<Impuesto>
     }
 }
 
+/// <summary>El artículo guarda sus precios, igual que en el Central; desde cuándo rigen viaja con ellos en la bajada.</summary>
 internal sealed class ArticuloConfiguracion : IEntityTypeConfiguration<Articulo>
 {
+    public const string PrecioDetalle = "PrecioDetalle";
+    public const string PrecioMayor = "PrecioMayor";
+    public const string PreciosVigentesDesde = "PreciosVigentesDesde";
+
     public void Configure(EntityTypeBuilder<Articulo> constructor)
     {
+        constructor.Property<decimal>(PrecioDetalle).HasPrecision(18, 2);
+        constructor.Property<decimal?>(PrecioMayor).HasPrecision(18, 2);
+        constructor.Property<DateTimeOffset?>(PreciosVigentesDesde).HasPrecision(3);
+
         constructor.ToTable("Articulos");
         constructor.HasKey(a => a.Id);
 
@@ -103,20 +112,6 @@ internal sealed class CodigoArticuloConfiguracion : IEntityTypeConfiguration<Cod
         constructor.Property(c => c.Codigo).HasMaxLength(Articulo.LargoMaximoCodigo);
         // Un código identifica a un solo artículo.
         constructor.HasIndex(c => c.Codigo).IsUnique();
-    }
-}
-
-internal sealed class PrecioArticuloConfiguracion : IEntityTypeConfiguration<PrecioArticulo>
-{
-    public void Configure(EntityTypeBuilder<PrecioArticulo> constructor)
-    {
-        constructor.ToTable("PreciosArticulo");
-        constructor.HasKey(p => p.Id);
-        constructor.Property(p => p.Origen).HasMaxLength(PrecioArticulo.LargoMaximoOrigen).IsRequired();
-        constructor.Property(p => p.UsuarioNombre).HasMaxLength(PrecioArticulo.LargoMaximoUsuario);
-
-        constructor.HasOne<Articulo>().WithMany().HasForeignKey(p => p.ArticuloId).OnDelete(DeleteBehavior.Cascade);
-        constructor.HasIndex(p => new { p.ArticuloId, p.Lista, p.VigenteDesde });
     }
 }
 

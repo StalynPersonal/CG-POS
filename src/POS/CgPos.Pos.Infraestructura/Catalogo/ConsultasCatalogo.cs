@@ -6,6 +6,7 @@ using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
+using CgPos.Pos.Infraestructura.Persistencia.Configuraciones;
 using Microsoft.EntityFrameworkCore;
 using CgPos.Dominio.Comun;
 
@@ -14,8 +15,7 @@ namespace CgPos.Pos.Infraestructura.Catalogo;
 internal sealed class ConsultaArticulos(
     ContextoDatosPos contexto,
     IParametros parametros,
-    IContextoCaja contextoCaja,
-    TimeProvider reloj) : IConsultaArticulos
+    IContextoCaja contextoCaja) : IConsultaArticulos
 {
     public async Task<DatosArticuloVenta?> BuscarPorCodigoAsync(string codigo, CancellationToken cancelacion = default)
     {
@@ -95,15 +95,6 @@ internal sealed class ConsultaArticulos(
         var articulos = await consulta.OrderBy(a => a.Descripcion).ToListAsync(cancelacion);
         return await ArmarResumenesAsync(articulos, cancelacion);
     }
-
-    public async Task<IReadOnlyList<DatosPrecioHistorico>> ObtenerHistorialPreciosAsync(int articuloId, CancellationToken cancelacion = default) =>
-        await contexto.PreciosArticulo
-            .AsNoTracking()
-            .Where(p => p.ArticuloId == articuloId)
-            .OrderByDescending(p => p.VigenteDesde)
-            .ThenByDescending(p => p.RegistradoEn)
-            .Select(p => new DatosPrecioHistorico(p.Lista, p.Precio, p.VigenteDesde, p.RegistradoEn, p.Origen, p.UsuarioNombre))
-            .ToListAsync(cancelacion);
 
     public async Task<IReadOnlyList<DatosDepartamento>> ListarDepartamentosAsync(CancellationToken cancelacion = default) =>
         await contexto.Departamentos
@@ -196,18 +187,18 @@ internal sealed class ConsultaArticulos(
             .ToList();
     }
 
-    private async Task<Dictionary<int, PreciosVigentes>> PreciosVigentesAsync(List<int> articulosIds, CancellationToken cancelacion)
-    {
-        var ahora = reloj.Ahora();
-        var historial = await contexto.PreciosArticulo
-            .AsNoTracking()
-            .Where(p => articulosIds.Contains(p.ArticuloId) && p.VigenteDesde <= ahora)
-            .ToListAsync(cancelacion);
-
-        return historial
-            .GroupBy(p => p.ArticuloId)
-            .ToDictionary(g => g.Key, g => PreciosVigentes.Resolver(g, ahora));
-    }
+    /// <summary>Los precios están en el propio artículo, como en el Central: se leen con él, sin otra tabla.</summary>
+    private async Task<Dictionary<int, PreciosVigentes>> PreciosVigentesAsync(List<int> articulosIds, CancellationToken cancelacion) =>
+        (await contexto.Articulos.AsNoTracking()
+            .Where(a => articulosIds.Contains(a.Id))
+            .Select(a => new
+            {
+                a.Id,
+                Detalle = EF.Property<decimal>(a, ArticuloConfiguracion.PrecioDetalle),
+                Mayor = EF.Property<decimal?>(a, ArticuloConfiguracion.PrecioMayor),
+            })
+            .ToListAsync(cancelacion))
+        .ToDictionary(a => a.Id, a => new PreciosVigentes(a.Detalle > 0 ? a.Detalle : null, a.Mayor > 0 ? a.Mayor : null));
 
     /// <summary>Formato de etiquetas de balanza configurado; nulo si la caja no tiene etiquetas de balanza configuradas.</summary>
     private async Task<FormatoCodigoBalanza?> ObtenerFormatoBalanzaAsync(CancellationToken cancelacion)
@@ -296,25 +287,5 @@ internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvi
             .ToList();
 
         return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas);
-    }
-}
-
-internal sealed class ServicioPrecios(ContextoDatosPos contexto, IAuditoria auditoria, TimeProvider reloj) : IServicioPrecios
-{
-    public async Task RegistrarCambioAsync(int articuloId, ListaPrecio lista, decimal precio, DateTimeOffset vigenteDesde, string origen,
-        SesionUsuario? usuario = null, CancellationToken cancelacion = default)
-    {
-        if (!await contexto.Articulos.AnyAsync(a => a.Id == articuloId, cancelacion))
-            throw new ArgumentException("El artículo no existe.", nameof(articuloId));
-
-        var ahora = reloj.Ahora();
-        var registrado = await RegistroPrecios.RegistrarSiCambiaAsync(contexto, articuloId, lista, precio, vigenteDesde, ahora, origen, usuario?.UsuarioId, usuario?.Nombre, cancelacion);
-        if (!registrado)
-            return;
-
-        auditoria.Registrar(new EntradaAuditoria("Catalogo.CambioPrecio", "Articulo", articuloId.ToString(),
-            Detalle: new { Lista = lista.ToString(), Precio = precio, VigenteDesde = vigenteDesde, Origen = origen },
-            Usuario: usuario is null ? null : new UsuarioAuditoria(usuario.UsuarioId, usuario.Nombre)));
-        await contexto.SaveChangesAsync(cancelacion);
     }
 }
