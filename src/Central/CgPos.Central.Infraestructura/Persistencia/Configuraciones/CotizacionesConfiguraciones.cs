@@ -20,7 +20,7 @@ internal sealed class CotizacionConfiguracion : IEntityTypeConfiguration<Cotizac
         constructor.Property(c => c.ClienteCorreo).HasMaxLength(Cotizacion.LargoMaximoContacto);
         constructor.Property(c => c.Observacion).HasMaxLength(Cotizacion.LargoMaximoObservacion);
         constructor.Property(c => c.MotivoAnulacion).HasMaxLength(Cotizacion.LargoMaximoObservacion);
-        constructor.Property(c => c.VentaNumero).HasMaxLength(Cotizacion.LargoMaximoNumero).IsUnicode(false);
+        constructor.Property(c => c.VentaNumero).HasMaxLength(CgPos.Dominio.Ventas.Venta.LargoMaximoNumero).IsUnicode(false);
         constructor.Property(c => c.CreadaPor).HasMaxLength(Cotizacion.LargoMaximoUsuario).IsRequired();
         constructor.Property(c => c.Estado).HasConversion<string>().HasMaxLength(20).IsUnicode(false);
 

@@ -872,7 +872,7 @@ CREATE TABLE [Cotizaciones] (
     [Observacion] nvarchar(500) NULL,
     [VenceEn] date NOT NULL,
     [Estado] varchar(20) NOT NULL,
-    [VentaNumero] varchar(20) NULL,
+    [VentaNumero] varchar(40) NULL,
     [FacturadaEn] datetimeoffset(3) NULL,
     [MotivoAnulacion] nvarchar(500) NULL,
     [CreadaPor] nvarchar(150) NOT NULL,
@@ -1167,7 +1167,7 @@ GO
 
 CREATE TABLE [PendientesEntrega] (
     [Id] int NOT NULL,
-    [Numero] varchar(30) NOT NULL,
+    [Numero] varchar(40) NOT NULL,
     [VentaId] int NOT NULL,
     [VentaNumero] varchar(40) NOT NULL,
     [SucursalId] int NOT NULL,
@@ -1194,7 +1194,7 @@ CREATE TABLE [PendientesEntrega] (
     [ActualizadoPorNombre] nvarchar(150) NOT NULL,
     [MotivoAnulacion] nvarchar(250) NULL,
     [AvisoEnviadoEn] datetimeoffset(3) NULL,
-    [NumeroCentral] varchar(30) NULL,
+    [NumeroCentral] varchar(40) NULL,
     CONSTRAINT [PK_PendientesEntrega] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_PendientesEntrega_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_PendientesEntrega_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
@@ -1204,7 +1204,7 @@ GO
 
 CREATE TABLE [ReservasFactura] (
     [Id] int NOT NULL,
-    [FacturaNumero] varchar(30) NOT NULL,
+    [FacturaNumero] varchar(40) NOT NULL,
     [CajaId] int NOT NULL,
     [CreadaEn] datetimeoffset(3) NOT NULL,
     [VenceEn] datetimeoffset(3) NOT NULL,
@@ -1342,7 +1342,7 @@ GO
 CREATE TABLE [ComprasListaBoda] (
     [Id] int NOT NULL,
     [ListaBodaId] int NOT NULL,
-    [VentaNumero] varchar(20) NOT NULL,
+    [VentaNumero] varchar(40) NOT NULL,
     [CajaId] int NOT NULL,
     [Monto] decimal(18,2) NOT NULL,
     [Fecha] datetimeoffset(3) NOT NULL,

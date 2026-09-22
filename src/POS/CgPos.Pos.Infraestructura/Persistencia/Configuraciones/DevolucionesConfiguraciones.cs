@@ -29,7 +29,7 @@ internal sealed class DevolucionConfiguracion : IEntityTypeConfiguration<Devoluc
         constructor.Property(d => d.SucursalNombre).HasMaxLength(OrigenDocumento.LargoMaximoNombreSucursal).IsRequired();
         constructor.Property(d => d.CajaCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(d => d.UsuarioNombre).HasMaxLength(Devolucion.LargoMaximoNombre).IsRequired();
-        constructor.Property(d => d.VentaOrigenNumero).HasMaxLength(30).IsUnicode(false).IsRequired();
+        constructor.Property(d => d.VentaOrigenNumero).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(d => d.EncfOrigen).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false);
         constructor.Property(d => d.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false);
         constructor.Property(d => d.ClienteDocumento).HasMaxLength(20).IsUnicode(false).IsRequired();
@@ -86,7 +86,7 @@ internal sealed class ConsumoNotaCreditoConfiguracion : IEntityTypeConfiguration
     {
         constructor.ToTable("ConsumosNotaCredito");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.VentaNumero).HasMaxLength(30).IsUnicode(false).IsRequired();
+        constructor.Property(c => c.VentaNumero).HasMaxLength(Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(c => c.Monto).HasPrecision(18, 2);
         constructor.Property(c => c.SaldoRestante).HasPrecision(18, 2);
         constructor.HasIndex(c => c.VentaId);

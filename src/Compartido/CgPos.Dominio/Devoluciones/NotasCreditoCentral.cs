@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Devoluciones;
 
@@ -15,7 +15,7 @@ public enum EstadoNotaCreditoCentral
 /// </summary>
 public sealed class NotaCreditoCentral : Entidad
 {
-    public const int LargoMaximoNumero = 40;
+    public const int LargoMaximoNumero = NumeroDocumento.LargoMaximo;
     public const int LargoMaximoEncf = 13;
     public const int LargoMaximoTexto = 200;
     public const int LargoMaximoMoneda = 3;

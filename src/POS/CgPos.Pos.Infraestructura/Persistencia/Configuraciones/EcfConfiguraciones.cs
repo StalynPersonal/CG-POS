@@ -42,6 +42,7 @@ internal sealed class DocumentoElectronicoConfiguracion : IEntityTypeConfigurati
     {
         constructor.ToTable("DocumentosElectronicos");
         constructor.HasKey(d => d.Id);
+        constructor.Property(d => d.NumeroDocumento).HasMaxLength(CgPos.Dominio.Comun.NumeroDocumento.LargoMaximo).IsUnicode(false).IsRequired();
         constructor.Property(d => d.Encf).HasMaxLength(DocumentoElectronico.LargoEncf).IsUnicode(false).IsRequired();
         constructor.Property(d => d.CodigoSeguridad).HasMaxLength(20).IsUnicode(false).IsRequired();
         constructor.Property(d => d.HashXml).HasMaxLength(64).IsUnicode(false).IsRequired();

@@ -175,7 +175,7 @@ public sealed record CantidadEntregada(int NumeroLineaVenta, decimal Cantidad, s
 /// </summary>
 public sealed class PendienteEntrega : Entidad
 {
-    public const int LargoMaximoNumero = 30;
+    public const int LargoMaximoNumero = NumeroDocumento.LargoMaximo;
     public const int LargoMaximoMotivo = 250;
 
     private readonly List<LineaPendienteEntrega> _lineas = [];

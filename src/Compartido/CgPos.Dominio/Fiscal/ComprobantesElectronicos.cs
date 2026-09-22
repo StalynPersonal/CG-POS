@@ -150,6 +150,12 @@ public sealed class DocumentoElectronico : Entidad
     public int VentaId { get; private set; }
 
     /// <summary>
+    /// Número de la factura o de la nota de crédito que lo originó. Se guarda aquí porque esta tabla no tiene llave foránea
+    /// a ninguna de las dos (su Id apunta a una o a otra según <see cref="TipoOrigen"/>), y el comprobante se consulta solo.
+    /// </summary>
+    public string NumeroDocumento { get; private set; } = string.Empty;
+
+    /// <summary>
     /// Si el comprobante salió de una venta o de una devolución. Las dos numeran sus Id por separado, así que sin esto la
     /// devolución 5 y la venta 5 se pisarían en la misma tabla.
     /// </summary>
@@ -174,7 +180,8 @@ public sealed class DocumentoElectronico : Entidad
 
     public IReadOnlyCollection<HistorialEstadoEcf> Historial => _historial;
 
-    public static DocumentoElectronico Emitir(int ventaId, OrigenComprobante tipoOrigen, int cajaId, TipoComprobante tipo, string encf,
+    /// <param name="numeroDocumento">Número de la factura o de la nota de crédito que origina el comprobante.</param>
+    public static DocumentoElectronico Emitir(int ventaId, string numeroDocumento, OrigenComprobante tipoOrigen, int cajaId, TipoComprobante tipo, string encf,
         DateTimeOffset fechaEmision, DateTimeOffset fechaFirma, string codigoSeguridad, decimal montoTotal, string hashXml, string rutaXml,
         string urlTimbre)
     {
@@ -184,6 +191,7 @@ public sealed class DocumentoElectronico : Entidad
         var documento = new DocumentoElectronico
         {
             VentaId = Validar.Id(ventaId, "Documento de origen"),
+            NumeroDocumento = Validar.Texto(numeroDocumento, "Número del documento", Comun.NumeroDocumento.LargoMaximo),
             TipoOrigen = tipoOrigen,
             CajaId = Validar.Id(cajaId, "Caja"),
             TipoComprobante = tipo,

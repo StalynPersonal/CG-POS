@@ -94,7 +94,7 @@ public enum TipoReembolso
 
 public sealed class Devolucion : Entidad
 {
-    public const int LargoMaximoNumero = 30;
+    public const int LargoMaximoNumero = NumeroDocumento.LargoMaximo;
     public const int LargoMaximoNombre = 150;
     public const int LargoMaximoObservacion = 250;
 

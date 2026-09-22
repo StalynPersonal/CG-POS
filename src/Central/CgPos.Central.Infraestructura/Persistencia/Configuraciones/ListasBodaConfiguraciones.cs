@@ -1,4 +1,4 @@
-using CgPos.Dominio.ListasBoda;
+﻿using CgPos.Dominio.ListasBoda;
 using CgPos.Dominio.Organizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -59,7 +59,7 @@ internal sealed class CompraListaBodaConfiguracion : IEntityTypeConfiguration<Co
     {
         constructor.ToTable("ComprasListaBoda");
         constructor.HasKey(c => c.Id);
-        constructor.Property(c => c.VentaNumero).HasMaxLength(ListaBoda.LargoMaximoNumero).IsUnicode(false).IsRequired();
+        constructor.Property(c => c.VentaNumero).HasMaxLength(CgPos.Dominio.Ventas.Venta.LargoMaximoNumero).IsUnicode(false).IsRequired();
         constructor.Property(c => c.Monto).HasPrecision(18, 2);
         constructor.HasOne<Caja>().WithMany().HasForeignKey(c => c.CajaId).OnDelete(DeleteBehavior.Restrict);
 

@@ -107,6 +107,10 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
         constructorModelo.Ignore<CgPos.Dominio.Entregas.DestinoEntrega>();
         constructorModelo.Ignore<CgPos.Dominio.Entregas.LineaDestinoEntrega>();
 
+        // Entregar la mercancía pendiente es del Central: la caja crea el pendiente al cobrar y lo sube, nada más.
+        constructorModelo.Ignore<CgPos.Dominio.Entregas.EntregaPendiente>();
+        constructorModelo.Ignore<CgPos.Dominio.Entregas.LineaEntregaPendiente>();
+
         constructorModelo.ApplyConfigurationsFromAssembly(typeof(ContextoDatosPos).Assembly);
 
         foreach (var entidad in constructorModelo.Model.GetEntityTypes())

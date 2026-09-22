@@ -156,7 +156,7 @@ public static class ReglasComprobante
 /// </summary>
 public abstract class Venta : Entidad
 {
-    public const int LargoMaximoNumero = 40;
+    public const int LargoMaximoNumero = NumeroDocumento.LargoMaximo;
     public const int LargoMaximoCertificacion = 50;
     public const int LargoMaximoNumeroCotizacion = 20;
     public const int LargoMaximoMotivo = 500;

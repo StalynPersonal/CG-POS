@@ -116,10 +116,6 @@ CREATE SEQUENCE [SecuenciaEmpresas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
-CREATE SEQUENCE [SecuenciaEntregasPendiente] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
 CREATE SEQUENCE [SecuenciaFacturasConsultadas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -149,10 +145,6 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaLineasDevolucion] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
-CREATE SEQUENCE [SecuenciaLineasEntregaPendiente] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -431,6 +423,7 @@ GO
 CREATE TABLE [DocumentosElectronicos] (
     [Id] int NOT NULL,
     [VentaId] int NOT NULL,
+    [NumeroDocumento] varchar(40) NOT NULL,
     [TipoOrigen] int NOT NULL,
     [CajaId] int NOT NULL,
     [TipoComprobante] int NOT NULL,
@@ -466,7 +459,7 @@ GO
 
 CREATE TABLE [FacturasConsultadas] (
     [Id] int NOT NULL,
-    [Numero] varchar(30) NOT NULL,
+    [Numero] varchar(40) NOT NULL,
     [Encf] varchar(13) NULL,
     [SucursalCodigo] varchar(50) NOT NULL,
     [CajaCodigo] varchar(50) NOT NULL,
@@ -621,7 +614,7 @@ GO
 
 CREATE TABLE [PendientesEntrega] (
     [Id] int NOT NULL,
-    [Numero] varchar(30) NOT NULL,
+    [Numero] varchar(40) NOT NULL,
     [VentaId] int NOT NULL,
     [VentaNumero] varchar(40) NOT NULL,
     [SucursalId] int NOT NULL,
@@ -889,20 +882,6 @@ CREATE TABLE [MovimientosPuntos] (
 GO
 
 
-CREATE TABLE [EntregasPendiente] (
-    [Id] int NOT NULL,
-    [PendienteEntregaId] int NOT NULL,
-    [Numero] int NOT NULL,
-    [RecibeNombre] nvarchar(150) NOT NULL,
-    [RecibeCedula] nvarchar(20) NOT NULL,
-    [UsuarioNombre] nvarchar(150) NOT NULL,
-    [Fecha] datetimeoffset(3) NOT NULL,
-    CONSTRAINT [PK_EntregasPendiente] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_EntregasPendiente_PendientesEntrega_PendienteEntregaId] FOREIGN KEY ([PendienteEntregaId]) REFERENCES [PendientesEntrega] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
 CREATE TABLE [LineasPendienteEntrega] (
     [Id] int NOT NULL,
     [PendienteEntregaId] int NOT NULL,
@@ -990,19 +969,6 @@ CREATE TABLE [Cajas] (
     [ModificadoPor] nvarchar(150) NOT NULL,
     CONSTRAINT [PK_Cajas] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Cajas_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
-);
-GO
-
-
-CREATE TABLE [LineasEntregaPendiente] (
-    [Id] int NOT NULL,
-    [EntregaPendienteId] int NOT NULL,
-    [NumeroLineaVenta] int NOT NULL,
-    [Descripcion] nvarchar(200) NOT NULL,
-    [Cantidad] decimal(18,3) NOT NULL,
-    [Serial] nvarchar(50) NULL,
-    CONSTRAINT [PK_LineasEntregaPendiente] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_LineasEntregaPendiente_EntregasPendiente_EntregaPendienteId] FOREIGN KEY ([EntregaPendienteId]) REFERENCES [EntregasPendiente] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1365,7 +1331,7 @@ GO
 
 CREATE TABLE [Devoluciones] (
     [Id] int NOT NULL,
-    [Numero] varchar(30) NOT NULL,
+    [Numero] varchar(40) NOT NULL,
     [SucursalId] int NOT NULL,
     [CajaId] int NOT NULL,
     [TurnoId] int NULL,
@@ -1376,7 +1342,7 @@ CREATE TABLE [Devoluciones] (
     [UsuarioId] int NOT NULL,
     [UsuarioNombre] nvarchar(150) NOT NULL,
     [VentaOrigenId] int NULL,
-    [VentaOrigenNumero] varchar(30) NOT NULL,
+    [VentaOrigenNumero] varchar(40) NOT NULL,
     [VentaOrigenCobradaEn] datetimeoffset(3) NOT NULL,
     [TipoComprobanteOrigen] int NOT NULL,
     [EncfOrigen] varchar(13) NULL,
@@ -1668,7 +1634,7 @@ CREATE TABLE [ConsumosNotaCredito] (
     [Id] int NOT NULL,
     [DevolucionId] int NOT NULL,
     [VentaId] int NOT NULL,
-    [VentaNumero] varchar(30) NOT NULL,
+    [VentaNumero] varchar(40) NOT NULL,
     [CajaId] int NOT NULL,
     [Monto] decimal(18,2) NOT NULL,
     [SaldoRestante] decimal(18,2) NOT NULL,
@@ -1896,10 +1862,6 @@ CREATE UNIQUE INDEX [IX_Empresas_Rnc] ON [Empresas] ([Rnc]);
 GO
 
 
-CREATE INDEX [IX_EntregasPendiente_PendienteEntregaId] ON [EntregasPendiente] ([PendienteEntregaId]);
-GO
-
-
 CREATE UNIQUE INDEX [IX_FacturasConsultadas_Numero] ON [FacturasConsultadas] ([Numero]);
 GO
 
@@ -1929,10 +1891,6 @@ GO
 
 
 CREATE INDEX [IX_LineasDevolucion_DevolucionId] ON [LineasDevolucion] ([DevolucionId]);
-GO
-
-
-CREATE INDEX [IX_LineasEntregaPendiente_EntregaPendienteId] ON [LineasEntregaPendiente] ([EntregaPendienteId]);
 GO
 
 

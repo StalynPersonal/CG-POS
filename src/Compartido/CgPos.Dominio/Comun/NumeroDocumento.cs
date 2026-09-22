@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 namespace CgPos.Dominio.Comun;
 
@@ -17,6 +17,9 @@ public enum TipoDocumentoNumerado
 /// </summary>
 public static class NumeroDocumento
 {
+    /// <summary>Largo con el que se guarda cualquier número de documento de la caja: todos guardan el mismo dato.</summary>
+    public const int LargoMaximo = 40;
+
     public const int DigitosMinimosSecuencia = 5;
 
     /// <summary>Mayor cantidad de dígitos de la secuencia (un billón de documentos por caja y tipo).</summary>

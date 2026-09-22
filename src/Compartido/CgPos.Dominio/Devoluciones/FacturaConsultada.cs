@@ -12,7 +12,7 @@ namespace CgPos.Dominio.Devoluciones;
 /// </summary>
 public sealed class FacturaConsultada : Entidad
 {
-    public const int LargoMaximoNumero = 30;
+    public const int LargoMaximoNumero = NumeroDocumento.LargoMaximo;
     public const int LargoMaximoTexto = 200;
     public const int LargoMaximoCodigo = 50;
 

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Devoluciones;
 
@@ -9,7 +9,7 @@ namespace CgPos.Dominio.Devoluciones;
 /// </summary>
 public sealed class ReservaFacturaCentral : Entidad
 {
-    public const int LargoMaximoNumero = 30;
+    public const int LargoMaximoNumero = NumeroDocumento.LargoMaximo;
     public const int LargoMaximoCierre = 40;
 
     private readonly List<LineaReservaFacturaCentral> _lineas = [];

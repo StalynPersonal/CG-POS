@@ -113,8 +113,8 @@ internal sealed class PendienteEntregaConfiguracion : IEntityTypeConfiguration<P
 
         constructor.HasMany(p => p.Lineas).WithOne().HasForeignKey(l => l.PendienteEntregaId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(p => p.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field);
-        constructor.HasMany(p => p.Entregas).WithOne().HasForeignKey(e => e.PendienteEntregaId).OnDelete(DeleteBehavior.Cascade);
-        constructor.Navigation(p => p.Entregas).UsePropertyAccessMode(PropertyAccessMode.Field);
+        // Entregar es del Central (allá se despacha): la caja solo crea el pendiente al cobrar y lo sube.
+        constructor.Ignore(p => p.Entregas);
     }
 }
 
@@ -134,28 +134,3 @@ internal sealed class LineaPendienteEntregaConfiguracion : IEntityTypeConfigurat
     }
 }
 
-internal sealed class EntregaPendienteConfiguracion : IEntityTypeConfiguration<EntregaPendiente>
-{
-    public void Configure(EntityTypeBuilder<EntregaPendiente> constructor)
-    {
-        constructor.ToTable("EntregasPendiente");
-        constructor.HasKey(e => e.Id);
-        constructor.Property(e => e.RecibeNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre).IsRequired();
-        constructor.Property(e => e.RecibeCedula).HasMaxLength(20).IsRequired();
-        constructor.Property(e => e.UsuarioNombre).HasMaxLength(DestinoEntrega.LargoMaximoNombre).IsRequired();
-        constructor.HasMany(e => e.Lineas).WithOne().HasForeignKey(l => l.EntregaPendienteId).OnDelete(DeleteBehavior.Cascade);
-        constructor.Navigation(e => e.Lineas).UsePropertyAccessMode(PropertyAccessMode.Field);
-    }
-}
-
-internal sealed class LineaEntregaPendienteConfiguracion : IEntityTypeConfiguration<LineaEntregaPendiente>
-{
-    public void Configure(EntityTypeBuilder<LineaEntregaPendiente> constructor)
-    {
-        constructor.ToTable("LineasEntregaPendiente");
-        constructor.HasKey(l => l.Id);
-        constructor.Property(l => l.Descripcion).HasMaxLength(Articulo.LargoMaximoDescripcion).IsRequired();
-        constructor.Property(l => l.Cantidad).HasPrecision(18, 3);
-        constructor.Property(l => l.Serial).HasMaxLength(LineaVenta.LargoMaximoSerial);
-    }
-}
