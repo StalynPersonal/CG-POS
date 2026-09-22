@@ -49,6 +49,7 @@ internal sealed class ServicioCaja(
     ITerminalPago terminal,
     IBandejaSalida bandejaSalida,
     IAuditoria auditoria,
+    GeneradorSecuencias secuencias,
     TimeProvider reloj) : IServicioCaja
 {
     private const string TipoEntidadTurno = "Turno";
@@ -278,6 +279,9 @@ internal sealed class ServicioCaja(
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
             AutorizadoPor: Autorizador(permiso)));
         await contexto.SaveChangesAsync(cancelacion);
+
+        // Con el turno cerrado, las ventas en curso y en espera quedaron vacías: sus Id vuelven a 1 para el turno siguiente.
+        await secuencias.ReiniciarIdsDeTrabajoAsync(cancelacion);
 
         var impresion = await impresora.ImprimirAsync(GeneradorTicket.GenerarCierre(await contexto.EncabezadoTicketAsync(parametros, reloj.LocalTimeZone, sesion.CajaId, cancelacion), datos, esCopia: false),
             cancelacion);

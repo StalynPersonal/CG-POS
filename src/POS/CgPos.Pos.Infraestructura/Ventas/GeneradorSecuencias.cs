@@ -2,7 +2,9 @@
 using CgPos.Dominio.Organizacion;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CgPos.Pos.Infraestructura.Ventas;
 
@@ -33,7 +35,7 @@ internal static class TiposSecuencia
 /// reciben el mismo valor. Si la operación que lo pidió falla, el número se pierde (hueco), lo que es aceptable
 /// para el número interno de transacción; los NCF usan su propio control.
 /// </summary>
-internal sealed class GeneradorSecuencias(ContextoDatosPos contexto)
+internal sealed class GeneradorSecuencias(ContextoDatosPos contexto, ILogger<GeneradorSecuencias> registro)
 {
     /// <param name="minimo">
     /// Valor mínimo que puede entregar (el que se configuró para continuar una numeración, ej. tras reinstalar la caja). Solo empuja la secuencia
@@ -71,6 +73,47 @@ internal sealed class GeneradorSecuencias(ContextoDatosPos contexto)
             """).ToListAsync(cancelacion);
 
         return valores.Single();
+    }
+
+    /// <summary>
+    /// Las tablas de trabajo de la venta (la que se arma y la que está en espera, con sus líneas y entregas) no guardan
+    /// documentos. Al cerrar el turno quedan vacías, y sus Id vuelven a empezar en 1 para el turno siguiente. Si alguna
+    /// todavía tiene filas no se toca nada, así un Id nunca se repite mientras exista. Devuelve si se reiniciaron.
+    /// </summary>
+    /// <remarks>
+    /// Si la base no deja reiniciar (el usuario no tiene permiso sobre las secuencias), el Id sigue desde donde iba: es
+    /// orden, no una regla del negocio, así que el cierre no falla por esto.
+    /// </remarks>
+    public async Task<bool> ReiniciarIdsDeTrabajoAsync(CancellationToken cancelacion)
+    {
+        try
+        {
+            var reiniciadas = await contexto.Database.SqlQuery<int>($"""
+                IF NOT EXISTS (SELECT 1 FROM [VentasTemp]) AND NOT EXISTS (SELECT 1 FROM [LineasVentaTemp])
+                   AND NOT EXISTS (SELECT 1 FROM [DestinosEntregaVentaTemp]) AND NOT EXISTS (SELECT 1 FROM [LineasDestinoEntregaTemp])
+                   AND NOT EXISTS (SELECT 1 FROM [VentasGuardadas]) AND NOT EXISTS (SELECT 1 FROM [LineasVentaGuardadas])
+                   AND NOT EXISTS (SELECT 1 FROM [DestinosEntregaVentaGuardadas]) AND NOT EXISTS (SELECT 1 FROM [LineasDestinoEntregaGuardadas])
+                BEGIN
+                    ALTER SEQUENCE [SecuenciaVentasTemp] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaLineasVentaTemp] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaDestinosEntregaVentaTemp] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaLineasDestinoEntregaTemp] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaVentasGuardadas] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaLineasVentaGuardadas] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaDestinosEntregaVentaGuardadas] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaLineasDestinoEntregaGuardadas] RESTART WITH 1;
+                    SELECT 1 AS Value;
+                END
+                ELSE
+                    SELECT 0 AS Value;
+                """).ToListAsync(cancelacion);
+            return reiniciadas.Single() == 1;
+        }
+        catch (SqlException excepcion)
+        {
+            registro.LogWarning(excepcion, "No se pudieron reiniciar los Id de las ventas en curso y en espera; siguen desde donde iban.");
+            return false;
+        }
     }
 }
 

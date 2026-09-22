@@ -332,8 +332,10 @@ internal sealed class ServicioVentas(
         if (rechazo is not null)
             return new RespuestaOperacionTerminal(rechazo.Resultado, rechazo.Mensaje, null);
 
+        // Con el turno: el Id del borrador vuelve a 1 en cada cierre, y una tarjeta de otro turno no es de esta venta.
         var ultima = await contexto.OperacionesTerminal
-            .Where(o => o.VentaId == ventaId && o.Tipo == TipoOperacionTerminal.Venta && o.Estado == EstadoOperacionTerminal.Aprobada && !o.UsadaEnCobro)
+            .Where(o => o.VentaId == ventaId && o.TurnoId == venta!.TurnoId && o.Tipo == TipoOperacionTerminal.Venta
+                && o.Estado == EstadoOperacionTerminal.Aprobada && !o.UsadaEnCobro)
             .OrderByDescending(o => o.Fecha)
             .FirstOrDefaultAsync(cancelacion);
         if (ultima is null)
@@ -702,7 +704,7 @@ internal sealed class ServicioVentas(
             if (forma.Tipo == TipoFormaPago.Tarjeta && !pago.AprobacionManual)
             {
                 if (pago.OperacionTerminalId is not { } id || !operaciones.TryGetValue(id, out var operacion) || !operacion.DisponibleParaCobro
-                    || operacion.VentaId != venta.Id || operacion.Monto != decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero)
+                    || operacion.VentaId != venta.Id || operacion.TurnoId != venta.TurnoId || operacion.Monto != decimal.Round(pago.MontoRecibido, 2, MidpointRounding.AwayFromZero)
                     || usadas.Contains(operacion))
                     return PagosArmados.Rechazado(CodigoResultadoVenta.OperacionTerminalInvalida,
                         "Pase la tarjeta por el terminal por el monto exacto, o registre la aprobación manual si la pasarela no responde.");
@@ -1313,7 +1315,7 @@ internal sealed class ServicioVentas(
                 $"Ya hay una factura en espera con la referencia «{nombre}». Use otra.", Datos(venta));
 
         // La tarjeta aprobada quedó enlazada con este borrador: se cobra o se anula antes de dejarla en espera.
-        if (await contexto.OperacionesTerminal.AnyAsync(o => o.VentaId == venta.Id && o.Tipo == TipoOperacionTerminal.Venta
+        if (await contexto.OperacionesTerminal.AnyAsync(o => o.VentaId == venta.Id && o.TurnoId == venta.TurnoId && o.Tipo == TipoOperacionTerminal.Venta
                 && o.Estado == EstadoOperacionTerminal.Aprobada && !o.UsadaEnCobro, cancelacion))
             return new RespuestaVenta(CodigoResultadoVenta.VentaNoEditable,
                 "La venta tiene una tarjeta aprobada: cóbrela o anule la tarjeta antes de ponerla en espera.", Datos(venta));

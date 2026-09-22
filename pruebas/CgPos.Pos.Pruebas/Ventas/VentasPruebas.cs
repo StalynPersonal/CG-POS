@@ -1966,6 +1966,33 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Los_Id_de_las_ventas_de_trabajo_vuelven_a_1_solo_si_sus_tablas_quedaron_vacias()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+
+        await using var ambito = baseDatos.Servicios!.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
+        var secuencias = ambito.ServiceProvider.GetRequiredService<GeneradorSecuencias>();
+
+        // Con una venta en curso no se toca nada: su Id no puede volver a entregarse.
+        Assert.False(await secuencias.ReiniciarIdsDeTrabajoAsync(CancellationToken.None));
+
+        // Vacías, sí. Se prueba dentro de una transacción que se deshace, porque la base la comparten las demás pruebas.
+        await using var transaccion = await contexto.Database.BeginTransactionAsync();
+        await contexto.Database.ExecuteSqlRawAsync("""
+            DELETE FROM LineasDestinoEntregaTemp; DELETE FROM DestinosEntregaVentaTemp; DELETE FROM LineasVentaTemp; DELETE FROM VentasTemp;
+            DELETE FROM LineasDestinoEntregaGuardadas; DELETE FROM DestinosEntregaVentaGuardadas; DELETE FROM LineasVentaGuardadas; DELETE FROM VentasGuardadas;
+            """);
+        Assert.True(await secuencias.ReiniciarIdsDeTrabajoAsync(CancellationToken.None));
+        Assert.Equal(1, (await contexto.Database.SqlQuery<int>($"SELECT NEXT VALUE FOR SecuenciaVentasTemp AS Value").ToListAsync()).Single());
+        Assert.Equal(1, (await contexto.Database.SqlQuery<int>($"SELECT NEXT VALUE FOR SecuenciaLineasVentaGuardadas AS Value").ToListAsync()).Single());
+        await transaccion.RollbackAsync();
+    }
+
+    [SkippableFact]
     public async Task Las_secuencias_no_se_repiten_con_pedidos_simultaneos()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
