@@ -58,7 +58,8 @@
         </MudChipSet>
     </div>
 
-    <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
+    <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
+              RowsPerPage="10">
         <HeaderContent>
             <MudTh>Promoción</MudTh>
             <MudTh>Oferta</MudTh>
@@ -121,6 +122,10 @@
         <NoRecordsContent>
             <MudText>No hay promociones que coincidan.</MudText>
         </NoRecordsContent>
+        <PagerContent>
+            @* Paginación con tamaño de página, 10 por defecto. *@
+            <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
+        </PagerContent>
     </MudTable>
 </MudPaper>
 
