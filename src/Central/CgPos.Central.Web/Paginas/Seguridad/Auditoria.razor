@@ -22,39 +22,44 @@
 
 @* Tabla de movimientos: se pide al Central una página a la vez, con el tamaño de página que elija el usuario. *@
 <MudPaper Elevation="1">
+    @* Filtros fuera de la barra de la tabla, que tiene alto fijo: aquí pueden pasar a otra línea sin montarse sobre el
+       encabezado. Rango de días, entidad, usuario, búsqueda libre y solo lo que cambió datos; la entidad y el usuario, con
+       borde y del mismo alto que las fechas. *@
+    <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+        <MudDatePicker Date="_desde" DateChanged="@(valor => FiltrarAsync(() => _desde = valor))" Label="Desde" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
+        <MudDatePicker Date="_hasta" DateChanged="@(valor => FiltrarAsync(() => _hasta = valor))" Label="Hasta" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
+        @* El filtro por acción está oculto por ahora; el Central lo sigue aceptando. *@
+        <div style="width: 200px">
+            <MudSelect T="string" Value="_tipoEntidad" ValueChanged="@(valor => FiltrarAsync(() => _tipoEntidad = valor))" Label="Entidad"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true">
+                @foreach (var entidad in _opciones.TiposEntidad)
+                {
+                    <MudSelectItem T="string" Value="@entidad">@entidad</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div style="width: 200px">
+            <MudSelect T="string" Value="_usuario" ValueChanged="@(valor => FiltrarAsync(() => _usuario = valor))" Label="Usuario"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true">
+                @foreach (var usuario in _opciones.Usuarios)
+                {
+                    <MudSelectItem T="string" Value="@usuario">@usuario</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div style="width: 260px">
+            <MudTextField T="string" Value="_buscar" ValueChanged="@(valor => FiltrarAsync(() => _buscar = valor))" DebounceInterval="400"
+                          Placeholder="Entidad, motivo o valor" Margin="Margin.Dense" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+        </div>
+        <MudSwitch T="bool" Value="_soloConCambios" ValueChanged="@(valor => FiltrarAsync(() => _soloConCambios = valor))"
+                   Color="Color.Secondary" Label="Solo cambios de datos" />
+    </div>
+
     <MudTable @ref="_tabla" T="DatosRegistroAuditoria" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
               Elevation="0" RowsPerPage="10">
-        <ToolBarContent>
-            @* Filtros: rango de días, acción, entidad, usuario, solo lo que cambió datos y búsqueda libre. *@
-            <div class="d-flex gap-2 flex-wrap align-center">
-                <MudDatePicker Date="_desde" DateChanged="@(valor => FiltrarAsync(() => _desde = valor))" Label="Desde" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
-                               Class="cg-central__filtro-fecha" />
-                <MudDatePicker Date="_hasta" DateChanged="@(valor => FiltrarAsync(() => _hasta = valor))" Label="Hasta" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
-                               Class="cg-central__filtro-fecha" />
-                @* El filtro por acción está oculto por ahora; el Central lo sigue aceptando. *@
-                <MudSelect T="string" Value="_tipoEntidad" ValueChanged="@(valor => FiltrarAsync(() => _tipoEntidad = valor))" Label="Entidad"
-                           Dense="true" Clearable="true" Style="width: 180px">
-                    @foreach (var entidad in _opciones.TiposEntidad)
-                    {
-                        <MudSelectItem T="string" Value="@entidad">@entidad</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="string" Value="_usuario" ValueChanged="@(valor => FiltrarAsync(() => _usuario = valor))" Label="Usuario" Dense="true"
-                           Clearable="true" Style="width: 180px">
-                    @foreach (var usuario in _opciones.Usuarios)
-                    {
-                        <MudSelectItem T="string" Value="@usuario">@usuario</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudTextField T="string" Value="_buscar" ValueChanged="@(valor => FiltrarAsync(() => _buscar = valor))" DebounceInterval="400"
-                              Placeholder="Entidad, motivo o valor" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="width: 240px" />
-                <MudSwitch T="bool" Value="_soloConCambios" ValueChanged="@(valor => FiltrarAsync(() => _soloConCambios = valor))"
-                           Color="Color.Secondary" Label="Solo cambios de datos" />
-            </div>
-        </ToolBarContent>
         <HeaderContent>
             <MudTh>Cuándo</MudTh>
             <MudTh>Acción</MudTh>

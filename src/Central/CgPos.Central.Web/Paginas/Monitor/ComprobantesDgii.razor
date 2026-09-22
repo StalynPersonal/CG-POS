@@ -22,36 +22,45 @@
 }
 
 <MudPaper Elevation="1">
+    @* Filtros fuera de la barra de la tabla, que tiene alto fijo: aquí pasan a otra línea sin montarse sobre el encabezado.
+       Cada lista y buscador va en un contenedor con su ancho; las listas, con borde y del mismo alto que las fechas. *@
+    <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+        <div style="width: 240px">
+            <MudTextField Margin="Margin.Dense" T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400" Placeholder="e-NCF o trackId"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+        </div>
+        <div style="width: 220px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="EstadoEnvioDgii?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true" Clearable="true"
+                       ToStringFunc="@(e => e is { } valor ? EtiquetasMonitor.Estado(valor) : "Todos")">
+                @foreach (var estado in EtiquetasMonitor.EstadosDgii)
+                {
+                    <MudSelectItem T="EstadoEnvioDgii?" Value="@estado">@EtiquetasMonitor.Estado(estado)</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div style="width: 240px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="int?" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Dense="true" Clearable="true"
+                       ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : "Todas")">
+                @foreach (var sucursal in _sucursales)
+                {
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div style="width: 220px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="int?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
+                       ToStringFunc="@(id => CajasDeLaSucursal.FirstOrDefault(c => c.CajaId == id) is { } caja ? $"{caja.CajaCodigo} · {caja.CajaNombre}" : "Todas")">
+                @foreach (var caja in CajasDeLaSucursal)
+                {
+                    <MudSelectItem T="int?" Value="@caja.CajaId">@(_sucursalId is null ? $"{caja.SucursalCodigo}-" : string.Empty)@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <MudSwitch T="bool" Value="_soloConFallo" ValueChanged="@(v => FiltrarAsync(() => _soloConFallo = v))" Label="Solo envíos con fallo" Color="Color.Secondary" />
+    </div>
+
     <MudTable @ref="_tabla" T="DatosComprobanteDgii" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="10"
               OnRowClick="@(evento => AbrirDetalleAsync(evento.Item!))" RowStyle="cursor: pointer">
-        <ToolBarContent>
-            <div class="d-flex gap-2 flex-wrap align-center">
-                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400" Placeholder="e-NCF o trackId"
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="max-width: 240px" />
-                <MudSelect T="EstadoEnvioDgii?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true" Clearable="true"
-                           ToStringFunc="@(e => e is { } valor ? EtiquetasMonitor.Estado(valor) : "Todos")" Style="max-width: 220px">
-                    @foreach (var estado in EtiquetasMonitor.EstadosDgii)
-                    {
-                        <MudSelectItem T="EstadoEnvioDgii?" Value="@estado">@EtiquetasMonitor.Estado(estado)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="int?" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Dense="true" Clearable="true"
-                           ToStringFunc="@(id => _sucursales.FirstOrDefault(s => s.Id == id) is { } sucursal ? $"{sucursal.Codigo} · {sucursal.Nombre}" : "Todas")" Style="max-width: 240px">
-                    @foreach (var sucursal in _sucursales)
-                    {
-                        <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="int?" Value="_cajaId" ValueChanged="@(v => FiltrarAsync(() => _cajaId = v))" Label="Caja" Dense="true" Clearable="true"
-                           ToStringFunc="@(id => CajasDeLaSucursal.FirstOrDefault(c => c.CajaId == id) is { } caja ? $"{caja.CajaCodigo} · {caja.CajaNombre}" : "Todas")" Style="max-width: 220px">
-                    @foreach (var caja in CajasDeLaSucursal)
-                    {
-                        <MudSelectItem T="int?" Value="@caja.CajaId">@(_sucursalId is null ? $"{caja.SucursalCodigo}-" : string.Empty)@caja.CajaCodigo · @caja.CajaNombre</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSwitch T="bool" Value="_soloConFallo" ValueChanged="@(v => FiltrarAsync(() => _soloConFallo = v))" Label="Solo envíos con fallo" Color="Color.Secondary" />
-            </div>
-        </ToolBarContent>
         <HeaderContent>
             <MudTh>e-NCF</MudTh>
             <MudTh>Sucursal</MudTh>

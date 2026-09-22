@@ -47,29 +47,36 @@
 }
 
 <MudPaper Elevation="1">
+    @* Filtros fuera de la barra de la tabla, que tiene alto fijo: aquí pasan a otra línea sin montarse sobre el encabezado.
+       Cada lista y buscador va en un contenedor con su ancho; las listas, con borde y del mismo alto que las fechas. *@
+    <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+        <div style="width: 260px">
+            <MudTextField Margin="Margin.Dense" T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                          Placeholder="Pendiente, factura, cliente o teléfono" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Clearable="true" />
+        </div>
+        <div style="width: 200px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="EstadoPendiente?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
+                       Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todos")">
+                @foreach (var estado in Enum.GetValues<EstadoPendiente>())
+                {
+                    <MudSelectItem T="EstadoPendiente?" Value="@estado">@Etiqueta(estado)</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div style="width: 200px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="MetodoEntrega?" Value="_metodo" ValueChanged="@(v => FiltrarAsync(() => _metodo = v))" Label="Método" Dense="true"
+                       Clearable="true" ToStringFunc="@(m => m is { } valor ? EtiquetaMetodo(valor) : "Todos")">
+                <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.RetiroSucursal">Retiro en sucursal</MudSelectItem>
+                <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.Envio">Envío</MudSelectItem>
+            </MudSelect>
+        </div>
+        <MudSwitch T="bool" Value="_soloAbiertos" ValueChanged="@(v => FiltrarAsync(() => _soloAbiertos = v))" Label="Solo abiertos" Color="Color.Primary" />
+        <MudSwitch T="bool" Value="_soloAtrasados" ValueChanged="@(v => FiltrarAsync(() => _soloAtrasados = v))" Label="Solo atrasados" Color="Color.Error" />
+    </div>
+
     <MudTable @ref="_tabla" T="DatosPendienteCentralResumen" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
               Elevation="0" RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
-        <ToolBarContent>
-            <div class="d-flex gap-2 flex-wrap align-center">
-                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
-                              Placeholder="Pendiente, factura, cliente o teléfono" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="width: 260px" />
-                <MudSelect T="EstadoPendiente?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
-                           Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todos")" Style="max-width: 200px">
-                    @foreach (var estado in Enum.GetValues<EstadoPendiente>())
-                    {
-                        <MudSelectItem T="EstadoPendiente?" Value="@estado">@Etiqueta(estado)</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="MetodoEntrega?" Value="_metodo" ValueChanged="@(v => FiltrarAsync(() => _metodo = v))" Label="Método" Dense="true"
-                           Clearable="true" ToStringFunc="@(m => m is { } valor ? EtiquetaMetodo(valor) : "Todos")" Style="max-width: 200px">
-                    <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.RetiroSucursal">Retiro en sucursal</MudSelectItem>
-                    <MudSelectItem T="MetodoEntrega?" Value="@MetodoEntrega.Envio">Envío</MudSelectItem>
-                </MudSelect>
-                <MudSwitch T="bool" Value="_soloAbiertos" ValueChanged="@(v => FiltrarAsync(() => _soloAbiertos = v))" Label="Solo abiertos" Color="Color.Primary" />
-                <MudSwitch T="bool" Value="_soloAtrasados" ValueChanged="@(v => FiltrarAsync(() => _soloAtrasados = v))" Label="Solo atrasados" Color="Color.Error" />
-            </div>
-        </ToolBarContent>
         <HeaderContent>
             <MudTh>Pendiente</MudTh>
             <MudTh>Cliente</MudTh>

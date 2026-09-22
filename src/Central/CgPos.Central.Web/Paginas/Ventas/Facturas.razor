@@ -22,34 +22,41 @@
 }
 
 <MudPaper Elevation="1">
+    @* Filtros: rango de días, sucursal, tipo de documento y búsqueda por número, e-NCF o cliente. Van fuera de la barra de la
+       tabla, que tiene alto fijo: aquí pasan a otra línea sin montarse sobre el encabezado. Cada lista y buscador va en un
+       contenedor con su ancho; las listas, con borde y del mismo alto que las fechas. *@
+    <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+        <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v ?? _desde))" Label="Desde" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
+        <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v ?? _hasta))" Label="Hasta" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
+        <div style="width: 180px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="int?" Value="_sucursalId" ValueChanged="@(v => FiltrarAsync(() => _sucursalId = v))" Label="Sucursal" Dense="true"
+                       Clearable="true">
+                @foreach (var sucursal in _sucursales)
+                {
+                    <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <div style="width: 190px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="TipoComprobanteVenta?" Value="_tipo" ValueChanged="@(v => FiltrarAsync(() => _tipo = v))" Label="Tipo" Dense="true"
+                       Clearable="true">
+                <MudSelectItem T="TipoComprobanteVenta?" Value="@TipoComprobanteVenta.Factura">Facturas</MudSelectItem>
+                <MudSelectItem T="TipoComprobanteVenta?" Value="@TipoComprobanteVenta.NotaCredito">Notas de crédito</MudSelectItem>
+            </MudSelect>
+        </div>
+        <div style="width: 240px">
+            <MudTextField Margin="Margin.Dense" T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                          Placeholder="Número, e-NCF o cliente" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Clearable="true" />
+        </div>
+        <MudSpacer />
+        <MudText Typo="Typo.subtitle2">Total: @_suma.ToString("N2")</MudText>
+    </div>
+
     <MudTable @ref="_tabla" T="DatosComprobanteRecibido" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm"
               Elevation="0" RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
-        <ToolBarContent>
-            @* Filtros: rango de días, sucursal, caja, tipo de documento y búsqueda por número, e-NCF o cliente. *@
-            <div class="d-flex gap-2 flex-wrap align-center" style="width: 100%">
-                <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v ?? _desde))" Label="Desde" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
-                <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v ?? _hasta))" Label="Hasta" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Class="cg-central__filtro-fecha" />
-                <MudSelect T="int?" Value="_sucursalId" ValueChanged="@(v => FiltrarAsync(() => _sucursalId = v))" Label="Sucursal" Dense="true"
-                           Clearable="true" Style="width: 180px">
-                    @foreach (var sucursal in _sucursales)
-                    {
-                        <MudSelectItem T="int?" Value="@sucursal.Id">@sucursal.Nombre</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudSelect T="TipoComprobanteVenta?" Value="_tipo" ValueChanged="@(v => FiltrarAsync(() => _tipo = v))" Label="Tipo" Dense="true"
-                           Clearable="true" Style="max-width: 190px">
-                    <MudSelectItem T="TipoComprobanteVenta?" Value="@TipoComprobanteVenta.Factura">Facturas</MudSelectItem>
-                    <MudSelectItem T="TipoComprobanteVenta?" Value="@TipoComprobanteVenta.NotaCredito">Notas de crédito</MudSelectItem>
-                </MudSelect>
-                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
-                              Placeholder="Número, e-NCF o cliente" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="width: 240px" />
-                <MudSpacer />
-                <MudText Typo="Typo.subtitle2">Total: @_suma.ToString("N2")</MudText>
-            </div>
-        </ToolBarContent>
         <HeaderContent>
             <MudTh>Documento</MudTh>
             <MudTh>Origen</MudTh>

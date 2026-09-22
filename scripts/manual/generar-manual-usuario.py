@@ -433,7 +433,9 @@ viñeta('El código de la promoción no se escribe: lo da la secuencia «Promoci
 viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores. '
        'Una línea sin código crea una promoción nueva con el número de la secuencia; con código, actualiza esa promoción, que tiene que existir.')
 viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
-viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron.')
+viñeta('Los artículos se agregan digitando el código (o el de barras) y Enter: entra de una vez a la lista, con el precio de antes y el que '
+       'quedaría con la oferta, y el foco vuelve al código para seguir escaneando. El último agregado se ve arriba.')
+viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron; se filtra por texto, sucursal y rango de fechas.')
 
 titulo('2.8.1. Promociones para empezar (sugerencia)', 3)
 p('Estas son promociones típicas del rubro, con los artículos y las categorías sugeridas más arriba. Antes de publicarlas '

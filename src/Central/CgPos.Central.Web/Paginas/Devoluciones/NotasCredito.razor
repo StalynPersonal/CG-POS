@@ -21,30 +21,35 @@
 }
 
 <MudPaper Elevation="1">
+    @* Filtros fuera de la barra de la tabla, que tiene alto fijo: aquí pasan a otra línea sin montarse sobre el encabezado.
+       Cada lista y buscador va en un contenedor con su ancho; las listas, con borde y del mismo alto que las fechas. *@
+    <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+        @* Rango de días por fecha de emisión de la nota; vacío consulta todo el historial. *@
+        <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v))" Label="Desde" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
+                       Class="cg-central__filtro-fecha" />
+        <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v))" Label="Hasta" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
+                       Class="cg-central__filtro-fecha" />
+        <div style="width: 260px">
+            <MudTextField Margin="Margin.Dense" T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
+                          Placeholder="e-NCF, número, documento o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Clearable="true" />
+        </div>
+        <div style="width: 200px">
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" T="EstadoNotaCreditoCentral?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
+                       Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todas")">
+                <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vigente">Vigentes</MudSelectItem>
+                <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Consumida">Consumidas</MudSelectItem>
+                <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vencida">Vencidas</MudSelectItem>
+            </MudSelect>
+        </div>
+        <MudSwitch T="bool" Value="_soloSobregiradas" ValueChanged="@(v => FiltrarAsync(() => _soloSobregiradas = v))" Label="Solo sobregiradas"
+                   Color="Color.Error" />
+    </div>
+
     <MudTable @ref="_tabla" T="DatosNotaCreditoCentral" ServerData="CargarAsync" Hover="true" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0"
               RowsPerPage="10" OnRowClick="@(evento => AbrirAsync(evento.Item!))" RowStyle="cursor: pointer">
-        <ToolBarContent>
-            <div class="d-flex gap-2 flex-wrap align-center">
-                @* Rango de días por fecha de emisión de la nota; vacío consulta todo el historial. *@
-                <MudDatePicker Date="_desde" DateChanged="@(v => FiltrarAsync(() => _desde = v))" Label="Desde" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
-                               Class="cg-central__filtro-fecha" />
-                <MudDatePicker Date="_hasta" DateChanged="@(v => FiltrarAsync(() => _hasta = v))" Label="Hasta" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Clearable="true" DateFormat="dd/MM/yyyy"
-                               Class="cg-central__filtro-fecha" />
-                <MudTextField T="string" Value="_buscar" ValueChanged="@(v => FiltrarAsync(() => _buscar = v))" DebounceInterval="400"
-                              Placeholder="e-NCF, número, documento o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Clearable="true" Style="width: 260px" />
-                <MudSelect T="EstadoNotaCreditoCentral?" Value="_estado" ValueChanged="@(v => FiltrarAsync(() => _estado = v))" Label="Estado" Dense="true"
-                           Clearable="true" ToStringFunc="@(e => e is { } valor ? Etiqueta(valor) : "Todas")" Style="max-width: 200px">
-                    <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vigente">Vigentes</MudSelectItem>
-                    <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Consumida">Consumidas</MudSelectItem>
-                    <MudSelectItem T="EstadoNotaCreditoCentral?" Value="@EstadoNotaCreditoCentral.Vencida">Vencidas</MudSelectItem>
-                </MudSelect>
-                <MudSwitch T="bool" Value="_soloSobregiradas" ValueChanged="@(v => FiltrarAsync(() => _soloSobregiradas = v))" Label="Solo sobregiradas"
-                           Color="Color.Error" />
-            </div>
-        </ToolBarContent>
         <HeaderContent>
             <MudTh>Nota</MudTh>
             <MudTh>Cliente</MudTh>

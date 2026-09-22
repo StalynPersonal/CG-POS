@@ -291,7 +291,6 @@ html, body {
     width: max-content;
     max-width: none;
 }
-
 /* Serie y tipo del comprobante van juntos: forman el e-NCF, y la serie es fija. */
 .cg-secuencia__comprobante { display: flex; gap: 12px; align-items: flex-start; }
 .cg-secuencia__comprobante > :first-child { flex: 0 0 110px; }

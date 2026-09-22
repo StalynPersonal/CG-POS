@@ -4,36 +4,82 @@
 
 <MudDialog>
     <DialogContent>
-        <div class="cg-cliente">
+        @* Todo en una columna: la oferta aplicada, lo que vale la línea con y sin ella, y las demás ofertas del artículo. El
+           acomodo va con las clases de MudBlazor, sin depender de la hoja de estilos de la caja. *@
+        <div class="d-flex flex-column gap-4">
             @if (Linea is { } linea)
             {
-                <div class="cg-cliente__actual">
-                    <div>
-                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Oferta aplicada · línea @linea.NumeroLinea</MudText>
-                        <MudText Typo="Typo.h6" Style="font-weight: 700">@linea.PromocionNombre</MudText>
-                        <MudText Typo="Typo.body2">
-                            @linea.PromocionCodigo · @linea.PromocionDescripcion · ahorro @linea.DescuentoPromocion.ToString("C")
-                        </MudText>
+                @* La oferta aplicada: nombre y código a la izquierda, el descuento en grande a la derecha. *@
+                <MudPaper Outlined="true" Class="pa-4 d-flex align-center gap-4" Style="background: var(--cg-superficie); border-color: var(--cg-accion)">
+                    @* Qué oferta es y a qué línea se aplicó. *@
+                    <div class="flex-grow-1" style="min-width: 0">
+                        <MudText Typo="Typo.caption" Color="Color.Primary">Oferta aplicada · línea @linea.NumeroLinea</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 700; line-height: 1.25">@linea.PromocionNombre</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@linea.PromocionCodigo · @linea.Descripcion</MudText>
                     </div>
-                    <div class="cg-venta__promo cg-oferta__insignia">@linea.PromocionDescripcion</div>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Large" Style="font-size: 1.4rem; font-weight: 700; padding: 0 20px; height: 48px">
+                        @linea.PromocionDescripcion
+                    </MudChip>
+                </MudPaper>
+
+                @* Lo que vale la línea sin la oferta, lo que ahorra el cliente y lo que queda. *@
+                <div class="d-flex gap-3">
+                    @* Importe de la línea sin la oferta. *@
+                    <MudPaper Outlined="true" Class="pa-3 flex-grow-1" Style="flex-basis: 0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Sin oferta</MudText>
+                        <MudText Typo="Typo.h6" Class="cg-numero" Style="text-align: left">@linea.ImporteBruto.ToString("N2")</MudText>
+                    </MudPaper>
+                    @* Lo que descuenta la oferta. *@
+                    <MudPaper Outlined="true" Class="pa-3 flex-grow-1" Style="flex-basis: 0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Ahorro</MudText>
+                        <MudText Typo="Typo.h6" Color="Color.Success" Class="cg-numero" Style="text-align: left">−@linea.DescuentoPromocion.ToString("N2")</MudText>
+                    </MudPaper>
+                    @* Lo que queda con la oferta, antes de otros descuentos. *@
+                    <MudPaper Outlined="true" Class="pa-3 flex-grow-1" Style="flex-basis: 0">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Con oferta</MudText>
+                        <MudText Typo="Typo.h6" Class="cg-numero" Style="text-align: left; font-weight: 700">
+                            @((linea.ImporteBruto - linea.DescuentoPromocion).ToString("N2"))
+                        </MudText>
+                    </MudPaper>
                 </div>
 
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Ofertas vigentes para @linea.Descripcion</MudText>
-                @if (_cargando)
-                {
-                    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
-                }
-                else
-                {
-                    @foreach (var oferta in _vigentes)
+                @* Las ofertas vigentes del artículo, una por fila; la aplicada, marcada. *@
+                <div class="d-flex flex-column gap-2">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Ofertas vigentes para este artículo</MudText>
+                    @if (_cargando)
                     {
-                        <div class="cg-oferta__vigente @(oferta.Codigo == linea.PromocionCodigo ? "cg-oferta__vigente--aplicada" : null)">
-                            <strong>@oferta.Descripcion</strong>
-                            <span>@oferta.Nombre</span>
-                            <small>hasta @oferta.VigenteHasta.ToLocalTime().ToString("dd/MM/yyyy")</small>
-                        </div>
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
                     }
-                }
+                    else if (_vigentes.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No hay otras ofertas vigentes.</MudText>
+                    }
+                    else
+                    {
+                        @foreach (var oferta in _vigentes)
+                        {
+                            var aplicada = oferta.Codigo == linea.PromocionCodigo;
+                            @* Una oferta: su descuento, su nombre y hasta cuándo rige. *@
+                            <MudPaper Outlined="true" Class="px-3 py-2 d-flex align-center gap-3"
+                                      Style="@(aplicada ? "border-color: var(--cg-accion); background: var(--cg-superficie)" : null)">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="@(aplicada ? Variant.Filled : Variant.Outlined)"
+                                         Style="min-width: 64px; justify-content: center">@oferta.Descripcion</MudChip>
+                                @* Nombre y vigencia de la oferta. *@
+                                <div class="flex-grow-1" style="min-width: 0">
+                                    <MudText Typo="Typo.body1" Style="font-weight: 600">@oferta.Nombre</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @oferta.Codigo · hasta @oferta.VigenteHasta.ToLocalTime().ToString("dd/MM/yyyy")
+                                    </MudText>
+                                </div>
+                                @if (aplicada)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Success" Style="font-weight: 700; white-space: nowrap">APLICADA</MudText>
+                                }
+                            </MudPaper>
+                        }
+                    }
+                </div>
+
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Si hay varias ofertas se aplica la más favorable para el cliente. Desactivarla permite aplicar un descuento manual.
                 </MudText>

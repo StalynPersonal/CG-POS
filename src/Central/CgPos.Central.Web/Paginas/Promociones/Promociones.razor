@@ -25,20 +25,40 @@
 }
 
 <MudPaper Elevation="1">
-    <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
-        <ToolBarContent>
-            <div class="d-flex gap-2 flex-wrap align-center">
-                <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por código o nombre" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true" DebounceInterval="200" Clearable="true" Style="width: 240px" />
-                <MudChipSet T="string" @bind-SelectedValue="_vista" SelectionMode="SelectionMode.SingleSelection" CheckMark="true" Color="Color.Secondary" Variant="Variant.Outlined">
-                    <MudChip T="string" Value="@("activas")" Text="Vigentes y programadas" />
-                    <MudChip T="string" Value="@("vigentes")" Text="Vigentes" />
-                    <MudChip T="string" Value="@("programadas")" Text="Programadas" />
-                    <MudChip T="string" Value="@("vencidas")" Text="Vencidas" />
-                    <MudChip T="string" Value="@("todas")" Text="Todas" />
-                </MudChipSet>
+    @* Filtros fuera de la barra de la tabla, que tiene alto fijo: aquí pueden pasar a otra línea sin montarse sobre el encabezado. *@
+    <div class="d-flex flex-column gap-2 px-4 pt-3 pb-2">
+        @* Búsqueda, sucursal y vigencia en una sola fila; si no caben, pasan a la línea siguiente. El buscador y la sucursal
+           van dentro de un contenedor con su ancho, y las fechas llevan el mismo estilo que en Auditoría. *@
+        <div class="d-flex flex-wrap align-center gap-3">
+            <div style="width: 280px">
+                <MudTextField T="string" @bind-Value="_filtro" @bind-Value:after="Filtrar" Placeholder="Buscar por código o nombre" Margin="Margin.Dense"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="200"
+                              Clearable="true" />
             </div>
-        </ToolBarContent>
+            <div style="width: 220px">
+                <MudSelect T="string" @bind-Value="_sucursalFiltro" Label="Sucursal" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    @foreach (var sucursal in _sucursales)
+                    {
+                        <MudSelectItem T="string" Value="@sucursal.Codigo">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <MudDatePicker @bind-Date="_desdeFiltro" Label="Desde" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           Class="cg-central__filtro-fecha" />
+            <MudDatePicker @bind-Date="_hastaFiltro" Label="Hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           Class="cg-central__filtro-fecha" />
+        </div>
+        @* Estado de la vigencia, en su propia línea. *@
+        <MudChipSet T="string" @bind-SelectedValue="_vista" SelectionMode="SelectionMode.SingleSelection" CheckMark="true" Color="Color.Secondary" Variant="Variant.Outlined">
+            <MudChip T="string" Value="@("activas")" Text="Vigentes y programadas" />
+            <MudChip T="string" Value="@("vigentes")" Text="Vigentes" />
+            <MudChip T="string" Value="@("programadas")" Text="Programadas" />
+            <MudChip T="string" Value="@("vencidas")" Text="Vencidas" />
+            <MudChip T="string" Value="@("todas")" Text="Todas" />
+        </MudChipSet>
+    </div>
+
+    <MudTable T="DatosPromocionCentral" Items="Filtradas" Hover="true" Loading="_cargando" Class="cg-central__tabla" Breakpoint="Breakpoint.Sm" Elevation="0">
         <HeaderContent>
             <MudTh>Promoción</MudTh>
             <MudTh>Oferta</MudTh>
@@ -111,6 +131,9 @@
     private IReadOnlyList<MarcaCarga> _marcas = [];
     private IReadOnlyList<DatosSucursal> _sucursales = [];
     private string? _filtro;
+    private string? _sucursalFiltro;
+    private DateTime? _desdeFiltro;
+    private DateTime? _hastaFiltro;
     private string _vista = "activas";
     private bool _cargando = true;
     private bool _error;
@@ -148,7 +171,14 @@
                     _ => false,
                 })
                 // El texto buscado se compara sin acentos, así que «navidena» encuentra «Navideña».
-                .Where(p => _buscado is null || _coincidencias.Contains(p.Promocion.Codigo));
+                .Where(p => _buscado is null || _coincidencias.Contains(p.Promocion.Codigo))
+                // Sin sucursales en la promoción, aplica a todas: pasa el filtro sea cual sea la elegida.
+                .Where(p => _sucursalFiltro is null
+                    || p.Promocion.Sucursales is not { Count: > 0 }
+                    || p.Promocion.Sucursales.Contains(_sucursalFiltro))
+                // Vigencia que se cruza con el rango elegido; un solo extremo puesto ya filtra por ese lado.
+                .Where(p => _desdeFiltro is not { } desde || p.Promocion.VigenteHasta.ToLocalTime().Date >= desde.Date)
+                .Where(p => _hastaFiltro is not { } hasta || p.Promocion.VigenteDesde.ToLocalTime().Date <= hasta.Date);
         }
     }
 
@@ -192,7 +222,7 @@
             { d => d.Marcas, _marcas },
             { d => d.Sucursales, _sucursales },
         };
-        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
         var referencia = await Dialogos.ShowAsync<DialogoPromocion>(promocion is null ? "Nueva promoción" : $"Editar promoción {promocion.Codigo}", parametros, opciones);
         if (await referencia.Result is not { Canceled: false })
             return;

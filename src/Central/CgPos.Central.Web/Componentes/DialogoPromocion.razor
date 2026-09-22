@@ -119,16 +119,36 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12">
-                <MudAutocomplete T="ArticuloCarga" Value="_articuloBuscado" ValueChanged="AgregarArticulo" SearchFunc="BuscarArticulosAsync" Label="Agregar artículo"
-                                 Variant="Variant.Outlined" ToStringFunc="@(a => a is null ? null : $"{a.Codigo} · {a.Descripcion}")" DebounceInterval="350" MinCharacters="2"
-                                 ResetValueOnEmptyText="true" Clearable="true" AdornmentIcon="@Icons.Material.Filled.Search" />
-                <div class="d-flex flex-wrap gap-1 mt-2">
-                    @foreach (var articulo in _articulos)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" Text="@articulo.Texto"
-                                 OnClose="@(_ => _articulos.Remove(articulo))" />
-                    }
-                </div>
+                @* Se digita el código y Enter lo busca y lo agrega de una vez; el foco vuelve aquí para seguir escaneando. *@
+                <MudTextField @ref="_campoCodigo" @bind-Value="_codigoBuscado" Label="Código del artículo" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Immediate="true" OnKeyDown="AlTeclearCodigoAsync" Style="max-width: 280px" Disabled="_buscandoArticulo"
+                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="BuscarYAgregarAsync"
+                              AdornmentAriaLabel="Buscar y agregar" />
+                @if (_errorArticulo is not null)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">@_errorArticulo</MudAlert>
+                }
+
+                @* Lo último agregado va arriba, para ver que entró lo que se acaba de digitar. *@
+                <MudTable T="ArticuloElegido" Items="_articulos" Dense="true" Hover="false" Elevation="0" Breakpoint="Breakpoint.None" Class="mt-2 cg-central__lineas">
+                    <HeaderContent>
+                        <MudTh>Código</MudTh>
+                        <MudTh>Descripción</MudTh>
+                        <MudTh Class="cg-numero">Precio antes</MudTh>
+                        <MudTh Class="cg-numero">Precio después</MudTh>
+                        <MudTh Style="width: 56px"></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Código">@context.Codigo</MudTd>
+                        <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+                        <MudTd DataLabel="Precio antes" Class="cg-numero">@context.PrecioDetalle.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Precio después" Class="cg-numero">@(PrecioDespues(context.PrecioDetalle) is { } despues ? despues.ToString("N2") : "—")</MudTd>
+                        <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => _articulos.Remove(context)" /></MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2">Sin artículos agregados: digite el código y presione Enter, o use un departamento, categoría o marca.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
             </MudItem>
 
             <MudItem xs="12" sm="6">
@@ -153,7 +173,7 @@
 </MudDialog>
 
 @code {
-    private sealed record ArticuloElegido(string Codigo, string Texto);
+    private sealed record ArticuloElegido(string Codigo, string Descripcion, decimal PrecioDetalle);
 
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
@@ -184,7 +204,10 @@
     private IReadOnlyCollection<int> _categorias = [];
     private IReadOnlyCollection<int> _marcas = [];
     private IReadOnlyCollection<string> _sucursales = [];
-    private ArticuloCarga? _articuloBuscado;
+    private string? _codigoBuscado;
+    private MudTextField<string?>? _campoCodigo;
+    private bool _buscandoArticulo;
+    private string? _errorArticulo;
     private bool _soloFidelidad;
     private bool _activa = true;
     private string? _mensaje;
@@ -212,18 +235,71 @@
 
         var codigos = p.Articulos ?? [];
         var encontrados = (await Central.ArticulosPromocionAsync(codigos)).ToDictionary(a => a.Codigo);
+        // El orden de _articulos es el de la pantalla (lo último arriba); como aquí no hay «orden de captura» que
+        // respetar, se listan tal como vienen guardados.
         foreach (var codigo in codigos)
-            _articulos.Add(new ArticuloElegido(codigo, encontrados.TryGetValue(codigo, out var a) ? $"{a.Codigo} · {a.Descripcion}" : $"Artículo {codigo}"));
+            _articulos.Add(encontrados.TryGetValue(codigo, out var a)
+                ? new ArticuloElegido(a.Codigo, a.Descripcion, a.PrecioDetalle)
+                : new ArticuloElegido(codigo, $"Artículo {codigo}", 0m));
     }
 
-    private async Task<IEnumerable<ArticuloCarga>> BuscarArticulosAsync(string texto, CancellationToken cancelacion) =>
-        (await Central.BuscarArticulosAsync("promociones", texto, 0, 20, cancelacion))?.Elementos.Select(e => e.Dato) ?? [];
-
-    private void AgregarArticulo(ArticuloCarga? articulo)
+    /// <summary>El precio de la línea con la oferta ya aplicada, para una unidad; nulo si falta algún dato del tipo.</summary>
+    private decimal? PrecioDespues(decimal precioDetalle) => _tipo switch
     {
-        if (articulo is not null && _articulos.All(a => a.Codigo != articulo.Codigo))
-            _articulos.Add(new ArticuloElegido(articulo.Codigo, $"{articulo.Codigo} · {articulo.Descripcion}"));
-        _articuloBuscado = null;
+        TipoPromocion.Porcentaje when _valor is { } valor => decimal.Round(precioDetalle * (1 - valor / 100m), 2, MidpointRounding.AwayFromZero),
+        TipoPromocion.MontoPorUnidad when _valor is { } valor => Math.Max(0m, precioDetalle - valor),
+        TipoPromocion.PrecioEspecial when _valor is { } valor => Math.Min(precioDetalle, valor),
+        TipoPromocion.PrecioPorCantidad when _valor is { } valor => Math.Min(precioDetalle, valor),
+        // Lleva X paga Y no tiene un precio por unidad propio: se muestra el equivalente al comprar sets completos.
+        TipoPromocion.LlevaPaga when _lleva is > 0 and { } lleva && _paga is { } paga =>
+            decimal.Round(precioDetalle * paga / lleva, 2, MidpointRounding.AwayFromZero),
+        _ => null,
+    };
+
+    /// <summary>Enter en el código: busca el artículo (por código o código de barras) y lo agrega de una vez.</summary>
+    private async Task AlTeclearCodigoAsync(KeyboardEventArgs tecla)
+    {
+        if (tecla.Key is "Enter" or "NumpadEnter")
+            await BuscarYAgregarAsync();
+    }
+
+    private async Task BuscarYAgregarAsync()
+    {
+        var codigo = (_codigoBuscado ?? string.Empty).Trim();
+        _errorArticulo = null;
+        if (codigo.Length == 0)
+            return;
+
+        _buscandoArticulo = true;
+        var articulo = await BuscarPorCodigoAsync(codigo);
+        _buscandoArticulo = false;
+
+        if (articulo is null)
+            _errorArticulo = $"No se encontró el artículo '{codigo}'.";
+        else if (_articulos.Any(a => a.Codigo == articulo.Codigo))
+            _errorArticulo = $"El artículo {articulo.Codigo} ya está en la lista.";
+        else
+            _articulos.Insert(0, new ArticuloElegido(articulo.Codigo, articulo.Descripcion, articulo.PrecioDetalle));
+
+        _codigoBuscado = null;
+        await EnfocarAsync(_campoCodigo);
+    }
+
+    /// <summary>El artículo cuyo código (o código de barras) se digitó; nulo si no hay uno solo que coincida tal cual.</summary>
+    private async Task<ArticuloCarga?> BuscarPorCodigoAsync(string codigo)
+    {
+        var pagina = await Central.BuscarArticulosAsync("promociones", codigo, 0, 20);
+        var articulos = pagina?.Elementos.Select(e => e.Dato).ToList() ?? [];
+
+        return articulos.FirstOrDefault(a => string.Equals(a.Codigo, codigo, StringComparison.OrdinalIgnoreCase))
+               ?? articulos.FirstOrDefault(a => a.CodigosBarras?.Any(b => string.Equals(b, codigo, StringComparison.OrdinalIgnoreCase)) == true);
+    }
+
+    /// <summary>El foco vuelve solo al código, para seguir escaneando o digitando sin tocar el mouse.</summary>
+    private static async Task EnfocarAsync(MudTextField<string?>? campo)
+    {
+        if (campo is { } destino)
+            await destino.FocusAsync();
     }
 
     private async Task GuardarAsync()
