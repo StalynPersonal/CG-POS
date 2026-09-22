@@ -48,10 +48,10 @@
                 <MudTextField T="string" @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" InputType="InputType.Email" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" />
+                <CampoTelefono @bind-Value="_telefono" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField T="string" @bind-Value="_telefonoAlterno" Label="Otro teléfono" Variant="Variant.Outlined" />
+                <CampoTelefono @bind-Value="_telefonoAlterno" Label="Otro teléfono" />
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudSelect T="TipoComprobante" @bind-Value="_comprobante" Label="Comprobante predeterminado" Variant="Variant.Outlined" ToStringFunc="EtiquetasCliente.Comprobante">
@@ -107,7 +107,7 @@
                                 <MudTextField T="string" @bind-Value="direccion.Ciudad" Label="Ciudad" Variant="Variant.Outlined" Margin="Margin.Dense" />
                             </MudItem>
                             <MudItem xs="12" sm="4">
-                                <MudTextField T="string" @bind-Value="direccion.Telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                <CampoTelefono @bind-Value="direccion.Telefono" Margin="Margin.Dense" />
                             </MudItem>
                             <MudItem xs="12" sm="8">
                                 <MudTextField T="string" @bind-Value="direccion.Referencia" Label="Referencia" Variant="Variant.Outlined" Margin="Margin.Dense" />

@@ -28,7 +28,7 @@ else
         <MudTextField T="string" @bind-Value="_razonSocial" Label="Razón social" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
         <MudTextField T="string" @bind-Value="_nombreComercial" Label="Nombre comercial" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
         <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Lines="2" />
-        <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
+        <CampoTelefono @bind-Value="_telefono" Required="true" />
 
         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Disabled="_procesando" OnClick="GuardarAsync">Guardar cambios</MudButton>
 

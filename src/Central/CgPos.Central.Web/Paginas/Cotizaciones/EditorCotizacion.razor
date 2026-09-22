@@ -1,4 +1,4 @@
-@page "/cotizaciones/nueva"
+﻿@page "/cotizaciones/nueva"
 @page "/cotizaciones/{CotizacionId:int}"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarCotizaciones)]
 @using CgPos.Contratos.Catalogo
@@ -52,11 +52,10 @@ else if (_cotizacion is { } cotizacion)
                           Style="min-width: 280px" Disabled="!_editable" />
             @* La lupa (o Enter) busca el documento en el maestro de clientes y completa sus datos. *@
             <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Style="max-width: 220px" Disabled="!_editable" OnKeyDown="AlTeclearDocumento"
+                          Style="max-width: 240px" Disabled="!_editable" OnKeyDown="AlTeclearDocumento"
                           Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="BuscarClienteAsync"
                           AdornmentAriaLabel="Buscar cliente" />
-            <MudTextField @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px"
-                          Disabled="!_editable" />
+            <CampoTelefono @bind-Value="_telefono" Margin="Margin.Dense" Style="max-width: 200px" Disabled="!_editable" />
             <MudTextField @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 240px"
                           Disabled="!_editable" />
             <MudDatePicker @bind-Date="_venceEn" Label="Vale hasta" DateFormat="dd/MM/yyyy" Variant="Variant.Outlined" Margin="Margin.Dense"

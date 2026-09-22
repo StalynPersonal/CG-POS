@@ -67,7 +67,7 @@
                 </div>
                 <div class="cg-cliente__campos">
                     <MudTextField T="string" @bind-Value="_referencia" Label="Referencia" Variant="Variant.Outlined" Immediate="true" />
-                    <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono de contacto" Variant="Variant.Outlined" Immediate="true" />
+                    <CampoTelefono @bind-Value="_telefono" Label="Teléfono de contacto" />
                     <MudTextField T="string" @bind-Value="_transportista" Label="Transportista" Variant="Variant.Outlined" Immediate="true" />
                     <MudTextField T="string" @bind-Value="_costo" Label="@($"Costo de envío ({MonedaPantalla.Simbolo})")" Variant="Variant.Outlined" Immediate="true" />
                 </div>

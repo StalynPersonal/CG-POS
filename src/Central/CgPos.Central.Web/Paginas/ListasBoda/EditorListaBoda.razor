@@ -47,7 +47,7 @@ else if (_lista is { } lista)
         <div class="d-flex gap-3 flex-wrap mt-3">
             <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 220px" />
             <MudTextField @bind-Value="_clienteNombre" Label="Nombre del cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 280px" />
-            <MudTextField @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 200px" />
+            <CampoTelefono @bind-Value="_telefono" Margin="Margin.Dense" Style="max-width: 200px" />
             <MudTextField @bind-Value="_correo" Label="Correo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 240px" />
         </div>
 

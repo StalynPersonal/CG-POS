@@ -8,7 +8,7 @@
                           MaxLength="2" HelperText="Dos dígitos, de 01 a 99 y único; forma parte del número de los documentos." />
             <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
             <MudTextField T="string" @bind-Value="_direccion" Label="Dirección" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" Lines="2" />
-            <MudTextField T="string" @bind-Value="_telefono" Label="Teléfono" Variant="Variant.Outlined" Required="true" RequiredError="Obligatorio" />
+            <CampoTelefono @bind-Value="_telefono" Required="true" />
             @if (_mensaje is not null)
             {
                 <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>

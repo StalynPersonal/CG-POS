@@ -140,6 +140,11 @@ tabla(['Rol', 'Qué hace', 'Dónde'],
        ['Contabilidad', 'Facturas recibidas, reportes, 607, e-CF enviados a la DGII', 'Central']],
       anchos=[4.0, 9.0, 4.0])
 
+titulo('1.3. Cómo se escriben los teléfonos', 2)
+p('Todos los campos de teléfono, en la caja y en el Central, aceptan solo números: las letras, los espacios y los signos no '
+  'entran. Llevan diez dígitos y los guiones se ponen solos mientras se escribe, así que el teléfono queda siempre como '
+  '809-555-1234. Si se pega uno con otro formato, se acomoda igual.')
+
 doc.add_page_break()
 
 # ---------------------------------------------------------------- PARTE 1: EL CENTRAL

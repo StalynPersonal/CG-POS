@@ -1,0 +1,23 @@
+@* Campo de teléfono de todas las pantallas: solo acepta dígitos, hasta diez, y los muestra como 809-555-1234. *@
+<MudTextField T="string" Value="@FormatoTelefono.Formatear(Value)" ValueChanged="AlCambiarAsync" Label="@Label" Variant="@Variant"
+              Margin="@Margin" Class="@Class" Style="@Style" Disabled="@Disabled" Required="@Required" RequiredError="@RequiredError"
+              Immediate="@Immediate" Mask="_mascara" MaxLength="FormatoTelefono.Largo" InputMode="InputMode.tel" />
+
+@code {
+    private readonly PatternMask _mascara = new(FormatoTelefono.Patron);
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; } = "Teléfono";
+    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
+    [Parameter] public Margin Margin { get; set; } = Margin.None;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public string RequiredError { get; set; } = "Obligatorio";
+    [Parameter] public bool Immediate { get; set; } = true;
+
+    /// <summary>Lo que sale del campo va siempre formateado, aunque se haya pegado con letras o espacios.</summary>
+    private Task AlCambiarAsync(string? valor) => ValueChanged.InvokeAsync(FormatoTelefono.Formatear(valor));
+}
