@@ -41,15 +41,20 @@ public class VentaPruebas
         var cobrada = VentaCobrada.DesdeBorrador((VentaEnProceso)venta);
 
         // Sin cobrar no se numera: un cobro rechazado no puede dejar un número sin usar.
-        Assert.Throws<InvalidOperationException>(() => cobrada.Numerar("01", "02", 123, 7));
+        var origen = new OrigenVenta("01", "Sucursal Centro", "02", 5);
+        Assert.Throws<InvalidOperationException>(() => cobrada.Numerar(origen, 123, 7));
+        Assert.Equal(string.Empty, cobrada.SucursalCodigo);
 
         var efectivo = new FormaPagoParaCobro(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", true, false, false, true, true);
         cobrada.Cobrar([new PagoSolicitado(efectivo, 2_000m)], 0m, 250_000m, Ids.Siguiente(), "Cajera", Ahora);
-        cobrada.Numerar("01", "02", 123, 7);
+        cobrada.Numerar(origen, 123, 7);
         Assert.Equal("010210000123", cobrada.NumeroTransaccion);
 
+        // Junto con el número queda la foto de dónde se cobró, que no cambia aunque luego se renombre la sucursal.
+        Assert.Equal(("01", "Sucursal Centro", "02", 5L), (cobrada.SucursalCodigo, cobrada.SucursalNombre, cobrada.CajaCodigo, cobrada.TurnoNumero));
+
         // Una sola vez: el número de una factura no se cambia.
-        Assert.Throws<InvalidOperationException>(() => cobrada.Numerar("01", "02", 124, 7));
+        Assert.Throws<InvalidOperationException>(() => cobrada.Numerar(origen, 124, 7));
     }
 
     [Fact]

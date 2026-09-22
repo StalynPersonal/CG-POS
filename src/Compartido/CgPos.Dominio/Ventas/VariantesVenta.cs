@@ -135,12 +135,13 @@ public sealed class VentaCobrada : Venta
     /// Le da su número de factura, ya cobrada. Se llama después de validar el cobro para que un pago rechazado no deje un
     /// número sin usar.
     /// </summary>
-    public void Numerar(string codigoSucursal, string codigoCaja, long secuencia, int digitosSecuencia)
+    /// <param name="origen">Sucursal, caja y turno tal como están al cobrar: quedan en la venta como foto.</param>
+    public void Numerar(OrigenVenta origen, long secuencia, int digitosSecuencia)
     {
         if (Estado != EstadoVenta.Cobrada)
             throw new InvalidOperationException("Solo se numera una venta cobrada.");
 
-        AsignarNumero(codigoSucursal, codigoCaja, secuencia, digitosSecuencia);
+        AsignarNumero(origen, secuencia, digitosSecuencia);
     }
 
     private protected override LineaVenta NuevaLinea() => new LineaVentaCobrada();
@@ -172,3 +173,6 @@ public sealed class LineaVentaGuardada : LineaVenta;
 
 /// <summary>Línea de la venta cobrada: es la que viaja al Central y la que se devuelve.</summary>
 public sealed class LineaVentaCobrada : LineaVenta;
+
+/// <summary>Dónde se cobró la venta: sucursal, caja y turno tal como estaban en ese momento.</summary>
+public sealed record OrigenVenta(string SucursalCodigo, string SucursalNombre, string CajaCodigo, long TurnoNumero);

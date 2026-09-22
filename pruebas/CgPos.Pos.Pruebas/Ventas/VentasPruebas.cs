@@ -581,6 +581,23 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(ids[0] + 1, ids[1]);
         Assert.Equal(0, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasGuardadas.CountAsync(v => v.CajaId == caja.Escenario.CajaUno)));
         Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasTemp.CountAsync(v => v.CajaId == caja.Escenario.CajaUno))); // la nueva, vacía
+
+        // Cada venta cobrada guarda la foto de su sucursal, su caja y su turno, igual que los del número de factura.
+        var origen = await caja.EjecutarAsync<ContextoDatosPos, List<(string, string, string, long, long)>>(async contexto =>
+            (await (from venta in contexto.Ventas
+                    join sucursal in contexto.Sucursales on venta.SucursalId equals sucursal.Id
+                    join turno in contexto.Turnos on venta.TurnoId equals turno.Id
+                    where venta.CajaId == caja.Escenario.CajaUno
+                    select new { venta.SucursalCodigo, venta.SucursalNombre, venta.CajaCodigo, venta.TurnoNumero, turno.Numero, Nombre = sucursal.Nombre, venta.NumeroTransaccion })
+                .ToListAsync())
+            .Select(v =>
+            {
+                Assert.StartsWith(v.SucursalCodigo + v.CajaCodigo, v.NumeroTransaccion);
+                Assert.Equal(v.Nombre, v.SucursalNombre);
+                return (v.SucursalCodigo, v.SucursalNombre, v.CajaCodigo, v.TurnoNumero, v.Numero);
+            })
+            .ToList());
+        Assert.All(origen, v => Assert.Equal(v.Item5, v.Item4));
     }
 
     [SkippableFact]

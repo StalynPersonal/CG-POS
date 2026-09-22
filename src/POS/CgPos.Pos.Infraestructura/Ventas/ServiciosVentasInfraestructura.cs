@@ -423,10 +423,12 @@ internal sealed class ServicioVentas(
         await using var transaccion = await contexto.Database.BeginTransactionAsync(cancelacion);
 
         // El cobro ya pasó: ahora sí la venta toma su número de factura, y entra en la tabla de ventas con su propio Id.
-        var codigoSucursal = await contexto.Sucursales.Where(s => s.Id == cobrada.SucursalId).Select(s => s.Codigo).SingleAsync(cancelacion);
+        // Con el número queda la foto de dónde se cobró: sucursal, caja y turno como se llaman hoy.
+        var sucursal = await contexto.Sucursales.Where(s => s.Id == cobrada.SucursalId).Select(s => new { s.Codigo, s.Nombre }).SingleAsync(cancelacion);
+        var turnoNumero = await contexto.Turnos.Where(t => t.Id == cobrada.TurnoId).Select(t => t.Numero).SingleAsync(cancelacion);
         var digitos = await NumeracionDocumentos.DigitosAsync(parametros, cobrada.CajaId, cancelacion);
         var minimo = await NumeracionDocumentos.MinimoAsync(parametros, CgPos.Dominio.Organizacion.CatalogoParametros.ProximaFactura, sesion.CajaId, cancelacion);
-        cobrada.Numerar(codigoSucursal, sesion.CajaCodigo,
+        cobrada.Numerar(new OrigenVenta(sucursal.Codigo, sucursal.Nombre, sesion.CajaCodigo, turnoNumero),
             await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion, minimo), digitos);
         await contexto.Ventas.AddAsync(cobrada, cancelacion);
         contexto.VentasTemp.Remove(borrador);
@@ -475,7 +477,7 @@ internal sealed class ServicioVentas(
             foreach (var destino in cobrada.DestinosEntrega.OrderBy(d => d.Numero))
             {
                 var secuenciaPendiente = await secuencias.SiguienteAsync(cobrada.CajaId, TiposSecuencia.PendienteEntrega, cancelacion);
-                var pendiente = PendienteEntrega.Crear(cobrada, destino, NumeroDocumento.Formatear(codigoSucursal, sesion.CajaCodigo, TipoDocumentoNumerado.PendienteEntrega, secuenciaPendiente, digitos), ahora);
+                var pendiente = PendienteEntrega.Crear(cobrada, destino, NumeroDocumento.Formatear(cobrada.SucursalCodigo, cobrada.CajaCodigo, TipoDocumentoNumerado.PendienteEntrega, secuenciaPendiente, digitos), ahora);
                 contexto.PendientesEntrega.Add(pendiente);
                 pendientes.Add(pendiente);
                 bandejaSalida.Encolar("Entregas.PendienteCreado", pendiente.Numero, await contexto.PendienteAsync(pendiente, cancelacion));

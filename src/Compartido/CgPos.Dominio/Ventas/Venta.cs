@@ -163,6 +163,8 @@ public abstract class Venta : Entidad
     public const int LargoMaximoUsuario = 150;
     public const int LargoMaximoNombreCliente = 150;
     public const int LargoMaximoDocumento = 20;
+    public const int LargoCodigoOrigen = 2;
+    public const int LargoMaximoNombreSucursal = CgPos.Dominio.Organizacion.Empresa.LargoMaximoNombre;
     public const decimal CantidadMaxima = 99_999m;
 
     private protected Venta()
@@ -224,6 +226,22 @@ public abstract class Venta : Entidad
     public int SucursalId { get; private set; }
     public int CajaId { get; private set; }
     public int TurnoId { get; private set; }
+
+    /// <summary>
+    /// Foto de la sucursal, la caja y el turno al cobrar. Los Id relacionan la venta dentro de la base; esto guarda cómo se
+    /// llamaban entonces, para que el histórico no cambie si después se renombra o recodifica algo. Vacío hasta cobrar.
+    /// </summary>
+    public string SucursalCodigo { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string SucursalNombre { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string CajaCodigo { get; private set; } = string.Empty;
+
+    /// <summary>Número del turno en su caja al cobrar (el que sale en el cierre); cero hasta cobrar.</summary>
+    public long TurnoNumero { get; private set; }
+
     public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
 
@@ -332,15 +350,23 @@ public abstract class Venta : Entidad
     /// Le da a la venta su número de factura. Solo se llama una vez y solo sobre la cobrada, con la secuencia pedida al
     /// cobrar: por eso lo primero que se cobra se lleva el número primero, aunque se haya empezado después.
     /// </summary>
-    private protected void AsignarNumero(string codigoSucursal, string codigoCaja, long secuencia, int digitosSecuencia)
+    private protected void AsignarNumero(OrigenVenta origen, long secuencia, int digitosSecuencia)
     {
+        ArgumentNullException.ThrowIfNull(origen);
         ArgumentOutOfRangeException.ThrowIfLessThan(secuencia, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(origen.TurnoNumero, 1);
         if (NumeroTransaccion.Length > 0)
             throw new InvalidOperationException($"La venta ya tiene el número {NumeroTransaccion}.");
 
-        NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(codigoSucursal, codigoCaja, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia),
+        var sucursalCodigo = Validar.CodigoDosDigitos(origen.SucursalCodigo, "Código de sucursal");
+        var cajaCodigo = Validar.CodigoDosDigitos(origen.CajaCodigo, "Código de caja");
+        NumeroTransaccion = Validar.Texto(NumeroDocumento.Formatear(sucursalCodigo, cajaCodigo, TipoDocumentoNumerado.Factura, secuencia, digitosSecuencia),
             "Número de transacción", LargoMaximoNumero);
         Secuencia = secuencia;
+        SucursalCodigo = sucursalCodigo;
+        SucursalNombre = Validar.Texto(origen.SucursalNombre, "Nombre de sucursal", LargoMaximoNombreSucursal);
+        CajaCodigo = cajaCodigo;
+        TurnoNumero = origen.TurnoNumero;
     }
 
     /// <summary>
