@@ -190,7 +190,8 @@ else
                     <MudTh Style="width: 110px">Promo</MudTh>
                 </Encabezado>
                 <Fila Context="linea">
-                    <MudTd Class="@ClaseCelda(linea)">
+                    @* La columna Ln se ve normal aun en la línea eliminada: solo las demás columnas van en gris y tachadas. *@
+                    <MudTd Style="color: var(--mud-palette-text-primary); text-decoration: none">
                         @* Número de línea con el botón para eliminarla (pide autorización si corresponde). *@
                         <div class="cg-venta__ln">
                             @if (EsEditable(linea))
@@ -199,6 +200,11 @@ else
                                         @onclick="() => EliminarLineaAsync(linea)" @onclick:stopPropagation="true">
                                     <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
                                 </button>
+                            }
+                            else
+                            {
+                                @* Hueco del tamaño del botón, para que el número quede alineado con el de las demás líneas. *@
+                                <span style="width: 36px; flex: 0 0 36px"></span>
                             }
                             <span>@linea.NumeroLinea</span>
                         </div>
