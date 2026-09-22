@@ -1,5 +1,7 @@
 ﻿@* Alta o edición de una promoción: tipo y valores, vigencia con días y horas, alcance (artículos, departamentos, categorías, marcas, sucursales) y fidelidad. *@
+@using System.Globalization
 @using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Comun
 @using CgPos.Dominio.Promociones
 @inject ClienteCentral Central
 
@@ -91,23 +93,34 @@
                     }
                 </MudSelect>
             </MudItem>
+            @* Categorías y marcas son miles: se buscan escribiendo, en vez de dibujar la lista entera en el diálogo. *@
             <MudItem xs="12" sm="6">
-                <MudSelect T="int" @bind-SelectedValues="_categorias" MultiSelection="true" Label="Categorías" Variant="Variant.Outlined"
-                           ToStringFunc="@(codigo => Categorias.FirstOrDefault(c => c.Codigo == codigo)?.Nombre ?? string.Empty)">
-                    @foreach (var categoria in Categorias)
+                <MudAutocomplete @ref="_campoCategoria" T="int?" Value="null" ValueChanged="AgregarCategoriaAsync" Label="Categorías" Variant="Variant.Outlined"
+                                 SearchFunc="BuscarCategoriasAsync" ToStringFunc="@(codigo => Etiqueta(Categorias, codigo))" MaxItems="20"
+                                 ResetValueOnEmptyText="true" CoerceText="false" Clearable="true" Placeholder="Escriba para buscar" />
+                @* Las categorías elegidas; se quitan con la X del chip. *@
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    @foreach (var codigo in _categorias)
                     {
-                        <MudSelectItem T="int" Value="@categoria.Codigo">@categoria.Codigo · @categoria.Nombre</MudSelectItem>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" OnClose="() => QuitarCategoria(codigo)">
+                            @Etiqueta(Categorias, codigo)
+                        </MudChip>
                     }
-                </MudSelect>
+                </div>
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect T="int" @bind-SelectedValues="_marcas" MultiSelection="true" Label="Marcas" Variant="Variant.Outlined"
-                           ToStringFunc="@(codigo => Marcas.FirstOrDefault(m => m.Codigo == codigo)?.Nombre ?? string.Empty)">
-                    @foreach (var marca in Marcas)
+                <MudAutocomplete @ref="_campoMarca" T="int?" Value="null" ValueChanged="AgregarMarcaAsync" Label="Marcas" Variant="Variant.Outlined"
+                                 SearchFunc="BuscarMarcasAsync" ToStringFunc="@(codigo => Etiqueta(Marcas, codigo))" MaxItems="20"
+                                 ResetValueOnEmptyText="true" CoerceText="false" Clearable="true" Placeholder="Escriba para buscar" />
+                @* Las marcas elegidas; se quitan con la X del chip. *@
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    @foreach (var codigo in _marcas)
                     {
-                        <MudSelectItem T="int" Value="@marca.Codigo">@marca.Codigo · @marca.Nombre</MudSelectItem>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" OnClose="() => QuitarMarca(codigo)">
+                            @Etiqueta(Marcas, codigo)
+                        </MudChip>
                     }
-                </MudSelect>
+                </div>
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudSelect T="string" @bind-SelectedValues="_sucursales" MultiSelection="true" Label="Sucursales" Variant="Variant.Outlined" HelperText="Ninguna = todas."
@@ -201,11 +214,13 @@
     private TimeSpan? _horaDesde = new TimeSpan(8, 0, 0);
     private TimeSpan? _horaHasta = new TimeSpan(12, 0, 0);
     private IReadOnlyCollection<int> _departamentos = [];
-    private IReadOnlyCollection<int> _categorias = [];
-    private IReadOnlyCollection<int> _marcas = [];
+    private readonly HashSet<int> _categorias = [];
+    private readonly HashSet<int> _marcas = [];
     private IReadOnlyCollection<string> _sucursales = [];
     private string? _codigoBuscado;
     private MudTextField<string?>? _campoCodigo;
+    private MudAutocomplete<int?>? _campoCategoria;
+    private MudAutocomplete<int?>? _campoMarca;
     private bool _buscandoArticulo;
     private string? _errorArticulo;
     private bool _soloFidelidad;
@@ -228,8 +243,8 @@
         if (p is { HoraDesde: { } horaDesde, HoraHasta: { } horaHasta })
             (_horaDesde, _horaHasta) = (horaDesde.ToTimeSpan(), horaHasta.ToTimeSpan());
         _departamentos = (p.Departamentos ?? []).ToHashSet();
-        _categorias = (p.Categorias ?? []).ToHashSet();
-        _marcas = (p.Marcas ?? []).ToHashSet();
+        _categorias.UnionWith(p.Categorias ?? []);
+        _marcas.UnionWith(p.Marcas ?? []);
         _sucursales = (p.Sucursales ?? []).ToHashSet();
         (_soloFidelidad, _activa) = (p.SoloFidelidad, p.Activa);
 
@@ -256,6 +271,63 @@
         _ => null,
     };
 
+    // ---------- Categorías y marcas: se buscan escribiendo ----------
+
+    /// <summary>Cómo se nombra una categoría o una marca ya elegida; su código si ya no existe en el maestro.</summary>
+    private static string Etiqueta<T>(IReadOnlyList<T> maestro, int? codigo) where T : class
+    {
+        if (codigo is not { } valor)
+            return string.Empty;
+
+        var nombre = maestro switch
+        {
+            IReadOnlyList<CategoriaCarga> categorias => categorias.FirstOrDefault(c => c.Codigo == valor)?.Nombre,
+            IReadOnlyList<MarcaCarga> marcas => marcas.FirstOrDefault(m => m.Codigo == valor)?.Nombre,
+            _ => null,
+        };
+        return nombre is null ? valor.ToString(CultureInfo.InvariantCulture) : $"{valor} · {nombre}";
+    }
+
+    /// <summary>Las que coinciden con lo escrito, sin acentos y por código o nombre; vacío, las primeras.</summary>
+    private Task<IEnumerable<int?>> BuscarCategoriasAsync(string? texto, CancellationToken cancelacion) =>
+        Task.FromResult(Buscar(Categorias.Where(c => !_categorias.Contains(c.Codigo)).Select(c => (c.Codigo, c.Nombre)), texto));
+
+    private Task<IEnumerable<int?>> BuscarMarcasAsync(string? texto, CancellationToken cancelacion) =>
+        Task.FromResult(Buscar(Marcas.Where(m => !_marcas.Contains(m.Codigo)).Select(m => (m.Codigo, m.Nombre)), texto));
+
+    private static IEnumerable<int?> Buscar(IEnumerable<(int Codigo, string Nombre)> maestro, string? texto)
+    {
+        // Sin acentos, como el resto de las búsquedas: «cemento» encuentra «Cementó».
+        var buscado = TextoBusqueda.Normalizar(texto) ?? string.Empty;
+        return maestro
+            .Where(x => buscado.Length == 0
+                || (TextoBusqueda.Normalizar($"{x.Codigo} {x.Nombre}") ?? string.Empty).Contains(buscado, StringComparison.Ordinal))
+            .OrderBy(x => x.Nombre, StringComparer.CurrentCulture)
+            .Take(20)
+            .Select(x => (int?)x.Codigo);
+    }
+
+    /// <summary>La elegida entra a la lista y el campo queda vacío, listo para buscar la siguiente.</summary>
+    private async Task AgregarCategoriaAsync(int? codigo)
+    {
+        if (codigo is { } valor)
+            _categorias.Add(valor);
+        if (_campoCategoria is { } campo)
+            await campo.ClearAsync();
+    }
+
+    private async Task AgregarMarcaAsync(int? codigo)
+    {
+        if (codigo is { } valor)
+            _marcas.Add(valor);
+        if (_campoMarca is { } campo)
+            await campo.ClearAsync();
+    }
+
+    private void QuitarCategoria(int codigo) => _categorias.Remove(codigo);
+
+    private void QuitarMarca(int codigo) => _marcas.Remove(codigo);
+
     /// <summary>Enter en el código: busca el artículo (por código o código de barras) y lo agrega de una vez.</summary>
     private async Task AlTeclearCodigoAsync(KeyboardEventArgs tecla)
     {
@@ -267,8 +339,14 @@
     {
         var codigo = (_codigoBuscado ?? string.Empty).Trim();
         _errorArticulo = null;
+
+        // Solo se busca al presionar Enter o la lupa; aquí se avisa si no hay nada que buscar.
         if (codigo.Length == 0)
+        {
+            _errorArticulo = "Digite el código del artículo y presione Enter, o use la lupa.";
+            await EnfocarAsync(_campoCodigo);
             return;
+        }
 
         _buscandoArticulo = true;
         var articulo = await BuscarPorCodigoAsync(codigo);

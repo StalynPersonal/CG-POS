@@ -440,6 +440,9 @@ viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se
 viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
 viñeta('Los artículos se agregan digitando el código (o el de barras) y Enter: entra de una vez a la lista, con el precio de antes y el que '
        'quedaría con la oferta, y el foco vuelve al código para seguir escaneando. El último agregado se ve arriba.')
+viñeta('Las categorías y las marcas son miles, así que no salen en una lista: se escribe parte del código o del nombre, se elige '
+       'de lo que aparece, y lo elegido queda debajo en etiquetas que se quitan con su X. Departamentos y sucursales sí van en lista, '
+       'porque son pocos.')
 viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron; se filtra por texto, sucursal y rango de fechas.')
 
 titulo('2.8.1. Promociones para empezar (sugerencia)', 3)
