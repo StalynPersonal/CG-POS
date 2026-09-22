@@ -351,11 +351,19 @@ internal sealed class ServicioCaja(
         // que está en curso por su borrador, porque ninguna tiene número de factura.
         var enEspera = await contexto.VentasGuardadas.AsNoTracking().Where(v => v.TurnoId == turno.Id)
             .OrderBy(v => v.PuestaEnEsperaEn).Select(v => v.Referencia).ToListAsync(cancelacion);
+        // Con un turno de un día anterior ya no se pueden cobrar: la única salida es limpiarlas.
+        var diaAnterior = await ReglasTurno.BloqueoDiaAnteriorAsync(turno, parametros, reloj, cancelacion) is not null;
         if (enEspera.Count > 0)
-            bloqueos.Add($"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. Retómelas y cóbrelas o anúlelas.");
+            bloqueos.Add(diaAnterior
+                ? $"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. El turno es de un día anterior y ya no se pueden cobrar: "
+                  + "retómelas y límpielas para poder hacer el cierre."
+                : $"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. Retómelas y cóbrelas o anúlelas.");
         var enCurso = await contexto.VentasTemp.AsNoTracking().Where(v => v.TurnoId == turno.Id).ToListAsync(cancelacion);
         foreach (var venta in enCurso.Where(v => v.TieneLineasActivas))
-            bloqueos.Add($"La transacción {venta.Identificacion} de {venta.UsuarioNombre} está en curso con artículos: cóbrela o anúlela.");
+            bloqueos.Add(diaAnterior
+                ? $"La transacción {venta.Identificacion} de {venta.UsuarioNombre} está en curso con artículos y el turno es de un día anterior: "
+                  + "límpiela para poder hacer el cierre."
+                : $"La transacción {venta.Identificacion} de {venta.UsuarioNombre} está en curso con artículos: cóbrela o anúlela.");
 
         var idsCobradas = cobradas.Select(v => v.Id).ToList();
         var conEcf = idsCobradas.Count == 0

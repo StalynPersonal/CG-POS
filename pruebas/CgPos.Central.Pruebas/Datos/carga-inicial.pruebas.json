@@ -170,6 +170,11 @@
       "descripcion": "El fondo de caja forma parte del efectivo esperado en el cierre"
     },
     {
+      "clave": "Caja.BloquearVentaTurnoDiaAnterior",
+      "valor": "true",
+      "descripcion": "Con un turno abierto de un día anterior la caja no vende ni cobra"
+    },
+    {
       "clave": "Devoluciones.DiasRetencionImpuesto",
       "valor": "30",
       "descripcion": "Días desde la factura tras los cuales la devolución retiene el ITBIS"

@@ -702,6 +702,10 @@ viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno
        'usted toma el turno sin cerrarlo ni cuadrar.')
 viñeta('Cerrar el turno es definitivo: la caja no puede volver atrás. Cuente con calma antes de cerrar; si de todos modos '
        'quedó mal, la corrección se hace en el Central.')
+viñeta('Si el turno quedó abierto de un día anterior, la caja no vende ni cobra: sale un aviso rojo fijo y no deja escanear, '
+       'dar descuentos ni cobrar. Sí deja limpiar la pantalla, eliminar líneas, poner en espera y retomar, para dejar el turno '
+       'listo. Hay que cerrarlo y abrir uno nuevo. Esta regla se puede apagar en el Central con el parámetro '
+       'Caja.BloquearVentaTurnoDiaAnterior (viene encendido).')
 
 titulo('3.4. La pantalla de ventas principal', 2)
 p('La pantalla está dividida en cinco zonas:')
@@ -896,6 +900,8 @@ viñeta('Cierre de turno: se declara lo que hay por forma de pago y se cuenta el
        'cajero no ve lo esperado (cierre ciego).')
 viñeta('No se puede cerrar con facturas en espera, transacciones con artículos sin cobrar o ventas sin factura electrónica '
        'firmada: la pantalla dice exactamente qué falta.')
+viñeta('Con un turno de un día anterior, las facturas en espera ya no se pueden cobrar: el cierre avisa cuáles son y pide '
+       'retomarlas y limpiarlas (con la autorización de un supervisor) antes de cerrar.')
 viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprobado en la caja con lo que reporta el terminal.')
 viñeta('Al cerrar se imprime el reporte del turno: esperado, declarado y diferencia por forma de pago, denominaciones, '
        'retiros, reembolsos y relevos.')

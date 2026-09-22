@@ -137,6 +137,9 @@ public static class ClavesParametros
     /// <summary>Si el fondo de caja forma parte del efectivo esperado en el cuadre. Por defecto false: el fondo no se mezcla con el cuadre (RF-4).</summary>
     public const string FondoEnCuadre = "Caja.FondoEnCuadre";
 
+    /// <summary>Con un turno abierto de un día anterior la caja no vende ni cobra hasta cerrarlo. Por defecto true.</summary>
+    public const string BloquearVentaTurnoDiaAnterior = "Caja.BloquearVentaTurnoDiaAnterior";
+
     /// <summary>Total desde el cual la factura de consumo exige cédula o RNC (RF-26, RF-171). Por defecto 250000.</summary>
     public const string MontoIdentificacionConsumo = "Fiscal.MontoIdentificacionConsumo";
 

@@ -21,7 +21,11 @@ public sealed record DatosTurno(
 /// <summary>Estado del turno de la caja para la sesión actual, con el fondo sugerido para abrir.</summary>
 /// <param name="FondoSugerido">Nulo si el negocio no configuró un fondo sugerido.</param>
 /// <param name="EsDeOtroUsuario">La caja tiene un turno abierto por otro usuario (requiere relevo, RF-260).</param>
-public sealed record DatosEstadoTurno(DatosTurno? TurnoAbierto, decimal? FondoSugerido, bool PuedeAbrir, bool EsDeOtroUsuario);
+/// <param name="BloqueoDiaAnterior">
+/// Aviso cuando el turno abierto es de un día anterior y el parámetro lo bloquea: la caja no vende ni cobra hasta cerrarlo.
+/// </param>
+public sealed record DatosEstadoTurno(DatosTurno? TurnoAbierto, decimal? FondoSugerido, bool PuedeAbrir, bool EsDeOtroUsuario,
+    string? BloqueoDiaAnterior = null);
 
 public sealed record SolicitudAbrirTurno(decimal? FondoInicial);
 
@@ -227,6 +231,9 @@ public enum CodigoResultadoVenta
     Correcto,
     TurnoNoAbierto,
     TurnoDeOtroUsuario,
+
+    /// <summary>El turno abierto es de un día anterior: hay que cerrarlo y abrir otro para vender.</summary>
+    TurnoDiaAnterior,
     ArticuloNoEncontrado,
     SinPrecio,
     RequiereBalanza,

@@ -181,6 +181,7 @@ public sealed class EscenarioSeguridad
                 new ParametroCarga(ClavesParametros.PasoRedondeoEfectivo, "0", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.CierreCiego, "true", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.FondoEnCuadre, "false", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                new ParametroCarga(ClavesParametros.BloquearVentaTurnoDiaAnterior, "true", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.DiasRetencionImpuestoDevolucion, "30", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.DiasVigenciaNotaCredito, "180", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.PorcentajeAlertaSecuenciaEcf, "10", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),

@@ -69,6 +69,9 @@ public sealed class Turno : Entidad
 
     public bool EstaAbierto => Estado == EstadoTurno.Abierto;
 
+    /// <summary>El turno se abrió un día operativo anterior a <paramref name="hoy"/> y sigue abierto.</summary>
+    public bool EsDeDiaAnterior(DateOnly hoy) => EstaAbierto && FechaOperacion < hoy;
+
     public void Cerrar(DateTimeOffset ahora)
     {
         if (!EstaAbierto)

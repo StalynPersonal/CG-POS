@@ -121,6 +121,8 @@ public static class CatalogoParametros
         new("Caja.CierreCiego", "Caja y cierre", "El cajero declara el cierre sin ver lo esperado", Booleano, true),
         new("Caja.FondoEnCuadre", "Caja y cierre", "El fondo de caja forma parte del efectivo esperado en el cierre", Booleano, true),
         new("Caja.FondoPredeterminado", "Caja y cierre", "Fondo sugerido al abrir turno", Decimal, false, Minimo: 0),
+        new("Caja.BloquearVentaTurnoDiaAnterior", "Caja y cierre",
+            "Con un turno abierto de un día anterior la caja no vende ni cobra: hay que cerrarlo y abrir uno nuevo", Booleano, true),
 
         new("Devoluciones.DiasRetencionImpuesto", "Devoluciones", "Días desde la factura tras los cuales la devolución retiene el ITBIS", Entero, true, Minimo: 0),
         new(DiasVigenciaNotaCredito, "Devoluciones",

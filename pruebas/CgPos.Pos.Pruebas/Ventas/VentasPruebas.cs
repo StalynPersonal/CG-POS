@@ -1051,6 +1051,61 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Con_turno_de_un_dia_anterior_no_se_vende_ni_cobra_hasta_limpiar_y_cerrar()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var espera = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, venta.Id, "Sra. María"));
+        Assert.True(espera.Exitosa, espera.Mensaje);
+        await caja.TurnoDeAyerAsync();
+
+        // La pantalla recibe el aviso fijo y la caja ya no agrega artículos.
+        var estado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.NotNull(estado.BloqueoDiaAnterior);
+        var nueva = await caja.VentaActualAsync();
+        var agregar = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AgregarArticuloAsync(caja.Cajero, nueva.Id, caja.Catalogo.BarrasCincel, null));
+        Assert.Equal(CodigoResultadoVenta.TurnoDiaAnterior, agregar.Resultado);
+
+        // El cierre avisa que la factura en espera hay que limpiarla, porque ya no se puede cobrar.
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
+        Assert.Equal(CodigoResultadoCaja.CierreBloqueado, cierre.Resultado);
+        Assert.Contains(cierre.Bloqueos!, bloqueo => bloqueo.Contains("Sra. María") && bloqueo.Contains("límpielas"));
+
+        // Se retoma, no se deja cobrar, se limpia y entonces sí cierra.
+        var guardada = Assert.Single(await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosVentaEnEspera>>(s => s.ListarEnEsperaAsync(caja.Cajero)));
+        var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.RetomarAsync(caja.Cajero, guardada.Id, null));
+        Assert.True(retomada.Exitosa, retomada.Mensaje);
+        var retomadaVenta = retomada.Venta!;
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, retomadaVenta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, retomadaVenta.Totales.TotalAPagar)], null));
+        Assert.Equal(CodigoResultadoVenta.TurnoDiaAnterior, cobro.Resultado);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.LimpiarPantalla, "Turno de ayer");
+        var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, retomadaVenta.Id, autorizacion));
+        Assert.True(limpia.Exitosa, limpia.Mensaje);
+
+        var cerrado = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
+        Assert.True(cerrado.Exitosa, cerrado.Mensaje);
+    }
+
+    [SkippableFact]
+    public async Task Con_el_parametro_apagado_el_turno_de_un_dia_anterior_sigue_vendiendo()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+        var venta = await caja.VentaActualAsync();
+        await caja.TurnoDeAyerAsync();
+        await caja.CambiarParametroAsync(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.BloquearVentaTurnoDiaAnterior, "false");
+
+        var estado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.Cajero));
+        Assert.Null(estado.BloqueoDiaAnterior);
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+    }
+
+    [SkippableFact]
     public async Task Relevo_con_autorizacion_pasa_el_turno_y_el_cierre_queda_firme()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -2167,6 +2222,15 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             if (_cargarCertificado)
                 Assert.Null(_proveedor.GetRequiredService<CgPos.Pos.Aplicacion.Ecf.ICertificadoCaja>().Cargar(BaseDatosPruebas.PinCertificado));
         }
+
+        /// <summary>Deja el turno abierto de la caja con fecha de ayer, como si nadie lo hubiera cerrado anoche.</summary>
+        public Task<int> TurnoDeAyerAsync() =>
+            EjecutarAsync<ContextoDatosPos, int>(async contexto =>
+            {
+                var turno = await contexto.Turnos.SingleAsync(t => t.CajaId == Escenario.CajaUno && t.Estado == EstadoTurno.Abierto);
+                var ayer = turno.FechaOperacion.AddDays(-1);
+                return await contexto.Turnos.Where(t => t.Id == turno.Id).ExecuteUpdateAsync(s => s.SetProperty(t => t.FechaOperacion, ayer));
+            });
 
         /// <summary>Cambia un parámetro de esta caja, como se haría desde el Central.</summary>
         public Task<int> CambiarParametroAsync(string clave, string valor) =>

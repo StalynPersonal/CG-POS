@@ -130,7 +130,14 @@ else
                            aria-label="Menú de funciones" title="Funciones" />
         </div>
 
-        @if (_mensaje is not null)
+        @if (_estadoTurno?.BloqueoDiaAnterior is { } bloqueo)
+        {
+            @* Aviso fijo, sin cerrar: con un turno de un día anterior la caja no vende ni cobra hasta hacer el cierre. *@
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="cg-venta__aviso" Icon="@Icons.Material.Filled.EventBusy">
+                @bloqueo Si tiene facturas en espera, retómelas y límpielas antes del cierre.
+            </MudAlert>
+        }
+        @if (_mensaje is not null && _mensaje != _estadoTurno?.BloqueoDiaAnterior)
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
         }
@@ -1121,6 +1128,14 @@ else
             _venta = null;
             _mensaje = respuesta.Mensaje;
             _ = InvokeAsync(CargarAsync);
+            return;
+        }
+
+        // El turno pasó a ser de un día anterior con la pantalla abierta: el aviso fijo toma el lugar del mensaje.
+        if (respuesta.Resultado == CodigoResultadoVenta.TurnoDiaAnterior && _estadoTurno is { } estado)
+        {
+            _estadoTurno = estado with { BloqueoDiaAnterior = respuesta.Mensaje };
+            _mensaje = null;
             return;
         }
 

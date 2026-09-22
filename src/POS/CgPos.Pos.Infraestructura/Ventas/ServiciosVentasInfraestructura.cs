@@ -26,6 +26,7 @@ using CgPos.Pos.Infraestructura.Entregas;
 using CgPos.Pos.Infraestructura.Fidelidad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Infraestructura.Tickets;
+using CgPos.Pos.Infraestructura.Turnos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -164,7 +165,8 @@ internal sealed class ServicioTurnos(
             turno?.ADatos(),
             fondoSugerido,
             turno is null && sesion.TienePermiso(CatalogoPermisos.AbrirTurno),
-            turno is not null && turno.UsuarioActualId != sesion.UsuarioId);
+            turno is not null && turno.UsuarioActualId != sesion.UsuarioId,
+            turno is null ? null : await ReglasTurno.BloqueoDiaAnteriorAsync(turno, parametros, reloj, cancelacion));
     }
 
     public async Task<RespuestaTurno> AbrirAsync(SesionUsuario sesion, decimal? fondoInicial, CancellationToken cancelacion = default)
@@ -326,7 +328,7 @@ internal sealed class ServicioVentas(
 
     public async Task<RespuestaOperacionTerminal> AnularUltimaOperacionAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion = default)
     {
-        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion, permiteTurnoDiaAnterior: true);
         if (rechazo is not null)
             return new RespuestaOperacionTerminal(rechazo.Resultado, rechazo.Mensaje, null);
 
@@ -1280,7 +1282,7 @@ internal sealed class ServicioVentas(
 
     public async Task<RespuestaVenta> PonerEnEsperaAsync(SesionUsuario sesion, int ventaId, string referencia, CancellationToken cancelacion = default)
     {
-        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion, permiteTurnoDiaAnterior: true);
         if (rechazo is not null)
             return rechazo;
 
@@ -1419,7 +1421,7 @@ internal sealed class ServicioVentas(
     private async Task<RespuestaVenta> AnularYContinuarAsync(SesionUsuario sesion, int ventaId, string codigoPermiso, string? motivo, Guid? autorizacionId,
         string accionAuditoria, CancellationToken cancelacion)
     {
-        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion, permiteTurnoDiaAnterior: true);
         if (rechazo is not null)
             return rechazo;
 
@@ -1457,7 +1459,7 @@ internal sealed class ServicioVentas(
 
     private async Task<RespuestaVenta> EliminarAsync(SesionUsuario sesion, int ventaId, Guid? autorizacionId, Func<Venta, LineaVenta> eliminar, CancellationToken cancelacion)
     {
-        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion);
+        var (venta, rechazo) = await CargarVentaEditableAsync(sesion, ventaId, cancelacion, permiteTurnoDiaAnterior: true);
         if (rechazo is not null)
             return rechazo;
 
@@ -1840,11 +1842,19 @@ internal sealed class ServicioVentas(
         return NumeroDocumento.Formatear(codigoSucursal, sesion.CajaCodigo, TipoDocumentoNumerado.Factura, secuencia, digitos);
     }
 
-    private async Task<(VentaEnProceso? Venta, RespuestaVenta? Rechazo)> CargarVentaEditableAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion)
+    /// <param name="permiteTurnoDiaAnterior">
+    /// Para lo que deja el turno listo para cerrarse (limpiar, anular, eliminar líneas, poner en espera, anular un pago de
+    /// tarjeta): con un turno de un día anterior eso sigue permitido; vender y cobrar no.
+    /// </param>
+    private async Task<(VentaEnProceso? Venta, RespuestaVenta? Rechazo)> CargarVentaEditableAsync(SesionUsuario sesion, int ventaId, CancellationToken cancelacion,
+        bool permiteTurnoDiaAnterior = false)
     {
         var (turno, rechazo) = await TurnoDelUsuarioAsync(sesion, cancelacion);
         if (rechazo is not null)
             return (null, rechazo);
+
+        if (!permiteTurnoDiaAnterior && await ReglasTurno.BloqueoDiaAnteriorAsync(turno!, parametros, reloj, cancelacion) is { } bloqueo)
+            return (null, new RespuestaVenta(CodigoResultadoVenta.TurnoDiaAnterior, bloqueo, null));
 
         var venta = await contexto.VentasTemp.SingleOrDefaultAsync(v => v.Id == ventaId, cancelacion);
         if (venta is null || venta.CajaId != sesion.CajaId || venta.UsuarioId != sesion.UsuarioId || venta.TurnoId != turno!.Id)
