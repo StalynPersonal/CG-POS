@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Catalogo;
@@ -7,6 +7,7 @@ using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Promociones;
 using CgPos.Dominio.Seguridad;
+using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Pruebas.Api;
 
@@ -59,21 +60,26 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var (_, articulo) = await CrearArticuloAsync(cliente, admin);
         var sufijo = articulo.Codigo[1..];
 
+        await AsegurarSecuenciaAsync();
         var existente = new PromocionCarga($"E{sufijo}", "Existente", TipoPromocion.Porcentaje, 5m, Inicio, Fin, Articulos: [articulo.Codigo]);
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", existente)).Cuerpo!.Exitosa);
 
+        // Sin código es nueva y toma el número de la secuencia; con código actualiza la que existe.
         const string encabezado = "codigo;nombre;tipo;valor;desde;hasta;articulos;departamentos;sucursales;lleva;paga;cantidad_minima;limite_cliente;dias;hora_desde;hora_hasta;solo_fidelidad;activa";
-        var valida = $"I{sufijo};2x1 importado;lleva_paga;;2026-01-01;2030-12-31;{articulo.Codigo};;;2;1;;;lun|mié|vie;08:00;12:00;no;si";
+        var nombreNueva = $"2x1 importado {sufijo}";
+        var valida = $";{nombreNueva};lleva_paga;;2026-01-01;2030-12-31;{articulo.Codigo};;;2;1;;;lun|mié|vie;08:00;12:00;no;si";
         var actualiza = $"E{sufijo};Existente 15%;porcentaje;15;01/01/2026;31/12/2030;{articulo.Codigo};;;;;;;todos;;;no;si";
-        var tipoMalo = $"M{sufijo};Mala;regalo;5;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;;;;;";
-        var sinArticulo = $"N{sufijo};Sin artículo;porcentaje;5;2026-01-01;2030-12-31;NOEXISTE{sufijo};;;;;;;;;;;";
+        var tipoMalo = $";Mala;regalo;5;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;;;;;";
+        var sinArticulo = $";Sin artículo;porcentaje;5;2026-01-01;2030-12-31;NOEXISTE{sufijo};;;;;;;;;;;";
+        var codigoInventado = $"X{sufijo};Inventada;porcentaje;5;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;;;;;";
 
-        var validacion = await ImportarAsync(cliente, admin, string.Join("\n", encabezado, valida, tipoMalo, sinArticulo), soloValidar: false);
+        var validacion = await ImportarAsync(cliente, admin, string.Join("\n", encabezado, valida, tipoMalo, sinArticulo, codigoInventado), soloValidar: false);
         Assert.False(validacion.Publicada);
-        Assert.Equal([3, 4], validacion.Errores.Select(e => e.Linea));
+        Assert.Equal([3, 4, 5], validacion.Errores.Select(e => e.Linea));
         Assert.Contains("Tipo de promoción desconocido", validacion.Errores[0].Mensaje);
         Assert.Contains($"No existe el artículo con código 'NOEXISTE{sufijo}'", validacion.Errores[1].Mensaje);
-        Assert.DoesNotContain(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == $"I{sufijo}");
+        Assert.Contains("deje el código vacío", validacion.Errores[2].Mensaje);
+        Assert.DoesNotContain(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Nombre == nombreNueva);
 
         var soloValidar = await ImportarAsync(cliente, admin, string.Join("\r\n", encabezado, valida, actualiza), soloValidar: true);
         Assert.Equal((2, 1, 1, false, 0), (soloValidar.Leidas, soloValidar.Nuevas, soloValidar.Actualizadas, soloValidar.Publicada, soloValidar.Errores.Count));
@@ -82,7 +88,8 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Assert.True(publicada.Publicada, string.Join(" ", publicada.Errores.Select(e => e.Mensaje)));
 
         var promociones = await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones");
-        var importada = Assert.Single(promociones, p => p.Promocion.Codigo == $"I{sufijo}").Promocion;
+        var importada = Assert.Single(promociones, p => p.Promocion.Nombre == nombreNueva).Promocion;
+        Assert.Matches(@"^PRO\d{6}$", importada.Codigo);
         Assert.Equal((2, 1, DiasSemana.Lunes | DiasSemana.Miercoles | DiasSemana.Viernes, new TimeOnly(8, 0)),
             (importada.CantidadLleva!.Value, importada.CantidadPaga!.Value, importada.Dias, importada.HoraDesde!.Value));
         Assert.Equal(new DateTimeOffset(2030, 12, 31, 23, 59, 59, TimeSpan.FromHours(-4)), importada.VigenteHasta);
@@ -156,6 +163,35 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Assert.True(creado.Cuerpo!.Exitosa, creado.Cuerpo.Mensaje);
         return (departamento, articulo);
     }
+
+    [SkippableFact]
+    public async Task La_promocion_nueva_sin_codigo_toma_el_numero_de_su_secuencia()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+        var (_, articulo) = await CrearArticuloAsync(cliente, admin);
+        await AsegurarSecuenciaAsync();
+
+        var nombre = $"Secuencia {articulo.Codigo}";
+        var nueva = new PromocionCarga(string.Empty, nombre, TipoPromocion.Porcentaje, 5m, Inicio, Fin, Articulos: [articulo.Codigo]);
+        var creada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", nueva);
+        Assert.True(creada.Cuerpo!.Exitosa, creada.Cuerpo.Mensaje);
+
+        var promocion = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Nombre == nombre).Promocion;
+        Assert.Matches(@"^PRO\d{6}$", promocion.Codigo);
+    }
+
+    /// <summary>La secuencia de promociones, como la trae la base nueva; se crea si esta base de pruebas no la tiene.</summary>
+    private Task AsegurarSecuenciaAsync() =>
+        central.UsarContextoAsync(async contexto =>
+        {
+            await contexto.Database.ExecuteSqlAsync($"""
+                IF NOT EXISTS (SELECT 1 FROM SecuenciasCentral WHERE Codigo = 'Promocion')
+                    INSERT INTO SecuenciasCentral (Codigo, Prefijo, Documento, Ultimo, Digitos, Activa) VALUES ('Promocion', 'PRO', N'Promoción', 0, 6, 1);
+                """);
+            return true;
+        });
 
     /// <summary>Código de la oferta que aplicaría la caja; nulo si ninguna.</summary>
     private static string? Ganadora(ResultadoSimulacionPromociones resultado) =>

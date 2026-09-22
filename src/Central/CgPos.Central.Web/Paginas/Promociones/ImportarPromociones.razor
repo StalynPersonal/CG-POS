@@ -1,4 +1,4 @@
-@page "/promociones/importar"
+﻿@page "/promociones/importar"
 @attribute [Authorize(Policy = CatalogoPermisosCentral.AdministrarPromociones)]
 @inject ClienteCentral Cliente
 @inject ISnackbar Avisos
@@ -11,7 +11,7 @@
     <div>
         <MudText Typo="Typo.h4" Class="cg-central__titulo">Importar promociones</MudText>
         <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
-            Primero se valida el archivo completo; solo se publica si ninguna línea tiene errores. Un código ya existente actualiza esa promoción.
+            Primero se valida el archivo completo; solo se publica si ninguna línea tiene errores. Una línea sin código crea una promoción nueva con el número de la secuencia; con código, actualiza esa promoción.
         </MudText>
     </div>
 </div>
@@ -96,7 +96,7 @@
 
     private static readonly (string Columna, string Descripcion)[] Columnas =
     [
-        ("codigo *", "Código único; si ya existe, se actualiza"),
+        ("codigo", "Vacío: promoción nueva, toma el número de la secuencia. Con código: actualiza esa promoción (tiene que existir)"),
         ("nombre *", "Nombre de la promoción"),
         ("tipo *", "porcentaje, monto_por_unidad, precio_especial, lleva_paga o precio_por_cantidad"),
         ("valor", "%, monto o precio (no aplica en lleva_paga)"),
@@ -113,8 +113,8 @@
 
     private const string Ejemplo =
         "codigo;nombre;tipo;valor;desde;hasta;articulos;departamentos;sucursales;lleva;paga;dias;hora_desde;hora_hasta;solo_fidelidad\n" +
-        "FERR10;Ferretería 10%;porcentaje;10;2026-10-01;2026-10-31;;FERR;;;;todos;;;no\n" +
-        "CEM2X1;Cemento 3x2;lleva_paga;;2026-10-01 08:00;2026-10-15;CEM-425;;01;3;2;sab|dom;08:00;12:00;si";
+        ";Ferretería 10%;porcentaje;10;2026-10-01;2026-10-31;;FERR;;;;todos;;;no\n" +
+        "PRO000001;Cemento 3x2;lleva_paga;;2026-10-01 08:00;2026-10-15;CEM-425;;01;3;2;sab|dom;08:00;12:00;si";
 
     private readonly List<BreadcrumbItem> _migas = [new("Promociones", "promociones"), new("Importar", null, disabled: true)];
     private string? _contenido;

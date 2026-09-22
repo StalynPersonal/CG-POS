@@ -428,14 +428,17 @@ nota('En el módulo «Sincronización y mantenimiento» también se configura el
 titulo('2.8. Promociones', 2)
 viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, lleva X paga Y y precio desde cierta cantidad; '
        'por artículos, departamentos, categorías o marcas, en las sucursales que se elijan, con fechas, días y horario.')
-viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores.')
+viñeta('El código de la promoción no se escribe: lo da la secuencia «Promoción» (PRO000001) al guardarla, y no cambia. Su prefijo y '
+       'sus dígitos se configuran en Organización → Secuencias de documentos.')
+viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores. '
+       'Una línea sin código crea una promoción nueva con el número de la secuencia; con código, actualiza esa promoción, que tiene que existir.')
 viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
 viñeta('La lista muestra el estado de cada promoción y cuántas cajas ya la recibieron.')
 
 titulo('2.8.1. Promociones para empezar (sugerencia)', 3)
 p('Estas son promociones típicas del rubro, con los artículos y las categorías sugeridas más arriba. Antes de publicarlas '
   'conviene simularlas en Promociones → Simular.')
-tabla(['Código', 'Promoción', 'Tipo', 'Alcance', 'Detalle'],
+tabla(['Ejemplo', 'Promoción', 'Tipo', 'Alcance', 'Detalle'],
       [['PROM-3X2CER', 'Lleva 3 paga 2 en Corona', 'Lleva X paga Y', 'Artículo CER-COR-355', 'Lleva 3, paga 2. Fin de semana, viernes a domingo.'],
        ['PROM-VINO10', '10 % en vinos tintos', 'Porcentaje', 'Categoría Tintos', '10 % de descuento, todo el mes.'],
        ['PROM-CJPRE', 'Caja de Presidente a precio especial', 'Precio especial', 'Artículo CER-PRE-CJ', 'Precio fijo de 2,350.00 mientras dure la promoción.'],
@@ -556,7 +559,8 @@ nota('Sin su secuencia, el documento NO se puede crear: el sistema lo rechaza di
      'la numeración la decida el negocio y no se invente sola la primera vez que alguien hace el documento.')
 p('El Central le pone su propio número a los documentos que le suben las cajas. Una factura llega con el número de la caja '
   '(010110000001) y el Central le agrega el suyo (FAC000001): los dos quedan guardados y se ven juntos en el listado de '
-  'facturas. Lo mismo con las notas de crédito, los despachos y el cierre de sucursal.')
+  'facturas. Lo mismo con las notas de crédito, los despachos y el cierre de sucursal. Las cotizaciones, las listas de boda y '
+  'las promociones toman de aquí su número al crearse (COT000001, LB000001, PRO000001).')
 nota('Si al llegar un documento de la caja falta su secuencia, el documento se guarda igual pero sin número del Central: la '
      'caja ya lo emitió y perderlo sería peor. Configure la secuencia y los siguientes ya lo traerán.')
 p('En el sistema hay tres numeraciones distintas y conviene no confundirlas:')

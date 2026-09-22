@@ -1,4 +1,4 @@
-@* Alta o edición de una promoción: tipo y valores, vigencia con días y horas, alcance (artículos, departamentos, categorías, marcas, sucursales) y fidelidad. *@
+﻿@* Alta o edición de una promoción: tipo y valores, vigencia con días y horas, alcance (artículos, departamentos, categorías, marcas, sucursales) y fidelidad. *@
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Promociones
 @inject ClienteCentral Central
@@ -7,7 +7,9 @@
     <DialogContent>
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="4">
-                <MudTextField T="string" @bind-Value="_codigo" Label="Código" Variant="Variant.Outlined" Disabled="@(Promocion is not null)" HelperText="No cambia después de crearla." />
+                @* El código sale de la secuencia de promociones: no se escribe. *@
+                <MudTextField T="string" Value="@(_codigo ?? "Se asigna al guardar")" Label="Código" Variant="Variant.Outlined" ReadOnly="true"
+                              HelperText="Lo da la secuencia de promociones y no cambia." />
             </MudItem>
             <MudItem xs="12" sm="8">
                 <MudTextField T="string" @bind-Value="_nombre" Label="Nombre" Variant="Variant.Outlined" />
@@ -228,8 +230,7 @@
     {
         var desde = EtiquetasPromocion.Momento(_desdeFecha, _desdeHora);
         var hasta = EtiquetasPromocion.Momento(_hastaFecha, _hastaHora);
-        _mensaje = string.IsNullOrWhiteSpace(_codigo) ? "Indique el código."
-            : string.IsNullOrWhiteSpace(_nombre) ? "Indique el nombre."
+        _mensaje = string.IsNullOrWhiteSpace(_nombre) ? "Indique el nombre."
             : EtiquetasPromocion.EtiquetaValor(_tipo) is not null && _valor is null ? "Indique el valor de la oferta."
             : desde is null || hasta is null ? "Indique desde y hasta cuándo rige."
             : _dias == DiasSemana.Ninguno ? "Elija al menos un día."
@@ -239,8 +240,9 @@
         if (_mensaje is not null)
             return;
 
+        // Nueva: va sin código y el Central le da el siguiente de la secuencia.
         var promocion = new PromocionCarga(
-            _codigo!.Trim(),
+            Promocion is null ? string.Empty : _codigo!.Trim(),
             _nombre!.Trim(),
             _tipo,
             _tipo == TipoPromocion.LlevaPaga ? 0m : _valor!.Value,

@@ -42,6 +42,9 @@ public static class DocumentosNumerados
     public const string Cotizacion = "Cotizacion";
     public const string ListaBoda = "ListaBoda";
 
+    /// <summary>Código de las promociones que se crean en el Central (PRO000001).</summary>
+    public const string Promocion = "Promocion";
+
     /// <summary>Numeración propia del Central para las facturas que le suben las cajas.</summary>
     public const string Factura = "Factura";
 

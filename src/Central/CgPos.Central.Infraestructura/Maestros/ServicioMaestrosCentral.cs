@@ -1,4 +1,6 @@
-﻿using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Infraestructura.Organizacion;
+using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
 using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
@@ -11,7 +13,8 @@ using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
-internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, IAuditoriaCentral auditoria, TimeProvider reloj)
+internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, IAuditoriaCentral auditoria, TimeProvider reloj,
+    INumeracionCentral numeracion)
     : IServicioMaestrosCentral
 {
     public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(CancellationToken cancelacion = default) where T : class =>
@@ -25,6 +28,20 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     public async Task<ResultadoAdministracion> GuardarAsync<T>(T dato, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default) where T : class
     {
         ArgumentNullException.ThrowIfNull(dato);
+
+        // La promoción nueva sin código toma el siguiente de su secuencia (Organización → Secuencias de documentos).
+        if (nuevo && dato is PromocionCarga { Codigo: var codigoPromocion } promocion && string.IsNullOrWhiteSpace(codigoPromocion))
+        {
+            try
+            {
+                dato = (T)(object)(promocion with { Codigo = await numeracion.SiguienteAsync(DocumentosNumerados.Promocion, cancelacion) });
+            }
+            catch (SecuenciaCentralNoConfiguradaExcepcion excepcion)
+            {
+                return ResultadoAdministracion.Error(excepcion.Message);
+            }
+        }
+
         var tabla = TablasMaestros.De<T>();
         var existente = await tabla.IdAsync(contexto, dato, cancelacion);
         if (nuevo && existente is not null)

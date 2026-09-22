@@ -1,3 +1,5 @@
+﻿using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Infraestructura.Organizacion;
 using System.Globalization;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
@@ -13,11 +15,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
-internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador) : IServicioPromocionesCentral
+internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, INumeracionCentral numeracion)
+    : IServicioPromocionesCentral
 {
     private const int LargoMaximoArchivo = 5 * 1024 * 1024;
     private const int MaximoArticulosPorId = 500;
-    private static readonly string[] ColumnasObligatorias = ["codigo", "nombre", "tipo", "desde", "hasta"];
+    // El código no es obligatorio: vacío crea una promoción nueva con el número de su secuencia; lleno actualiza esa promoción.
+    private static readonly string[] ColumnasObligatorias = ["nombre", "tipo", "desde", "hasta"];
+
+    /// <summary>Código provisional de una línea nueva mientras se valida; el de verdad se toma de la secuencia al publicar.</summary>
+    private const string PrefijoProvisional = "#NUEVA";
     private static readonly string[] FormatosFecha = ["yyyy-MM-dd", "yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm", "dd/MM/yyyy", "dd/MM/yyyy HH:mm", "dd/MM/yyyy H:mm"];
 
     public async Task<IReadOnlyList<DatosPromocionCentral>> ListarAsync(CancellationToken cancelacion = default)
@@ -96,9 +103,16 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             string? V(string columna) => Valor(campos, columna);
             try
             {
-                var codigo = V("codigo") ?? throw new FormatException("Falta el código.");
-                if (!codigosEnArchivo.Add(codigo))
-                    throw new FormatException($"El código '{codigo}' está repetido en el archivo.");
+                // Sin código es nueva: toma el número de la secuencia al publicar. Con código actualiza esa promoción, que tiene
+                // que existir: así ningún código queda fuera de la secuencia.
+                var codigo = V("codigo")?.ToUpperInvariant() ?? $"{PrefijoProvisional}{numero}";
+                if (!codigo.StartsWith(PrefijoProvisional, StringComparison.Ordinal))
+                {
+                    if (!codigosEnArchivo.Add(codigo))
+                        throw new FormatException($"El código '{codigo}' está repetido en el archivo.");
+                    if (!existentes.Contains(codigo))
+                        throw new FormatException($"La promoción '{codigo}' no existe. Para crear una nueva, deje el código vacío: se le asigna el de la secuencia.");
+                }
 
                 var tipo = LeerTipo(V("tipo"));
                 var valor = LeerDecimal(V("valor"), "valor") ?? (tipo == TipoPromocion.LlevaPaga ? 0m : throw new FormatException("Falta el valor."));
@@ -146,6 +160,18 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
 
         if (errores.Count > 0 || solicitud.SoloValidar)
             return new ResultadoImportacionPromociones(filas.Count, nuevas, actualizadas, false, errores);
+
+        // Solo con el archivo ya válido se piden los números: una validación fallida no gasta la secuencia.
+        try
+        {
+            for (var i = 0; i < promociones.Count; i++)
+                if (promociones[i].Codigo.StartsWith(PrefijoProvisional, StringComparison.Ordinal))
+                    promociones[i] = promociones[i] with { Codigo = await numeracion.SiguienteAsync(DocumentosNumerados.Promocion, cancelacion) };
+        }
+        catch (SecuenciaCentralNoConfiguradaExcepcion excepcion)
+        {
+            return Fallo(excepcion.Message);
+        }
 
         try
         {

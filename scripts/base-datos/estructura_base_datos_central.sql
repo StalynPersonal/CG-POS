@@ -2232,7 +2232,7 @@ GO
 INSERT INTO [UsuariosCentral] ([Id], [Codigo], [Nombre], [Correo], [RolId], [Activo], [ContrasenaHash],
                                [DebeCambiarContrasena], [ContrasenaCambiadaEn], [IntentosFallidos],
                                [BloqueadoHasta], [UltimoIngresoEn], [ModificadoEn], [ModificadoPor])
-VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$nJDUZS2OXrmlEOMMJz/DRw==$XZhbG+dQqpww75SbrY2vkEUBjBjMipoM6HbZekU0OIo=', 1, NULL, 0, NULL, NULL,
+VALUES (1, N'ADMIN', N'Administrador del sistema', NULL, 1, 1, 'PBKDF2-SHA256$600000$In8evoQYquvkPuOA78uC2w==$kN5eoPFwI5LOuqOS0k8f0mFsyYr8bNIoqDdY1lJOzhk=', 1, NULL, 0, NULL, NULL,
         SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaUsuariosCentral] RESTART WITH 11;
 GO
@@ -2391,7 +2391,8 @@ VALUES
     ('Despacho', 'DES', N'Despacho', 0, 6, 1),
     ('CierreSucursal', 'CS', N'Cierre de sucursal', 0, 6, 1),
     ('Cotizacion', 'COT', N'Cotización', 0, 6, 1),
-    ('ListaBoda', 'LB', N'Lista de boda', 0, 6, 1);
+    ('ListaBoda', 'LB', N'Lista de boda', 0, 6, 1),
+    ('Promocion', 'PRO', N'Promoción', 0, 6, 1);
 GO
 
 /* Formas de pago */

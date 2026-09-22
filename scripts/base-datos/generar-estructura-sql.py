@@ -156,6 +156,7 @@ SECUENCIAS_CENTRAL = [
     ('CierreSucursal', 'CS', 'Cierre de sucursal', 6),
     ('Cotizacion', 'COT', 'Cotización', 6),
     ('ListaBoda', 'LB', 'Lista de boda', 6),
+    ('Promocion', 'PRO', 'Promoción', 6),
 ]
 
 MOTIVOS_DEVOLUCION = [
