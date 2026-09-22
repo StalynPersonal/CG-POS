@@ -83,7 +83,12 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
     private static decimal ConImpuesto(decimal monto, decimal porcentajeImpuesto) =>
         monto + CgPos.Dominio.Fiscal.CalculoImpuestos.ImpuestoSobre(monto, porcentajeImpuesto);
 
-    /// <summary>Ofertas vigentes ahora que alcanzan al artículo; las de fidelidad no se anuncian porque no son para todo el mundo.</summary>
+    /// <summary>
+    /// La oferta que más le conviene al cliente, de las vigentes ahora que alcanzan al artículo. Se anuncia una sola, la
+    /// misma que va a aplicar la caja: con varias en pantalla el cliente no sabe cuál le toca y se suman en su cabeza. El
+    /// descuento se compara sobre una unidad al precio de detalle, con el mismo motor que usa la venta (RN-11). Las ofertas
+    /// de fidelidad no se anuncian porque no son para todo el mundo.
+    /// </summary>
     private async Task<IReadOnlyList<DatosOfertaChequeador>> OfertasAsync(DatosArticuloChequeador articulo, int? sucursalId, CancellationToken cancelacion)
     {
         var ahora = reloj.Ahora();
@@ -91,10 +96,18 @@ internal sealed class ServicioChequeadorPrecios(ContextoDatosCentral contexto, I
             .Where(p => p.Activa && !p.SoloFidelidad && p.VigenteDesde <= ahora && p.VigenteHasta >= ahora)
             .ToListAsync(cancelacion);
 
-        return candidatas
+        var mejor = candidatas
             .Where(p => (sucursalId is not { } sucursal || p.EstaVigente(sucursal, ahora)) && p.AplicaA(articulo.Id, articulo.DepartamentoId, articulo.CategoriaId, articulo.MarcaId))
-            .Select(p => new DatosOfertaChequeador(p.Codigo, p.Nombre, Descripcion(p, articulo.PorcentajeImpuesto), DateOnly.FromDateTime(p.VigenteHasta.LocalDateTime)))
-            .ToList();
+            .Select(p => (Promocion: p, Descuento: MotorPromociones.CalcularDescuento(p, 1m, articulo.Precio, articulo.Precio)))
+            .Where(x => x.Descuento > 0)
+            .OrderByDescending(x => x.Descuento)
+            .ThenBy(x => x.Promocion.Codigo, StringComparer.Ordinal)
+            .Select(x => x.Promocion)
+            .FirstOrDefault();
+
+        return mejor is null
+            ? []
+            : [new DatosOfertaChequeador(mejor.Codigo, mejor.Nombre, Descripcion(mejor, articulo.PorcentajeImpuesto), DateOnly.FromDateTime(mejor.VigenteHasta.LocalDateTime))];
     }
 
     /// <summary>Lo que dice la oferta en pantalla, en palabras del cliente: los montos, con su ITBIS, como los paga.</summary>

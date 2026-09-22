@@ -617,8 +617,10 @@ titulo('2.20. Chequeador de precios', 2)
 p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla que se pone en el pasillo de la tienda. Tecnología '
   'deja cada pantalla con la dirección de su sucursal, así el cliente nunca elige sucursal y siempre ve el precio y las ofertas '
   'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '
-  'por cantidad y las ofertas vigentes; la consulta se borra sola a los pocos segundos para el siguiente cliente. Los precios '
-  'se muestran con el ITBIS ya sumado, que es lo que el cliente paga.')
+  'por cantidad y la oferta que le conviene; la consulta se borra sola a los pocos segundos para el siguiente cliente. Los '
+  'precios se muestran con el ITBIS ya sumado, que es lo que el cliente paga.')
+nota('Si el artículo tiene varias ofertas vigentes, el chequeador muestra solo la mejor, que es la que le va a aplicar la caja. '
+     'Las ofertas no se suman entre sí, y verlas todas haría creer que sí.')
 nota('El chequeador viene apagado: se enciende en Parámetros, con Central.Chequeador.Habilitado.')
 nota('Si la dirección trae un código de sucursal que no existe o está inactiva, la pantalla dice «Página no encontrada» y no '
      'consulta nada: mostrar el precio de otra sucursal sería engañar al cliente.')
