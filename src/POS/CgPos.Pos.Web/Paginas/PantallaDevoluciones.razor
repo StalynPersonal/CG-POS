@@ -11,6 +11,14 @@
 
 <PageTitle>CG-POS · Devoluciones</PageTitle>
 
+@if (!Almacen.PuedeDevolver)
+{
+    @* Entró por la dirección sin tener el permiso: no se consulta nada y se le manda a lo suyo. *@
+    <PanelSinPermiso Titulo="Devoluciones no habilitadas"
+                     Detalle="Su usuario no tiene permiso para registrar devoluciones ni emitir notas de crédito. Pídalo al administrador si le corresponde." />
+}
+else
+{
 <div class="cg-devolucion">
     <div class="cg-venta__barra-superior">
         <span class="cg-venta__marca-texto">CG-POS</span>
@@ -27,8 +35,11 @@
                           AdornmentIcon="@Icons.Material.Filled.QrCodeScanner" Class="cg-campo-activo" />
             <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Search" Disabled="_procesando"
                        Class="cg-devolucion__boton" OnClick="BuscarAsync">Buscar factura</MudButton>
-            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale" Class="cg-devolucion__boton"
-                       OnClick="@(() => Navegacion.NavigateTo(string.Empty))">Volver a la venta</MudButton>
+            @if (Almacen.PuedeVender)
+            {
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale" Class="cg-devolucion__boton"
+                           OnClick="@(() => Navegacion.NavigateTo(string.Empty))">Volver a la venta</MudButton>
+            }
         </section>
 
         @if (_procesando)
@@ -219,6 +230,7 @@
         </section>
     </div>
 </div>
+}
 
 @code {
     private sealed class LineaEdicion(DatosLineaFacturaDevolucion datos)

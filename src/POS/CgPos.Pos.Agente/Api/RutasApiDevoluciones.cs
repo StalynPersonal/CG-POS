@@ -3,6 +3,7 @@ using CgPos.Contratos.Ventas;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Devoluciones;
 using CgPos.Pos.Aplicacion.Seguridad;
+using CgPos.Dominio.Seguridad;
 
 namespace CgPos.Pos.Agente.Api;
 
@@ -11,7 +12,8 @@ public static class RutasApiDevoluciones
 {
     public static IEndpointRouteBuilder MapearApiDevoluciones(this IEndpointRouteBuilder aplicacion)
     {
-        var api = aplicacion.MapGroup("/api/devoluciones").RequireAuthorization();
+        // Sin el permiso no se entra al módulo: una caja queda dedicada a ventas quitándoselo a su rol.
+        var api = aplicacion.MapGroup("/api/devoluciones").RequireAuthorization(CatalogoPermisos.RegistrarDevolucion);
 
         api.MapGet("/motivos", async (IServicioDevoluciones servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarMotivosAsync(cancelacion)));

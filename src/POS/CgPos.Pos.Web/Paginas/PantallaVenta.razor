@@ -14,7 +14,13 @@
 
 <PageTitle>CG-POS · Venta</PageTitle>
 
-@if (_cargando)
+@if (!PuedeVender && !Almacen.PuedeDevolver)
+{
+    @* Un usuario sin ventas ni devoluciones no tiene nada que hacer en la caja: se le dice y se le deja salir. *@
+    <PanelSinPermiso Titulo="Sin operaciones habilitadas"
+                     Detalle="Su usuario no tiene permiso para registrar ventas ni devoluciones. Pida al administrador que le asigne el rol que le corresponde." />
+}
+else if (_cargando)
 {
     @* Espera mientras se consulta el turno y la venta en curso del Agente. *@
     <div class="cg-venta__cargando">
@@ -117,19 +123,28 @@ else
         @* Campo de escaneo: recibe el lector, admite "cantidad*código" y da acceso al catálogo y al teclado en pantalla. *@
         <div class="cg-venta__escaneo @(_modoEliminar ? "cg-venta__escaneo--eliminar" : null)">
             <MudIcon Icon="@(_modoEliminar ? Icons.Material.Filled.RemoveShoppingCart : Icons.Material.Filled.QrCodeScanner)" Size="Size.Large" />
-            <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false"
-                   placeholder="@(_modoEliminar ? "Escanee el artículo a eliminar · Esc para salir" : "Escanee o digite el código · cantidad*código")"
+            <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false" disabled="@(!PuedeVender)"
+                   placeholder="@PlaceholderEscaneo"
                    value="@_entrada" @oninput="evento => _entrada = evento.Value?.ToString() ?? string.Empty" @onkeydown="AlTeclearAsync" />
-            <MudIconButton Icon="@Icons.Material.Filled.GridView" Size="Size.Large" Color="Color.Primary" OnClick="AbrirCatalogoAsync" aria-label="Catálogo en mosaicos" />
-            <MudIconButton Icon="@Icons.Material.Filled.Keyboard" Size="Size.Large" Color="Color.Primary" OnClick="DigitarCodigoAsync" aria-label="Teclado en pantalla" />
-            @* Las dos acciones de cada venta quedan siempre a la vista; el resto está en el menú. *@
+            <MudIconButton Icon="@Icons.Material.Filled.GridView" Size="Size.Large" Color="Color.Primary" Disabled="@(!PuedeVender)"
+                           OnClick="AbrirCatalogoAsync" aria-label="Catálogo en mosaicos" />
+            <MudIconButton Icon="@Icons.Material.Filled.Keyboard" Size="Size.Large" Color="Color.Primary" Disabled="@(!PuedeVender)"
+                           OnClick="DigitarCodigoAsync" aria-label="Teclado en pantalla" />
+            @* Las dos acciones de cada venta quedan siempre a la vista; el resto está en el menú. Buscar sirve aunque no se venda. *@
             <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" Clase="cg-venta__tecla-fija" AlPresionar="BuscarArticuloAsync" />
             <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" Clase="cg-venta__tecla-fija"
-                          AlPresionar="TotalizarAsync" />
+                          Deshabilitada="@(!PuedeVender)" AlPresionar="TotalizarAsync" />
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Size="Size.Large" Color="Color.Primary" OnClick="AlternarPanel"
                            aria-label="Menú de funciones" title="Funciones" />
         </div>
 
+        @if (!PuedeVender)
+        {
+            @* Su rol solo hace devoluciones: aquí únicamente consulta artículos y clientes. *@
+            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true" Class="cg-venta__aviso" Icon="@Icons.Material.Filled.Lock">
+                Su usuario no registra ventas: en esta pantalla solo puede consultar artículos y clientes. Las devoluciones están en F10.
+            </MudAlert>
+        }
         @if (_estadoTurno?.BloqueoDiaAnterior is { } bloqueo)
         {
             @* Aviso fijo, sin cerrar: con un turno de un día anterior la caja no vende ni cobra hasta hacer el cierre. *@
@@ -321,14 +336,14 @@ else
                 <div class="cg-venta__panel-titulo">Teclas de función</div>
                 <div class="cg-venta__panel-teclas">
                     <TeclaFuncion Atajo="F2" Texto="Buscar" Icono="@Icons.Material.Filled.Search" AlPresionar="() => DesdePanelAsync(BuscarArticuloAsync)" />
-                    <TeclaFuncion Atajo="F3" Texto="Límite" Icono="@Icons.Material.Filled.Speed" AlPresionar="() => DesdePanelAsync(EstablecerLimiteAsync)" />
-                    <TeclaFuncion Atajo="F4" Texto="Cantidad" Icono="@Icons.Material.Filled.Numbers" AlPresionar="() => DesdePanelAsync(CambiarCantidadSeleccionadaAsync)" />
-                    <TeclaFuncion Atajo="F5" Texto="Balanza" Icono="@Icons.Material.Filled.Scale" AlPresionar="() => DesdePanelAsync(PesarAsync)" />
-                    <TeclaFuncion Atajo="F6" Texto="Lista boda" Icono="@Icons.Material.Filled.Favorite" AlPresionar="() => DesdePanelAsync(AsignarListaBodaAsync)" />
-                    <TeclaFuncion Atajo="F7" Texto="Espera" Icono="@Icons.Material.Filled.PanTool" AlPresionar="() => DesdePanelAsync(AbrirEsperaAsync)" />
-                    <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" AlPresionar="() => DesdePanelAsync(TotalizarAsync)" />
-                    <TeclaFuncion Atajo="F9" Texto="Cotización" Icono="@Icons.Material.Filled.RequestQuote" AlPresionar="() => DesdePanelAsync(FacturarCotizacionAsync)" />
-                    <TeclaFuncion Atajo="F10" Texto="Devolver" Icono="@Icons.Material.Filled.Undo" AlPresionar="() => DesdePanelAsync(IrADevolucionesAsync)" />
+                    <TeclaFuncion Atajo="F3" Texto="Límite" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Speed" AlPresionar="() => DesdePanelAsync(EstablecerLimiteAsync)" />
+                    <TeclaFuncion Atajo="F4" Texto="Cantidad" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Numbers" AlPresionar="() => DesdePanelAsync(CambiarCantidadSeleccionadaAsync)" />
+                    <TeclaFuncion Atajo="F5" Texto="Balanza" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Scale" AlPresionar="() => DesdePanelAsync(PesarAsync)" />
+                    <TeclaFuncion Atajo="F6" Texto="Lista boda" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Favorite" AlPresionar="() => DesdePanelAsync(AsignarListaBodaAsync)" />
+                    <TeclaFuncion Atajo="F7" Texto="Espera" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.PanTool" AlPresionar="() => DesdePanelAsync(AbrirEsperaAsync)" />
+                    <TeclaFuncion Atajo="F8" Texto="Totalizar" Icono="@Icons.Material.Filled.Calculate" EsAccionPrincipal="true" Deshabilitada="@(!PuedeVender)" AlPresionar="() => DesdePanelAsync(TotalizarAsync)" />
+                    <TeclaFuncion Atajo="F9" Texto="Cotización" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.RequestQuote" AlPresionar="() => DesdePanelAsync(FacturarCotizacionAsync)" />
+                    <TeclaFuncion Atajo="F10" Texto="Devolver" Deshabilitada="@(!Almacen.PuedeDevolver)" Icono="@Icons.Material.Filled.Undo" AlPresionar="() => DesdePanelAsync(IrADevolucionesAsync)" />
                     <TeclaFuncion Atajo="F11" Texto="Precios" Icono="@Icons.Material.Filled.LocalOffer" AlPresionar="() => DesdePanelAsync(ConsultarPrecioAsync)" />
                     <TeclaFuncion Atajo="F12" Texto="Clientes" Icono="@Icons.Material.Filled.Person" AlPresionar="() => DesdePanelAsync(AbrirClienteAsync)" />
                 </div>
@@ -336,15 +351,15 @@ else
                 @* Operaciones sin tecla física: líneas, descuentos, entregas, caja y turno. *@
                 <div class="cg-venta__panel-titulo">Más operaciones</div>
                 <div class="cg-venta__panel-teclas">
-                    <TeclaFuncion Texto="Catálogo" Icono="@Icons.Material.Filled.GridView" AlPresionar="() => DesdePanelAsync(AbrirCatalogoAsync)" />
-                    <TeclaFuncion Texto="Eliminar línea" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="() => DesdePanelAsync(EliminarSeleccionadaAsync)" />
-                    <TeclaFuncion Texto="Eliminar por escaneo" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="() => DesdePanel(AlternarModoEliminar)" />
-                    <TeclaFuncion Texto="Limpiar" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="() => DesdePanelAsync(LimpiarAsync)" />
-                    <TeclaFuncion Texto="Desc. línea" Icono="@Icons.Material.Filled.Percent" AlPresionar="() => DesdePanelAsync(DescuentoLineaSeleccionadaAsync)" />
-                    <TeclaFuncion Texto="Desc. factura" Icono="@Icons.Material.Filled.Discount" AlPresionar="() => DesdePanelAsync(AbrirDescuentoFacturaAsync)" />
-                    <TeclaFuncion Texto="Entrega / envío" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="() => DesdePanelAsync(AbrirEntregaAsync)" />
-                    <TeclaFuncion Texto="Anular" Icono="@Icons.Material.Filled.Block" AlPresionar="() => DesdePanelAsync(AnularAsync)" />
-                    <TeclaFuncion Texto="Suspender" Icono="@Icons.Material.Filled.Lock" AlPresionar="() => DesdePanelAsync(SuspenderAsync)" />
+                    <TeclaFuncion Texto="Catálogo" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.GridView" AlPresionar="() => DesdePanelAsync(AbrirCatalogoAsync)" />
+                    <TeclaFuncion Texto="Eliminar línea" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.PlaylistRemove" AlPresionar="() => DesdePanelAsync(EliminarSeleccionadaAsync)" />
+                    <TeclaFuncion Texto="Eliminar por escaneo" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.RemoveShoppingCart" AlPresionar="() => DesdePanel(AlternarModoEliminar)" />
+                    <TeclaFuncion Texto="Limpiar" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.ClearAll" AlPresionar="() => DesdePanelAsync(LimpiarAsync)" />
+                    <TeclaFuncion Texto="Desc. línea" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Percent" AlPresionar="() => DesdePanelAsync(DescuentoLineaSeleccionadaAsync)" />
+                    <TeclaFuncion Texto="Desc. factura" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Discount" AlPresionar="() => DesdePanelAsync(AbrirDescuentoFacturaAsync)" />
+                    <TeclaFuncion Texto="Entrega / envío" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="() => DesdePanelAsync(AbrirEntregaAsync)" />
+                    <TeclaFuncion Texto="Anular" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Block" AlPresionar="() => DesdePanelAsync(AnularAsync)" />
+                    <TeclaFuncion Texto="Suspender" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Lock" AlPresionar="() => DesdePanelAsync(SuspenderAsync)" />
                     <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="() => DesdePanelAsync(AbrirGavetaAsync)" />
                     <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="() => DesdePanelAsync(ReimprimirAsync)" />
                     <TeclaFuncion Texto="Retiro" Icono="@Icons.Material.Filled.Savings" AlPresionar="() => DesdePanelAsync(RetirarEfectivoAsync)" />
@@ -477,7 +492,10 @@ else
     /// <summary>La venta en curso queda guardada; al volver se recupera (RF-195).</summary>
     private Task IrADevolucionesAsync()
     {
-        Navegacion.NavigateTo("devoluciones");
+        // Sin el permiso la pantalla no se abre: el botón está apagado y el atajo tampoco lleva.
+        if (Almacen.PuedeDevolver)
+            Navegacion.NavigateTo("devoluciones");
+
         return Task.CompletedTask;
     }
 
@@ -1192,6 +1210,13 @@ else
         }
     }
 
+    /// <summary>Su rol registra ventas; si no, esta pantalla le sirve solo para consultar.</summary>
+    private bool PuedeVender => Almacen.PuedeVender;
+
+    private string PlaceholderEscaneo => !PuedeVender
+        ? "Su usuario no registra ventas"
+        : _modoEliminar ? "Escanee el artículo a eliminar · Esc para salir" : "Escanee o digite el código · cantidad*código";
+
     private async Task AlPresionarTecla(string tecla)
     {
         if (_venta is null || _dialogoAbierto)
@@ -1199,6 +1224,10 @@ else
 
         // Cualquier tecla de función (y Esc) cierra el panel antes de actuar.
         _panelAbierto = false;
+
+        // Lo que mueve la venta queda fuera para quien no la registra; buscar, consultar precio y cliente siguen abiertos.
+        if (!PuedeVender && tecla is "F3" or "F4" or "F5" or "F6" or "F7" or "F8" or "F9")
+            return;
 
         var accion = tecla switch
         {

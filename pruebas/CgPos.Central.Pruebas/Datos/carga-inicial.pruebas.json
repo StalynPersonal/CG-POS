@@ -73,6 +73,16 @@
       ]
     },
     {
+      "codigo": "DEVOLUCIONES",
+      "nombre": "Devoluciones",
+      "nivel": 1,
+      "permisos": [
+        "Caja.AbrirTurno",
+        "Caja.CerrarTurno",
+        "Devoluciones.Registrar"
+      ]
+    },
+    {
       "codigo": "GERENTE",
       "nombre": "Gerente",
       "nivel": 3,
@@ -113,6 +123,18 @@
         }
       ],
       "clave": "Supervisor.2026"
+    },
+    {
+      "codigo": "D001",
+      "nombre": "Devoluciones Desarrollo",
+      "rolCodigo": "DEVOLUCIONES",
+      "cajas": [
+        {
+          "sucursalCodigo": "01",
+          "cajaCodigo": "01"
+        }
+      ],
+      "clave": "Devolucion.2026"
     },
     {
       "codigo": "G001",

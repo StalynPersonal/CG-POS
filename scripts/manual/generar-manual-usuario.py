@@ -390,17 +390,31 @@ p('Los roles dicen qué puede hacer cada quien y el nivel decide quién autoriza
 tabla(['Código', 'Rol', 'Nivel', 'Qué puede hacer'],
       [['CAJERO', 'Cajero', '1', 'Abrir turno, vender, cobrar, imprimir y cerrar su turno. No descuenta ni anula.'],
        ['SUPERVISOR', 'Supervisor', '5', 'Todo lo del cajero y además autoriza descuentos hasta su tope, anulaciones, devoluciones, retiros de efectivo, notas de crédito internas y apertura de gaveta.'],
-       ['GERENTE', 'Gerente', '8', 'Todo lo anterior, más autorizar lo que pasa el tope del supervisor y cambiar el comprobante de una factura.']],
+       ['GERENTE', 'Gerente', '8', 'Todo lo anterior, más autorizar lo que pasa el tope del supervisor y cambiar el comprobante de una factura.'],
+       ['DEVOLUCIONES', 'Devoluciones', '1', 'Abrir y cerrar su turno y emitir notas de crédito. No vende: en la pantalla de venta solo consulta artículos y clientes.']],
       anchos=[2.4, 2.6, 1.4, 10.0])
 tabla(['Usuario', 'Nombre', 'Rol', 'Cajas asignadas'],
       [['C001', 'Cajero de la caja 01', 'CAJERO', 'Caja 01'],
        ['C002', 'Cajero de la caja 02', 'CAJERO', 'Caja 02'],
        ['S001', 'Supervisor de turno', 'SUPERVISOR', 'Caja 01 y Caja 02'],
-       ['G001', 'Gerente de la sucursal', 'GERENTE', 'Todas las de su sucursal']],
+       ['G001', 'Gerente de la sucursal', 'GERENTE', 'Todas las de su sucursal'],
+       ['D001', 'Encargado de devoluciones', 'DEVOLUCIONES', 'La caja del área de devoluciones']],
       anchos=[2.2, 5.0, 3.0, 6.0])
 nota('El nivel va del 1 al 9 y solo se usa para las autorizaciones: quien autoriza necesita el permiso y un nivel igual o '
      'mayor al de quien lo pide. Se sugieren 1, 5 y 8, y no 1, 2 y 3, para dejar huecos e intercalar después un rol '
      'intermedio (por ejemplo un encargado en el 6) sin tener que renumerar los que ya existen.')
+titulo('2.7.3. Dedicar una caja a ventas o a devoluciones', 3)
+p('Lo que la caja hace lo deciden los permisos del usuario que entra, no un ajuste del equipo:')
+tabla(['El rol tiene', 'Qué pasa al entrar'],
+      [['Ventas.Registrar y Devoluciones.Registrar', 'Todo como siempre: vende y devuelve (F10).'],
+       ['Solo Ventas.Registrar', 'Vende. La tecla F10 queda apagada y escribir la dirección de devoluciones no le abre nada.'],
+       ['Solo Devoluciones.Registrar', 'Entra directo a devoluciones. En la pantalla de venta solo consulta artículos y clientes: no escanea, no cobra.'],
+       ['Ninguno de los dos', 'Se le avisa que su usuario no tiene ventas ni devoluciones y solo puede salir.']],
+      anchos=[5.0, 12.0])
+nota('Para dejar una caja solo de devoluciones basta con poner ahí un usuario con ese rol: no hay que configurar el equipo. '
+     'El bloqueo lo hace el servicio de la caja, así que tampoco se salta escribiendo la dirección en el navegador.')
+nota('El que solo devuelve abre y cierra su turno igual que cualquier cajero: la nota de crédito es del turno y entra en el cuadre.')
+
 nota('Cada persona con su propio usuario: el ticket, el cuadre y la auditoría dicen quién vendió y quién autorizó. Un usuario '
      'compartido hace imposible saberlo.')
 

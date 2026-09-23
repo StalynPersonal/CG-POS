@@ -130,7 +130,8 @@ public class CargaInicialPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
             await using (var ambito = aislada.Servicios!.CreateAsyncScope())
                 segunda = await ambito.ServiceProvider.GetRequiredService<ICargaInicial>().AplicarDesdeArchivoAsync(ruta);
 
-            Assert.Equal(3, primera.Usuarios);
+            // Cajero, supervisor, gerente y el de una caja dedicada a devoluciones.
+            Assert.Equal(4, primera.Usuarios);
             Assert.Equal(0, segunda.Creados);
         }
         finally

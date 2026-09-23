@@ -35,7 +35,9 @@ public static class RutasApiVentas
                 }))
             .RequireAuthorization(CatalogoPermisos.AbrirTurno);
 
-        var ventas = api.MapGroup("/ventas").AddEndpointFilter<FiltroPublicarVenta>();
+        // Vender exige el permiso: al que solo hace devoluciones se le cierra aquí, no solo en la pantalla. El grupo de
+        // arriba queda abierto a propósito, porque su turno lo abre y lo cierra igual que cualquier cajero.
+        var ventas = api.MapGroup("/ventas").RequireAuthorization(CatalogoPermisos.RegistrarVenta).AddEndpointFilter<FiltroPublicarVenta>();
 
         ventas.MapGet("/actual", (ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.ObtenerActualAsync(sesion, cancelacion))));

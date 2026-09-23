@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using CgPos.Contratos.Seguridad;
+using CgPos.Dominio.Seguridad;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace CgPos.Pos.Web.Seguridad;
@@ -40,6 +41,27 @@ public sealed class AlmacenSesion
     }
 
     public bool TienePermiso(string permiso) => Activa && Sesion!.Permisos.Contains(permiso);
+
+    /// <summary>Puede registrar ventas; si no, la pantalla de venta le queda solo para consultar.</summary>
+    public bool PuedeVender => TienePermiso(CatalogoPermisos.RegistrarVenta);
+
+    /// <summary>Puede emitir notas de crédito; si no, la pantalla de devoluciones no se le abre.</summary>
+    public bool PuedeDevolver => TienePermiso(CatalogoPermisos.RegistrarDevolucion);
+
+    /// <summary>
+    /// A qué pantalla entra este usuario: la que la terminal tiene configurada si puede usarla, y si no, la que su rol le
+    /// permite. Así una caja queda dedicada a devoluciones solo con poner ahí un usuario que únicamente devuelve.
+    /// </summary>
+    public string RutaInicial(PantallaCaja configurada)
+    {
+        ArgumentNullException.ThrowIfNull(configurada);
+
+        if (configurada == PantallasCaja.Devoluciones)
+            return PuedeDevolver ? configurada.Ruta : PantallasCaja.Principal.Ruta;
+
+        // Las pantallas de venta (principal y táctil): el que no vende pero devuelve entra a devoluciones.
+        return !PuedeVender && PuedeDevolver ? PantallasCaja.Devoluciones.Ruta : configurada.Ruta;
+    }
 }
 
 /// <summary>Agrega el token a las llamadas al Agente y cierra la sesión si el Agente la rechaza (401).</summary>

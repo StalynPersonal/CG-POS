@@ -1,0 +1,43 @@
+@using CgPos.Pos.Web.Seguridad
+@inject AlmacenSesion Almacen
+@inject NavigationManager Navegacion
+
+@* Lo que ve quien abre una pantalla que su rol no le habilita: se le dice qué puede hacer y se le lleva ahí. *@
+<div class="cg-venta__cargando">
+    <MudPaper Elevation="2" Class="pa-8" Style="max-width: 560px; text-align: center">
+        <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Secondary" Size="Size.Large" Class="mb-3" />
+        <MudText Typo="Typo.h5" Class="mb-2">@Titulo</MudText>
+        <MudText Typo="Typo.body1" Class="mb-6">@Detalle</MudText>
+
+        @* Las salidas que le quedan según lo que sí puede hacer. *@
+        <div class="d-flex justify-center gap-3">
+            @if (Almacen.PuedeVender)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale"
+                           OnClick="@(() => Navegacion.NavigateTo(string.Empty))">Ir a la venta</MudButton>
+            }
+            @if (Almacen.PuedeDevolver)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.AssignmentReturn"
+                           OnClick="@(() => Navegacion.NavigateTo("devoluciones"))">Ir a devoluciones</MudButton>
+            }
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.Logout" OnClick="Salir">Salir</MudButton>
+        </div>
+    </MudPaper>
+</div>
+
+@code {
+    /// <summary>Qué pantalla es la que no se le abre.</summary>
+    [Parameter]
+    public string Titulo { get; set; } = "Pantalla no habilitada";
+
+    /// <summary>Por qué no se le abre y qué tiene que pedir para usarla.</summary>
+    [Parameter]
+    public string Detalle { get; set; } = string.Empty;
+
+    private void Salir()
+    {
+        Almacen.Limpiar();
+        Navegacion.NavigateTo("ingreso", replace: true);
+    }
+}

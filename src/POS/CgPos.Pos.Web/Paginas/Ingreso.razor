@@ -159,7 +159,7 @@
         _pantalla = PantallasCaja.PorClave(ClavePantalla);
         if (Almacen.Activa)
         {
-            Navegacion.NavigateTo(_pantalla.Ruta, replace: true);
+            Navegacion.NavigateTo(Almacen.RutaInicial(_pantalla), replace: true);
             return;
         }
 
@@ -253,7 +253,7 @@
 
         if (respuesta.Exitoso)
         {
-            Navegacion.NavigateTo(_pantalla.Ruta, replace: true);
+            Navegacion.NavigateTo(Almacen.RutaInicial(_pantalla), replace: true);
             return;
         }
 
