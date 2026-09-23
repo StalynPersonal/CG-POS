@@ -28,11 +28,11 @@ public interface IServicioCaja
     Task<RespuestaCaja> RelevarAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>
-    /// Cierra el turno con lo declarado por forma de pago y el conteo por denominaciones (RF-262, RF-263). No se permite con facturas en espera,
-    /// transacciones en curso con artículos o ventas sin e-CF firmado (RF-265, RN-22).
+    /// Cierra el turno con lo esperado por forma de pago (RF-262). La cajera no declara ni cuenta: entrega el dinero con el
+    /// cuadre impreso y el supervisor lo cuadra en el Central. No se permite con facturas en espera, transacciones en curso
+    /// con artículos o ventas sin e-CF firmado (RF-265, RN-22).
     /// </summary>
-    Task<RespuestaCaja> CerrarAsync(SesionUsuario sesion, IReadOnlyList<SolicitudDeclaracionFormaPago> declaraciones,
-        IReadOnlyList<SolicitudConteoDenominacion> conteo, Guid? autorizacionId, CancellationToken cancelacion = default);
+    Task<RespuestaCaja> CerrarAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>Reabre el último cierre de la caja con autorización de nivel superior y motivo (RF-266).</summary>
 

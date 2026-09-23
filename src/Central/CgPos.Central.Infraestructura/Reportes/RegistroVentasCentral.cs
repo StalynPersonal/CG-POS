@@ -89,14 +89,14 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
         if (registrado is null)
         {
             registrado = CierreTurnoCentral.Registrar(cierre.TurnoNumero, cierre.Numero, sucursalId, cajaId, cierre.FechaOperacion,
-                cierre.UsuarioNombre, cierre.Moneda, cierre.Ciego, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
-                cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, cierre.AbiertoEn, cierre.CerradoEn, ahora);
+                cierre.UsuarioNombre, cierre.Moneda, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
+                cierre.TotalEsperado, cierre.AbiertoEn, cierre.CerradoEn, ahora);
             contexto.CierresTurno.Add(registrado);
         }
 
-        registrado.Actualizar(cierre.UsuarioNombre, cierre.Ciego, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
-            cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, ahora);
-        registrado.ReemplazarFormasPago(cierre.FormasPago.Select(f => (f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado, f.Declarado, f.Diferencia)));
+        registrado.Actualizar(cierre.UsuarioNombre, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
+            cierre.TotalEsperado, ahora);
+        registrado.ReemplazarFormasPago(cierre.FormasPago.Select(f => (f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado)));
     }
 
     /// <summary>

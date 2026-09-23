@@ -181,7 +181,6 @@ public sealed class EscenarioSeguridad
                 new ParametroCarga(ClavesParametros.PasoRedondeoEfectivo, "0", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 // Alto a propósito: la prueba que mide el tope lo baja con CambiarParametroAsync.
                 new ParametroCarga(ClavesParametros.CantidadMaximaDigitada, "1000", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
-                new ParametroCarga(ClavesParametros.CierreCiego, "true", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.FondoEnCuadre, "false", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.BloquearVentaTurnoDiaAnterior, "true", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.DiasRetencionImpuestoDevolucion, "30", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),

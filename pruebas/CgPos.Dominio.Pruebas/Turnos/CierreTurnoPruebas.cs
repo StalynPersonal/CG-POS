@@ -59,7 +59,7 @@ public class CierreTurnoPruebas
     }
 
     [Fact]
-    public void Cierre_compara_declarado_contra_esperado_y_el_conteo_define_el_efectivo()
+    public void El_cierre_de_la_caja_informa_lo_esperado_y_no_declara_nada()
     {
         var turno = TurnoAbierto();
         var esperados = new[]
@@ -67,41 +67,14 @@ public class CierreTurnoPruebas
             new EsperadoFormaPago(Efectivo.FormaPagoId, "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1, 3450m, 4),
             new EsperadoFormaPago(Tarjeta.FormaPagoId, "TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 3, 1200m, 2),
         };
-        var conteo = new[]
-        {
-            new ConteoDenominacion(Ids.Siguiente(), "DOP", 1000m, TipoDenominacion.Billete, 3),
-            new ConteoDenominacion(Ids.Siguiente(), "DOP", 200m, TipoDenominacion.Billete, 2),
-            new ConteoDenominacion(Ids.Siguiente(), "DOP", 25m, TipoDenominacion.Moneda, 0),
-        };
 
-        var cierre = CierreTurno.Registrar(turno, 1, ciego: true, fondoEnCuadre: false, 6, 4650m, 300m, esperados,
-            [new DeclaradoFormaPago(Tarjeta.FormaPagoId, 1250m)], conteo, MonedaLocal, Cajera, "Cajera", Ahora);
+        // La cajera no cuenta ni declara: entrega el dinero y el supervisor lo cuadra en el Central.
+        var cierre = CierreTurno.Registrar(turno, 1, fondoEnCuadre: false, 6, 4650m, 300m, esperados, MonedaLocal, Cajera, "Cajera", Ahora);
 
-        var efectivo = cierre.FormasPago.Single(f => f.FormaPagoId == Efectivo.FormaPagoId);
-        Assert.Equal(3400m, efectivo.Declarado);
-        Assert.Equal(-50m, efectivo.Diferencia);
-        Assert.Equal(50m, cierre.FormasPago.Single(f => f.FormaPagoId == Tarjeta.FormaPagoId).Diferencia);
+        Assert.Equal(3450m, cierre.FormasPago.Single(f => f.FormaPagoId == Efectivo.FormaPagoId).Esperado);
+        Assert.Equal(1200m, cierre.FormasPago.Single(f => f.FormaPagoId == Tarjeta.FormaPagoId).Esperado);
         Assert.Equal(4650m, cierre.TotalEsperado);
-        Assert.Equal(4650m, cierre.TotalDeclarado);
-        Assert.Equal(0m, cierre.Diferencia);
-        Assert.Equal(2, cierre.Denominaciones.Count); // las cantidades en cero no se guardan
         Assert.False(turno.EstaAbierto);
-    }
-
-    [Fact]
-    public void Declaracion_que_no_coincide_con_el_conteo_o_invalida_se_rechaza_sin_cerrar_el_turno()
-    {
-        var turno = TurnoAbierto();
-        var esperados = new[] { new EsperadoFormaPago(Efectivo.FormaPagoId, "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1, 1000m, 1) };
-        var conteo = new[] { new ConteoDenominacion(Ids.Siguiente(), "DOP", 500m, TipoDenominacion.Billete, 2) };
-
-        CodigoErrorCierre Rechazo(DeclaradoFormaPago[] declarados, ConteoDenominacion[] contado) =>
-            Assert.Throws<ReglaCierreExcepcion>(() => CierreTurno.Registrar(turno, 1, true, false, 1, 1000m, 0m, esperados, declarados, contado, MonedaLocal, Cajera, "Cajera", Ahora)).Codigo;
-
-        Assert.Equal(CodigoErrorCierre.ConteoNoCoincide, Rechazo([new DeclaradoFormaPago(Efectivo.FormaPagoId, 900m)], conteo));
-        Assert.Equal(CodigoErrorCierre.MontoInvalido, Rechazo([new DeclaradoFormaPago(Efectivo.FormaPagoId, -1m)], []));
-        Assert.Equal(CodigoErrorCierre.FormaPagoDesconocida, Rechazo([new DeclaradoFormaPago(Ids.Siguiente(), 10m)], []));
-        Assert.True(turno.EstaAbierto);
     }
 
     [Fact]
@@ -118,7 +91,7 @@ public class CierreTurnoPruebas
         Assert.Throws<InvalidOperationException>(() => turno.Relevar(2, relevista, "Relevista", null, null, Ahora));
 
         // Cerrar es definitivo: el turno queda cerrado y el cierre no se puede deshacer desde la caja.
-        var cierre = CierreTurno.Registrar(turno, 1, true, false, 0, 0m, 0m, [], [], [], MonedaLocal, relevista, "Relevista", Ahora);
+        var cierre = CierreTurno.Registrar(turno, 1, false, 0, 0m, 0m, [], MonedaLocal, relevista, "Relevista", Ahora);
 
         Assert.Equal(relevista, cierre.UsuarioId);
         Assert.False(turno.EstaAbierto);

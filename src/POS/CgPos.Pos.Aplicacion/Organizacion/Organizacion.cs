@@ -134,9 +134,6 @@ public static class ClavesParametros
     /// <summary>Hasta cuántas unidades puede digitar el cajero de un artículo de unidad entera; más, pasándolo por el lector.</summary>
     public const string CantidadMaximaDigitada = CatalogoParametros.CantidadMaximaDigitada;
 
-    /// <summary>Cierre ciego: el cajero declara sin ver lo esperado (RF-9, RN-23). Por defecto true.</summary>
-    public const string CierreCiego = "Caja.CierreCiego";
-
     /// <summary>Si el fondo de caja forma parte del efectivo esperado en el cuadre. Por defecto false: el fondo no se mezcla con el cuadre (RF-4).</summary>
     public const string FondoEnCuadre = "Caja.FondoEnCuadre";
 

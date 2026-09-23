@@ -1,8 +1,9 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using CgPos.Central.Aplicacion.Dispositivos;
 using CgPos.Central.Aplicacion.Seguridad;
+using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Contratos.Central;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -53,6 +54,38 @@ public sealed class EmisorTokensCentral
 
         return Emitir(claims, AudienciaUsuarios, duracion);
     }
+
+    /// <summary>
+    /// Token del módulo de cuadre: lo usa el supervisor o el gerente de tienda, que entró con su usuario de caja. Lleva sus
+    /// permisos de cuadre y las sucursales que puede ver, y dura poco, porque es una computadora compartida en la tienda.
+    /// </summary>
+    public (string Token, DateTimeOffset ExpiraEn) EmitirCuadre(DatosSesionCuadre sesion, TimeSpan duracion)
+    {
+        var claims = new List<Claim>
+        {
+            new(AtributosTokenCentral.Tipo, AtributosTokenCentral.TipoCuadre),
+            new(AtributosTokenCentral.UsuarioId, sesion.UsuarioId.ToString()),
+            new(AtributosTokenCentral.Codigo, sesion.Codigo),
+            new(AtributosTokenCentral.Nombre, sesion.Nombre),
+            new(AtributosTokenCentral.RolNombre, sesion.RolNombre),
+        };
+        claims.AddRange(sesion.Permisos.Select(permiso => new Claim(AtributosTokenCentral.Permiso, permiso)));
+        claims.AddRange(sesion.Sucursales.Select(s => new Claim(AtributosTokenCentral.SucursalPermitida, s.Id.ToString())));
+
+        return Emitir(claims, AudienciaUsuarios, duracion);
+    }
+
+    /// <summary>Las sucursales que el token del módulo de cuadre deja ver; vacío para un usuario del Central, que las ve todas.</summary>
+    public static IReadOnlySet<int> SucursalesDelCuadre(ClaimsPrincipal usuario) =>
+        usuario.FindAll(AtributosTokenCentral.SucursalPermitida)
+            .Select(c => int.TryParse(c.Value, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .ToHashSet();
+
+    /// <summary>Quién está operando el módulo de cuadre, para la auditoría: el supervisor de tienda o el usuario del Central.</summary>
+    public static UsuarioAuditoria ActorDelCuadre(ClaimsPrincipal usuario) =>
+        new(int.TryParse(usuario.FindFirst(AtributosTokenCentral.UsuarioId)?.Value, out var id) ? id : 0,
+            usuario.FindFirst(AtributosTokenCentral.Nombre)?.Value ?? string.Empty);
 
     public (string Token, DateTimeOffset ExpiraEn) EmitirDispositivo(DispositivoAutenticado dispositivo, TimeSpan duracion) =>
         Emitir(
@@ -173,5 +206,11 @@ public static class PoliticasCentral
     /// <summary>Caja autenticada con su credencial de dispositivo.</summary>
     public const string Dispositivo = "Central.Dispositivo";
 
-    internal static readonly FrozenSet<string> Todas = new[] { Usuario, Dispositivo }.ToFrozenSet(StringComparer.Ordinal);
+    /// <summary>Módulo de cuadre: entra el supervisor con su usuario de caja, o un usuario del Central con sus permisos.</summary>
+    public const string CuadreConsultar = "Cuadre.Consultar";
+    public const string CuadreDeclarar = "Cuadre.Declarar";
+    public const string CuadreCorregir = "Cuadre.Corregir";
+
+    internal static readonly FrozenSet<string> Todas =
+        new[] { Usuario, Dispositivo, CuadreConsultar, CuadreDeclarar, CuadreCorregir }.ToFrozenSet(StringComparer.Ordinal);
 }

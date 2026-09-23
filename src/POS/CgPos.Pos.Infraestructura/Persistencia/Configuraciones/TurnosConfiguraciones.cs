@@ -38,8 +38,6 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
         constructor.Property(c => c.TotalVentas).HasPrecision(18, 2);
         constructor.Property(c => c.TotalRetiros).HasPrecision(18, 2);
         constructor.Property(c => c.TotalEsperado).HasPrecision(18, 2);
-        constructor.Property(c => c.TotalDeclarado).HasPrecision(18, 2);
-        constructor.Property(c => c.Diferencia).HasPrecision(18, 2);
         constructor.Property(c => c.UsuarioNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
 
         constructor.HasOne<Turno>().WithMany().HasForeignKey(c => c.TurnoId).OnDelete(DeleteBehavior.Restrict);
@@ -48,8 +46,6 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
 
         constructor.HasMany(c => c.FormasPago).WithOne().HasForeignKey(f => f.CierreTurnoId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.FormasPago).UsePropertyAccessMode(PropertyAccessMode.Field);
-        constructor.HasMany(c => c.Denominaciones).WithOne().HasForeignKey(d => d.CierreTurnoId).OnDelete(DeleteBehavior.Cascade);
-        constructor.Navigation(c => c.Denominaciones).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
 
@@ -63,19 +59,5 @@ internal sealed class CierreFormaPagoConfiguracion : IEntityTypeConfiguration<Ci
         constructor.Property(f => f.Nombre).HasMaxLength(FormaPago.LargoMaximoNombre).IsRequired();
         constructor.Property(f => f.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
         constructor.Property(f => f.Esperado).HasPrecision(18, 2);
-        constructor.Property(f => f.Declarado).HasPrecision(18, 2);
-        constructor.Property(f => f.Diferencia).HasPrecision(18, 2);
-    }
-}
-
-internal sealed class CierreDenominacionConfiguracion : IEntityTypeConfiguration<CierreDenominacion>
-{
-    public void Configure(EntityTypeBuilder<CierreDenominacion> constructor)
-    {
-        constructor.ToTable("CierresTurnoDenominaciones");
-        constructor.HasKey(d => d.Id);
-        constructor.Property(d => d.Moneda).HasMaxLength(3).IsUnicode(false).IsRequired();
-        constructor.Property(d => d.Valor).HasPrecision(18, 2);
-        constructor.Property(d => d.Importe).HasPrecision(18, 2);
     }
 }

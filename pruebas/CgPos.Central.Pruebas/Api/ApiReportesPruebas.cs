@@ -94,21 +94,29 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
         var dia = new DateOnly(2026, 4, 15);
 
-        var cierre = Cierre(dia, esperado: 5000m, declarado: 4950m);
+        var cierre = Cierre(dia, esperado: 5000m);
         var turno = cierre.TurnoNumero.ToString(System.Globalization.CultureInfo.InvariantCulture);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, cierre)));
+
+        // El supervisor cuadra: faltan 50 pesos.
+        using var respuestaPendientes = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/manager/cierres-caja/pendientes?sucursalId={CentralEnPruebas.Sucursal}", admin));
+        respuestaPendientes.EnsureSuccessStatusCode();
+        var pendientes = (await respuestaPendientes.Content.ReadFromJsonAsync<List<DatosCierreCaja>>(OpcionesJson.Predeterminadas))!;
+        var registrado = Assert.Single(pendientes, c => c.TurnoNumero == cierre.TurnoNumero);
+        await CuadrarAsync(cliente, admin, registrado.Id, new SolicitudCuadreCierre(
+            [new SolicitudDeclaracionCuadre(Assert.Single(registrado.FormasPago).Id, 4950m)], []));
 
         var cuadres = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
         var fila = Assert.Single(cuadres.Filas, f => f[3] == turno);
         // Esperado, lo que declaró la caja, lo que vale hoy y la diferencia: sin corrección, las dos cifras del medio son iguales.
         Assert.Equal(("5,000.00", "4,950.00", "4,950.00", "-50.00"), (fila[7], fila[8], fila[9], fila[10]));
 
-        // El mismo cierre recibido otra vez actualiza la fila, no crea otra.
-        var corregido = cierre with { TotalDeclarado = 5000m, Diferencia = 0m };
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, corregido)));
+        // El mismo cierre recibido otra vez no borra el cuadre del supervisor.
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, Mensaje(TiposMensaje.TurnoCerrado, turno, cierre)));
 
         var despues = await TablaAsync(cliente, admin, TipoReporteCentral.Cuadres, dia, dia);
-        Assert.Equal("0.00", Assert.Single(despues.Filas, f => f[3] == turno)[10]);
+        Assert.Equal("-50.00", Assert.Single(despues.Filas, f => f[3] == turno)[10]);
 
         // Excel es un .xlsx legible y el PDF empieza por su cabecera.
         var excel = await DescargarAsync(cliente, admin, "/api/manager/reportes/Cuadres/excel", dia, dia);
@@ -160,13 +168,19 @@ public class ApiReportesPruebas(CentralEnPruebas central)
         return (venta, encf);
     }
 
-    private static DocumentoCierreTurno Cierre(DateOnly dia, decimal esperado, decimal declarado) =>
-        new(Random.Shared.NextInt64(1_000, 999_999), 1, dia, true, 1000m, false, "DOP",
-            12, 5000m, 0m, esperado, declarado, declarado - esperado, "Cajero Desarrollo",
+    private static DocumentoCierreTurno Cierre(DateOnly dia, decimal esperado) =>
+        new(Random.Shared.NextInt64(1_000, 999_999), 1, dia, 1000m, false, "DOP",
+            12, 5000m, 0m, esperado, "Cajero Desarrollo",
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)),
-            [new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 12, esperado, declarado, declarado - esperado)],
-            [], []);
+            [new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 12, esperado)],
+            []);
+
+    private static async Task CuadrarAsync(HttpClient cliente, string token, int cierreId, SolicitudCuadreCierre solicitud)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/manager/cierres-caja/{cierreId}/cuadre", token, solicitud));
+        respuesta.EnsureSuccessStatusCode();
+    }
 
     private static MensajeSincronizacion Mensaje(string tipo, string referencia, object documento, Guid? id = null)
     {

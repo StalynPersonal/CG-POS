@@ -1,4 +1,4 @@
-using CgPos.Dominio.Organizacion;
+﻿using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Dominio.Pruebas.Organizacion;
 
@@ -23,8 +23,8 @@ public class CatalogoParametrosPruebas
     [InlineData("Fiscal.TipoIngresos", "7", "El valor no puede ser mayor que 6.")]
     [InlineData("Fiscal.MontoIdentificacionConsumo", "250000.50", null)]
     [InlineData("Fiscal.MontoIdentificacionConsumo", "250 mil", "El valor debe ser un número (use punto decimal).")]
-    [InlineData("Caja.CierreCiego", "TRUE", null)]
-    [InlineData("Caja.CierreCiego", "sí", "El valor debe ser true o false.")]
+    [InlineData("Caja.FondoEnCuadre", "TRUE", null)]
+    [InlineData("Caja.FondoEnCuadre", "sí", "El valor debe ser true o false.")]
     [InlineData("Caja.FondoPredeterminado", "", null)]
     [InlineData("Tickets.MensajePie", "¡Gracias por su compra!", null)]
     public void Valor_se_valida_segun_el_tipo_el_rango_y_si_es_obligatorio(string clave, string valor, string? problemaEsperado)
@@ -40,6 +40,6 @@ public class CatalogoParametrosPruebas
     {
         Assert.Null(CatalogoParametros.Buscar("Pruebas.NoExiste"));
         Assert.Null(CatalogoParametros.Buscar(null));
-        Assert.NotNull(CatalogoParametros.Buscar("  Caja.CierreCiego "));
+        Assert.NotNull(CatalogoParametros.Buscar("  Caja.FondoEnCuadre "));
     }
 }

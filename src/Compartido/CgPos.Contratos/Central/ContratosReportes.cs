@@ -79,7 +79,7 @@ public sealed record DatosCuadreReporte(
     decimal Esperado,
     decimal Declarado,
     decimal Diferencia,
-    bool Ciego,
+    bool PendienteDeCuadre,
     decimal DeclaradoPorLaCaja = 0m,
     bool Ajustado = false);
 

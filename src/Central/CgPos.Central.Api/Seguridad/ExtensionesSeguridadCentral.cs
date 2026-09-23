@@ -1,7 +1,8 @@
-using System.Security.Authentication;
+﻿using System.Security.Authentication;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Dispositivos;
 using CgPos.Central.Aplicacion.Seguridad;
+using Microsoft.AspNetCore.Authorization;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Seguridad;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -39,6 +40,12 @@ public static class ExtensionesSeguridadCentral
                 .RequireAuthenticatedUser()
                 .RequireClaim(AtributosTokenCentral.Tipo, AtributosTokenCentral.TipoDispositivo));
 
+            // El módulo de cuadre acepta dos entradas: el supervisor de tienda con su usuario de caja, y contabilidad con
+            // su usuario del Central, que además ve todas las sucursales.
+            AgregarPoliticaCuadre(opciones, PoliticasCentral.CuadreConsultar, CatalogoPermisos.ConsultarCuadre, CatalogoPermisosCentral.ConsultarReportes);
+            AgregarPoliticaCuadre(opciones, PoliticasCentral.CuadreDeclarar, CatalogoPermisos.DeclararCuadre, CatalogoPermisosCentral.AjustarCierres);
+            AgregarPoliticaCuadre(opciones, PoliticasCentral.CuadreCorregir, CatalogoPermisos.CorregirCuadre, CatalogoPermisosCentral.AjustarCierres);
+
             // Con una contraseña temporal pendiente de cambiar, ningún permiso aplica.
             foreach (var permiso in CatalogoPermisosCentral.Todos)
             {
@@ -52,6 +59,17 @@ public static class ExtensionesSeguridadCentral
 
         return servicios;
     }
+
+    /// <summary>Una puerta del módulo de cuadre: el permiso de caja del supervisor o el del usuario del Central.</summary>
+    private static void AgregarPoliticaCuadre(AuthorizationOptions opciones, string politica, string permisoTienda, string permisoCentral) =>
+        opciones.AddPolicy(politica, constructor => constructor
+            .RequireAuthenticatedUser()
+            .RequireAssertion(contexto =>
+                (contexto.User.HasClaim(AtributosTokenCentral.Tipo, AtributosTokenCentral.TipoCuadre)
+                 && contexto.User.HasClaim(AtributosTokenCentral.Permiso, permisoTienda))
+                || (contexto.User.HasClaim(AtributosTokenCentral.Tipo, AtributosTokenCentral.TipoUsuario)
+                    && contexto.User.HasClaim(AtributosTokenCentral.Permiso, permisoCentral)
+                    && !contexto.User.HasClaim(AtributosTokenCentral.CambiarContrasena, "true"))));
 
     /// <summary>HTTPS del Central solo con TLS 1.2 o 1.3.</summary>
     public static WebApplicationBuilder ConfigurarTlsCentral(this WebApplicationBuilder constructor)
@@ -120,6 +138,8 @@ public static class ExtensionesSeguridadCentral
                 int.TryParse(Valor(AtributosTokenCentral.Credencial), out var credencialId)
                 && int.TryParse(Valor(AtributosTokenCentral.Caja), out var cajaId)
                 && await servicios.GetRequiredService<IServicioDispositivos>().EsCredencialActivaAsync(credencialId, cajaId, cancelacion),
+            // El módulo de cuadre no abre sesión en el Central: el token dura unos minutos y se vuelve a entrar con el usuario de caja.
+            AtributosTokenCentral.TipoCuadre => true,
             _ => false,
         };
 

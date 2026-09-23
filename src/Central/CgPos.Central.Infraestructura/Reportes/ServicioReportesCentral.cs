@@ -92,7 +92,7 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
 
         return cierres.Select(c => new DatosCuadreReporte(c.FechaOperacion, codigos.Sucursales.GetValueOrDefault(c.SucursalId) ?? string.Empty,
             codigos.Cajas.GetValueOrDefault(c.CajaId) ?? string.Empty, c.TurnoNumero, c.UsuarioNombre, c.CantidadVentas, c.TotalVentas, c.TotalEsperado,
-            c.TotalDeclarado, c.Diferencia, c.Ciego, c.DeclaradoPorLaCaja, c.Ajustado)).ToList();
+            c.TotalDeclarado, c.Diferencia, c.PendienteDeCuadre, c.DeclaradoPorLaCaja, c.Ajustado)).ToList();
     }
 
     public async Task<IReadOnlyList<DatosEcfReporte>> EcfAsync(FiltroReporte filtro, CancellationToken cancelacion = default)

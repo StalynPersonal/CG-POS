@@ -50,6 +50,15 @@ public static class CatalogoPermisos
     // Fidelidad
     public const string CanjearPuntos = "Fidelidad.CanjearPuntos";
 
+    /// <summary>Entrar al módulo de cuadre del Central y ver los cierres y reportes de su sucursal.</summary>
+    public const string ConsultarCuadre = "Cuadre.Consultar";
+
+    /// <summary>Declarar el cuadre de un cierre: contar el efectivo y los totales por forma de pago.</summary>
+    public const string DeclararCuadre = "Cuadre.Declarar";
+
+    /// <summary>Corregir un cuadre ya declarado, mientras el día de la sucursal no esté consolidado.</summary>
+    public const string CorregirCuadre = "Cuadre.Corregir";
+
     public static IReadOnlyList<DefinicionPermiso> Todos { get; } =
     [
         new(AutorizarOperaciones, "Seguridad", "Autorizar operaciones de otros usuarios (clave de supervisor)"),
@@ -84,6 +93,10 @@ public static class CatalogoPermisos
         new(AprobacionManualTarjeta, "Cobro", "Registrar aprobación manual de tarjeta (contingencia)"),
 
         new(CanjearPuntos, "Fidelidad", "Canjear puntos de fidelidad como forma de pago"),
+
+        new(ConsultarCuadre, "Cuadre", "Entrar al módulo de cuadre y ver los cierres y reportes de su sucursal"),
+        new(DeclararCuadre, "Cuadre", "Declarar el cuadre de un cierre: efectivo contado y totales por forma de pago"),
+        new(CorregirCuadre, "Cuadre", "Corregir un cuadre ya declarado, mientras el día no esté consolidado"),
     ];
 
     private static readonly FrozenSet<string> Codigos = Todos.Select(p => p.Codigo).ToFrozenSet(StringComparer.Ordinal);

@@ -32,7 +32,7 @@ public class ApiCierresSucursalPruebas(CentralEnPruebas central)
         // Dos turnos vendieron ese día, pero solo el primero informó su cierre.
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, TiposMensaje.VentaCobrada, Venta(dia, turnoUno)));
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, TiposMensaje.VentaCobrada, Venta(dia, turnoDos)));
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, TiposMensaje.TurnoCerrado, Cierre(dia, turnoUno, esperado: 5000m, declarado: 4950m)));
+        await CerrarTurnoYCuadrarAsync(cliente, token, admin, dia, turnoUno, esperado: 5000m, declarado: 4950m);
 
         var ruta = $"/api/manager/cierres-sucursal/preparar?sucursalId={CentralEnPruebas.Sucursal}&fecha={dia:yyyy-MM-dd}";
         var incompleto = await ObtenerAsync<DatosPreparacionCierreSucursal>(cliente, admin, ruta);
@@ -42,8 +42,7 @@ public class ApiCierresSucursalPruebas(CentralEnPruebas central)
         Assert.Contains("No se puede cerrar la sucursal todavía", rechazado.Mensaje);
 
         // Con el segundo cierre ya no hay pendientes: el efectivo a depositar es lo declarado en efectivo; la tarjeta no se deposita.
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, TiposMensaje.TurnoCerrado, Cierre(dia, turnoDos, esperado: 1000m, declarado: 1000m,
-            tarjeta: 2500m)));
+        await CerrarTurnoYCuadrarAsync(cliente, token, admin, dia, turnoDos, esperado: 1000m, declarado: 1000m, tarjeta: 2500m);
         var preparacion = await ObtenerAsync<DatosPreparacionCierreSucursal>(cliente, admin, ruta);
         Assert.Empty(preparacion.Pendientes);
         Assert.Equal(2, preparacion.Cierres.Count);
@@ -62,12 +61,13 @@ public class ApiCierresSucursalPruebas(CentralEnPruebas central)
         Assert.Contains("ya tiene su cierre", (await CerrarAsync(cliente, admin, dia, [])).Mensaje);
 
         // Un cierre de caja que llega después no cambia el consolidado, pero se avisa.
-        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, TiposMensaje.TurnoCerrado, Cierre(dia, turnoDos + 1, esperado: 10m, declarado: 10m)));
+        await CerrarTurnoYCuadrarAsync(cliente, token, admin, dia, turnoDos + 1, esperado: 10m, declarado: 10m);
 
         var cierres = await ObtenerAsync<List<DatosCierreSucursal>>(cliente, admin,
             $"/api/manager/cierres-sucursal?sucursalId={CentralEnPruebas.Sucursal}&desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}");
         var cierre = Assert.Single(cierres);
-        Assert.Equal((2, 6000m, 5950m, -50m), (cierre.CantidadCierres, cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia));
+        // El total del cierre es la suma de sus formas de pago: efectivo (5000 + 1000) más la tarjeta (2500).
+        Assert.Equal((2, 8500m, 8450m, -50m), (cierre.CantidadCierres, cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia));
         Assert.Equal(("DOP", 5950m, 5900m, -50m), (cierre.Efectivo[0].Moneda, cierre.Efectivo[0].ADepositar, cierre.Efectivo[0].Depositado, cierre.Efectivo[0].Diferencia));
         Assert.Equal(["Banco Popular Dominicano", "Banreservas"], cierre.Depositos.Select(d => d.BancoNombre).Order().ToList());
         Assert.Equal(1, cierre.CierresPosteriores);
@@ -98,15 +98,29 @@ public class ApiCierresSucursalPruebas(CentralEnPruebas central)
             118m, 0m, 0m, null, null, []);
     }
 
-    private static DocumentoCierreTurno Cierre(DateOnly dia, long turno, decimal esperado, decimal declarado, decimal tarjeta = 0m)
+    /// <summary>La caja entrega el turno con lo esperado y el supervisor lo cuadra, que es lo que le da su declarado.</summary>
+    private static async Task CerrarTurnoYCuadrarAsync(HttpClient cliente, string token, string admin, DateOnly dia, long turno,
+        decimal esperado, decimal declarado, decimal tarjeta = 0m)
     {
-        List<DocumentoCierreFormaPago> formas = [new("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 10, esperado, declarado, declarado - esperado)];
+        List<DocumentoCierreFormaPago> formas = [new("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 10, esperado)];
         if (tarjeta > 0)
-            formas.Add(new DocumentoCierreFormaPago("TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 3, tarjeta, tarjeta, 0m));
+            formas.Add(new DocumentoCierreFormaPago("TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 3, tarjeta));
 
-        return new DocumentoCierreTurno(turno, 1, dia, true, 0m, false, "DOP", 10, esperado + tarjeta, 0m, esperado, declarado, declarado - esperado,
+        var cierre = new DocumentoCierreTurno(turno, 1, dia, 0m, false, "DOP", 10, esperado + tarjeta, 0m, esperado + tarjeta,
             "Cajero Desarrollo", new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
-            new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)), formas, [], []);
+            new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)), formas, []);
+        Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token, TiposMensaje.TurnoCerrado, cierre));
+
+        var pendientes = await ObtenerAsync<List<DatosCierreCaja>>(cliente, admin,
+            $"/api/manager/cierres-caja/pendientes?sucursalId={CentralEnPruebas.Sucursal}");
+        var registrado = Assert.Single(pendientes, c => c.TurnoNumero == turno);
+        var declarados = registrado.FormasPago
+            .Select(f => new SolicitudDeclaracionCuadre(f.Id, f.Tipo == TipoFormaPago.Efectivo ? declarado : f.Esperado))
+            .ToList();
+
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post,
+            $"/api/manager/cierres-caja/{registrado.Id}/cuadre", admin, new SolicitudCuadreCierre(declarados, [])));
+        respuesta.EnsureSuccessStatusCode();
     }
 
     private static async Task<EstadoRecepcion?> EnviarAsync(HttpClient cliente, string token, string tipo, object documento)

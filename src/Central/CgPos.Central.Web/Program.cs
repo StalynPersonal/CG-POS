@@ -1,4 +1,4 @@
-using CgPos.Central.Web;
+﻿using CgPos.Central.Web;
 using CgPos.Central.Web.Seguridad;
 using CgPos.Contratos.Central;
 using CgPos.Dominio.Globalizacion;
@@ -22,6 +22,7 @@ constructor.Services.AddTransient<ManejadorTokenCentral>();
 constructor.Services.AddHttpClient(ServicioSesionCentral.NombreHttpSinSesion, cliente => cliente.BaseAddress = origen);
 constructor.Services.AddHttpClient(ServicioSesionCentral.NombreHttp, cliente => cliente.BaseAddress = origen).AddHttpMessageHandler<ManejadorTokenCentral>();
 constructor.Services.AddScoped<ClienteCentral>();
+constructor.Services.AddScoped<ClienteCuadre>();
 
 // Una política por permiso del catálogo del Central, igual que en la API.
 constructor.Services.AddAuthorizationCore(opciones =>

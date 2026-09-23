@@ -92,7 +92,12 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.ToTable("CierresTurno");
         constructor.HasKey(c => c.Id);
         constructor.Property(c => c.UsuarioNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
+        constructor.Property(c => c.CuadradoPor).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
         constructor.Property(c => c.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Ignore(c => c.PendienteDeCuadre);
+        constructor.Ignore(c => c.Ajustado);
+        constructor.Ignore(c => c.ConDiferencia);
+        constructor.Ignore(c => c.DeclaradoPorLaCaja);
 
         constructor.HasOne<Caja>().WithMany().HasForeignKey(c => c.CajaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
@@ -100,11 +105,30 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.Navigation(c => c.FormasPago).AutoInclude(false);
         constructor.HasMany(c => c.Ajustes).WithOne().HasForeignKey(a => a.CierreId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.Ajustes).AutoInclude(false);
+        constructor.HasMany(c => c.Denominaciones).WithOne().HasForeignKey(d => d.CierreId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(c => c.Denominaciones).AutoInclude(false);
+
+        // Pendientes de cuadre de una sucursal: es la consulta del módulo de cuadre.
+        constructor.HasIndex(c => new { c.SucursalId, c.CuadradoEn });
 
         constructor.HasIndex(c => new { c.FechaOperacion, c.SucursalId, c.CajaId });
 
         // Un cierre por turno de cada caja; un reenvío del mismo mensaje actualiza la fila.
         constructor.HasIndex(c => new { c.CajaId, c.TurnoNumero }).IsUnique();
+    }
+}
+
+/// <summary>El efectivo que contó el supervisor al cuadrar, denominación por denominación.</summary>
+internal sealed class CierreDenominacionCentralConfiguracion : IEntityTypeConfiguration<CierreDenominacionCentral>
+{
+    public void Configure(EntityTypeBuilder<CierreDenominacionCentral> constructor)
+    {
+        constructor.ToTable("CierresTurnoDenominaciones");
+        constructor.HasKey(d => d.Id);
+        constructor.Property(d => d.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(d => d.Valor).HasPrecision(18, 2);
+        constructor.Property(d => d.Importe).HasPrecision(18, 2);
+        constructor.HasIndex(d => d.CierreId);
     }
 }
 

@@ -128,7 +128,6 @@ public static class CatalogoParametros
             Entero, true, Minimo: 1),
 
         new("Caja.PasoRedondeoEfectivo", "Caja y cierre", "Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)", Decimal, true, Minimo: 0),
-        new("Caja.CierreCiego", "Caja y cierre", "El cajero declara el cierre sin ver lo esperado", Booleano, true),
         new("Caja.FondoEnCuadre", "Caja y cierre", "El fondo de caja forma parte del efectivo esperado en el cierre", Booleano, true),
         new("Caja.FondoPredeterminado", "Caja y cierre", "Fondo sugerido al abrir turno", Decimal, false, Minimo: 0),
         new("Caja.BloquearVentaTurnoDiaAnterior", "Caja y cierre",

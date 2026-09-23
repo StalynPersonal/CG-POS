@@ -1012,24 +1012,20 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(retiro.Exitosa, retiro.Mensaje);
         Assert.Equal(1, retiro.Movimiento!.Numero);
 
-        // Cierre ciego: el cajero no ve lo esperado.
+        // La cajera no ve lo esperado: el cuadre se lo lleva el supervisor.
         var resumen = (await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.ObtenerResumenAsync(caja.Cajero))).Resumen!;
-        Assert.True(resumen.CierreCiego);
         Assert.False(resumen.MuestraEsperado);
         Assert.All(resumen.FormasPago, forma => Assert.Null(forma.Esperado));
         Assert.Empty(resumen.Bloqueos);
 
-        // Declara RD$5 menos del efectivo esperado: lo cobrado menos la devuelta menos el retiro.
+        // Cierra sin declarar nada: el cierre informa lo esperado, que es lo cobrado menos la devuelta menos el retiro.
         var efectivoEsperado = total - 100m;
-        var respuesta = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero,
-            [new SolicitudDeclaracionFormaPago(caja.Catalogo.FormaEfectivo, efectivoEsperado - 5m)], [], null));
+        var respuesta = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, null));
 
         Assert.True(respuesta.Exitosa, respuesta.Mensaje);
         var cierre = respuesta.Cierre!;
         var efectivo = cierre.FormasPago.Single(f => f.FormaPagoId == caja.Catalogo.FormaEfectivo);
         Assert.Equal(efectivoEsperado, efectivo.Esperado);
-        Assert.Equal(-5m, efectivo.Diferencia);
-        Assert.Equal(-5m, cierre.Diferencia);
         Assert.Equal(1, cierre.CantidadVentas);
         Assert.Equal(100m, cierre.TotalRetiros);
         Assert.Single(cierre.Movimientos);
@@ -1045,7 +1041,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(2, mensajes);
 
         var reportes = Directory.GetFiles(baseDatos.CarpetaImpresiones, "*cierre-*.txt").Select(File.ReadAllText);
-        Assert.Contains(reportes, texto => texto.Contains("FALTANTE RD$") && texto.Contains("CUADRE POR FORMA DE PAGO"));
+        Assert.Contains(reportes, texto => texto.Contains("TOTAL ESPERADO RD$") && texto.Contains("ESPERADO POR FORMA DE PAGO"));
     }
 
     [SkippableFact]
@@ -1059,7 +1055,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var espera = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.PonerEnEsperaAsync(caja.Cajero, venta.Id, "Sra. María"));
         Assert.True(espera.Exitosa, espera.Mensaje);
 
-        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, null));
 
         Assert.Equal(CodigoResultadoCaja.CierreBloqueado, cierre.Resultado);
         Assert.Contains(cierre.Bloqueos!, bloqueo => bloqueo.Contains("Sra. María"));
@@ -1087,7 +1083,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(CodigoResultadoVenta.TurnoDiaAnterior, agregar.Resultado);
 
         // El cierre avisa que la factura en espera hay que limpiarla, porque ya no se puede cobrar.
-        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, null));
         Assert.Equal(CodigoResultadoCaja.CierreBloqueado, cierre.Resultado);
         Assert.Contains(cierre.Bloqueos!, bloqueo => bloqueo.Contains("Sra. María") && bloqueo.Contains("límpielas"));
 
@@ -1104,7 +1100,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, retomadaVenta.Id, autorizacion));
         Assert.True(limpia.Exitosa, limpia.Mensaje);
 
-        var cerrado = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, [], [], null));
+        var cerrado = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, null));
         Assert.True(cerrado.Exitosa, cerrado.Mensaje);
     }
 
@@ -1161,12 +1157,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(caja.Escenario.CajeroDos, cobrada.UsuarioId);
         Assert.Equal(caja.Escenario.CajeroDos, cobrada.CobradaPorId);
 
-        // Se declara lo cobrado, que está en la gaveta: el cuadre cierra sin diferencia.
-        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.CajeroDos,
-            [new SolicitudDeclaracionFormaPago(caja.Catalogo.FormaEfectivo, totalDeLaVenta)], [], null));
+        // El turno cierra sin declarar: lo cobrado queda como esperado y el supervisor lo cuadra en el Central.
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.CajeroDos, null));
         Assert.True(cierre.Exitosa, cierre.Mensaje);
         var cierreId = cierre.Cierre!.Id;
-        Assert.Equal(0m, cierre.Cierre.Diferencia);
+        Assert.Equal(totalDeLaVenta, cierre.Cierre.TotalEsperado);
 
         // El cierre es definitivo: la caja no lo puede deshacer. Una corrección posterior se hace en el Central.
         var cerrado = await caja.EjecutarAsync<IServicioTurnos, DatosEstadoTurno>(s => s.ObtenerEstadoAsync(caja.CajeroDos));

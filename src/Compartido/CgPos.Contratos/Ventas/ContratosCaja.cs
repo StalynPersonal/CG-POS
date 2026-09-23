@@ -27,7 +27,6 @@ public sealed record DatosFormaPagoTurno(int FormaPagoId, string Codigo, string 
 /// <param name="Bloqueos">Lo que impide cerrar el turno (RF-265, RN-22); vacío si se puede cerrar.</param>
 public sealed record DatosResumenTurno(
     DatosTurno Turno,
-    bool CierreCiego,
     bool MuestraEsperado,
     bool FondoEnCuadre,
     int? CantidadVentas,
@@ -68,11 +67,11 @@ public sealed record SolicitudDeclaracionFormaPago(int FormaPagoId, decimal Mont
 
 public sealed record SolicitudConteoDenominacion(int DenominacionId, int Cantidad);
 
-/// <param name="Conteo">Efectivo por denominaciones; si viene, es lo declarado de la forma de efectivo de esa moneda.</param>
-public sealed record SolicitudCierreTurno(
-    IReadOnlyList<SolicitudDeclaracionFormaPago>? Declaraciones,
-    IReadOnlyList<SolicitudConteoDenominacion>? Conteo,
-    Guid? AutorizacionId);
+/// <summary>
+/// Cerrar el turno: la cajera no declara nada, solo pide la autorización del supervisor. El dinero se cuenta después, en el
+/// módulo de cuadre del Central.
+/// </summary>
+public sealed record SolicitudCierreTurno(Guid? AutorizacionId);
 
 
 public sealed record DatosCierreFormaPago(
@@ -82,11 +81,7 @@ public sealed record DatosCierreFormaPago(
     TipoFormaPago Tipo,
     string Moneda,
     int Transacciones,
-    decimal Esperado,
-    decimal Declarado,
-    decimal Diferencia);
-
-public sealed record DatosCierreDenominacion(string Moneda, decimal Valor, TipoDenominacion Tipo, int Cantidad, decimal Importe);
+    decimal Esperado);
 
 /// <summary>Cierre de turno completo: se imprime, se reimprime igual (RF-291) y viaja al Central (RF-267).</summary>
 public sealed record DatosCierre(
@@ -97,7 +92,6 @@ public sealed record DatosCierre(
     int CajaId,
     int SucursalId,
     DateOnly FechaOperacion,
-    bool Ciego,
     decimal FondoInicial,
     bool FondoEnCuadre,
     string Moneda,
@@ -105,13 +99,10 @@ public sealed record DatosCierre(
     decimal TotalVentas,
     decimal TotalRetiros,
     decimal TotalEsperado,
-    decimal TotalDeclarado,
-    decimal Diferencia,
     string UsuarioNombre,
     DateTimeOffset AbiertoEn,
     DateTimeOffset CerradoEn,
     IReadOnlyList<DatosCierreFormaPago> FormasPago,
-    IReadOnlyList<DatosCierreDenominacion> Denominaciones,
     IReadOnlyList<DatosMovimientoCaja> Movimientos);
 
 

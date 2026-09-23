@@ -410,7 +410,7 @@ p('Los parámetros vienen con un valor de arranque razonable; estos son los que 
 tabla(['Parámetro', 'Valor sugerido', 'Por qué'],
       [['Fondo de caja', '3,000.00', 'Efectivo con el que abre el turno, para dar devuelta desde el primer cliente.'],
        ['Redondeo del efectivo', '0', 'Sin redondeo. Póngalo en 1 si no quiere entregar monedas de menos de un peso.'],
-       ['Cierre ciego', 'Sí', 'El cajero declara lo que contó sin ver lo esperado: es lo que hace útil el cuadre.'],
+       ['Cantidad máxima que se digita', '10', 'Más de esa cantidad se escanea artículo por artículo, para que no se cuele un cero de más.'],
        ['Vigencia de la nota de crédito', '180 días', 'Medio año para que el cliente use su saldo a favor.'],
        ['Días de retención del ITBIS en devoluciones', '30 días', 'Pasado ese plazo la devolución retiene el ITBIS, como manda la norma.'],
        ['Largo de la contraseña del Central (mínimo y máximo)', '10 · sin tope', 'Para los usuarios del Central Manager. El máximo es opcional: vacío, no hay tope.'],
@@ -601,7 +601,30 @@ paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede se
 paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
 nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
 
-titulo('2.18. Reportes', 2)
+titulo('2.18. Módulo de cuadre', 2)
+p('Ruta: /cuadre, en una computadora de la tienda. Aquí el supervisor cuenta el dinero que le entregaron las cajeras y lo '
+  'declara. La cajera ya no declara nada: cierra su turno, entrega el efectivo y el comprobante del lote de tarjetas con el '
+  'cuadre impreso, y se va. Quien cuenta responde por lo que cuenta.')
+p('Se entra con el USUARIO Y LA CLAVE DE CAJA del supervisor o del gerente de tienda, no con un usuario del Central: no hay '
+  'que crearles uno. La sesión dura pocos minutos porque la computadora es compartida, y solo se ven las sucursales de las '
+  'cajas que ese usuario tiene asignadas. Un usuario del Central entra con el suyo y ve todas las sucursales.')
+paso('La cajera cierra el lote del terminal de tarjetas y después cierra su turno en la caja, con autorización del supervisor.')
+paso('La caja imprime el cuadre con lo esperado por forma de pago. El papel, el efectivo contado a ciegas y el comprobante '
+     'del lote se los lleva el supervisor.')
+paso('En /cuadre aparece ese cierre como pendiente de cuadre, lo más viejo primero.')
+paso('El supervisor cuenta las denominaciones del efectivo y escribe el total de cada forma de pago; el sistema no deja '
+     'guardar si el efectivo declarado no coincide con el conteo.')
+paso('Al confirmar, el cierre queda cuadrado, con su faltante o sobrante A NOMBRE DE LA CAJERA y el nombre de quien lo cuadró.')
+tabla(['Permiso', 'Quién lo suele tener', 'Qué puede hacer'],
+      [['Cuadre.Consultar', 'Gerencia de tienda', 'Ver los cierres y los reportes del módulo en su sucursal.'],
+       ['Cuadre.Declarar', 'Supervisor', 'Cuadrar los cierres pendientes de su sucursal.'],
+       ['Cuadre.Corregir', 'El rol que decida el negocio', 'Corregir un cuadre ya hecho, con motivo, mientras el día no esté consolidado.']],
+      anchos=[4.0, 4.5, 8.5])
+nota('El turno cierra en la caja aunque el Central esté caído: el cuadre espera. La caja nunca se queda trancada por la red.')
+nota('Corregir no borra nada: queda lo que se había declarado, lo nuevo, el motivo y quién lo corrigió. Contabilidad corrige '
+     'desde Cierres de caja, en el Central, incluso después de consolidar el día.')
+
+titulo('2.19. Reportes', 2)
 p('Ruta: /reportes. Todos por rango de días y, si se quiere, por sucursal o caja. Cada uno se descarga en Excel y en PDF.')
 tabla(['Reporte', 'Qué muestra'],
       [['Ventas', 'Por día, sucursal y caja: facturas, notas de crédito, subtotal, descuento, ITBIS y total.'],
@@ -612,11 +635,11 @@ tabla(['Reporte', 'Qué muestra'],
        ['Sincronización', 'Última comunicación de cada caja, mensajes, rechazos y alertas.']],
       anchos=[4.5, 12.5])
 
-titulo('2.19. Monitor de sincronización', 2)
+titulo('2.20. Monitor de sincronización', 2)
 viñeta('/monitor: estado de cada caja, cuánto hace que no se comunica y cuántos documentos trae pendientes.')
 viñeta('/monitor/conflictos: documentos que el Central no pudo aceptar (por ejemplo un número repetido), para resolverlos.')
 
-titulo('2.20. Chequeador de precios', 2)
+titulo('2.21. Chequeador de precios', 2)
 p('Ruta: /chequeador/01, donde 01 es el código de la sucursal, en la pantalla que se pone en el pasillo de la tienda. Tecnología '
   'deja cada pantalla con la dirección de su sucursal, así el cliente nunca elige sucursal y siempre ve el precio y las ofertas '
   'de la tienda donde está parado. El cliente pasa el producto por el lector y ve la descripción, el precio grande, el precio '
@@ -909,15 +932,16 @@ titulo('3.16. Retiros, pre-cierre y cierre de turno', 2)
 viñeta('Retiro de efectivo: monto y motivo, autorización de supervisor, comprobante impreso con firmas. No se puede retirar '
        'más del efectivo que hay en la gaveta.')
 viñeta('Pre-cierre: imprime lo esperado, con clave de supervisor (útil antes de cuadrar).')
-viñeta('Cierre de turno: se declara lo que hay por forma de pago y se cuenta el efectivo por denominaciones. Normalmente el '
-       'cajero no ve lo esperado (cierre ciego).')
+viñeta('Cierre de turno: el cajero no declara nada ni ve lo esperado. Con la autorización del supervisor, el turno cierra y '
+       'la caja imprime el cuadre con lo esperado por forma de pago, para el supervisor.')
 viñeta('No se puede cerrar con facturas en espera, transacciones con artículos sin cobrar o ventas sin factura electrónica '
        'firmada: la pantalla dice exactamente qué falta.')
 viñeta('Con un turno de un día anterior, las facturas en espera ya no se pueden cobrar: el cierre avisa cuáles son y pide '
        'retomarlas y limpiarlas (con la autorización de un supervisor) antes de cerrar.')
 viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprobado en la caja con lo que reporta el terminal.')
-viñeta('Al cerrar se imprime el reporte del turno: esperado, declarado y diferencia por forma de pago, denominaciones, '
-       'retiros, reembolsos y relevos.')
+viñeta('Al cerrar se imprime el reporte del turno: lo esperado por forma de pago, los retiros, los reembolsos y los relevos.')
+viñeta('Después, el cajero cuenta su efectivo a ciegas y se lo entrega al supervisor junto con el comprobante del lote. Quien '
+       'declara el conteo es el supervisor, en el Central (Módulo de cuadre), y la diferencia queda a nombre del cajero.')
 
 titulo('3.17. La barra de estado', 2)
 p('Abajo de la pantalla, siempre a la vista:')
@@ -961,12 +985,14 @@ paso('Vaya a devoluciones (F10), devuelva un artículo de la primera factura y e
 paso('Haga una segunda devolución marcando Nota de crédito interna y compruebe que no se puede usar como pago.')
 paso('Cobre una tercera venta usando la nota de crédito normal como forma de pago.')
 paso('Haga un retiro de efectivo con motivo y autorización.')
-paso('Cierre el turno: declare por forma de pago, cuente las denominaciones y revise el reporte impreso.')
+paso('Cierre el turno con la autorización del supervisor y revise el cuadre impreso con lo esperado por forma de pago.')
 
 titulo('Por último, de vuelta en el Central', 2)
 paso('En Facturas, busque las facturas y notas de crédito que acaba de hacer y abra su detalle.')
 paso('En Listas de boda, compruebe que la compra quedó registrada y que bajó lo pedido.')
 paso('En Notas de crédito, revise el saldo de la nota emitida y su consumo.')
+paso('Entre a /cuadre con el usuario de caja del supervisor, cuente las denominaciones del turno que acaba de cerrar y '
+     'declárelo: el cierre pasa de pendiente a cuadrado con su diferencia.')
 paso('En Cierre de sucursal, prepare el día, registre el depósito y ciérrelo.')
 paso('En Reportes, saque Ventas, ITBIS, Cuadres y el Formato 607, y descárguelos en Excel y PDF.')
 paso('En Monitor, verifique que la caja está comunicada y sin documentos pendientes ni conflictos.')

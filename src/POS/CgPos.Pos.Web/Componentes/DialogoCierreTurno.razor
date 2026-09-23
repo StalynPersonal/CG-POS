@@ -1,6 +1,7 @@
-﻿@* Cierre de turno (M13): lo entregado por forma de pago y el efectivo contado por denominaciones, en modalidad ciega (RF-9, RN-23).
+﻿@* Cierre de turno (M13): la cajera no declara ni cuenta. Cierra el lote de tarjetas, cierra el turno con autorización del
+   supervisor y entrega el dinero con el cuadre impreso; el supervisor lo cuadra después en el Central (RF-9, RN-23).
    El pre-cierre imprime lo esperado con clave de supervisor (RF-8). *@
-@using System.Globalization
+@using CgPos.Dominio.Pagos
 @using CgPos.Dominio.Turnos
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
@@ -18,31 +19,16 @@
 
         @if (_cierre is { } cierre)
         {
+            @* Turno cerrado: lo que sigue es entregar. La cajera no ve montos. *@
             <div class="cg-cierre__resultado">
                 <div class="cg-cierre__titulo">Turno @cierre.TurnoNumero cerrado · @cierre.UsuarioNombre</div>
-                <div class="cg-tabla-desplazable">
-                    <table class="cg-cierre__tabla">
-                        <thead>
-                            <tr><th>Forma de pago</th><th>Trx</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var forma in cierre.FormasPago.Where(f => f.Esperado != 0m || f.Declarado != 0m || f.Transacciones > 0))
-                            {
-                                <tr>
-                                    <td>@forma.Nombre@MonedaTexto(forma.Moneda)</td>
-                                    <td>@forma.Transacciones</td>
-                                    <td>@forma.Esperado.ToString("N2")</td>
-                                    <td>@forma.Declarado.ToString("N2")</td>
-                                    <td class="@ClaseDiferencia(forma.Diferencia)">@forma.Diferencia.ToString("N2")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="cg-cierre__total">
-                    <span>@EtiquetaDiferencia(cierre.Diferencia)</span>
-                    <span class="@ClaseDiferencia(cierre.Diferencia)">@cierre.Diferencia.ToString("C")</span>
-                </div>
+                <MudText Typo="Typo.body1" Class="mt-2">
+                    Cuente su efectivo y entréguelo al supervisor junto con el comprobante del lote de tarjetas y el cuadre
+                    que acaba de imprimirse.
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                    El supervisor lo cuadra en el Central. Si el cuadre no salió, use Reimprimir.
+                </MudText>
             </div>
         }
         else if (_resumen is null)
@@ -56,6 +42,7 @@
         {
             @if (_bloqueos.Count > 0)
             {
+                @* Lo que impide cerrar: facturas en espera, ventas en curso o sin e-CF (RF-265, RN-22). *@
                 <MudAlert Severity="Severity.Warning" Class="mb-3">
                     <strong>No se puede cerrar todavía:</strong>
                     <ul class="cg-cierre__bloqueos">
@@ -67,71 +54,41 @@
                 </MudAlert>
             }
 
-            <div class="cg-cierre">
-                <section>
-                    <div class="cg-cierre__titulo">
-                        Entregado por forma de pago
-                        @if (_resumen.CierreCiego)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Cierre ciego</MudChip>
-                        }
-                    </div>
-                    @foreach (var forma in _resumen.FormasPago)
-                    {
-                        var activa = PorConteo(forma) ? _denominacionActiva is not null && _monedaConteo == forma.Moneda : _formaActiva == forma.FormaPagoId;
-                        <div class="cg-cierre__fila @(activa ? "cg-cierre__fila--activa" : null)" @onclick="() => SeleccionarForma(forma)">
-                            <span>
-                                @forma.Nombre@MonedaTexto(forma.Moneda)
-                                @if (PorConteo(forma))
+            @* Los pasos del cierre, en orden, para que la cajera sepa qué sigue. *@
+            <div class="cg-cierre__resultado">
+                <div class="cg-cierre__titulo">Turno @_resumen.Turno.Numero · @_resumen.Turno.UsuarioActualNombre</div>
+                <ol class="cg-cierre__bloqueos">
+                    <li>Cierre el lote del terminal de tarjetas.</li>
+                    <li>Cierre el turno: pide la clave del supervisor e imprime el cuadre, que es para él.</li>
+                    <li>Cuente su efectivo y entrégueselo con el comprobante del lote.</li>
+                </ol>
+                @if (_resumen.TotalRetiros > 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Retiros del turno: @_resumen.TotalRetiros.ToString("C") (@_resumen.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro))
+                    </MudText>
+                }
+                @if (_resumen.MuestraEsperado)
+                {
+                    @* Solo con permiso de pre-cierre: la cajera no ve los montos. *@
+                    <div class="cg-tabla-desplazable mt-2">
+                        <table class="cg-cierre__tabla">
+                            <thead>
+                                <tr><th>Forma de pago</th><th>Trx</th><th>Esperado</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var forma in _resumen.FormasPago)
                                 {
-                                    <small class="cg-cierre__nota">por conteo</small>
+                                    <tr>
+                                        <td>@forma.Nombre@MonedaTexto(forma.Moneda)</td>
+                                        <td>@(forma.Transacciones ?? 0)</td>
+                                        <td>@((forma.Esperado ?? 0m).ToString("N2"))</td>
+                                    </tr>
                                 }
-                            </span>
-                            <span class="cg-cierre__esperado">@(_resumen.MuestraEsperado ? (forma.Esperado ?? 0m).ToString("N2") : null)</span>
-                            <span class="cg-cierre__monto">@Declarado(forma).ToString("N2")</span>
-                        </div>
-                    }
-                    <div class="cg-cierre__total">
-                        <span>Total declarado @MonedaPantalla.Simbolo</span>
-                        <span>@TotalDeclaradoLocal.ToString("N2")</span>
+                            </tbody>
+                        </table>
                     </div>
-                    @if (_resumen.TotalRetiros > 0)
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Retiros del turno: @_resumen.TotalRetiros.ToString("C") (@_resumen.Movimientos.Count(m => m.Tipo == TipoMovimientoCaja.Retiro))
-                        </MudText>
-                    }
-                </section>
-
-                <section>
-                    <div class="cg-cierre__titulo">
-                        Conteo de efectivo
-                        @foreach (var moneda in MonedasConteo)
-                        {
-                            <MudButton Size="Size.Small" Variant="@(moneda == _monedaConteo ? Variant.Filled : Variant.Text)" Color="Color.Primary"
-                                       OnClick="() => CambiarMonedaConteo(moneda)">@moneda</MudButton>
-                        }
-                    </div>
-                    @foreach (var denominacion in DenominacionesConteo)
-                    {
-                        <div class="cg-cierre__fila @(_denominacionActiva == denominacion.Id ? "cg-cierre__fila--activa" : null)" @onclick="() => SeleccionarDenominacion(denominacion)">
-                            <span>@(denominacion.Tipo == TipoDenominacion.Billete ? "Billete" : "Moneda") @denominacion.Valor.ToString("N0")</span>
-                            <span class="cg-cierre__esperado">x @Cantidad(denominacion.Id)</span>
-                            <span class="cg-cierre__monto">@((denominacion.Valor * Cantidad(denominacion.Id)).ToString("N2"))</span>
-                        </div>
-                    }
-                    <div class="cg-cierre__total">
-                        <span>Total contado @_monedaConteo</span>
-                        <span>@TotalContado(_monedaConteo).ToString("N2")</span>
-                    </div>
-                </section>
-
-                <div class="cg-cierre__teclado">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">@EtiquetaCampo</MudText>
-                    <div class="cg-total-grande">@(ValorCampo.Length == 0 ? "0" : ValorCampo)</div>
-                    <TecladoTactil @bind-Valor="ValorCampo" AlConfirmar="_ => Siguiente()" PermitirCambioModo="false" PermitirDecimal="@(_denominacionActiva is null)"
-                                   LongitudMaxima="10" TextoConfirmar="Siguiente" />
-                </div>
+                }
             </div>
         }
     </DialogContent>
@@ -160,16 +117,10 @@
 @code {
     [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
 
-    private readonly Dictionary<int, string> _declarado = [];
-    private readonly Dictionary<int, string> _cantidades = [];
-
     private DatosResumenTurno? _resumen;
     private DatosCierre? _cierre;
     private RespuestaCaja? _respuestaCierre;
     private IReadOnlyList<string> _bloqueos = [];
-    private int? _formaActiva;
-    private int? _denominacionActiva;
-    private string _monedaConteo = string.Empty;
     private string? _mensaje;
     private string? _aviso;
     private bool _procesando;
@@ -177,120 +128,36 @@
     protected override async Task OnInitializedAsync()
     {
         var respuesta = await Cliente.ObtenerResumenTurnoAsync();
-        if (respuesta is not { Exitosa: true, Resumen: { } resumen })
+        if (!respuesta.Exitosa || respuesta.Resumen is null)
         {
-            _mensaje = respuesta.Mensaje ?? "No se pudo consultar el turno.";
+            _mensaje = respuesta.Mensaje ?? "No se pudo obtener el turno.";
             return;
         }
 
-        _resumen = resumen;
-        _bloqueos = resumen.Bloqueos;
-        // Se empieza contando la moneda local.
-        _monedaConteo = MonedasConteo.Contains(resumen.MonedaLocal) ? resumen.MonedaLocal : MonedasConteo.FirstOrDefault() ?? resumen.MonedaLocal;
-        _denominacionActiva = DenominacionesConteo.FirstOrDefault()?.Id;
-        if (_denominacionActiva is null)
-            _formaActiva = FormasDeclarables.FirstOrDefault()?.FormaPagoId;
+        _resumen = respuesta.Resumen;
+        _bloqueos = _resumen.Bloqueos;
     }
 
-    /// <summary>El efectivo de una moneda con denominaciones se declara contando; el resto se digita.</summary>
-    private bool PorConteo(DatosFormaPagoTurno forma) => forma.EsEfectivo && _resumen!.Denominaciones.Any(d => d.Moneda == forma.Moneda);
-
-    private IEnumerable<DatosFormaPagoTurno> FormasDeclarables => _resumen!.FormasPago.Where(f => !PorConteo(f));
-
-    private IEnumerable<string> MonedasConteo => _resumen!.Denominaciones.Select(d => d.Moneda).Distinct();
-
-    private IEnumerable<DatosDenominacion> DenominacionesConteo => _resumen!.Denominaciones.Where(d => d.Moneda == _monedaConteo);
-
-    private static decimal Monto(string? texto) =>
-        decimal.TryParse(texto, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var valor) ? valor : 0m;
-
-    private int Cantidad(int denominacionId) => int.TryParse(_cantidades.GetValueOrDefault(denominacionId), out var valor) ? valor : 0;
-
-    private decimal TotalContado(string moneda) => _resumen!.Denominaciones.Where(d => d.Moneda == moneda).Sum(d => d.Valor * Cantidad(d.Id));
-
-    private decimal Declarado(DatosFormaPagoTurno forma) => PorConteo(forma) ? TotalContado(forma.Moneda) : Monto(_declarado.GetValueOrDefault(forma.FormaPagoId));
-
-    private decimal TotalDeclaradoLocal =>
-        FormasDeclarables.Where(f => f.Moneda == _resumen!.MonedaLocal).Sum(f => Monto(_declarado.GetValueOrDefault(f.FormaPagoId)))
-        + (_resumen!.FormasPago.Any(f => f.Moneda == _resumen.MonedaLocal && PorConteo(f)) ? TotalContado(_resumen.MonedaLocal) : 0m);
-
-    private string ValorCampo
-    {
-        get => _denominacionActiva is { } denominacion
-            ? _cantidades.GetValueOrDefault(denominacion, string.Empty)
-            : _formaActiva is { } forma ? _declarado.GetValueOrDefault(forma, string.Empty) : string.Empty;
-        set
-        {
-            if (_denominacionActiva is { } denominacion)
-                _cantidades[denominacion] = value;
-            else if (_formaActiva is { } forma)
-                _declarado[forma] = value;
-        }
-    }
-
-    private string EtiquetaCampo =>
-        _denominacionActiva is { } denominacionId && _resumen!.Denominaciones.FirstOrDefault(d => d.Id == denominacionId) is { } denominacion
-            ? $"Cantidad de {(denominacion.Tipo == TipoDenominacion.Billete ? "billetes" : "monedas")} de {denominacion.Moneda} {denominacion.Valor:N0}"
-            : _formaActiva is { } formaId && _resumen!.FormasPago.FirstOrDefault(f => f.FormaPagoId == formaId) is { } forma
-                ? $"Monto entregado en {forma.Nombre}"
-                : "Toque una forma de pago o una denominación";
-
-    private void SeleccionarForma(DatosFormaPagoTurno forma)
-    {
-        if (PorConteo(forma))
-        {
-            CambiarMonedaConteo(forma.Moneda);
-            return;
-        }
-
-        _formaActiva = forma.FormaPagoId;
-        _denominacionActiva = null;
-    }
-
-    private void SeleccionarDenominacion(DatosDenominacion denominacion)
-    {
-        _denominacionActiva = denominacion.Id;
-        _formaActiva = null;
-    }
-
-    private void CambiarMonedaConteo(string moneda)
-    {
-        _monedaConteo = moneda;
-        _denominacionActiva = DenominacionesConteo.FirstOrDefault()?.Id;
-        _formaActiva = null;
-    }
-
-    /// <summary>Enter pasa a la siguiente denominación y, al terminar el conteo, a las formas de pago que se digitan.</summary>
-    private void Siguiente()
-    {
-        if (_denominacionActiva is { } actual)
-        {
-            var denominaciones = DenominacionesConteo.ToList();
-            var indice = denominaciones.FindIndex(d => d.Id == actual);
-            _denominacionActiva = indice + 1 < denominaciones.Count ? denominaciones[indice + 1].Id : null;
-            if (_denominacionActiva is null)
-                _formaActiva = FormasDeclarables.FirstOrDefault()?.FormaPagoId;
-            return;
-        }
-
-        var formas = FormasDeclarables.ToList();
-        var posicion = formas.FindIndex(f => f.FormaPagoId == _formaActiva);
-        _formaActiva = posicion + 1 < formas.Count ? formas[posicion + 1].FormaPagoId : null;
-    }
-
+    /// <summary>Imprime lo esperado con clave de supervisor, antes de cerrar (RF-8).</summary>
     private async Task PreCierreAsync()
     {
         _procesando = true;
         _mensaje = null;
-        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.PreCierreAsync(autorizacion), "Pre-cierre del turno: imprime lo esperado por forma de pago");
+        _aviso = null;
+        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.PreCierreAsync(autorizacion),
+            $"Pre-cierre del turno {_resumen!.Turno.Numero}");
         _procesando = false;
         if (respuesta is null)
             return;
 
+        if (respuesta.Resumen is { } resumen)
+        {
+            _resumen = resumen;
+            _bloqueos = resumen.Bloqueos;
+        }
+
         _aviso = respuesta.Exitosa ? respuesta.Mensaje : null;
         _mensaje = respuesta.Exitosa ? null : respuesta.Mensaje;
-        if (respuesta.Resumen is { } resumen)
-            _bloqueos = resumen.Bloqueos;
     }
 
     /// <summary>Cierra el lote del terminal y muestra si las tarjetas del turno cuadran con lo que reportó (RF-215).</summary>
@@ -330,17 +197,7 @@
         _mensaje = null;
         _aviso = null;
 
-        var declaraciones = FormasDeclarables
-            .Select(f => new SolicitudDeclaracionFormaPago(f.FormaPagoId, Monto(_declarado.GetValueOrDefault(f.FormaPagoId))))
-            .Where(d => d.Monto > 0)
-            .ToList();
-        var conteo = _resumen!.Denominaciones
-            .Select(d => new SolicitudConteoDenominacion(d.Id, Cantidad(d.Id)))
-            .Where(c => c.Cantidad > 0)
-            .ToList();
-
-        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.CerrarTurnoAsync(declaraciones, conteo, autorizacion),
-            $"Cerrar el turno {_resumen.Turno.Numero}");
+        var respuesta = await Autorizaciones.EjecutarCajaAsync(autorizacion => Cliente.CerrarTurnoAsync(autorizacion), $"Cerrar el turno {_resumen!.Turno.Numero}");
         _procesando = false;
         if (respuesta is null)
             return;
@@ -374,18 +231,4 @@
 
     /// <summary>Marca las formas de pago en moneda extranjera; la moneda local no se indica.</summary>
     private string MonedaTexto(string moneda) => moneda == (_cierre?.Moneda ?? _resumen?.MonedaLocal) ? string.Empty : $" ({moneda})";
-
-    private static string ClaseDiferencia(decimal diferencia) => diferencia switch
-    {
-        < 0m => "cg-cierre__diferencia--faltante",
-        > 0m => "cg-cierre__diferencia--sobrante",
-        _ => "cg-cierre__diferencia--cuadrado",
-    };
-
-    private static string EtiquetaDiferencia(decimal diferencia) => diferencia switch
-    {
-        < 0m => "Faltante",
-        > 0m => "Sobrante",
-        _ => "Cuadrado",
-    };
 }

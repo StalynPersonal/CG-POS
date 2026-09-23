@@ -184,16 +184,13 @@ public sealed record DocumentoCierreFormaPago(
     TipoFormaPago Tipo,
     string Moneda,
     int Transacciones,
-    decimal Esperado,
-    decimal Declarado,
-    decimal Diferencia);
+    decimal Esperado);
 
 /// <summary>Mensaje <c>Caja.TurnoCerrado</c>: el cierre del turno; se identifica por el número del turno en la caja.</summary>
 public sealed record DocumentoCierreTurno(
     long TurnoNumero,
     int Numero,
     DateOnly FechaOperacion,
-    bool Ciego,
     decimal FondoInicial,
     bool FondoEnCuadre,
     string Moneda,
@@ -201,13 +198,10 @@ public sealed record DocumentoCierreTurno(
     decimal TotalVentas,
     decimal TotalRetiros,
     decimal TotalEsperado,
-    decimal TotalDeclarado,
-    decimal Diferencia,
     string UsuarioNombre,
     DateTimeOffset AbiertoEn,
     DateTimeOffset CerradoEn,
     IReadOnlyList<DocumentoCierreFormaPago> FormasPago,
-    IReadOnlyList<DatosCierreDenominacion> Denominaciones,
     IReadOnlyList<DocumentoMovimientoTurno> Movimientos);
 
 /// <summary>Mensajes <c>Entregas.PendienteCreado</c> y <c>Entregas.PendienteActualizado</c>: el pendiente completo, identificado por su número.</summary>

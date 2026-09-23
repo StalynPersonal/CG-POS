@@ -73,6 +73,9 @@ public static class AtributosTokenCentral
     public const string TipoUsuario = "usuario";
     public const string TipoDispositivo = "dispositivo";
 
+    /// <summary>Supervisor o gerente de tienda dentro del módulo de cuadre: entra con su usuario de caja.</summary>
+    public const string TipoCuadre = "cuadre";
+
     public const string UsuarioId = "sub";
     public const string Codigo = "codigo";
     public const string Nombre = "name";
@@ -89,6 +92,9 @@ public static class AtributosTokenCentral
     public const string Sucursal = "sucursal";
     public const string SucursalCodigo = "sucursal_codigo";
     public const string Credencial = "credencial";
+
+    /// <summary>Sucursales que el usuario del módulo de cuadre puede ver; una por cada caja que tiene asignada.</summary>
+    public const string SucursalPermitida = "sucursal_cuadre";
 }
 
 /// <summary>

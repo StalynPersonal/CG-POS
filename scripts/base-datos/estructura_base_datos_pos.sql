@@ -56,10 +56,6 @@ CREATE SEQUENCE [SecuenciaCierresTurno] AS int START WITH 1 INCREMENT BY 1 NO CY
 GO
 
 
-CREATE SEQUENCE [SecuenciaCierresTurnoDenominaciones] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
 CREATE SEQUENCE [SecuenciaCierresTurnoFormasPago] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -1044,7 +1040,6 @@ CREATE TABLE [CierresTurno] (
     [Numero] int NOT NULL,
     [FechaOperacion] date NOT NULL,
     [AbiertoEn] datetimeoffset(3) NOT NULL,
-    [Ciego] bit NOT NULL,
     [FondoInicial] decimal(18,2) NOT NULL,
     [FondoEnCuadre] bit NOT NULL,
     [CantidadVentas] int NOT NULL,
@@ -1052,8 +1047,6 @@ CREATE TABLE [CierresTurno] (
     [TotalRetiros] decimal(18,2) NOT NULL,
     [Moneda] varchar(3) NOT NULL,
     [TotalEsperado] decimal(18,2) NOT NULL,
-    [TotalDeclarado] decimal(18,2) NOT NULL,
-    [Diferencia] decimal(18,2) NOT NULL,
     [UsuarioId] int NOT NULL,
     [UsuarioNombre] nvarchar(150) NOT NULL,
     [CerradoEn] datetimeoffset(3) NOT NULL,
@@ -1260,21 +1253,6 @@ CREATE TABLE [VentasTemp] (
 GO
 
 
-CREATE TABLE [CierresTurnoDenominaciones] (
-    [Id] int NOT NULL,
-    [CierreTurnoId] int NOT NULL,
-    [DenominacionId] int NOT NULL,
-    [Moneda] varchar(3) NOT NULL,
-    [Valor] decimal(18,2) NOT NULL,
-    [Tipo] int NOT NULL,
-    [Cantidad] int NOT NULL,
-    [Importe] decimal(18,2) NOT NULL,
-    CONSTRAINT [PK_CierresTurnoDenominaciones] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_CierresTurnoDenominaciones_CierresTurno_CierreTurnoId] FOREIGN KEY ([CierreTurnoId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
 CREATE TABLE [CierresTurnoFormasPago] (
     [Id] int NOT NULL,
     [CierreTurnoId] int NOT NULL,
@@ -1286,8 +1264,6 @@ CREATE TABLE [CierresTurnoFormasPago] (
     [Orden] int NOT NULL,
     [Transacciones] int NOT NULL,
     [Esperado] decimal(18,2) NOT NULL,
-    [Declarado] decimal(18,2) NOT NULL,
-    [Diferencia] decimal(18,2) NOT NULL,
     CONSTRAINT [PK_CierresTurnoFormasPago] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_CierresTurnoFormasPago_CierresTurno_CierreTurnoId] FOREIGN KEY ([CierreTurnoId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
 );
@@ -1756,10 +1732,6 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_CierresTurno_TurnoId_Numero] ON [CierresTurno] ([TurnoId], [Numero]);
-GO
-
-
-CREATE INDEX [IX_CierresTurnoDenominaciones_CierreTurnoId] ON [CierresTurnoDenominaciones] ([CierreTurnoId]);
 GO
 
 

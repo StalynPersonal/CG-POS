@@ -106,16 +106,16 @@ public class ApiOrganizacionPruebas(CentralEnPruebas central)
         var parametros = await ListarAsync<DatosParametro>(cliente, admin, "/api/organizacion/parametros");
         Assert.StartsWith("Caja 02", Assert.Single(parametros, p => p.Id == creado.Cuerpo.Id).Ambito);
 
-        var cierreCiego = Assert.Single(parametros, p => p.Clave == "Caja.CierreCiego" && p.SucursalId is null && p.CajaId is null);
+        var fondoEnCuadre = Assert.Single(parametros, p => p.Clave == "Caja.FondoEnCuadre" && p.SucursalId is null && p.CajaId is null);
         var moneda = Assert.Single(parametros, p => p.Clave == "General.MonedaLocal" && p.SucursalId is null && p.CajaId is null);
-        Assert.Equal("El valor debe ser true o false.", (await CambiarAsync(cierreCiego.Id, "quizás")).Cuerpo!.Mensaje);
+        Assert.Equal("El valor debe ser true o false.", (await CambiarAsync(fondoEnCuadre.Id, "quizás")).Cuerpo!.Mensaje);
         Assert.Equal($"El parámetro «{CatalogoParametros.Buscar("General.MonedaLocal")!.Descripcion}» (General.MonedaLocal) es obligatorio.",
             (await CambiarAsync(moneda.Id, "")).Cuerpo!.Mensaje);
-        Assert.True((await CambiarAsync(cierreCiego.Id, "false")).Cuerpo!.Exitosa);
-        Assert.True((await CambiarAsync(cierreCiego.Id, "true")).Cuerpo!.Exitosa);
+        Assert.True((await CambiarAsync(fondoEnCuadre.Id, "false")).Cuerpo!.Exitosa);
+        Assert.True((await CambiarAsync(fondoEnCuadre.Id, "true")).Cuerpo!.Exitosa);
 
         Assert.Contains(await ListarAsync<DefinicionParametro>(cliente, admin, "/api/organizacion/parametros/catalogo"),
-            d => d.Clave == "Caja.CierreCiego" && d.Tipo == TipoValorParametro.Booleano);
+            d => d.Clave == "Caja.FondoEnCuadre" && d.Tipo == TipoValorParametro.Booleano);
     }
 
     [SkippableFact]

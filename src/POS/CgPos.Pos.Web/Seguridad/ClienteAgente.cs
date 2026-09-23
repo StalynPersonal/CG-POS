@@ -338,9 +338,8 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaCaja> RelevarTurnoAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/caja/turno/relevo", new SolicitudConAutorizacion(autorizacionId), ErrorCaja, cancelacion);
 
-    public Task<RespuestaCaja> CerrarTurnoAsync(IReadOnlyList<SolicitudDeclaracionFormaPago> declaraciones, IReadOnlyList<SolicitudConteoDenominacion> conteo,
-        Guid? autorizacionId, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, "api/caja/turno/cierre", new SolicitudCierreTurno(declaraciones, conteo, autorizacionId), ErrorCaja, cancelacion);
+    public Task<RespuestaCaja> CerrarTurnoAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/turno/cierre", new SolicitudCierreTurno(autorizacionId), ErrorCaja, cancelacion);
 
     public async Task<IReadOnlyList<DatosCierre>> ListarCierresAsync(int maximo = 10, CancellationToken cancelacion = default)
     {

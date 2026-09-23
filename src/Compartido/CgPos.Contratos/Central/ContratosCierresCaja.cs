@@ -1,4 +1,4 @@
-using CgPos.Dominio.Pagos;
+﻿using CgPos.Dominio.Pagos;
 
 namespace CgPos.Contratos.Central;
 
@@ -15,7 +15,11 @@ public sealed record DatosCierreCaja(
     int Numero,
     DateOnly FechaOperacion,
     string UsuarioNombre,
-    bool Ciego,
+
+    /// <summary>La caja cerró el turno pero el supervisor todavía no ha contado el dinero.</summary>
+    bool PendienteDeCuadre,
+    string? CuadradoPor,
+    DateTimeOffset? CuadradoEn,
     int CantidadVentas,
     decimal TotalVentas,
     decimal TotalEsperado,
@@ -25,6 +29,16 @@ public sealed record DatosCierreCaja(
     bool EnCierreSucursal,
     IReadOnlyList<DatosFormaPagoCierreCaja> FormasPago,
     IReadOnlyList<DatosAjusteCierre> Ajustes);
+
+/// <param name="Declarados">Lo contado en cada forma de pago del cierre.</param>
+/// <param name="Conteo">Las denominaciones del efectivo; su suma tiene que cuadrar con lo declarado en efectivo.</param>
+public sealed record SolicitudCuadreCierre(
+    IReadOnlyList<SolicitudDeclaracionCuadre> Declarados,
+    IReadOnlyList<SolicitudConteoCuadre> Conteo);
+
+public sealed record SolicitudDeclaracionCuadre(int FormaPagoId, decimal Monto);
+
+public sealed record SolicitudConteoCuadre(int DenominacionId, int Cantidad);
 
 public sealed record DatosFormaPagoCierreCaja(int Id, TipoFormaPago Tipo, string Nombre, string Moneda, int Transacciones, decimal Esperado, decimal Declarado,
     decimal Diferencia);
@@ -42,3 +56,25 @@ public sealed record DatosAjusteCierre(
 /// <param name="Declarado">Lo que de verdad había en esa forma de pago.</param>
 /// <param name="Motivo">Obligatorio: queda en la auditoría y en el historial del cierre.</param>
 public sealed record SolicitudAjusteCierre(int FormaPagoId, decimal Declarado, string Motivo);
+
+// ---------- Módulo de cuadre ----------
+
+public sealed record SolicitudIngresoCuadre(string? Usuario, string? Clave);
+
+/// <param name="Sucursales">Las sucursales de las cajas que tiene asignadas: lo único que puede ver y cuadrar.</param>
+public sealed record DatosSesionCuadre(
+    int UsuarioId,
+    string Codigo,
+    string Nombre,
+    string RolNombre,
+    IReadOnlyList<string> Permisos,
+    IReadOnlyList<DatosSucursalCuadre> Sucursales);
+
+public sealed record DatosSucursalCuadre(int Id, string Codigo, string Nombre);
+
+public sealed record RespuestaSesionCuadre(
+    bool Exitosa,
+    string? Mensaje = null,
+    string? TokenAcceso = null,
+    DateTimeOffset? ExpiraEn = null,
+    DatosSesionCuadre? Sesion = null);

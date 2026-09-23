@@ -84,6 +84,10 @@ CREATE SEQUENCE [SecuenciaCierresTurno] AS int START WITH 1 INCREMENT BY 1 NO CY
 GO
 
 
+CREATE SEQUENCE [SecuenciaCierresTurnoDenominaciones] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaClientes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -999,7 +1003,6 @@ CREATE TABLE [CierresTurno] (
     [FechaOperacion] date NOT NULL,
     [UsuarioNombre] nvarchar(200) NOT NULL,
     [Moneda] char(3) NOT NULL,
-    [Ciego] bit NOT NULL,
     [FondoInicial] decimal(18,4) NOT NULL,
     [CantidadVentas] int NOT NULL,
     [TotalVentas] decimal(18,4) NOT NULL,
@@ -1010,6 +1013,8 @@ CREATE TABLE [CierresTurno] (
     [AbiertoEn] datetimeoffset(3) NOT NULL,
     [CerradoEn] datetimeoffset(3) NOT NULL,
     [RegistradoEn] datetimeoffset(3) NOT NULL,
+    [CuadradoPor] nvarchar(200) NULL,
+    [CuadradoEn] datetimeoffset(3) NULL,
     CONSTRAINT [PK_CierresTurno] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_CierresTurno_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_CierresTurno_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
@@ -1387,6 +1392,21 @@ CREATE TABLE [CierresFormaPago] (
 GO
 
 
+CREATE TABLE [CierresTurnoDenominaciones] (
+    [Id] int NOT NULL,
+    [CierreId] int NOT NULL,
+    [DenominacionId] int NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Valor] decimal(18,2) NOT NULL,
+    [Tipo] int NOT NULL,
+    [Cantidad] int NOT NULL,
+    [Importe] decimal(18,2) NOT NULL,
+    CONSTRAINT [PK_CierresTurnoDenominaciones] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresTurnoDenominaciones_CierresTurno_CierreId] FOREIGN KEY ([CierreId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [ComprobantesRecibidos] (
     [Id] int NOT NULL,
     [DocumentoId] int NOT NULL,
@@ -1653,7 +1673,11 @@ CREATE INDEX [IX_CierresTurno_FechaOperacion_SucursalId_CajaId] ON [CierresTurno
 GO
 
 
-CREATE INDEX [IX_CierresTurno_SucursalId] ON [CierresTurno] ([SucursalId]);
+CREATE INDEX [IX_CierresTurno_SucursalId_CuadradoEn] ON [CierresTurno] ([SucursalId], [CuadradoEn]);
+GO
+
+
+CREATE INDEX [IX_CierresTurnoDenominaciones_CierreId] ON [CierresTurnoDenominaciones] ([CierreId]);
 GO
 
 
@@ -2271,8 +2295,8 @@ VALUES
     (27, N'Seguridad.HorasSesion', N'12', N'Horas que dura la sesión en la caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (28, N'General.MonedaLocal', N'DOP', N'Moneda local del negocio', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (29, N'Caja.FondoPredeterminado', N'0.00', N'Fondo sugerido al abrir turno', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (30, N'Caja.PasoRedondeoEfectivo', N'0', N'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (31, N'Caja.CierreCiego', N'true', N'El cajero declara el cierre sin ver lo esperado', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (30, N'Ventas.CantidadMaximaDigitada', N'10', N'Cantidad máxima que el cajero puede digitar de un artículo de unidad entera', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (31, N'Caja.PasoRedondeoEfectivo', N'0', N'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (32, N'Caja.FondoEnCuadre', N'false', N'El fondo forma parte del efectivo esperado en el cierre', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (33, N'Caja.BloquearVentaTurnoDiaAnterior', N'true', N'Con un turno abierto de un día anterior la caja no vende ni cobra', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (34, N'Numeracion.DigitosSecuencia', N'7', N'Dígitos de la secuencia en el número de los documentos', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),

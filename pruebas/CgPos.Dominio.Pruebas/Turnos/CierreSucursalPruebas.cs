@@ -1,4 +1,5 @@
-using CgPos.Dominio.Pagos;
+﻿using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Turnos;
 using CgPos.Dominio.Reportes;
 
 namespace CgPos.Dominio.Pruebas.Turnos;
@@ -11,17 +12,24 @@ public class CierreSucursalPruebas
 
     private static CierreTurnoCentral CierreCaja(long turno, decimal efectivoEsperado, decimal efectivoDeclarado, decimal dolares = 0m, decimal tarjeta = 0m)
     {
-        var cierre = Ids.Asignar(CierreTurnoCentral.Registrar(turno, 1, Sucursal, Ids.Siguiente(), Dia, "Cajero", "DOP", true, 0m, 5, 0m, 0m,
-            efectivoEsperado + tarjeta, efectivoDeclarado + tarjeta, efectivoDeclarado - efectivoEsperado, Ahora.AddHours(-10), Ahora, Ahora));
-        var formas = new List<(TipoFormaPago, string, string, int, decimal, decimal, decimal)>
+        var cierre = Ids.Asignar(CierreTurnoCentral.Registrar(turno, 1, Sucursal, Ids.Siguiente(), Dia, "Cajero", "DOP", 0m, 5, 0m, 0m,
+            efectivoEsperado + tarjeta, Ahora.AddHours(-10), Ahora, Ahora));
+        var formas = new List<(TipoFormaPago, string, string, int, decimal)>
         {
-            (TipoFormaPago.Efectivo, "Efectivo", "DOP", 5, efectivoEsperado, efectivoDeclarado, efectivoDeclarado - efectivoEsperado),
+            (TipoFormaPago.Efectivo, "Efectivo", "DOP", 5, efectivoEsperado),
         };
         if (dolares > 0)
-            formas.Add((TipoFormaPago.MonedaExtranjera, "Dólares", "USD", 1, dolares, dolares, 0m));
+            formas.Add((TipoFormaPago.MonedaExtranjera, "Dólares", "USD", 1, dolares));
         if (tarjeta > 0)
-            formas.Add((TipoFormaPago.Tarjeta, "Tarjeta", "DOP", 2, tarjeta, tarjeta, 0m));
+            formas.Add((TipoFormaPago.Tarjeta, "Tarjeta", "DOP", 2, tarjeta));
         cierre.ReemplazarFormasPago(formas);
+        Ids.AsignarHijos(cierre.FormasPago);
+
+        // El supervisor cuadra: es lo que le da al cierre su declarado y su diferencia.
+        var declarados = cierre.FormasPago
+            .Select(f => new DeclaradoFormaPago(f.Id, f.Tipo == TipoFormaPago.Efectivo && f.Moneda == "DOP" ? efectivoDeclarado : f.Esperado))
+            .ToList();
+        cierre.Cuadrar(declarados, [], "Supervisor", Ahora);
         return cierre;
     }
 

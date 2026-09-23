@@ -25,15 +25,27 @@ public class ApiCierresCajaPruebas(CentralEnPruebas central)
         var token = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
         var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
 
-        // La caja informa un cierre al que le faltan 50 pesos en efectivo.
+        // La caja entrega el turno con lo esperado; todavía nadie ha contado el dinero.
         var dia = DateOnly.FromDateTime(DateTime.Today).AddDays(-Random.Shared.Next(200, 900));
-        var cierre = Cierre(dia, esperado: 5000m, declarado: 4950m);
+        var cierre = Cierre(dia, esperado: 5000m);
         Assert.Equal(EstadoRecepcion.Recibido, await EnviarAsync(cliente, token,
             Mensaje(TiposMensaje.TurnoCerrado, cierre.TurnoNumero.ToString(System.Globalization.CultureInfo.InvariantCulture), cierre)));
 
+        var pendiente = Assert.Single(await ListarAsync(cliente, admin, dia), c => c.TurnoNumero == cierre.TurnoNumero);
+        Assert.True(pendiente.PendienteDeCuadre);
+        Assert.Contains(await PendientesAsync(cliente, admin), c => c.Id == pendiente.Id);
+
+        // El supervisor cuenta y declara: faltan 50 pesos en efectivo.
+        var formaEfectivo = Assert.Single(pendiente.FormasPago);
+        Assert.True((await CuadrarAsync(cliente, admin, pendiente.Id,
+            new SolicitudCuadreCierre([new SolicitudDeclaracionCuadre(formaEfectivo.Id, 4950m)], []))).Cuerpo!.Exitosa);
+
         var registrado = Assert.Single(await ListarAsync(cliente, admin, dia), c => c.TurnoNumero == cierre.TurnoNumero);
         Assert.Equal((-50m, false), (registrado.Diferencia, registrado.EnCierreSucursal));
+        Assert.False(registrado.PendienteDeCuadre);
+        Assert.False(string.IsNullOrWhiteSpace(registrado.CuadradoPor));
         Assert.Empty(registrado.Ajustes);
+        Assert.DoesNotContain(await PendientesAsync(cliente, admin), c => c.Id == pendiente.Id);
 
         // Sin motivo no se corrige nada.
         var efectivo = Assert.Single(registrado.FormasPago);
@@ -80,13 +92,13 @@ public class ApiCierresCajaPruebas(CentralEnPruebas central)
         Assert.Contains("ya tiene su cierre consolidado", bloqueado.Cuerpo!.Mensaje);
     }
 
-    private static DocumentoCierreTurno Cierre(DateOnly dia, decimal esperado, decimal declarado) =>
-        new(Random.Shared.NextInt64(1_000, 999_999), 1, dia, false, 1000m, false, "DOP",
-            10, esperado, 0m, esperado, declarado, declarado - esperado, "Cajero Desarrollo",
+    private static DocumentoCierreTurno Cierre(DateOnly dia, decimal esperado) =>
+        new(Random.Shared.NextInt64(1_000, 999_999), 1, dia, 1000m, false, "DOP",
+            10, esperado, 0m, esperado, "Cajero Desarrollo",
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)),
-            [new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 10, esperado, declarado, declarado - esperado)],
-            [], []);
+            [new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 10, esperado)],
+            []);
 
     private static MensajeSincronizacion Mensaje(string tipo, string referencia, object documento)
     {
@@ -108,6 +120,22 @@ public class ApiCierresCajaPruebas(CentralEnPruebas central)
             $"/api/manager/cierres-caja?desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}", token));
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.Content.ReadFromJsonAsync<IReadOnlyList<DatosCierreCaja>>(OpcionesJson.Predeterminadas))!;
+    }
+
+    /// <summary>Los cierres de la sucursal de prueba que están esperando al supervisor.</summary>
+    private static async Task<IReadOnlyList<DatosCierreCaja>> PendientesAsync(HttpClient cliente, string token)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/manager/cierres-caja/pendientes?sucursalId={CentralEnPruebas.Sucursal}", token));
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.Content.ReadFromJsonAsync<List<DatosCierreCaja>>(OpcionesJson.Predeterminadas))!;
+    }
+
+    private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> CuadrarAsync(HttpClient cliente, string token, int cierreId,
+        SolicitudCuadreCierre solicitud)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, $"/api/manager/cierres-caja/{cierreId}/cuadre", token, solicitud));
+        return (respuesta.StatusCode, await respuesta.Content.ReadFromJsonAsync<RespuestaAdministracion>(OpcionesJson.Predeterminadas));
     }
 
     private static async Task<(HttpStatusCode Estado, RespuestaAdministracion? Cuerpo)> AjustarAsync(HttpClient cliente, string token, int cierreId,

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Reportes;
 using CgPos.Contratos.Central;
@@ -25,6 +25,14 @@ public static class RutasApiCierresCaja
 
         manager.MapGet("/", async (int? sucursalId, int? cajaId, DateOnly desde, DateOnly hasta, IServicioCierresCaja servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarAsync(sucursalId, cajaId, desde, hasta, cancelacion)));
+
+        // Lo que el supervisor tiene por cuadrar en su sucursal, y el cuadre en sí.
+        manager.MapGet("/pendientes", async (int sucursalId, IServicioCierresCaja servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarPendientesDeCuadreAsync(sucursalId, cancelacion)));
+
+        manager.MapPost("/{cierreId:int}/cuadre", async (int cierreId, SolicitudCuadreCierre solicitud, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
+                CancellationToken cancelacion) =>
+            Responder(await servicio.CuadrarAsync(cierreId, solicitud, Actor(usuario), cancelacion)));
 
         manager.MapPost("/{cierreId:int}/ajustes", async (int cierreId, SolicitudAjusteCierre solicitud, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
                 CancellationToken cancelacion) =>

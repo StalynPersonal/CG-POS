@@ -79,12 +79,10 @@ internal static class DocumentosParaCentral
             movimiento.UsuarioAnteriorNombre, movimiento.AutorizadoPorNombre, movimiento.Fecha);
 
     public static DocumentoCierreTurno CierreTurno(DatosCierre cierre) =>
-        new(cierre.TurnoNumero, cierre.Numero, cierre.FechaOperacion, cierre.Ciego, cierre.FondoInicial, cierre.FondoEnCuadre, cierre.Moneda,
-            cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado, cierre.TotalDeclarado, cierre.Diferencia, cierre.UsuarioNombre,
+        new(cierre.TurnoNumero, cierre.Numero, cierre.FechaOperacion, cierre.FondoInicial, cierre.FondoEnCuadre, cierre.Moneda,
+            cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado, cierre.UsuarioNombre,
             cierre.AbiertoEn, cierre.CerradoEn,
-            cierre.FormasPago.Select(f => new DocumentoCierreFormaPago(f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado, f.Declarado,
-                f.Diferencia)).ToList(),
-            cierre.Denominaciones,
+            cierre.FormasPago.Select(f => new DocumentoCierreFormaPago(f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado)).ToList(),
             cierre.Movimientos.Select(MovimientoTurno).ToList());
 
     public static DocumentoMovimientoPuntos MovimientoPuntos(MovimientoPuntos movimiento) =>

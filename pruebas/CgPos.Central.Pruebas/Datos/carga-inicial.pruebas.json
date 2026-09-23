@@ -66,7 +66,10 @@
         "Devoluciones.AutorizarNotaCreditoInterna",
         "Pendientes.Marcar",
         "Cobro.AprobacionManualTarjeta",
-        "Fidelidad.CanjearPuntos"
+        "Fidelidad.CanjearPuntos",
+        "Cuadre.Consultar",
+        "Cuadre.Declarar",
+        "Cuadre.Corregir"
       ]
     },
     {
@@ -163,11 +166,6 @@
       "clave": "Ventas.CantidadMaximaDigitada",
       "valor": "10",
       "descripcion": "Cantidad máxima que el cajero puede digitar de un artículo de unidad entera"
-    },
-    {
-      "clave": "Caja.CierreCiego",
-      "valor": "true",
-      "descripcion": "El cajero declara el cierre sin ver lo esperado"
     },
     {
       "clave": "Caja.FondoEnCuadre",

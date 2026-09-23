@@ -189,7 +189,6 @@ public sealed class CierreTurno : Entidad
     public const int LargoMaximoMotivo = 250;
 
     private readonly List<CierreFormaPago> _formasPago = [];
-    private readonly List<CierreDenominacion> _denominaciones = [];
 
     private CierreTurno()
     {
@@ -215,7 +214,6 @@ public sealed class CierreTurno : Entidad
 
     public DateOnly FechaOperacion { get; private set; }
     public DateTimeOffset AbiertoEn { get; private set; }
-    public bool Ciego { get; private set; }
     public decimal FondoInicial { get; private set; }
     public bool FondoEnCuadre { get; private set; }
     public int CantidadVentas { get; private set; }
@@ -228,33 +226,25 @@ public sealed class CierreTurno : Entidad
     /// <summary>Totales en moneda local; las monedas extranjeras se cuadran aparte, en su moneda.</summary>
     public decimal TotalEsperado { get; private set; }
 
-    public decimal TotalDeclarado { get; private set; }
-
-    /// <summary>Declarado menos esperado: positivo es sobrante, negativo faltante.</summary>
-    public decimal Diferencia { get; private set; }
-
     public int UsuarioId { get; private set; }
     public string UsuarioNombre { get; private set; } = string.Empty;
     public DateTimeOffset CerradoEn { get; private set; }
 
     public IReadOnlyList<CierreFormaPago> FormasPago => _formasPago;
-    public IReadOnlyList<CierreDenominacion> Denominaciones => _denominaciones;
 
-    public static CierreTurno Registrar(Turno turno, int numero, bool ciego, bool fondoEnCuadre, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
-        IReadOnlyCollection<EsperadoFormaPago> esperados, IReadOnlyCollection<DeclaradoFormaPago> declarados, IReadOnlyCollection<ConteoDenominacion> conteo,
-        string monedaLocal, int usuarioId, string usuarioNombre, DateTimeOffset ahora)
+    /// <summary>
+    /// Cierra el turno con lo que la caja sabe: lo esperado por forma de pago. La cajera no declara ni cuenta —no ve los
+    /// montos—: entrega el dinero con el cuadre impreso y el supervisor lo declara después, en el módulo de cuadre del
+    /// Central. Por eso el cierre sale de aquí sin declarado ni diferencia.
+    /// </summary>
+    public static CierreTurno Registrar(Turno turno, int numero, bool fondoEnCuadre, int cantidadVentas, decimal totalVentas, decimal totalRetiros,
+        IReadOnlyCollection<EsperadoFormaPago> esperados, string monedaLocal, int usuarioId, string usuarioNombre, DateTimeOffset ahora)
     {
         ArgumentNullException.ThrowIfNull(turno);
         ArgumentOutOfRangeException.ThrowIfLessThan(numero, 1);
 
         if (!turno.EstaAbierto)
             throw new ReglaCierreExcepcion(CodigoErrorCierre.TurnoCerrado, "El turno ya está cerrado.");
-        if (declarados.Any(d => d.Monto < 0) || conteo.Any(c => c.Cantidad < 0))
-            throw new ReglaCierreExcepcion(CodigoErrorCierre.MontoInvalido, "Los montos y cantidades declarados no pueden ser negativos.");
-        if (declarados.Any(d => esperados.All(e => e.FormaPagoId != d.FormaPagoId)))
-            throw new ReglaCierreExcepcion(CodigoErrorCierre.FormaPagoDesconocida, "Se declaró una forma de pago que no existe en la caja.");
-        if (declarados.GroupBy(d => d.FormaPagoId).Any(grupo => grupo.Count() > 1))
-            throw new ReglaCierreExcepcion(CodigoErrorCierre.FormaPagoDesconocida, "Una forma de pago se declaró más de una vez.");
 
         var cierre = new CierreTurno
         {
@@ -268,7 +258,6 @@ public sealed class CierreTurno : Entidad
             Numero = numero,
             FechaOperacion = turno.FechaOperacion,
             AbiertoEn = turno.AbiertoEn,
-            Ciego = ciego,
             FondoInicial = turno.FondoInicial,
             FondoEnCuadre = fondoEnCuadre,
             Moneda = FormaPago.ValidarMoneda(monedaLocal),
@@ -280,36 +269,10 @@ public sealed class CierreTurno : Entidad
             CerradoEn = ahora,
         };
 
-        foreach (var item in conteo.Where(c => c.Cantidad > 0).OrderBy(c => c.Moneda).ThenByDescending(c => c.Valor))
-            cierre._denominaciones.Add(CierreDenominacion.Crear(cierre.Id, item));
-
-        // El conteo por denominaciones es lo declarado de la forma de efectivo de esa moneda que recibió pagos (o la primera por orden).
-        var destinosConteo = esperados.Where(e => ReglasCuadre.EsEfectivo(e.Tipo))
-            .GroupBy(e => e.Moneda)
-            .ToDictionary(grupo => grupo.Key, grupo => grupo.OrderByDescending(e => e.Transacciones > 0).ThenBy(e => e.Orden).First().FormaPagoId);
-
         foreach (var esperado in esperados.OrderBy(e => e.Orden))
-        {
-            var declaracion = declarados.FirstOrDefault(d => d.FormaPagoId == esperado.FormaPagoId);
-            var declarado = ReglasCuadre.Redondear(declaracion?.Monto ?? 0m);
-            var contado = cierre._denominaciones.Where(d => d.Moneda == esperado.Moneda).ToList();
+            cierre._formasPago.Add(CierreFormaPago.Crear(cierre.Id, esperado));
 
-            if (contado.Count > 0 && destinosConteo.TryGetValue(esperado.Moneda, out var destino) && destino == esperado.FormaPagoId)
-            {
-                var totalContado = contado.Sum(d => d.Importe);
-                if (declaracion is not null && declarado != totalContado)
-                    throw new ReglaCierreExcepcion(CodigoErrorCierre.ConteoNoCoincide,
-                        $"El efectivo declarado en {esperado.Nombre} ({declarado:N2}) no coincide con el conteo por denominaciones ({totalContado:N2}).");
-                declarado = totalContado;
-            }
-
-            cierre._formasPago.Add(CierreFormaPago.Crear(cierre.Id, esperado, declarado));
-        }
-
-        var locales = cierre._formasPago.Where(f => f.Moneda == cierre.Moneda).ToList();
-        cierre.TotalEsperado = locales.Sum(f => f.Esperado);
-        cierre.TotalDeclarado = locales.Sum(f => f.Declarado);
-        cierre.Diferencia = cierre.TotalDeclarado - cierre.TotalEsperado;
+        cierre.TotalEsperado = cierre._formasPago.Where(f => f.Moneda == cierre.Moneda).Sum(f => f.Esperado);
 
         turno.Cerrar(ahora);
         return cierre;
@@ -331,10 +294,8 @@ public sealed class CierreFormaPago : Entidad
     public int Orden { get; private set; }
     public int Transacciones { get; private set; }
     public decimal Esperado { get; private set; }
-    public decimal Declarado { get; private set; }
-    public decimal Diferencia { get; private set; }
 
-    internal static CierreFormaPago Crear(int cierreId, EsperadoFormaPago esperado, decimal declarado) =>
+    internal static CierreFormaPago Crear(int cierreId, EsperadoFormaPago esperado) =>
         new()
         {
             CierreTurnoId = cierreId,
@@ -346,34 +307,5 @@ public sealed class CierreFormaPago : Entidad
             Orden = esperado.Orden,
             Transacciones = esperado.Transacciones,
             Esperado = esperado.Esperado,
-            Declarado = declarado,
-            Diferencia = declarado - esperado.Esperado,
-        };
-}
-
-public sealed class CierreDenominacion : Entidad
-{
-    private CierreDenominacion()
-    {
-    }
-
-    public int CierreTurnoId { get; private set; }
-    public int DenominacionId { get; private set; }
-    public string Moneda { get; private set; } = string.Empty;
-    public decimal Valor { get; private set; }
-    public TipoDenominacion Tipo { get; private set; }
-    public int Cantidad { get; private set; }
-    public decimal Importe { get; private set; }
-
-    internal static CierreDenominacion Crear(int cierreId, ConteoDenominacion conteo) =>
-        new()
-        {
-            CierreTurnoId = cierreId,
-            DenominacionId = conteo.DenominacionId,
-            Moneda = conteo.Moneda,
-            Valor = conteo.Valor,
-            Tipo = conteo.Tipo,
-            Cantidad = conteo.Cantidad,
-            Importe = ReglasCuadre.Redondear(conteo.Valor * conteo.Cantidad),
         };
 }

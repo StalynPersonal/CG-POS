@@ -514,7 +514,7 @@ internal static class GeneradorTicket
 
         AgregarEncabezadoCaja(lineas, encabezado, cultura, esCopia);
         Agregar($"CIERRE DE TURNO Nº {cierre.TurnoNumero}", Estilo.Titulo);
-        Agregar($"Cierre {cierre.Numero}{(cierre.Ciego ? " · ciego" : string.Empty)} · Día {cierre.FechaOperacion.ToString("dd/MM/yyyy", cultura)}");
+        Agregar($"Cierre {cierre.Numero} · Día {cierre.FechaOperacion.ToString("dd/MM/yyyy", cultura)}");
         Agregar($"Apertura: {HoraLocal(encabezado, cierre.AbiertoEn, cultura)}");
         Agregar($"Cierre:   {HoraLocal(encabezado, cierre.CerradoEn, cultura)}");
         Agregar($"Cajero: {cierre.UsuarioNombre}");
@@ -525,28 +525,16 @@ internal static class GeneradorTicket
         Importe("Retiros", -cierre.TotalRetiros);
         Separador();
 
-        Agregar("CUADRE POR FORMA DE PAGO", Estilo.Negrita);
+        // Este papel es del supervisor: es contra lo que cuenta el dinero que le entrega la cajera.
+        Agregar("ESPERADO POR FORMA DE PAGO", Estilo.Negrita);
         foreach (var forma in cierre.FormasPago)
         {
             Agregar($"{forma.Nombre}{MonedaExtranjera(cierre.Moneda, forma.Moneda)} · {forma.Transacciones.ToString("N0", cultura)} trx");
             Importe("  Esperado", forma.Esperado);
-            Importe("  Declarado", forma.Declarado);
-            Importe("  Diferencia", forma.Diferencia, forma.Diferencia == 0m ? Estilo.Normal : Estilo.Negrita);
         }
         Separador();
         var simbolo = Simbolo(encabezado, cierre.Moneda);
-        var resultado = cierre.Diferencia switch { > 0m => "SOBRANTE", < 0m => "FALTANTE", _ => "CUADRADO" };
-        Importe($"TOTAL ESPERADO {simbolo}", cierre.TotalEsperado);
-        Importe($"TOTAL DECLARADO {simbolo}", cierre.TotalDeclarado);
-        Importe($"{resultado} {simbolo}", cierre.Diferencia, Estilo.Titulo);
-
-        if (cierre.Denominaciones.Count > 0)
-        {
-            Separador();
-            Agregar("CONTEO POR DENOMINACIONES", Estilo.Negrita);
-            foreach (var denominacion in cierre.Denominaciones)
-                Importe($"  {denominacion.Moneda} {denominacion.Valor.ToString("N2", cultura)} x {denominacion.Cantidad.ToString("N0", cultura)}", denominacion.Importe);
-        }
+        Importe($"TOTAL ESPERADO {simbolo}", cierre.TotalEsperado, Estilo.Titulo);
 
         var retiros = cierre.Movimientos.Where(m => m.Tipo == TipoMovimientoCaja.Retiro).ToList();
         if (retiros.Count > 0)

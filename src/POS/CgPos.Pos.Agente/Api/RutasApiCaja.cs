@@ -33,8 +33,7 @@ public static class RutasApiCaja
             ConSesion(usuario, async sesion => Resultado(await servicio.RelevarAsync(sesion, solicitud.AutorizacionId, cancelacion))));
 
         turno.MapPost("/cierre", (SolicitudCierreTurno solicitud, ClaimsPrincipal usuario, IServicioCaja servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.CerrarAsync(sesion, solicitud.Declaraciones ?? [], solicitud.Conteo ?? [],
-                solicitud.AutorizacionId, cancelacion))));
+            ConSesion(usuario, async sesion => Resultado(await servicio.CerrarAsync(sesion, solicitud.AutorizacionId, cancelacion))));
 
         var cierres = aplicacion.MapGroup("/api/caja/cierres").RequireAuthorization();
 

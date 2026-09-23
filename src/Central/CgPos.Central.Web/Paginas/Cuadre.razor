@@ -1,0 +1,294 @@
+﻿@page "/cuadre"
+@layout DisenoIngreso
+@using CgPos.Contratos.Catalogo
+@using CgPos.Dominio.Pagos
+@using CgPos.Dominio.Seguridad
+@inject ClienteCuadre Cliente
+
+<PageTitle>Cuadre de caja · CG-POS</PageTitle>
+
+@* Módulo de cuadre de la tienda: el supervisor entra con su usuario de caja y declara lo que contó de cada cierre. *@
+@if (!Cliente.Conectado)
+{
+    @* Ingreso propio: es el mismo usuario y la misma clave de la caja, no un usuario del Central. *@
+    <MudPaper Elevation="2" Class="pa-6 mx-auto mt-8" Style="max-width: 420px">
+        <MudText Typo="Typo.h5" Class="mb-1">Cuadre de caja</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Entre con su usuario y clave de la caja.</MudText>
+
+        @if (_mensaje is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_mensaje</MudAlert>
+        }
+
+        <MudTextField @bind-Value="_usuario" Label="Usuario" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+        <MudTextField @bind-Value="_clave" Label="Clave" Variant="Variant.Outlined" Margin="Margin.Dense" InputType="InputType.Password"
+                      OnKeyDown="AlTeclearClave" Class="mb-4" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_procesando" OnClick="IngresarAsync">Entrar</MudButton>
+    </MudPaper>
+}
+else
+{
+    <div class="cg-central__encabezado">
+        <div>
+            <MudText Typo="Typo.h4" Class="cg-central__titulo">Cuadre de caja</MudText>
+            <MudText Typo="Typo.body2" Class="cg-central__subtitulo">
+                @Cliente.Sesion!.Nombre · @Cliente.Sesion.RolNombre · Cuente el dinero que le entregó la cajera y declárelo aquí.
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Logout" OnClick="Salir">Salir</MudButton>
+    </div>
+
+    @if (_mensaje is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_mensaje</MudAlert>
+    }
+    @if (_aviso is not null)
+    {
+        <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">@_aviso</MudAlert>
+    }
+
+    <MudPaper Elevation="1">
+        @* Sucursal, cuando el supervisor atiende más de una. *@
+        <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+            @if (Cliente.Sesion!.Sucursales.Count > 1)
+            {
+                <div style="width: 260px">
+                    <MudSelect T="int" Value="_sucursalId" ValueChanged="CambiarSucursalAsync" Label="Sucursal" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        @foreach (var sucursal in Cliente.Sesion.Sucursales)
+                        {
+                            <MudSelectItem T="int" Value="@sucursal.Id">@sucursal.Codigo · @sucursal.Nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle1">@Cliente.Sesion.Sucursales[0].Codigo · @Cliente.Sesion.Sucursales[0].Nombre</MudText>
+            }
+            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="CargarAsync">Actualizar</MudButton>
+        </div>
+
+        @* Los cierres que las cajas entregaron y están esperando el conteo. *@
+        <MudTable T="DatosCierreCaja" Items="_pendientes" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="10">
+            <HeaderContent>
+                <MudTh>Caja</MudTh>
+                <MudTh>Turno</MudTh>
+                <MudTh>Día</MudTh>
+                <MudTh>Cajera</MudTh>
+                <MudTh Style="text-align: right">Esperado</MudTh>
+                <MudTh Style="width: 140px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+                <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
+                <MudTd DataLabel="Día">@context.FechaOperacion.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel="Cajera">@context.UsuarioNombre</MudTd>
+                <MudTd DataLabel="Esperado" Style="text-align: right">@context.TotalEsperado.ToString("N2")</MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!Cliente.Puede(CatalogoPermisos.DeclararCuadre))"
+                               OnClick="() => AbrirAsync(context)">Cuadrar</MudButton>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No hay cierres esperando cuadre en esta sucursal.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50 }" />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+
+    @if (_cierre is { } cierre)
+    {
+        @* Captura del cuadre: el efectivo se cuenta por denominaciones y las demás formas se digitan. *@
+        <MudDialog Visible="true" Options="@(new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true })">
+            <TitleContent>
+                <MudText Typo="Typo.h6">Caja @cierre.CajaCodigo · turno @cierre.TurnoNumero · @cierre.UsuarioNombre</MudText>
+            </TitleContent>
+            <DialogContent>
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Efectivo contado</MudText>
+                        @foreach (var denominacion in _denominaciones)
+                        {
+                            @* Una denominación: cuántos billetes o monedas hay de ese valor. *@
+                            <div class="d-flex align-center gap-3 mb-1">
+                                <MudText Typo="Typo.body2" Style="width: 140px">
+                                    @(denominacion.Tipo == TipoDenominacion.Billete ? "Billete" : "Moneda") @denominacion.Moneda @denominacion.Valor.ToString("N2")
+                                </MudText>
+                                <div style="width: 110px">
+                                    <MudNumericField T="int" Value="@Cantidad(denominacion.Id)" ValueChanged="@(valor => FijarCantidad(denominacion.Id, valor))"
+                                                     Min="0" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+                                </div>
+                                <MudText Typo="Typo.body2" Style="min-width: 110px; text-align: right">
+                                    @((denominacion.Valor * Cantidad(denominacion.Id)).ToString("N2"))
+                                </MudText>
+                            </div>
+                        }
+                        <MudText Typo="Typo.subtitle1" Class="mt-2">Total contado: @TotalContado.ToString("N2")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Lo entregado por forma de pago</MudText>
+                        @foreach (var forma in cierre.FormasPago)
+                        {
+                            @* Cada forma de pago con lo esperado al lado, que es contra lo que el supervisor compara. *@
+                            <div class="d-flex align-center gap-3 mb-1">
+                                <MudText Typo="Typo.body2" Style="width: 150px">@forma.Nombre@(forma.Moneda == cierre.FormasPago[0].Moneda ? string.Empty : $" ({forma.Moneda})")</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Style="width: 110px; text-align: right">@forma.Esperado.ToString("N2")</MudText>
+                                <div style="width: 140px">
+                                    @if (EsEfectivo(forma))
+                                    {
+                                        <MudNumericField T="decimal" Value="@TotalContadoDe(forma.Moneda)" ReadOnly="true" Variant="Variant.Outlined"
+                                                         Margin="Margin.Dense" Format="N2" HideSpinButtons="true" />
+                                    }
+                                    else
+                                    {
+                                        <MudNumericField T="decimal" Value="@Declarado(forma.Id)" ValueChanged="@(valor => FijarDeclarado(forma.Id, valor))"
+                                                         Min="0" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" HideSpinButtons="true" />
+                                    }
+                                </div>
+                            </div>
+                        }
+                        <MudText Typo="Typo.subtitle1" Class="mt-2">Total declarado: @TotalDeclarado(cierre).ToString("N2")</MudText>
+                        <MudText Typo="Typo.subtitle2" Color="@(Diferencia(cierre) == 0m ? Color.Success : Color.Error)">
+                            @EtiquetaDiferencia(Diferencia(cierre)): @Math.Abs(Diferencia(cierre)).ToString("N2")
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+                @if (_mensajeDialogo is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_mensajeDialogo</MudAlert>
+                }
+            </DialogContent>
+            <DialogActions>
+                <MudButton OnClick="Cerrar">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_procesando" OnClick="GuardarAsync">Guardar el cuadre</MudButton>
+            </DialogActions>
+        </MudDialog>
+    }
+}
+
+@code {
+    private string? _usuario;
+    private string? _clave;
+    private string? _mensaje;
+    private string? _aviso;
+    private string? _mensajeDialogo;
+    private bool _procesando;
+    private bool _cargando;
+
+    private int _sucursalId;
+    private IReadOnlyList<DatosCierreCaja> _pendientes = [];
+    private IReadOnlyList<DatosDenominacion> _denominaciones = [];
+
+    private DatosCierreCaja? _cierre;
+    private readonly Dictionary<int, int> _cantidades = [];
+    private readonly Dictionary<int, decimal> _declarados = [];
+
+    private async Task AlTeclearClave(KeyboardEventArgs tecla)
+    {
+        if (tecla.Key is "Enter" or "NumpadEnter")
+            await IngresarAsync();
+    }
+
+    private async Task IngresarAsync()
+    {
+        _procesando = true;
+        _mensaje = await Cliente.IngresarAsync(_usuario ?? string.Empty, _clave ?? string.Empty);
+        _procesando = false;
+        _clave = null;
+        if (_mensaje is not null)
+            return;
+
+        _sucursalId = Cliente.Sesion!.Sucursales[0].Id;
+        await CargarAsync();
+    }
+
+    private void Salir()
+    {
+        Cliente.Salir();
+        (_pendientes, _denominaciones, _cierre, _aviso) = ([], [], null, null);
+    }
+
+    private async Task CambiarSucursalAsync(int sucursalId)
+    {
+        _sucursalId = sucursalId;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _pendientes = await Cliente.PendientesAsync(_sucursalId);
+        if (_denominaciones.Count == 0)
+            _denominaciones = await Cliente.DenominacionesAsync();
+        _cargando = false;
+    }
+
+    private Task AbrirAsync(DatosCierreCaja cierre)
+    {
+        _cierre = cierre;
+        _mensajeDialogo = null;
+        _cantidades.Clear();
+        _declarados.Clear();
+        return Task.CompletedTask;
+    }
+
+    private void Cerrar() => (_cierre, _mensajeDialogo) = (null, null);
+
+    private int Cantidad(int denominacionId) => _cantidades.GetValueOrDefault(denominacionId);
+
+    private void FijarCantidad(int denominacionId, int cantidad) => _cantidades[denominacionId] = Math.Max(0, cantidad);
+
+    private decimal Declarado(int formaPagoId) => _declarados.GetValueOrDefault(formaPagoId);
+
+    private void FijarDeclarado(int formaPagoId, decimal monto) => _declarados[formaPagoId] = Math.Max(0m, monto);
+
+    private static bool EsEfectivo(DatosFormaPagoCierreCaja forma) => forma.Tipo == TipoFormaPago.Efectivo;
+
+    private decimal TotalContado => _denominaciones.Sum(d => d.Valor * Cantidad(d.Id));
+
+    private decimal TotalContadoDe(string moneda) => _denominaciones.Where(d => d.Moneda == moneda).Sum(d => d.Valor * Cantidad(d.Id));
+
+    private decimal TotalDeclarado(DatosCierreCaja cierre) =>
+        cierre.FormasPago.Sum(f => EsEfectivo(f) ? TotalContadoDe(f.Moneda) : Declarado(f.Id));
+
+    private decimal Diferencia(DatosCierreCaja cierre) => TotalDeclarado(cierre) - cierre.TotalEsperado;
+
+    private static string EtiquetaDiferencia(decimal diferencia) => diferencia switch
+    {
+        < 0m => "Faltante",
+        > 0m => "Sobrante",
+        _ => "Cuadrado",
+    };
+
+    private async Task GuardarAsync()
+    {
+        if (_cierre is not { } cierre)
+            return;
+
+        _procesando = true;
+        _mensajeDialogo = null;
+
+        var declarados = cierre.FormasPago
+            .Select(f => new SolicitudDeclaracionCuadre(f.Id, EsEfectivo(f) ? TotalContadoDe(f.Moneda) : Declarado(f.Id)))
+            .ToList();
+        var conteo = _denominaciones
+            .Select(d => new SolicitudConteoCuadre(d.Id, Cantidad(d.Id)))
+            .Where(c => c.Cantidad > 0)
+            .ToList();
+
+        var respuesta = await Cliente.CuadrarAsync(cierre.Id, new SolicitudCuadreCierre(declarados, conteo));
+        _procesando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            _mensajeDialogo = respuesta.Mensaje;
+            return;
+        }
+
+        _aviso = $"Caja {cierre.CajaCodigo}, turno {cierre.TurnoNumero}: cuadrado.";
+        Cerrar();
+        await CargarAsync();
+    }
+}
