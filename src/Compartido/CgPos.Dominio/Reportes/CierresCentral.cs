@@ -16,6 +16,7 @@ public sealed class CierreTurnoCentral : Entidad
 
     private readonly List<CierreFormaPagoCentral> _formasPago = [];
     private readonly List<CierreDenominacionCentral> _denominaciones = [];
+    private readonly List<CierreMovimientoCentral> _movimientos = [];
     private readonly List<AjusteCierreTurno> _ajustes = [];
 
     private CierreTurnoCentral()
@@ -46,6 +47,9 @@ public sealed class CierreTurnoCentral : Entidad
 
     /// <summary>El efectivo contado por el supervisor al cuadrar, denominación por denominación.</summary>
     public IReadOnlyList<CierreDenominacionCentral> Denominaciones => _denominaciones;
+
+    /// <summary>Lo que pasó durante el turno y explica el efectivo: retiros, reembolsos y relevos, con su motivo y quién autorizó.</summary>
+    public IReadOnlyList<CierreMovimientoCentral> Movimientos => _movimientos;
 
     /// <summary>Quién declaró el cuadre y cuándo; vacío mientras el cierre está pendiente.</summary>
     public string? CuadradoPor { get; private set; }
@@ -128,6 +132,19 @@ public sealed class CierreTurnoCentral : Entidad
                 Esperado = forma.Esperado,
             });
         }
+    }
+
+    /// <summary>
+    /// Los retiros, reembolsos y relevos del turno, como los informó la caja. No los toca el cuadre: son hechos de la
+    /// terminal, y son los que explican por qué el efectivo esperado no es todo lo que se vendió.
+    /// </summary>
+    public void ReemplazarMovimientos(IEnumerable<MovimientoInformado> movimientos)
+    {
+        ArgumentNullException.ThrowIfNull(movimientos);
+
+        _movimientos.Clear();
+        foreach (var movimiento in movimientos.OrderBy(m => m.Fecha))
+            _movimientos.Add(CierreMovimientoCentral.Crear(Id, movimiento, Moneda));
     }
 
     /// <summary>
@@ -300,5 +317,61 @@ public sealed class CierreDenominacionCentral : Entidad
             Tipo = conteo.Tipo,
             Cantidad = conteo.Cantidad,
             Importe = decimal.Round(conteo.Valor * conteo.Cantidad, 2, MidpointRounding.AwayFromZero),
+        };
+}
+
+/// <summary>Un movimiento del turno tal como lo informó la caja, para guardarlo en el Central.</summary>
+/// <param name="UsuarioAnteriorNombre">Solo en el relevo: a quién se le entregó el turno.</param>
+public sealed record MovimientoInformado(
+    TipoMovimientoCaja Tipo,
+    int Numero,
+    decimal Monto,
+    string? Moneda,
+    string? Motivo,
+    string UsuarioNombre,
+    string? UsuarioAnteriorNombre,
+    string? AutorizadoPorNombre,
+    DateTimeOffset Fecha);
+
+/// <summary>
+/// Retiro, reembolso o relevo ocurrido durante el turno. Es lo que explica la diferencia entre lo que se vendió y el
+/// efectivo que se entrega, y en el módulo de cuadre se consulta con su motivo y quién lo autorizó.
+/// </summary>
+public sealed class CierreMovimientoCentral : Entidad
+{
+    private CierreMovimientoCentral()
+    {
+    }
+
+    public int CierreId { get; private set; }
+    public TipoMovimientoCaja Tipo { get; private set; }
+
+    /// <summary>El número del comprobante que imprimió la caja, para buscarlo en el papel.</summary>
+    public int Numero { get; private set; }
+
+    public decimal Monto { get; private set; }
+    public string Moneda { get; private set; } = string.Empty;
+    public string? Motivo { get; private set; }
+
+    /// <summary>Quién lo hizo; en el relevo, el cajero que recibe el turno.</summary>
+    public string UsuarioNombre { get; private set; } = string.Empty;
+
+    public string? UsuarioAnteriorNombre { get; private set; }
+    public string? AutorizadoPorNombre { get; private set; }
+    public DateTimeOffset Fecha { get; private set; }
+
+    internal static CierreMovimientoCentral Crear(int cierreId, MovimientoInformado movimiento, string monedaCierre) =>
+        new()
+        {
+            CierreId = cierreId,
+            Tipo = movimiento.Tipo,
+            Numero = movimiento.Numero,
+            Monto = movimiento.Monto,
+            Moneda = Validar.TextoOpcional(movimiento.Moneda, "Moneda", CierreTurnoCentral.LargoMaximoMoneda)?.ToUpperInvariant() ?? monedaCierre,
+            Motivo = Validar.TextoOpcional(movimiento.Motivo, "Motivo", CierreTurnoCentral.LargoMaximoMotivo),
+            UsuarioNombre = Validar.TextoOpcional(movimiento.UsuarioNombre, "Usuario", CierreTurnoCentral.LargoMaximoTexto) ?? string.Empty,
+            UsuarioAnteriorNombre = Validar.TextoOpcional(movimiento.UsuarioAnteriorNombre, "Usuario anterior", CierreTurnoCentral.LargoMaximoTexto),
+            AutorizadoPorNombre = Validar.TextoOpcional(movimiento.AutorizadoPorNombre, "Autorizó", CierreTurnoCentral.LargoMaximoTexto),
+            Fecha = movimiento.Fecha,
         };
 }

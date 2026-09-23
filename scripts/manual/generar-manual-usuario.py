@@ -595,10 +595,13 @@ paso('Desactivar una secuencia impide crear ese documento y conserva el contador
 
 titulo('2.17. Cierre consolidado de sucursal', 2)
 p('Ruta: /cierres-sucursal. Es el cierre del día de toda la sucursal.')
-paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta (si algún turno no ha cerrado, lo dice).')
+paso('Elija la sucursal y el día y presione Preparar: se ven todos los cierres de caja, las formas de pago sumadas y lo que falta '
+     '(si algún turno no ha cerrado, o está cerrado pero sin cuadrar, lo dice).')
 paso('El sistema calcula el efectivo a depositar por moneda (las tarjetas y transferencias no se depositan).')
 paso('Registre los depósitos: banco, número de boleta, monto y fecha. Puede ser más de uno.')
 paso('Cierre la sucursal: queda la diferencia entre lo depositado y lo que había que depositar, y ya no se modifica.')
+nota('No se consolida el día mientras quede un cierre sin cuadrar: ese turno no tiene declarado, y dar por bueno un dinero que '
+     'nadie contó es justo lo que el módulo de cuadre viene a evitar.')
 nota('Si una caja informa un cierre de ese día después de consolidar, el consolidado no cambia, pero la lista lo avisa.')
 
 titulo('2.18. Módulo de cuadre', 2)
@@ -620,6 +623,14 @@ tabla(['Permiso', 'Quién lo suele tener', 'Qué puede hacer'],
        ['Cuadre.Declarar', 'Supervisor', 'Cuadrar los cierres pendientes de su sucursal.'],
        ['Cuadre.Corregir', 'El rol que decida el negocio', 'Corregir un cuadre ya hecho, con motivo, mientras el día no esté consolidado.']],
       anchos=[4.0, 4.5, 8.5])
+p('La pantalla tiene cinco pestañas, todas de la sucursal y las fechas que se elijan arriba:')
+tabla(['Pestaña', 'Para qué sirve'],
+      [['Por cuadrar', 'Los cierres que las cajas entregaron y nadie ha contado; es con lo que se entra a trabajar.'],
+       ['Cierres', 'Todos los del período con su esperado, declarado, diferencia y estado. Desde aquí se reimprime el cuadre en PDF y se corrige, y un interruptor deja ver solo los cuadres corregidos.'],
+       ['Resumen del día', 'El día de la sucursal sumado por forma de pago, con el aviso de cuántas cajas faltan por cuadrar.'],
+       ['Diferencias por cajera', 'Faltantes, sobrantes y neto de cada cajera en el período.'],
+       ['Retiros y relevos', 'Los retiros, reembolsos y relevos de los turnos, con su monto, su motivo y quién los autorizó.']],
+      anchos=[4.0, 13.0])
 nota('El turno cierra en la caja aunque el Central esté caído: el cuadre espera. La caja nunca se queda trancada por la red.')
 nota('Corregir no borra nada: queda lo que se había declarado, lo nuevo, el motivo y quién lo corrigió. Contabilidad corrige '
      'desde Cierres de caja, en el Central, incluso después de consolidar el día.')

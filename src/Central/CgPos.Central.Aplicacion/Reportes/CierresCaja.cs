@@ -27,4 +27,18 @@ public interface IServicioCierresCaja
 
     /// <summary>Corrige lo declarado en una forma de pago del cierre. No se puede si su día ya se consolidó en la sucursal.</summary>
     Task<ResultadoAdministracion> AjustarAsync(int cierreId, SolicitudAjusteCierre solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    /// <summary>El día de una sucursal sumado por forma de pago, con las cajas que todavía faltan por cuadrar.</summary>
+    Task<DatosResumenCuadre> ResumenDelDiaAsync(int sucursalId, DateOnly dia, CancellationToken cancelacion = default);
+
+    /// <summary>Lo que le faltó y le sobró a cada cajera en el período.</summary>
+    Task<IReadOnlyList<DatosDiferenciaCajero>> DiferenciasPorCajeroAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default);
+
+    /// <summary>Retiros, reembolsos y relevos de los turnos del período, con motivo y quién autorizó.</summary>
+    Task<IReadOnlyList<DatosMovimientoTurno>> MovimientosAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// El cuadre de un cierre en PDF carta, para volver a imprimirlo; nulo si el cierre no existe o no es de esa sucursal.
+    /// </summary>
+    Task<ArchivoReporte?> CuadreEnPdfAsync(int cierreId, int? sucursalId, CancellationToken cancelacion = default);
 }

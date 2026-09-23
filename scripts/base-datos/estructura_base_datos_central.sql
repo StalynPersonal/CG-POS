@@ -88,6 +88,10 @@ CREATE SEQUENCE [SecuenciaCierresTurnoDenominaciones] AS int START WITH 1 INCREM
 GO
 
 
+CREATE SEQUENCE [SecuenciaCierresTurnoMovimientos] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaClientes] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -1407,6 +1411,24 @@ CREATE TABLE [CierresTurnoDenominaciones] (
 GO
 
 
+CREATE TABLE [CierresTurnoMovimientos] (
+    [Id] int NOT NULL,
+    [CierreId] int NOT NULL,
+    [Tipo] int NOT NULL,
+    [Numero] int NOT NULL,
+    [Monto] decimal(18,2) NOT NULL,
+    [Moneda] char(3) NOT NULL,
+    [Motivo] nvarchar(500) NULL,
+    [UsuarioNombre] nvarchar(200) NOT NULL,
+    [UsuarioAnteriorNombre] nvarchar(200) NULL,
+    [AutorizadoPorNombre] nvarchar(200) NULL,
+    [Fecha] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_CierresTurnoMovimientos] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresTurnoMovimientos_CierresTurno_CierreId] FOREIGN KEY ([CierreId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [ComprobantesRecibidos] (
     [Id] int NOT NULL,
     [DocumentoId] int NOT NULL,
@@ -1678,6 +1700,10 @@ GO
 
 
 CREATE INDEX [IX_CierresTurnoDenominaciones_CierreId] ON [CierresTurnoDenominaciones] ([CierreId]);
+GO
+
+
+CREATE INDEX [IX_CierresTurnoMovimientos_CierreId] ON [CierresTurnoMovimientos] ([CierreId]);
 GO
 
 

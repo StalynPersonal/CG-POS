@@ -83,7 +83,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
     {
         ArgumentNullException.ThrowIfNull(cierre);
         var ahora = reloj.Ahora();
-        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Ajustes)
+        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Ajustes).Include(c => c.Movimientos)
             .SingleOrDefaultAsync(c => c.CajaId == cajaId && c.TurnoNumero == cierre.TurnoNumero, cancelacion);
 
         if (registrado is null)
@@ -97,6 +97,8 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
         registrado.Actualizar(cierre.UsuarioNombre, cierre.FondoInicial, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros,
             cierre.TotalEsperado, ahora);
         registrado.ReemplazarFormasPago(cierre.FormasPago.Select(f => (f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado)));
+        registrado.ReemplazarMovimientos(cierre.Movimientos.Select(m => new MovimientoInformado(m.Tipo, m.Numero, m.Monto, m.Moneda, m.Motivo,
+            m.UsuarioNombre, m.UsuarioAnteriorNombre, m.AutorizadoPorNombre, m.Fecha)));
     }
 
     /// <summary>

@@ -160,6 +160,10 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
         foreach (var turno in turnosConVentas.Where(t => !cerrados.Contains((t.CajaId, t.TurnoNumero))).OrderBy(t => t.CajaId).ThenBy(t => t.TurnoNumero))
             pendientes.Add($"La caja {cajas.GetValueOrDefault(turno.CajaId)} tiene el turno {turno.TurnoNumero} con ventas y sin cierre recibido.");
 
+        // Un cierre sin cuadrar no tiene declarado: consolidar con él daría un día cuadrado con dinero que nadie contó.
+        foreach (var cierre in cierres.Where(c => c.PendienteDeCuadre).OrderBy(c => c.CajaId).ThenBy(c => c.TurnoNumero))
+            pendientes.Add($"El turno {cierre.TurnoNumero} de la caja {cajas.GetValueOrDefault(cierre.CajaId)} está sin cuadrar: el supervisor tiene que declarar lo que contó.");
+
         return pendientes;
     }
 

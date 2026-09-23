@@ -156,6 +156,82 @@ internal sealed class ServicioCierresCaja(ContextoDatosCentral contexto, IAudito
         return ResultadoAdministracion.Correcto(cierre.Id);
     }
 
+    /// <summary>
+    /// El día de la sucursal sumado por forma de pago. Los cierres que todavía nadie cuadró entran con su esperado pero sin
+    /// declarado: se cuentan aparte, porque mientras falte una caja el resumen no está completo.
+    /// </summary>
+    public async Task<DatosResumenCuadre> ResumenDelDiaAsync(int sucursalId, DateOnly dia, CancellationToken cancelacion = default)
+    {
+        var cierres = await contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).AsSplitQuery()
+            .Where(c => c.SucursalId == sucursalId && c.FechaOperacion == dia)
+            .ToListAsync(cancelacion);
+
+        var formas = cierres.SelectMany(c => c.FormasPago)
+            .GroupBy(f => (f.Nombre, f.Tipo, f.Moneda))
+            .OrderBy(g => g.Key.Moneda, StringComparer.Ordinal).ThenBy(g => g.Key.Nombre, StringComparer.Ordinal)
+            .Select(g => new DatosResumenFormaPagoCuadre(g.Key.Nombre, g.Key.Tipo, g.Key.Moneda, g.Sum(f => f.Transacciones),
+                g.Sum(f => f.Esperado), g.Sum(f => f.Declarado), g.Sum(f => f.Declarado - f.Esperado)))
+            .ToList();
+
+        return new DatosResumenCuadre(dia, cierres.Count, cierres.Count(c => c.PendienteDeCuadre),
+            cierres.Sum(c => c.TotalVentas), cierres.Sum(c => c.TotalEsperado), cierres.Sum(c => c.TotalDeclarado),
+            cierres.Where(c => !c.PendienteDeCuadre).Sum(c => c.Diferencia), formas);
+    }
+
+    /// <summary>Lo que le faltó y le sobró a cada cajera; solo cuentan los cierres ya cuadrados, que son los que tienen conteo.</summary>
+    public async Task<IReadOnlyList<DatosDiferenciaCajero>> DiferenciasPorCajeroAsync(int sucursalId, DateOnly desde, DateOnly hasta,
+        CancellationToken cancelacion = default)
+    {
+        var cierres = await contexto.CierresTurno.AsNoTracking()
+            .Where(c => c.SucursalId == sucursalId && c.FechaOperacion >= desde && c.FechaOperacion <= hasta && c.CuadradoEn != null)
+            .Select(c => new { c.UsuarioNombre, c.Diferencia })
+            .ToListAsync(cancelacion);
+
+        return cierres.GroupBy(c => c.UsuarioNombre)
+            .Select(g => new DatosDiferenciaCajero(g.Key, g.Count(), g.Count(c => c.Diferencia != 0m),
+                g.Where(c => c.Diferencia < 0m).Sum(c => -c.Diferencia),
+                g.Where(c => c.Diferencia > 0m).Sum(c => c.Diferencia),
+                g.Sum(c => c.Diferencia)))
+            .OrderBy(d => d.Diferencia)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<DatosMovimientoTurno>> MovimientosAsync(int sucursalId, DateOnly desde, DateOnly hasta,
+        CancellationToken cancelacion = default)
+    {
+        var cierres = await contexto.CierresTurno.AsNoTracking().Include(c => c.Movimientos).AsSplitQuery()
+            .Where(c => c.SucursalId == sucursalId && c.FechaOperacion >= desde && c.FechaOperacion <= hasta)
+            .ToListAsync(cancelacion);
+        if (cierres.Count == 0)
+            return [];
+
+        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
+
+        return cierres
+            .SelectMany(c => c.Movimientos.Select(m => new DatosMovimientoTurno(c.FechaOperacion, cajas.GetValueOrDefault(c.CajaId) ?? string.Empty,
+                c.TurnoNumero, m.Tipo, m.Numero, m.Monto, m.Moneda, m.Motivo, m.UsuarioNombre, m.UsuarioAnteriorNombre, m.AutorizadoPorNombre, m.Fecha)))
+            .OrderByDescending(m => m.Fecha)
+            .ToList();
+    }
+
+    public async Task<ArchivoReporte?> CuadreEnPdfAsync(int cierreId, int? sucursalId, CancellationToken cancelacion = default)
+    {
+        var cierre = await contexto.CierresTurno.AsNoTracking()
+            .Include(c => c.FormasPago).Include(c => c.Denominaciones).Include(c => c.Movimientos).Include(c => c.Ajustes).AsSplitQuery()
+            .SingleOrDefaultAsync(c => c.Id == cierreId && (sucursalId == null || c.SucursalId == sucursalId), cancelacion);
+        if (cierre is null)
+            return null;
+
+        var sucursal = await contexto.Sucursales.AsNoTracking().Where(s => s.Id == cierre.SucursalId).Select(s => $"{s.Codigo} {s.Nombre}").SingleAsync(cancelacion);
+        var caja = await contexto.Cajas.AsNoTracking().Where(c => c.Id == cierre.CajaId).Select(c => c.Codigo).SingleAsync(cancelacion);
+        var empresa = await contexto.Empresas.AsNoTracking().SingleAsync(cancelacion);
+
+        var pdf = GeneradorPdfCuadre.Crear(cierre, sucursal, caja,
+            new EmpresaEnDocumento(empresa.NombreComercial ?? empresa.RazonSocial, empresa.Rnc, empresa.Direccion, empresa.Telefono));
+
+        return new ArchivoReporte($"Cuadre-{caja}-{cierre.TurnoNumero}.pdf", "application/pdf", pdf);
+    }
+
     /// <summary>Los pares sucursal y día que ya tienen su cierre consolidado: esos cierres no se pueden corregir.</summary>
     private async Task<HashSet<(int SucursalId, DateOnly Fecha)>> ConsolidadosAsync(IReadOnlyList<CierreTurnoCentral> cierres, CancellationToken cancelacion)
     {

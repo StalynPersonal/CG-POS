@@ -1,4 +1,5 @@
 ﻿using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Turnos;
 
 namespace CgPos.Contratos.Central;
 
@@ -78,3 +79,55 @@ public sealed record RespuestaSesionCuadre(
     string? TokenAcceso = null,
     DateTimeOffset? ExpiraEn = null,
     DatosSesionCuadre? Sesion = null);
+
+
+// ---------- Reportes del módulo de cuadre ----------
+
+/// <summary>
+/// El día de una sucursal visto de una sola vez: cuánto se esperaba y cuánto se declaró en cada forma de pago, y cuántas
+/// cajas faltan por cuadrar. Es lo que el gerente mira antes de mandar el depósito.
+/// </summary>
+/// <param name="CajasPendientes">Cierres del día que todavía nadie ha cuadrado: mientras haya, el resumen está incompleto.</param>
+public sealed record DatosResumenCuadre(
+    DateOnly Dia,
+    int Cierres,
+    int CajasPendientes,
+    decimal TotalVentas,
+    decimal TotalEsperado,
+    decimal TotalDeclarado,
+    decimal Diferencia,
+    IReadOnlyList<DatosResumenFormaPagoCuadre> FormasPago);
+
+public sealed record DatosResumenFormaPagoCuadre(
+    string Nombre,
+    TipoFormaPago Tipo,
+    string Moneda,
+    int Transacciones,
+    decimal Esperado,
+    decimal Declarado,
+    decimal Diferencia);
+
+/// <summary>Lo que le ha faltado y sobrado a cada cajera en el período; la diferencia es suya aunque la declare el supervisor.</summary>
+/// <param name="Faltantes">Suma de los faltantes, en positivo.</param>
+public sealed record DatosDiferenciaCajero(
+    string UsuarioNombre,
+    int Cierres,
+    int CierresConDiferencia,
+    decimal Faltantes,
+    decimal Sobrantes,
+    decimal Diferencia);
+
+/// <summary>Un retiro, reembolso o relevo del turno, con su motivo y quién lo autorizó.</summary>
+public sealed record DatosMovimientoTurno(
+    DateOnly FechaOperacion,
+    string CajaCodigo,
+    long TurnoNumero,
+    TipoMovimientoCaja Tipo,
+    int Numero,
+    decimal Monto,
+    string Moneda,
+    string? Motivo,
+    string UsuarioNombre,
+    string? UsuarioAnteriorNombre,
+    string? AutorizadoPorNombre,
+    DateTimeOffset Fecha);

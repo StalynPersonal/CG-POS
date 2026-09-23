@@ -6,6 +6,7 @@ using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Turnos;
 using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Pruebas.Api;
@@ -75,6 +76,61 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
+    public async Task Los_reportes_del_modulo_muestran_el_dia_las_diferencias_de_la_cajera_y_los_retiros()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+
+        var dia = DateOnly.FromDateTime(DateTime.Today).AddDays(-Random.Shared.Next(1_000, 2_000));
+        var turno = Random.Shared.NextInt64(1_000, 999_999);
+        var cajera = $"Cajera {turno}";
+        var retiro = new DocumentoMovimientoTurno(TipoMovimientoCaja.Retiro, 1, 2000m, "DOP", "Se llevó el exceso a la bóveda", cajera, null,
+            "Supervisor Desarrollo", new DateTimeOffset(dia.ToDateTime(new TimeOnly(14, 0)), TimeSpan.FromHours(-4)));
+        Assert.Equal(EstadoRecepcion.Recibido,
+            await EnviarCierreAsync(cliente, tokenCaja, dia, turno, esperado: 3000m, tarjeta: 1500m, cajera: cajera, movimientos: [retiro]));
+
+        var sesion = await IngresarAsync(cliente, "S001", "Supervisor.2026");
+        var token = sesion.TokenAcceso!;
+        var sucursal = sesion.Sesion!.Sucursales[0].Id;
+
+        // Antes de cuadrar, el día ya se puede mirar: se ve lo esperado y que falta una caja por contar.
+        var pendiente = Assert.Single(await PendientesAsync(cliente, token, sucursal), c => c.TurnoNumero == turno);
+        var antes = await ResumenAsync(cliente, token, sucursal, dia);
+        Assert.Equal((1, 4500m), (antes.CajasPendientes, antes.TotalEsperado));
+
+        var efectivo = pendiente.FormasPago.Single(f => f.Tipo == TipoFormaPago.Efectivo);
+        var tarjeta = pendiente.FormasPago.Single(f => f.Tipo == TipoFormaPago.Tarjeta);
+        var billete = (await DenominacionesAsync(cliente, token)).First(d => d.Moneda == "DOP" && d.Valor == 1000m);
+        Assert.True((await CuadrarAsync(cliente, token, pendiente.Id, new SolicitudCuadreCierre(
+            [new SolicitudDeclaracionCuadre(efectivo.Id, 3000m), new SolicitudDeclaracionCuadre(tarjeta.Id, 1600m)],
+            [new SolicitudConteoCuadre(billete.Id, 3)]))).Cuerpo!.Exitosa);
+
+        // El resumen del día suma por forma de pago y ya no tiene cajas pendientes.
+        var resumen = await ResumenAsync(cliente, token, sucursal, dia);
+        Assert.Equal((0, 4600m, 100m), (resumen.CajasPendientes, resumen.TotalDeclarado, resumen.Diferencia));
+        Assert.Equal(1500m, resumen.FormasPago.Single(f => f.Tipo == TipoFormaPago.Tarjeta).Esperado);
+
+        // A la cajera le sobraron 100 pesos, y la diferencia es suya.
+        var diferencia = Assert.Single(await DiferenciasAsync(cliente, token, sucursal, dia), d => d.UsuarioNombre == cajera);
+        Assert.Equal((1, 1, 0m, 100m), (diferencia.Cierres, diferencia.CierresConDiferencia, diferencia.Faltantes, diferencia.Sobrantes));
+
+        // El retiro del turno se guardó con su motivo y con quién lo autorizó.
+        var movimiento = Assert.Single(await MovimientosAsync(cliente, token, sucursal, dia));
+        Assert.Equal((TipoMovimientoCaja.Retiro, 2000m, "Supervisor Desarrollo"),
+            (movimiento.Tipo, movimiento.Monto, movimiento.AutorizadoPorNombre));
+
+        // Y el cuadre se vuelve a imprimir.
+        var pdf = await DescargarCuadreAsync(cliente, token, pendiente.Id, sucursal);
+        Assert.StartsWith("%PDF", System.Text.Encoding.ASCII.GetString(pdf[..4]), StringComparison.Ordinal);
+
+        // El supervisor no imprime ni consulta lo de otra sucursal.
+        using var ajena = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/cuadre/resumen?sucursalId={sucursal + 1000}&dia={dia:yyyy-MM-dd}", token));
+        Assert.Equal(HttpStatusCode.Forbidden, ajena.StatusCode);
+    }
+
+    [SkippableFact]
     public async Task El_cajero_sin_permiso_de_cuadre_no_entra_al_modulo()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
@@ -99,6 +155,24 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
     private static async Task<IReadOnlyList<DatosCierreCaja>> CierresAsync(HttpClient cliente, string token, int sucursalId, DateOnly dia) =>
         await ObtenerAsync<List<DatosCierreCaja>>(cliente, token, $"/api/cuadre/cierres?sucursalId={sucursalId}&desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}");
 
+    private static async Task<DatosResumenCuadre> ResumenAsync(HttpClient cliente, string token, int sucursalId, DateOnly dia) =>
+        await ObtenerAsync<DatosResumenCuadre>(cliente, token, $"/api/cuadre/resumen?sucursalId={sucursalId}&dia={dia:yyyy-MM-dd}");
+
+    private static async Task<IReadOnlyList<DatosDiferenciaCajero>> DiferenciasAsync(HttpClient cliente, string token, int sucursalId, DateOnly dia) =>
+        await ObtenerAsync<List<DatosDiferenciaCajero>>(cliente, token,
+            $"/api/cuadre/diferencias?sucursalId={sucursalId}&desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}");
+
+    private static async Task<IReadOnlyList<DatosMovimientoTurno>> MovimientosAsync(HttpClient cliente, string token, int sucursalId, DateOnly dia) =>
+        await ObtenerAsync<List<DatosMovimientoTurno>>(cliente, token,
+            $"/api/cuadre/movimientos?sucursalId={sucursalId}&desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}");
+
+    private static async Task<byte[]> DescargarCuadreAsync(HttpClient cliente, string token, int cierreId, int sucursalId)
+    {
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, $"/api/cuadre/{cierreId}/pdf?sucursalId={sucursalId}", token));
+        respuesta.EnsureSuccessStatusCode();
+        return await respuesta.Content.ReadAsByteArrayAsync();
+    }
+
     private static async Task<IReadOnlyList<CgPos.Contratos.Catalogo.DatosDenominacion>> DenominacionesAsync(HttpClient cliente, string token) =>
         await ObtenerAsync<List<CgPos.Contratos.Catalogo.DatosDenominacion>>(cliente, token, "/api/cuadre/denominaciones");
 
@@ -116,16 +190,17 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
         return (respuesta.StatusCode, await respuesta.Content.ReadFromJsonAsync<RespuestaAdministracion>(OpcionesJson.Predeterminadas));
     }
 
-    private static async Task<EstadoRecepcion?> EnviarCierreAsync(HttpClient cliente, string token, DateOnly dia, long turno, decimal esperado, decimal tarjeta)
+    private static async Task<EstadoRecepcion?> EnviarCierreAsync(HttpClient cliente, string token, DateOnly dia, long turno, decimal esperado, decimal tarjeta,
+        string cajera = "Cajero Desarrollo", IReadOnlyList<DocumentoMovimientoTurno>? movimientos = null)
     {
-        var cierre = new DocumentoCierreTurno(turno, 1, dia, 0m, false, "DOP", 8, esperado + tarjeta, 0m, esperado + tarjeta, "Cajero Desarrollo",
+        var cierre = new DocumentoCierreTurno(turno, 1, dia, 0m, false, "DOP", 8, esperado + tarjeta, 0m, esperado + tarjeta, cajera,
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(18, 0)), TimeSpan.FromHours(-4)),
             [
                 new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 8, esperado),
                 new DocumentoCierreFormaPago("TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 2, tarjeta),
             ],
-            []);
+            movimientos ?? []);
 
         var (sucursal, caja) = CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno);
         var contenido = JsonSerializer.Serialize(cierre, OpcionesJson.Predeterminadas);

@@ -56,6 +56,50 @@ public sealed class ClienteCuadre(IHttpClientFactory fabricaHttp)
     public Task<IReadOnlyList<DatosCierreCaja>> CierresAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default) =>
         ListarAsync($"api/cuadre/cierres?sucursalId={sucursalId}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}", cancelacion);
 
+    /// <summary>El día de la sucursal sumado por forma de pago, con las cajas que faltan por cuadrar.</summary>
+    public async Task<DatosResumenCuadre?> ResumenAsync(int sucursalId, DateOnly dia, CancellationToken cancelacion = default)
+    {
+        using var http = Crear();
+        try
+        {
+            return await http.GetFromJsonAsync<DatosResumenCuadre>($"api/cuadre/resumen?sucursalId={sucursalId}&dia={dia:yyyy-MM-dd}",
+                OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Faltantes y sobrantes de cada cajera en el período.</summary>
+    public Task<IReadOnlyList<DatosDiferenciaCajero>> DiferenciasAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default) =>
+        ListarAsync<DatosDiferenciaCajero>($"api/cuadre/diferencias?sucursalId={sucursalId}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}", cancelacion);
+
+    /// <summary>Retiros, reembolsos y relevos de los turnos del período.</summary>
+    public Task<IReadOnlyList<DatosMovimientoTurno>> MovimientosAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default) =>
+        ListarAsync<DatosMovimientoTurno>($"api/cuadre/movimientos?sucursalId={sucursalId}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}", cancelacion);
+
+    /// <summary>El cuadre de un cierre en PDF, para volver a imprimirlo.</summary>
+    public async Task<(string Nombre, string TipoContenido, byte[] Contenido)?> DescargarCuadreAsync(int cierreId, int sucursalId,
+        CancellationToken cancelacion = default)
+    {
+        using var http = Crear();
+        try
+        {
+            using var respuesta = await http.GetAsync($"api/cuadre/{cierreId}/pdf?sucursalId={sucursalId}", cancelacion);
+            if (!respuesta.IsSuccessStatusCode)
+                return null;
+
+            var nombre = respuesta.Content.Headers.ContentDisposition?.FileNameStar ?? respuesta.Content.Headers.ContentDisposition?.FileName ?? "cuadre.pdf";
+            return (nombre.Trim('"'), respuesta.Content.Headers.ContentType?.ToString() ?? "application/pdf",
+                await respuesta.Content.ReadAsByteArrayAsync(cancelacion));
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
     public Task<RespuestaAdministracion> CuadrarAsync(int cierreId, SolicitudCuadreCierre solicitud, CancellationToken cancelacion = default) =>
         EnviarAsync($"api/cuadre/{cierreId}", solicitud, cancelacion);
 
@@ -70,12 +114,16 @@ public sealed class ClienteCuadre(IHttpClientFactory fabricaHttp)
         return http;
     }
 
-    private async Task<IReadOnlyList<DatosCierreCaja>> ListarAsync(string ruta, CancellationToken cancelacion)
+    private Task<IReadOnlyList<DatosCierreCaja>> ListarAsync(string ruta, CancellationToken cancelacion) =>
+        ListarAsync<DatosCierreCaja>(ruta, cancelacion);
+
+    /// <summary>Una consulta que devuelve una lista; sin comunicación se responde vacía y la pantalla lo dice.</summary>
+    private async Task<IReadOnlyList<T>> ListarAsync<T>(string ruta, CancellationToken cancelacion)
     {
         using var http = Crear();
         try
         {
-            return await http.GetFromJsonAsync<List<DatosCierreCaja>>(ruta, OpcionesJson.Predeterminadas, cancelacion) ?? [];
+            return await http.GetFromJsonAsync<List<T>>(ruta, OpcionesJson.Predeterminadas, cancelacion) ?? [];
         }
         catch (Exception excepcion) when (excepcion is HttpRequestException or System.Text.Json.JsonException)
         {

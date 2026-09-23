@@ -49,6 +49,44 @@ public static class RutasApiCuadre
                     : Results.Ok(await servicio.ListarAsync(sucursalId, null, desde, hasta, cancelacion)))
             .RequireAuthorization(PoliticasCentral.CuadreConsultar);
 
+        // El día de la sucursal sumado por forma de pago: lo que mira la gerencia antes del depósito.
+        cuadre.MapGet("/resumen", async (int sucursalId, DateOnly dia, ClaimsPrincipal usuario, IServicioCierresCaja servicio, CancellationToken cancelacion) =>
+                SinAcceso(usuario, sucursalId)
+                    ? Results.Forbid()
+                    : Results.Ok(await servicio.ResumenDelDiaAsync(sucursalId, dia, cancelacion)))
+            .RequireAuthorization(PoliticasCentral.CuadreConsultar);
+
+        // Faltantes y sobrantes de cada cajera en el período.
+        cuadre.MapGet("/diferencias", async (int sucursalId, DateOnly desde, DateOnly hasta, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
+                CancellationToken cancelacion) =>
+                SinAcceso(usuario, sucursalId)
+                    ? Results.Forbid()
+                    : Results.Ok(await servicio.DiferenciasPorCajeroAsync(sucursalId, desde, hasta, cancelacion)))
+            .RequireAuthorization(PoliticasCentral.CuadreConsultar);
+
+        // Retiros, reembolsos y relevos de los turnos, con su motivo y quién autorizó.
+        cuadre.MapGet("/movimientos", async (int sucursalId, DateOnly desde, DateOnly hasta, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
+                CancellationToken cancelacion) =>
+                SinAcceso(usuario, sucursalId)
+                    ? Results.Forbid()
+                    : Results.Ok(await servicio.MovimientosAsync(sucursalId, desde, hasta, cancelacion)))
+            .RequireAuthorization(PoliticasCentral.CuadreConsultar);
+
+        // Reimpresión del cuadre: el papel que se archiva con el depósito.
+        cuadre.MapGet("/{cierreId:int}/pdf", async (int cierreId, int sucursalId, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
+                CancellationToken cancelacion) =>
+            {
+                if (SinAcceso(usuario, sucursalId))
+                    return Results.Forbid();
+
+                // La sucursal va en la consulta y el servicio comprueba que el cierre sea de ella: así el supervisor no
+                // imprime el cuadre de otra tienda cambiando el número en la dirección.
+                return await servicio.CuadreEnPdfAsync(cierreId, sucursalId, cancelacion) is { } archivo
+                    ? Results.File(archivo.Contenido, archivo.TipoContenido, archivo.Nombre)
+                    : Results.NotFound();
+            })
+            .RequireAuthorization(PoliticasCentral.CuadreConsultar);
+
         cuadre.MapPost("/{cierreId:int}", async (int cierreId, SolicitudCuadreCierre solicitud, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
                 CancellationToken cancelacion) =>
                 RespuestasAdministracion.Responder(

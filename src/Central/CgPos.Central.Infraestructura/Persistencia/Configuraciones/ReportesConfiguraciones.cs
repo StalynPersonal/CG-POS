@@ -107,6 +107,8 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.Navigation(c => c.Ajustes).AutoInclude(false);
         constructor.HasMany(c => c.Denominaciones).WithOne().HasForeignKey(d => d.CierreId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.Denominaciones).AutoInclude(false);
+        constructor.HasMany(c => c.Movimientos).WithOne().HasForeignKey(m => m.CierreId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(c => c.Movimientos).AutoInclude(false);
 
         // Pendientes de cuadre de una sucursal: es la consulta del módulo de cuadre.
         constructor.HasIndex(c => new { c.SucursalId, c.CuadradoEn });
@@ -129,6 +131,23 @@ internal sealed class CierreDenominacionCentralConfiguracion : IEntityTypeConfig
         constructor.Property(d => d.Valor).HasPrecision(18, 2);
         constructor.Property(d => d.Importe).HasPrecision(18, 2);
         constructor.HasIndex(d => d.CierreId);
+    }
+}
+
+/// <summary>Los retiros, reembolsos y relevos del turno, como los informó la caja.</summary>
+internal sealed class CierreMovimientoCentralConfiguracion : IEntityTypeConfiguration<CierreMovimientoCentral>
+{
+    public void Configure(EntityTypeBuilder<CierreMovimientoCentral> constructor)
+    {
+        constructor.ToTable("CierresTurnoMovimientos");
+        constructor.HasKey(m => m.Id);
+        constructor.Property(m => m.Moneda).HasMaxLength(CierreTurnoCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false).IsRequired();
+        constructor.Property(m => m.Monto).HasPrecision(18, 2);
+        constructor.Property(m => m.Motivo).HasMaxLength(CierreTurnoCentral.LargoMaximoMotivo);
+        constructor.Property(m => m.UsuarioNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto).IsRequired();
+        constructor.Property(m => m.UsuarioAnteriorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
+        constructor.Property(m => m.AutorizadoPorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
+        constructor.HasIndex(m => m.CierreId);
     }
 }
 

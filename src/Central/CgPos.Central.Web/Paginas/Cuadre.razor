@@ -1,13 +1,16 @@
-﻿@page "/cuadre"
+@page "/cuadre"
 @layout DisenoIngreso
 @using CgPos.Contratos.Catalogo
 @using CgPos.Dominio.Pagos
 @using CgPos.Dominio.Seguridad
+@using CgPos.Dominio.Turnos
+@using Microsoft.JSInterop
 @inject ClienteCuadre Cliente
+@inject IJSRuntime Js
 
 <PageTitle>Cuadre de caja · CG-POS</PageTitle>
 
-@* Módulo de cuadre de la tienda: el supervisor entra con su usuario de caja y declara lo que contó de cada cierre. *@
+@* Módulo de cuadre de la tienda: el supervisor entra con su usuario de caja, declara lo que contó y consulta el día. *@
 @if (!Cliente.Conectado)
 {
     @* Ingreso propio: es el mismo usuario y la misma clave de la caja, no un usuario del Central. *@
@@ -47,9 +50,9 @@ else
         <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">@_aviso</MudAlert>
     }
 
-    <MudPaper Elevation="1">
-        @* Sucursal, cuando el supervisor atiende más de una. *@
-        <div class="d-flex flex-wrap align-center gap-3 px-4 pt-3 pb-2">
+    @* Sucursal y día: mandan sobre todas las pestañas. *@
+    <MudPaper Elevation="1" Class="mb-3">
+        <div class="d-flex flex-wrap align-center gap-3 px-4 py-3">
             @if (Cliente.Sesion!.Sucursales.Count > 1)
             {
                 <div style="width: 260px">
@@ -65,37 +68,226 @@ else
             {
                 <MudText Typo="Typo.subtitle1">@Cliente.Sesion.Sucursales[0].Codigo · @Cliente.Sesion.Sucursales[0].Nombre</MudText>
             }
+            <div style="width: 180px">
+                <MudDatePicker Date="_desde" DateChanged="CambiarDesdeAsync" Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+            </div>
+            <div style="width: 180px">
+                <MudDatePicker Date="_hasta" DateChanged="CambiarHastaAsync" Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
+            </div>
             <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="CargarAsync">Actualizar</MudButton>
         </div>
+    </MudPaper>
 
-        @* Los cierres que las cajas entregaron y están esperando el conteo. *@
-        <MudTable T="DatosCierreCaja" Items="_pendientes" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="10">
-            <HeaderContent>
-                <MudTh>Caja</MudTh>
-                <MudTh>Turno</MudTh>
-                <MudTh>Día</MudTh>
-                <MudTh>Cajera</MudTh>
-                <MudTh Style="text-align: right">Esperado</MudTh>
-                <MudTh Style="width: 140px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
-                <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
-                <MudTd DataLabel="Día">@context.FechaOperacion.ToString("dd/MM/yyyy")</MudTd>
-                <MudTd DataLabel="Cajera">@context.UsuarioNombre</MudTd>
-                <MudTd DataLabel="Esperado" Style="text-align: right">@context.TotalEsperado.ToString("N2")</MudTd>
-                <MudTd>
-                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!Cliente.Puede(CatalogoPermisos.DeclararCuadre))"
-                               OnClick="() => AbrirAsync(context)">Cuadrar</MudButton>
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText>No hay cierres esperando cuadre en esta sucursal.</MudText>
-            </NoRecordsContent>
-            <PagerContent>
-                <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50 }" />
-            </PagerContent>
-        </MudTable>
+    <MudPaper Elevation="1">
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
+            @* Lo que está esperando al supervisor: es con lo que se entra a la pantalla. *@
+            <MudTabPanel Text="@($"Por cuadrar ({_pendientes.Count})")" Icon="@Icons.Material.Filled.Inbox" Class="pa-4">
+                <MudTable T="DatosCierreCaja" Items="_pendientes" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="10">
+                    <HeaderContent>
+                        <MudTh>Caja</MudTh>
+                        <MudTh>Turno</MudTh>
+                        <MudTh>Día</MudTh>
+                        <MudTh>Cajera</MudTh>
+                        <MudTh Style="text-align: right">Esperado</MudTh>
+                        <MudTh Style="width: 140px"></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+                        <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
+                        <MudTd DataLabel="Día">@context.FechaOperacion.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Cajera">@context.UsuarioNombre</MudTd>
+                        <MudTd DataLabel="Esperado" Style="text-align: right">@context.TotalEsperado.ToString("N2")</MudTd>
+                        <MudTd>
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!Cliente.Puede(CatalogoPermisos.DeclararCuadre))"
+                                       OnClick="() => Abrir(context)">Cuadrar</MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No hay cierres esperando cuadre en esta sucursal.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 10, 25, 50 }" />
+                    </PagerContent>
+                </MudTable>
+            </MudTabPanel>
+
+            @* Todos los cierres del período: se ve quién falta, quién cuadró y cuánto se le fue. *@
+            <MudTabPanel Text="Cierres" Icon="@Icons.Material.Filled.PointOfSale" Class="pa-4">
+                <div class="d-flex align-center gap-3 mb-2">
+                    <MudSwitch T="bool" Value="_soloCorregidos" ValueChanged="@(valor => _soloCorregidos = valor)" Color="Color.Primary"
+                               Label="Solo los cuadres corregidos" />
+                </div>
+                <MudTable T="DatosCierreCaja" Items="Cierres" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25">
+                    <HeaderContent>
+                        <MudTh>Día</MudTh>
+                        <MudTh>Caja</MudTh>
+                        <MudTh>Turno</MudTh>
+                        <MudTh>Cajera</MudTh>
+                        <MudTh Style="text-align: right">Esperado</MudTh>
+                        <MudTh Style="text-align: right">Declarado</MudTh>
+                        <MudTh Style="text-align: right">Diferencia</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh Style="width: 150px"></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Día">@context.FechaOperacion.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+                        <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
+                        <MudTd DataLabel="Cajera">@context.UsuarioNombre</MudTd>
+                        <MudTd DataLabel="Esperado" Style="text-align: right">@context.TotalEsperado.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Declarado" Style="text-align: right">
+                            @(context.PendienteDeCuadre ? "—" : context.TotalDeclarado.ToString("N2"))
+                        </MudTd>
+                        <MudTd DataLabel="Diferencia" Style="text-align: right">
+                            @if (!context.PendienteDeCuadre)
+                            {
+                                <MudText Typo="Typo.body2" Color="@(context.Diferencia == 0m ? Color.Success : Color.Error)">@context.Diferencia.ToString("N2")</MudText>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Estado">@Estado(context)</MudTd>
+                        <MudTd>
+                            <div class="d-flex gap-1">
+                                <MudTooltip Text="Reimprimir el cuadre">
+                                    <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.PictureAsPdf" OnClick="() => DescargarAsync(context)" />
+                                </MudTooltip>
+                                @if (!context.PendienteDeCuadre && !context.EnCierreSucursal && Cliente.Puede(CatalogoPermisos.CorregirCuadre))
+                                {
+                                    <MudTooltip Text="Corregir el cuadre">
+                                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.EditNote" OnClick="() => AbrirCorreccion(context)" />
+                                    </MudTooltip>
+                                }
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No hay cierres en esas fechas.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+                    </PagerContent>
+                </MudTable>
+            </MudTabPanel>
+
+            @* El día de la sucursal de una sola mirada: lo que hay que depositar sale de aquí. *@
+            <MudTabPanel Text="Resumen del día" Icon="@Icons.Material.Filled.Summarize" Class="pa-4">
+                @if (_resumen is { } resumen)
+                {
+                    <MudText Typo="Typo.subtitle1" Class="mb-1">Día @resumen.Dia.ToString("dd/MM/yyyy") · @resumen.Cierres cierres</MudText>
+                    @if (resumen.CajasPendientes > 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                            Faltan @resumen.CajasPendientes cierres por cuadrar: hasta que se cuadren, el día está incompleto.
+                        </MudAlert>
+                    }
+                    <MudTable T="DatosResumenFormaPagoCuadre" Items="resumen.FormasPago" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Forma de pago</MudTh>
+                            <MudTh>Moneda</MudTh>
+                            <MudTh Style="text-align: right">Transacciones</MudTh>
+                            <MudTh Style="text-align: right">Esperado</MudTh>
+                            <MudTh Style="text-align: right">Declarado</MudTh>
+                            <MudTh Style="text-align: right">Diferencia</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Forma de pago">@context.Nombre</MudTd>
+                            <MudTd DataLabel="Moneda">@context.Moneda</MudTd>
+                            <MudTd DataLabel="Transacciones" Style="text-align: right">@context.Transacciones</MudTd>
+                            <MudTd DataLabel="Esperado" Style="text-align: right">@context.Esperado.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Declarado" Style="text-align: right">@context.Declarado.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Diferencia" Style="text-align: right">
+                                <MudText Typo="Typo.body2" Color="@(context.Diferencia == 0m ? Color.Success : Color.Error)">@context.Diferencia.ToString("N2")</MudText>
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText>Ese día no tiene cierres en esta sucursal.</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+
+                    @* Los totales del día, que son los que se comparan contra el depósito. *@
+                    <div class="d-flex flex-wrap gap-6 mt-3">
+                        <MudText Typo="Typo.subtitle2">Ventas: @resumen.TotalVentas.ToString("N2")</MudText>
+                        <MudText Typo="Typo.subtitle2">Esperado: @resumen.TotalEsperado.ToString("N2")</MudText>
+                        <MudText Typo="Typo.subtitle2">Declarado: @resumen.TotalDeclarado.ToString("N2")</MudText>
+                        <MudText Typo="Typo.subtitle2" Color="@(resumen.Diferencia == 0m ? Color.Success : Color.Error)">
+                            @EtiquetaDiferencia(resumen.Diferencia): @Math.Abs(resumen.Diferencia).ToString("N2")
+                        </MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudText>Elija el día en «Desde» y presione Actualizar.</MudText>
+                }
+            </MudTabPanel>
+
+            @* La diferencia es de la cajera: aquí se ve a quién se le va el dinero y a quién no. *@
+            <MudTabPanel Text="Diferencias por cajera" Icon="@Icons.Material.Filled.Person" Class="pa-4">
+                <MudTable T="DatosDiferenciaCajero" Items="_diferencias" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Cajera</MudTh>
+                        <MudTh Style="text-align: right">Cierres</MudTh>
+                        <MudTh Style="text-align: right">Con diferencia</MudTh>
+                        <MudTh Style="text-align: right">Faltantes</MudTh>
+                        <MudTh Style="text-align: right">Sobrantes</MudTh>
+                        <MudTh Style="text-align: right">Neto</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Cajera">@context.UsuarioNombre</MudTd>
+                        <MudTd DataLabel="Cierres" Style="text-align: right">@context.Cierres</MudTd>
+                        <MudTd DataLabel="Con diferencia" Style="text-align: right">@context.CierresConDiferencia</MudTd>
+                        <MudTd DataLabel="Faltantes" Style="text-align: right">@context.Faltantes.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Sobrantes" Style="text-align: right">@context.Sobrantes.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Neto" Style="text-align: right">
+                            <MudText Typo="Typo.body2" Color="@(context.Diferencia == 0m ? Color.Success : Color.Error)">@context.Diferencia.ToString("N2")</MudText>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No hay cierres cuadrados en esas fechas.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
+
+            @* Retiros, reembolsos y relevos: explican por qué el efectivo esperado no es todo lo que se vendió. *@
+            <MudTabPanel Text="Retiros y relevos" Icon="@Icons.Material.Filled.MoveDown" Class="pa-4">
+                <MudTable T="DatosMovimientoTurno" Items="_movimientos" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25">
+                    <HeaderContent>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Caja</MudTh>
+                        <MudTh>Turno</MudTh>
+                        <MudTh>Tipo</MudTh>
+                        <MudTh>Número</MudTh>
+                        <MudTh Style="text-align: right">Monto</MudTh>
+                        <MudTh>Quién</MudTh>
+                        <MudTh>Motivo</MudTh>
+                        <MudTh>Autorizó</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Fecha">@context.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+                        <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
+                        <MudTd DataLabel="Tipo">@Etiqueta(context.Tipo)</MudTd>
+                        <MudTd DataLabel="Número">@context.Numero</MudTd>
+                        <MudTd DataLabel="Monto" Style="text-align: right">
+                            @(context.Tipo == TipoMovimientoCaja.Relevo ? "—" : $"{context.Monto:N2} {context.Moneda}")
+                        </MudTd>
+                        <MudTd DataLabel="Quién">
+                            @(context.Tipo == TipoMovimientoCaja.Relevo ? $"{context.UsuarioAnteriorNombre} → {context.UsuarioNombre}" : context.UsuarioNombre)
+                        </MudTd>
+                        <MudTd DataLabel="Motivo">@context.Motivo</MudTd>
+                        <MudTd DataLabel="Autorizó">@context.AutorizadoPorNombre</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>No hubo retiros, reembolsos ni relevos en esas fechas.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+                    </PagerContent>
+                </MudTable>
+            </MudTabPanel>
+        </MudTabs>
     </MudPaper>
 
     @if (_cierre is { } cierre)
@@ -166,6 +358,36 @@ else
             </DialogActions>
         </MudDialog>
     }
+
+    @if (_correccion is { } corregido)
+    {
+        @* Corrección de un cuadre ya declarado: no borra nada, queda el motivo y quién lo hizo. *@
+        <MudDialog Visible="true" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+            <TitleContent>
+                <MudText Typo="Typo.h6">Corregir el cuadre · caja @corregido.CajaCodigo · turno @corregido.TurnoNumero</MudText>
+            </TitleContent>
+            <DialogContent>
+                <MudSelect T="int" @bind-Value="_formaCorregida" Label="Forma de pago" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3">
+                    @foreach (var forma in corregido.FormasPago)
+                    {
+                        <MudSelectItem T="int" Value="@forma.Id">@forma.Nombre (@forma.Moneda) · declarado @forma.Declarado.ToString("N2")</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudNumericField T="decimal" @bind-Value="_declaradoCorregido" Label="Lo que de verdad había" Min="0" Format="N2"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Class="mb-3" />
+                <MudTextField @bind-Value="_motivo" Label="Motivo" Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              HelperText="Queda guardado con su nombre y lo que se había declarado." />
+                @if (_mensajeDialogo is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_mensajeDialogo</MudAlert>
+                }
+            </DialogContent>
+            <DialogActions>
+                <MudButton OnClick="Cerrar">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_procesando" OnClick="CorregirAsync">Guardar la corrección</MudButton>
+            </DialogActions>
+        </MudDialog>
+    }
 }
 
 @code {
@@ -178,12 +400,27 @@ else
     private bool _cargando;
 
     private int _sucursalId;
+    private DateTime? _desde = DateTime.Today;
+    private DateTime? _hasta = DateTime.Today;
+    private bool _soloCorregidos;
+
     private IReadOnlyList<DatosCierreCaja> _pendientes = [];
+    private IReadOnlyList<DatosCierreCaja> _cierres = [];
     private IReadOnlyList<DatosDenominacion> _denominaciones = [];
+    private IReadOnlyList<DatosDiferenciaCajero> _diferencias = [];
+    private IReadOnlyList<DatosMovimientoTurno> _movimientos = [];
+    private DatosResumenCuadre? _resumen;
 
     private DatosCierreCaja? _cierre;
+    private DatosCierreCaja? _correccion;
+    private int _formaCorregida;
+    private decimal _declaradoCorregido;
+    private string? _motivo;
     private readonly Dictionary<int, int> _cantidades = [];
     private readonly Dictionary<int, decimal> _declarados = [];
+
+    /// <summary>Los cierres del período, o solo los corregidos si el supervisor lo pide.</summary>
+    private IReadOnlyList<DatosCierreCaja> Cierres => _soloCorregidos ? _cierres.Where(c => c.Ajustes.Count > 0).ToList() : _cierres;
 
     private async Task AlTeclearClave(KeyboardEventArgs tecla)
     {
@@ -207,7 +444,8 @@ else
     private void Salir()
     {
         Cliente.Salir();
-        (_pendientes, _denominaciones, _cierre, _aviso) = ([], [], null, null);
+        (_pendientes, _cierres, _denominaciones, _diferencias, _movimientos) = ([], [], [], [], []);
+        (_resumen, _cierre, _correccion, _aviso) = (null, null, null, null);
     }
 
     private async Task CambiarSucursalAsync(int sucursalId)
@@ -216,25 +454,55 @@ else
         await CargarAsync();
     }
 
+    private async Task CambiarDesdeAsync(DateTime? fecha)
+    {
+        _desde = fecha;
+        if (_hasta < _desde)
+            _hasta = _desde;
+        await CargarAsync();
+    }
+
+    private async Task CambiarHastaAsync(DateTime? fecha)
+    {
+        _hasta = fecha;
+        await CargarAsync();
+    }
+
     private async Task CargarAsync()
     {
         _cargando = true;
+        var desde = DateOnly.FromDateTime(_desde ?? DateTime.Today);
+        var hasta = DateOnly.FromDateTime(_hasta ?? DateTime.Today);
+
         _pendientes = await Cliente.PendientesAsync(_sucursalId);
+        _cierres = await Cliente.CierresAsync(_sucursalId, desde, hasta);
+        _resumen = await Cliente.ResumenAsync(_sucursalId, desde);
+        _diferencias = await Cliente.DiferenciasAsync(_sucursalId, desde, hasta);
+        _movimientos = await Cliente.MovimientosAsync(_sucursalId, desde, hasta);
         if (_denominaciones.Count == 0)
             _denominaciones = await Cliente.DenominacionesAsync();
+
         _cargando = false;
     }
 
-    private Task AbrirAsync(DatosCierreCaja cierre)
+    private void Abrir(DatosCierreCaja cierre)
     {
         _cierre = cierre;
         _mensajeDialogo = null;
         _cantidades.Clear();
         _declarados.Clear();
-        return Task.CompletedTask;
     }
 
-    private void Cerrar() => (_cierre, _mensajeDialogo) = (null, null);
+    private void AbrirCorreccion(DatosCierreCaja cierre)
+    {
+        _correccion = cierre;
+        _mensajeDialogo = null;
+        _formaCorregida = cierre.FormasPago.Count > 0 ? cierre.FormasPago[0].Id : 0;
+        _declaradoCorregido = cierre.FormasPago.Count > 0 ? cierre.FormasPago[0].Declarado : 0m;
+        _motivo = null;
+    }
+
+    private void Cerrar() => (_cierre, _correccion, _mensajeDialogo) = (null, null, null);
 
     private int Cantidad(int denominacionId) => _cantidades.GetValueOrDefault(denominacionId);
 
@@ -260,6 +528,21 @@ else
         < 0m => "Faltante",
         > 0m => "Sobrante",
         _ => "Cuadrado",
+    };
+
+    private static string Estado(DatosCierreCaja cierre) => cierre switch
+    {
+        { PendienteDeCuadre: true } => "Por cuadrar",
+        { Ajustes.Count: > 0 } => $"Corregido · {cierre.CuadradoPor}",
+        { EnCierreSucursal: true } => $"Consolidado · {cierre.CuadradoPor}",
+        _ => $"Cuadrado · {cierre.CuadradoPor}",
+    };
+
+    private static string Etiqueta(TipoMovimientoCaja tipo) => tipo switch
+    {
+        TipoMovimientoCaja.Retiro => "Retiro",
+        TipoMovimientoCaja.Reembolso => "Reembolso",
+        _ => "Relevo",
     };
 
     private async Task GuardarAsync()
@@ -290,5 +573,38 @@ else
         _aviso = $"Caja {cierre.CajaCodigo}, turno {cierre.TurnoNumero}: cuadrado.";
         Cerrar();
         await CargarAsync();
+    }
+
+    private async Task CorregirAsync()
+    {
+        if (_correccion is not { } cierre)
+            return;
+
+        _procesando = true;
+        _mensajeDialogo = null;
+
+        var respuesta = await Cliente.CorregirAsync(cierre.Id, new SolicitudAjusteCierre(_formaCorregida, _declaradoCorregido, _motivo ?? string.Empty));
+        _procesando = false;
+
+        if (!respuesta.Exitosa)
+        {
+            _mensajeDialogo = respuesta.Mensaje;
+            return;
+        }
+
+        _aviso = $"Caja {cierre.CajaCodigo}, turno {cierre.TurnoNumero}: cuadre corregido.";
+        Cerrar();
+        await CargarAsync();
+    }
+
+    private async Task DescargarAsync(DatosCierreCaja cierre)
+    {
+        if (await Cliente.DescargarCuadreAsync(cierre.Id, _sucursalId) is not { } archivo)
+        {
+            _mensaje = "No se pudo generar el cuadre en PDF.";
+            return;
+        }
+
+        await Js.InvokeVoidAsync("cgCentral.descargarArchivo", archivo.Nombre, archivo.TipoContenido, Convert.ToBase64String(archivo.Contenido));
     }
 }
