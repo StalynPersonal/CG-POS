@@ -214,7 +214,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Empty(limpia.Venta.Lineas);
 
         // El borrador no era un documento: sale de la mesa de trabajo y lo que tenía queda en la auditoría.
-        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasTemp.AnyAsync(v => v.Id == venta.Id)));
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasEnProceso.AnyAsync(v => v.Id == venta.Id)));
         Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
             a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Pantalla limpiada")));
         Assert.Equal(0, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.Ventas.CountAsync(v => v.CajaId == caja.Escenario.CajaUno)));
@@ -580,7 +580,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(2, ids.Count);
         Assert.Equal(ids[0] + 1, ids[1]);
         Assert.Equal(0, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasGuardadas.CountAsync(v => v.CajaId == caja.Escenario.CajaUno)));
-        Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasTemp.CountAsync(v => v.CajaId == caja.Escenario.CajaUno))); // la nueva, vacía
+        Assert.Equal(1, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.VentasEnProceso.CountAsync(v => v.CajaId == caja.Escenario.CajaUno))); // la nueva, vacía
 
         // Cada venta cobrada guarda la foto de su sucursal, su caja y su turno, igual que los del número de factura.
         var origen = await caja.EjecutarAsync<ContextoDatosPos, List<(string, string, string, long, long)>>(async contexto =>
@@ -617,7 +617,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.NotEqual(venta.Id, nueva.Venta!.Id);
 
         // Anulada antes de cobrar no es un documento: se borra y el rastro queda en la auditoría.
-        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasTemp.AnyAsync(v => v.Id == venta.Id)));
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasEnProceso.AnyAsync(v => v.Id == venta.Id)));
         Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
             a.Accion == "Ventas.Anulada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Cliente se retiró" && a.AutorizadoPorId != null)));
 
@@ -2014,11 +2014,11 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         // Vacías, sí. Se prueba dentro de una transacción que se deshace, porque la base la comparten las demás pruebas.
         await using var transaccion = await contexto.Database.BeginTransactionAsync();
         await contexto.Database.ExecuteSqlRawAsync("""
-            DELETE FROM LineasDestinoEntregaTemp; DELETE FROM DestinosEntregaVentaTemp; DELETE FROM LineasVentaTemp; DELETE FROM VentasTemp;
+            DELETE FROM LineasDestinoEntregaEnProceso; DELETE FROM DestinosEntregaVentaEnProceso; DELETE FROM LineasVentaEnProceso; DELETE FROM VentasEnProceso;
             DELETE FROM LineasDestinoEntregaGuardadas; DELETE FROM DestinosEntregaVentaGuardadas; DELETE FROM LineasVentaGuardadas; DELETE FROM VentasGuardadas;
             """);
         Assert.True(await secuencias.ReiniciarIdsDeTrabajoAsync(CancellationToken.None));
-        Assert.Equal(1, (await contexto.Database.SqlQuery<int>($"SELECT NEXT VALUE FOR SecuenciaVentasTemp AS Value").ToListAsync()).Single());
+        Assert.Equal(1, (await contexto.Database.SqlQuery<int>($"SELECT NEXT VALUE FOR SecuenciaVentasEnProceso AS Value").ToListAsync()).Single());
         Assert.Equal(1, (await contexto.Database.SqlQuery<int>($"SELECT NEXT VALUE FOR SecuenciaLineasVentaGuardadas AS Value").ToListAsync()).Single());
         await transaccion.RollbackAsync();
     }

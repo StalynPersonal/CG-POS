@@ -9,7 +9,7 @@ namespace CgPos.Pos.Infraestructura.Persistencia.Configuraciones;
 internal sealed class DestinoEntregaEnProcesoConfiguracion : IEntityTypeConfiguration<DestinoEntregaEnProceso>
 {
     public void Configure(EntityTypeBuilder<DestinoEntregaEnProceso> constructor) =>
-        constructor.ConfigurarDestino<DestinoEntregaEnProceso, LineaDestinoEntregaEnProceso>("DestinosEntregaVentaTemp");
+        constructor.ConfigurarDestino<DestinoEntregaEnProceso, LineaDestinoEntregaEnProceso>("DestinosEntregaVentaEnProceso");
 }
 
 internal sealed class DestinoEntregaGuardadaConfiguracion : IEntityTypeConfiguration<DestinoEntregaGuardada>
@@ -26,7 +26,7 @@ internal sealed class DestinoEntregaCobradaConfiguracion : IEntityTypeConfigurat
 
 internal sealed class LineaDestinoEntregaEnProcesoConfiguracion : IEntityTypeConfiguration<LineaDestinoEntregaEnProceso>
 {
-    public void Configure(EntityTypeBuilder<LineaDestinoEntregaEnProceso> constructor) => constructor.ConfigurarLineaDestino("LineasDestinoEntregaTemp");
+    public void Configure(EntityTypeBuilder<LineaDestinoEntregaEnProceso> constructor) => constructor.ConfigurarLineaDestino("LineasDestinoEntregaEnProceso");
 }
 
 internal sealed class LineaDestinoEntregaGuardadaConfiguracion : IEntityTypeConfiguration<LineaDestinoEntregaGuardada>

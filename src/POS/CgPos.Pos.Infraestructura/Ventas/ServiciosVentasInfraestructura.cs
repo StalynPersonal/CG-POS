@@ -419,7 +419,7 @@ internal sealed class ServicioVentas(
         {
             contexto.ChangeTracker.Clear();
             await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
-            var ventaActual = await contexto.VentasTemp.AsNoTracking().SingleAsync(v => v.Id == borrador.Id, cancelacion);
+            var ventaActual = await contexto.VentasEnProceso.AsNoTracking().SingleAsync(v => v.Id == borrador.Id, cancelacion);
             return new RespuestaCobro(excepcion.Codigo.ACodigoResultado(), excepcion.Message, null, null, Datos(ventaActual));
         }
 
@@ -435,7 +435,7 @@ internal sealed class ServicioVentas(
         cobrada.Numerar(new OrigenDocumento(sucursal.Codigo, sucursal.Nombre, sesion.CajaCodigo, turnoNumero),
             await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Transaccion, cancelacion, minimo), digitos);
         await contexto.Ventas.AddAsync(cobrada, cancelacion);
-        contexto.VentasTemp.Remove(borrador);
+        contexto.VentasEnProceso.Remove(borrador);
 
         foreach (var operacion in solicitados.Operaciones)
             operacion.MarcarUsada(cobrada.Id);
@@ -453,7 +453,7 @@ internal sealed class ServicioVentas(
             await transaccion.RollbackAsync(cancelacion);
             contexto.ChangeTracker.Clear();
             await LiberarReservasAsync(solicitados.NotasExternas, cancelacion);
-            var ventaActual = await contexto.VentasTemp.AsNoTracking().SingleAsync(v => v.Id == borrador.Id, cancelacion);
+            var ventaActual = await contexto.VentasEnProceso.AsNoTracking().SingleAsync(v => v.Id == borrador.Id, cancelacion);
             return new RespuestaCobro(excepcion.Codigo, excepcion.Message, null, null, Datos(ventaActual));
         }
 
@@ -1042,7 +1042,7 @@ internal sealed class ServicioVentas(
         // Se valida sobre una copia sin seguimiento antes de pedir la clave del supervisor.
         try
         {
-            var copia = await contexto.VentasTemp.AsNoTracking().SingleAsync(v => v.Id == venta!.Id, cancelacion);
+            var copia = await contexto.VentasEnProceso.AsNoTracking().SingleAsync(v => v.Id == venta!.Id, cancelacion);
             copia.MarcarEntrega(solicitud.Metodo, solicitud.SucursalRetiroId, sucursalRetiroNombre, solicitud.Envio, solicitud.FechaComprometida, solicitud.Comentario, lineas,
                 null, null, hoy, ahora);
         }
@@ -1357,7 +1357,7 @@ internal sealed class ServicioVentas(
         }
 
         await contexto.VentasGuardadas.AddAsync(guardada, cancelacion);
-        contexto.VentasTemp.Remove(venta);
+        contexto.VentasEnProceso.Remove(venta);
         auditoria.Registrar(new EntradaAuditoria("Ventas.PuestaEnEspera", TipoEntidadVenta, guardada.Referencia,
             Detalle: new { Borrador = venta.Identificacion, Total = guardada.CalcularTotales().Total },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
@@ -1408,7 +1408,7 @@ internal sealed class ServicioVentas(
             else
             {
                 // Sin artículos no es un documento: sale de la mesa de trabajo. Si tuvo líneas, queda en la auditoría.
-                contexto.VentasTemp.Remove(actual);
+                contexto.VentasEnProceso.Remove(actual);
                 if (actual.Lineas.Count > 0)
                     auditoria.Registrar(new EntradaAuditoria("Ventas.Descartada", TipoEntidadVenta, actual.Identificacion,
                         Motivo: "Sin artículos al retomar una factura en espera",
@@ -1420,7 +1420,7 @@ internal sealed class ServicioVentas(
         var retomada = VentaEnProceso.Retomar(enEspera, ahora);
         retomada.RecalcularPromociones(await PromocionesAsync(cancelacion), retomada.SucursalId, ahora);
         contexto.VentasGuardadas.Remove(enEspera);
-        await contexto.VentasTemp.AddAsync(retomada, cancelacion);
+        await contexto.VentasEnProceso.AddAsync(retomada, cancelacion);
         auditoria.Registrar(new EntradaAuditoria("Ventas.Retomada", TipoEntidadVenta, retomada.Identificacion,
             Detalle: new { Referencia = enEspera.Referencia },
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
@@ -1471,7 +1471,7 @@ internal sealed class ServicioVentas(
         var resultado = await EjecutarAsync(venta, () =>
         {
             venta.Anular(motivoFinal ?? string.Empty, sesion.UsuarioId, sesion.Nombre, reloj.Ahora());
-            contexto.VentasTemp.Remove(venta);
+            contexto.VentasEnProceso.Remove(venta);
             auditoria.Registrar(new EntradaAuditoria(accionAuditoria, TipoEntidadVenta, venta.Identificacion,
                 Detalle: new
                 {
@@ -1525,7 +1525,7 @@ internal sealed class ServicioVentas(
         {
             // Se descarta todo lo pendiente (incluida una autorización marcada como usada): no se consume si la operación falla.
             contexto.ChangeTracker.Clear();
-            var ventaActual = await contexto.VentasTemp.AsNoTracking().SingleAsync(v => v.Id == venta.Id, cancelacion);
+            var ventaActual = await contexto.VentasEnProceso.AsNoTracking().SingleAsync(v => v.Id == venta.Id, cancelacion);
             return new RespuestaVenta(excepcion.Codigo.ACodigoResultado(), excepcion.Message, Datos(ventaActual));
         }
     }
@@ -1798,7 +1798,7 @@ internal sealed class ServicioVentas(
         contexto.ChangeTracker.Clear();
         if (evaluacion.SinConfiguracion)
         {
-            var sinTopes = await contexto.VentasTemp.AsNoTracking().SingleAsync(v => v.Id == venta.Id, cancelacion);
+            var sinTopes = await contexto.VentasEnProceso.AsNoTracking().SingleAsync(v => v.Id == venta.Id, cancelacion);
             return new RespuestaVenta(CodigoResultadoVenta.DescuentoNoPermitido,
                 "No hay topes de descuento configurados (del artículo, su departamento ni generales): el descuento manual no se permite hasta configurarlos en el Central.",
                 Datos(sinTopes));
@@ -1811,7 +1811,7 @@ internal sealed class ServicioVentas(
             { MontoMaximo: { } monto } => $"{venta.SimboloMoneda}{monto:N2}",
             _ => "sin descuento",
         };
-        var ventaActual = await contexto.VentasTemp.AsNoTracking().SingleAsync(v => v.Id == venta.Id, cancelacion);
+        var ventaActual = await contexto.VentasEnProceso.AsNoTracking().SingleAsync(v => v.Id == venta.Id, cancelacion);
         return new RespuestaVenta(CodigoResultadoVenta.TopeDescuentoExcedido,
             $"El descuento ({vista.Porcentaje:0.##}%, {venta.SimboloMoneda}{vista.Monto:N2}) supera el tope del nivel {nivel} ({limite}). Requiere autorización de un nivel superior.",
             Datos(ventaActual), codigoPermiso);
@@ -1828,7 +1828,7 @@ internal sealed class ServicioVentas(
     /// pantalla y puede cobrarla, guardarla o limpiarla. Hay una sola a la vez; para atender a otro cliente está la espera.
     /// </summary>
     private Task<VentaEnProceso?> VentaEnCursoAsync(SesionUsuario sesion, Turno turno, CancellationToken cancelacion) =>
-        contexto.VentasTemp
+        contexto.VentasEnProceso
             .Where(v => v.TurnoId == turno.Id && v.Estado == EstadoVenta.EnCurso)
             .OrderByDescending(v => v.IniciadaEn)
             .FirstOrDefaultAsync(cancelacion);
@@ -1843,7 +1843,7 @@ internal sealed class ServicioVentas(
 
         var venta = VentaEnProceso.Iniciar(sesion.SucursalId, sesion.CajaId, turno.Id, sesion.UsuarioId, sesion.Nombre, moneda.Codigo, moneda.Simbolo,
             reloj.Ahora());
-        await contexto.VentasTemp.AddAsync(venta, cancelacion);
+        await contexto.VentasEnProceso.AddAsync(venta, cancelacion);
         await contexto.SaveChangesAsync(cancelacion);
         return venta;
     }
@@ -1890,7 +1890,7 @@ internal sealed class ServicioVentas(
         if (!permiteTurnoDiaAnterior && await ReglasTurno.BloqueoDiaAnteriorAsync(turno!, parametros, reloj, cancelacion) is { } bloqueo)
             return (null, new RespuestaVenta(CodigoResultadoVenta.TurnoDiaAnterior, bloqueo, null));
 
-        var venta = await contexto.VentasTemp.SingleOrDefaultAsync(v => v.Id == ventaId, cancelacion);
+        var venta = await contexto.VentasEnProceso.SingleOrDefaultAsync(v => v.Id == ventaId, cancelacion);
         if (venta is null || venta.CajaId != sesion.CajaId || venta.TurnoId != turno!.Id)
             return (null, new RespuestaVenta(CodigoResultadoVenta.VentaNoEditable, "La venta no existe o no pertenece a su turno.", null));
         if (venta.Estado != EstadoVenta.EnCurso)

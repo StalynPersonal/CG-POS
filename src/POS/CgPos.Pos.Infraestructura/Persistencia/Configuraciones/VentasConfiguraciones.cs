@@ -41,7 +41,7 @@ internal sealed class VentaEnProcesoConfiguracion : IEntityTypeConfiguration<Ven
 {
     public void Configure(EntityTypeBuilder<VentaEnProceso> constructor)
     {
-        constructor.ConfigurarVenta<VentaEnProceso, LineaVentaEnProceso, DestinoEntregaEnProceso>("VentasTemp");
+        constructor.ConfigurarVenta<VentaEnProceso, LineaVentaEnProceso, DestinoEntregaEnProceso>("VentasEnProceso");
     }
 }
 
@@ -97,7 +97,7 @@ internal sealed class PagoVentaConfiguracion : IEntityTypeConfiguration<PagoVent
 
 internal sealed class LineaVentaEnProcesoConfiguracion : IEntityTypeConfiguration<LineaVentaEnProceso>
 {
-    public void Configure(EntityTypeBuilder<LineaVentaEnProceso> constructor) => constructor.ConfigurarLinea("LineasVentaTemp");
+    public void Configure(EntityTypeBuilder<LineaVentaEnProceso> constructor) => constructor.ConfigurarLinea("LineasVentaEnProceso");
 }
 
 internal sealed class LineaVentaGuardadaConfiguracion : IEntityTypeConfiguration<LineaVentaGuardada>

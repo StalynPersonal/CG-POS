@@ -89,15 +89,15 @@ internal sealed class GeneradorSecuencias(ContextoDatosPos contexto, ILogger<Gen
         try
         {
             var reiniciadas = await contexto.Database.SqlQuery<int>($"""
-                IF NOT EXISTS (SELECT 1 FROM [VentasTemp]) AND NOT EXISTS (SELECT 1 FROM [LineasVentaTemp])
-                   AND NOT EXISTS (SELECT 1 FROM [DestinosEntregaVentaTemp]) AND NOT EXISTS (SELECT 1 FROM [LineasDestinoEntregaTemp])
+                IF NOT EXISTS (SELECT 1 FROM [VentasEnProceso]) AND NOT EXISTS (SELECT 1 FROM [LineasVentaEnProceso])
+                   AND NOT EXISTS (SELECT 1 FROM [DestinosEntregaVentaEnProceso]) AND NOT EXISTS (SELECT 1 FROM [LineasDestinoEntregaEnProceso])
                    AND NOT EXISTS (SELECT 1 FROM [VentasGuardadas]) AND NOT EXISTS (SELECT 1 FROM [LineasVentaGuardadas])
                    AND NOT EXISTS (SELECT 1 FROM [DestinosEntregaVentaGuardadas]) AND NOT EXISTS (SELECT 1 FROM [LineasDestinoEntregaGuardadas])
                 BEGIN
-                    ALTER SEQUENCE [SecuenciaVentasTemp] RESTART WITH 1;
-                    ALTER SEQUENCE [SecuenciaLineasVentaTemp] RESTART WITH 1;
-                    ALTER SEQUENCE [SecuenciaDestinosEntregaVentaTemp] RESTART WITH 1;
-                    ALTER SEQUENCE [SecuenciaLineasDestinoEntregaTemp] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaVentasEnProceso] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaLineasVentaEnProceso] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaDestinosEntregaVentaEnProceso] RESTART WITH 1;
+                    ALTER SEQUENCE [SecuenciaLineasDestinoEntregaEnProceso] RESTART WITH 1;
                     ALTER SEQUENCE [SecuenciaVentasGuardadas] RESTART WITH 1;
                     ALTER SEQUENCE [SecuenciaLineasVentaGuardadas] RESTART WITH 1;
                     ALTER SEQUENCE [SecuenciaDestinosEntregaVentaGuardadas] RESTART WITH 1;
