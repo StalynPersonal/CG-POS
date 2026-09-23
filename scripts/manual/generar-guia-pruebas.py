@@ -496,12 +496,35 @@ esperado('El saldo pendiente se va actualizando con cada pago y no deja cerrar h
 tablas('Caja: PagosVenta')
 marcar()
 
-prueba('I3', 'Tarjeta rechazada y aprobación manual')
+prueba('I3', 'Tarjeta con el terminal conectado, rechazo y contingencia')
+paso('Cobre una venta con tarjeta: la caja le manda el monto al terminal y el cliente paga ahí.')
 paso('Haga que el terminal rechace un cobro (o simúlelo) y observe qué pasa.')
-paso('Si la pasarela no responde, use la aprobación manual con el permiso correspondiente.')
-esperado('El rechazo no cobra la venta ni la daña: se puede reintentar. La aprobación manual queda marcada para conciliarla '
-         'después contra el lote.')
+paso('Desconecte el terminal de la red y pruebe otra vez: use la aprobación manual con el permiso correspondiente.')
+esperado('Con el terminal conectado, la aprobación llega sola y nadie digita nada. El rechazo no cobra la venta ni la daña: '
+         'se puede reintentar. Si el terminal no responde, la aprobación manual pide autorización de supervisor y queda '
+         'marcada para conciliarla después contra el lote.')
 tablas('Caja: OperacionesTerminal · PagosVenta · Auditoria')
+marcar()
+
+prueba('I3b', 'Caja sin terminal conectado (se cobra en un equipo aparte)')
+paso('En la configuración de la caja, ponga el terminal en «Ninguno» y reinicie el servicio.')
+paso('Cobre una venta con tarjeta: cobre en el verifone aparte y digite el número de aprobación de su volante y los '
+     'últimos cuatro dígitos.')
+paso('Intente también cobrar con tarjeta sin escribir el número de aprobación.')
+esperado('La pantalla no ofrece «Pasar tarjeta» sino el número de aprobación, y no pide autorización de supervisor: en esa '
+         'caja es la forma normal de cobrar. Sin el número no deja cobrar, porque después no habría con qué cuadrar el '
+         'turno contra los volantes.')
+tablas('Caja: Ventas · LineasVenta · PagosVenta (con la aprobación digitada) · Auditoria')
+marcar()
+nota('Deje el terminal como estaba antes de seguir. Este modo es para las tiendas que cobran con un equipo inalámbrico que '
+     'no habla con la caja; en «Simulado» el sistema aprueba solo, y eso en una tienda registraría cobros que no ocurrieron.')
+
+prueba('I3c', 'Un terminal mal configurado se nota')
+paso('Escriba un modelo de terminal que no exista (por ejemplo «Azul») y reinicie el servicio.')
+paso('Revise el registro del Agente y la dirección /salud.')
+esperado('El log avisa que ese modelo no está implementado y dice cuáles hay. En /salud, la sección Periféricos muestra con '
+         'qué quedó configurada la caja: impresora, balanza y terminal, y cuáles están simulados.')
+tablas('Ninguna: es configuración del equipo, no datos')
 marcar()
 
 prueba('I4', 'Revisar el ticket')
