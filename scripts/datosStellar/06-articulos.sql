@@ -158424,7 +158424,7 @@ INSERT INTO [Articulos] ([Id], [Codigo], [Descripcion], [Referencia], [Departame
     [PrecioDetalle], [PrecioMayor], [PreciosVigentesDesde])
 SELECT NEXT VALUE FOR [SecuenciaArticulos], o.Codigo, o.Descripcion, o.Referencia, d.Id, c.Id, m.Id,
     u.Id, i.Id, o.Tipo, o.Costo, NULL, NULL, NULL,
-    NULL, 0, 0, 1, o.Activo, SYSDATETIMEOFFSET(), N'Migración Stellar',
+    NULL, 0, 0, 1, o.Activo, SYSDATETIMEOFFSET(), N'Migración',
     o.PrecioDetalle, o.PrecioMayor, SYSDATETIMEOFFSET()
 FROM #Articulos o
 JOIN [Departamentos] d ON d.Codigo = o.DepartamentoCodigo

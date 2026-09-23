@@ -60,7 +60,7 @@ INSERT INTO #Departamentos (Codigo, Nombre) VALUES
 GO
 
 INSERT INTO [Departamentos] ([Id], [Codigo], [Nombre], [PermiteDescuentoManual], [EsNoCodificada], [Activa], [ModificadoEn], [ModificadoPor])
-SELECT NEXT VALUE FOR [SecuenciaDepartamentos], o.Codigo, o.Nombre, 1, 0, 1, SYSDATETIMEOFFSET(), N'Migración Stellar'
+SELECT NEXT VALUE FOR [SecuenciaDepartamentos], o.Codigo, o.Nombre, 1, 0, 1, SYSDATETIMEOFFSET(), N'Migración'
 FROM #Departamentos o
 WHERE NOT EXISTS (SELECT 1 FROM [Departamentos] d WHERE d.Codigo = o.Codigo);
 GO

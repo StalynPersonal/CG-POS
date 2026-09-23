@@ -282,7 +282,7 @@ GO
 */
 INSERT INTO [SecuenciasEcf] ([Id], [CajaId], [Serie], [TipoComprobante], [Desde], [Hasta], [Ultimo], [VenceEn], [Activa], [ModificadoEn], [ModificadoPor])
 SELECT NEXT VALUE FOR [SecuenciaSecuenciasEcf], k.Id, o.Serie, o.TipoComprobante, o.Desde, o.Hasta, o.Ultimo, o.VenceEn,
-    CASE WHEN o.Ultimo >= o.Hasta THEN 0 ELSE 1 END, SYSDATETIMEOFFSET(), N'Migración Stellar'
+    CASE WHEN o.Ultimo >= o.Hasta THEN 0 ELSE 1 END, SYSDATETIMEOFFSET(), N'Migración'
 FROM #Secuencias o
 JOIN #Equivalencias e ON e.CajaStellar = o.CajaStellar
 JOIN [Sucursales] s ON s.Codigo = e.SucursalCodigo

@@ -5,6 +5,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Sincronizacion;
+using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Seguridad;
 
 namespace CgPos.Central.Pruebas.Api;
@@ -48,6 +49,16 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
             e => e.Dato.Codigo == articulo.Codigo);
         Assert.Equal(articulo.Codigo,
             Assert.Single((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={articulo.Codigo}")).Elementos).Dato.Codigo);
+
+        // El tipo acota además del texto: el jabón es normal, así que buscándolo entre los pesados no aparece.
+        Assert.Equal(articulo.Codigo, Assert.Single((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin,
+            $"/api/maestros/articulos?buscar={barras}&tipo={TipoArticulo.Normal}")).Elementos).Dato.Codigo);
+        Assert.Equal(0, (await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin,
+            $"/api/maestros/articulos?buscar={barras}&tipo={TipoArticulo.Pesado}")).Total);
+
+        // Un tipo que no existe no filtra nada: mejor devolver de más que dejar la pantalla en blanco sin explicar por qué.
+        Assert.Equal(1, (await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin,
+            $"/api/maestros/articulos?buscar={barras}&tipo=NoExiste")).Total);
 
         // Desde maestros no se cambian los precios; un código ya usado no se vuelve a crear y un código de barras es de un solo artículo.
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/articulos", articulo with { Descripcion = "Jabón renombrado", PrecioDetalle = 1m })).Cuerpo!.Exitosa);

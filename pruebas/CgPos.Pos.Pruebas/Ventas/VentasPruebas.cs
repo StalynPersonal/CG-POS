@@ -1823,7 +1823,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         Assert.True(cobro.Exitosa, cobro.Mensaje);
         Assert.Equal(total, cobro.Venta!.TotalCobrado);
-        var pago = Assert.Single(cobro.Venta.Pagos);
+        var pago = Assert.Single(cobro.Venta.Pagos!);
         Assert.Equal(("874512", true), (pago.Referencia, pago.AprobacionManual));
     }
 

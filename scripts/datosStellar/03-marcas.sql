@@ -6101,7 +6101,7 @@ INSERT INTO #Marcas (Codigo, Nombre) VALUES
 GO
 
 INSERT INTO [Marcas] ([Id], [Codigo], [Nombre], [Activa], [ModificadoEn], [ModificadoPor])
-SELECT NEXT VALUE FOR [SecuenciaMarcas], o.Codigo, o.Nombre, 1, SYSDATETIMEOFFSET(), N'Migración Stellar'
+SELECT NEXT VALUE FOR [SecuenciaMarcas], o.Codigo, o.Nombre, 1, SYSDATETIMEOFFSET(), N'Migración'
 FROM #Marcas o
 WHERE NOT EXISTS (SELECT 1 FROM [Marcas] m WHERE m.Codigo = o.Codigo OR m.Nombre = o.Nombre);
 GO

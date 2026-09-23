@@ -19,7 +19,9 @@ public interface IServicioMaestrosCentral
     /// <summary>Busca por código, descripción, códigos de barras…, ordenado por código.</summary>
     /// <param name="pagina">Página desde cero.</param>
     /// <param name="campo">Acota la búsqueda a un campo (ver <see cref="CamposBusquedaArticulo"/>); sin él se busca en todos.</param>
-    Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, string? campo = null, CancellationToken cancelacion = default) where T : class;
+    /// <param name="filtro">Filtro propio del maestro que no es texto: en los artículos, su tipo.</param>
+    Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, string? campo = null, string? filtro = null,
+        CancellationToken cancelacion = default) where T : class;
 
     /// <param name="nuevo">Verdadero para crear (el código no puede existir); falso para cambiar uno existente.</param>
     Task<ResultadoAdministracion> GuardarAsync<T>(T dato, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default) where T : class;

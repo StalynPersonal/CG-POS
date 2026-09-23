@@ -697,7 +697,7 @@ INSERT INTO #Categorias (Codigo, Nombre, DepartamentoCodigo) VALUES
 GO
 
 INSERT INTO [Categorias] ([Id], [Codigo], [Nombre], [DepartamentoId], [Activa], [ModificadoEn], [ModificadoPor])
-SELECT NEXT VALUE FOR [SecuenciaCategorias], o.Codigo, o.Nombre, d.Id, 1, SYSDATETIMEOFFSET(), N'Migración Stellar'
+SELECT NEXT VALUE FOR [SecuenciaCategorias], o.Codigo, o.Nombre, d.Id, 1, SYSDATETIMEOFFSET(), N'Migración'
 FROM #Categorias o
 JOIN [Departamentos] d ON d.Codigo = o.DepartamentoCodigo
 WHERE NOT EXISTS (SELECT 1 FROM [Categorias] c WHERE c.Codigo = o.Codigo);

@@ -20,9 +20,10 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
     public async Task<IReadOnlyList<DatosMaestroCentral<T>>> ListarAsync<T>(CancellationToken cancelacion = default) where T : class =>
         await TablasMaestros.De<T>().TodosAsync(contexto, new ResolutorCodigosCentral(contexto), cancelacion);
 
-    public Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, string? campo = null, CancellationToken cancelacion = default)
+    public Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, string? campo = null, string? filtro = null,
+        CancellationToken cancelacion = default)
         where T : class =>
-        TablasMaestros.De<T>().PaginaAsync(contexto, new ResolutorCodigosCentral(contexto), texto, campo,
+        TablasMaestros.De<T>().PaginaAsync(contexto, new ResolutorCodigosCentral(contexto), texto, campo, filtro,
             Math.Max(pagina, 0), Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina), cancelacion);
 
     public async Task<ResultadoAdministracion> GuardarAsync<T>(T dato, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default) where T : class

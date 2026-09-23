@@ -33,7 +33,17 @@
                     <MudSelectItem T="string" Value="@CamposBusquedaArticulo.Codigo">Código</MudSelectItem>
                 </MudSelect>
                 <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="@Placeholder"
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="width: 420px" />
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="width: 380px" />
+
+                @* El tipo acota además de lo que se busque: «alambre» entre los pesados es las dos cosas. *@
+                <MudSelect T="string" Value="_tipo" ValueChanged="CambiarTipoAsync" Label="Tipo" Dense="true" Margin="Margin.Dense" Clearable="true"
+                           Style="width: 170px">
+                    <MudSelectItem T="string" Value="@(null as string)">Todos</MudSelectItem>
+                    @foreach (var tipo in EtiquetasArticulo.Tipos)
+                    {
+                        <MudSelectItem T="string" Value="@tipo.ToString()">@EtiquetasArticulo.Tipo(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
             </div>
         </ToolBarContent>
         <HeaderContent>
@@ -112,13 +122,16 @@
 
     private async Task<TableData<DatosMaestroCentral<ArticuloCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)
     {
-        var pagina = await Cliente.BuscarArticulosAsync("maestros", _buscar, estado.Page, estado.PageSize, cancelacion, _campo);
+        var pagina = await Cliente.BuscarArticulosAsync("maestros", _buscar, estado.Page, estado.PageSize, cancelacion, _campo, _tipo);
         _error = pagina is null;
         return new TableData<DatosMaestroCentral<ArticuloCarga>> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
     }
 
-    /// <summary>Dónde se busca. Se arranca por descripción, que es como se busca casi siempre.</summary>
-    private string _campo = CamposBusquedaArticulo.Descripcion;
+    /// <summary>Dónde se busca. Se arranca por código, que es con lo que se llega a un artículo concreto.</summary>
+    private string _campo = CamposBusquedaArticulo.Codigo;
+
+    /// <summary>Tipo por el que se acota; vacío son todos.</summary>
+    private string? _tipo;
 
     private string Placeholder => _campo == CamposBusquedaArticulo.Codigo
         ? "Código interno, de barras o de proveedor, completo"
@@ -128,6 +141,13 @@
     private Task CambiarCampoAsync(string campo)
     {
         _campo = campo;
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    /// <summary>Al cambiar el tipo se vuelve a buscar, y se vuelve a la primera página.</summary>
+    private Task CambiarTipoAsync(string? tipo)
+    {
+        _tipo = tipo;
         return _tabla?.ReloadServerData() ?? Task.CompletedTask;
     }
 

@@ -56,8 +56,8 @@ internal interface ITablaCarga<TCarga> where TCarga : class
     /// <summary>Id en el Central del registro con la llave de la carga; nulo si no existe.</summary>
     Task<int?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion);
 
-    Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, string? campo, int pagina,
-        int tamano, CancellationToken cancelacion);
+    Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, string? campo, string? filtro,
+        int pagina, int tamano, CancellationToken cancelacion);
 
     Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> TodosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, CancellationToken cancelacion);
 
@@ -72,6 +72,7 @@ internal interface ITablaCarga<TCarga> where TCarga : class
 /// <param name="Orden">Orden de listado en el Manager.</param>
 /// <param name="Filtro">Búsqueda del Manager por texto; nulo si el maestro se lista completo.</param>
 /// <param name="FiltroPorCampo">Búsqueda acotada a un campo (código o descripción); nulo si ese maestro solo se busca entero.</param>
+/// <param name="FiltroPropio">Filtro del maestro que no es texto (el tipo del artículo); se suma a la búsqueda, no la reemplaza.</param>
 /// <param name="AntesDeLeer">Lo que el resolutor necesita para armar las cargas (ej. los artículos de las promociones).</param>
 internal sealed class TablaMaestro<TEntidad, TCarga>(
     TipoMaestro tipo,
@@ -85,7 +86,8 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
     Action<ContextoDatosCentral, TEntidad, TCarga, ResolutorCodigosCentral, OpcionesPublicacion>? alGuardar = null,
     Func<string, Expression<Func<TEntidad, bool>>>? filtro = null,
     Func<ContextoDatosCentral, IReadOnlyList<TEntidad>, ResolutorCodigosCentral, CancellationToken, Task>? antesDeLeer = null,
-    Func<string, string, Expression<Func<TEntidad, bool>>?>? filtroPorCampo = null) : TablaMaestro, ITablaCarga<TCarga>
+    Func<string, string, Expression<Func<TEntidad, bool>>?>? filtroPorCampo = null,
+    Func<string, Expression<Func<TEntidad, bool>>?>? filtroPropio = null) : TablaMaestro, ITablaCarga<TCarga>
     where TEntidad : Entidad
     where TCarga : class
 {
@@ -150,9 +152,13 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
     /// <summary>Página del Manager ordenada por código, con cuándo y quién cambió cada registro.</summary>
     /// <param name="campo">Acota la búsqueda a un campo; sin él se busca en todos los que tenga el maestro.</param>
     public async Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, string? campo,
-        int pagina, int tamano, CancellationToken cancelacion)
+        string? filtroSolicitado, int pagina, int tamano, CancellationToken cancelacion)
     {
         var consulta = Consulta(contexto).AsNoTracking();
+
+        // El filtro propio del maestro acota además del texto: buscar «alambre» entre los pesados es las dos cosas.
+        if (filtroPropio is not null && !string.IsNullOrWhiteSpace(filtroSolicitado) && filtroPropio(filtroSolicitado.Trim()) is { } propio)
+            consulta = consulta.Where(propio);
         if (!string.IsNullOrWhiteSpace(texto))
         {
             // Si se pidió un campo que este maestro no sabe acotar, se busca como siempre: mejor eso que no devolver nada.
@@ -325,7 +331,9 @@ internal static class TablasMaestros
             CamposBusquedaArticulo.Codigo => e => e.Codigo == texto || e.Referencia == texto || e.Codigos.Any(c => c.Codigo == texto),
             CamposBusquedaArticulo.Descripcion => e => e.Descripcion.Contains(texto),
             _ => null,
-        });
+        },
+        // Filtro por tipo: normal, pesado, serializado o combo. Un valor desconocido no filtra nada.
+        filtroPropio: valor => Enum.TryParse<TipoArticulo>(valor, ignoreCase: true, out var tipo) ? e => e.Tipo == tipo : null);
 
     public static TablaMaestro<Cliente, ClienteCarga> Clientes { get; } = new(
         TipoMaestro.Cliente, c => c.Clientes,

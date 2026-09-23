@@ -32,7 +32,7 @@ INSERT INTO #Motivos (Codigo, Nombre) VALUES
 GO
 
 INSERT INTO [MotivosDevolucion] ([Id], [Codigo], [Nombre], [Activo], [ModificadoEn], [ModificadoPor])
-SELECT NEXT VALUE FOR [SecuenciaMotivosDevolucion], o.Codigo, o.Nombre, 1, SYSDATETIMEOFFSET(), N'Migración Stellar'
+SELECT NEXT VALUE FOR [SecuenciaMotivosDevolucion], o.Codigo, o.Nombre, 1, SYSDATETIMEOFFSET(), N'Migración'
 FROM #Motivos o
 WHERE NOT EXISTS (SELECT 1 FROM [MotivosDevolucion] m WHERE m.Codigo = o.Codigo);
 GO
