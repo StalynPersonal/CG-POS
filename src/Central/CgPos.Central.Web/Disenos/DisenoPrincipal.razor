@@ -45,20 +45,20 @@
             <AuthorizeView Policy="@CatalogoPermisosCentral.MonitorearSincronizacion">
                 <MudNavGroup Title="Sincronización" Icon="@Icons.Material.Filled.Sync" Expanded="@EnRuta("monitor")">
                     <MudNavLink Href="monitor" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.MonitorHeart">Monitor</MudNavLink>
-                    <MudNavLink Href="monitor/comprobantes" Icon="@Icons.Material.Filled.ReceiptLong">e-CF y DGII</MudNavLink>
+                    <MudNavLink Href="monitor/comprobantes" Icon="@Icons.Material.Filled.CloudUpload">e-CF y DGII</MudNavLink>
                     <MudNavLink Href="monitor/conflictos" Icon="@Icons.Material.Filled.ReportProblem">Conflictos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarMaestros">
-                <MudNavGroup Title="Maestros" Icon="@Icons.Material.Filled.Inventory2" Expanded="@EnRuta("articulos", "clientes", "maestros")">
-                    <MudNavLink Href="articulos" Icon="@Icons.Material.Filled.Inventory">Artículos</MudNavLink>
+                <MudNavGroup Title="Maestros" Icon="@Icons.Material.Filled.Category" Expanded="@EnRuta("articulos", "clientes", "maestros")">
+                    <MudNavLink Href="articulos" Icon="@Icons.Material.Filled.Inventory2">Artículos</MudNavLink>
                     <MudNavLink Href="clientes" Icon="@Icons.Material.Filled.Groups">Clientes</MudNavLink>
                     <MudNavLink Href="maestros" Icon="@Icons.Material.Filled.ListAlt">Catálogos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarPrecios">
-                <MudNavGroup Title="Precios" Icon="@Icons.Material.Filled.Sell" Expanded="@EnRuta("precios/")">
-                    <MudNavLink Href="precios/articulos" Icon="@Icons.Material.Filled.PriceChange">Precios de artículos</MudNavLink>
+                <MudNavGroup Title="Precios" Icon="@Icons.Material.Filled.PriceChange" Expanded="@EnRuta("precios/")">
+                    <MudNavLink Href="precios/articulos" Icon="@Icons.Material.Filled.AttachMoney">Precios de artículos</MudNavLink>
                     <MudNavLink Href="precios/topes" Icon="@Icons.Material.Filled.Discount">Topes de descuento</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
@@ -75,7 +75,7 @@
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.ConsultarReportes">
-                <MudNavGroup Title="Ventas" Icon="@Icons.Material.Filled.ReceiptLong" Expanded="@EnRuta("facturas")">
+                <MudNavGroup Title="Ventas" Icon="@Icons.Material.Filled.ShoppingCart" Expanded="@EnRuta("facturas")">
                     <MudNavLink Href="facturas" Icon="@Icons.Material.Filled.Receipt">Facturas de las cajas</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
@@ -93,17 +93,17 @@
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFidelidad">
-                <MudNavGroup Title="Fidelidad" Icon="@Icons.Material.Filled.Loyalty" Expanded="@EnRuta("fidelidad/")">
+                <MudNavGroup Title="Fidelidad" Icon="@Icons.Material.Filled.Stars" Expanded="@EnRuta("fidelidad/")">
                     <MudNavLink Href="fidelidad/miembros" Icon="@Icons.Material.Filled.CardMembership">Miembros y puntos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.OperarDespacho">
                 <MudNavGroup Title="Despacho" Icon="@Icons.Material.Filled.LocalShipping" Expanded="@EnRuta("despacho/")">
-                    <MudNavLink Href="despacho/pendientes" Icon="@Icons.Material.Filled.Inventory2">Pendientes y envíos</MudNavLink>
+                    <MudNavLink Href="despacho/pendientes" Icon="@Icons.Material.Filled.Inventory">Pendientes y envíos</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarFiscal">
-                <MudNavGroup Title="Fiscal" Icon="@Icons.Material.Filled.ReceiptLong" Expanded="@EnRuta("fiscal/")">
+                <MudNavGroup Title="Fiscal" Icon="@Icons.Material.Filled.Gavel" Expanded="@EnRuta("fiscal/")">
                     <MudNavLink Href="fiscal/secuencias" Icon="@Icons.Material.Filled.FormatListNumbered">Rangos de e-CF</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
@@ -125,7 +125,7 @@
             </AuthorizeView>
             @* Corregir un cuadre: en la caja, cerrar es definitivo, así que la corrección se hace aquí. *@
             <AuthorizeView Policy="@CatalogoPermisosCentral.AjustarCierres">
-                <MudNavGroup Title="Cierres de caja" Icon="@Icons.Material.Filled.PointOfSale" Expanded="@EnRuta("cierres-caja")">
+                <MudNavGroup Title="Cierres de caja" Icon="@Icons.Material.Filled.Savings" Expanded="@EnRuta("cierres-caja")">
                     <MudNavLink Href="cierres-caja" Icon="@Icons.Material.Filled.RuleFolder">Cuadres y correcciones</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
