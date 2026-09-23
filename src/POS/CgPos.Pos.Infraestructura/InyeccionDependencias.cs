@@ -79,8 +79,13 @@ public static class InyeccionDependencias
         // Periféricos (simulados hasta definir modelos; la impresora se elige por configuración)
         servicios.AddSingleton<IBalanza>(proveedor => Perifericos.FabricaPerifericos.CrearBalanza(proveedor, configuracion));
         servicios.AddSingleton<ITerminalPago>(proveedor => Perifericos.FabricaPerifericos.CrearTerminal(proveedor, configuracion));
-        servicios.AddSingleton<IImpresoraTicket>(proveedor => new ImpresoraTicket(configuracion,
-            proveedor.GetRequiredService<TimeProvider>(), proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ImpresoraTicket>>()));
+        servicios.AddSingleton<IImpresoraTicket>(proveedor =>
+        {
+            Perifericos.FabricaPerifericos.Avisar(proveedor, "Perifericos:Impresora:Tipo", configuracion["Perifericos:Impresora:Tipo"],
+                "Archivo", ["Archivo", "Red", "Windows"]);
+            return new ImpresoraTicket(configuracion, proveedor.GetRequiredService<TimeProvider>(),
+                proveedor.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ImpresoraTicket>>());
+        });
 
         // Turnos y ventas (M13, M05)
         servicios.AddScoped<GeneradorSecuencias>();
