@@ -1797,6 +1797,37 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Sin_terminal_conectado_la_tarjeta_se_cobra_con_la_aprobacion_del_volante_y_sin_autorizacion()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, terminal: new TerminalAusente());
+
+        // La pantalla se entera por el catálogo de cobro: así pide la aprobación en vez de ofrecer «Pasar tarjeta».
+        var catalogo = await caja.EjecutarAsync<IConsultaCatalogoCobro, DatosCatalogoCobro>(s => s.ObtenerAsync());
+        Assert.False(catalogo.TerminalIntegrado);
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var total = (await caja.VentaActualAsync()).Totales.Total;
+
+        // Sin el número del volante no se cobra: sería un cobro que nadie puede comprobar.
+        var sinAprobacion = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, TipoTarjetaId: caja.Catalogo.TipoTarjeta, AprobacionManual: true)], null));
+        Assert.Equal(CodigoResultadoVenta.PagoInvalido, sinAprobacion.Resultado);
+        Assert.Contains("número de aprobación", sinAprobacion.Mensaje);
+
+        // Con el número sí, y sin pedir autorización de supervisor: en esta caja es la forma normal de cobrar.
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, "874512", TipoTarjetaId: caja.Catalogo.TipoTarjeta, UltimosDigitos: "4242",
+                AprobacionManual: true)], null));
+
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        Assert.Equal(total, cobro.Venta!.TotalCobrado);
+        var pago = Assert.Single(cobro.Venta.Pagos);
+        Assert.Equal(("874512", true), (pago.Referencia, pago.AprobacionManual));
+    }
+
+    [SkippableFact]
     public async Task El_terminal_lee_la_tarjeta_aplica_el_descuento_del_banco_y_cobra_lo_rebajado()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
@@ -2111,6 +2142,28 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     /// <summary>Caja lista para vender: usuarios y maestros cargados, sesión del cajero y (opcional) turno abierto.</summary>
+    /// <summary>Caja sin terminal conectado: se cobra en un equipo aparte y el cajero digita la aprobación del volante.</summary>
+    private sealed class TerminalAusente : CgPos.Pos.Aplicacion.Perifericos.ITerminalPago
+    {
+        public bool Integrado => false;
+
+        public bool ConsultaTarjeta => false;
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoConsultaTarjeta(false, false, null, null, "No hay terminal."));
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal> CobrarAsync(decimal monto, decimal impuesto, string referenciaVenta,
+            CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal(false, false, null, null, null, "No hay terminal."));
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal> AnularAsync(string aprobacion, string? referenciaTerminal, decimal monto,
+            CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoTerminal(false, false, null, null, null, "No hay terminal."));
+
+        public Task<CgPos.Pos.Aplicacion.Perifericos.ResultadoLoteTerminal> CerrarLoteAsync(CancellationToken cancelacion = default) =>
+            Task.FromResult(new CgPos.Pos.Aplicacion.Perifericos.ResultadoLoteTerminal(true, "No hay terminal: cierre el lote en el equipo."));
+    }
+
     /// <summary>Terminal que lee la tarjeta antes de cobrar, como el Ingenico 7000 de CardNet con la consulta CS00 activa.</summary>
     private sealed class TerminalConLectura : CgPos.Pos.Aplicacion.Perifericos.ITerminalPago
     {

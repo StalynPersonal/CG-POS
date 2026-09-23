@@ -272,7 +272,7 @@ internal sealed class ConsultaDocumentos(ContextoDatosPos contexto) : IConsultaD
     }
 }
 
-internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvider reloj) : IConsultaCatalogoCobro
+internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvider reloj, CgPos.Pos.Aplicacion.Perifericos.ITerminalPago terminal) : IConsultaCatalogoCobro
 {
     public async Task<DatosCatalogoCobro> ObtenerAsync(CancellationToken cancelacion = default)
     {
@@ -298,6 +298,6 @@ internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvi
             .Select(t => new DatosTasaCambio(t.Moneda, t.Tasa, t.VigenteDesde))
             .ToList();
 
-        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas);
+        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas, terminal.Integrado);
     }
 }

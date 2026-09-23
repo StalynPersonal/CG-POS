@@ -341,6 +341,12 @@ public sealed record DatosCatalogoCobro(
     IReadOnlyList<DatosBanco> Bancos,
     IReadOnlyList<DatosTipoTarjeta> TiposTarjeta,
     IReadOnlyList<DatosDenominacion> Denominaciones,
-    IReadOnlyList<DatosTasaCambio>? Tasas = null);
+    IReadOnlyList<DatosTasaCambio>? Tasas = null,
+
+    /// <summary>
+    /// La caja habla con el terminal de tarjetas. Si es falso, esta caja cobra con un equipo aparte y el cajero digita el
+    /// número de aprobación del volante.
+    /// </summary>
+    bool TerminalIntegrado = true);
 
 public sealed record DatosDepartamento(int Id, int Codigo, string Nombre, bool EsNoCodificada);

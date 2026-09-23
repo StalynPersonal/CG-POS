@@ -372,9 +372,10 @@ internal sealed class ServicioVentas(
         var ahora = reloj.Ahora();
         venta!.RecalcularPromociones(await PromocionesAsync(cancelacion), venta.SucursalId, reloj.Ahora());
 
-        // La aprobación manual de tarjeta por contingencia de la pasarela requiere permiso (RF-213).
+        // La aprobación manual de tarjeta por contingencia de la pasarela requiere permiso (RF-213). En una caja sin
+        // terminal conectado no es contingencia: es como se cobra siempre ahí, y pedir autorización en cada venta sobra.
         ResultadoPermiso? permiso = null;
-        if (pagos.Any(p => p.AprobacionManual))
+        if (terminal.Integrado && pagos.Any(p => p.AprobacionManual))
         {
             permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AprobacionManualTarjeta, autorizacionId, TipoEntidadVenta, venta.Identificacion, cancelacion);
             if (!permiso.Permitido)
@@ -717,6 +718,12 @@ internal sealed class ServicioVentas(
                 operacionId = operacion.Id;
                 usadas.Add(operacion);
             }
+
+            // Sin el número de aprobación del volante no hay con qué cuadrar el turno contra el lote del equipo, y el cobro
+            // quedaría registrado sin que nadie pueda comprobar que ocurrió.
+            if (forma.Tipo == TipoFormaPago.Tarjeta && pago.AprobacionManual && string.IsNullOrWhiteSpace(referencia))
+                return PagosArmados.Rechazado(CodigoResultadoVenta.PagoInvalido,
+                    "Digite el número de aprobación que imprimió el equipo donde cobró la tarjeta.");
 
             // Nota de crédito por su e-NCF (RF-36): de esta caja o, si no la tiene, validada y reservada en el Central (RF-43).
             if (forma.Tipo == TipoFormaPago.NotaCredito)

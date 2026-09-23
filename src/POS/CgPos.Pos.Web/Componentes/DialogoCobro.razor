@@ -140,6 +140,7 @@
                                 </div>
                                 @if (_contingencia)
                                 {
+                                    @* Sin terminal conectado hay que saber de qué tarjeta fue, para cuadrar contra los volantes. *@
                                     <div @onclick="() => _campo = Campo.Digitos">
                                         <MudTextField T="string" @bind-Value="_digitos" Label="Últimos 4 dígitos" Variant="Variant.Outlined" Immediate="true" MaxLength="4"
                                                       Class="@ClaseCampo(Campo.Digitos)" />
@@ -211,6 +212,9 @@
     private int? _tipoTarjeta;
     private string? _bin;
     private bool _contingencia;
+
+    /// <summary>Esta caja no tiene terminal conectado: la tarjeta se cobra en otro equipo y se digita su aprobación.</summary>
+    private bool SinTerminal => _catalogo is { TerminalIntegrado: false };
     private bool _procesando;
     private string? _mensaje;
     private string? _estado;
@@ -287,7 +291,7 @@
         _digitos = string.Empty;
         _banco = null;
         _tipoTarjeta = null;
-        _contingencia = false;
+        _contingencia = SinTerminal && forma.Tipo == TipoFormaPago.Tarjeta;
         _mensaje = null;
         _campo = Campo.Monto;
         _monto = SaldoEn(forma).ToString("0.##", CultureInfo.InvariantCulture);
@@ -381,7 +385,7 @@
             forma.Moneda == MonedaLocal ? null : $"{monto:N2} {forma.Moneda} @ {tasa:N2}",
             banco,
             string.IsNullOrWhiteSpace(_referencia) ? null : $"Ref. {_referencia}",
-            _contingencia ? "Aprobación manual" : null,
+            _contingencia ? (SinTerminal ? "Cobrada en el equipo" : "Aprobación manual") : null,
         }.Where(texto => texto is not null));
 
         _pagos.Add(new PagoAgregado(

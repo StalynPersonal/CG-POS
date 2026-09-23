@@ -29,6 +29,12 @@ public sealed record ResultadoConsultaTarjeta(bool Leida, bool SinConexion, stri
 public interface ITerminalPago
 {
     /// <summary>
+    /// La caja habla con el terminal. Cuando es falso, la tienda cobra con un equipo aparte —un inalámbrico, por ejemplo— y
+    /// el cajero digita el número de aprobación del volante: no es una contingencia, es como trabaja esa caja.
+    /// </summary>
+    bool Integrado => true;
+
+    /// <summary>
     /// El terminal lee la tarjeta antes de cobrar y entrega su BIN, para aplicar el descuento del banco (RF-98) y cobrar ya con el monto
     /// rebajado. Si no lo soporta, el cajero puede digitar los primeros dígitos.
     /// </summary>

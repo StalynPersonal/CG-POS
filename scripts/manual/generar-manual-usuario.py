@@ -966,6 +966,9 @@ viñeta('No se puede cerrar con facturas en espera, transacciones con artículos
        'firmada: la pantalla dice exactamente qué falta.')
 viñeta('Con un turno de un día anterior, las facturas en espera ya no se pueden cobrar: el cierre avisa cuáles son y pide '
        'retomarlas y limpiarlas (con la autorización de un supervisor) antes de cerrar.')
+viñeta('Cobro con tarjeta: si la caja tiene el terminal conectado, ella le manda el monto y recibe sola la aprobación. Si la '
+       'tienda cobra con un equipo aparte (un inalámbrico, por ejemplo), el cajero digita el número de aprobación del volante: '
+       'es obligatorio, porque es lo único con que después se cuadra el turno contra los comprobantes.')
 viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprobado en la caja con lo que reporta el terminal. El resultado '
        'queda guardado y sube con el cierre, así que el supervisor lo ve en el Central sin depender del papel.')
 viñeta('Al cerrar se imprime el reporte del turno: lo esperado por forma de pago, los retiros, los reembolsos y los relevos.')

@@ -31,16 +31,29 @@ internal static class FabricaPerifericos
     public static ITerminalPago CrearTerminal(IServiceProvider proveedor, IConfiguration configuracion)
     {
         var tipo = configuracion["Perifericos:Terminal:Tipo"];
-        Avisar(proveedor, "Perifericos:Terminal:Tipo", tipo, "Simulado", ["Simulado", "Conectado"]);
+        Avisar(proveedor, "Perifericos:Terminal:Tipo", tipo, "Simulado", ["Simulado", "Conectado", "Ninguno"]);
+
+        // Ninguno: la tienda cobra con un equipo aparte y el cajero digita la aprobación del volante.
+        if (string.Equals(tipo, "Ninguno", StringComparison.OrdinalIgnoreCase))
+            return new TerminalPagoAusente();
 
         if (!string.Equals(tipo, "Conectado", StringComparison.OrdinalIgnoreCase))
             return new TerminalPagoSimulado(configuracion);
 
-        return (configuracion["Perifericos:Terminal:Modelo"] ?? string.Empty).Contains("CardNet", StringComparison.OrdinalIgnoreCase)
+        var modelo = configuracion["Perifericos:Terminal:Modelo"];
+        if (modelo is { Length: > 0 } && !ModelosConocidos.Contains(modelo.Trim(), StringComparer.OrdinalIgnoreCase))
+            proveedor.GetService<ILoggerFactory>()?.CreateLogger("CgPos.Perifericos").LogWarning(
+                "Perifericos:Terminal:Modelo dice «{Modelo}», que no está implementado. Los modelos son: {Modelos}. Se usará el perfil genérico, "
+                + "que casi seguro no entiende a ese terminal.", modelo, string.Join(", ", ModelosConocidos));
+
+        return (modelo ?? string.Empty).Contains("CardNet", StringComparison.OrdinalIgnoreCase)
             ? new TerminalPagoCardNet(configuracion, proveedor.GetRequiredService<ILogger<TerminalPagoCardNet>>())
             : new TerminalPagoConectado(configuracion, proveedor.GetRequiredService<TimeProvider>(),
                 proveedor.GetRequiredService<ILogger<TerminalPagoConectado>>());
     }
+
+    /// <summary>Los modelos con protocolo propio; cualquier otro cae al genérico, que se configura con plantillas.</summary>
+    private static readonly string[] ModelosConocidos = ["CardNet", "Generico"];
 
     /// <summary>
     /// Un tipo mal escrito no rompe nada: el periférico se cae al predeterminado. Pero en silencio eso es peor que un
