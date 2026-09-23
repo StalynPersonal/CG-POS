@@ -1,4 +1,5 @@
 ﻿using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Comun;
 using CgPos.Dominio.Turnos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -29,6 +30,9 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
     {
         constructor.ToTable("CierresTurno");
         constructor.HasKey(c => c.Id);
+        constructor.Property(c => c.SucursalCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(c => c.SucursalNombre).HasMaxLength(OrigenDocumento.LargoMaximoNombreSucursal).IsRequired();
+        constructor.Property(c => c.CajaCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(c => c.FondoInicial).HasPrecision(18, 2);
         constructor.Property(c => c.Moneda).HasMaxLength(Moneda.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(c => c.TotalVentas).HasPrecision(18, 2);

@@ -1132,15 +1132,38 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(CodigoResultadoCaja.RequiereAutorizacion, sinAutorizacion.Resultado);
         Assert.Equal(CatalogoPermisos.RelevoCajero, sinAutorizacion.PermisoRequerido);
 
+        // El primer cajero deja una venta a medias: es del turno, así que el que releva la encuentra en su pantalla.
+        var enCurso = await caja.VentaActualAsync();
+        await caja.AgregarAsync(enCurso.Id, caja.Catalogo.BarrasCincel);
+
         var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.RelevoCajero, "Almuerzo", caja.CajeroDos);
         var relevo = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.RelevarAsync(caja.CajeroDos, autorizacion));
         Assert.True(relevo.Exitosa, relevo.Mensaje);
         Assert.Equal(caja.Escenario.CajeroDos, relevo.Turno!.UsuarioActualId);
+        Assert.Equal(caja.Escenario.Cajero, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
+            contexto.Turnos.AsNoTracking().Where(t => t.Id == relevo.Turno!.Id).Select(t => t.UsuarioAperturaId).SingleAsync())); // quien abrió no cambia
+
+        var retomada = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.ObtenerActualAsync(caja.CajeroDos));
+        Assert.True(retomada.Exitosa, retomada.Mensaje);
+        Assert.Equal(enCurso.Id, retomada.Venta!.Id);
+        Assert.Single(retomada.Venta.Lineas);
 
         var cajeroOriginal = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.ObtenerActualAsync(caja.Cajero));
         Assert.Equal(CodigoResultadoVenta.TurnoDeOtroUsuario, cajeroOriginal.Resultado);
 
-        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.CajeroDos, [], [], null));
+        // La cobra el que relevó, y la factura queda a su nombre aunque la haya empezado el otro.
+        var totalDeLaVenta = retomada.Venta.Totales.TotalAPagar;
+        var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.CajeroDos, enCurso.Id,
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, totalDeLaVenta)], null));
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+        var cobrada = await caja.EjecutarAsync<ContextoDatosPos, VentaCobrada>(contexto =>
+            contexto.Ventas.AsNoTracking().SingleAsync(v => v.NumeroTransaccion == cobro.Cobro!.NumeroTransaccion));
+        Assert.Equal(caja.Escenario.CajeroDos, cobrada.UsuarioId);
+        Assert.Equal(caja.Escenario.CajeroDos, cobrada.CobradaPorId);
+
+        // Se declara lo cobrado, que está en la gaveta: el cuadre cierra sin diferencia.
+        var cierre = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.CajeroDos,
+            [new SolicitudDeclaracionFormaPago(caja.Catalogo.FormaEfectivo, totalDeLaVenta)], [], null));
         Assert.True(cierre.Exitosa, cierre.Mensaje);
         var cierreId = cierre.Cierre!.Id;
         Assert.Equal(0m, cierre.Cierre.Diferencia);

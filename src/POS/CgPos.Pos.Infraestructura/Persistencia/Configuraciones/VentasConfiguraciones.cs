@@ -18,6 +18,9 @@ internal sealed class TurnoConfiguracion : IEntityTypeConfiguration<Turno>
     {
         constructor.ToTable("Turnos");
         constructor.HasKey(t => t.Id);
+        constructor.Property(t => t.SucursalCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
+        constructor.Property(t => t.SucursalNombre).HasMaxLength(OrigenDocumento.LargoMaximoNombreSucursal).IsRequired();
+        constructor.Property(t => t.CajaCodigo).HasMaxLength(OrigenDocumento.LargoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(t => t.UsuarioAperturaNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
         constructor.Property(t => t.UsuarioActualNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
         constructor.Property(t => t.FondoInicial).HasPrecision(18, 2);

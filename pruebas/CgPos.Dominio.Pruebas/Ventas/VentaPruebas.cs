@@ -9,6 +9,8 @@ namespace CgPos.Dominio.Pruebas.Ventas;
 
 public class VentaPruebas
 {
+    private static readonly OrigenDocumento OrigenTurno = new("01", "Sucursal de prueba", "01", 1);
+
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 14, 0, 0, TimeSpan.FromHours(-4));
 
     private static Venta NuevaVenta() =>
@@ -417,9 +419,9 @@ public class VentaPruebas
     public void Turno_valida_fondo_y_no_se_cierra_dos_veces()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), 1, DateOnly.FromDateTime(Ahora.Date), Ids.Siguiente(), "Cajera", -1m, Ahora));
+            Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), OrigenTurno, DateOnly.FromDateTime(Ahora.Date), Ids.Siguiente(), "Cajera", -1m, Ahora));
 
-        var turno = Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), 1, DateOnly.FromDateTime(Ahora.Date), Ids.Siguiente(), "Cajera", 5000.005m, Ahora);
+        var turno = Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), OrigenTurno, DateOnly.FromDateTime(Ahora.Date), Ids.Siguiente(), "Cajera", 5000.005m, Ahora);
         Assert.Equal(5000.01m, turno.FondoInicial);
         Assert.True(turno.EstaAbierto);
 

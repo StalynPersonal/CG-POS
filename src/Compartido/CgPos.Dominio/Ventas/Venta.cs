@@ -1138,6 +1138,11 @@ public abstract class Venta : Entidad
         CobradaEn = ahora;
         CobradaPorId = Validar.Id(usuarioId, "Usuario");
         CobradaPorNombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario);
+
+        // La venta es del turno mientras se arma y puede pasar de un cajero a otro con un relevo: la factura queda a nombre
+        // de quien la cobró, que es quien responde por el dinero. Quién la empezó queda en la auditoría.
+        UsuarioId = CobradaPorId.Value;
+        UsuarioNombre = CobradaPorNombre;
         TotalCobrado = totalCobrado;
         Devuelta = devuelta;
         RedondeoEfectivo = totalCobrado - total;

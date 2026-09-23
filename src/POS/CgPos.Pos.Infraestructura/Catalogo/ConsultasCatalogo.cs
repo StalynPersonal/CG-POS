@@ -71,8 +71,7 @@ internal sealed class ConsultaArticulos(
                 || a.Codigos.Any(c => c.Codigo.StartsWith(termino)));
         }
 
-        var articulos = await consulta.OrderBy(a => a.Descripcion).Take(maximo).ToListAsync(cancelacion);
-        return await ArmarResumenesAsync(articulos, cancelacion);
+        return await ArmarResumenesAsync(consulta.OrderBy(a => a.Descripcion).Take(maximo), cancelacion);
     }
 
     public async Task<IReadOnlyList<DatosArticuloResumen>> ListarCatalogoAsync(int? departamentoId = null, CancellationToken cancelacion = default)
@@ -81,8 +80,7 @@ internal sealed class ConsultaArticulos(
         if (departamentoId is { } departamento)
             consulta = consulta.Where(a => a.DepartamentoId == departamento);
 
-        var articulos = await consulta.OrderBy(a => a.Descripcion).Take(500).ToListAsync(cancelacion);
-        return await ArmarResumenesAsync(articulos, cancelacion);
+        return await ArmarResumenesAsync(consulta.OrderBy(a => a.Descripcion).Take(500), cancelacion);
     }
 
     public async Task<IReadOnlyList<DatosArticuloResumen>> ListarNoCodificadosAsync(int? departamentoId = null, CancellationToken cancelacion = default)
@@ -92,8 +90,7 @@ internal sealed class ConsultaArticulos(
         if (departamentoId is { } departamento)
             consulta = consulta.Where(a => a.DepartamentoId == departamento);
 
-        var articulos = await consulta.OrderBy(a => a.Descripcion).ToListAsync(cancelacion);
-        return await ArmarResumenesAsync(articulos, cancelacion);
+        return await ArmarResumenesAsync(consulta.OrderBy(a => a.Descripcion), cancelacion);
     }
 
     public async Task<IReadOnlyList<DatosDepartamento>> ListarDepartamentosAsync(CancellationToken cancelacion = default) =>
@@ -114,14 +111,21 @@ internal sealed class ConsultaArticulos(
                 join unidad in contexto.UnidadesMedida on articulo.UnidadMedidaId equals unidad.Id
                 join impuesto in contexto.Impuestos on articulo.ImpuestoId equals impuesto.Id
                 where articulo.Id == articuloId
-                select new { articulo, departamento, unidad, impuesto })
+                select new
+                {
+                    articulo,
+                    departamento,
+                    unidad,
+                    impuesto,
+                    PrecioDetalle = EF.Property<decimal>(articulo, ArticuloConfiguracion.PrecioDetalle),
+                    PrecioMayor = EF.Property<decimal?>(articulo, ArticuloConfiguracion.PrecioMayor),
+                })
             .SingleOrDefaultAsync(cancelacion);
 
         if (datos is null)
             return null;
 
-        var precios = await PreciosVigentesAsync([articuloId], cancelacion);
-        var vigentes = precios.GetValueOrDefault(articuloId) ?? new PreciosVigentes(null, null);
+        var vigentes = Precios(datos.PrecioDetalle, datos.PrecioMayor);
 
         return new DatosArticuloVenta(
             datos.articulo.Id,
@@ -160,45 +164,53 @@ internal sealed class ConsultaArticulos(
                 : null);
     }
 
-    private async Task<IReadOnlyList<DatosArticuloResumen>> ArmarResumenesAsync(List<Articulo> articulos, CancellationToken cancelacion)
+    /// <summary>
+    /// El precio está en el propio artículo, como en el Central, y sale en la misma consulta: el listado no necesita una
+    /// segunda vuelta a la base para saber a cuánto está cada uno.
+    /// </summary>
+    private async Task<IReadOnlyList<DatosArticuloResumen>> ArmarResumenesAsync(IQueryable<Articulo> consulta, CancellationToken cancelacion)
     {
+        // Solo las columnas que se muestran: el listado no necesita el artículo entero y así la base mueve menos.
+        var articulos = await consulta
+            .Select(a => new
+            {
+                a.Id,
+                a.Codigo,
+                a.Descripcion,
+                a.Referencia,
+                a.DepartamentoId,
+                a.UnidadMedidaId,
+                a.CategoriaId,
+                a.RutaImagen,
+                PrecioDetalle = EF.Property<decimal>(a, ArticuloConfiguracion.PrecioDetalle),
+                PrecioMayor = EF.Property<decimal?>(a, ArticuloConfiguracion.PrecioMayor),
+            })
+            .ToListAsync(cancelacion);
         if (articulos.Count == 0)
             return [];
 
-        var ids = articulos.Select(a => a.Id).ToList();
         var departamentosIds = articulos.Select(a => a.DepartamentoId).Distinct().ToList();
         var unidadesIds = articulos.Select(a => a.UnidadMedidaId).Distinct().ToList();
-
         var categoriasIds = articulos.Select(a => a.CategoriaId).OfType<int>().Distinct().ToList();
 
         var departamentos = await contexto.Departamentos.Where(f => departamentosIds.Contains(f.Id)).ToDictionaryAsync(f => f.Id, f => f.Nombre, cancelacion);
         var unidades = await contexto.UnidadesMedida.Where(u => unidadesIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Abreviatura, cancelacion);
         var categorias = await contexto.Categorias.Where(c => categoriasIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Nombre, cancelacion);
-        var precios = await PreciosVigentesAsync(ids, cancelacion);
 
         return articulos
             .Select(a =>
             {
-                var vigentes = precios.GetValueOrDefault(a.Id);
+                var vigentes = Precios(a.PrecioDetalle, a.PrecioMayor);
                 return new DatosArticuloResumen(a.Id, a.Codigo, a.Descripcion, a.Referencia, departamentos[a.DepartamentoId],
-                    unidades[a.UnidadMedidaId], vigentes?.Detalle, vigentes?.Mayor, a.RutaImagen,
+                    unidades[a.UnidadMedidaId], vigentes.Detalle, vigentes.Mayor, a.RutaImagen,
                     a.CategoriaId is { } categoria ? categorias.GetValueOrDefault(categoria) : null);
             })
             .ToList();
     }
 
-    /// <summary>Los precios están en el propio artículo, como en el Central: se leen con él, sin otra tabla.</summary>
-    private async Task<Dictionary<int, PreciosVigentes>> PreciosVigentesAsync(List<int> articulosIds, CancellationToken cancelacion) =>
-        (await contexto.Articulos.AsNoTracking()
-            .Where(a => articulosIds.Contains(a.Id))
-            .Select(a => new
-            {
-                a.Id,
-                Detalle = EF.Property<decimal>(a, ArticuloConfiguracion.PrecioDetalle),
-                Mayor = EF.Property<decimal?>(a, ArticuloConfiguracion.PrecioMayor),
-            })
-            .ToListAsync(cancelacion))
-        .ToDictionary(a => a.Id, a => new PreciosVigentes(a.Detalle > 0 ? a.Detalle : null, a.Mayor > 0 ? a.Mayor : null));
+    /// <summary>El artículo sin precio (el descontinuado que llega en cero) no tiene precio, no un precio de cero.</summary>
+    private static PreciosVigentes Precios(decimal detalle, decimal? mayor) =>
+        new(detalle > 0 ? detalle : null, mayor > 0 ? mayor : null);
 
     /// <summary>Formato de etiquetas de balanza configurado; nulo si la caja no tiene etiquetas de balanza configuradas.</summary>
     private async Task<FormatoCodigoBalanza?> ObtenerFormatoBalanzaAsync(CancellationToken cancelacion)

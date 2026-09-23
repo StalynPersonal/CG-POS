@@ -198,6 +198,16 @@ public sealed class CierreTurno : Entidad
     public int TurnoId { get; private set; }
     public int CajaId { get; private set; }
     public int SucursalId { get; private set; }
+
+    /// <summary>Sucursal y caja como se llamaban al abrir el turno; viajan con el cierre al Central.</summary>
+    public string SucursalCodigo { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string SucursalNombre { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string CajaCodigo { get; private set; } = string.Empty;
+
     public long TurnoNumero { get; private set; }
 
     /// <summary>1 para el primer cierre del turno; aumenta si el turno se reabre y se vuelve a cerrar.</summary>
@@ -251,6 +261,9 @@ public sealed class CierreTurno : Entidad
             TurnoId = turno.Id,
             CajaId = turno.CajaId,
             SucursalId = turno.SucursalId,
+            SucursalCodigo = turno.SucursalCodigo,
+            SucursalNombre = turno.SucursalNombre,
+            CajaCodigo = turno.CajaCodigo,
             TurnoNumero = turno.Numero,
             Numero = numero,
             FechaOperacion = turno.FechaOperacion,

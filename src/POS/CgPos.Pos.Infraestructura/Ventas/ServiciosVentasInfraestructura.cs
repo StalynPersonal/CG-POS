@@ -195,7 +195,9 @@ internal sealed class ServicioTurnos(
 
         var ahora = reloj.Ahora();
         var numero = await secuencias.SiguienteAsync(sesion.CajaId, TiposSecuencia.Turno, cancelacion);
-        var turno = Turno.Abrir(sesion.CajaId, sesion.SucursalId, numero, reloj.Ahora().Dia(),
+        var sucursalDelTurno = await contexto.Sucursales.Where(s => s.Id == sesion.SucursalId).Select(s => new { s.Codigo, s.Nombre }).SingleAsync(cancelacion);
+        var turno = Turno.Abrir(sesion.CajaId, sesion.SucursalId,
+            new OrigenDocumento(sucursalDelTurno.Codigo, sucursalDelTurno.Nombre, sesion.CajaCodigo, numero), reloj.Ahora().Dia(),
             sesion.UsuarioId, sesion.Nombre, fondo, ahora);
 
         contexto.Turnos.Add(turno);
@@ -1369,7 +1371,7 @@ internal sealed class ServicioVentas(
             return [];
 
         var enEspera = await contexto.VentasGuardadas.AsNoTracking()
-            .Where(v => v.TurnoId == turno!.Id && v.UsuarioId == sesion.UsuarioId)
+            .Where(v => v.TurnoId == turno!.Id)
             .ToListAsync(cancelacion);
 
         return enEspera
@@ -1390,7 +1392,7 @@ internal sealed class ServicioVentas(
             return rechazo;
 
         var enEspera = await contexto.VentasGuardadas.SingleOrDefaultAsync(v => v.Id == ventaId, cancelacion);
-        if (enEspera is null || enEspera.TurnoId != turno!.Id || enEspera.UsuarioId != sesion.UsuarioId)
+        if (enEspera is null || enEspera.TurnoId != turno!.Id)
             return new RespuestaVenta(CodigoResultadoVenta.VentaNoEditable, "La factura no está en espera en su turno.", null);
 
         var ahora = reloj.Ahora();
@@ -1821,9 +1823,13 @@ internal sealed class ServicioVentas(
         return rechazo ?? Correcta(await IniciarVentaAsync(sesion, turno!, cancelacion));
     }
 
+    /// <summary>
+    /// La venta que se está armando es del turno, no del cajero: con un relevo, el que entra sigue con la que había en
+    /// pantalla y puede cobrarla, guardarla o limpiarla. Hay una sola a la vez; para atender a otro cliente está la espera.
+    /// </summary>
     private Task<VentaEnProceso?> VentaEnCursoAsync(SesionUsuario sesion, Turno turno, CancellationToken cancelacion) =>
         contexto.VentasTemp
-            .Where(v => v.TurnoId == turno.Id && v.UsuarioId == sesion.UsuarioId && v.Estado == EstadoVenta.EnCurso)
+            .Where(v => v.TurnoId == turno.Id && v.Estado == EstadoVenta.EnCurso)
             .OrderByDescending(v => v.IniciadaEn)
             .FirstOrDefaultAsync(cancelacion);
 
@@ -1885,7 +1891,7 @@ internal sealed class ServicioVentas(
             return (null, new RespuestaVenta(CodigoResultadoVenta.TurnoDiaAnterior, bloqueo, null));
 
         var venta = await contexto.VentasTemp.SingleOrDefaultAsync(v => v.Id == ventaId, cancelacion);
-        if (venta is null || venta.CajaId != sesion.CajaId || venta.UsuarioId != sesion.UsuarioId || venta.TurnoId != turno!.Id)
+        if (venta is null || venta.CajaId != sesion.CajaId || venta.TurnoId != turno!.Id)
             return (null, new RespuestaVenta(CodigoResultadoVenta.VentaNoEditable, "La venta no existe o no pertenece a su turno.", null));
         if (venta.Estado != EstadoVenta.EnCurso)
             return (null, new RespuestaVenta(CodigoResultadoVenta.VentaNoEditable, $"La venta {venta.Identificacion} ya no se puede modificar.", Datos(venta)));

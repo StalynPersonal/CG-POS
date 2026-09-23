@@ -23,6 +23,18 @@ public sealed class Turno : Entidad
     public int CajaId { get; private set; }
     public int SucursalId { get; private set; }
 
+    /// <summary>
+    /// Foto de la sucursal y la caja al abrir el turno. Los Id lo relacionan dentro de la base; esto guarda cómo se
+    /// llamaban entonces, y hace legible el número del turno, que se repite entre cajas.
+    /// </summary>
+    public string SucursalCodigo { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string SucursalNombre { get; private set; } = string.Empty;
+
+    /// <inheritdoc cref="SucursalCodigo"/>
+    public string CajaCodigo { get; private set; } = string.Empty;
+
     /// <summary>Número correlativo del turno en la caja.</summary>
     public long Numero { get; private set; }
 
@@ -44,17 +56,22 @@ public sealed class Turno : Entidad
     public DateTimeOffset AbiertoEn { get; private set; }
     public DateTimeOffset? CerradoEn { get; private set; }
 
-    public static Turno Abrir(int cajaId, int sucursalId, long numero, DateOnly fechaOperacion, int usuarioId, string usuarioNombre,
+    /// <param name="origen">Sucursal y caja tal como se llaman al abrirlo, con el número que le toca al turno.</param>
+    public static Turno Abrir(int cajaId, int sucursalId, OrigenDocumento origen, DateOnly fechaOperacion, int usuarioId, string usuarioNombre,
         decimal fondoInicial, DateTimeOffset ahora)
     {
+        ArgumentNullException.ThrowIfNull(origen);
         ArgumentOutOfRangeException.ThrowIfNegative(fondoInicial);
-        ArgumentOutOfRangeException.ThrowIfLessThan(numero, 1);
+        var numero = origen.TurnoNumero ?? throw new ArgumentException("El turno necesita su número.", nameof(origen));
 
         var nombre = Validar.Texto(usuarioNombre, "Usuario", LargoMaximoUsuario);
         return new Turno
         {
             CajaId = Validar.Id(cajaId, "Caja"),
             SucursalId = Validar.Id(sucursalId, "Sucursal"),
+            SucursalCodigo = origen.SucursalCodigo,
+            SucursalNombre = origen.SucursalNombre,
+            CajaCodigo = origen.CajaCodigo,
             Numero = numero,
             FechaOperacion = fechaOperacion,
             UsuarioAperturaId = Validar.Id(usuarioId, "Usuario"),

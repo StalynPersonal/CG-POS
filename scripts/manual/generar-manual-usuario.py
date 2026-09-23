@@ -704,7 +704,11 @@ titulo('3.3. Abrir el turno', 2)
 p('El turno es el período de trabajo de un cajero en esa caja. Solo puede haber un turno abierto por caja.')
 viñeta('Al abrir se digita el fondo de caja (el sistema sugiere el monto configurado).')
 viñeta('Si la caja tiene abierto el turno de otro cajero, aparece Relevar turno: con la autorización de un supervisor, '
-       'usted toma el turno sin cerrarlo ni cuadrar.')
+       'usted toma el turno sin cerrarlo ni cuadrar. El turno sigue siendo del que lo abrió, y quien lo cierra es quien '
+       'esté operando en ese momento.')
+viñeta('La venta que está en pantalla y las facturas en espera son del turno, no del cajero: al relevar, el que entra las '
+       'encuentra tal como estaban y puede seguirlas, cobrarlas, guardarlas o limpiarlas. La factura queda a nombre de '
+       'quien la cobra, aunque la haya empezado el otro; en la auditoría se ve quién hizo cada cosa.')
 viñeta('Cerrar el turno es definitivo: la caja no puede volver atrás. Cuente con calma antes de cerrar; si de todos modos '
        'quedó mal, la corrección se hace en el Central.')
 viñeta('Si el turno quedó abierto de un día anterior, la caja no vende ni cobra: sale un aviso rojo fijo y no deja escanear, '

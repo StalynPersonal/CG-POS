@@ -1,4 +1,5 @@
 ﻿using CgPos.Dominio.Pagos;
+using CgPos.Dominio.Comun;
 using CgPos.Dominio.Turnos;
 
 namespace CgPos.Dominio.Pruebas.Turnos;
@@ -7,6 +8,9 @@ public class CierreTurnoPruebas
 {
     private static readonly DateTimeOffset Ahora = new(2026, 9, 15, 18, 0, 0, TimeSpan.FromHours(-4));
     private static readonly int Cajera = Ids.Siguiente();
+
+    /// <summary>Sucursal y caja del turno, con su número.</summary>
+    private static OrigenDocumento Origen(long numero) => new("01", "Sucursal de prueba", "01", numero);
     private const string MonedaLocal = "DOP";
 
     private static readonly FormaPagoCuadre Efectivo = new(Ids.Siguiente(), "EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 1);
@@ -14,7 +18,7 @@ public class CierreTurnoPruebas
     private static readonly FormaPagoCuadre Tarjeta = new(Ids.Siguiente(), "TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 3);
 
     private static Turno TurnoAbierto(decimal fondo = 2000m) =>
-        Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), 7, DateOnly.FromDateTime(Ahora.DateTime), Cajera, "Cajera", fondo, Ahora.AddHours(-8));
+        Turno.Abrir(Ids.Siguiente(), Ids.Siguiente(), Origen(7), DateOnly.FromDateTime(Ahora.DateTime), Cajera, "Cajera", fondo, Ahora.AddHours(-8));
 
     [Fact]
     public void Esperado_del_efectivo_descuenta_devuelta_y_retiros_y_deja_el_fondo_fuera_del_cuadre()
