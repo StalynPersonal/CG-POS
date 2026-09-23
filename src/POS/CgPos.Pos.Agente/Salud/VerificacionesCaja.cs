@@ -145,6 +145,37 @@ internal static class VerificacionesCaja
         }
     }
 
+    /// <summary>
+    /// Con qué periféricos quedó configurada la caja. Se informa lo configurado, no se les habla: el terminal de pago
+    /// atiende una conversación a la vez, y saludarlo desde aquí podría cortarle el cobro a una cajera.
+    /// </summary>
+    internal sealed class Perifericos(IConfiguration configuracion) : IHealthCheck
+    {
+        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext contexto, CancellationToken cancelacion = default)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                ["impresora"] = Describir(configuracion.GetSection("Perifericos:Impresora"), "Archivo", "Tipo", "Carpeta", "Host", "Puerto", "Nombre"),
+                ["balanza"] = Describir(configuracion.GetSection("Perifericos:Balanza"), "Simulada", "Tipo", "Modelo", "Puerto"),
+                ["terminal"] = Describir(configuracion.GetSection("Perifericos:Terminal"), "Simulado", "Tipo", "Modelo", "Host", "Puerto", "IdMultiMerchant"),
+            };
+
+            // Lo simulado no es un problema —así se prueba sin equipos—, pero conviene que se vea de un vistazo.
+            var simulados = datos.Where(d => ((string)d.Value).StartsWith("Simulad", StringComparison.Ordinal)).Select(d => d.Key).ToList();
+            return Task.FromResult(simulados.Count == 0
+                ? Bien("Impresora, balanza y terminal configurados con equipos reales.", datos)
+                : Bien($"Simulados: {string.Join(", ", simulados)}. El resto habla con el equipo real.", datos));
+        }
+
+        /// <summary>El tipo elegido y las claves que le acompañan, sin inventar las que no estén puestas.</summary>
+        private static string Describir(IConfigurationSection seccion, string predeterminado, params string[] claves)
+        {
+            var partes = new List<string> { seccion["Tipo"] is { Length: > 0 } tipo ? tipo : $"{predeterminado} (no configurado)" };
+            partes.AddRange(claves.Where(c => c != "Tipo" && seccion[c] is { Length: > 0 }).Select(c => $"{c}={seccion[c]}"));
+            return string.Join(" · ", partes);
+        }
+    }
+
     /// <summary>Certificado digital: sin él la caja no puede firmar los comprobantes fiscales.</summary>
     internal sealed class Certificado(IConfiguration configuracion) : IHealthCheck
     {

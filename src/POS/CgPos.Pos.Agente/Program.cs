@@ -65,6 +65,7 @@ try
                 .AddCheck<VerificacionesCaja.Configuracion>("Configuración")
         .AddCheck<VerificacionesCaja.Central>("Central")
         .AddCheck<VerificacionesCaja.Certificado>("Certificado e-CF")
+        .AddCheck<VerificacionesCaja.Perifericos>("Periféricos")
         .AddCheck<VerificacionesCaja.Publicidad>("Publicidad");
 
     var aplicacion = constructor.Build();
