@@ -164,6 +164,14 @@ CREATE SEQUENCE [SecuenciaLineasVentaTemp] AS int START WITH 1 INCREMENT BY 1 NO
 GO
 
 
+CREATE SEQUENCE [SecuenciaLotesTarjetas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaLotesTarjetasAprobaciones] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaMarcas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -1056,6 +1064,25 @@ CREATE TABLE [CierresTurno] (
 GO
 
 
+CREATE TABLE [LotesTarjetas] (
+    [Id] int NOT NULL,
+    [TurnoId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [NumeroLote] varchar(30) NULL,
+    [TransaccionesCaja] int NOT NULL,
+    [MontoCaja] decimal(18,2) NOT NULL,
+    [TransaccionesTerminal] int NOT NULL,
+    [MontoTerminal] decimal(18,2) NOT NULL,
+    [Diferencia] decimal(18,2) NOT NULL,
+    [DetalleDelTerminal] bit NOT NULL,
+    [UsuarioNombre] nvarchar(150) NOT NULL,
+    [CerradoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_LotesTarjetas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LotesTarjetas_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
 CREATE TABLE [MovimientosCaja] (
     [Id] int NOT NULL,
     [TurnoId] int NOT NULL,
@@ -1266,6 +1293,17 @@ CREATE TABLE [CierresTurnoFormasPago] (
     [Esperado] decimal(18,2) NOT NULL,
     CONSTRAINT [PK_CierresTurnoFormasPago] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_CierresTurnoFormasPago_CierresTurno_CierreTurnoId] FOREIGN KEY ([CierreTurnoId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [LotesTarjetasAprobaciones] (
+    [Id] int NOT NULL,
+    [LoteTarjetasId] int NOT NULL,
+    [Aprobacion] varchar(30) NOT NULL,
+    [Origen] int NOT NULL,
+    CONSTRAINT [PK_LotesTarjetasAprobaciones] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_LotesTarjetasAprobaciones_LotesTarjetas_LoteTarjetasId] FOREIGN KEY ([LoteTarjetasId]) REFERENCES [LotesTarjetas] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1884,6 +1922,14 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_LineasVentaTemp_VentaId_NumeroLinea] ON [LineasVentaTemp] ([VentaId], [NumeroLinea]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_LotesTarjetas_TurnoId] ON [LotesTarjetas] ([TurnoId]);
+GO
+
+
+CREATE INDEX [IX_LotesTarjetasAprobaciones_LoteTarjetasId] ON [LotesTarjetasAprobaciones] ([LoteTarjetasId]);
 GO
 
 

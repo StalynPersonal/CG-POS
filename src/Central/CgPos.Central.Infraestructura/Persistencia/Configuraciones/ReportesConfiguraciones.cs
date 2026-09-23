@@ -109,6 +109,10 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
         constructor.Navigation(c => c.Denominaciones).AutoInclude(false);
         constructor.HasMany(c => c.Movimientos).WithOne().HasForeignKey(m => m.CierreId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.Movimientos).AutoInclude(false);
+        constructor.HasOne(c => c.Lote).WithOne().HasForeignKey<CierreLoteTarjetas>(l => l.CierreId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(c => c.Lote).AutoInclude(false);
+        constructor.HasMany(c => c.AprobacionesLote).WithOne().HasForeignKey(a => a.CierreId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(c => c.AprobacionesLote).AutoInclude(false);
 
         // Pendientes de cuadre de una sucursal: es la consulta del módulo de cuadre.
         constructor.HasIndex(c => new { c.SucursalId, c.CuadradoEn });
@@ -148,6 +152,34 @@ internal sealed class CierreMovimientoCentralConfiguracion : IEntityTypeConfigur
         constructor.Property(m => m.UsuarioAnteriorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
         constructor.Property(m => m.AutorizadoPorNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto);
         constructor.HasIndex(m => m.CierreId);
+    }
+}
+
+/// <summary>La conciliación del lote de tarjetas del turno (RF-215).</summary>
+internal sealed class CierreLoteTarjetasConfiguracion : IEntityTypeConfiguration<CierreLoteTarjetas>
+{
+    public void Configure(EntityTypeBuilder<CierreLoteTarjetas> constructor)
+    {
+        constructor.ToTable("CierresTurnoLote");
+        constructor.HasKey(l => l.Id);
+        constructor.Property(l => l.NumeroLote).HasMaxLength(CierreLoteTarjetas.LargoMaximoLote).IsUnicode(false);
+        constructor.Property(l => l.MontoCaja).HasPrecision(18, 2);
+        constructor.Property(l => l.MontoTerminal).HasPrecision(18, 2);
+        constructor.Property(l => l.Diferencia).HasPrecision(18, 2);
+        constructor.Property(l => l.UsuarioNombre).HasMaxLength(CierreTurnoCentral.LargoMaximoTexto).IsRequired();
+        constructor.HasIndex(l => l.CierreId).IsUnique();
+    }
+}
+
+/// <summary>Las aprobaciones que no cuadraron entre la caja y el lote del terminal.</summary>
+internal sealed class CierreAprobacionTarjetaConfiguracion : IEntityTypeConfiguration<CierreAprobacionTarjeta>
+{
+    public void Configure(EntityTypeBuilder<CierreAprobacionTarjeta> constructor)
+    {
+        constructor.ToTable("CierresTurnoLoteAprobaciones");
+        constructor.HasKey(a => a.Id);
+        constructor.Property(a => a.Aprobacion).HasMaxLength(CierreLoteTarjetas.LargoMaximoAprobacion).IsUnicode(false).IsRequired();
+        constructor.HasIndex(a => a.CierreId);
     }
 }
 

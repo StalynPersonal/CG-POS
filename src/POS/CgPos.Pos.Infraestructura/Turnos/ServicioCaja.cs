@@ -28,14 +28,20 @@ internal static class ConversionesCaja
         new(movimiento.Id, movimiento.Tipo, movimiento.Numero, movimiento.Monto, movimiento.Moneda, movimiento.Motivo, movimiento.UsuarioNombre,
             movimiento.UsuarioAnteriorNombre, movimiento.AutorizadoPorNombre, movimiento.Fecha);
 
-    public static DatosCierre ADatos(this CierreTurno cierre, IEnumerable<MovimientoCaja> movimientos) =>
+    public static DatosCierre ADatos(this CierreTurno cierre, IEnumerable<MovimientoCaja> movimientos, LoteTarjetas? lote = null) =>
         new(cierre.Id, cierre.TurnoId, cierre.TurnoNumero, cierre.Numero, cierre.CajaId, cierre.SucursalId, cierre.FechaOperacion,
             cierre.FondoInicial, cierre.FondoEnCuadre, cierre.Moneda, cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado,
             cierre.UsuarioNombre, cierre.AbiertoEn, cierre.CerradoEn,
             cierre.FormasPago.OrderBy(f => f.Orden)
                 .Select(f => new DatosCierreFormaPago(f.FormaPagoId, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado))
                 .ToList(),
-            movimientos.OrderBy(m => m.Fecha).ThenBy(m => m.Numero).Select(m => m.ADatos()).ToList());
+            movimientos.OrderBy(m => m.Fecha).ThenBy(m => m.Numero).Select(m => m.ADatos()).ToList(),
+            lote is null
+                ? null
+                : new DatosLoteTarjetas(lote.NumeroLote, lote.TransaccionesCaja, lote.MontoCaja, lote.TransaccionesTerminal, lote.MontoTerminal,
+                    lote.Diferencia, lote.DetalleDelTerminal, lote.UsuarioNombre, lote.CerradoEn,
+                    lote.Descuadres.Where(a => a.Origen == OrigenAprobacion.Caja).Select(a => a.Aprobacion).ToList(),
+                    lote.Descuadres.Where(a => a.Origen == OrigenAprobacion.Terminal).Select(a => a.Aprobacion).ToList()));
 }
 
 internal sealed class ServicioCaja(
@@ -125,6 +131,20 @@ internal sealed class ServicioCaja(
 
         var aprobacionesTerminal = lote.Aprobaciones ?? [];
         var detalla = lote.Transacciones > 0 || aprobacionesTerminal.Count > 0;
+        var soloEnCaja = detalla ? enCaja.Except(aprobacionesTerminal, StringComparer.OrdinalIgnoreCase).ToList() : [];
+        var soloEnTerminal = aprobacionesTerminal.Except(enCaja, StringComparer.OrdinalIgnoreCase).ToList();
+
+        // El cuadre del lote se guarda y sube con el cierre: es lo que después se compara contra lo que deposita el banco.
+        var anterior = await contexto.LotesTarjetas.FirstOrDefaultAsync(l => l.TurnoId == turno.Id, cancelacion);
+        if (anterior is not null)
+            contexto.LotesTarjetas.Remove(anterior);
+
+        contexto.LotesTarjetas.Add(LoteTarjetas.Registrar(turno, lote.NumeroLote, operaciones.Count, montoCaja, lote.Transacciones, lote.Monto,
+            detalla, soloEnCaja, soloEnTerminal, sesion.Nombre, reloj.Ahora()));
+        auditoria.Registrar(new EntradaAuditoria("Caja.LoteTarjetasCerrado", TipoEntidadTurno, turno.Id.ToString(),
+            Detalle: new { turno.Numero, lote.NumeroLote, TransaccionesCaja = operaciones.Count, MontoCaja = montoCaja, lote.Transacciones, lote.Monto },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        await contexto.SaveChangesAsync(cancelacion);
 
         return new DatosConciliacionTarjetas(
             true,
@@ -134,8 +154,8 @@ internal sealed class ServicioCaja(
             lote.Transacciones,
             lote.Monto,
             detalla ? montoCaja - lote.Monto : 0m,
-            detalla ? enCaja.Except(aprobacionesTerminal, StringComparer.OrdinalIgnoreCase).ToList() : [],
-            aprobacionesTerminal.Except(enCaja, StringComparer.OrdinalIgnoreCase).ToList(),
+            soloEnCaja,
+            soloEnTerminal,
             detalla,
             detalla ? lote.Mensaje : "El terminal cerró el lote sin detallarlo: compare con el comprobante que imprimió.");
     }
@@ -262,7 +282,9 @@ internal sealed class ServicioCaja(
                     Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
         }
 
-        var datos = cierre.ADatos(calculo.Movimientos);
+        // El lote del terminal, si el cajero lo cerró: viaja con el cierre para que el Central lo cuadre contra el banco.
+        var lote = await contexto.LotesTarjetas.AsNoTracking().FirstOrDefaultAsync(l => l.TurnoId == turno.Id, cancelacion);
+        var datos = cierre.ADatos(calculo.Movimientos, lote);
         bandejaSalida.Encolar("Caja.TurnoCerrado", turno.Numero.ToString(CultureInfo.InvariantCulture), DocumentosParaCentral.CierreTurno(datos));
         auditoria.Registrar(new EntradaAuditoria("Caja.TurnoCerrado", TipoEntidadTurno, turno.Id.ToString(),
             Detalle: new { turno.Numero, Cierre = cierre.Numero, cierre.TotalEsperado },

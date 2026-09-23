@@ -83,7 +83,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
     {
         ArgumentNullException.ThrowIfNull(cierre);
         var ahora = reloj.Ahora();
-        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Ajustes).Include(c => c.Movimientos)
+        var registrado = await contexto.CierresTurno.Include(c => c.FormasPago).Include(c => c.Ajustes).Include(c => c.Movimientos).Include(c => c.Lote).Include(c => c.AprobacionesLote)
             .SingleOrDefaultAsync(c => c.CajaId == cajaId && c.TurnoNumero == cierre.TurnoNumero, cancelacion);
 
         if (registrado is null)
@@ -99,6 +99,10 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
         registrado.ReemplazarFormasPago(cierre.FormasPago.Select(f => (f.Tipo, f.Nombre, f.Moneda, f.Transacciones, f.Esperado)));
         registrado.ReemplazarMovimientos(cierre.Movimientos.Select(m => new MovimientoInformado(m.Tipo, m.Numero, m.Monto, m.Moneda, m.Motivo,
             m.UsuarioNombre, m.UsuarioAnteriorNombre, m.AutorizadoPorNombre, m.Fecha)));
+        registrado.RegistrarLote(cierre.Lote is { } lote
+            ? new LoteInformado(lote.NumeroLote, lote.TransaccionesCaja, lote.MontoCaja, lote.TransaccionesTerminal, lote.MontoTerminal, lote.Diferencia,
+                lote.DetalleDelTerminal, lote.UsuarioNombre, lote.CerradoEn, lote.SoloEnCaja, lote.SoloEnTerminal)
+            : null);
     }
 
     /// <summary>

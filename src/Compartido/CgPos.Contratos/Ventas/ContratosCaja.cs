@@ -103,7 +103,29 @@ public sealed record DatosCierre(
     DateTimeOffset AbiertoEn,
     DateTimeOffset CerradoEn,
     IReadOnlyList<DatosCierreFormaPago> FormasPago,
-    IReadOnlyList<DatosMovimientoCaja> Movimientos);
+    IReadOnlyList<DatosMovimientoCaja> Movimientos,
+
+    /// <summary>El cierre del lote del terminal de tarjetas, si el cajero alcanzó a cerrarlo antes del turno.</summary>
+    DatosLoteTarjetas? Lote);
+
+/// <summary>
+/// El lote del terminal cuadrado contra lo aprobado en la caja (RF-215). Cuando el terminal no detalla su lote solo queda
+/// lo de la caja, para compararlo a mano contra el comprobante que imprimió.
+/// </summary>
+/// <param name="SoloEnCaja">Aprobaciones que tiene la caja y el lote no reporta.</param>
+/// <param name="SoloEnTerminal">Aprobaciones del lote que la caja no tiene.</param>
+public sealed record DatosLoteTarjetas(
+    string? NumeroLote,
+    int TransaccionesCaja,
+    decimal MontoCaja,
+    int TransaccionesTerminal,
+    decimal MontoTerminal,
+    decimal Diferencia,
+    bool DetalleDelTerminal,
+    string UsuarioNombre,
+    DateTimeOffset CerradoEn,
+    IReadOnlyList<string> SoloEnCaja,
+    IReadOnlyList<string> SoloEnTerminal);
 
 
 public enum CodigoResultadoCaja

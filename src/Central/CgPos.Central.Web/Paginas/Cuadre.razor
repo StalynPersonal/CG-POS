@@ -250,6 +250,54 @@ else
                 </MudTable>
             </MudTabPanel>
 
+            @* La conciliación de tarjetas: lo aprobado en la caja contra el lote que cerró el terminal. *@
+            <MudTabPanel Text="Tarjetas" Icon="@Icons.Material.Filled.CreditCard" Class="pa-4">
+                <MudTable T="DatosCierreCaja" Items="ConLote" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25">
+                    <HeaderContent>
+                        <MudTh>Día</MudTh>
+                        <MudTh>Caja</MudTh>
+                        <MudTh>Turno</MudTh>
+                        <MudTh>Lote</MudTh>
+                        <MudTh Style="text-align: right">En la caja</MudTh>
+                        <MudTh Style="text-align: right">En el terminal</MudTh>
+                        <MudTh Style="text-align: right">Diferencia</MudTh>
+                        <MudTh>Aprobaciones de un solo lado</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Día">@context.FechaOperacion.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+                        <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
+                        <MudTd DataLabel="Lote">@(context.Lote!.NumeroLote ?? "sin número")</MudTd>
+                        <MudTd DataLabel="En la caja" Style="text-align: right">
+                            @context.Lote!.TransaccionesCaja · @context.Lote.MontoCaja.ToString("N2")
+                        </MudTd>
+                        <MudTd DataLabel="En el terminal" Style="text-align: right">
+                            @(context.Lote!.DetalleDelTerminal ? $"{context.Lote.TransaccionesTerminal} · {context.Lote.MontoTerminal:N2}" : "sin detalle")
+                        </MudTd>
+                        <MudTd DataLabel="Diferencia" Style="text-align: right">
+                            @if (context.Lote!.DetalleDelTerminal)
+                            {
+                                <MudText Typo="Typo.body2" Color="@(context.Lote.Diferencia == 0m ? Color.Success : Color.Error)">@context.Lote.Diferencia.ToString("N2")</MudText>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Aprobaciones de un solo lado">@Descuadres(context.Lote!)</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>Ninguna caja cerró el lote del terminal en esas fechas.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+                    </PagerContent>
+                </MudTable>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                    Cuando el terminal no detalla su lote solo queda lo de la caja: compárelo contra el comprobante que imprimió la terminal.
+                </MudText>
+            </MudTabPanel>
+
             @* Retiros, reembolsos y relevos: explican por qué el efectivo esperado no es todo lo que se vendió. *@
             <MudTabPanel Text="Retiros y relevos" Icon="@Icons.Material.Filled.MoveDown" Class="pa-4">
                 <MudTable T="DatosMovimientoTurno" Items="_movimientos" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25">
@@ -537,6 +585,19 @@ else
         { EnCierreSucursal: true } => $"Consolidado · {cierre.CuadradoPor}",
         _ => $"Cuadrado · {cierre.CuadradoPor}",
     };
+
+    /// <summary>Los cierres del período cuyo lote de tarjetas cerró la caja.</summary>
+    private IReadOnlyList<DatosCierreCaja> ConLote => _cierres.Where(c => c.Lote is not null).ToList();
+
+    private static string Descuadres(DatosLoteCierreCaja lote)
+    {
+        var partes = new List<string>();
+        if (lote.SoloEnCaja.Count > 0)
+            partes.Add($"solo en la caja: {string.Join(", ", lote.SoloEnCaja)}");
+        if (lote.SoloEnTerminal.Count > 0)
+            partes.Add($"solo en el terminal: {string.Join(", ", lote.SoloEnTerminal)}");
+        return partes.Count == 0 ? "—" : string.Join(" · ", partes);
+    }
 
     private static string Etiqueta(TipoMovimientoCaja tipo) => tipo switch
     {

@@ -309,3 +309,109 @@ public sealed class CierreFormaPago : Entidad
             Esperado = esperado.Esperado,
         };
 }
+
+/// <summary>De qué lado apareció una aprobación que no cuadró: la caja la tiene y el terminal no, o al revés.</summary>
+public enum OrigenAprobacion
+{
+    /// <summary>Está en la caja y el lote del terminal no la reporta.</summary>
+    Caja,
+
+    /// <summary>La reporta el lote del terminal y la caja no la tiene.</summary>
+    Terminal,
+}
+
+/// <summary>
+/// Cierre del lote del terminal de tarjetas cuadrado contra lo aprobado en la caja durante el turno (RF-215). Queda
+/// guardado y sube al Central con el cierre: es lo que se compara después contra lo que deposita el banco.
+/// </summary>
+public sealed class LoteTarjetas : Entidad
+{
+    public const int LargoMaximoLote = 30;
+    public const int LargoMaximoAprobacion = 30;
+    public const int LargoMaximoMensaje = 250;
+
+    private readonly List<AprobacionLote> _descuadres = [];
+
+    private LoteTarjetas()
+    {
+    }
+
+    public int TurnoId { get; private set; }
+    public int CajaId { get; private set; }
+
+    /// <summary>El número que le puso el terminal al lote; vacío si el modelo no lo informa.</summary>
+    public string? NumeroLote { get; private set; }
+
+    public int TransaccionesCaja { get; private set; }
+    public decimal MontoCaja { get; private set; }
+    public int TransaccionesTerminal { get; private set; }
+    public decimal MontoTerminal { get; private set; }
+    public decimal Diferencia { get; private set; }
+
+    /// <summary>El terminal detalló su lote; si no, solo queda lo de la caja para compararlo contra el comprobante impreso.</summary>
+    public bool DetalleDelTerminal { get; private set; }
+
+    public string UsuarioNombre { get; private set; } = string.Empty;
+    public DateTimeOffset CerradoEn { get; private set; }
+
+    /// <summary>Las aprobaciones que aparecieron de un solo lado: son las que hay que investigar.</summary>
+    public IReadOnlyList<AprobacionLote> Descuadres => _descuadres;
+
+    /// <summary>Caja y terminal informan lo mismo: no hay nada que investigar.</summary>
+    public bool Cuadrado => Diferencia == 0m && _descuadres.Count == 0;
+
+    public static LoteTarjetas Registrar(Turno turno, string? numeroLote, int transaccionesCaja, decimal montoCaja, int transaccionesTerminal,
+        decimal montoTerminal, bool detalleDelTerminal, IEnumerable<string> soloEnCaja, IEnumerable<string> soloEnTerminal,
+        string usuarioNombre, DateTimeOffset ahora)
+    {
+        ArgumentNullException.ThrowIfNull(turno);
+        ArgumentNullException.ThrowIfNull(soloEnCaja);
+        ArgumentNullException.ThrowIfNull(soloEnTerminal);
+
+        var lote = new LoteTarjetas
+        {
+            TurnoId = turno.Id,
+            CajaId = turno.CajaId,
+            NumeroLote = Validar.TextoOpcional(numeroLote, "Lote", LargoMaximoLote),
+            TransaccionesCaja = transaccionesCaja,
+            MontoCaja = decimal.Round(montoCaja, 2, MidpointRounding.AwayFromZero),
+            TransaccionesTerminal = transaccionesTerminal,
+            MontoTerminal = decimal.Round(montoTerminal, 2, MidpointRounding.AwayFromZero),
+            DetalleDelTerminal = detalleDelTerminal,
+            UsuarioNombre = Validar.Texto(usuarioNombre, "Usuario", Turno.LargoMaximoUsuario),
+            CerradoEn = ahora,
+        };
+
+        // Sin detalle del terminal no hay con qué comparar: la diferencia se deja en cero para no inventar un descuadre.
+        lote.Diferencia = detalleDelTerminal ? lote.MontoCaja - lote.MontoTerminal : 0m;
+        if (!detalleDelTerminal)
+            return lote;
+
+        foreach (var aprobacion in soloEnCaja)
+            lote._descuadres.Add(AprobacionLote.Crear(lote.Id, aprobacion, OrigenAprobacion.Caja));
+        foreach (var aprobacion in soloEnTerminal)
+            lote._descuadres.Add(AprobacionLote.Crear(lote.Id, aprobacion, OrigenAprobacion.Terminal));
+
+        return lote;
+    }
+}
+
+/// <summary>Una aprobación que solo aparece de un lado del lote.</summary>
+public sealed class AprobacionLote : Entidad
+{
+    private AprobacionLote()
+    {
+    }
+
+    public int LoteTarjetasId { get; private set; }
+    public string Aprobacion { get; private set; } = string.Empty;
+    public OrigenAprobacion Origen { get; private set; }
+
+    internal static AprobacionLote Crear(int loteId, string aprobacion, OrigenAprobacion origen) =>
+        new()
+        {
+            LoteTarjetasId = loteId,
+            Aprobacion = Validar.Texto(aprobacion, "Aprobación", LoteTarjetas.LargoMaximoAprobacion),
+            Origen = origen,
+        };
+}

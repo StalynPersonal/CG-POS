@@ -18,7 +18,7 @@ internal sealed class ServicioCierresCaja(ContextoDatosCentral contexto, IAudito
     public async Task<IReadOnlyList<DatosCierreCaja>> ListarAsync(int? sucursalId, int? cajaId, DateOnly desde, DateOnly hasta,
         CancellationToken cancelacion = default)
     {
-        var consulta = contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Ajustes).AsSplitQuery()
+        var consulta = contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Ajustes).Include(c => c.Lote).Include(c => c.AprobacionesLote).AsSplitQuery()
             .Where(c => c.FechaOperacion >= desde && c.FechaOperacion <= hasta);
         if (sucursalId is { } sucursal)
             consulta = consulta.Where(c => c.SucursalId == sucursal);
@@ -46,7 +46,7 @@ internal sealed class ServicioCierresCaja(ContextoDatosCentral contexto, IAudito
     /// <summary>Lo que el supervisor tiene por cuadrar en su sucursal: lo más viejo primero, que es lo que urge.</summary>
     public async Task<IReadOnlyList<DatosCierreCaja>> ListarPendientesDeCuadreAsync(int sucursalId, CancellationToken cancelacion = default)
     {
-        var cierres = await contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Ajustes).AsSplitQuery()
+        var cierres = await contexto.CierresTurno.AsNoTracking().Include(c => c.FormasPago).Include(c => c.Ajustes).Include(c => c.Lote).Include(c => c.AprobacionesLote).AsSplitQuery()
             .Where(c => c.SucursalId == sucursalId && c.CuadradoEn == null)
             .OrderBy(c => c.FechaOperacion).ThenBy(c => c.CerradoEn)
             .ToListAsync(cancelacion);
@@ -217,7 +217,7 @@ internal sealed class ServicioCierresCaja(ContextoDatosCentral contexto, IAudito
     public async Task<ArchivoReporte?> CuadreEnPdfAsync(int cierreId, int? sucursalId, CancellationToken cancelacion = default)
     {
         var cierre = await contexto.CierresTurno.AsNoTracking()
-            .Include(c => c.FormasPago).Include(c => c.Denominaciones).Include(c => c.Movimientos).Include(c => c.Ajustes).AsSplitQuery()
+            .Include(c => c.FormasPago).Include(c => c.Denominaciones).Include(c => c.Movimientos).Include(c => c.Ajustes).Include(c => c.Lote).Include(c => c.AprobacionesLote).AsSplitQuery()
             .SingleOrDefaultAsync(c => c.Id == cierreId && (sucursalId == null || c.SucursalId == sucursalId), cancelacion);
         if (cierre is null)
             return null;
@@ -270,5 +270,15 @@ internal sealed class ServicioCierresCaja(ContextoDatosCentral contexto, IAudito
                 .ToList(),
             cierre.Ajustes.OrderBy(a => a.AjustadoEn)
                 .Select(a => new DatosAjusteCierre(a.FormaPagoNombre, a.Moneda, a.DeclaradoAnterior, a.DeclaradoNuevo, a.Motivo, a.AjustadoPorNombre, a.AjustadoEn))
-                .ToList());
+                .ToList(),
+            Lote(cierre));
+
+    /// <summary>El lote de tarjetas del turno con sus descuadres, si el cajero llegó a cerrarlo.</summary>
+    private static DatosLoteCierreCaja? Lote(CierreTurnoCentral cierre) =>
+        cierre.Lote is not { } lote
+            ? null
+            : new DatosLoteCierreCaja(lote.NumeroLote, lote.TransaccionesCaja, lote.MontoCaja, lote.TransaccionesTerminal, lote.MontoTerminal,
+                lote.Diferencia, lote.DetalleDelTerminal, lote.UsuarioNombre, lote.CerradoEn,
+                cierre.AprobacionesLote.Where(a => a.Origen == OrigenAprobacion.Caja).Select(a => a.Aprobacion).ToList(),
+                cierre.AprobacionesLote.Where(a => a.Origen == OrigenAprobacion.Terminal).Select(a => a.Aprobacion).ToList());
 }

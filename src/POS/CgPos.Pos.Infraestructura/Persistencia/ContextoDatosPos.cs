@@ -53,6 +53,9 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     public DbSet<Turno> Turnos => Set<Turno>();
     public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
     public DbSet<CierreTurno> CierresTurno => Set<CierreTurno>();
+
+    /// <summary>El cierre del lote del terminal de tarjetas, cuadrado contra lo aprobado en el turno.</summary>
+    public DbSet<LoteTarjetas> LotesTarjetas => Set<LoteTarjetas>();
     /// <summary>La venta que el cajero está armando: todavía no tiene número de factura.</summary>
     public DbSet<VentaEnProceso> VentasTemp => Set<VentaEnProceso>();
 

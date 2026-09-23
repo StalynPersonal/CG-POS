@@ -629,9 +629,12 @@ tabla(['Pestaña', 'Para qué sirve'],
        ['Cierres', 'Todos los del período con su esperado, declarado, diferencia y estado. Desde aquí se reimprime el cuadre en PDF y se corrige, y un interruptor deja ver solo los cuadres corregidos.'],
        ['Resumen del día', 'El día de la sucursal sumado por forma de pago, con el aviso de cuántas cajas faltan por cuadrar.'],
        ['Diferencias por cajera', 'Faltantes, sobrantes y neto de cada cajera en el período.'],
-       ['Retiros y relevos', 'Los retiros, reembolsos y relevos de los turnos, con su monto, su motivo y quién los autorizó.']],
+       ['Retiros y relevos', 'Los retiros, reembolsos y relevos de los turnos, con su monto, su motivo y quién los autorizó.'],
+       ['Tarjetas', 'El lote que cerró cada caja contra lo aprobado en ella: transacciones, montos, diferencia y las aprobaciones que aparecen de un solo lado.']],
       anchos=[4.0, 13.0])
 nota('El turno cierra en la caja aunque el Central esté caído: el cuadre espera. La caja nunca se queda trancada por la red.')
+nota('Si el terminal no detalla su lote —depende del modelo—, en Tarjetas solo se ve lo de la caja: eso se compara a mano contra el '
+     'comprobante que imprimió la terminal.')
 nota('Corregir no borra nada: queda lo que se había declarado, lo nuevo, el motivo y quién lo corrigió. Contabilidad corrige '
      'desde Cierres de caja, en el Central, incluso después de consolidar el día.')
 
@@ -949,7 +952,8 @@ viñeta('No se puede cerrar con facturas en espera, transacciones con artículos
        'firmada: la pantalla dice exactamente qué falta.')
 viñeta('Con un turno de un día anterior, las facturas en espera ya no se pueden cobrar: el cierre avisa cuáles son y pide '
        'retomarlas y limpiarlas (con la autorización de un supervisor) antes de cerrar.')
-viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprobado en la caja con lo que reporta el terminal.')
+viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprobado en la caja con lo que reporta el terminal. El resultado '
+       'queda guardado y sube con el cierre, así que el supervisor lo ve en el Central sin depender del papel.')
 viñeta('Al cerrar se imprime el reporte del turno: lo esperado por forma de pago, los retiros, los reembolsos y los relevos.')
 viñeta('Después, el cajero cuenta su efectivo a ciegas y se lo entrega al supervisor junto con el comprobante del lote. Quien '
        'declara el conteo es el supervisor, en el Central (Módulo de cuadre), y la diferencia queda a nombre del cajero.')

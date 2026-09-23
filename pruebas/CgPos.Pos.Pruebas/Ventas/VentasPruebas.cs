@@ -1865,6 +1865,19 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal((1, 100m), (conciliacion.TransaccionesCaja, conciliacion.MontoCaja));
         Assert.False(conciliacion.DetalleDelTerminal);
         Assert.Contains("comprobante", conciliacion.Mensaje);
+
+        // El lote queda guardado en la caja y sube con el cierre: es lo que el Central cuadra después contra el banco.
+        var cierre = await caja.EjecutarAsync<CgPos.Pos.Aplicacion.Ventas.IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, null));
+        Assert.True(cierre.Exitosa, cierre.Mensaje);
+
+        var lote = cierre.Cierre!.Lote;
+        Assert.NotNull(lote);
+        Assert.Equal((1, 100m, false), (lote.TransaccionesCaja, lote.MontoCaja, lote.DetalleDelTerminal));
+        Assert.Equal(caja.Cajero.Nombre, lote.UsuarioNombre);
+
+        var mensajeCierre = await caja.EjecutarAsync<ContextoDatosPos, MensajeSalida>(contexto =>
+            contexto.BandejaSalida.AsNoTracking().SingleAsync(m => m.TipoMensaje == "Caja.TurnoCerrado"));
+        Assert.Equal(100m, JsonSerializer.Deserialize<DocumentoCierreTurno>(mensajeCierre.Contenido, OpcionesJson.Predeterminadas)!.Lote!.MontoCaja);
     }
 
     [SkippableFact]

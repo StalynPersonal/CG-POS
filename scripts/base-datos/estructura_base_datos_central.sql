@@ -88,6 +88,14 @@ CREATE SEQUENCE [SecuenciaCierresTurnoDenominaciones] AS int START WITH 1 INCREM
 GO
 
 
+CREATE SEQUENCE [SecuenciaCierresTurnoLote] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaCierresTurnoLoteAprobaciones] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaCierresTurnoMovimientos] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -1411,6 +1419,35 @@ CREATE TABLE [CierresTurnoDenominaciones] (
 GO
 
 
+CREATE TABLE [CierresTurnoLote] (
+    [Id] int NOT NULL,
+    [CierreId] int NOT NULL,
+    [NumeroLote] varchar(30) NULL,
+    [TransaccionesCaja] int NOT NULL,
+    [MontoCaja] decimal(18,2) NOT NULL,
+    [TransaccionesTerminal] int NOT NULL,
+    [MontoTerminal] decimal(18,2) NOT NULL,
+    [Diferencia] decimal(18,2) NOT NULL,
+    [DetalleDelTerminal] bit NOT NULL,
+    [UsuarioNombre] nvarchar(200) NOT NULL,
+    [CerradoEn] datetimeoffset(3) NOT NULL,
+    CONSTRAINT [PK_CierresTurnoLote] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresTurnoLote_CierresTurno_CierreId] FOREIGN KEY ([CierreId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [CierresTurnoLoteAprobaciones] (
+    [Id] int NOT NULL,
+    [CierreId] int NOT NULL,
+    [Aprobacion] varchar(30) NOT NULL,
+    [Origen] int NOT NULL,
+    CONSTRAINT [PK_CierresTurnoLoteAprobaciones] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_CierresTurnoLoteAprobaciones_CierresTurno_CierreId] FOREIGN KEY ([CierreId]) REFERENCES [CierresTurno] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [CierresTurnoMovimientos] (
     [Id] int NOT NULL,
     [CierreId] int NOT NULL,
@@ -1700,6 +1737,14 @@ GO
 
 
 CREATE INDEX [IX_CierresTurnoDenominaciones_CierreId] ON [CierresTurnoDenominaciones] ([CierreId]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_CierresTurnoLote_CierreId] ON [CierresTurnoLote] ([CierreId]);
+GO
+
+
+CREATE INDEX [IX_CierresTurnoLoteAprobaciones_CierreId] ON [CierresTurnoLoteAprobaciones] ([CierreId]);
 GO
 
 

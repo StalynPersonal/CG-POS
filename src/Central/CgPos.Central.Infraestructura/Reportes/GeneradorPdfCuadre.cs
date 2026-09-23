@@ -41,6 +41,7 @@ internal static class GeneradorPdfCuadre
         lineas.AddRange(FormasPago(cierre));
         lineas.Add((string.Empty, false));
         lineas.AddRange(Denominaciones(cierre));
+        lineas.AddRange(Lote(cierre));
         lineas.AddRange(Movimientos(cierre));
         lineas.AddRange(Correcciones(cierre));
 
@@ -100,6 +101,36 @@ internal static class GeneradorPdfCuadre
         {
             var total = cierre.Denominaciones.Where(d => d.Moneda == moneda).Sum(d => d.Importe);
             yield return ($"  Total contado {moneda}: {total.ToString("N2", Cultura)}", true);
+        }
+
+        yield return (string.Empty, false);
+    }
+
+    /// <summary>El lote del terminal contra lo aprobado en la caja: es lo que se compara contra el comprobante del terminal.</summary>
+    private static IEnumerable<(string Texto, bool Negrita)> Lote(CierreTurnoCentral cierre)
+    {
+        if (cierre.Lote is not { } lote)
+            yield break;
+
+        yield return ("Lote de tarjetas", true);
+        yield return ($"  Lote {lote.NumeroLote ?? "sin número"} · cerrado por {lote.UsuarioNombre} el {Momento(lote.CerradoEn)}", false);
+        yield return ($"  En la caja: {lote.TransaccionesCaja} transacciones por {lote.MontoCaja.ToString("N2", Cultura)}", false);
+
+        if (!lote.DetalleDelTerminal)
+        {
+            yield return ("  El terminal cerró el lote sin detallarlo: compare con el comprobante que imprimió.", false);
+            yield return (string.Empty, false);
+            yield break;
+        }
+
+        yield return ($"  En el terminal: {lote.TransaccionesTerminal} transacciones por {lote.MontoTerminal.ToString("N2", Cultura)}", false);
+        yield return ($"  Diferencia: {lote.Diferencia.ToString("N2", Cultura)}", lote.Diferencia != 0m);
+
+        foreach (var origen in new[] { OrigenAprobacion.Caja, OrigenAprobacion.Terminal })
+        {
+            var aprobaciones = cierre.AprobacionesLote.Where(a => a.Origen == origen).Select(a => a.Aprobacion).ToList();
+            if (aprobaciones.Count > 0)
+                yield return ($"  Solo en {(origen == OrigenAprobacion.Caja ? "la caja" : "el terminal")}: {string.Join(", ", aprobaciones)}", false);
         }
 
         yield return (string.Empty, false);

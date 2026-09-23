@@ -202,7 +202,24 @@ public sealed record DocumentoCierreTurno(
     DateTimeOffset AbiertoEn,
     DateTimeOffset CerradoEn,
     IReadOnlyList<DocumentoCierreFormaPago> FormasPago,
-    IReadOnlyList<DocumentoMovimientoTurno> Movimientos);
+    IReadOnlyList<DocumentoMovimientoTurno> Movimientos,
+
+    /// <summary>El cierre del lote de tarjetas del turno; nulo si el cajero no lo cerró en la caja.</summary>
+    DocumentoLoteTarjetas? Lote = null);
+
+/// <summary>El lote del terminal cuadrado contra lo aprobado en la caja (RF-215), tal como lo informa la terminal.</summary>
+public sealed record DocumentoLoteTarjetas(
+    string? NumeroLote,
+    int TransaccionesCaja,
+    decimal MontoCaja,
+    int TransaccionesTerminal,
+    decimal MontoTerminal,
+    decimal Diferencia,
+    bool DetalleDelTerminal,
+    string UsuarioNombre,
+    DateTimeOffset CerradoEn,
+    IReadOnlyList<string> SoloEnCaja,
+    IReadOnlyList<string> SoloEnTerminal);
 
 /// <summary>Mensajes <c>Entregas.PendienteCreado</c> y <c>Entregas.PendienteActualizado</c>: el pendiente completo, identificado por su número.</summary>
 public sealed record DocumentoPendienteEntrega(

@@ -49,6 +49,41 @@ internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<Cierre
     }
 }
 
+/// <summary>El cierre del lote del terminal de tarjetas cuadrado contra lo aprobado en la caja.</summary>
+internal sealed class LoteTarjetasConfiguracion : IEntityTypeConfiguration<LoteTarjetas>
+{
+    public void Configure(EntityTypeBuilder<LoteTarjetas> constructor)
+    {
+        constructor.ToTable("LotesTarjetas");
+        constructor.HasKey(l => l.Id);
+        constructor.Property(l => l.NumeroLote).HasMaxLength(LoteTarjetas.LargoMaximoLote).IsUnicode(false);
+        constructor.Property(l => l.MontoCaja).HasPrecision(18, 2);
+        constructor.Property(l => l.MontoTerminal).HasPrecision(18, 2);
+        constructor.Property(l => l.Diferencia).HasPrecision(18, 2);
+        constructor.Property(l => l.UsuarioNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
+        constructor.Ignore(l => l.Cuadrado);
+
+        constructor.HasOne<Turno>().WithMany().HasForeignKey(l => l.TurnoId).OnDelete(DeleteBehavior.Restrict);
+
+        // Un lote por turno: volver a cerrarlo reemplaza el anterior.
+        constructor.HasIndex(l => l.TurnoId).IsUnique();
+
+        constructor.HasMany(l => l.Descuadres).WithOne().HasForeignKey(a => a.LoteTarjetasId).OnDelete(DeleteBehavior.Cascade);
+        constructor.Navigation(l => l.Descuadres).UsePropertyAccessMode(PropertyAccessMode.Field).AutoInclude();
+    }
+}
+
+internal sealed class AprobacionLoteConfiguracion : IEntityTypeConfiguration<AprobacionLote>
+{
+    public void Configure(EntityTypeBuilder<AprobacionLote> constructor)
+    {
+        constructor.ToTable("LotesTarjetasAprobaciones");
+        constructor.HasKey(a => a.Id);
+        constructor.Property(a => a.Aprobacion).HasMaxLength(LoteTarjetas.LargoMaximoAprobacion).IsUnicode(false).IsRequired();
+        constructor.HasIndex(a => a.LoteTarjetasId);
+    }
+}
+
 internal sealed class CierreFormaPagoConfiguracion : IEntityTypeConfiguration<CierreFormaPago>
 {
     public void Configure(EntityTypeBuilder<CierreFormaPago> constructor)

@@ -29,7 +29,27 @@ public sealed record DatosCierreCaja(
     DateTimeOffset CerradoEn,
     bool EnCierreSucursal,
     IReadOnlyList<DatosFormaPagoCierreCaja> FormasPago,
-    IReadOnlyList<DatosAjusteCierre> Ajustes);
+    IReadOnlyList<DatosAjusteCierre> Ajustes,
+
+    /// <summary>El lote de tarjetas del turno; vacío si el cajero no lo cerró en la caja.</summary>
+    DatosLoteCierreCaja? Lote = null);
+
+/// <summary>
+/// Conciliación del lote de tarjetas del turno (RF-215): lo aprobado en la caja contra lo que reportó el terminal, con las
+/// aprobaciones que aparecen de un solo lado.
+/// </summary>
+public sealed record DatosLoteCierreCaja(
+    string? NumeroLote,
+    int TransaccionesCaja,
+    decimal MontoCaja,
+    int TransaccionesTerminal,
+    decimal MontoTerminal,
+    decimal Diferencia,
+    bool DetalleDelTerminal,
+    string UsuarioNombre,
+    DateTimeOffset CerradoEn,
+    IReadOnlyList<string> SoloEnCaja,
+    IReadOnlyList<string> SoloEnTerminal);
 
 /// <param name="Declarados">Lo contado en cada forma de pago del cierre.</param>
 /// <param name="Conteo">Las denominaciones del efectivo; su suma tiene que cuadrar con lo declarado en efectivo.</param>

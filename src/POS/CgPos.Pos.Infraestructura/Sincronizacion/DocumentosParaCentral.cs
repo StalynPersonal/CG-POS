@@ -83,7 +83,11 @@ internal static class DocumentosParaCentral
             cierre.CantidadVentas, cierre.TotalVentas, cierre.TotalRetiros, cierre.TotalEsperado, cierre.UsuarioNombre,
             cierre.AbiertoEn, cierre.CerradoEn,
             cierre.FormasPago.Select(f => new DocumentoCierreFormaPago(f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Transacciones, f.Esperado)).ToList(),
-            cierre.Movimientos.Select(MovimientoTurno).ToList());
+            cierre.Movimientos.Select(MovimientoTurno).ToList(),
+            cierre.Lote is { } lote
+                ? new DocumentoLoteTarjetas(lote.NumeroLote, lote.TransaccionesCaja, lote.MontoCaja, lote.TransaccionesTerminal, lote.MontoTerminal,
+                    lote.Diferencia, lote.DetalleDelTerminal, lote.UsuarioNombre, lote.CerradoEn, lote.SoloEnCaja, lote.SoloEnTerminal)
+                : null);
 
     public static DocumentoMovimientoPuntos MovimientoPuntos(MovimientoPuntos movimiento) =>
         new(movimiento.Cedula, movimiento.Tipo, movimiento.Puntos, movimiento.Documento, movimiento.Fecha, movimiento.VenceEn);

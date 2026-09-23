@@ -87,8 +87,11 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
         var cajera = $"Cajera {turno}";
         var retiro = new DocumentoMovimientoTurno(TipoMovimientoCaja.Retiro, 1, 2000m, "DOP", "Se llevó el exceso a la bóveda", cajera, null,
             "Supervisor Desarrollo", new DateTimeOffset(dia.ToDateTime(new TimeOnly(14, 0)), TimeSpan.FromHours(-4)));
+        // La caja cerró su lote de tarjetas: falta una aprobación de cada lado, que es lo que hay que investigar.
+        var lote = new DocumentoLoteTarjetas("L-0001", 3, 1600m, 3, 1500m, 100m, true, cajera,
+            new DateTimeOffset(dia.ToDateTime(new TimeOnly(17, 30)), TimeSpan.FromHours(-4)), ["A-111"], ["A-999"]);
         Assert.Equal(EstadoRecepcion.Recibido,
-            await EnviarCierreAsync(cliente, tokenCaja, dia, turno, esperado: 3000m, tarjeta: 1500m, cajera: cajera, movimientos: [retiro]));
+            await EnviarCierreAsync(cliente, tokenCaja, dia, turno, esperado: 3000m, tarjeta: 1500m, cajera: cajera, movimientos: [retiro], lote: lote));
 
         var sesion = await IngresarAsync(cliente, "S001", "Supervisor.2026");
         var token = sesion.TokenAcceso!;
@@ -119,6 +122,12 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
         var movimiento = Assert.Single(await MovimientosAsync(cliente, token, sucursal, dia));
         Assert.Equal((TipoMovimientoCaja.Retiro, 2000m, "Supervisor Desarrollo"),
             (movimiento.Tipo, movimiento.Monto, movimiento.AutorizadoPorNombre));
+
+        // El lote del terminal quedó junto al cierre, con las aprobaciones que aparecieron de un solo lado.
+        var cerrado = Assert.Single(await CierresAsync(cliente, token, sucursal, dia), c => c.TurnoNumero == turno);
+        Assert.Equal(("L-0001", 1600m, 1500m, 100m), (cerrado.Lote!.NumeroLote, cerrado.Lote.MontoCaja, cerrado.Lote.MontoTerminal, cerrado.Lote.Diferencia));
+        Assert.Equal("A-111", Assert.Single(cerrado.Lote.SoloEnCaja));
+        Assert.Equal("A-999", Assert.Single(cerrado.Lote.SoloEnTerminal));
 
         // Y el cuadre se vuelve a imprimir.
         var pdf = await DescargarCuadreAsync(cliente, token, pendiente.Id, sucursal);
@@ -191,7 +200,7 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
     }
 
     private static async Task<EstadoRecepcion?> EnviarCierreAsync(HttpClient cliente, string token, DateOnly dia, long turno, decimal esperado, decimal tarjeta,
-        string cajera = "Cajero Desarrollo", IReadOnlyList<DocumentoMovimientoTurno>? movimientos = null)
+        string cajera = "Cajero Desarrollo", IReadOnlyList<DocumentoMovimientoTurno>? movimientos = null, DocumentoLoteTarjetas? lote = null)
     {
         var cierre = new DocumentoCierreTurno(turno, 1, dia, 0m, false, "DOP", 8, esperado + tarjeta, 0m, esperado + tarjeta, cajera,
             new DateTimeOffset(dia.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(-4)),
@@ -200,7 +209,8 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
                 new DocumentoCierreFormaPago("EFE", "Efectivo", TipoFormaPago.Efectivo, "DOP", 8, esperado),
                 new DocumentoCierreFormaPago("TAR", "Tarjeta", TipoFormaPago.Tarjeta, "DOP", 2, tarjeta),
             ],
-            movimientos ?? []);
+            movimientos ?? [],
+            lote);
 
         var (sucursal, caja) = CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno);
         var contenido = JsonSerializer.Serialize(cierre, OpcionesJson.Predeterminadas);

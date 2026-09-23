@@ -17,6 +17,7 @@ public sealed class CierreTurnoCentral : Entidad
     private readonly List<CierreFormaPagoCentral> _formasPago = [];
     private readonly List<CierreDenominacionCentral> _denominaciones = [];
     private readonly List<CierreMovimientoCentral> _movimientos = [];
+    private readonly List<CierreAprobacionTarjeta> _aprobacionesLote = [];
     private readonly List<AjusteCierreTurno> _ajustes = [];
 
     private CierreTurnoCentral()
@@ -50,6 +51,12 @@ public sealed class CierreTurnoCentral : Entidad
 
     /// <summary>Lo que pasó durante el turno y explica el efectivo: retiros, reembolsos y relevos, con su motivo y quién autorizó.</summary>
     public IReadOnlyList<CierreMovimientoCentral> Movimientos => _movimientos;
+
+    /// <summary>El cierre del lote de tarjetas del turno; vacío si el cajero no lo cerró en la caja (RF-215).</summary>
+    public CierreLoteTarjetas? Lote { get; private set; }
+
+    /// <summary>Las aprobaciones que aparecieron de un solo lado del lote: son las que hay que investigar.</summary>
+    public IReadOnlyList<CierreAprobacionTarjeta> AprobacionesLote => _aprobacionesLote;
 
     /// <summary>Quién declaró el cuadre y cuándo; vacío mientras el cierre está pendiente.</summary>
     public string? CuadradoPor { get; private set; }
@@ -145,6 +152,26 @@ public sealed class CierreTurnoCentral : Entidad
         _movimientos.Clear();
         foreach (var movimiento in movimientos.OrderBy(m => m.Fecha))
             _movimientos.Add(CierreMovimientoCentral.Crear(Id, movimiento, Moneda));
+    }
+
+    /// <summary>
+    /// El lote del terminal de tarjetas que informó la caja, con las aprobaciones que no cuadraron. Como los movimientos, es
+    /// un hecho de la terminal: el cuadre del supervisor no lo toca.
+    /// </summary>
+    public void RegistrarLote(LoteInformado? lote)
+    {
+        _aprobacionesLote.Clear();
+        if (lote is null)
+        {
+            Lote = null;
+            return;
+        }
+
+        Lote = CierreLoteTarjetas.Crear(Id, lote);
+        foreach (var aprobacion in lote.SoloEnCaja)
+            _aprobacionesLote.Add(CierreAprobacionTarjeta.Crear(Id, aprobacion, OrigenAprobacion.Caja));
+        foreach (var aprobacion in lote.SoloEnTerminal)
+            _aprobacionesLote.Add(CierreAprobacionTarjeta.Crear(Id, aprobacion, OrigenAprobacion.Terminal));
     }
 
     /// <summary>
@@ -373,5 +400,82 @@ public sealed class CierreMovimientoCentral : Entidad
             UsuarioAnteriorNombre = Validar.TextoOpcional(movimiento.UsuarioAnteriorNombre, "Usuario anterior", CierreTurnoCentral.LargoMaximoTexto),
             AutorizadoPorNombre = Validar.TextoOpcional(movimiento.AutorizadoPorNombre, "Autorizó", CierreTurnoCentral.LargoMaximoTexto),
             Fecha = movimiento.Fecha,
+        };
+}
+
+/// <summary>El lote de tarjetas tal como lo informó la caja, para guardarlo en el Central.</summary>
+public sealed record LoteInformado(
+    string? NumeroLote,
+    int TransaccionesCaja,
+    decimal MontoCaja,
+    int TransaccionesTerminal,
+    decimal MontoTerminal,
+    decimal Diferencia,
+    bool DetalleDelTerminal,
+    string UsuarioNombre,
+    DateTimeOffset CerradoEn,
+    IReadOnlyList<string> SoloEnCaja,
+    IReadOnlyList<string> SoloEnTerminal);
+
+/// <summary>
+/// Conciliación de tarjetas de un turno (RF-215): lo aprobado en la caja contra lo que reportó el lote del terminal. Es lo
+/// que se compara después contra lo que deposita el banco.
+/// </summary>
+public sealed class CierreLoteTarjetas : Entidad
+{
+    public const int LargoMaximoLote = 30;
+    public const int LargoMaximoAprobacion = 30;
+
+    private CierreLoteTarjetas()
+    {
+    }
+
+    public int CierreId { get; private set; }
+    public string? NumeroLote { get; private set; }
+    public int TransaccionesCaja { get; private set; }
+    public decimal MontoCaja { get; private set; }
+    public int TransaccionesTerminal { get; private set; }
+    public decimal MontoTerminal { get; private set; }
+    public decimal Diferencia { get; private set; }
+
+    /// <summary>El terminal detalló su lote; si no, solo hay lo de la caja para comparar contra el comprobante impreso.</summary>
+    public bool DetalleDelTerminal { get; private set; }
+
+    public string UsuarioNombre { get; private set; } = string.Empty;
+    public DateTimeOffset CerradoEn { get; private set; }
+
+    internal static CierreLoteTarjetas Crear(int cierreId, LoteInformado lote) =>
+        new()
+        {
+            CierreId = cierreId,
+            NumeroLote = Validar.TextoOpcional(lote.NumeroLote, "Lote", LargoMaximoLote),
+            TransaccionesCaja = lote.TransaccionesCaja,
+            MontoCaja = lote.MontoCaja,
+            TransaccionesTerminal = lote.TransaccionesTerminal,
+            MontoTerminal = lote.MontoTerminal,
+            Diferencia = lote.Diferencia,
+            DetalleDelTerminal = lote.DetalleDelTerminal,
+            UsuarioNombre = Validar.TextoOpcional(lote.UsuarioNombre, "Usuario", CierreTurnoCentral.LargoMaximoTexto) ?? string.Empty,
+            CerradoEn = lote.CerradoEn,
+        };
+}
+
+/// <summary>Una aprobación que solo aparece de un lado del lote: en la caja o en el terminal.</summary>
+public sealed class CierreAprobacionTarjeta : Entidad
+{
+    private CierreAprobacionTarjeta()
+    {
+    }
+
+    public int CierreId { get; private set; }
+    public string Aprobacion { get; private set; } = string.Empty;
+    public OrigenAprobacion Origen { get; private set; }
+
+    internal static CierreAprobacionTarjeta Crear(int cierreId, string aprobacion, OrigenAprobacion origen) =>
+        new()
+        {
+            CierreId = cierreId,
+            Aprobacion = Validar.Texto(aprobacion, "Aprobación", CierreLoteTarjetas.LargoMaximoAprobacion),
+            Origen = origen,
         };
 }
