@@ -58,19 +58,30 @@ internal sealed class SincronizacionAPedido(IServiceScopeFactory ambitos, ILogge
         }
     }
 
-    /// <summary>Lo que pasó, contado como se lo diría un técnico al cajero: qué bajó y qué subió.</summary>
+    /// <summary>
+    /// Lo que pasó, contado como se lo diría un técnico al cajero. Siempre se dicen las dos mitades, aunque una sea
+    /// «nada»: quien aprieta el botón quiere saber que se le preguntó al Central, y callarlo parecía que no se hizo.
+    /// </summary>
     private static string Resumen(ResultadoDescargaMaestros descarga, ResultadoProcesoBandeja envio)
     {
-        var partes = new List<string>();
-        if (descarga.Creados + descarga.Actualizados > 0)
-            partes.Add($"bajaron {descarga.Creados + descarga.Actualizados:N0} datos del Central");
-        if (envio.Confirmados > 0)
-            partes.Add($"subieron {envio.Confirmados:N0} documentos");
-        if (envio.Fallidos > 0)
-            partes.Add($"quedaron {envio.Fallidos:N0} documentos por subir");
+        var bajaron = descarga.Creados + descarga.Actualizados;
+        var partes = new List<string>
+        {
+            bajaron > 0 ? $"bajaron {bajaron:N0} datos del Central" : "el Central no tenía nada nuevo",
 
-        return partes.Count == 0
-            ? "Todo estaba al día: no había nada que bajar ni que subir."
-            : $"Listo: {string.Join(", ", partes)}.";
+            // «Pendientes» y no «documentos»: lo que espera en la bandeja son ventas y cierres, pero también avisos de la
+            // propia caja, como el ingreso del cajero. Decir «documentos» hacía buscar una factura que no existía.
+            envio.Confirmados switch
+            {
+                0 => "no había nada por subir",
+                1 => "subió 1 pendiente de la caja",
+                var cuantos => $"subieron {cuantos:N0} pendientes de la caja",
+            },
+        };
+
+        if (envio.Fallidos > 0)
+            partes.Add(envio.Fallidos == 1 ? "quedó 1 sin subir" : $"quedaron {envio.Fallidos:N0} sin subir");
+
+        return $"Listo: {string.Join(", ", partes)}.";
     }
 }
