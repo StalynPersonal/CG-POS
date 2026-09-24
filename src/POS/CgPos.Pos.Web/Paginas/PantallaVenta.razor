@@ -123,9 +123,18 @@ else
         @* Campo de escaneo: recibe el lector, admite "cantidad*código" y da acceso al catálogo y al teclado en pantalla. *@
         <div class="cg-venta__escaneo @(_modoEliminar ? "cg-venta__escaneo--eliminar" : null)">
             <MudIcon Icon="@(_modoEliminar ? Icons.Material.Filled.RemoveShoppingCart : Icons.Material.Filled.QrCodeScanner)" Size="Size.Large" />
-            <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false" disabled="@(!PuedeVender)"
-                   placeholder="@PlaceholderEscaneo"
-                   value="@_entrada" @oninput="evento => _entrada = evento.Value?.ToString() ?? string.Empty" @onkeydown="AlTeclearAsync" />
+            @* El campo y su ✕ van juntos en una caja: la ✕ se dibuja encima, dentro del borde, y solo cuando hay algo
+               escrito. Un código a medias es peligroso: lo que se escanee después se pega detrás y sale otro artículo. *@
+            <div class="cg-venta__campo-caja">
+                <input @ref="_campoEscaneo" class="cg-venta__campo" autocomplete="off" spellcheck="false" disabled="@(!PuedeVender)"
+                       placeholder="@PlaceholderEscaneo"
+                       value="@_entrada" @oninput="evento => _entrada = evento.Value?.ToString() ?? string.Empty" @onkeydown="AlTeclearAsync" />
+                @if (_entrada is { Length: > 0 })
+                {
+                    <button type="button" class="cg-venta__limpiar-campo" @onclick="LimpiarEscaneoAsync"
+                            aria-label="Borrar lo escrito" title="Borrar lo escrito (Esc)">✕</button>
+                }
+            </div>
             <MudIconButton Icon="@Icons.Material.Filled.GridView" Size="Size.Large" Color="Color.Primary" Disabled="@(!PuedeVender)"
                            OnClick="AbrirCatalogoAsync" aria-label="Catálogo en mosaicos" />
             <MudIconButton Icon="@Icons.Material.Filled.Keyboard" Size="Size.Large" Color="Color.Primary" Disabled="@(!PuedeVender)"
@@ -625,6 +634,13 @@ else
         // Lo que se escribe o se escanea con el panel abierto va a la venta: el panel se aparta.
         _panelAbierto = false;
 
+        // Esc borra lo digitado, que es lo mismo que hace la ✕ del campo: con teclado es más rápido que buscarla.
+        if (evento.Key == "Escape")
+        {
+            await LimpiarEscaneoAsync();
+            return;
+        }
+
         if (evento.Key != "Enter")
             return;
 
@@ -637,6 +653,25 @@ else
             await EliminarPorCodigoAsync(codigo);
         else
             await AgregarAsync(codigo);
+    }
+
+    /// <summary>
+    /// Borra lo que hay en el campo de escaneo. Un código a medias no es inofensivo: lo que se lea después se pega detrás
+    /// y entra otro artículo, o ninguno.
+    /// </summary>
+    private async Task LimpiarEscaneoAsync()
+    {
+        _entrada = string.Empty;
+        _enfocar = true;
+
+        try
+        {
+            await _campoEscaneo.FocusAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            // El campo no está en pantalla; el foco se devuelve solo en el próximo dibujado.
+        }
     }
 
     private async Task AgregarAsync(string codigo)
@@ -1329,10 +1364,12 @@ else
         });
     }
 
+    /// <summary>Esc desde cualquier parte de la pantalla: sale del modo eliminar, quita el aviso y borra lo digitado.</summary>
     private Task SalirDeModosAsync()
     {
         _modoEliminar = false;
         _mensaje = null;
+        _entrada = string.Empty;
         _enfocar = true;
         return Task.CompletedTask;
     }

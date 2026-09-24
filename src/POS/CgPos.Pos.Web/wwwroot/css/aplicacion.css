@@ -687,6 +687,31 @@
 
 .cg-venta__escaneo--eliminar { background: #fdecea; color: var(--cg-peligro); }
 
+/* El campo de escaneo y su ✕: la caja da el sitio donde apoyar el botón, dentro del borde del campo. */
+.cg-venta__campo-caja { flex: 1; position: relative; display: flex; }
+
+.cg-venta__limpiar-campo {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cg-texto-suave, #5f6368);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cg-venta__limpiar-campo:hover,
+.cg-venta__limpiar-campo:focus-visible { background: rgba(0, 0, 0, .06); color: var(--cg-texto); }
+
+/* El texto no se mete debajo de la ✕ cuando el código es largo. */
+.cg-venta__campo-caja .cg-venta__campo { padding-right: 50px; }
+
 .cg-venta__campo {
     flex: 1;
     min-height: 52px;

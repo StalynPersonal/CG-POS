@@ -782,7 +782,7 @@ tabla(['Zona', 'Para qué sirve'],
        ['Encabezado central', 'Cliente de la factura, número de factura que le tocará (se toma de verdad al cobrar: si otra venta '
         'se cobra antes, esta pasa al siguiente), cantidad de artículos, límite de compra, programa de fidelidad y lista de boda.'],
        ['Encabezado derecho', 'Subtotal (la suma de las líneas, sin ITBIS), ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL (subtotal más ITBIS) y, en facturas gubernamentales con retención, el total a pagar.'],
-       ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar. A su derecha: catálogo, teclado en '
+       ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar. Si se escribe algo mal, la ✕ del final del campo lo borra, y la tecla Esc hace lo mismo sin soltar el teclado. A su derecha: catálogo, teclado en '
         'pantalla, Buscar (F2), Totalizar (F8) y el botón ☰ que abre el panel de funciones.'],
        ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio y subtotal sin ITBIS, y la oferta aplicada.'],
        ['Panel de funciones (☰)', 'Se despliega desde la derecha con todas las funciones. Se cierra solo al elegir una, al tocar '
