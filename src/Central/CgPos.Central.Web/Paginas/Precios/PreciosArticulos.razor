@@ -93,8 +93,8 @@
         return new TableData<DatosMaestroCentral<ArticuloCarga>> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
     }
 
-    /// <summary>Dónde se busca. Se arranca por descripción, que es como se busca casi siempre.</summary>
-    private string _campo = CamposBusquedaArticulo.Descripcion;
+    /// <summary>Dónde se busca. Se arranca por código, igual que en Artículos: a un precio se llega por el artículo exacto.</summary>
+    private string _campo = CamposBusquedaArticulo.Codigo;
 
     private string Placeholder => _campo == CamposBusquedaArticulo.Codigo
         ? "Código interno, de barras o de proveedor, completo"
