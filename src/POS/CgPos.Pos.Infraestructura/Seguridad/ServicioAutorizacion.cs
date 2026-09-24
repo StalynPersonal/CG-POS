@@ -25,10 +25,12 @@ internal sealed class ServicioAutorizacion(
         if (!solicitud.ForzarSupervisor && solicitud.Solicitante.TienePermiso(solicitud.Permiso))
             return ResultadoAutorizacion.SinSupervisor();
 
+        // El motivo es opcional: quien autoriza está delante del cajero y muchas veces la explicación sobra. Lo que sí
+        // queda siempre en la auditoría es qué se autorizó, a quién y quién lo autorizó.
         var motivo = solicitud.Motivo?.Trim();
         if (string.IsNullOrEmpty(motivo))
-            return ResultadoAutorizacion.Rechazo(MotivoRechazoAutorizacion.MotivoRequerido);
-        if (motivo.Length > RegistroAuditoria.LargoMaximoMotivo)
+            motivo = null;
+        else if (motivo.Length > RegistroAuditoria.LargoMaximoMotivo)
             motivo = motivo[..RegistroAuditoria.LargoMaximoMotivo];
 
         var verificacion = await verificador.VerificarAsync(solicitud.CredencialSupervisor, solicitud.Solicitante.CajaId, cancelacion);

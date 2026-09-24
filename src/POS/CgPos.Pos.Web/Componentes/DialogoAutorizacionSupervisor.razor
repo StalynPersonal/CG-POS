@@ -10,7 +10,7 @@
 
         @* El motivo también se escribe con el teclado en pantalla: al tocarlo queda como campo activo. *@
         <div @onclick="() => _campo = CampoActivo.Motivo" @onfocusin="() => _campo = CampoActivo.Motivo">
-            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo" Variant="Variant.Outlined" MaxLength="500" Immediate="true"
+            <MudTextField T="string" @bind-Value="_motivo" Label="Motivo (opcional)" Variant="Variant.Outlined" MaxLength="500" Immediate="true"
                           Class="@($"mb-2 {ClaseCampo(CampoActivo.Motivo)}")" />
         </div>
 
@@ -25,20 +25,23 @@
                                   Immediate="true" Style="-webkit-text-security: disc" Class="@($"cg-campo-clave {ClaseCampo(CampoActivo.Clave)}")" OnKeyDown="AlTeclearClaveAsync" />
                 </div>
             </div>
+            @* El aviso va aquí, entre los campos y el teclado: debajo del teclado queda fuera de la pantalla y el
+               supervisor no ve por qué no lo dejó pasar. *@
+            @if (_procesando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
+            }
+
             <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
                            Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true"
                            LongitudMaxima="@(_campo switch { CampoActivo.Motivo => 500, CampoActivo.Clave => 64, _ => 20 })"
                            TextoConfirmar="@(_campo == CampoActivo.Clave ? "Autorizar" : "Siguiente")" />
         </div>
 
-        @if (_procesando)
-        {
-            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mt-3" />
-        }
-        @if (_mensaje is not null)
-        {
-            <MudAlert Severity="Severity.Error" Class="mt-3">@_mensaje</MudAlert>
-        }
     </DialogContent>
     <DialogActions>
         <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="Cancelar">Cancelar</MudButton>
@@ -121,19 +124,13 @@
         if (_procesando)
             return;
 
-        if (string.IsNullOrWhiteSpace(_motivo))
-        {
-            _mensaje = "Debe indicar el motivo.";
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(_codigo) || string.IsNullOrEmpty(_clave))
         {
             _mensaje = "Indique el usuario y la clave del supervisor.";
             return;
         }
 
-        var solicitud = new SolicitudAutorizacion(Permiso, _motivo, _codigo.Trim(), _clave, TipoEntidad, EntidadId, ForzarSupervisor);
+        var solicitud = new SolicitudAutorizacion(Permiso, _motivo ?? string.Empty, _codigo.Trim(), _clave, TipoEntidad, EntidadId, ForzarSupervisor);
 
         _procesando = true;
         _mensaje = null;

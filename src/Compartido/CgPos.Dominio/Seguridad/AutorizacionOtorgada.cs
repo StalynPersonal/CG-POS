@@ -1,4 +1,4 @@
-using CgPos.Dominio.Comun;
+﻿using CgPos.Dominio.Comun;
 
 namespace CgPos.Dominio.Seguridad;
 
@@ -26,7 +26,8 @@ public sealed class AutorizacionOtorgada
     public string SolicitanteNombre { get; private set; } = string.Empty;
     public int SupervisorId { get; private set; }
     public string SupervisorNombre { get; private set; } = string.Empty;
-    public string Motivo { get; private set; } = string.Empty;
+    /// <summary>Por qué se autorizó; opcional, porque el supervisor está delante y muchas veces la explicación sobra.</summary>
+    public string? Motivo { get; private set; }
     public DateTimeOffset ConcedidaEn { get; private set; }
     public DateTimeOffset VenceEn { get; private set; }
     public DateTimeOffset? UsadaEn { get; private set; }
@@ -34,7 +35,7 @@ public sealed class AutorizacionOtorgada
     public string? UsadaEnEntidadId { get; private set; }
 
     public static AutorizacionOtorgada Otorgar(Guid id, string permiso, int cajaId, int solicitanteId, string solicitanteNombre,
-        int supervisorId, string supervisorNombre, string motivo, DateTimeOffset ahora, TimeSpan vigencia)
+        int supervisorId, string supervisorNombre, string? motivo, DateTimeOffset ahora, TimeSpan vigencia)
     {
         if (!CatalogoPermisos.Existe(permiso))
             throw new ArgumentException($"El permiso '{permiso}' no existe en el catálogo.", nameof(permiso));
@@ -49,7 +50,7 @@ public sealed class AutorizacionOtorgada
             SolicitanteNombre = Validar.Texto(solicitanteNombre, "Solicitante", LargoMaximoNombre),
             SupervisorId = Validar.Id(supervisorId, "Supervisor"),
             SupervisorNombre = Validar.Texto(supervisorNombre, "Supervisor", LargoMaximoNombre),
-            Motivo = Validar.Texto(motivo, "Motivo", LargoMaximoMotivo),
+            Motivo = Validar.TextoOpcional(motivo, "Motivo", LargoMaximoMotivo),
             ConcedidaEn = ahora,
             VenceEn = ahora + vigencia,
         };

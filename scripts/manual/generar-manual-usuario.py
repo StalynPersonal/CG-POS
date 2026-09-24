@@ -939,6 +939,9 @@ viñeta('Los motivos los decide el negocio en el Central, en Maestros → Motivo
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada en su lugar, con su mismo número, y sale del total. La numeración de las líneas sigue continua; quién la '
        'eliminó y quién lo autorizó queda en la auditoría.')
+nota('En el cuadro de autorización del supervisor, el motivo es opcional: quien autoriza está delante del cajero y muchas '
+     'veces escribirlo solo entorpece. Lo que nunca se pierde es qué se autorizó, a quién y quién lo autorizó, que queda '
+     'en la auditoría con o sin motivo.')
 
 titulo('3.14. Entregas y envíos', 2)
 p('Cuando el cliente se lleva parte de la mercancía después:')

@@ -1,4 +1,4 @@
-using CgPos.Dominio.Seguridad;
+﻿using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Aplicacion.Seguridad;
 using CgPos.Pos.Infraestructura.Persistencia;
 using CgPos.Pos.Pruebas.Infraestructura;
@@ -84,17 +84,25 @@ public class AutorizacionPruebas(BaseDatosPruebas baseDatos) : IClassFixture<Bas
     }
 
     [SkippableFact]
-    public async Task El_motivo_es_obligatorio()
+    public async Task El_motivo_es_opcional_y_la_autorizacion_queda_igual_de_registrada()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         var escenario = await EscenarioSeguridad.CrearAsync(baseDatos, Empresa);
         await using var proveedor = escenario.CrearProveedor(escenario.CajaUno).Proveedor;
         var cajero = await SesionCajeroAsync(proveedor, escenario);
 
+        // Quien autoriza está delante del cajero: explicarlo por escrito muchas veces sobra y solo entorpece la caja.
         var resultado = await EscenarioSeguridad.AutorizarAsync(proveedor, new SolicitudAutorizacionSupervisor(
             cajero, CatalogoPermisos.EliminarLinea, "   ", new CredencialUsuario(escenario.CodigoSupervisor, EscenarioSeguridad.ClaveSupervisor)));
 
-        Assert.Equal(MotivoRechazoAutorizacion.MotivoRequerido, resultado.Motivo);
+        Assert.True(resultado.Concedida, resultado.Motivo?.ToString());
+
+        // Lo que no se pierde nunca: qué se autorizó, a quién y quién lo autorizó.
+        await using var ambito = proveedor.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
+        var otorgada = await contexto.AutorizacionesOtorgadas.AsNoTracking().SingleAsync(a => a.Id == resultado.AutorizacionId!.Value);
+        Assert.Equal((CatalogoPermisos.EliminarLinea, cajero.UsuarioId), (otorgada.Permiso, otorgada.SolicitanteId));
+        Assert.Null(otorgada.Motivo);
     }
 
     [SkippableFact]

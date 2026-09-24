@@ -225,7 +225,7 @@ internal sealed class AutorizacionOtorgadaConfiguracion : IEntityTypeConfigurati
         constructor.Property(a => a.Permiso).HasMaxLength(Permiso.LargoMaximoCodigo).IsUnicode(false).IsRequired();
         constructor.Property(a => a.SolicitanteNombre).HasMaxLength(AutorizacionOtorgada.LargoMaximoNombre).IsRequired();
         constructor.Property(a => a.SupervisorNombre).HasMaxLength(AutorizacionOtorgada.LargoMaximoNombre).IsRequired();
-        constructor.Property(a => a.Motivo).HasMaxLength(AutorizacionOtorgada.LargoMaximoMotivo).IsRequired();
+        constructor.Property(a => a.Motivo).HasMaxLength(AutorizacionOtorgada.LargoMaximoMotivo);
         constructor.Property(a => a.UsadaEnTipoEntidad).HasMaxLength(AutorizacionOtorgada.LargoMaximoEntidad);
         constructor.Property(a => a.UsadaEnEntidadId).HasMaxLength(AutorizacionOtorgada.LargoMaximoEntidadId);
         constructor.HasIndex(a => new { a.SolicitanteId, a.ConcedidaEn });

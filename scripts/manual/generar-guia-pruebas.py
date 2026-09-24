@@ -352,9 +352,11 @@ marcar()
 
 prueba('C3', 'Eliminar una línea con autorización')
 paso('Con el cajero, intente eliminar una línea.')
-paso('Cuando pida autorización, ponga el usuario y la clave del SUPERVISOR y un motivo.')
-esperado('Sin autorización no se elimina. Con ella, la línea queda tachada y en gris —menos su número, que se lee normal— y '
-         'el total baja. La auditoría guarda quién autorizó y por qué.')
+paso('Cuando pida autorización, ponga el usuario y la clave del SUPERVISOR. Deje el motivo en blanco: es opcional.')
+paso('Elimine otra línea y esta vez escriba un motivo.')
+esperado('Sin la clave del supervisor no se elimina; sin motivo sí, porque es opcional. Con la autorización, la línea queda '
+         'tachada y en gris —menos su número, que se lee normal— y el total baja. La auditoría guarda siempre qué se '
+         'autorizó y quién lo autorizó, y el motivo cuando se escribió.')
 tablas('Caja: LineasVentaEnProceso · AutorizacionesOtorgadas · Auditoria')
 marcar()
 

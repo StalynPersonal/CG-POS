@@ -310,7 +310,7 @@ CREATE TABLE [AutorizacionesOtorgadas] (
     [SolicitanteNombre] nvarchar(150) NOT NULL,
     [SupervisorId] int NOT NULL,
     [SupervisorNombre] nvarchar(150) NOT NULL,
-    [Motivo] nvarchar(500) NOT NULL,
+    [Motivo] nvarchar(500) NULL,
     [ConcedidaEn] datetimeoffset(3) NOT NULL,
     [VenceEn] datetimeoffset(3) NOT NULL,
     [UsadaEn] datetimeoffset(3) NULL,
