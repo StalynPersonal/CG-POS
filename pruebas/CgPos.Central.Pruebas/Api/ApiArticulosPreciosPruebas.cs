@@ -39,6 +39,21 @@ public class ApiArticulosPreciosPruebas(CentralEnPruebas central)
         Assert.Contains(porDescripcion.Elementos, e => e.Dato.Codigo == articulo.Codigo);
         Assert.Equal(0, (await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, "/api/maestros/articulos?buscar=preciodetalle")).Total);
 
+        // Filtro por estado: lo normal es mirar los que están en uso, y los dados de baja se piden a propósito.
+        Assert.Contains((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={barras}&activos=true")).Elementos,
+            e => e.Dato.Codigo == articulo.Codigo);
+        Assert.Empty((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={barras}&activos=false")).Elementos);
+
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/articulos", articulo with { Activo = false })).Cuerpo!.Exitosa);
+        Assert.Empty((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={barras}&activos=true")).Elementos);
+        Assert.Contains((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={barras}&activos=false")).Elementos,
+            e => e.Dato.Codigo == articulo.Codigo);
+
+        // Sin el filtro salen los dos, como antes.
+        Assert.Contains((await ObtenerAsync<PaginaMaestros<ArticuloCarga>>(cliente, admin, $"/api/maestros/articulos?buscar={barras}")).Elementos,
+            e => e.Dato.Codigo == articulo.Codigo);
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/maestros/articulos", articulo)).Cuerpo!.Exitosa);
+
         // Los códigos se buscan completos: un pedazo del código interno o del de barras no trae el artículo, porque buscar
         // «040100» devolvía cientos de artículos que solo empiezan igual. La descripción sí sigue encontrándose por parecido.
         Assert.DoesNotContain(

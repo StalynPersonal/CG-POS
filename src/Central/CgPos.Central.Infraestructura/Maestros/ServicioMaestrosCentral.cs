@@ -21,10 +21,10 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
         await TablasMaestros.De<T>().TodosAsync(contexto, new ResolutorCodigosCentral(contexto), cancelacion);
 
     public Task<PaginaMaestros<T>> BuscarAsync<T>(string? texto, int pagina, int tamano, string? campo = null, string? filtro = null,
-        CancellationToken cancelacion = default)
+        CancellationToken cancelacion = default, bool? activos = null)
         where T : class =>
         TablasMaestros.De<T>().PaginaAsync(contexto, new ResolutorCodigosCentral(contexto), texto, campo, filtro,
-            Math.Max(pagina, 0), Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina), cancelacion);
+            Math.Max(pagina, 0), Math.Clamp(tamano, 1, IServicioMaestrosCentral.TamanoMaximoPagina), cancelacion, activos);
 
     public async Task<ResultadoAdministracion> GuardarAsync<T>(T dato, bool nuevo, UsuarioAuditoria actor, CancellationToken cancelacion = default) where T : class
     {

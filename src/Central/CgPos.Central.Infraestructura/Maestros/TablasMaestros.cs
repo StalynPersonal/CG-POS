@@ -80,7 +80,7 @@ internal interface ITablaCarga<TCarga> where TCarga : class
     Task<int?> IdAsync(ContextoDatosCentral contexto, TCarga carga, CancellationToken cancelacion);
 
     Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, string? campo, string? filtro,
-        int pagina, int tamano, CancellationToken cancelacion);
+        int pagina, int tamano, CancellationToken cancelacion, bool? activos = null);
 
     Task<IReadOnlyList<DatosMaestroCentral<TCarga>>> TodosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, CancellationToken cancelacion);
 
@@ -96,6 +96,7 @@ internal interface ITablaCarga<TCarga> where TCarga : class
 /// <param name="Filtro">Búsqueda del Manager por texto; nulo si el maestro se lista completo.</param>
 /// <param name="FiltroPorCampo">Búsqueda acotada a un campo (código o descripción); nulo si ese maestro solo se busca entero.</param>
 /// <param name="FiltroPropio">Filtro del maestro que no es texto (el tipo del artículo); se suma a la búsqueda, no la reemplaza.</param>
+/// <param name="FiltroActivo">Acota a los activos o a los inactivos; nulo en los maestros que no se desactivan.</param>
 /// <param name="AntesDeLeer">Lo que el resolutor necesita para armar las cargas (ej. los artículos de las promociones).</param>
 internal sealed class TablaMaestro<TEntidad, TCarga>(
     TipoMaestro tipo,
@@ -110,7 +111,8 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
     Func<string, Expression<Func<TEntidad, bool>>>? filtro = null,
     Func<ContextoDatosCentral, IReadOnlyList<TEntidad>, ResolutorCodigosCentral, CancellationToken, Task>? antesDeLeer = null,
     Func<string, string, Expression<Func<TEntidad, bool>>?>? filtroPorCampo = null,
-    Func<string, Expression<Func<TEntidad, bool>>?>? filtroPropio = null) : TablaMaestro, ITablaCarga<TCarga>
+    Func<string, Expression<Func<TEntidad, bool>>?>? filtroPropio = null,
+    Func<bool, Expression<Func<TEntidad, bool>>>? filtroActivo = null) : TablaMaestro, ITablaCarga<TCarga>
     where TEntidad : Entidad
     where TCarga : class
 {
@@ -183,9 +185,13 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
     /// <summary>Página del Manager ordenada por código, con cuándo y quién cambió cada registro.</summary>
     /// <param name="campo">Acota la búsqueda a un campo; sin él se busca en todos los que tenga el maestro.</param>
     public async Task<PaginaMaestros<TCarga>> PaginaAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, string? texto, string? campo,
-        string? filtroSolicitado, int pagina, int tamano, CancellationToken cancelacion)
+        string? filtroSolicitado, int pagina, int tamano, CancellationToken cancelacion, bool? activos = null)
     {
         var consulta = Consulta(contexto).AsNoTracking();
+
+        // Lo normal es mirar lo que está en uso; los inactivos se piden a propósito.
+        if (activos is { } estado && filtroActivo is not null)
+            consulta = consulta.Where(filtroActivo(estado));
 
         // El filtro propio del maestro acota además del texto: buscar «alambre» entre los pesados es las dos cosas.
         if (filtroPropio is not null && !string.IsNullOrWhiteSpace(filtroSolicitado) && filtroPropio(filtroSolicitado.Trim()) is { } propio)
@@ -364,7 +370,8 @@ internal static class TablasMaestros
             _ => null,
         },
         // Filtro por tipo: normal, pesado, serializado o combo. Un valor desconocido no filtra nada.
-        filtroPropio: valor => Enum.TryParse<TipoArticulo>(valor, ignoreCase: true, out var tipo) ? e => e.Tipo == tipo : null);
+        filtroPropio: valor => Enum.TryParse<TipoArticulo>(valor, ignoreCase: true, out var tipo) ? e => e.Tipo == tipo : null,
+        filtroActivo: activo => e => e.Activo == activo);
 
     public static TablaMaestro<Cliente, ClienteCarga> Clientes { get; } = new(
         TipoMaestro.Cliente, c => c.Clientes,

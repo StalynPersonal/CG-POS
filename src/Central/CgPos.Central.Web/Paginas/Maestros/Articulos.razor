@@ -48,6 +48,15 @@
                     <MudSelectItem T="string" Value="@tipo.ToString()">@EtiquetasArticulo.Tipo(tipo)</MudSelectItem>
                 }
             </MudSelect>
+
+            @* Se arranca por los activos: un maestro con años encima acumula artículos dados de baja que ya no se venden
+               y que solo estorban al buscar. Los inactivos se piden a propósito. *@
+            <MudSelect T="bool?" Value="_activos" ValueChanged="CambiarEstadoAsync" Label="Estado" Dense="true" Margin="Margin.Dense"
+                       Style="width: 160px" Class="ml-2">
+                <MudSelectItem T="bool?" Value="@(true)">Activos</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@(false)">Inactivos</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@(null as bool?)">Todos</MudSelectItem>
+            </MudSelect>
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Código</MudTh>
@@ -125,7 +134,7 @@
 
     private async Task<TableData<DatosMaestroCentral<ArticuloCarga>>> CargarAsync(TableState estado, CancellationToken cancelacion)
     {
-        var pagina = await Cliente.BuscarArticulosAsync("maestros", _buscar, estado.Page, estado.PageSize, cancelacion, _campo, _tipo);
+        var pagina = await Cliente.BuscarArticulosAsync("maestros", _buscar, estado.Page, estado.PageSize, cancelacion, _campo, _tipo, _activos);
         _error = pagina is null;
         return new TableData<DatosMaestroCentral<ArticuloCarga>> { Items = pagina?.Elementos ?? [], TotalItems = pagina?.Total ?? 0 };
     }
@@ -135,6 +144,9 @@
 
     /// <summary>Tipo por el que se acota; vacío son todos.</summary>
     private string? _tipo;
+
+    /// <summary>Activos, inactivos o todos; se arranca por los activos, que es lo que se mira a diario.</summary>
+    private bool? _activos = true;
 
     private string Placeholder => _campo == CamposBusquedaArticulo.Codigo
         ? "Código interno, de barras o de proveedor, completo"
@@ -151,6 +163,12 @@
     private Task CambiarTipoAsync(string? tipo)
     {
         _tipo = tipo;
+        return _tabla?.ReloadServerData() ?? Task.CompletedTask;
+    }
+
+    private Task CambiarEstadoAsync(bool? activos)
+    {
+        _activos = activos;
         return _tabla?.ReloadServerData() ?? Task.CompletedTask;
     }
 

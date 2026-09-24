@@ -190,9 +190,10 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
     /// <param name="modulo">"maestros" o "precios", según el permiso con el que se consulta.</param>
     /// <param name="campo">Dónde buscar (ver <see cref="CamposBusquedaArticulo"/>); nulo para buscar en todos.</param>
     public Task<PaginaMaestros<CgPos.Contratos.Catalogo.ArticuloCarga>?> BuscarArticulosAsync(string modulo, string? texto, int pagina, int tamano,
-        CancellationToken cancelacion = default, string? campo = null, string? tipo = null) =>
+        CancellationToken cancelacion = default, string? campo = null, string? tipo = null, bool? activos = null) =>
         BuscarAsync<CgPos.Contratos.Catalogo.ArticuloCarga>($"api/{modulo}/articulos", texto, pagina, tamano, cancelacion,
-            (campo is null ? null : $"&campo={campo}") + (tipo is null ? null : $"&tipo={tipo}"));
+            (campo is null ? null : $"&campo={campo}") + (tipo is null ? null : $"&tipo={tipo}")
+            + (activos is null ? null : $"&activos={(activos.Value ? "true" : "false")}"));
 
     /// <returns>Nulo si no se pudo consultar.</returns>
     private async Task<PaginaMaestros<T>?> BuscarAsync<T>(string ruta, string? texto, int pagina, int tamano, CancellationToken cancelacion,

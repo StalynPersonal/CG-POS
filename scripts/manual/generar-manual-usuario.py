@@ -253,6 +253,10 @@ nota('En Artículos y en Precios, al lado del buscador hay un «Buscar por» don
      'descripción se busca por parecido; el código (interno, de barras o de proveedor) hay que escribirlo completo, '
      'porque un código es el artículo o no lo es: buscar «040100» por pedazos devolvía cientos de artículos que '
      'solo empiezan igual.')
+nota('A la derecha de la barra, Artículos tiene dos filtros más: «Tipo» —normal, pesado, serializado o combo— y «Estado». '
+     'El estado arranca en Activos, que es lo que se mira a diario; los artículos dados de baja se piden a propósito eligiendo '
+     'Inactivos, o Todos para ver los dos. Los filtros se suman a lo que se busque: «alambre» entre los pesados y activos es '
+     'las tres cosas a la vez.')
 
 titulo('2.5.1. Cargar los clientes desde el archivo de la DGII', 3)
 p('La DGII publica un archivo con todos los contribuyentes registrados del país (DGII_RNC.TXT). Ese archivo se puede cargar '
