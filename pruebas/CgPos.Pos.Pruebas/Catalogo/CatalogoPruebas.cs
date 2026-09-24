@@ -1,5 +1,7 @@
 ﻿using System.Text;
 using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Sincronizacion;
+using CgPos.Dominio.Sincronizacion;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Organizacion;
@@ -16,6 +18,23 @@ namespace CgPos.Pos.Pruebas.Catalogo;
 /// <summary>Maestros, precios, búsqueda e importaciones contra SQL Server real.</summary>
 public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatosPruebas>
 {
+    [Fact]
+    public void El_conteo_del_avance_suma_las_tandas_y_no_se_reinicia()
+    {
+        // El Central dice que hay 150,000 clientes por bajar y llegan de 2,000 en 2,000.
+        var avance = new AvanceMaestros([new ConteoMaestro(TipoMaestro.Cliente, 150_000)]);
+        Assert.Equal((0, 150_000), (avance.Aplicados(TipoMaestro.Cliente), avance.Total(TipoMaestro.Cliente, 2_000)));
+
+        avance.Sumar(TipoMaestro.Cliente, 2_000);
+        avance.Sumar(TipoMaestro.Cliente, 2_000);
+        Assert.Equal((4_000, 150_000), (avance.Aplicados(TipoMaestro.Cliente), avance.Total(TipoMaestro.Cliente, 2_000)));
+
+        // Sin totales del Central se cuenta lo que hay: nunca menos de lo ya aplicado.
+        var suelto = new AvanceMaestros();
+        suelto.Sumar(TipoMaestro.Articulo, 500);
+        Assert.Equal(700, suelto.Total(TipoMaestro.Articulo, 200));
+    }
+
     [SkippableFact]
     public async Task Carga_de_maestros_es_idempotente_y_solo_cuenta_los_precios_que_cambian()
     {

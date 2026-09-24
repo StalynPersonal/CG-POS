@@ -48,6 +48,9 @@ internal abstract class TablaMaestro
     /// </summary>
     public abstract Task<long?> CorteAsync(ContextoDatosCentral contexto, long desde, long hasta, int tope, CancellationToken cancelacion);
 
+    /// <summary>Cuántas filas de esta tabla hay en el rango; es el total contra el que la caja cuenta lo que lleva aplicado.</summary>
+    public abstract Task<int> CuantosAsync(ContextoDatosCentral contexto, long desde, long hasta, CancellationToken cancelacion);
+
     /// <summary>Las versiones son únicas en toda la base, así que cortar por una es exacto: ninguna fila queda a caballo.</summary>
     public static async Task<long?> CorteDeConsultaAsync<T>(IQueryable<T> consulta, long desde, long hasta, int tope, CancellationToken cancelacion) where T : class
     {
@@ -171,6 +174,11 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
 
     public override Task<long?> CorteAsync(ContextoDatosCentral contexto, long desde, long hasta, int tope, CancellationToken cancelacion) =>
         CorteDeConsultaAsync(conjunto(contexto), desde, hasta, tope, cancelacion);
+
+    public override Task<int> CuantosAsync(ContextoDatosCentral contexto, long desde, long hasta, CancellationToken cancelacion) =>
+        conjunto(contexto).AsNoTracking()
+            .Where(e => EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) > desde && EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) <= hasta)
+            .CountAsync(cancelacion);
 
     /// <summary>Página del Manager ordenada por código, con cuándo y quién cambió cada registro.</summary>
     /// <param name="campo">Acota la búsqueda a un campo; sin él se busca en todos los que tenga el maestro.</param>

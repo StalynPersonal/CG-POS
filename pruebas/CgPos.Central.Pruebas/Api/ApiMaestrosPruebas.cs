@@ -258,9 +258,15 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
             var paginas = 0;
             var desde = marca;
 
+            // La primera página trae además cuántas filas hay que bajar en total, que es el denominador del conteo en pantalla.
+            var totales = (await BajarAsync(cliente, tokenCaja, marca, conTotales: true)).Totales;
+            Assert.NotNull(totales);
+            Assert.Equal(departamentos.Count, Assert.Single(totales!, c => c.Tipo == TipoMaestro.Departamento).Cantidad);
+
             while (true)
             {
                 var pagina = await BajarAsync(cliente, tokenCaja, desde);
+                Assert.Null(pagina.Totales);
                 paginas++;
                 recibidos.AddRange((pagina.Maestros?.Departamentos ?? []).Select(d => d.Codigo));
 
@@ -300,9 +306,10 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
         Assert.NotEmpty(resultado.Paquete.Maestros!.Articulos!);
     }
 
-    private static async Task<PaqueteBajadaMaestros> BajarAsync(HttpClient cliente, string token, long desde)
+    private static async Task<PaqueteBajadaMaestros> BajarAsync(HttpClient cliente, string token, long desde, bool conTotales = false)
     {
-        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get, $"/api/sincronizacion/maestros?desde={desde}", token));
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/sincronizacion/maestros?desde={desde}{(conTotales ? "&totales=true" : string.Empty)}", token));
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.Content.ReadFromJsonAsync<PaqueteBajadaMaestros>(OpcionesJson.Predeterminadas))!;
     }

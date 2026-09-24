@@ -33,6 +33,9 @@ public static class TiposMensaje
 /// <param name="Mensaje">El resumen tal como se le muestra al cajero.</param>
 public sealed record ResultadoSincronizacion(bool Exitosa, bool YaEnCurso, string Mensaje);
 
+/// <summary>Cuántas filas de un maestro hay que bajar; lo usa la pantalla de la caja para contar el avance.</summary>
+public sealed record ConteoMaestro(CgPos.Dominio.Sincronizacion.TipoMaestro Tipo, int Cantidad);
+
 /// <summary>SHA-256 (hex, mayúsculas) con el que caja y Central verifican la integridad del contenido y del XML.</summary>
 public static class HashSincronizacion
 {
@@ -76,6 +79,11 @@ public enum EstadoRecepcion
 /// <param name="Maestros">Catálogo, precios, promociones, fidelidad, rangos de e-CF…; nulo si nada cambió.</param>
 /// <param name="EstadosDgii">Resultados de la DGII de los e-CF de esa caja que cambiaron; nulo si ninguno cambió.</param>
 /// <param name="ParametrosVigentes">Todos los parámetros que hoy aplican a esa caja: los que la caja tenga y no estén aquí se borraron en el Central.</param>
+/// <param name="Totales">
+/// Cuántas filas hay que bajar en total por maestro, contando desde <paramref name="Desde"/> y no solo esta página. Solo
+/// viene cuando la caja lo pide, en la primera página: con esto la pantalla dice «Clientes 2,000 de 705,706» en vez de
+/// reiniciar la cuenta en cada tanda.
+/// </param>
 /// <param name="Completo">
 /// Ya no falta nada. Cuando es <c>false</c>, el Central cortó el rango en <paramref name="Hasta"/> porque no cabía en una
 /// página: la caja aplica lo que llegó, guarda esa marca y vuelve a pedir desde ahí. El aprovisionamiento de una caja
@@ -88,7 +96,8 @@ public sealed record PaqueteBajadaMaestros(
     Catalogo.PaqueteMaestros? Maestros,
     IReadOnlyList<EstadoDgiiCarga>? EstadosDgii = null,
     IReadOnlyList<CargaInicial.ParametroReferencia>? ParametrosVigentes = null,
-    bool Completo = true)
+    bool Completo = true,
+    IReadOnlyList<ConteoMaestro>? Totales = null)
 {
     public bool SinCambios => Organizacion is null && Maestros is null && EstadosDgii is not { Count: > 0 };
 }

@@ -36,9 +36,14 @@
                     <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mt-4">
                         <div class="d-flex align-center gap-3">
                             <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Inherit" />
-                            <div>
+                            <div class="flex-grow-1">
                                 <div>Actualizando los datos de la caja…</div>
                                 <div class="cg-ingreso__detalle">@actualizacion.Detalle</div>
+                                @* Con el total de verdad se puede dibujar la barra; mientras no se sepa, basta el conteo. *@
+                                @if (actualizacion is { Total: > 0 } contado)
+                                {
+                                    <MudProgressLinear Value="@Porcentaje(contado)" Color="Color.Inherit" Class="mt-2" Rounded="true" />
+                                }
                             </div>
                         </div>
                     </MudAlert>
@@ -148,6 +153,10 @@
     /// están a medio aplicar, y una venta hecha en ese momento saldría con lo que hubiera llegado hasta ahí.
     /// </summary>
     private bool Bloqueada => _estado?.Actualizacion is { EnCurso: true };
+
+    /// <summary>Cuánto lleva la etapa, de 0 a 100, para la barra de progreso.</summary>
+    private static double Porcentaje(DatosActualizacionCaja actualizacion) =>
+        actualizacion.Total is { } total and > 0 ? Math.Clamp((actualizacion.Hechos ?? 0) * 100d / total, 0, 100) : 0;
 
     private bool PuedeIngresar =>
         CajaDisponible && !Bloqueada && !_procesando && !string.IsNullOrWhiteSpace(_codigo) && !string.IsNullOrEmpty(_clave);

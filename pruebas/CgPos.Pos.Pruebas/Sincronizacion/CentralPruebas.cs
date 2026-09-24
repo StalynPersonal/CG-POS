@@ -156,7 +156,7 @@ public sealed class CentralDePrueba(ResultadoEnvioCentral resultado, PaqueteBaja
         return Task.FromResult(resultado);
     }
 
-    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
+    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, bool conTotales = false, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoBajadaCentral.Recibido(bajada ?? new PaqueteBajadaMaestros(desde, desde, null, null)));
 
     /// <summary>Notas de crédito de otras sucursales que este Central conoce, por código consultado (RF-43).</summary>

@@ -153,7 +153,8 @@ public interface IClienteCentral
     Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default);
 
     /// <summary>Pide los maestros cambiados desde la versión que la caja ya aplicó (0 = aprovisionamiento completo).</summary>
-    Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default);
+    /// <param name="conTotales">Pide además cuántas filas hay que bajar en total; se pide una vez, en la primera tanda.</param>
+    Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, bool conTotales = false, CancellationToken cancelacion = default);
 
     /// <summary>Consulta en el Central una nota de crédito que esta caja no tiene, porque se emitió en otra sucursal (RF-43).</summary>
     Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default);

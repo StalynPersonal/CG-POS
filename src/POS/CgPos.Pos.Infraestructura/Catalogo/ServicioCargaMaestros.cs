@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using CgPos.Dominio.Comun;
 
+using CgPos.Dominio.Sincronizacion;
+
 namespace CgPos.Pos.Infraestructura.Catalogo;
 
 /// <summary>
@@ -60,11 +62,16 @@ internal sealed class ServicioCargaMaestros(
             throw new CargaMaestrosInvalidaExcepcion([$"JSON inválido en {Path.GetFileName(ruta)}: {excepcion.Message}"]);
         }
 
-        return await AplicarAsync(paquete ?? throw new CargaMaestrosInvalidaExcepcion(["El archivo está vacío."]), $"Archivo {Path.GetFileName(ruta)}", cancelacion);
+        return await AplicarAsync(paquete ?? throw new CargaMaestrosInvalidaExcepcion(["El archivo está vacío."]), $"Archivo {Path.GetFileName(ruta)}",
+            avance: null, cancelacion);
     }
 
-    public async Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete, string origen, CancellationToken cancelacion = default)
+    public async Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete, string origen, AvanceMaestros? avance = null,
+        CancellationToken cancelacion = default)
     {
+        // Sin contador, cada tanda se cuenta sola: es lo que pasa en la carga desde archivo y en las pruebas.
+        var cuenta = avance ?? new AvanceMaestros();
+
         ArgumentNullException.ThrowIfNull(paquete);
         ArgumentException.ThrowIfNullOrWhiteSpace(origen);
         _creados = 0;
@@ -125,10 +132,12 @@ internal sealed class ServicioCargaMaestros(
                 if (++hechos % CadaCuantos != 0 && hechos != articulos.Count)
                     continue;
 
-                progreso.Avance(hechos, articulos.Count);
+                progreso.Avance(cuenta.Aplicados(TipoMaestro.Articulo) + hechos, cuenta.Total(TipoMaestro.Articulo, articulos.Count));
                 if (hechos % 10_000 == 0 || hechos == articulos.Count)
                     registro.LogInformation("Maestros: {Hechos} de {Total} artículos aplicados.", hechos, articulos.Count);
             }
+
+            cuenta.Sumar(TipoMaestro.Articulo, articulos.Count);
 
             // Los clientes son el padrón de la DGII entero: es la etapa más larga de la primera carga de una caja.
             var clientes = paquete.Clientes ?? [];
@@ -148,10 +157,12 @@ internal sealed class ServicioCargaMaestros(
                 if (++hechos % CadaCuantos != 0 && hechos != clientes.Count)
                     continue;
 
-                progreso.Avance(hechos, clientes.Count);
+                progreso.Avance(cuenta.Aplicados(TipoMaestro.Cliente) + hechos, cuenta.Total(TipoMaestro.Cliente, clientes.Count));
                 if (hechos % 25_000 == 0 || hechos == clientes.Count)
                     registro.LogInformation("Maestros: {Hechos} de {Total} clientes aplicados.", hechos, clientes.Count);
             }
+            cuenta.Sumar(TipoMaestro.Cliente, clientes.Count);
+
             foreach (var d in paquete.FormasPago ?? [])
             {
                 await ValidarMonedaAsync(d.Moneda, $"La forma de pago '{d.Codigo}'", cancelacion);

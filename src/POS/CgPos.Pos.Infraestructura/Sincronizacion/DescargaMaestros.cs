@@ -37,9 +37,13 @@ internal sealed class DescargaMaestros(
         var desde = await MarcaAsync(cancelacion);
         var (creados, actualizados, paginas) = (0, 0, 0);
 
+        // La cuenta se pide una sola vez, en la primera tanda, y se arrastra por todas: así la pantalla dice «Clientes
+        // 2,000 de 705,706» y el número sube, en vez de reiniciarse con cada tanda.
+        var cuenta = new AvanceMaestros();
+
         while (true)
         {
-            var pagina = await PaginaAsync(desde, cancelacion);
+            var pagina = await PaginaAsync(desde, paginas == 0, cuenta, cancelacion);
             creados += pagina.Creados;
             actualizados += pagina.Actualizados;
 
@@ -77,10 +81,10 @@ internal sealed class DescargaMaestros(
             .Select(m => (long?)m.Valor)
             .FirstOrDefaultAsync(cancelacion)) ?? 0;
 
-    private async Task<ResultadoDescargaMaestros> PaginaAsync(long desde, CancellationToken cancelacion)
+    private async Task<ResultadoDescargaMaestros> PaginaAsync(long desde, bool pedirTotales, AvanceMaestros cuenta, CancellationToken cancelacion)
     {
         var marca = await contexto.MarcasSincronizacion.SingleOrDefaultAsync(m => m.Clave == MarcaSincronizacion.VersionMaestros, cancelacion);
-        var resultado = await central.DescargarMaestrosAsync(desde, cancelacion);
+        var resultado = await central.DescargarMaestrosAsync(desde, pedirTotales, cancelacion);
         var ahora = reloj.Ahora();
         if (resultado.Paquete is not { } paquete)
         {
@@ -94,6 +98,8 @@ internal sealed class DescargaMaestros(
         }
 
         conexion.RegistrarContacto(ahora);
+        if (paquete.Totales is { Count: > 0 } totales)
+            cuenta.FijarTotales(totales);
 
         // Con el registro en Information se ve desde el arranque qué trae cada bajada, sin tener que subir el nivel.
         registro.LogInformation("Bajando maestros del Central (versión {Desde} a {Hasta}): {Articulos} artículos, {Clientes} clientes, {Promociones} promociones.",
@@ -116,7 +122,7 @@ internal sealed class DescargaMaestros(
             if (paquete.Maestros is { } maestros)
             {
                 progreso.Etapa("Aplicando artículos, precios y catálogos");
-                var carga = await cargaMaestros.AplicarAsync(maestros, "Central", cancelacion);
+                var carga = await cargaMaestros.AplicarAsync(maestros, "Central", cuenta, cancelacion);
                 creados += carga.Creados;
                 actualizados += carga.Actualizados;
             }

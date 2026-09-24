@@ -37,5 +37,9 @@ public interface IServicioBajadaMaestros
     /// Lo que cambió desde la versión que la caja ya tiene (RF-273), limitado a lo que le corresponde: sus parámetros (general, de su sucursal y de ella)
     /// y sus rangos de e-CF. Desde 0 es el aprovisionamiento completo de una caja nueva (RF-281).
     /// </summary>
-    Task<PaqueteBajadaMaestros> ObtenerAsync(CajaRemitente caja, long desde, CancellationToken cancelacion = default);
+    /// <param name="conTotales">
+    /// Agrega cuántas filas hay que bajar en total por maestro. La caja lo pide en la primera página de una tanda para
+    /// poder contar el avance; calcularlo en cada página sería contar cientos de miles de filas una y otra vez.
+    /// </param>
+    Task<PaqueteBajadaMaestros> ObtenerAsync(CajaRemitente caja, long desde, bool conTotales = false, CancellationToken cancelacion = default);
 }

@@ -1030,6 +1030,8 @@ nota('La primera bajada de una caja nueva es la más larga: con un catálogo gra
      'tandas —la pantalla va diciendo «parte 2», «parte 3»— y cada tanda se guarda al llegar, así que si se corta la red o '
      'se reinicia el servicio, al volver se retoma donde iba y no hay que empezar de nuevo. El tamaño de la tanda se '
      'configura en el Central con «Central.Sincronizacion.FilasPorPagina»; sin tocarlo son 5,000 filas.')
+nota('Mientras bajan, la pantalla lleva la cuenta contra el total de verdad —«Aplicando clientes · 24,000 de 705,706»— con '
+     'su barra de progreso, así que se ve de un vistazo si avanza o se quedó parado.')
 paso('Entre con el usuario del cajero y abra el turno con su fondo.')
 paso('Escanee artículos, cambie una cantidad y elimine una línea (le pedirá la clave del supervisor).')
 paso('Con F12 asigne un cliente con RNC y verifique que el comprobante cambia a crédito fiscal.')

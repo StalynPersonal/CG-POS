@@ -60,7 +60,7 @@ internal sealed class CentralNoConfigurado : IClienteCentral
     public Task<ResultadoEnvioCentral> EnviarAsync(MensajeSincronizacion mensaje, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoEnvioCentral.SinConexion(Motivo));
 
-    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
+    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, bool conTotales = false, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoBajadaCentral.SinConexion(Motivo));
 
     public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
@@ -109,7 +109,7 @@ internal sealed class CentralSimulado(string carpeta) : IClienteCentral
             : ResultadoEnvioCentral.Rechazado(respuesta.Error ?? "El Central simulado rechazó el mensaje.");
     }
 
-    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default) =>
+    public Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, bool conTotales = false, CancellationToken cancelacion = default) =>
         Task.FromResult(ResultadoBajadaCentral.Recibido(new PaqueteBajadaMaestros(desde, desde, null, null)));
 
     public Task<ResultadoNotaCreditoCentral> ConsultarNotaCreditoAsync(string codigo, CancellationToken cancelacion = default) =>
@@ -229,10 +229,11 @@ internal sealed class ClienteCentralHttp : IClienteCentral
         }
     }
 
-    public async Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, CancellationToken cancelacion = default)
+    public async Task<ResultadoBajadaCentral> DescargarMaestrosAsync(long desde, bool conTotales = false, CancellationToken cancelacion = default)
     {
         var (respuesta, fallo) = await SolicitarAsync(
-            () => new HttpRequestMessage(HttpMethod.Get, $"{RutaMaestros}?desde={desde.ToString(CultureInfo.InvariantCulture)}"), cancelacion);
+            () => new HttpRequestMessage(HttpMethod.Get,
+                $"{RutaMaestros}?desde={desde.ToString(CultureInfo.InvariantCulture)}{(conTotales ? "&totales=true" : string.Empty)}"), cancelacion);
 
         if (fallo is not null)
             return new ResultadoBajadaCentral(null, fallo.CentralRespondio, fallo.Error);

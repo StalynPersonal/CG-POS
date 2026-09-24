@@ -2,14 +2,46 @@
 using CgPos.Dominio.Catalogo;
 using CgPos.Pos.Aplicacion.Seguridad;
 
+using CgPos.Contratos.Sincronizacion;
+
+using CgPos.Dominio.Sincronizacion;
+
 namespace CgPos.Pos.Aplicacion.Catalogo;
 
 /// <summary>Aplica un <see cref="PaqueteMaestros"/> de forma idempotente, en una sola transacción.</summary>
+/// <summary>
+/// Lo que se lleva aplicado de todo lo que hay que bajar. Los maestros vienen por tandas, así que sin esto el conteo de la
+/// pantalla se reiniciaría en cada una y el cajero vería «2,000 de 5,000» una y otra vez en vez de avanzar hacia el total.
+/// </summary>
+public sealed class AvanceMaestros(IReadOnlyList<ConteoMaestro>? totales = null)
+{
+    private readonly Dictionary<TipoMaestro, int> _totales = totales?.GroupBy(c => c.Tipo).ToDictionary(g => g.Key, g => g.Sum(c => c.Cantidad)) ?? [];
+    private readonly Dictionary<TipoMaestro, int> _aplicados = [];
+
+    /// <summary>Lo aplicado en las tandas anteriores; en la primera, cero.</summary>
+    public int Aplicados(TipoMaestro tipo) => _aplicados.GetValueOrDefault(tipo);
+
+    /// <summary>El total que hay que bajar. Si el Central no lo dijo, lo que se lleva más lo de esta tanda: nunca menos de lo hecho.</summary>
+    public int Total(TipoMaestro tipo, int enLaTanda) => Math.Max(_totales.GetValueOrDefault(tipo), Aplicados(tipo) + enLaTanda);
+
+    /// <summary>Cierra la tanda: lo que trajo pasa a contar como aplicado.</summary>
+    public void Sumar(TipoMaestro tipo, int cantidad) => _aplicados[tipo] = Aplicados(tipo) + cantidad;
+
+    /// <summary>Los totales que informó el Central, que llegan con la primera tanda.</summary>
+    public void FijarTotales(IReadOnlyList<ConteoMaestro> totales)
+    {
+        ArgumentNullException.ThrowIfNull(totales);
+        foreach (var conteo in totales)
+            _totales[conteo.Tipo] = conteo.Cantidad;
+    }
+}
+
 public interface ICargaMaestros
 {
     /// <param name="origen">De dónde vienen los datos (queda en la auditoría de la carga), ej. "Central", "Carga inicial".</param>
     /// <exception cref="CargaMaestrosInvalidaExcepcion">El paquete tiene errores; no se guarda nada.</exception>
-    Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete, string origen, CancellationToken cancelacion = default);
+    /// <param name="avance">Lo que se lleva aplicado del total, para que el conteo de la pantalla no se reinicie en cada tanda.</param>
+    Task<ResultadoCargaMaestros> AplicarAsync(PaqueteMaestros paquete, string origen, AvanceMaestros? avance = null, CancellationToken cancelacion = default);
 
     Task<ResultadoCargaMaestros> AplicarDesdeArchivoAsync(string ruta, CancellationToken cancelacion = default);
 }

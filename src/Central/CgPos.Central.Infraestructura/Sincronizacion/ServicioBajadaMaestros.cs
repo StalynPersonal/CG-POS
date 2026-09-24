@@ -17,7 +17,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, IPar
     /// <summary>Filas por página si el negocio no fijó otra cosa: suficientes para que el aprovisionamiento no eternice y no ahogue la caja.</summary>
     private const int FilasPorPaginaPredeterminadas = 5_000;
 
-    public async Task<PaqueteBajadaMaestros> ObtenerAsync(CajaRemitente caja, long desde, CancellationToken cancelacion = default)
+    public async Task<PaqueteBajadaMaestros> ObtenerAsync(CajaRemitente caja, long desde, bool conTotales = false, CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(caja);
         desde = Math.Max(0, desde);
@@ -89,7 +89,19 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, IPar
         await contexto.SaveChangesAsync(cancelacion);
 
         return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null, vigentes,
-            Completo: hasta >= hastaTodo);
+            Completo: hasta >= hastaTodo,
+            Totales: conTotales ? await TotalesAsync(desde, hastaTodo, cancelacion) : null);
+    }
+
+    /// <summary>Cuántas filas hay que bajar en total por maestro, de aquí al final del rango: el denominador del conteo en pantalla.</summary>
+    private async Task<IReadOnlyList<ConteoMaestro>> TotalesAsync(long desde, long hasta, CancellationToken cancelacion)
+    {
+        var totales = new List<ConteoMaestro>();
+        foreach (var tabla in TablasMaestros.Todas)
+            if (await tabla.CuantosAsync(contexto, desde, hasta, cancelacion) is > 0 and var cuantos)
+                totales.Add(new ConteoMaestro(tabla.Tipo, cuantos));
+
+        return totales;
     }
 
     /// <summary>

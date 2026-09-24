@@ -2412,7 +2412,7 @@ VALUES
     (7, N'Central.Seguridad.LargoMinimoClaveCaja', N'6', N'Largo mínimo de la clave de los usuarios de caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (8, N'Central.Seguridad.ContrasenaCompleja', N'true', N'Exige mayúscula, minúscula, número y símbolo', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (9, N'Central.Dispositivos.MinutosToken', N'30', N'Minutos de vigencia del token de una caja', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
-    (10, N'Central.Sincronizacion.FilasPorPagina', N'5000', N'Filas por página de la bajada de maestros a las cajas', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
+    (10, N'Central.Sincronizacion.FilasPorPagina', N'500', N'Filas por página de la bajada de maestros a las cajas', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (11, N'Central.Dgii.SegundosCiclo', N'30', N'Segundos entre envíos de e-CF a la DGII', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (12, N'Central.Dgii.LoteEnvio', N'50', N'Comprobantes por lote de envío a la DGII', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
     (13, N'Central.Dgii.MinutosReintento', N'5', N'Minutos antes de reintentar un envío fallido', NULL, NULL, SYSDATETIMEOFFSET(), N'Instalación'),
