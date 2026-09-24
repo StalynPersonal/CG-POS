@@ -849,24 +849,10 @@ else
         if (_venta is null)
             return;
 
-        // Una venta vacía no se pregunta ni se explica: no hay nada que botar.
-        if (_venta.Lineas.Count == 0)
-        {
-            await EjecutarConAutorizacionAsync(
-                autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, null, autorizacion),
-                $"Limpiar la transacción {_venta.NumeroTransaccion}");
-            return;
-        }
-
-        // El motivo es opcional: se puede dejar vacío y seguir. Si lo escriben, queda en la auditoría.
-        var motivo = await PedirTextoAsync($"Limpiar la transacción {_venta.NumeroTransaccion}",
-            $"Motivo (opcional) · {_venta.Totales.CantidadLineas} líneas por {_venta.Totales.Total:C}",
-            ayuda: "Puede dejarlo en blanco. Ej.: el cliente se arrepintió.", decimales: false, modo: ModoTeclado.Alfanumerico);
-        if (motivo is null)
-            return;
-
+        // Un solo cuadro: el del supervisor, que ya trae su campo de motivo y lo pide como opcional. Preguntar el motivo
+        // aparte era hacerle dos preguntas al cajero para la misma cosa.
         await EjecutarConAutorizacionAsync(
-            autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, string.IsNullOrWhiteSpace(motivo) ? null : motivo, autorizacion),
+            autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, null, autorizacion),
             $"Limpiar la transacción {_venta.NumeroTransaccion}");
         _codigosInternos.Clear();
     }

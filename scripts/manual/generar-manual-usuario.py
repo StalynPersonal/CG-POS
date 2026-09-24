@@ -924,9 +924,10 @@ viñeta('Mientras la venta se arma, la pantalla muestra el número de factura qu
        'al cobrar, en el orden en que se cobra: una factura en espera no se lleva el número de otro cliente, y una venta que no '
        'se cobró no deja un hueco en la numeración. En la auditoría, la venta sin cobrar aparece como B-000015.')
 viñeta('Una venta con tarjeta ya aprobada no se pone en espera: cóbrela o anule la tarjeta primero.')
-viñeta('Limpiar pantalla (panel de funciones ☰): bota la transacción en curso y empieza otra. Pide el motivo, pero se puede '
-       'dejar en blanco: escanear lo que no era pasa varias veces al día. Como todavía no era una factura, desaparece de la '
-       'caja; lo que tenía, quién la botó, quién lo autorizó y el motivo —si lo dio— quedan en la auditoría.')
+viñeta('Limpiar pantalla (panel de funciones ☰): bota la transacción en curso y empieza otra. Pide la autorización del '
+       'supervisor en un solo cuadro, donde el motivo es opcional: escanear lo que no era pasa varias veces al día y '
+       'explicarlo cada vez solo entorpece. Como todavía no era una factura, desaparece de la caja; lo que tenía, quién la '
+       'botó, quién lo autorizó y el motivo —si lo dio— quedan en la auditoría.')
 viñeta('Suspender: el cajero elige por qué deja la caja (baño, almuerzo, receso, un llamado del supervisor u otro) y la '
        'pantalla se bloquea con un cronómetro grande que cuenta desde ese momento. Debajo del conteo está el botón Regresar: '
        'se vuelve con la clave del mismo cajero, y la venta que estaba en pantalla se conserva. El motivo «Otro» pide escribir '

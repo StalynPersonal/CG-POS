@@ -361,10 +361,11 @@ tablas('Caja: LineasVentaEnProceso · AutorizacionesOtorgadas · Auditoria')
 marcar()
 
 prueba('C4', 'Limpiar la pantalla')
-paso('Presione la opción de limpiar. Pide el motivo: déjelo en blanco la primera vez y autorice con el supervisor.')
-paso('Arme otra venta, límpiela de nuevo y esta vez escriba un motivo.')
-esperado('Las dos veces la venta se descarta entera y empieza otra vacía, sin dejar factura ni consumir número. El motivo no '
-         'es obligatorio, pero cuando se escribe queda guardado en la auditoría (se comprueba en S3).')
+paso('Presione la opción de limpiar. Sale un solo cuadro, el del supervisor: autorice sin escribir motivo.')
+paso('Arme otra venta, límpiela de nuevo y esta vez escriba un motivo en ese mismo cuadro.')
+esperado('No hay dos cuadros: el motivo se pide dentro del de autorización y es opcional. Las dos veces la venta se descarta '
+         'entera y empieza otra vacía, sin dejar factura ni consumir número. El motivo, cuando se escribe, queda guardado en '
+         'la auditoría (se comprueba en S3).')
 tablas('Caja: VentasEnProceso · LineasVentaEnProceso (las dos filas se borran) · Auditoria')
 marcar()
 
