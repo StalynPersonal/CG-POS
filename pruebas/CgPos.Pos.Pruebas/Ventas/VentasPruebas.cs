@@ -135,7 +135,10 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             var recuperada = await reabierta.VentaActualAsync();
 
             Assert.Equal(ventaId, recuperada.Id);
-            Assert.Equal(20, recuperada.Lineas.Count);
+
+            // Escanear veinte veces el mismo artículo deja una línea de veinte, no veinte líneas de uno.
+            var recuperada1 = Assert.Single(recuperada.Lineas);
+            Assert.Equal(20m, recuperada1.Cantidad);
             Assert.Equal(17_000m, recuperada.Totales.Subtotal);
         }
     }

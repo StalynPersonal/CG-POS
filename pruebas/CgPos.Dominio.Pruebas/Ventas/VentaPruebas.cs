@@ -142,6 +142,37 @@ public class VentaPruebas
     }
 
     [Fact]
+    public void Escanear_el_mismo_articulo_suma_a_su_linea_y_asi_alcanza_el_precio_por_mayor()
+    {
+        var venta = NuevaVenta();
+
+        // Doce escaneos de uno son doce unidades: el cliente se lleva doce y le toca el mayor, aunque no se digitara 12.
+        var cemento = Cemento();
+        for (var i = 0; i < 12; i++)
+            venta.AgregarArticulo(cemento, null, Ahora);
+
+        var linea = Assert.Single(venta.Lineas);
+        Assert.Equal(12m, linea.Cantidad);
+        Assert.Equal(ListaPrecio.Mayor, linea.Lista);
+        Assert.Equal(450m, linea.PrecioUnitario);
+        Assert.Equal(5400m, venta.CalcularTotales().Subtotal);
+    }
+
+    [Fact]
+    public void Lo_que_se_vende_de_uno_en_uno_no_se_junta_en_una_linea()
+    {
+        var venta = NuevaVenta();
+
+        // Cada unidad con serial es su propia línea: juntarlas perdería a cuál pertenece cada serial.
+        var taladro = Cincel() with { Tipo = TipoArticulo.Serializado, Descripcion = "Taladro inalámbrico" };
+        var primero = venta.AgregarArticulo(taladro, null, Ahora, serial: "SER-1");
+        var segundo = venta.AgregarArticulo(taladro, null, Ahora, serial: "SER-2");
+
+        Assert.NotEqual(primero.NumeroLinea, segundo.NumeroLinea);
+        Assert.Equal(2, venta.Lineas.Count);
+    }
+
+    [Fact]
     public void Unidades_con_decimales_se_redondean_y_las_enteras_rechazan_fracciones()
     {
         var venta = NuevaVenta();

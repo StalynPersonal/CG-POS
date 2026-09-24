@@ -841,6 +841,10 @@ nota('El teclado en pantalla de códigos, documentos y textos cambia entre núme
 
 titulo('3.7. Hacer una venta', 2)
 paso('Pase el código del artículo por el lector (o dígitelo y presione Enter). Para varias unidades: 12*CEM-425.')
+nota('Si se vuelve a pasar un artículo que ya está en la venta, se le suma una unidad a su línea en vez de abrirse otra. Así '
+     'el cliente que se lleva doce, pasados de uno en uno, llega igual al precio por mayor: la lista mira las unidades de la línea. '
+     'Lo que se vende de uno en uno sigue en su propia línea: lo serializado (cada unidad tiene su serial), lo pesado (cada pesada '
+     'es una línea) y lo que ya lleve un descuento o un precio puesto a mano.')
 paso('Para cambiar una cantidad, toque la cantidad en la línea o use F4. Para ver el otro código del artículo, toque el código.')
 nota('La cantidad que se digita tiene un tope: el que diga el parámetro Ventas.CantidadMaximaDigitada (10 de fábrica). Si el '
      'cliente lleva más, el artículo se pasa por el lector una vez por unidad. Vale para F4, para tocar la cantidad y para '

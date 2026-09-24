@@ -415,6 +415,14 @@ doc.add_page_break()
 # ---------------------------------------------------------------- E. Artículos especiales
 titulo('Bloque E — Artículos que no son normales')
 
+prueba('E0', 'Precio por mayor pasando el artículo varias veces')
+paso('Pase por el lector, de uno en uno, tantas unidades del artículo con precio por mayor como pida su cantidad mínima.')
+paso('Después pruebe lo mismo escaneando «12*código» en una sola pasada.')
+esperado('Las pasadas se van sumando a la misma línea, no se abre una por cada una. Al llegar a la cantidad mínima, la línea '
+         'pasa al precio de mayor y aparece la marca «Mayor». Las dos formas terminan igual.')
+tablas('Caja: LineasVentaEnProceso · Articulos (lee)')
+marcar()
+
 prueba('E1', 'Artículo pesado')
 paso('Presione F5 (balanza) con el artículo pesado, o escanee su etiqueta de balanza.')
 esperado('Toma el peso y calcula el importe por kilo. Si el artículo tiene tara, la descuenta.')

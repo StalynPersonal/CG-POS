@@ -433,6 +433,21 @@ public abstract class Venta : Entidad
             cantidad = NormalizarCantidad(cantidadIndicada ?? 1m, articulo.PermiteDecimales, articulo.DecimalesCantidad);
         }
 
+        // Volver a escanear el mismo artículo suma a la línea que ya está, en vez de abrir otra. Además de dejar la
+        // factura corta, es lo que hace que el precio por mayor entre: la regla mira la cantidad de la línea, así que dos
+        // líneas de uno nunca llegaban al mínimo aunque el cliente se llevara dos.
+        if (LineaQueAbsorbe(articulo, serialLimpio, leidaDeBalanza) is { } existente)
+        {
+            var total = NormalizarCantidad(existente.Cantidad + cantidad, articulo.PermiteDecimales, articulo.DecimalesCantidad);
+            var precioTotal = ReglasPrecio.Determinar(articulo.CodigoInterno, articulo.Tipo, articulo.CantidadMinimaMayor,
+                new PreciosVigentes(precioDetalle, articulo.PrecioMayor), total, SeleccionListaPrecio.Automatica);
+
+            existente.CambiarCantidad(total, precioTotal);
+            ProrratearDescuentoFactura();
+            ActualizadaEn = ahora;
+            return existente;
+        }
+
         var precio = ReglasPrecio.Determinar(articulo.CodigoInterno, articulo.Tipo, articulo.CantidadMinimaMayor,
             new PreciosVigentes(precioDetalle, articulo.PrecioMayor), cantidad, SeleccionListaPrecio.Automatica);
 
@@ -653,6 +668,26 @@ public abstract class Venta : Entidad
 
     /// <summary>Cantidad de la línea marcada para entrega o envío en todos los destinos.</summary>
     public decimal CantidadEnEntregas(int numeroLinea) => DestinosInternos.SelectMany(d => d.Lineas).Where(l => l.NumeroLinea == numeroLinea).Sum(l => l.Cantidad);
+
+    /// <summary>
+    /// La línea a la que se le suma lo recién escaneado, o nula si hay que abrir otra. Se queda fuera todo lo que se
+    /// vende de uno en uno o lleva algo propio que juntarlo destruiría:
+    /// lo serializado (cada unidad tiene su serial), lo pesado (cada pesada es su propia línea), lo que ya tiene un
+    /// descuento a mano o un precio puesto a mano, y lo que está comprometido en una entrega.
+    /// </summary>
+    private LineaVenta? LineaQueAbsorbe(ArticuloParaVenta articulo, string? serial, bool leidaDeBalanza)
+    {
+        if (serial is not null || leidaDeBalanza || articulo.Tipo is TipoArticulo.Serializado or TipoArticulo.Pesado)
+            return null;
+
+        return LineasInternas.LastOrDefault(l => l.EstaActiva
+            && l.ArticuloId == articulo.ArticuloId
+            && l.Serial is null
+            && !l.LeidaDeBalanza
+            && l.DescuentoManual == 0m
+            && l.MotivoPrecio is not (MotivoPrecio.MayorManual or MotivoPrecio.PrecioCotizado)
+            && CantidadEnEntregas(l.NumeroLinea) == 0m);
+    }
 
     private void AsegurarSinEntrega(LineaVenta linea)
     {
