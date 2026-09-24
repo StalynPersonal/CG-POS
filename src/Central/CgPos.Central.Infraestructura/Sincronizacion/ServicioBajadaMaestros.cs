@@ -22,6 +22,16 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, IPar
         ArgumentNullException.ThrowIfNull(caja);
         desde = Math.Max(0, desde);
 
+        var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == caja.CajaId, cancelacion);
+
+        // Alguien pidió desde el Central que esta caja vuelva a bajarlo todo. A una caja no se le ordena nada —es ella la
+        // que pregunta—, así que el pedido se atiende aquí: se le sirve desde cero y ella guarda la marca nueva.
+        if (estado is { ResincronizacionPendiente: true })
+        {
+            desde = 0;
+            estado.ResincronizacionServida();
+        }
+
         // Hasta la versión más alta ya confirmada: una transacción aún abierta con una versión menor no queda saltada.
         var hasta = Math.Max(desde, await contexto.Database
             .SqlQueryRaw<long>("SELECT CAST(MIN_ACTIVE_ROWVERSION() AS bigint) - 1 AS [Value]")
@@ -78,7 +88,6 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, IPar
             .Select(p => new ParametroReferencia(p.Clave, p.SucursalCodigo, p.CajaCodigo))
             .ToList();
 
-        var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == caja.CajaId, cancelacion);
         if (estado is null)
         {
             estado = EstadoSincronizacionCaja.Crear(caja.CajaId);

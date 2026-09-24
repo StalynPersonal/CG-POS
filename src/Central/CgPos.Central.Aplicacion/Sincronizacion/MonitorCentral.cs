@@ -25,6 +25,12 @@ public interface IServicioMonitorCentral
     /// <summary>Vuelve a poner en cola de envío un e-CF rechazado o pendiente, ahora mismo (reenvío dirigido).</summary>
     Task<ResultadoAdministracion> ReenviarAsync(int comprobanteId, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
+    /// <summary>
+    /// Deja pedido que una caja vuelva a bajar todos los maestros desde cero. Hace falta cuando su base perdió datos: la
+    /// bajada normal solo trae lo que cambió en el Central, así que lo que se borró allá no vuelve por su cuenta.
+    /// </summary>
+    Task<ResultadoAdministracion> ResincronizarCajaAsync(int cajaId, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
     Task<IReadOnlyList<DatosConflictoSincronizacion>> ListarConflictosAsync(bool abiertos, CancellationToken cancelacion = default);
 
     Task<ResultadoAdministracion> ResolverConflictoAsync(int conflictoId, string resolucion, UsuarioAuditoria actor, CancellationToken cancelacion = default);

@@ -302,6 +302,9 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<RespuestaAdministracion> ReenviarComprobanteAsync(int comprobanteId) => EnviarAsync(HttpMethod.Post, $"api/monitor/comprobantes/{comprobanteId}/reenviar");
 
+    /// <summary>Deja pedido que esa caja vuelva a bajar todos los maestros desde cero.</summary>
+    public Task<RespuestaAdministracion> ResincronizarCajaAsync(int cajaId) => EnviarAsync(HttpMethod.Post, $"api/monitor/cajas/{cajaId}/resincronizar");
+
     public Task<IReadOnlyList<DatosConflictoSincronizacion>?> ListarConflictosAsync(bool abiertos) =>
         ListarAsync<DatosConflictoSincronizacion>($"api/monitor/conflictos?abiertos={(abiertos ? "true" : "false")}");
 

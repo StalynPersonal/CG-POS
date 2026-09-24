@@ -82,6 +82,15 @@
                     {
                         <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="() => DesdeMenu(() => CambiarEstadoAsync(context, true))">Habilitar</MudMenuItem>
                     }
+                    @* La caja pide al Central solo lo que cambió allá: si su base perdió datos, esto es lo que la hace
+                       bajarlo todo otra vez. No se le ordena nada a la caja: queda pedido y se le sirve cuando pregunte. *@
+                    <AuthorizeView Policy="@CatalogoPermisosCentral.MonitorearSincronizacion" Context="sincronizacion">
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.CloudSync" OnClick="() => DesdeMenu(() => ResincronizarAsync(context))">
+                            Volver a sincronizar esta caja
+                        </MudMenuItem>
+                    </AuthorizeView>
+
                     <AuthorizeView Policy="@CatalogoPermisosCentral.AdministrarDispositivos" Context="autorizacion">
                         <MudDivider />
                         @* Emitir y revocar no se ofrecen a la vez: para cambiar la credencial hay que revocar la actual primero. *@
@@ -164,6 +173,23 @@
             return;
 
         await EjecutarAsync(() => Cliente.CambiarEstadoCajaAsync(caja.Id, habilitada), habilitada ? "Caja habilitada." : "Caja deshabilitada.");
+    }
+
+    /// <summary>
+    /// Pide que esa caja vuelva a bajar todos los maestros. Tarda —es el catálogo entero— y mientras dura esa caja no
+    /// vende, así que se confirma antes.
+    /// </summary>
+    private async Task ResincronizarAsync(DatosCaja caja)
+    {
+        var confirmado = await Dialogos.ConfirmarAsync("Volver a sincronizar esta caja",
+            $"La caja {caja.Codigo} va a bajar otra vez todos los datos del Central: artículos, precios y clientes. "
+            + "Tarda varios minutos y mientras dura no puede vender. Empieza la próxima vez que la caja pregunte.",
+            "Volver a sincronizar");
+        if (!confirmado)
+            return;
+
+        await EjecutarAsync(() => Cliente.ResincronizarCajaAsync(caja.Id),
+            $"La caja {caja.Codigo} bajará todos los datos otra vez en cuanto pregunte al Central.");
     }
 
     private async Task EmitirCredencialAsync(DatosCaja caja)

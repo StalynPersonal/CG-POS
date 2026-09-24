@@ -32,6 +32,11 @@ public static class RutasApiMonitor
         grupo.MapGet("/conflictos", async (bool? abiertos, IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             Results.Ok(await servicio.ListarConflictosAsync(abiertos ?? true, cancelacion)));
 
+        // Volver a sincronizar una caja: se anota el pedido y se le sirve desde cero la próxima vez que pida maestros.
+        grupo.MapPost("/cajas/{cajaId:int}/resincronizar", async (int cajaId, ClaimsPrincipal usuario, IServicioMonitorCentral servicio,
+                CancellationToken cancelacion) =>
+            Responder(await servicio.ResincronizarCajaAsync(cajaId, Actor(usuario), cancelacion)));
+
         grupo.MapPost("/conflictos/{conflictoId:int}/resolver", async (int conflictoId, SolicitudResolverConflicto solicitud, ClaimsPrincipal usuario,
                 IServicioMonitorCentral servicio, CancellationToken cancelacion) =>
             Responder(await servicio.ResolverConflictoAsync(conflictoId, solicitud.Resolucion, Actor(usuario), cancelacion)));

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Genera la guía de pruebas de CG-POS en Word.
 
@@ -316,6 +316,17 @@ paso('Abra el turno con el fondo que le sugiere la pantalla, o cámbielo.')
 paso('Desde otra pantalla intente abrir un segundo turno en la misma caja.')
 esperado('El primero abre; el segundo se rechaza diciendo que ya hay un turno abierto.')
 tablas('Caja: Turnos · BandejaSalida')
+marcar()
+
+prueba('B5', 'Volver a sincronizar una caja desde el Central')
+paso('Con la caja ya funcionando, borre a mano unos artículos de su base: DELETE FROM Articulos WHERE Codigo IN (…).')
+paso('En la caja, dele a «Sincronizar» en el panel de funciones.')
+paso('Ahora en el Central, Organización → Cajas, abra el menú de esa caja y use «Volver a sincronizar esta caja».')
+paso('Vuelva a la caja y espere (o dele a «Sincronizar»).')
+esperado('Sincronizar por sí solo NO los devuelve: el Central no tiene nada nuevo que mandar, porque allá no pasó nada. '
+         'Después del pedido desde el Central, la caja baja el catálogo entero otra vez, los artículos vuelven y los '
+         'clientes que ya tenía salen como actualizados, no repetidos.')
+tablas('Central: EstadosSincronizacionCaja · Auditoria · Caja: MarcasSincronizacion · Articulos · Clientes')
 marcar()
 
 doc.add_page_break()

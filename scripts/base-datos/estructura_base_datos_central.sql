@@ -1138,6 +1138,7 @@ CREATE TABLE [EstadosSincronizacionCaja] (
     [UltimaDescargaEn] datetimeoffset(3) NULL,
     [VersionMaestrosConfirmada] bigint NOT NULL,
     [VersionMaestrosEntregada] bigint NOT NULL,
+    [ResincronizacionPedidaEn] datetimeoffset(3) NULL,
     CONSTRAINT [PK_EstadosSincronizacionCaja] PRIMARY KEY ([CajaId]),
     CONSTRAINT [FK_EstadosSincronizacionCaja_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
 );

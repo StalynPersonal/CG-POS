@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Sincronizacion;
@@ -236,6 +237,36 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
 
         var conflicto = await central.UsarContextoAsync(contexto => contexto.ConflictosSincronizacion.SingleAsync(c => c.MensajeId == repetida.Mensaje.Id));
         Assert.Equal(TipoConflictoSincronizacion.MiembroDuplicado, conflicto.Tipo);
+    }
+
+    [SkippableFact]
+    public async Task Resincronizar_una_caja_le_sirve_los_maestros_desde_cero_una_sola_vez()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var admin = await CentralEnPruebas.TokenAdministradorAsync(cliente);
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+
+        // La caja está al día: pedir desde su marca no trae nada.
+        var alDia = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
+        Assert.True((await BajarAsync(cliente, tokenCaja, alDia)).SinCambios);
+
+        using var pedido = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post,
+            $"/api/monitor/cajas/{CentralEnPruebas.CajaUno}/resincronizar", admin));
+        Assert.Equal(HttpStatusCode.OK, pedido.StatusCode);
+
+        // Aunque la caja siga pidiendo desde su marca, el Central le sirve desde cero: es lo que la hace bajarlo todo.
+        var completa = await BajarAsync(cliente, tokenCaja, alDia);
+        Assert.Equal(0, completa.Desde);
+        Assert.NotNull(completa.Maestros?.Articulos);
+
+        // Y una vez que la caja arrancó, no se le vuelve a forzar: si no, se quedaría bajando lo mismo para siempre.
+        var siguiente = await BajarAsync(cliente, tokenCaja, completa.Hasta);
+        Assert.Equal(completa.Hasta, siguiente.Desde);
+
+        // Una caja que no existe no se puede resincronizar.
+        using var inexistente = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/monitor/cajas/999999/resincronizar", admin));
+        Assert.Equal(HttpStatusCode.NotFound, inexistente.StatusCode);
     }
 
     [SkippableFact]

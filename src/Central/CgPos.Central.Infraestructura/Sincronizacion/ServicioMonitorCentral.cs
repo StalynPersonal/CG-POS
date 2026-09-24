@@ -172,6 +172,26 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
         return ResultadoAdministracion.Correcto(comprobante.Id);
     }
 
+    public async Task<ResultadoAdministracion> ResincronizarCajaAsync(int cajaId, UsuarioAuditoria actor, CancellationToken cancelacion = default)
+    {
+        if (await contexto.Cajas.AsNoTracking().SingleOrDefaultAsync(c => c.Id == cajaId, cancelacion) is not { } caja)
+            return ResultadoAdministracion.Inexistente("La caja no existe.");
+
+        var estado = await contexto.EstadosSincronizacionCaja.SingleOrDefaultAsync(e => e.CajaId == cajaId, cancelacion);
+        if (estado is null)
+        {
+            // Una caja que nunca pidió maestros ya los va a bajar todos en cuanto lo haga: no hay nada que pedir.
+            estado = EstadoSincronizacionCaja.Crear(cajaId);
+            contexto.EstadosSincronizacionCaja.Add(estado);
+        }
+
+        estado.PedirResincronizacion(reloj.Ahora());
+        auditoria.Registrar(new EntradaAuditoria("Sincronizacion.ResincronizarCaja", "Caja", cajaId.ToString(),
+            Detalle: new { caja.Codigo, estado.VersionMaestrosConfirmada, Usuario = actor.Nombre }));
+        await contexto.SaveChangesAsync(cancelacion);
+        return ResultadoAdministracion.Correcto(cajaId);
+    }
+
     public async Task<IReadOnlyList<DatosConflictoSincronizacion>> ListarConflictosAsync(bool abiertos, CancellationToken cancelacion = default)
     {
         var conflictos = await contexto.ConflictosSincronizacion.AsNoTracking()

@@ -343,6 +343,23 @@ public sealed class EstadoSincronizacionCaja
     /// <summary>Versión hasta la que se le entregaron maestros en la última descarga.</summary>
     public long VersionMaestrosEntregada { get; private set; }
 
+    /// <summary>
+    /// El Central quiere que esta caja vuelva a bajar los maestros desde cero. No se le puede ordenar nada a una caja: es
+    /// ella la que pregunta, así que queda anotado y se le sirve desde la versión 0 la próxima vez que pida.
+    /// </summary>
+    public DateTimeOffset? ResincronizacionPedidaEn { get; private set; }
+
+    /// <summary>Hay un pedido de volver a bajarlo todo que la caja aún no ha atendido.</summary>
+    public bool ResincronizacionPendiente => ResincronizacionPedidaEn is not null;
+
+    public void PedirResincronizacion(DateTimeOffset ahora) => ResincronizacionPedidaEn = ahora;
+
+    /// <summary>
+    /// Se le acaba de servir desde cero: el pedido queda cumplido. Se borra al servirlo y no al terminar la bajada, porque
+    /// desde aquí no hay manera de saber que la caja lo aplicó; si algo falla, se vuelve a pedir desde el Central.
+    /// </summary>
+    public void ResincronizacionServida() => ResincronizacionPedidaEn = null;
+
     public static EstadoSincronizacionCaja Crear(int cajaId) => new() { CajaId = Validar.Id(cajaId, "Caja") };
 
     public void RegistrarDescarga(DateTimeOffset ahora, long desde, long hasta)
