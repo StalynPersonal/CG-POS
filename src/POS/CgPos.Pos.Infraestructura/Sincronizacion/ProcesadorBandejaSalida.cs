@@ -79,6 +79,10 @@ internal sealed class ProcesadorBandejaSalida(
                 borrarOriginal?.Invoke();
                 conexion.RegistrarContacto(momento);
                 confirmados++;
+
+                // Qué se subió, no solo cuántos: al revisar el registro hace falta saber si era una factura o el ingreso
+                // de un cajero, y la referencia es con lo que se busca ese documento en el Central.
+                registro.LogInformation("Subido al Central: {Que} ({Referencia}).", TiposMensaje.Nombre(mensaje.TipoMensaje), mensaje.Referencia);
                 continue;
             }
 
@@ -89,7 +93,7 @@ internal sealed class ProcesadorBandejaSalida(
 
             if (resultado.CentralRespondio)
             {
-                registro.LogWarning("El Central rechazó el mensaje {Tipo} {Id}: {Error}", mensaje.TipoMensaje, mensaje.Id, error);
+                registro.LogWarning("El Central rechazó {Que} ({Referencia}): {Error}", TiposMensaje.Nombre(mensaje.TipoMensaje), mensaje.Referencia, error);
                 conexion.RegistrarContacto(momento);
                 continue;
             }

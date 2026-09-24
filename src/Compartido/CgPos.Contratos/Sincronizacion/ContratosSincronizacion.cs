@@ -24,6 +24,29 @@ public static class TiposMensaje
     /// <summary>La caja informa por dónde va un rango de e-CF: el Central no lleva esa cuenta, la lleva quien emite.</summary>
     public const string ConsumoSecuenciaEcf = "Fiscal.ConsumoSecuenciaEcf";
 
+
+    /// <summary>
+    /// Cómo se llama en castellano lo que viaja, para el registro de la caja y para lo que se le dice al cajero. Sin esto
+    /// el log decía «Seguridad.IngresoUsuario» o solo «1 documento», y había que adivinar si era una factura.
+    /// </summary>
+    public static string Nombre(string tipoMensaje) => tipoMensaje switch
+    {
+        VentaCobrada => "una factura",
+        NotaCreditoEmitida => "una nota de crédito",
+        NotaCreditoConsumida => "el consumo de una nota de crédito",
+        TurnoCerrado => "un cierre de turno",
+        RetiroEfectivo => "un retiro de efectivo",
+        RelevoCajero => "un relevo de cajero",
+        SuspensionCaja => "un rato de caja parada",
+        PendienteCreado => "un pendiente de entrega",
+        PendienteActualizado => "el cambio de un pendiente de entrega",
+        MovimientoPuntos => "un movimiento de puntos",
+        InscripcionFidelidad => "un cliente inscrito en fidelidad",
+        IngresoUsuario => "el ingreso de un usuario",
+        ConsumoSecuenciaEcf => "el consumo de un rango de e-CF",
+        _ => tipoMensaje,
+    };
+
     /// <summary>Documentos que llevan su e-CF firmado en la propiedad <c>ecf</c> (RF-276).</summary>
     public static IReadOnlySet<string> ConEcf { get; } = new HashSet<string>(StringComparer.Ordinal) { VentaCobrada, NotaCreditoEmitida };
 }
