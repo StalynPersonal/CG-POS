@@ -307,9 +307,29 @@ internal sealed class ServicioOrganizacionCentral(ContextoDatosCentral contexto,
     private async Task<ResultadoAdministracion> GuardarAsync(string accion, string tipo, int entidadId, UsuarioAuditoria actor, object detalle, CancellationToken cancelacion)
     {
         auditoria.Registrar(new EntradaAuditoria(accion, tipo, entidadId.ToString(), detalle, Usuario: actor));
-        await contexto.SaveChangesAsync(cancelacion);
+
+        try
+        {
+            await contexto.SaveChangesAsync(cancelacion);
+        }
+        catch (DbUpdateException excepcion) when (EsIdRepetido(excepcion))
+        {
+            // Pasa cuando se insertaron filas a mano con un Id elegido a dedo y no se movió la secuencia: la base reparte
+            // Ids que ya están usados. Sin este mensaje llega el volcado del error, que no le dice nada a quien lo lee.
+            contexto.ChangeTracker.Clear();
+            return ResultadoAdministracion.Error(
+                $"No se pudo guardar: la numeración de la tabla de {tipo} está desfasada y la base repartió un número que ya existe. "
+                + "Suele pasar cuando se insertaron filas a mano eligiendo el Id. Hay que reiniciar la secuencia de esa tabla "
+                + "al mayor Id que tenga, más uno.");
+        }
+
         return ResultadoAdministracion.Correcto(entidadId);
     }
+
+    /// <summary>La base rechazó el alta porque el Id ya existe (2627 clave primaria, 2601 índice único).</summary>
+    private static bool EsIdRepetido(DbUpdateException excepcion) =>
+        excepcion.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2627 or 2601 } interna
+        && interna.Message.Contains("PK_", StringComparison.Ordinal);
 
     public async Task<IReadOnlyList<DatosSecuenciaCentral>> ListarSecuenciasAsync(CancellationToken cancelacion = default)
     {

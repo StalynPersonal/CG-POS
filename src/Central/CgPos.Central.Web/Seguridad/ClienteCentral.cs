@@ -821,6 +821,12 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
             if (respuesta.IsSuccessStatusCode)
                 return new RespuestaAdministracion(true, string.IsNullOrWhiteSpace(texto) ? null : texto);
 
+            // Un 500 no trae un mensaje para nadie: trae el volcado del error, y en desarrollo ese volcado incluye las
+            // cabeceras de la solicitud, con el token de la sesión dentro. Eso no se pone en pantalla.
+            if ((int)respuesta.StatusCode >= 500)
+                return new RespuestaAdministracion(false,
+                    $"El Central falló al procesar la operación (error {(int)respuesta.StatusCode}). El detalle está en su registro.");
+
             return new RespuestaAdministracion(false, string.IsNullOrWhiteSpace(texto) ? $"Respuesta inesperada del Central ({(int)respuesta.StatusCode})." : texto);
         }
         catch (HttpRequestException)
