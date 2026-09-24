@@ -234,8 +234,12 @@ public sealed class ClienteCentral(IHttpClientFactory fabricaHttp)
 
     public Task<IReadOnlyList<DatosPromocionCentral>?> ListarPromocionesAsync() => ListarAsync<DatosPromocionCentral>("api/promociones");
 
-    public Task<RespuestaAdministracion> GuardarPromocionAsync(CgPos.Contratos.Catalogo.PromocionCarga promocion, bool nueva) =>
-        EnviarAsync(nueva ? HttpMethod.Post : HttpMethod.Put, "api/promociones", promocion);
+    /// <summary>Publica una promoción nueva. Una ya publicada no se cambia: se apaga, y si hace falta otra, se rehace.</summary>
+    public Task<RespuestaAdministracion> GuardarPromocionAsync(CgPos.Contratos.Catalogo.PromocionCarga promocion) =>
+        EnviarAsync(HttpMethod.Post, "api/promociones", promocion);
+
+    public Task<RespuestaAdministracion> CambiarEstadoPromocionAsync(string codigo, bool activa) =>
+        EnviarAsync(HttpMethod.Post, $"api/promociones/{codigo}/estado", new SolicitudEstadoPromocion(activa));
 
     public Task<(ResultadoImportacionPromociones? Datos, string? Error)> ImportarPromocionesAsync(SolicitudImportacionPromociones solicitud) =>
         PostearAsync<ResultadoImportacionPromociones>("api/promociones/importar", solicitud);

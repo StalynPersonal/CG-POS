@@ -1,4 +1,5 @@
-using CgPos.Central.Aplicacion.Abstracciones;
+﻿using CgPos.Central.Aplicacion.Abstracciones;
+using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Central;
 
@@ -15,6 +16,14 @@ public interface IServicioPromocionesCentral
     /// Un código ya publicado actualiza esa promoción. Con cualquier error no se publica nada.
     /// </summary>
     Task<ResultadoImportacionPromociones> ImportarAsync(SolicitudImportacionPromociones solicitud, UsuarioAuditoria actor, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Apaga o vuelve a encender una promoción. Es lo único que se le puede hacer a una promoción ya publicada: lo que
+    /// define la oferta —tipo, valor, artículos, sucursales— no se cambia, porque entonces no habría manera de explicar
+    /// por qué una factura de la semana pasada salió con ese descuento. Para otra oferta se rehace.
+    /// </summary>
+    /// <returns>Rechazo si no existe, o si se intenta encender una que ya venció.</returns>
+    Task<ResultadoAdministracion> CambiarEstadoAsync(string codigo, bool activa, UsuarioAuditoria actor, CancellationToken cancelacion = default);
 
     /// <returns>Nulo si el artículo no existe.</returns>
     Task<ResultadoSimulacionPromociones?> SimularAsync(SolicitudSimulacionPromociones solicitud, CancellationToken cancelacion = default);

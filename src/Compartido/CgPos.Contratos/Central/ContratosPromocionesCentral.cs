@@ -5,6 +5,9 @@ namespace CgPos.Contratos.Central;
 /// <param name="Oferta">Descripción corta como la ve el cajero en la columna Promo (ej. "-10%", "2x1").</param>
 /// <param name="CajasDestino">Cajas habilitadas de las sucursales donde aplica.</param>
 /// <param name="CajasConPromocion">De esas, las que ya confirmaron tener aplicada esta versión de la promoción.</param>
+/// <summary>Apagar o encender una promoción publicada; es lo único que se le puede cambiar.</summary>
+public sealed record SolicitudEstadoPromocion(bool Activa);
+
 public sealed record DatosPromocionCentral(
     PromocionCarga Promocion,
     string Oferta,

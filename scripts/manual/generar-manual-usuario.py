@@ -453,8 +453,17 @@ viñeta('Crear (/promociones): porcentaje, monto por unidad, precio especial, ll
        'por artículos, departamentos, categorías o marcas, en las sucursales que se elijan, con fechas, días y horario.')
 viñeta('El código de la promoción no se escribe: lo da la secuencia «Promoción» (PRO000001) al guardarla, y no cambia. Su prefijo y '
        'sus dígitos se configuran en Organización → Secuencias de documentos.')
+viñeta('Una promoción publicada NO se edita. Lo único que admite es apagarse, y volver a encenderse mientras siga dentro de sus '
+       'fechas; una vencida ya no se enciende. Es a propósito: si se pudiera cambiar el descuento o los artículos de una oferta '
+       'que ya corrió, no habría manera de explicar por qué una factura de la semana pasada salió con ese precio.')
+viñeta('Para otra oferta está «Rehacer», en el menú de cada promoción: abre una nueva con todos los datos de esa —artículos, '
+       'categorías, marcas, sucursales, días y horario— para cambiar lo que haga falta antes de guardar. Nace con su propio '
+       'código de la secuencia. Sirve igual para corregir una mal puesta (se rehace y se apaga la anterior) que para repetir la '
+       'del mes pasado con fechas nuevas.')
+nota('Apagar una promoción llega a las cajas en su sincronización normal, como cualquier otro cambio de maestros.')
 viñeta('Importar (/promociones/importar): carga masiva desde un archivo CSV; se valida todo el archivo y solo se publica si no hay errores. '
-       'Una línea sin código crea una promoción nueva con el número de la secuencia; con código, actualiza esa promoción, que tiene que existir.')
+       'El archivo solo CREA: la columna del código va vacía y lo pone la secuencia. Una línea con el código de una promoción ya '
+       'publicada se rechaza, por la misma razón que no se puede editar desde la pantalla.')
 viñeta('Simular (/promociones/simular): antes de publicar, muestra qué oferta tomaría la caja para un artículo, cantidad, sucursal y fecha.')
 viñeta('Los artículos se agregan digitando el código (o el de barras) y Enter: entra de una vez a la lista, con el precio de antes y el que '
        'quedaría con la oferta, y el foco vuelve al código para seguir escaneando. El último agregado se ve arriba.')

@@ -31,23 +31,27 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var guardada = await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion);
         Assert.True(guardada.Cuerpo!.Exitosa, guardada.Cuerpo.Mensaje);
 
-        Assert.Contains("No existe el artículo", (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones",
-            promocion with { Articulos = [$"NOEXISTE{sufijo}"] })).Cuerpo!.Mensaje);
-        Assert.Contains("No existe la sucursal", (await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones",
-            promocion with { Sucursales = ["99"] })).Cuerpo!.Mensaje);
+        // El alcance se valida al publicar: un artículo o una sucursal que no existan se rechazan con su nombre.
+        Assert.Contains("No existe el artículo", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones",
+            promocion with { Codigo = $"X{sufijo}", Articulos = [$"NOEXISTE{sufijo}"] })).Cuerpo!.Mensaje);
+        Assert.Contains("No existe la sucursal", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones",
+            promocion with { Codigo = $"Y{sufijo}", Sucursales = ["99"] })).Cuerpo!.Mensaje);
         Assert.Contains("Ya existe", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion)).Cuerpo!.Mensaje);
 
-        // Cambiarle el artículo a una promoción ya publicada: para saber qué cambió hay que traducir a código el artículo
-        // que tenía, y eso fallaba diciendo que no existe justo el que se estaba quitando.
-        var (_, otro) = await CrearArticuloAsync(cliente, admin);
-        var cambiada = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones", promocion with { Articulos = [otro.Codigo] });
-        Assert.True(cambiada.Cuerpo!.Exitosa, cambiada.Cuerpo.Mensaje);
+        // Una promoción publicada no se cambia: lo único que admite es apagarse y volver a encenderse mientras siga vigente.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/promociones/{promocion.Codigo}/estado",
+            new SolicitudEstadoPromocion(false))).Cuerpo!.Exitosa);
+        Assert.False(Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"),
+            p => p.Promocion.Codigo == promocion.Codigo).Promocion.Activa);
 
-        var conOtro = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
-        Assert.Equal(otro.Codigo, Assert.Single(conOtro.Promocion.Articulos!));
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, $"/api/promociones/{promocion.Codigo}/estado",
+            new SolicitudEstadoPromocion(true))).Cuerpo!.Exitosa);
 
-        // Y se deja como estaba, para lo que sigue.
-        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones", promocion)).Cuerpo!.Exitosa);
+        // Una vencida no se revive: eso sería reescribir lo que ya pasó, y para eso se rehace.
+        var vencida = promocion with { Codigo = $"V{sufijo}", VigenteDesde = Inicio.AddYears(-2), VigenteHasta = Inicio.AddYears(-1), Activa = false };
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", vencida)).Cuerpo!.Exitosa);
+        Assert.Contains("no se puede volver a encender", (await EnviarAsync(cliente, admin, HttpMethod.Post,
+            $"/api/promociones/{vencida.Codigo}/estado", new SolicitudEstadoPromocion(true))).Cuerpo!.Mensaje);
 
         var listada = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
         Assert.Equal("-10%", listada.Oferta);
@@ -76,27 +80,32 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         var existente = new PromocionCarga($"E{sufijo}", "Existente", TipoPromocion.Porcentaje, 5m, Inicio, Fin, Articulos: [articulo.Codigo]);
         Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", existente)).Cuerpo!.Exitosa);
 
-        // Sin código es nueva y toma el número de la secuencia; con código actualiza la que existe.
+        // El archivo solo crea: el código va vacío y lo pone la secuencia. Una promoción publicada no se cambia desde aquí.
         const string encabezado = "codigo;nombre;tipo;valor;desde;hasta;articulos;departamentos;sucursales;lleva;paga;cantidad_minima;limite_cliente;dias;hora_desde;hora_hasta;solo_fidelidad;activa";
         var nombreNueva = $"2x1 importado {sufijo}";
         var valida = $";{nombreNueva};lleva_paga;;2026-01-01;2030-12-31;{articulo.Codigo};;;2;1;;;lun|mié|vie;08:00;12:00;no;si";
-        var actualiza = $"E{sufijo};Existente 15%;porcentaje;15;01/01/2026;31/12/2030;{articulo.Codigo};;;;;;;todos;;;no;si";
+        var yaPublicada = $"E{sufijo};Existente 15%;porcentaje;15;01/01/2026;31/12/2030;{articulo.Codigo};;;;;;;todos;;;no;si";
+        var segunda = $";Segunda importada {sufijo};porcentaje;7;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;todos;;;no;si";
         var tipoMalo = $";Mala;regalo;5;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;;;;;";
         var sinArticulo = $";Sin artículo;porcentaje;5;2026-01-01;2030-12-31;NOEXISTE{sufijo};;;;;;;;;;;";
         var codigoInventado = $"X{sufijo};Inventada;porcentaje;5;2026-01-01;2030-12-31;{articulo.Codigo};;;;;;;;;;;";
 
-        var validacion = await ImportarAsync(cliente, admin, string.Join("\n", encabezado, valida, tipoMalo, sinArticulo, codigoInventado), soloValidar: false);
+        var validacion = await ImportarAsync(cliente, admin,
+            string.Join("\n", encabezado, valida, tipoMalo, sinArticulo, codigoInventado, yaPublicada), soloValidar: false);
         Assert.False(validacion.Publicada);
-        Assert.Equal([3, 4, 5], validacion.Errores.Select(e => e.Linea));
+        Assert.Equal([3, 4, 5, 6], validacion.Errores.Select(e => e.Linea));
         Assert.Contains("Tipo de promoción desconocido", validacion.Errores[0].Mensaje);
         Assert.Contains($"No existe el artículo con código 'NOEXISTE{sufijo}'", validacion.Errores[1].Mensaje);
-        Assert.Contains("deje el código vacío", validacion.Errores[2].Mensaje);
+        Assert.Contains("Deje el código vacío", validacion.Errores[2].Mensaje);
+
+        // Una promoción ya publicada no se cambia ni con un archivo: se rehace.
+        Assert.Contains("ya está publicada y no se cambia", validacion.Errores[3].Mensaje);
         Assert.DoesNotContain(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Nombre == nombreNueva);
 
-        var soloValidar = await ImportarAsync(cliente, admin, string.Join("\r\n", encabezado, valida, actualiza), soloValidar: true);
-        Assert.Equal((2, 1, 1, false, 0), (soloValidar.Leidas, soloValidar.Nuevas, soloValidar.Actualizadas, soloValidar.Publicada, soloValidar.Errores.Count));
+        var soloValidar = await ImportarAsync(cliente, admin, string.Join("\r\n", encabezado, valida, segunda), soloValidar: true);
+        Assert.Equal((2, 2, 0, false, 0), (soloValidar.Leidas, soloValidar.Nuevas, soloValidar.Actualizadas, soloValidar.Publicada, soloValidar.Errores.Count));
 
-        var publicada = await ImportarAsync(cliente, admin, string.Join("\r\n", encabezado, valida, actualiza), soloValidar: false);
+        var publicada = await ImportarAsync(cliente, admin, string.Join("\r\n", encabezado, valida, segunda), soloValidar: false);
         Assert.True(publicada.Publicada, string.Join(" ", publicada.Errores.Select(e => e.Mensaje)));
 
         var promociones = await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones");
@@ -105,8 +114,9 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
         Assert.Equal((2, 1, DiasSemana.Lunes | DiasSemana.Miercoles | DiasSemana.Viernes, new TimeOnly(8, 0)),
             (importada.CantidadLleva!.Value, importada.CantidadPaga!.Value, importada.Dias, importada.HoraDesde!.Value));
         Assert.Equal(new DateTimeOffset(2030, 12, 31, 23, 59, 59, TimeSpan.FromHours(-4)), importada.VigenteHasta);
-        var actualizada = Assert.Single(promociones, p => p.Promocion.Codigo == existente.Codigo).Promocion;
-        Assert.Equal(15m, actualizada.Valor);
+        // La que ya estaba publicada se quedó como estaba: el archivo no la tocó.
+        var intacta = Assert.Single(promociones, p => p.Promocion.Codigo == existente.Codigo).Promocion;
+        Assert.Equal(5m, intacta.Valor);
     }
 
     [SkippableFact]

@@ -20,8 +20,10 @@ public static class RutasApiPromociones
 
         grupo.MapPost("/", async (PromocionCarga promocion, ClaimsPrincipal usuario, IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
             Responder(await maestros.GuardarAsync(promocion, nuevo: true, Actor(usuario), cancelacion)));
-        grupo.MapPut("/", async (PromocionCarga promocion, ClaimsPrincipal usuario, IServicioMaestrosCentral maestros, CancellationToken cancelacion) =>
-            Responder(await maestros.GuardarAsync(promocion, nuevo: false, Actor(usuario), cancelacion)));
+        // No hay PUT: una promoción publicada no se cambia. Lo único que admite es apagarse o volver a encenderse.
+        grupo.MapPost("/{codigo}/estado", async (string codigo, SolicitudEstadoPromocion solicitud, ClaimsPrincipal usuario,
+                IServicioPromocionesCentral servicio, CancellationToken cancelacion) =>
+            Responder(await servicio.CambiarEstadoAsync(codigo, solicitud.Activa, Actor(usuario), cancelacion)));
 
         grupo.MapPost("/importar", async (SolicitudImportacionPromociones solicitud, ClaimsPrincipal usuario, IServicioPromocionesCentral servicio,
                 CancellationToken cancelacion) =>

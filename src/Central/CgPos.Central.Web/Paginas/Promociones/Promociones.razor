@@ -116,7 +116,18 @@
                 }
             </MudTd>
             <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => AbrirDialogoAsync(context.Promocion)" />
+                @* Una promoción publicada no se edita: se apaga, o se rehace en una nueva con sus mismos datos. *@
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                    <MudMenuItem Icon="@Icons.Material.Filled.ContentCopy" OnClick="() => AbrirDialogoAsync(context.Promocion)">Rehacer</MudMenuItem>
+                    @if (context.Promocion.Activa)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.PauseCircle" OnClick="() => CambiarEstadoAsync(context.Promocion, false)">Apagar</MudMenuItem>
+                    }
+                    else if (context.Promocion.VigenteHasta >= DateTimeOffset.Now)
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.PlayCircle" OnClick="() => CambiarEstadoAsync(context.Promocion, true)">Encender</MudMenuItem>
+                    }
+                </MudMenu>
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
@@ -217,18 +228,42 @@
         _cargando = false;
     }
 
+    /// <summary>
+    /// Apaga o enciende una promoción publicada. Encender solo se ofrece mientras siga dentro de sus fechas: revivir una
+    /// vencida sería reescribir lo que ya pasó.
+    /// </summary>
+    private async Task CambiarEstadoAsync(PromocionCarga promocion, bool activa)
+    {
+        var respuesta = await Cliente.CambiarEstadoPromocionAsync(promocion.Codigo, activa);
+        if (!respuesta.Exitosa)
+        {
+            Avisos.Add(respuesta.Mensaje ?? "No se pudo cambiar el estado de la promoción.", Severity.Error);
+            return;
+        }
+
+        Avisos.Add(activa
+            ? "Promoción encendida. Las cajas la reciben en su próxima sincronización."
+            : "Promoción apagada. Las cajas dejan de aplicarla en su próxima sincronización.", Severity.Success);
+        await CargarAsync();
+    }
+
+    /// <summary>
+    /// Abre una promoción nueva; si viene una de la lista, es un «rehacer»: se copian sus datos para cambiar lo que haga
+    /// falta antes de guardar. El código no se copia, lo pone la secuencia al publicar.
+    /// </summary>
     private async Task AbrirDialogoAsync(PromocionCarga? promocion)
     {
         var parametros = new DialogParameters<DialogoPromocion>
         {
-            { d => d.Promocion, promocion },
+            { d => d.Promocion, promocion is null ? null : promocion with { Codigo = string.Empty } },
             { d => d.Departamentos, _departamentos },
             { d => d.Categorias, _categorias },
             { d => d.Marcas, _marcas },
             { d => d.Sucursales, _sucursales },
         };
         var opciones = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
-        var referencia = await Dialogos.ShowAsync<DialogoPromocion>(promocion is null ? "Nueva promoción" : $"Editar promoción {promocion.Codigo}", parametros, opciones);
+        var referencia = await Dialogos.ShowAsync<DialogoPromocion>(
+            promocion is null ? "Nueva promoción" : $"Rehacer la promoción {promocion.Codigo}", parametros, opciones);
         if (await referencia.Result is not { Canceled: false })
             return;
 

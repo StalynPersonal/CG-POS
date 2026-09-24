@@ -418,7 +418,7 @@
             _marcas.ToList());
 
         _procesando = true;
-        var respuesta = await Central.GuardarPromocionAsync(promocion, nueva: Promocion is null);
+        var respuesta = await Central.GuardarPromocionAsync(promocion);
         _procesando = false;
 
         if (respuesta.Exitosa)

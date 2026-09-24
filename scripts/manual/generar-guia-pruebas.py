@@ -467,6 +467,17 @@ esperado('El precio sale con el descuento, la columna Promo dice cuál oferta ap
 tablas('Central: Promociones · Caja: Promociones · LineasVentaEnProceso')
 marcar()
 
+prueba('F2b', 'Una promoción publicada no se edita: se apaga o se rehace')
+paso('En la lista de Promociones abra el menú de la oferta del F2. Compruebe que no hay opción de editarla.')
+paso('Use «Rehacer»: cambie el porcentaje y guarde.')
+paso('Apague la oferta original y espere a que la caja sincronice; venda el artículo.')
+paso('Vuelva a encenderla. Después intente encender una oferta cuya fecha de fin ya pasó.')
+esperado('Rehacer abre una promoción nueva con todos los datos de la anterior y un código nuevo de la secuencia; la original '
+         'queda como estaba. Apagada, la caja deja de aplicarla tras sincronizar. Se puede volver a encender mientras siga '
+         'dentro de sus fechas; una vencida no, y lo dice con esas palabras.')
+tablas('Central: Promociones · SecuenciasCentral · Auditoria · Caja: Promociones')
+marcar()
+
 prueba('F3', 'Dos ofertas a la vez')
 paso('Cree una segunda oferta para el mismo artículo, mejor que la primera (por ejemplo 15 %).')
 paso('Venda el artículo otra vez.')

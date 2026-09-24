@@ -3,6 +3,7 @@ using CgPos.Central.Infraestructura.Organizacion;
 using System.Globalization;
 using CgPos.Central.Aplicacion.Abstracciones;
 using CgPos.Central.Aplicacion.Maestros;
+using CgPos.Central.Aplicacion.Seguridad;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.Catalogo;
@@ -15,7 +16,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CgPos.Central.Infraestructura.Maestros;
 
-internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, INumeracionCentral numeracion)
+internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, IPublicadorMaestros publicador, INumeracionCentral numeracion,
+    TimeProvider reloj)
     : IServicioPromocionesCentral
 {
     private const int LargoMaximoArchivo = 5 * 1024 * 1024;
@@ -26,6 +28,41 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
     /// <summary>Código provisional de una línea nueva mientras se valida; el de verdad se toma de la secuencia al publicar.</summary>
     private const string PrefijoProvisional = "#NUEVA";
     private static readonly string[] FormatosFecha = ["yyyy-MM-dd", "yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm", "dd/MM/yyyy", "dd/MM/yyyy HH:mm", "dd/MM/yyyy H:mm"];
+
+    public async Task<ResultadoAdministracion> CambiarEstadoAsync(string codigo, bool activa, UsuarioAuditoria actor,
+        CancellationToken cancelacion = default)
+    {
+        var buscado = (codigo ?? string.Empty).Trim().ToUpperInvariant();
+        var promocion = await contexto.Promociones.AsNoTracking().SingleOrDefaultAsync(p => p.Codigo == buscado, cancelacion);
+        if (promocion is null)
+            return ResultadoAdministracion.Inexistente("La promoción no existe.");
+
+        if (promocion.Activa == activa)
+            return ResultadoAdministracion.Correcto(promocion.Id);
+
+        // Encender una vencida sería revivir algo que ya terminó, y eso sí es reescribir el pasado: para eso se rehace.
+        if (activa && promocion.VigenteHasta < reloj.Ahora())
+            return ResultadoAdministracion.Error(
+                $"La promoción {promocion.Codigo} venció el {promocion.VigenteHasta:dd/MM/yyyy} y no se puede volver a encender. Rehágala con las fechas nuevas.");
+
+        // Se relee tal como está publicada y solo se le cambia el estado: así nada más puede colarse en el camino.
+        var resolutor = new ResolutorCodigosCentral(contexto);
+        await resolutor.PrepararAsync(cancelacion);
+        if (await TablasMaestros.Promociones.PorIdAsync(contexto, resolutor, promocion.Id, cancelacion) is not { } publicada)
+            return ResultadoAdministracion.Inexistente("La promoción no existe.");
+
+        var carga = publicada.Dato with { Activa = activa };
+        try
+        {
+            await publicador.PublicarAsync(new PaqueteMaestros(Promociones: [carga]), actor.Nombre, cancelacion);
+        }
+        catch (PublicacionInvalidaExcepcion excepcion)
+        {
+            return ResultadoAdministracion.Error(string.Join(" ", excepcion.Errores));
+        }
+
+        return ResultadoAdministracion.Correcto(promocion.Id);
+    }
 
     public async Task<IReadOnlyList<DatosPromocionCentral>> ListarAsync(CancellationToken cancelacion = default)
     {
@@ -103,15 +140,17 @@ internal sealed class ServicioPromocionesCentral(ContextoDatosCentral contexto, 
             string? V(string columna) => Valor(campos, columna);
             try
             {
-                // Sin código es nueva: toma el número de la secuencia al publicar. Con código actualiza esa promoción, que tiene
-                // que existir: así ningún código queda fuera de la secuencia.
+                // Aquí solo se crean promociones: el código va vacío y lo pone la secuencia al publicar. Una promoción ya
+                // publicada no se cambia, ni desde el Manager ni desde un archivo; si hace falta otra oferta, se rehace.
                 var codigo = V("codigo")?.ToUpperInvariant() ?? $"{PrefijoProvisional}{numero}";
                 if (!codigo.StartsWith(PrefijoProvisional, StringComparison.Ordinal))
                 {
                     if (!codigosEnArchivo.Add(codigo))
                         throw new FormatException($"El código '{codigo}' está repetido en el archivo.");
-                    if (!existentes.Contains(codigo))
-                        throw new FormatException($"La promoción '{codigo}' no existe. Para crear una nueva, deje el código vacío: se le asigna el de la secuencia.");
+
+                    throw new FormatException(existentes.Contains(codigo)
+                        ? $"La promoción '{codigo}' ya está publicada y no se cambia. Deje el código vacío para crear una nueva con las condiciones que quiera."
+                        : $"La promoción '{codigo}' no existe. Deje el código vacío: se le asigna el de la secuencia.");
                 }
 
                 var tipo = LeerTipo(V("tipo"));
