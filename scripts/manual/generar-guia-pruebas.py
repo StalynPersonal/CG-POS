@@ -13,7 +13,7 @@ con qué datos y qué tiene que pasar. Cuando cambie un flujo, hay que actualiza
 import os
 from docx import Document
 from docx.shared import Pt, RGBColor, Cm
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 
 VERDE = RGBColor(0x1B, 0x4D, 0x3E)
 VERDE_CLARO = RGBColor(0x2E, 0x7D, 0x32)
@@ -85,8 +85,15 @@ def tabla(encabezados, filas, anchos=None):
     return t
 
 
+# La casilla de cada prueba, para volver a marcar en amarillo las que ya estaban marcadas en el documento anterior.
+_casillas = {}
+_prueba_actual = None
+
+
 def prueba(codigo, texto):
     """Encabezado de una prueba, con su código para anotarla si falla."""
+    global _prueba_actual
+    _prueba_actual = codigo
     doc.add_heading(f'{codigo} · {texto}', level=3)
 
 
@@ -119,7 +126,32 @@ def marcar():
     corrida = parrafo.add_run('☐ Pasó          ☐ Falló          Observación: ______________________________________________')
     corrida.font.color.rgb = GRIS
     corrida.font.size = Pt(9.5)
+    if _prueba_actual is not None:
+        _casillas[_prueba_actual] = corrida
     return parrafo
+
+
+def marcas_anteriores(ruta):
+    """
+    Las pruebas que quedaron resaltadas en el documento anterior. La guía se genera desde cero cada vez, y quien la está
+    usando va marcando lo que ya probó: perder eso en cada regeneración sería borrarle el trabajo.
+    """
+    if not os.path.exists(ruta):
+        return set()
+
+    try:
+        anterior = Document(ruta)
+    except Exception:
+        return set()
+
+    marcadas, codigo = set(), None
+    for parrafo in anterior.paragraphs:
+        if parrafo.style.name == 'Heading 3' and '·' in parrafo.text:
+            codigo = parrafo.text.split('·')[0].strip()
+        elif parrafo.text.startswith('☐') and codigo is not None                 and any(c.font.highlight_color is not None for c in parrafo.runs):
+            marcadas.add(codigo)
+
+    return marcadas
 
 
 # ---------------------------------------------------------------- Portada
@@ -922,5 +954,20 @@ nota('Mire, no toque. Corregir a mano en la base deja el sistema diciendo una co
 
 # ---------------------------------------------------------------- Guardar
 salida = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Guia de pruebas CG-POS.docx')
-doc.save(salida)
+
+# Se recuperan las marcas de quien estaba usando la guía antes de sobrescribirla.
+previas = marcas_anteriores(salida)
+for codigo in previas & _casillas.keys():
+    _casillas[codigo].font.highlight_color = WD_COLOR_INDEX.YELLOW
+
+try:
+    doc.save(salida)
+except PermissionError:
+    alterno = salida.replace('.docx', ' (nueva).docx')
+    doc.save(alterno)
+    print(f'El documento está abierto en Word. Se guardó aparte: {alterno}')
+    raise SystemExit(0)
+
+if previas:
+    print(f'marcas conservadas: {", ".join(sorted(previas))}')
 print(f'generado: {salida}')
