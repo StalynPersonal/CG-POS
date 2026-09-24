@@ -176,6 +176,12 @@ public static class ClavesParametros
     /// <summary>Segundos que se muestra cada imagen de publicidad. Opcional: sin él no se rota la publicidad.</summary>
     public const string SegundosPorImagenPantalla = "Pantallas.SegundosPorImagen";
 
+    /// <summary>
+    /// Segundos que un aviso se queda en la pantalla de la caja antes de quitarse solo. Opcional: sin él valen 6. Con 0 el
+    /// aviso se queda hasta que el cajero lo cierre, que es lo que hacía falta cuando el aviso no se debe perder de vista.
+    /// </summary>
+    public const string SegundosAvisoPantalla = "Pantallas.SegundosAviso";
+
     /// <summary>Mensaje al pie del ticket de venta (ej. agradecimiento). Opcional: si no existe no se imprime.</summary>
     public const string MensajePieTicket = "Tickets.MensajePie";
 

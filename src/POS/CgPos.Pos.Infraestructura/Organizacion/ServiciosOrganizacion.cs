@@ -131,7 +131,9 @@ internal sealed class ServicioEstadoCaja(ContextoDatosPos contexto, IContextoCaj
         {
         }
 
+        var segundosAviso = (int?)await parametros.ObtenerDecimalOpcionalAsync(ClavesParametros.SegundosAvisoPantalla, cajaId, cancelacion);
+
         return new DatosEstadoCaja(true, problema is null, cajaId, datos.Codigo, datos.Nombre, datos.Sucursal, datos.Empresa, problema, moneda,
-            actualizacion);
+            actualizacion, segundosAviso ?? AvisosPantalla.SegundosPredeterminados);
     }
 }

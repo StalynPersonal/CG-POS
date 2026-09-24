@@ -52,7 +52,17 @@ public sealed record DatosEstadoCaja(
     string? EmpresaNombre = null,
     string? Problema = null,
     Catalogo.DatosMoneda? MonedaLocal = null,
-    DatosActualizacionCaja? Actualizacion = null);
+    DatosActualizacionCaja? Actualizacion = null,
+
+    /// <summary>Segundos que dura un aviso en pantalla antes de quitarse solo; 0 lo deja hasta que el cajero lo cierre.</summary>
+    int SegundosAviso = AvisosPantalla.SegundosPredeterminados);
+
+/// <summary>Cuánto dura un aviso en la pantalla de la caja cuando el negocio no lo configuró en el Central.</summary>
+public static class AvisosPantalla
+{
+    /// <summary>Suficiente para leer el aviso sin que se quede estorbando la venta.</summary>
+    public const int SegundosPredeterminados = 6;
+}
 
 /// <summary>
 /// Qué está bajando la caja del Central en este momento, para que la pantalla lo diga en vez de dejar al cajero

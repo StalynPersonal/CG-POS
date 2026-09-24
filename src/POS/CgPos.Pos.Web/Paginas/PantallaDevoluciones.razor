@@ -1,5 +1,6 @@
 ﻿@page "/devoluciones"
 @attribute [Authorize]
+@implements IDisposable
 @using System.Globalization
 @using CgPos.Dominio.Devoluciones
 @inject ClienteAgente Cliente
@@ -239,6 +240,30 @@ else
         public decimal Cantidad { get; set; }
         public string? Serial { get; set; }
     }
+
+    /// <summary>Los avisos se quitan solos; cuántos segundos duran lo decide el negocio en el Central.</summary>
+    private readonly TemporizadorAvisos _avisos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Cliente.ObtenerEstadoCajaAsync() is { } estadoCaja)
+            _avisos.Segundos = estadoCaja.SegundosAviso;
+    }
+
+    protected override void OnAfterRender(bool primeraVez) => _avisos.Programar(_mensaje ?? _aviso, QuitarAvisoAsync);
+
+    /// <summary>Quita el aviso que venció, si es el que sigue en pantalla.</summary>
+    private Task QuitarAvisoAsync(string vencido) => InvokeAsync(() =>
+    {
+        if (_mensaje == vencido)
+            _mensaje = null;
+        if (_aviso == vencido)
+            _aviso = null;
+
+        StateHasChanged();
+    });
+
+    public void Dispose() => _avisos.Dispose();
 
     private string _numero = string.Empty;
     private string _codigoNota = string.Empty;

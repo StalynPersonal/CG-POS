@@ -789,6 +789,11 @@ tabla(['Zona', 'Para qué sirve'],
         'fuera o al escanear: lo que se lee va a la venta.'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],
       anchos=[5.0, 12.0])
+nota('Los avisos que salen bajo la barra de escaneo —un error, un rango de e-CF por acabarse, una advertencia— se quitan '
+     'solos a los 6 segundos, y también se pueden cerrar con la ✕. El tiempo se cambia en el Central con el parámetro '
+     '«Pantallas.SegundosAviso», en general, por sucursal o por caja; con 0 el aviso se queda hasta que el cajero lo cierre. '
+     'Lo que no se va es lo que describe una situación que sigue: el turno de un día anterior, la factura que exige la cédula '
+     'o el límite de compra pasado.')
 
 titulo('3.5. La pantalla de ventas secundaria', 2)
 p('La caja tiene tres pantallas, cada una en su monitor: la de ventas principal (con lector y teclado), la de ventas '

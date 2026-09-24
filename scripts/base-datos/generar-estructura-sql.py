@@ -84,6 +84,7 @@ PARAMETROS_INICIALES = [
     ('Caja.FondoEnCuadre', 'false', 'El fondo forma parte del efectivo esperado en el cierre'),
     ('Caja.BloquearVentaTurnoDiaAnterior', 'true', 'Con un turno abierto de un día anterior la caja no vende ni cobra'),
     ('Numeracion.DigitosSecuencia', '7', 'Dígitos de la secuencia en el número de los documentos'),
+    ('Pantallas.SegundosAviso', '6', 'Segundos que dura un aviso en la pantalla de la caja antes de quitarse solo (0 = hasta que lo cierren)'),
 
     # Fiscal y devoluciones.
     ('Fiscal.MontoIdentificacionConsumo', '250000', 'Total desde el cual la factura de consumo exige cédula o RNC'),

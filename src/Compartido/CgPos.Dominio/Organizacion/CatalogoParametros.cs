@@ -184,6 +184,9 @@ public static class CatalogoParametros
         new("Pantallas.MensajeBienvenida", "Tickets y pantallas", "Mensaje de bienvenida de la pantalla del cliente", Texto, false),
         new("Pantallas.MensajeDespedida", "Tickets y pantallas", "Mensaje de la pantalla del cliente al cobrar", Texto, false),
         new("Pantallas.SegundosPorImagen", "Tickets y pantallas", "Segundos que se muestra cada imagen de publicidad (sin él no rota)", Entero, false, Minimo: 1),
+        new("Pantallas.SegundosAviso", "Tickets y pantallas",
+            "Segundos que dura un aviso en la pantalla de la caja antes de quitarse solo (0 = se queda hasta que lo cierren)",
+            Entero, false, Minimo: 0),
 
         new("Balanza.PrefijoPeso", "Balanza", "Prefijo de las etiquetas de balanza con peso", Texto, false),
         new("Balanza.PrefijoPrecio", "Balanza", "Prefijo de las etiquetas de balanza con precio", Texto, false),

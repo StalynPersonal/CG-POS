@@ -440,6 +440,9 @@ else
     private DatosVenta? _venta;
     private DatosEstadoSincronizacion? _sincronizacion;
     private string? _empresaNombre;
+
+    /// <summary>Los avisos se quitan solos; cuántos segundos duran lo decide el negocio en el Central.</summary>
+    private readonly TemporizadorAvisos _avisos = new();
     private DatosEstadoEcf? _ecf;
     private bool _certificadoSolicitado;
     private bool _panelAbierto;
@@ -464,13 +467,16 @@ else
     protected override async Task OnInitializedAsync()
     {
         Atajos.TeclaPresionada += AlPresionarTecla;
-        _empresaNombre = (await Cliente.ObtenerEstadoCajaAsync())?.EmpresaNombre;
+        if (await Cliente.ObtenerEstadoCajaAsync() is { } estadoCaja)
+            (_empresaNombre, _avisos.Segundos) = (estadoCaja.EmpresaNombre, estadoCaja.SegundosAviso);
         await CargarAsync();
         _ = ActualizarRelojYSincronizacionAsync(_cierre.Token);
     }
 
     protected override async Task OnAfterRenderAsync(bool primeraVez)
     {
+        _avisos.Programar(_mensaje ?? _aviso, QuitarAvisoAsync);
+
         // El lector de barras escribe donde esté el foco: se devuelve al campo de escaneo tras cada operación.
         if (_enfocar && _venta is not null && !_dialogoAbierto)
         {
@@ -1476,9 +1482,21 @@ else
             .Take(2)
             .Select(palabra => char.ToUpperInvariant(palabra[0])));
 
+    /// <summary>Quita el aviso que venció, si es el que sigue en pantalla.</summary>
+    private Task QuitarAvisoAsync(string vencido) => InvokeAsync(() =>
+    {
+        if (_mensaje == vencido)
+            _mensaje = null;
+        if (_aviso == vencido)
+            _aviso = null;
+
+        StateHasChanged();
+    });
+
     public void Dispose()
     {
         Atajos.TeclaPresionada -= AlPresionarTecla;
+        _avisos.Dispose();
         _cierre.Cancel();
         _cierre.Dispose();
     }
