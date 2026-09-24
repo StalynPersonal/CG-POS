@@ -26,14 +26,15 @@
               Elevation="0" RowsPerPage="10">
         <ToolBarContent>
             @* Dónde buscar: la descripción va por parecido y el código tiene que escribirse completo. *@
-            <div class="d-flex gap-2 align-center">
+            <div class="d-flex gap-2 align-end">
                 <MudSelect T="string" Value="_campo" ValueChanged="CambiarCampoAsync" Label="Buscar por" Dense="true" Margin="Margin.Dense"
                            Style="width: 200px">
                     <MudSelectItem T="string" Value="@CamposBusquedaArticulo.Descripcion">Descripción</MudSelectItem>
                     <MudSelectItem T="string" Value="@CamposBusquedaArticulo.Codigo">Código</MudSelectItem>
                 </MudSelect>
-                <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="@Placeholder"
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="width: 420px" />
+                <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Label="Buscar" Placeholder="@Placeholder"
+                              Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Style="width: 420px" />
             </div>
 
             @* El tipo va al otro extremo de la barra: no es dónde buscar, es qué parte del maestro se está mirando.
