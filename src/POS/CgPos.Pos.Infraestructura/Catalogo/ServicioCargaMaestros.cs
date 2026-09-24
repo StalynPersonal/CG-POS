@@ -230,8 +230,8 @@ internal sealed class ServicioCargaMaestros(
                 await AplicarAsync(contexto.DescuentosTarjeta, e => e.Codigo == d.Codigo.Trim().ToUpper(), () => MapeoMaestros.Crear(d, resolutor),
                     e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
 
-            // Guardar 150 mil artículos de una vez tarda: sin este aviso parece que el avance se quedó clavado al final.
-            progreso.Etapa("Actualizando la caja con lo que acaba de llegar");
+            // Guardar tarda, pero no se anuncia: la pantalla se queda diciendo con qué venía trabajando, que es lo que el
+            // cajero necesita saber. Cambiar el texto aquí solo agregaba una frase más que no dice nada.
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
             await contexto.SaveChangesAsync(cancelacion);
