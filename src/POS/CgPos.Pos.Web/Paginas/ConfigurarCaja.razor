@@ -64,9 +64,48 @@
             </div>
 
             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-6"
-                       Disabled="@(_guardando || !Completo)" OnClick="GuardarAsync">
+                       Disabled="@(_guardando || _reaprovisionando || !Completo)" OnClick="GuardarAsync">
                 @(_guardando ? "Guardando…" : "Guardar y continuar")
             </MudButton>
+
+            @* Solo tiene sentido en una caja ya configurada: es para cuando su base perdió datos que en el Central siguen bien. *@
+            @if (_configurada)
+            {
+                <MudDivider Class="my-6" />
+                <MudText Typo="Typo.subtitle2">Volver a bajar todos los datos</MudText>
+                <MudText Typo="Typo.body2" Class="mt-1">
+                    La caja pide al Central solo lo que cambió allá, así que lo que se borre aquí no vuelve solo. Con esto se
+                    baja todo otra vez desde cero. Tarda —son cientos de miles de filas— y mientras dura no se puede vender.
+                </MudText>
+
+                @if (_confirmando)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
+                        Se va a bajar el catálogo completo. ¿Seguro?
+                    </MudAlert>
+                    <div class="cg-configurar__fila mt-3">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="() => _confirmando = false" Disabled="_reaprovisionando">
+                            Mejor no
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Large" Disabled="@(_reaprovisionando || !Autoriza)"
+                                   StartIcon="@Icons.Material.Filled.CloudDownload" OnClick="ReaprovisionarAsync">
+                            @(_reaprovisionando ? "Pidiéndolo…" : "Sí, bajarlo todo")
+                        </MudButton>
+                    </div>
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Large" FullWidth="true" Class="mt-3"
+                               Disabled="@(_guardando || !Autoriza)" StartIcon="@Icons.Material.Filled.CloudDownload"
+                               OnClick="() => _confirmando = true">
+                        Volver a bajar todo del Central
+                    </MudButton>
+                    @if (!Autoriza)
+                    {
+                        <MudText Typo="Typo.caption">Escriba arriba el usuario y la contraseña del Central que lo autorizan.</MudText>
+                    }
+                }
+            }
         </MudPaper>
     </section>
 </div>
@@ -81,6 +120,33 @@
     private string? _contrasena;
     private string? _problema;
     private bool _guardando;
+    private bool _configurada;
+    private bool _confirmando;
+    private bool _reaprovisionando;
+
+    /// <summary>Volver a bajarlo todo solo pide quién lo autoriza; los demás datos ya están guardados.</summary>
+    private bool Autoriza => _usuario is { Length: > 0 } && _contrasena is { Length: > 0 };
+
+    private async Task ReaprovisionarAsync()
+    {
+        _reaprovisionando = true;
+        _problema = null;
+
+        var respuesta = await Cliente.ReaprovisionarCajaAsync(new SolicitudReaprovisionarCaja(_usuario, _contrasena));
+
+        _reaprovisionando = false;
+        _confirmando = false;
+        _contrasena = null;
+        if (!respuesta.Exitosa)
+        {
+            _problema = respuesta.Mensaje;
+            return;
+        }
+
+        // A la pantalla de ingreso, que es donde se ve el avance de la bajada.
+        Navegacion.NavigateTo(Pantalla is { Length: > 0 } pantalla ? $"/ingreso?pantalla={pantalla}" : "/ingreso", forceLoad: true);
+    }
+
 
     /// <summary>Volver aquí después de guardar: la pantalla desde la que se entró.</summary>
     [SupplyParameterFromQuery(Name = "pantalla")] private string? Pantalla { get; set; }
@@ -95,6 +161,8 @@
         // Si ya estaba configurada y el Central la rechazó, se muestran los datos anteriores para corregir lo que cambió.
         if (await Cliente.ObtenerConfiguracionAsync() is not { Configurada: true } configuracion)
             return;
+
+        _configurada = true;
 
         _sucursal = configuracion.SucursalCodigo;
         _caja = configuracion.CajaCodigo;

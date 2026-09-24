@@ -304,6 +304,13 @@ public sealed record DatosConfiguracionPantalla(
     string? UrlCentral,
     string? Problema);
 
+/// <summary>
+/// Pide que la caja vuelva a bajar todos los maestros del Central desde cero (RF-281). Hace falta cuando la base local
+/// perdió datos: la bajada normal solo trae lo que cambió en el Central, así que lo que se borró aquí no vuelve solo.
+/// </summary>
+/// <param name="Usuario">Usuario del Central con permiso para configurar cajas; su contraseña solo se usa para comprobarlo.</param>
+public sealed record SolicitudReaprovisionarCaja(string? Usuario, string? Contrasena);
+
 /// <summary>Los datos que el técnico escribe en la pantalla de la caja la primera vez.</summary>
 /// <param name="Usuario">Usuario del Central con permiso para configurar cajas; su contraseña solo se usa para comprobarlo.</param>
 public sealed record SolicitudConfigurarCajaPantalla(

@@ -49,6 +49,19 @@ public static class RutasApiConfiguracion
                 : Results.BadRequest(new RespuestaConfiguracion(false, problema));
         });
 
+        // Volver a bajarlo todo: la caja olvida hasta dónde llegó y el Central se lo manda desde cero.
+        configuracion.MapPost("/reaprovisionar", async (SolicitudReaprovisionarCaja solicitud, IConfiguracionCaja servicio, CancellationToken cancelacion) =>
+        {
+            if (solicitud is null)
+                return Results.BadRequest(new RespuestaConfiguracion(false, "No llegó quién autoriza."));
+
+            var problema = await servicio.ReaprovisionarAsync(solicitud.Usuario ?? string.Empty, solicitud.Contrasena ?? string.Empty, cancelacion);
+            return problema is null
+                ? Results.Ok(new RespuestaConfiguracion(true,
+                    "La caja va a bajar otra vez todos los datos del Central. Empieza en menos de un minuto y mientras dura no se puede vender."))
+                : Results.BadRequest(new RespuestaConfiguracion(false, problema));
+        });
+
         return aplicacion;
     }
 }

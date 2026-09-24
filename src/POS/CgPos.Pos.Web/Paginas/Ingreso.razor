@@ -58,12 +58,21 @@
                     <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Class="mt-4 ml-0">Caja habilitada</MudChip>
                 }
 
-                @* El Central no acepta esta caja. El motivo se lee en la pantalla de configuración, que es donde se corrige. *@
+                @* El Central no acepta esta caja: el motivo se lee en la pantalla de configuración, que es donde se corrige.
+                   Con la caja funcionando el acceso sigue ahí, discreto: es por donde el técnico vuelve a bajar los datos
+                   cuando la base local perdió algo. Mirar no cambia nada; tocar algo pide usuario del Central. *@
                 @if (_configuracion is { Configurada: true, Sirve: false })
                 {
                     <MudButton Variant="Variant.Filled" Class="mt-4 cg-ingreso__configurar" StartIcon="@Icons.Material.Filled.Settings"
                                OnClick="IrAConfigurar">
                         Configurar la caja
+                    </MudButton>
+                }
+                else if (_configuracion is { Configurada: true })
+                {
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Class="mt-4 cg-ingreso__configurar" StartIcon="@Icons.Material.Filled.Settings"
+                               OnClick="IrAConfigurar">
+                        Configuración de la caja
                     </MudButton>
                 }
             }

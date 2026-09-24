@@ -102,6 +102,40 @@ internal sealed class ConfiguracionCajaLocal : IConfiguracionCaja
         return null;
     }
 
+    public async Task<string?> ReaprovisionarAsync(string usuario, string contrasena, CancellationToken cancelacion = default)
+    {
+        if (usuario is not { Length: > 0 } || contrasena is not { Length: > 0 })
+            return "Escriba el usuario y la contraseña del Central que autorizan volver a bajar los datos.";
+
+        if (await ObtenerAsync(cancelacion) is not { } configuracion)
+            return "Esta caja todavía no está configurada: no hay Central al que pedirle los datos.";
+
+        if (configuracion.Secreto is not { Length: > 0 } secreto)
+            return configuracion.Problema ?? "La credencial de esta caja no se puede leer en este equipo.";
+
+        // El Central tiene la última palabra, igual que al configurar: quien lo pide tiene que poder hacerlo.
+        var solicitud = new SolicitudConfigurarCaja(configuracion.SucursalCodigo, configuracion.CajaCodigo, configuracion.DireccionIp,
+            configuracion.UrlCentral, secreto, usuario.Trim(), contrasena);
+        if (await _validador.ValidarAsync(solicitud, cancelacion) is { Length: > 0 } rechazo)
+            return rechazo;
+
+        await using var ambito = _ambitos.CreateAsyncScope();
+        var contexto = ambito.ServiceProvider.GetRequiredService<ContextoDatosPos>();
+
+        // Se olvida hasta dónde se había bajado, nada más. Los datos que la caja tenga se quedan y se van actualizando a
+        // medida que llegan: borrarlos aquí dejaría la caja sin catálogo si el Central no responde.
+        var marcas = await contexto.MarcasSincronizacion.Where(m => m.Clave == MarcaSincronizacion.VersionMaestros).ToListAsync(cancelacion);
+        if (marcas.Count > 0)
+        {
+            contexto.MarcasSincronizacion.RemoveRange(marcas);
+            await contexto.SaveChangesAsync(cancelacion);
+        }
+
+        _registro.LogWarning("La caja {Sucursal}-{Caja} vuelve a bajar todos los maestros del Central, a pedido de {Usuario}.",
+            configuracion.SucursalCodigo, configuracion.CajaCodigo, usuario.Trim());
+        return null;
+    }
+
     public async Task RechazarAsync(string motivo, CancellationToken cancelacion = default)
     {
         await using var ambito = _ambitos.CreateAsyncScope();
@@ -193,6 +227,9 @@ internal sealed class ConfiguracionCajaEnMemoria(string? secreto, string urlCent
             : null);
 
     public Task<string?> GuardarAsync(SolicitudConfigurarCaja solicitud, CancellationToken cancelacion = default) =>
+        Task.FromResult<string?>(null);
+
+    public Task<string?> ReaprovisionarAsync(string usuario, string contrasena, CancellationToken cancelacion = default) =>
         Task.FromResult<string?>(null);
 
     public Task RechazarAsync(string motivo, CancellationToken cancelacion = default)
