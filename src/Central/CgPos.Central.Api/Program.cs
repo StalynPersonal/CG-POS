@@ -50,7 +50,8 @@ try
     });
 
     constructor.Services.AddHealthChecks()
-        .AddDbContextCheck<ContextoDatosCentral>("Base de datos");
+        .AddDbContextCheck<ContextoDatosCentral>("Base de datos")
+        .AddCheck<VerificacionesCentral.Chequeador>("Chequeador de precios");
 
     var aplicacion = constructor.Build();
 
