@@ -59,7 +59,7 @@ public sealed record DatosEstadoCaja(
 /// mirando un error mientras el Agente todavía está trabajando.
 /// </summary>
 /// <param name="EnCurso">Verdadero mientras se está bajando o aplicando algo.</param>
-/// <param name="Etapa">En qué anda: descargando, aplicando la organización, aplicando los maestros…</param>
+/// <param name="Etapa">Con qué se está actualizando la caja, tal como se lee en pantalla: «Actualizando la caja con clientes».</param>
 /// <param name="DesdeCuando">Desde cuándo lleva en esta actualización.</param>
 /// <param name="UltimoError">Lo que dejó la última actualización que falló; nulo si la última terminó bien.</param>
 /// <param name="Hechos">Cuántos elementos lleva aplicados de la etapa; nulo en las etapas que no se cuentan.</param>
@@ -72,10 +72,11 @@ public sealed record DatosActualizacionCaja(
     int? Hechos = null,
     int? Total = null)
 {
-    /// <summary>La etapa con su conteo, tal como se muestra: «Aplicando artículos · 12,500 de 157,892».</summary>
-    public string? Detalle => Etapa is null ? null
-        : Total is { } total and > 0 ? $"{Etapa} · {Hechos ?? 0:N0} de {total:N0}"
-        : Etapa;
+    /// <summary>
+    /// Lo que se muestra en la caja: una sola línea que dice con qué se está actualizando. Cuánto lleva no se escribe: eso
+    /// lo dice la barra de progreso, y en la caja lo que importa es si sigue trabajando, no el número exacto.
+    /// </summary>
+    public string? Detalle => Etapa;
 }
 
 /// <summary>Nombres de los atributos del token de sesión de la caja.</summary>

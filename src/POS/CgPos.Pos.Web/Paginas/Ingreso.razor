@@ -34,18 +34,16 @@
                 @if (_estado.Actualizacion is { EnCurso: true } actualizacion)
                 {
                     <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mt-4">
-                        <div class="d-flex align-center gap-3">
-                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Inherit" />
-                            <div class="flex-grow-1">
-                                <div>Actualizando los datos de la caja…</div>
-                                <div class="cg-ingreso__detalle">@actualizacion.Detalle</div>
-                                @* Con el total de verdad se puede dibujar la barra; mientras no se sepa, basta el conteo. *@
-                                @if (actualizacion is { Total: > 0 } contado)
-                                {
-                                    <MudProgressLinear Value="@Porcentaje(contado)" Color="Color.Inherit" Class="mt-2" Rounded="true" />
-                                }
-                            </div>
-                        </div>
+                        <div>@(actualizacion.Detalle ?? "Actualizando la caja…")</div>
+                        @* Con el total de verdad la barra avanza; mientras no se sepa, se mueve sola para que se vea que trabaja. *@
+                        @if (actualizacion is { Total: > 0 } contado)
+                        {
+                            <MudProgressLinear Value="@Porcentaje(contado)" Color="Color.Inherit" Class="mt-2" Rounded="true" />
+                        }
+                        else
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Inherit" Class="mt-2" Rounded="true" />
+                        }
                     </MudAlert>
                 }
                 else if (_estado.Problema is not null)

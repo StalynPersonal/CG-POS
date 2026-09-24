@@ -1454,7 +1454,7 @@ else
     {
         null => "Agente sin respuesta",
         // Mientras bajan datos se dice, porque es cuando la caja puede tardar en tener un artículo que ya está en el Central.
-        { Actualizacion: { EnCurso: true, Detalle: { } detalle } } => $"Actualizando · {detalle}",
+        { Actualizacion: { EnCurso: true, Detalle: { } detalle } } => detalle,
         { EnLinea: true } estado => $"En línea · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",
         { SinConexionPor: MotivosSinConexion.Credenciales } estado =>
             $"Sin conexión (credenciales) · {estado.DocumentosPendientes} pendientes{AvisoAlertas}",

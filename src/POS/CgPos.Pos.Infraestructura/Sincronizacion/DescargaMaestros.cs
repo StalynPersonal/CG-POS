@@ -32,7 +32,7 @@ internal sealed class DescargaMaestros(
 
         // Desde aquí hasta el final la pantalla muestra que se está actualizando: una caja nueva tarda, y sin este aviso
         // parece que está rota.
-        using var enCurso = progreso.Comenzar("Pidiendo los datos al Central");
+        using var enCurso = progreso.Comenzar("Actualizando la caja con los datos del Central");
 
         var desde = await MarcaAsync(cancelacion);
         var (creados, actualizados, paginas) = (0, 0, 0);
@@ -71,7 +71,7 @@ internal sealed class DescargaMaestros(
             }
 
             desde = pagina.Hasta;
-            progreso.Etapa($"Trayendo los datos del Central (parte {paginas + 1})");
+            progreso.Etapa($"Actualizando la caja con los datos del Central (parte {paginas + 1})");
         }
     }
 
@@ -113,7 +113,7 @@ internal sealed class DescargaMaestros(
             // Primero la organización y la seguridad: los maestros referencian cajas y sucursales.
             if (paquete.Organizacion is { } organizacion)
             {
-                progreso.Etapa("Aplicando la empresa, la sucursal y los usuarios");
+                progreso.Etapa("Actualizando la caja con la empresa, la sucursal y los usuarios");
                 var carga = await cargaInicial.AplicarAsync(organizacion, cancelacion);
                 creados += carga.Creados;
                 actualizados += carga.Actualizados;
@@ -121,7 +121,7 @@ internal sealed class DescargaMaestros(
 
             if (paquete.Maestros is { } maestros)
             {
-                progreso.Etapa("Aplicando artículos, precios y catálogos");
+                progreso.Etapa("Actualizando la caja con artículos y precios");
                 var carga = await cargaMaestros.AplicarAsync(maestros, "Central", cuenta, cancelacion);
                 creados += carga.Creados;
                 actualizados += carga.Actualizados;

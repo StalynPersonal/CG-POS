@@ -119,7 +119,7 @@ internal sealed class ServicioCargaMaestros(
             if (articulos.Count > 0)
             {
                 registro.LogInformation("Aplicando {Total} artículos del paquete de maestros ({Origen}).", articulos.Count, origen);
-                progreso.Etapa("Aplicando artículos, precios y catálogos");
+                progreso.Etapa("Actualizando la caja con artículos y precios");
                 _articulosEnLaCaja = (await contexto.Articulos.AsNoTracking().Select(a => a.Codigo).ToListAsync(cancelacion))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
@@ -144,7 +144,7 @@ internal sealed class ServicioCargaMaestros(
             if (clientes.Count > 0)
             {
                 registro.LogInformation("Aplicando {Total} clientes del paquete de maestros ({Origen}).", clientes.Count, origen);
-                progreso.Etapa("Aplicando clientes");
+                progreso.Etapa("Actualizando la caja con clientes");
                 _clientesEnLaCaja = (await contexto.Clientes.AsNoTracking().Select(c => c.Codigo).ToListAsync(cancelacion))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
@@ -231,7 +231,7 @@ internal sealed class ServicioCargaMaestros(
                     e => MapeoMaestros.Actualizar(e, d, resolutor), cancelacion);
 
             // Guardar 150 mil artículos de una vez tarda: sin este aviso parece que el avance se quedó clavado al final.
-            progreso.Etapa("Guardando los datos en la caja");
+            progreso.Etapa("Actualizando la caja con lo que acaba de llegar");
             var resultado = new ResultadoCargaMaestros(_creados, _actualizados, _precios);
             auditoria.Registrar(new EntradaAuditoria("Catalogo.CargaMaestros", "Maestros", Detalle: new { Origen = origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados }));
             await contexto.SaveChangesAsync(cancelacion);
