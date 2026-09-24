@@ -171,9 +171,10 @@
     .cg-ingreso__pin, .cg-autorizacion__pin { grid-template-columns: 1fr; }
 }
 
-/* ---------- Búsqueda de artículos: teclas algo más bajas para que grilla y teclado quepan en 768 px ---------- */
+/* ---------- Búsqueda de artículos ----------
+   Las teclas van a su alto normal: el teclado y la lista de resultados nunca se ven a la vez —al buscar, el teclado deja su
+   sitio a la lista—, así que no hay nada que apretar para que quepan los dos. */
 .cg-busqueda { display: flex; flex-direction: column; gap: 8px; }
-.cg-busqueda .cg-teclado__tecla { min-height: 50px; font-size: 1.3rem; }
 
 /* ---------- Diálogo de teclado ---------- */
 .cg-dialogo-teclado { display: flex; flex-direction: column; gap: 12px; }
@@ -219,7 +220,7 @@
 .cg-busqueda__buscar { min-height: var(--cg-toque-minimo); min-width: 160px; }
 .cg-busqueda__resumen { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
 .mud-dialog.cg-dialogo-ajustado .cg-busqueda > .cg-teclado { flex: 0 0 auto; }
-.cg-dialogo-ajustado .cg-busqueda .cg-teclado__fila { flex: 0 0 44px; min-height: 44px; }
+.cg-dialogo-ajustado .cg-busqueda .cg-teclado__fila { flex: 0 0 auto; min-height: var(--cg-toque-minimo); }
 .cg-dialogo-teclado__campo input { font-size: 1.75rem; font-variant-numeric: tabular-nums; }
 
 /* ---------- Apertura de turno ---------- */
