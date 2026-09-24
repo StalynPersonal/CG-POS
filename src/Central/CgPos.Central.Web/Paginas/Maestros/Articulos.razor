@@ -33,18 +33,20 @@
                     <MudSelectItem T="string" Value="@CamposBusquedaArticulo.Codigo">Código</MudSelectItem>
                 </MudSelect>
                 <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="400" Placeholder="@Placeholder"
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="width: 380px" />
-
-                @* El tipo acota además de lo que se busque: «alambre» entre los pesados es las dos cosas. *@
-                <MudSelect T="string" Value="_tipo" ValueChanged="CambiarTipoAsync" Label="Tipo" Dense="true" Margin="Margin.Dense" Clearable="true"
-                           Style="width: 170px">
-                    <MudSelectItem T="string" Value="@(null as string)">Todos</MudSelectItem>
-                    @foreach (var tipo in EtiquetasArticulo.Tipos)
-                    {
-                        <MudSelectItem T="string" Value="@tipo.ToString()">@EtiquetasArticulo.Tipo(tipo)</MudSelectItem>
-                    }
-                </MudSelect>
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" Style="width: 420px" />
             </div>
+
+            @* El tipo va al otro extremo de la barra: no es dónde buscar, es qué parte del maestro se está mirando.
+               Acota además de lo que se busque: «alambre» entre los pesados es las dos cosas. *@
+            <MudSpacer />
+            <MudSelect T="string" Value="_tipo" ValueChanged="CambiarTipoAsync" Label="Tipo" Dense="true" Margin="Margin.Dense" Clearable="true"
+                       Style="width: 190px">
+                <MudSelectItem T="string" Value="@(null as string)">Todos</MudSelectItem>
+                @foreach (var tipo in EtiquetasArticulo.Tipos)
+                {
+                    <MudSelectItem T="string" Value="@tipo.ToString()">@EtiquetasArticulo.Tipo(tipo)</MudSelectItem>
+                }
+            </MudSelect>
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Código</MudTh>
