@@ -788,7 +788,7 @@ tabla(['Zona', 'Para qué sirve'],
        ['Encabezado derecho', 'Subtotal (la suma de las líneas, sin ITBIS), ITBIS (o el aviso de exenta en régimen especial), descuentos, TOTAL (subtotal más ITBIS) y, en facturas gubernamentales con retención, el total a pagar.'],
        ['Campo de escaneo', 'Donde el lector escribe el código. También se puede digitar. Si se escribe algo mal, la ✕ del final del campo lo borra, y la tecla Esc hace lo mismo sin soltar el teclado. A su derecha: catálogo, teclado en '
         'pantalla, Buscar (F2), Totalizar (F8) y el botón ☰ que abre el panel de funciones.'],
-       ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio y subtotal sin ITBIS, y la oferta aplicada.'],
+       ['Grilla de líneas', 'Los artículos de la venta: línea, código, descripción, cantidad, precio y subtotal sin ITBIS, y la oferta aplicada. El último escaneado sale arriba del todo, así que en una venta larga no hay que desplazar la lista para comprobar lo que acaba de entrar; el número de línea sigue diciendo en qué orden se agregaron.'],
        ['Panel de funciones (☰)', 'Se despliega desde la derecha con todas las funciones. Se cierra solo al elegir una, al tocar '
         'fuera o al escanear: lo que se lee va a la venta.'],
        ['Barra de estado (abajo)', 'Usuario, caja, turno, versión, estado del certificado e-CF y estado de la sincronización con el Central.']],

@@ -1426,7 +1426,13 @@ else
     private static decimal ImporteMostrado(DatosLineaVenta linea) => linea.Anulada ? linea.ImporteBruto : linea.Importe;
 
     /// <summary>Las líneas de la venta tal como se muestran: todas, las eliminadas tachadas en su lugar.</summary>
-    private IReadOnlyList<DatosLineaVenta> LineasVisibles => _venta?.Lineas ?? [];
+    /// <summary>
+    /// Las líneas con la última arriba. En una venta larga el cajero deja de ver lo que acaba de escanear justo cuando más
+    /// falta le hace comprobarlo; así lo recién agregado está siempre en el mismo sitio, sin tener que desplazar la lista.
+    /// El número de línea no cambia, así que se sigue leyendo en qué orden entraron.
+    /// </summary>
+    private IReadOnlyList<DatosLineaVenta> LineasVisibles =>
+        _venta is null ? [] : _venta.Lineas.OrderByDescending(linea => linea.NumeroLinea).ToList();
 
     private async Task AbrirCertificadoAsync()
     {
