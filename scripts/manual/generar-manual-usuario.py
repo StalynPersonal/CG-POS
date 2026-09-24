@@ -644,14 +644,15 @@ tabla(['Permiso', 'Quién lo suele tener', 'Qué puede hacer'],
        ['Cuadre.Declarar', 'Supervisor', 'Cuadrar los cierres pendientes de su sucursal.'],
        ['Cuadre.Corregir', 'El rol que decida el negocio', 'Corregir un cuadre ya hecho, con motivo, mientras el día no esté consolidado.']],
       anchos=[4.0, 4.5, 8.5])
-p('La pantalla tiene cinco pestañas, todas de la sucursal y las fechas que se elijan arriba:')
+p('La pantalla tiene siete pestañas, todas de la sucursal y las fechas que se elijan arriba:')
 tabla(['Pestaña', 'Para qué sirve'],
       [['Por cuadrar', 'Los cierres que las cajas entregaron y nadie ha contado; es con lo que se entra a trabajar.'],
        ['Cierres', 'Todos los del período con su esperado, declarado, diferencia y estado. Desde aquí se reimprime el cuadre en PDF y se corrige, y un interruptor deja ver solo los cuadres corregidos.'],
        ['Resumen del día', 'El día de la sucursal sumado por forma de pago, con el aviso de cuántas cajas faltan por cuadrar.'],
        ['Diferencias por cajera', 'Faltantes, sobrantes y neto de cada cajera en el período.'],
        ['Retiros y relevos', 'Los retiros, reembolsos y relevos de los turnos, con su monto, su motivo y quién los autorizó.'],
-       ['Tarjetas', 'El lote que cerró cada caja contra lo aprobado en ella: transacciones, montos, diferencia y las aprobaciones que aparecen de un solo lado.']],
+       ['Tarjetas', 'El lote que cerró cada caja contra lo aprobado en ella: transacciones, montos, diferencia y las aprobaciones que aparecen de un solo lado.'],
+       ['Caja parada', 'Cuánto estuvo parada cada caja y por qué: el total del período, el mismo tiempo visto por caja, por cajera y por motivo, y el detalle de cada parada. El tiempo previsto (almuerzo, receso) se cuenta aparte del imprevisto.']],
       anchos=[4.0, 13.0])
 nota('El turno cierra en la caja aunque el Central esté caído: el cuadre espera. La caja nunca se queda trancada por la red.')
 nota('Si el terminal no detalla su lote —depende del modelo—, en Tarjetas solo se ve lo de la caja: eso se compara a mano contra el '
@@ -921,7 +922,15 @@ viñeta('Una venta con tarjeta ya aprobada no se pone en espera: cóbrela o anul
 viñeta('Limpiar pantalla (panel de funciones ☰): bota la transacción en curso y empieza otra. Pide el motivo, pero se puede '
        'dejar en blanco: escanear lo que no era pasa varias veces al día. Como todavía no era una factura, desaparece de la '
        'caja; lo que tenía, quién la botó, quién lo autorizó y el motivo —si lo dio— quedan en la auditoría.')
-viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
+viñeta('Suspender: el cajero elige por qué deja la caja (baño, almuerzo, receso, un llamado del supervisor u otro) y la '
+       'pantalla se bloquea con un cronómetro grande que cuenta desde ese momento. Debajo del conteo está el botón Regresar: '
+       'se vuelve con la clave del mismo cajero, y la venta que estaba en pantalla se conserva. El motivo «Otro» pide escribir '
+       'en qué consistió.')
+viñeta('Cada rato de caja parada sube al Central y sale en el módulo de cuadre, pestaña «Caja parada»: cuánto estuvo parada '
+       'cada caja, cada cajera y por qué motivo. El tiempo previsto (almuerzo, receso) se cuenta aparte del imprevisto. Si '
+       'nadie reanudó y el turno cerró, la parada se cierra ahí y queda marcada, para que no aparezca de catorce horas.')
+viñeta('Los motivos los decide el negocio en el Central, en Maestros → Motivos de caja parada: ahí se dice cuáles son tiempo '
+       'previsto y cuál pide explicación.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada en su lugar, con su mismo número, y sale del total. La numeración de las líneas sigue continua; quién la '
        'eliminó y quién lo autorizó queda en la auditoría.')

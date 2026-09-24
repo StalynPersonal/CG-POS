@@ -1,0 +1,80 @@
+﻿@* Por qué se deja la caja sola (RF-23). El motivo alimenta el reporte de tiempos de caja parada, así que se pregunta antes de bloquear. *@
+@inject ClienteAgente Cliente
+
+<MudDialog>
+    <DialogContent>
+        @if (_cargando)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+        }
+        else if (_motivos.Count == 0)
+        {
+            @* Sin maestro de motivos la caja igual se suspende: el bloqueo de pantalla no puede depender de una configuración. *@
+            <MudAlert Severity="Severity.Info" Dense="true">No hay motivos configurados. La caja se suspende sin motivo.</MudAlert>
+        }
+        else
+        {
+            @* Botones grandes, uno por motivo: en la caja se toca, no se despliega una lista. *@
+            <div class="cg-motivos">
+                @foreach (var motivo in _motivos)
+                {
+                    <MudButton Variant="@(_motivo?.Codigo == motivo.Codigo ? Variant.Filled : Variant.Outlined)"
+                               Color="@(_motivo?.Codigo == motivo.Codigo ? Color.Secondary : Color.Primary)"
+                               Size="Size.Large" Class="cg-motivos__boton" OnClick="() => Elegir(motivo)">@motivo.Nombre</MudButton>
+                }
+            </div>
+
+            @* La nota solo aparece cuando el motivo la pide (el caso de «Otro»): si no, estorba. *@
+            @if (_motivo is { ExigeNota: true })
+            {
+                <div class="cg-dialogo-teclado mt-3">
+                    <MudTextField @bind-Value="_nota" Label="¿En qué consistió?" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  MaxLength="120" Immediate="true" AutoFocus="true" Class="cg-campo-activo" />
+                    <TecladoTactil Valor="@(_nota ?? string.Empty)" ValorChanged="valor => _nota = valor" AlConfirmar="_ => Confirmar()"
+                                   Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" LongitudMaxima="120" TextoConfirmar="Suspender" />
+                </div>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="_cargando || !PuedeConfirmar"
+                   StartIcon="@Icons.Material.Filled.Lock" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="Confirmar">Suspender</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>Lo que el cajero eligió: el motivo y, si lo pedía, en qué consistió.</summary>
+    public sealed record Eleccion(int? MotivoCodigo, string? Nota);
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    private IReadOnlyList<DatosMotivoSuspension> _motivos = [];
+    private DatosMotivoSuspension? _motivo;
+    private string? _nota;
+    private bool _cargando = true;
+
+    private bool PuedeConfirmar => _motivos.Count == 0
+        || (_motivo is not null && (!_motivo.ExigeNota || !string.IsNullOrWhiteSpace(_nota)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _motivos = await Cliente.ListarMotivosSuspensionAsync();
+        _cargando = false;
+    }
+
+    private void Elegir(DatosMotivoSuspension motivo)
+    {
+        _motivo = motivo;
+        if (!motivo.ExigeNota)
+            _nota = null;
+    }
+
+    private void Confirmar()
+    {
+        if (!PuedeConfirmar)
+            return;
+
+        Dialogo.Close(DialogResult.Ok(new Eleccion(_motivo?.Codigo, string.IsNullOrWhiteSpace(_nota) ? null : _nota)));
+    }
+}

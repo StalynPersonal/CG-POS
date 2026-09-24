@@ -36,6 +36,7 @@ public static class RutasApiMaestros
         Catalogo<TasaCambioCarga>(maestros, "tasas-cambio");
         Catalogo<MotivoDescuentoCarga>(maestros, "motivos-descuento", codigoNumerico: true);
         Catalogo<MotivoDevolucionCarga>(maestros, "motivos-devolucion", codigoNumerico: true);
+        Catalogo<MotivoSuspensionCarga>(maestros, "motivos-suspension", codigoNumerico: true);
         Catalogo<NivelFidelidadCarga>(maestros, "niveles-fidelidad", codigoNumerico: true);
         Catalogo<ReglaAcumulacionCarga>(maestros, "reglas-acumulacion", codigoNumerico: true);
         Catalogo<DescuentoTarjetaCarga>(maestros, "descuentos-tarjeta");

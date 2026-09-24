@@ -1,38 +1,45 @@
 ﻿@* Caja suspendida (RF-23): la pantalla queda bloqueada hasta que el mismo cajero digite su clave. La venta en curso se conserva. *@
+@implements IDisposable
 @inject ClienteAgente Cliente
 
 <div class="cg-turno">
     <MudPaper Elevation="2" Class="cg-turno__tarjeta">
-        <div class="cg-turno__titulo">
-            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Warning" />
-            <div>
-                <MudText Typo="Typo.h4" Style="font-weight: 700">Caja suspendida</MudText>
-                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@NombreUsuario · Caja @CajaCodigo · desde las @_desde.ToString("h:mm tt")</MudText>
+        @* El tiempo parado, en grande: es el dato que importa mientras la caja está sola. *@
+        <div class="cg-suspension">
+            <div class="cg-suspension__conteo">@Transcurrido</div>
+            <div class="cg-suspension__linea">
+                <MudText Typo="Typo.h5" Style="font-weight: 600">@Encabezado</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Caja suspendida desde las @Desde.ToString("h:mm tt")</MudText>
+                @if (!string.IsNullOrWhiteSpace(_suspension?.Nota))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_suspension!.Nota</MudText>
+                }
             </div>
         </div>
 
         @if (_mensaje is not null)
         {
-            <MudAlert Severity="Severity.Error" Class="mb-4">@_mensaje</MudAlert>
+            <MudAlert Severity="Severity.Error" Class="mb-4 mt-4">@_mensaje</MudAlert>
         }
 
-        <div class="cg-turno__formulario">
+        @* Para regresar, el mismo cajero digita su clave: así el tiempo parado queda a su nombre y nadie más retoma su venta. *@
+        <div class="cg-turno__formulario mt-4">
             <div class="cg-turno__fondo">
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Clave de @NombreUsuario para reanudar</MudText>
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Clave de @NombreUsuario para regresar</MudText>
                 <MudTextField T="string" Value="_clave" ValueChanged="valor => _clave = valor" InputType="InputType.Text" Variant="Variant.Outlined"
                               Immediate="true" AutoFocus="true" OnKeyDown="AlTeclearAsync" Style="-webkit-text-security: disc" Class="cg-campo-clave cg-campo-activo" />
                 <div class="cg-turno__acciones">
                     <MudButton Variant="Variant.Outlined" Size="Size.Large" OnClick="AlSalir" Disabled="_procesando" Class="cg-turno__boton"
                                StartIcon="@Icons.Material.Filled.SwitchAccount">Cambiar de usuario</MudButton>
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" OnClick="ReanudarAsync" Disabled="_procesando" Class="cg-turno__boton"
-                               StartIcon="@Icons.Material.Filled.LockOpen">Reanudar</MudButton>
+                               StartIcon="@Icons.Material.Filled.LockOpen">Regresar</MudButton>
                 </div>
                 @if (_procesando)
                 {
                     <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
                 }
             </div>
-            <TecladoTactil @bind-Valor="_clave" AlConfirmar="_ => ReanudarAsync()" Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true" LongitudMaxima="64" TextoConfirmar="Reanudar" />
+            <TecladoTactil @bind-Valor="_clave" AlConfirmar="_ => ReanudarAsync()" Modo="ModoTeclado.Alfanumerico" PermitirDecimal="false" PermitirCambioModo="true" LongitudMaxima="64" TextoConfirmar="Regresar" />
         </div>
     </MudPaper>
 </div>
@@ -40,14 +47,50 @@
 @code {
     [Parameter, EditorRequired] public string CodigoUsuario { get; set; } = string.Empty;
     [Parameter] public string? NombreUsuario { get; set; }
-    [Parameter] public string? CajaCodigo { get; set; }
     [Parameter] public EventCallback AlReanudar { get; set; }
     [Parameter] public EventCallback AlSalir { get; set; }
 
-    private readonly DateTime _desde = DateTime.Now;
+    private readonly CancellationTokenSource _cancelacion = new();
+    private readonly DateTimeOffset _abierto = DateTimeOffset.Now;
+    private DatosSuspension? _suspension;
+    private TimeSpan _transcurrido;
     private string _clave = string.Empty;
     private string? _mensaje;
     private bool _procesando;
+
+    /// <summary>Quién dejó la caja y por qué. La caja no se nombra: ya se sabe en cuál se está parado.</summary>
+    private string Encabezado => _suspension is { } suspension
+        ? $"{suspension.UsuarioNombre} · {suspension.MotivoNombre}"
+        : NombreUsuario ?? string.Empty;
+
+    private DateTimeOffset Desde => _suspension?.SuspendidaEn.ToLocalTime() ?? _abierto;
+
+    private string Transcurrido => _transcurrido.TotalHours >= 1
+        ? $"{(int)_transcurrido.TotalHours}:{_transcurrido.Minutes:00}:{_transcurrido.Seconds:00}"
+        : $"{_transcurrido.Minutes:00}:{_transcurrido.Seconds:00}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _suspension = await Cliente.ObtenerSuspensionAsync(_cancelacion.Token);
+        _ = ContarAsync();
+    }
+
+    /// <summary>El conteo corre contra la hora en que se suspendió, no contra un contador propio: si la pantalla se recarga, sigue cuadrando.</summary>
+    private async Task ContarAsync()
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(_cancelacion.Token))
+            {
+                _transcurrido = DateTimeOffset.Now - Desde;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
 
     private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? ReanudarAsync() : Task.CompletedTask;
 
@@ -63,10 +106,18 @@
 
         if (respuesta.Exitoso)
         {
+            // Cerrar el rato parado es lo último: si falla, el cajero no se queda fuera de su caja.
+            await Cliente.ReanudarCajaAsync();
             await AlReanudar.InvokeAsync();
             return;
         }
 
         _mensaje = respuesta.Mensaje ?? "Clave incorrecta.";
+    }
+
+    public void Dispose()
+    {
+        _cancelacion.Cancel();
+        _cancelacion.Dispose();
     }
 }

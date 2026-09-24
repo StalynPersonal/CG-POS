@@ -52,6 +52,12 @@ public sealed class ContextoDatosPos(DbContextOptions<ContextoDatosPos> opciones
     // Turnos y ventas (M13, M05)
     public DbSet<Turno> Turnos => Set<Turno>();
     public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
+
+    /// <summary>Los motivos por los que el cajero deja la caja sola; los decide el negocio en el Central.</summary>
+    public DbSet<MotivoSuspension> MotivosSuspension => Set<MotivoSuspension>();
+
+    /// <summary>Cada rato que la caja estuvo parada, para el reporte de tiempos.</summary>
+    public DbSet<SuspensionCaja> SuspensionesCaja => Set<SuspensionCaja>();
     public DbSet<CierreTurno> CierresTurno => Set<CierreTurno>();
 
     /// <summary>El cierre del lote del terminal de tarjetas, cuadrado contra lo aprobado en el turno.</summary>

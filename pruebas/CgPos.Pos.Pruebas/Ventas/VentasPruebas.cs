@@ -624,15 +624,58 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
             a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Cliente se retiró" && a.AutorizadoPorId != null)));
 
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion,
-            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null))).Resultado);
+            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null, null, null))).Resultado);
         var suspension = await caja.AutorizarAsync(CatalogoPermisos.SuspenderVenta, "Almuerzo");
-        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, suspension))).Exitosa);
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null, null, suspension))).Exitosa);
 
         var cajaCodigo = caja.Cajero.CajaCodigo;
         var registros = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
             contexto.Auditoria.CountAsync(r => (r.Accion == "Ventas.PantallaLimpiada" && r.EntidadId == $"B-{venta.Id:000000}")
                                                || (r.Accion == "Caja.OperacionesSuspendidas" && r.UsuarioId == caja.Escenario.Cajero)));
         Assert.Equal(2, registros);
+    }
+
+    [SkippableFact]
+    public async Task La_caja_parada_guarda_el_motivo_y_sube_el_tiempo_al_reanudar()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        // Los motivos bajan del Central como cualquier otro maestro.
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(
+            new PaqueteMaestros(MotivosSuspension:
+            [
+                new MotivoSuspensionCarga(2, "Almuerzo", Programado: true),
+                new MotivoSuspensionCarga(9, "Otro", ExigeNota: true),
+            ]), "Pruebas"));
+
+        var motivos = await caja.EjecutarAsync<IServicioVentas, IReadOnlyList<DatosMotivoSuspension>>(s => s.ListarMotivosSuspensionAsync());
+        Assert.Equal([2, 9], motivos.Select(m => m.Codigo));
+
+        // «Otro» no pasa sin explicación: si no, el reporte no diría nada.
+        var sinNota = await caja.AutorizarAsync(CatalogoPermisos.SuspenderVenta, "Sale de la caja");
+        Assert.Equal(CodigoResultadoVenta.MotivoRequerido,
+            (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, 9, null, sinNota))).Resultado);
+
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.SuspenderVenta, "Sale de la caja");
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, 2, null, autorizacion))).Exitosa);
+
+        var abierta = await caja.EjecutarAsync<IServicioVentas, DatosSuspension?>(s => s.SuspensionAbiertaAsync(caja.Cajero));
+        Assert.NotNull(abierta);
+        Assert.Equal("Almuerzo", abierta!.MotivoNombre);
+
+        // El cajero vuelve media hora después: el rato parado se cierra con ese tiempo y sube al Central.
+        caja.Reloj.Ahora = caja.Reloj.Ahora.AddMinutes(30);
+        await caja.EjecutarAsync<IServicioVentas, bool>(async s => { await s.ReanudarAsync(caja.Cajero); return true; });
+        Assert.Null(await caja.EjecutarAsync<IServicioVentas, DatosSuspension?>(s => s.SuspensionAbiertaAsync(caja.Cajero)));
+
+        var mensaje = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
+            contexto.BandejaSalida.AsNoTracking().Where(m => m.TipoMensaje == "Caja.Suspension").Select(m => m.Contenido).SingleAsync());
+        var informado = JsonSerializer.Deserialize<DocumentoSuspensionCaja>(mensaje, OpcionesJson.Predeterminadas)!;
+        Assert.Equal("Almuerzo", informado.MotivoNombre);
+        Assert.True(informado.Programado);
+        Assert.False(informado.CerradaPorCierreDeTurno);
+        Assert.Equal(30, (informado.ReanudadaEn - informado.SuspendidaEn).TotalMinutes, 0);
     }
 
     [SkippableFact]

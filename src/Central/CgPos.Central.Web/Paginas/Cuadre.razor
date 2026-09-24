@@ -335,6 +335,99 @@ else
                     </PagerContent>
                 </MudTable>
             </MudTabPanel>
+            @* Tiempos de caja parada: cuánto estuvo bloqueada cada caja y por qué (RF-23). *@
+            <MudTabPanel Text="Caja parada" Icon="@Icons.Material.Filled.Timer" Class="pa-4">
+                @if (_paradas is { Paradas: > 0 } paradas)
+                {
+                    @* El total del período, con el tiempo previsto separado del imprevisto. *@
+                    <div class="d-flex flex-wrap gap-4 mb-4">
+                        <MudPaper Elevation="0" Class="pa-3 flex-grow-1">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Paradas</MudText>
+                            <MudText Typo="Typo.h5">@paradas.Paradas</MudText>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="pa-3 flex-grow-1">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Tiempo total</MudText>
+                            <MudText Typo="Typo.h5">@Duracion(paradas.Minutos)</MudText>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="pa-3 flex-grow-1">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Previsto</MudText>
+                            <MudText Typo="Typo.h5">@Duracion(paradas.MinutosProgramados)</MudText>
+                        </MudPaper>
+                        <MudPaper Elevation="0" Class="pa-3 flex-grow-1">
+                            <MudText Typo="Typo.overline" Color="Color.Secondary">Imprevisto</MudText>
+                            <MudText Typo="Typo.h5" Color="Color.Error">@Duracion(paradas.MinutosImprevistos)</MudText>
+                        </MudPaper>
+                    </div>
+
+                    @* El mismo tiempo visto por caja, por cajera y por motivo. *@
+                    <div class="d-flex flex-wrap gap-4 mb-4">
+                        @foreach (var grupo in Agrupaciones(paradas))
+                        {
+                            <MudPaper Elevation="0" Class="pa-3 flex-grow-1" Style="min-width: 280px">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">@grupo.Titulo</MudText>
+                                <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                    <tbody>
+                                        @foreach (var total in grupo.Totales)
+                                        {
+                                            <tr>
+                                                <td>@total.Nombre</td>
+                                                <td style="text-align: right">@total.Paradas</td>
+                                                <td style="text-align: right">@Duracion(total.Minutos)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+
+                <MudTable T="DatosParadaCaja" Items="@(_paradas?.Detalle ?? [])" Hover="true" Loading="_cargando" Breakpoint="Breakpoint.Sm" Elevation="0" RowsPerPage="25">
+                    <HeaderContent>
+                        <MudTh>Día</MudTh>
+                        <MudTh>Caja</MudTh>
+                        <MudTh>Turno</MudTh>
+                        <MudTh>Cajera</MudTh>
+                        <MudTh>Motivo</MudTh>
+                        <MudTh>Desde</MudTh>
+                        <MudTh>Hasta</MudTh>
+                        <MudTh Style="text-align: right">Duración</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Día">@context.FechaOperacion.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Caja">@context.CajaCodigo</MudTd>
+                        <MudTd DataLabel="Turno">@context.TurnoNumero</MudTd>
+                        <MudTd DataLabel="Cajera">@context.UsuarioNombre</MudTd>
+                        <MudTd DataLabel="Motivo">
+                            @context.MotivoNombre
+                            @if (!string.IsNullOrWhiteSpace(context.Nota))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Nota</MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Desde">@context.SuspendidaEn.ToLocalTime().ToString("HH:mm")</MudTd>
+                        <MudTd DataLabel="Hasta">
+                            @context.ReanudadaEn.ToLocalTime().ToString("HH:mm")
+                            @if (context.CerradaPorCierreDeTurno)
+                            {
+                                @* Nadie volvió: la cerró el cierre del turno, así que la duración es la máxima posible, no la real. *@
+                                <MudTooltip Text="Nadie reanudó: la cerró el cierre del turno.">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Warning" />
+                                </MudTooltip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Duración" Style="text-align: right">
+                            <MudText Typo="Typo.body2" Color="@(context.Programado ? Color.Default : Color.Error)">@Duracion(context.Minutos)</MudText>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText>Ninguna caja se suspendió en esas fechas.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" PageSizeOptions="new[] { 25, 50, 100 }" />
+                    </PagerContent>
+                </MudTable>
+            </MudTabPanel>
         </MudTabs>
     </MudPaper>
 
@@ -457,6 +550,7 @@ else
     private IReadOnlyList<DatosDenominacion> _denominaciones = [];
     private IReadOnlyList<DatosDiferenciaCajero> _diferencias = [];
     private IReadOnlyList<DatosMovimientoTurno> _movimientos = [];
+    private DatosTiemposParada? _paradas;
     private DatosResumenCuadre? _resumen;
 
     private DatosCierreCaja? _cierre;
@@ -466,6 +560,17 @@ else
     private string? _motivo;
     private readonly Dictionary<int, int> _cantidades = [];
     private readonly Dictionary<int, decimal> _declarados = [];
+
+    /// <summary>Minutos en horas y minutos: «1 h 20 min» se lee de un vistazo y «80» no.</summary>
+    private static string Duracion(int minutos) => minutos >= 60 ? $"{minutos / 60} h {minutos % 60:00} min" : $"{minutos} min";
+
+    /// <summary>El mismo tiempo parado visto de tres maneras, una tabla al lado de la otra.</summary>
+    private static IEnumerable<(string Titulo, IReadOnlyList<DatosTotalParada> Totales)> Agrupaciones(DatosTiemposParada paradas) =>
+    [
+        ("Por caja", paradas.PorCaja),
+        ("Por cajera", paradas.PorCajero),
+        ("Por motivo", paradas.PorMotivo),
+    ];
 
     /// <summary>Los cierres del período, o solo los corregidos si el supervisor lo pide.</summary>
     private IReadOnlyList<DatosCierreCaja> Cierres => _soloCorregidos ? _cierres.Where(c => c.Ajustes.Count > 0).ToList() : _cierres;
@@ -493,7 +598,7 @@ else
     {
         Cliente.Salir();
         (_pendientes, _cierres, _denominaciones, _diferencias, _movimientos) = ([], [], [], [], []);
-        (_resumen, _cierre, _correccion, _aviso) = (null, null, null, null);
+        (_resumen, _paradas, _cierre, _correccion, _aviso) = (null, null, null, null, null);
     }
 
     private async Task CambiarSucursalAsync(int sucursalId)
@@ -527,6 +632,7 @@ else
         _resumen = await Cliente.ResumenAsync(_sucursalId, desde);
         _diferencias = await Cliente.DiferenciasAsync(_sucursalId, desde, hasta);
         _movimientos = await Cliente.MovimientosAsync(_sucursalId, desde, hasta);
+        _paradas = await Cliente.TiemposParadaAsync(_sucursalId, desde, hasta);
         if (_denominaciones.Count == 0)
             _denominaciones = await Cliente.DenominacionesAsync();
 

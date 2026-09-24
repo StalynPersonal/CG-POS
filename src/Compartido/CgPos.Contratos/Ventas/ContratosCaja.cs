@@ -128,6 +128,13 @@ public sealed record DatosLoteTarjetas(
     IReadOnlyList<string> SoloEnTerminal);
 
 
+/// <param name="Programado">Tiempo previsto (almuerzo, receso): en el reporte no cuenta como una parada imprevista.</param>
+/// <param name="ExigeNota">Pide escribir en qué consistió, para el motivo «Otro».</param>
+public sealed record DatosMotivoSuspension(int Codigo, string Nombre, bool Programado, bool ExigeNota);
+
+/// <summary>La caja está parada: desde cuándo y por qué. Con esto la pantalla bloqueada muestra el cronómetro.</summary>
+public sealed record DatosSuspension(int Id, int? MotivoCodigo, string MotivoNombre, string? Nota, string UsuarioNombre, DateTimeOffset SuspendidaEn);
+
 public enum CodigoResultadoCaja
 {
     Correcto,

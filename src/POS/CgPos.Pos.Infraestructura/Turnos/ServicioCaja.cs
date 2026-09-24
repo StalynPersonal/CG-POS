@@ -270,6 +270,14 @@ internal sealed class ServicioCaja(
 
         contexto.CierresTurno.Add(cierre);
 
+        // Si alguien suspendió y no volvió, el rato parado se cierra aquí: si no, el reporte diría que el almuerzo duró
+        // catorce horas. Queda marcado para que se distinga de una reanudación normal.
+        foreach (var suspension in await contexto.SuspensionesCaja.Where(s => s.TurnoId == turno.Id && s.ReanudadaEn == null).ToListAsync(cancelacion))
+        {
+            suspension.CerrarPorCierreDeTurno(ahora);
+            AvisoSuspensiones.Encolar(bandejaSalida, suspension, turno.FechaOperacion);
+        }
+
         // Las transacciones en curso sin artículos activos no son documentos: salen de la mesa de trabajo al cerrar. Si
         // tuvieron líneas, lo que pasó queda en la auditoría.
         var enCurso = await contexto.VentasEnProceso.Where(v => v.TurnoId == turno.Id).ToListAsync(cancelacion);

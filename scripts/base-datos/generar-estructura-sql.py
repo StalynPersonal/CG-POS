@@ -165,6 +165,12 @@ MOTIVOS_DEVOLUCION = [
     (1, 'Artículo defectuoso'), (2, 'Artículo equivocado'), (3, 'Cliente no satisfecho'), (4, 'Garantía'), (5, 'Error de facturación'),
 ]
 
+# Por qué el cajero deja la caja sola: código, nombre, si es tiempo previsto y si pide explicación.
+# El almuerzo se cuenta aparte del baño; «Otro» obliga a escribir en qué consistió.
+MOTIVOS_SUSPENSION = [
+    (1, 'Baño', 0, 0), (2, 'Almuerzo', 1, 0), (3, 'Receso', 1, 0), (4, 'Llamado del supervisor', 0, 0), (5, 'Otro', 0, 1),
+]
+
 # Código, nombre, tipo (TipoFormaPago), moneda, orden, abre gaveta, da devuelta, pide referencia, pide banco, admite comprobante fiscal.
 FORMAS_PAGO = [
     ('EFE', 'Efectivo', 0, 'DOP', 1, 1, 1, 0, 0, 1),
@@ -302,6 +308,9 @@ def catalogos_tecnicos():
 
     bloque('Motivos de devolución', 'MotivosDevolucion', "[Codigo], [Nombre], [Activo]",
            [f"{codigo}, N'{nombre}'" for codigo, nombre in MOTIVOS_DEVOLUCION])
+
+    bloque('Motivos de caja parada', 'MotivosSuspension', "[Codigo], [Nombre], [Programado], [ExigeNota], [Activo]",
+           [f"{codigo}, N'{nombre}', {programado}, {nota}" for codigo, nombre, programado, nota in MOTIVOS_SUSPENSION])
 
     # Las secuencias del Central no llevan Id ni auditoría: su clave es el propio prefijo.
     valores_secuencias = ',\n'.join(

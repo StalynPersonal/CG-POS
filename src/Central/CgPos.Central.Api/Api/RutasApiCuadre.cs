@@ -72,6 +72,14 @@ public static class RutasApiCuadre
                     : Results.Ok(await servicio.MovimientosAsync(sucursalId, desde, hasta, cancelacion)))
             .RequireAuthorization(PoliticasCentral.CuadreConsultar);
 
+        // Cuánto estuvieron paradas las cajas y por qué: el reporte de tiempos de caja parada.
+        cuadre.MapGet("/tiempos-parada", async (int sucursalId, DateOnly desde, DateOnly hasta, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
+                CancellationToken cancelacion) =>
+                SinAcceso(usuario, sucursalId)
+                    ? Results.Forbid()
+                    : Results.Ok(await servicio.TiemposParadaAsync(sucursalId, desde, hasta, cancelacion)))
+            .RequireAuthorization(PoliticasCentral.CuadreConsultar);
+
         // Reimpresión del cuadre: el papel que se archiva con el depósito.
         cuadre.MapGet("/{cierreId:int}/pdf", async (int cierreId, int sucursalId, ClaimsPrincipal usuario, IServicioCierresCaja servicio,
                 CancellationToken cancelacion) =>

@@ -137,6 +137,39 @@ public sealed record DatosDiferenciaCajero(
     decimal Sobrantes,
     decimal Diferencia);
 
+/// <summary>Un rato en que la caja estuvo parada (RF-23): quién la dejó, por qué y cuánto duró.</summary>
+/// <param name="Programado">Tiempo previsto (almuerzo, receso): no se cuenta junto con las paradas imprevistas.</param>
+/// <param name="CerradaPorCierreDeTurno">Nadie volvió a la caja: la cerró el cierre del turno.</param>
+public sealed record DatosParadaCaja(
+    DateOnly FechaOperacion,
+    string CajaCodigo,
+    long TurnoNumero,
+    string UsuarioNombre,
+    string MotivoNombre,
+    bool Programado,
+    string? Nota,
+    DateTimeOffset SuspendidaEn,
+    DateTimeOffset ReanudadaEn,
+    int Minutos,
+    bool CerradaPorCierreDeTurno);
+
+/// <summary>Cuánto tiempo estuvo parada una caja, o cuánto paró una cajera, en el período.</summary>
+public sealed record DatosTotalParada(string Nombre, int Paradas, int Minutos, int MinutosProgramados, int MinutosImprevistos);
+
+/// <summary>
+/// Tiempos de caja parada del período: el total, y el mismo tiempo visto por caja, por cajera y por motivo, con el detalle
+/// de cada parada. El tiempo previsto se separa del imprevisto: si se suman, el reporte solo dice que la caja estuvo cerrada.
+/// </summary>
+public sealed record DatosTiemposParada(
+    int Paradas,
+    int Minutos,
+    int MinutosProgramados,
+    int MinutosImprevistos,
+    IReadOnlyList<DatosTotalParada> PorCaja,
+    IReadOnlyList<DatosTotalParada> PorCajero,
+    IReadOnlyList<DatosTotalParada> PorMotivo,
+    IReadOnlyList<DatosParadaCaja> Detalle);
+
 /// <summary>Un retiro, reembolso o relevo del turno, con su motivo y quién lo autorizó.</summary>
 public sealed record DatosMovimientoTurno(
     DateOnly FechaOperacion,

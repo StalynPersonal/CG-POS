@@ -384,6 +384,18 @@ internal sealed class SecuenciaEcfConfiguracion : IEntityTypeConfiguration<Secue
     }
 }
 
+internal sealed class MotivoSuspensionConfiguracion : IEntityTypeConfiguration<CgPos.Dominio.Turnos.MotivoSuspension>
+{
+    public void Configure(EntityTypeBuilder<CgPos.Dominio.Turnos.MotivoSuspension> constructor)
+    {
+        constructor.ToTable("MotivosSuspension");
+        constructor.HasKey(m => m.Id);
+        constructor.Property(m => m.Nombre).HasMaxLength(CgPos.Dominio.Turnos.MotivoSuspension.LargoMaximoNombre).IsRequired();
+        constructor.HasIndex(m => m.Codigo).IsUnique();
+        ColumnasMaestro.Configurar(constructor);
+    }
+}
+
 internal sealed class MotivoDevolucionConfiguracion : IEntityTypeConfiguration<MotivoDevolucion>
 {
     public void Configure(EntityTypeBuilder<MotivoDevolucion> constructor)

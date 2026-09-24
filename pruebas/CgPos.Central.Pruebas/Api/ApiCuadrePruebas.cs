@@ -140,6 +140,42 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
     }
 
     [SkippableFact]
+    public async Task El_reporte_de_tiempos_separa_la_parada_prevista_de_la_imprevista()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+
+        var dia = DateOnly.FromDateTime(DateTime.Today).AddDays(-Random.Shared.Next(2_000, 3_000));
+        var turno = Random.Shared.NextInt64(1_000, 999_999);
+        var cajera = $"Cajera {turno}";
+        var numero = (int)(turno % 100_000);
+
+        // Una hora de almuerzo (tiempo previsto) y diez minutos de baño (imprevisto).
+        Assert.Equal(EstadoRecepcion.Recibido,
+            await EnviarParadaAsync(cliente, tokenCaja, dia, turno, numero, cajera, 2, "Almuerzo", programado: true, minutos: 60, hora: 12));
+        Assert.Equal(EstadoRecepcion.Recibido,
+            await EnviarParadaAsync(cliente, tokenCaja, dia, turno, numero + 1, cajera, 1, "Baño", programado: false, minutos: 10, hora: 15));
+
+        var sesion = await IngresarAsync(cliente, "S001", "Supervisor.2026");
+        var token = sesion.TokenAcceso!;
+        var sucursal = sesion.Sesion!.Sucursales[0].Id;
+
+        var paradas = await ObtenerAsync<DatosTiemposParada>(cliente, token,
+            $"/api/cuadre/tiempos-parada?sucursalId={sucursal}&desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}");
+
+        Assert.Equal((2, 70, 60, 10), (paradas.Paradas, paradas.Minutos, paradas.MinutosProgramados, paradas.MinutosImprevistos));
+        Assert.Equal(70, Assert.Single(paradas.PorCajero, t => t.Nombre == cajera).Minutos);
+        Assert.Equal(60, Assert.Single(paradas.PorMotivo, t => t.Nombre == "Almuerzo").Minutos);
+        Assert.Equal("Baño", paradas.Detalle[0].MotivoNombre);
+
+        // El supervisor no ve los tiempos de otra tienda.
+        using var ajena = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Get,
+            $"/api/cuadre/tiempos-parada?sucursalId={sucursal + 1000}&desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}", token));
+        Assert.Equal(HttpStatusCode.Forbidden, ajena.StatusCode);
+    }
+
+    [SkippableFact]
     public async Task El_cajero_sin_permiso_de_cuadre_no_entra_al_modulo()
     {
         Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
@@ -217,6 +253,22 @@ public class ApiCuadrePruebas(CentralEnPruebas central)
         var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.TurnoCerrado,
             turno.ToString(System.Globalization.CultureInfo.InvariantCulture), contenido, HashSincronizacion.Calcular(contenido), sucursal, caja,
             DateTimeOffset.UtcNow);
+
+        using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", token, mensaje));
+        return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;
+    }
+
+    private static async Task<EstadoRecepcion?> EnviarParadaAsync(HttpClient cliente, string token, DateOnly dia, long turno, int numero, string cajera,
+        int motivoCodigo, string motivoNombre, bool programado, int minutos, int hora)
+    {
+        var desde = new DateTimeOffset(dia.ToDateTime(new TimeOnly(hora, 0)), TimeSpan.FromHours(-4));
+        var parada = new DocumentoSuspensionCaja(numero, turno, dia, cajera, motivoCodigo, motivoNombre, programado, null,
+            desde, desde.AddMinutes(minutos), false);
+
+        var (sucursal, caja) = CentralEnPruebas.CodigosCaja(CentralEnPruebas.CajaUno);
+        var contenido = JsonSerializer.Serialize(parada, OpcionesJson.Predeterminadas);
+        var mensaje = new MensajeSincronizacion(Guid.CreateVersion7(), TiposMensaje.SuspensionCaja,
+            $"{turno}-{numero}", contenido, HashSincronizacion.Calcular(contenido), sucursal, caja, DateTimeOffset.UtcNow);
 
         using var respuesta = await cliente.SendAsync(CentralEnPruebas.Solicitud(HttpMethod.Post, "/api/sincronizacion/mensajes", token, mensaje));
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaRecepcionCentral>(OpcionesJson.Predeterminadas))?.Estado;

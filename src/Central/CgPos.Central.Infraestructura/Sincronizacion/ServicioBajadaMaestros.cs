@@ -124,6 +124,7 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
             TasasCambio: await Lista<TasaCambioCarga>(TablasMaestros.TasasCambio),
             SecuenciasEcf: secuencias is { Count: > 0 } ? secuencias : null,
             MotivosDevolucion: await Lista<MotivoDevolucionCarga>(TablasMaestros.MotivosDevolucion),
+            MotivosSuspension: await Lista<MotivoSuspensionCarga>(TablasMaestros.MotivosSuspension),
             Monedas: await Lista<MonedaCarga>(TablasMaestros.Monedas),
             NivelesFidelidad: await Lista<NivelFidelidadCarga>(TablasMaestros.NivelesFidelidad),
             ReglasAcumulacion: await Lista<ReglaAcumulacionCarga>(TablasMaestros.ReglasAcumulacion),

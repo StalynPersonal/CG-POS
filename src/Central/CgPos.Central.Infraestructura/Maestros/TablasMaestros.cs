@@ -439,6 +439,14 @@ internal static class TablasMaestros
         },
         q => q.OrderBy(e => e.TipoComprobante).ThenBy(e => e.Desde));
 
+    public static TablaMaestro<CgPos.Dominio.Turnos.MotivoSuspension, MotivoSuspensionCarga> MotivosSuspension { get; } = new(
+        TipoMaestro.MotivoSuspension, c => c.MotivosSuspension,
+        d => e => e.Codigo == d.Codigo,
+        (d, r, o) => CgPos.Dominio.Turnos.MotivoSuspension.Crear(d.Codigo, d.Nombre, d.Programado, d.ExigeNota),
+        (e, d, r, o) => e.Actualizar(d.Nombre, d.Programado, d.ExigeNota, d.Activo),
+        (e, r, p) => new MotivoSuspensionCarga(e.Codigo, e.Nombre, e.Programado, e.ExigeNota, e.Activo),
+        q => q.OrderBy(e => e.Codigo));
+
     public static TablaMaestro<MotivoDevolucion, MotivoDevolucionCarga> MotivosDevolucion { get; } = new(
         TipoMaestro.MotivoDevolucion, c => c.MotivosDevolucion,
         d => e => e.Codigo == d.Codigo,
@@ -533,7 +541,7 @@ internal static class TablasMaestros
     public static IReadOnlyList<TablaMaestro> Todas { get; } =
     [
         Monedas, Departamentos, Categorias, Marcas, UnidadesMedida, Impuestos, Articulos, Clientes, FormasPago, Bancos, TiposTarjeta, Denominaciones,
-        Promociones, MotivosDescuento, TopesDescuento, TasasCambio, SecuenciasEcf, MotivosDevolucion, NivelesFidelidad, ReglasAcumulacion,
+        Promociones, MotivosDescuento, TopesDescuento, TasasCambio, SecuenciasEcf, MotivosDevolucion, MotivosSuspension, NivelesFidelidad, ReglasAcumulacion,
         MiembrosFidelidad, DescuentosTarjeta, RolesCaja, UsuariosCaja,
     ];
 

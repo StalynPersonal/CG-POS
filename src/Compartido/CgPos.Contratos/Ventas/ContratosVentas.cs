@@ -191,6 +191,10 @@ public sealed record SolicitudCambiarCantidad(decimal Cantidad);
 /// <param name="AutorizacionId">Autorización de supervisor obtenida en <c>/api/autorizaciones</c> cuando el usuario no tiene el permiso.</param>
 public sealed record SolicitudConAutorizacion(Guid? AutorizacionId = null);
 
+/// <param name="MotivoCodigo">Por qué se deja la caja sola; los motivos los configura el negocio en el Central.</param>
+/// <param name="Nota">En qué consistió, cuando el motivo lo pide.</param>
+public sealed record SolicitudSuspenderCaja(int? MotivoCodigo = null, string? Nota = null, Guid? AutorizacionId = null);
+
 public sealed record SolicitudEliminarPorCodigo(string Codigo, Guid? AutorizacionId = null);
 
 /// <param name="Nombre">Solo si el documento no corresponde a un cliente registrado.</param>

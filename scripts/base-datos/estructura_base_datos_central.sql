@@ -216,6 +216,10 @@ CREATE SEQUENCE [SecuenciaMotivosDevolucion] AS int START WITH 1 INCREMENT BY 1 
 GO
 
 
+CREATE SEQUENCE [SecuenciaMotivosSuspension] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaMovimientosPuntos] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -269,6 +273,10 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaSucursales] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaSuspensionesCaja] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -493,6 +501,21 @@ CREATE TABLE [MotivosDevolucion] (
     [ModificadoPor] nvarchar(150) NOT NULL,
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_MotivosDevolucion] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [MotivosSuspension] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Programado] bit NOT NULL,
+    [ExigeNota] bit NOT NULL,
+    [Activo] bit NOT NULL,
+    [ModificadoEn] datetimeoffset(3) NOT NULL,
+    [ModificadoPor] nvarchar(150) NOT NULL,
+    [Version] rowversion NOT NULL,
+    CONSTRAINT [PK_MotivosSuspension] PRIMARY KEY ([Id])
 );
 GO
 
@@ -1248,6 +1271,29 @@ CREATE TABLE [SecuenciasEcf] (
     [Version] rowversion NOT NULL,
     CONSTRAINT [PK_SecuenciasEcf] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_SecuenciasEcf_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [SuspensionesCaja] (
+    [Id] int NOT NULL,
+    [SucursalId] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TurnoNumero] bigint NOT NULL,
+    [Numero] int NOT NULL,
+    [FechaOperacion] date NOT NULL,
+    [UsuarioNombre] nvarchar(200) NOT NULL,
+    [MotivoCodigo] int NULL,
+    [MotivoNombre] nvarchar(200) NOT NULL,
+    [Programado] bit NOT NULL,
+    [Nota] nvarchar(250) NULL,
+    [SuspendidaEn] datetimeoffset(3) NOT NULL,
+    [ReanudadaEn] datetimeoffset(3) NOT NULL,
+    [CerradaPorCierreDeTurno] bit NOT NULL,
+    [Segundos] int NOT NULL,
+    CONSTRAINT [PK_SuspensionesCaja] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_SuspensionesCaja_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_SuspensionesCaja_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
 );
 GO
 
@@ -2008,6 +2054,14 @@ CREATE INDEX [IX_MotivosDevolucion_Version] ON [MotivosDevolucion] ([Version]);
 GO
 
 
+CREATE UNIQUE INDEX [IX_MotivosSuspension_Codigo] ON [MotivosSuspension] ([Codigo]);
+GO
+
+
+CREATE INDEX [IX_MotivosSuspension_Version] ON [MotivosSuspension] ([Version]);
+GO
+
+
 CREATE INDEX [IX_MovimientosPuntos_CajaId] ON [MovimientosPuntos] ([CajaId]);
 GO
 
@@ -2169,6 +2223,18 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_Sucursales_EmpresaId_Codigo] ON [Sucursales] ([EmpresaId], [Codigo]);
+GO
+
+
+CREATE UNIQUE INDEX [IX_SuspensionesCaja_CajaId_Numero] ON [SuspensionesCaja] ([CajaId], [Numero]);
+GO
+
+
+CREATE INDEX [IX_SuspensionesCaja_FechaOperacion_SucursalId_CajaId] ON [SuspensionesCaja] ([FechaOperacion], [SucursalId], [CajaId]);
+GO
+
+
+CREATE INDEX [IX_SuspensionesCaja_SucursalId] ON [SuspensionesCaja] ([SucursalId]);
 GO
 
 
@@ -2477,6 +2543,17 @@ VALUES
     (4, 4, N'Garantía', 1, SYSDATETIMEOFFSET(), N'Instalación'),
     (5, 5, N'Error de facturación', 1, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaMotivosDevolucion] RESTART WITH 11;
+GO
+
+/* Motivos de caja parada */
+INSERT INTO [MotivosSuspension] ([Id], [Codigo], [Nombre], [Programado], [ExigeNota], [Activo], [ModificadoEn], [ModificadoPor])
+VALUES
+    (1, 1, N'Baño', 0, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (2, 2, N'Almuerzo', 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (3, 3, N'Receso', 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (4, 4, N'Llamado del supervisor', 0, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (5, 5, N'Otro', 0, 1, 1, SYSDATETIMEOFFSET(), N'Instalación');
+ALTER SEQUENCE [SecuenciaMotivosSuspension] RESTART WITH 11;
 GO
 
 /* Numeración de los documentos que emite el Central. Sin la fila de un documento, ese documento no se

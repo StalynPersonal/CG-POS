@@ -96,8 +96,19 @@ public interface IServicioVentas
     /// <summary>Retoma una venta en espera del cajero en su turno; la venta en curso pasa a espera (o se descarta si está vacía).</summary>
     Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, int ventaId, string? referenciaActual, CancellationToken cancelacion = default);
 
+    /// <summary>Los motivos por los que se puede dejar la caja sola; los configura el negocio en el Central.</summary>
+    Task<IReadOnlyList<DatosMotivoSuspension>> ListarMotivosSuspensionAsync(CancellationToken cancelacion = default);
+
+    /// <summary>La suspensión abierta de esta caja, si la hay: la pantalla la usa para saber desde cuándo lleva parada.</summary>
+    Task<DatosSuspension?> SuspensionAbiertaAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
+
+    /// <summary>Cierra la suspensión abierta cuando el cajero vuelve y digita su clave.</summary>
+    Task ReanudarAsync(SesionUsuario sesion, CancellationToken cancelacion = default);
+
     /// <summary>Suspende las operaciones de la caja (bloqueo de pantalla) con permiso o clave de supervisor (RF-23).</summary>
-    Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);
+    /// <param name="motivoCodigo">Por qué se deja la caja; sin él queda como «Sin motivo».</param>
+    /// <param name="nota">En qué consistió, cuando el motivo lo pide.</param>
+    Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, int? motivoCodigo, string? nota, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>
     /// Descuento manual a una línea (RF-199) con permiso o clave de supervisor (RF-78), motivo (RF-203) y dentro del tope

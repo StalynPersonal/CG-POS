@@ -513,6 +513,23 @@ esperado('No se factura sola: pide autorización de un supervisor con el permiso
 tablas('Caja: AutorizacionesOtorgadas · Auditoria')
 marcar()
 
+prueba('H5', 'Suspender la caja con su motivo')
+paso('Con una venta a medias en pantalla, abra el panel de funciones (☰) y presione «Suspender».')
+paso('Elija el motivo «Almuerzo» y autorice con el supervisor.')
+paso('Vuelva un rato después: digite la clave del mismo cajero y presione «Regresar», debajo del conteo.')
+paso('Repita con el motivo «Otro» y déjelo sin escribir la explicación.')
+esperado('La pantalla se bloquea con un cronómetro grande y la línea «cajero · motivo». Al regresar, la venta que estaba en '
+         'pantalla sigue ahí completa. El motivo «Otro» no deja seguir hasta que se escriba en qué consistió.')
+tablas('Caja: MotivosSuspension (lee) · SuspensionesCaja · AutorizacionesOtorgadas · Auditoria · BandejaSalida')
+marcar()
+
+prueba('H6', 'Nadie volvió a la caja')
+paso('Suspenda la caja y, sin reanudar, cierre el turno desde el supervisor.')
+esperado('El cierre no se traba: la parada se cierra ahí y queda marcada como cerrada por el cierre del turno, para que no '
+         'aparezca de catorce horas en el reporte.')
+tablas('Caja: SuspensionesCaja · Turnos · BandejaSalida')
+marcar()
+
 doc.add_page_break()
 
 # ---------------------------------------------------------------- I. Cobro
@@ -832,7 +849,15 @@ esperado('El resumen suma el día por forma de pago y avisa cuántas cajas falta
 tablas('Central: CierresTurno · CierresFormaPago · CierresTurnoMovimientos (lee)')
 marcar()
 
-prueba('P6', 'Reimprimir el cuadre y ver las tarjetas')
+prueba('P6', 'Tiempos de caja parada')
+paso('Vaya a la pestaña «Caja parada» con las fechas del recorrido.')
+esperado('Aparecen las paradas del H5 y del H6: el total del período, el mismo tiempo visto por caja, por cajera y por '
+         'motivo, y el detalle de cada una. El almuerzo cuenta como tiempo previsto y el resto como imprevisto; la que '
+         'cerró el turno sale marcada.')
+tablas('Central: SuspensionesCaja (lee)')
+marcar()
+
+prueba('P7', 'Reimprimir el cuadre y ver las tarjetas')
 paso('Descargue el PDF del cuadre desde la pestaña «Cierres», y revise la pestaña «Tarjetas».')
 esperado('El PDF trae lo esperado y lo declarado, el efectivo billete por billete, los movimientos y las correcciones. En '
          'Tarjetas se ve el lote del O4 con su diferencia y las aprobaciones que aparecen de un solo lado.')

@@ -79,6 +79,21 @@ public sealed class ClienteCuadre(IHttpClientFactory fabricaHttp)
     public Task<IReadOnlyList<DatosMovimientoTurno>> MovimientosAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default) =>
         ListarAsync<DatosMovimientoTurno>($"api/cuadre/movimientos?sucursalId={sucursalId}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}", cancelacion);
 
+    /// <summary>Cuánto estuvieron paradas las cajas de la sucursal en el período, y por qué.</summary>
+    public async Task<DatosTiemposParada?> TiemposParadaAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default)
+    {
+        using var http = Crear();
+        try
+        {
+            return await http.GetFromJsonAsync<DatosTiemposParada>(
+                $"api/cuadre/tiempos-parada?sucursalId={sucursalId}&desde={desde:yyyy-MM-dd}&hasta={hasta:yyyy-MM-dd}", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>El cuadre de un cierre en PDF, para volver a imprimirlo.</summary>
     public async Task<(string Nombre, string TipoContenido, byte[] Contenido)?> DescargarCuadreAsync(int cierreId, int sucursalId,
         CancellationToken cancelacion = default)

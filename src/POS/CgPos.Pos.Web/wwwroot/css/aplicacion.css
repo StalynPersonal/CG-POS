@@ -214,6 +214,24 @@
     .cg-turno__formulario { grid-template-columns: 1fr; }
 }
 
+/* ---------- Caja suspendida ---------- */
+/* El cronómetro se lee desde lejos: es lo que mira el supervisor al pasar por la caja parada. */
+.cg-suspension__conteo {
+    font-size: clamp(4rem, 14vw, 9rem);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    color: var(--cg-primario-oscuro);
+    text-align: center;
+}
+
+.cg-suspension__linea { text-align: center; margin-top: 8px; }
+
+/* Un motivo por botón, tan grandes como el dedo del cajero. */
+.cg-motivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.cg-motivos__boton { min-height: var(--cg-toque-minimo); font-size: 1.05rem; }
+
 /* ---------- Pantalla de venta ---------- */
 .cg-venta {
     display: flex;

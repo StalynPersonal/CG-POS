@@ -211,6 +211,22 @@ public static class DefinicionesCatalogos
             Icons.Material.Filled.AssignmentReturn,
             [CodigoNumerico(), Nombre, Estado()]),
 
+        new("motivos-suspension", "Motivos de caja parada", "Nuevo motivo",
+            "Por qué el cajero deja la caja sola. Alimenta el reporte de tiempos de caja parada.",
+            Icons.Material.Filled.Timer,
+            [
+                CodigoNumerico(), Nombre,
+                new("programado", "Tiempo previsto", TipoCampoCatalogo.Booleano)
+                {
+                    Ayuda = "El almuerzo y el receso sí; el baño y una emergencia no. El reporte los cuenta aparte.",
+                },
+                new("exigeNota", "Pide explicación", TipoCampoCatalogo.Booleano)
+                {
+                    Ayuda = "El cajero tiene que escribir en qué consistió. Para el motivo «Otro».",
+                },
+                Estado(),
+            ]),
+
         new("niveles-fidelidad", "Niveles de fidelidad", "Nuevo nivel", "Categorías del programa: el factor multiplica los puntos que acumula el cliente.",
             Icons.Material.Filled.MilitaryTech,
             [

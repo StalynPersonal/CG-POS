@@ -35,7 +35,7 @@ else if (_venta is null)
 }
 else if (_suspendida)
 {
-    <PanelSuspension CodigoUsuario="@(Almacen.Sesion?.Codigo ?? string.Empty)" NombreUsuario="@Almacen.Sesion?.Nombre" CajaCodigo="@Almacen.Sesion?.CajaCodigo"
+    <PanelSuspension CodigoUsuario="@(Almacen.Sesion?.Codigo ?? string.Empty)" NombreUsuario="@Almacen.Sesion?.Nombre"
                      AlReanudar="ReanudarAsync" AlSalir="SalirAsync" />
 }
 else
@@ -1153,7 +1153,13 @@ else
 
     private async Task SuspenderAsync()
     {
-        var respuesta = await EjecutarConAutorizacionAsync(autorizacion => Cliente.SuspenderCajaAsync(autorizacion), "Suspender las operaciones de la caja");
+        // Primero por qué se deja la caja: con el motivo elegido se pide la autorización, no al revés.
+        if (await MostrarDialogoAsync<DialogoMotivoSuspension, DialogoMotivoSuspension.Eleccion>("¿Por qué deja la caja?", [], MaxWidth.Small) is not { } eleccion)
+            return;
+
+        var respuesta = await EjecutarConAutorizacionAsync(
+            autorizacion => Cliente.SuspenderCajaAsync(eleccion.MotivoCodigo, eleccion.Nota, autorizacion),
+            "Suspender las operaciones de la caja");
         if (respuesta is { Exitosa: true })
         {
             _suspendida = true;

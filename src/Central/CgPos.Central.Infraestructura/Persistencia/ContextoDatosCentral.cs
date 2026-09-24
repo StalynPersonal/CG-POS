@@ -52,6 +52,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();
 
+    /// <summary>Los ratos de caja parada que informaron las cajas, para el reporte de tiempos.</summary>
+    public DbSet<CgPos.Dominio.Reportes.SuspensionCajaCentral> SuspensionesCaja => Set<CgPos.Dominio.Reportes.SuspensionCajaCentral>();
+
     /// <summary>Correcciones hechas desde el Central sobre un cierre de caja.</summary>
     public DbSet<CgPos.Dominio.Reportes.AjusteCierreTurno> AjustesCierreTurno => Set<CgPos.Dominio.Reportes.AjusteCierreTurno>();
 
@@ -75,6 +78,9 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Promociones.MotivoDescuento> MotivosDescuento => Set<CgPos.Dominio.Promociones.MotivoDescuento>();
     public DbSet<CgPos.Dominio.Promociones.TopeDescuento> TopesDescuento => Set<CgPos.Dominio.Promociones.TopeDescuento>();
     public DbSet<CgPos.Dominio.Fiscal.SecuenciaEcf> SecuenciasEcf => Set<CgPos.Dominio.Fiscal.SecuenciaEcf>();
+    /// <summary>Por qué el cajero deja la caja sola; baja a las cajas y alimenta el reporte de tiempos.</summary>
+    public DbSet<CgPos.Dominio.Turnos.MotivoSuspension> MotivosSuspension => Set<CgPos.Dominio.Turnos.MotivoSuspension>();
+
     public DbSet<CgPos.Dominio.Devoluciones.MotivoDevolucion> MotivosDevolucion => Set<CgPos.Dominio.Devoluciones.MotivoDevolucion>();
     public DbSet<CgPos.Dominio.Fidelidad.NivelFidelidad> NivelesFidelidad => Set<CgPos.Dominio.Fidelidad.NivelFidelidad>();
     public DbSet<CgPos.Dominio.Fidelidad.ReglaAcumulacion> ReglasAcumulacion => Set<CgPos.Dominio.Fidelidad.ReglaAcumulacion>();

@@ -12,6 +12,9 @@ public static class TiposMensaje
     public const string TurnoCerrado = "Caja.TurnoCerrado";
     public const string RetiroEfectivo = "Caja.RetiroEfectivo";
     public const string RelevoCajero = "Caja.RelevoCajero";
+
+    /// <summary>Un rato de caja parada ya cerrado, para el reporte de tiempos del Central.</summary>
+    public const string SuspensionCaja = "Caja.Suspension";
     public const string PendienteCreado = "Entregas.PendienteCreado";
     public const string PendienteActualizado = "Entregas.PendienteActualizado";
     public const string MovimientoPuntos = "Fidelidad.MovimientoPuntos";

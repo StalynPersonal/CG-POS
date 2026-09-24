@@ -33,7 +33,8 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<MiembroFidelidadCarga>? MiembrosFidelidad = null,
     IReadOnlyList<DescuentoTarjetaCarga>? DescuentosTarjeta = null,
     IReadOnlyList<CategoriaCarga>? Categorias = null,
-    IReadOnlyList<MarcaCarga>? Marcas = null);
+    IReadOnlyList<MarcaCarga>? Marcas = null,
+    IReadOnlyList<MotivoSuspensionCarga>? MotivosSuspension = null);
 
 /// <summary>Descuento del banco al pagar con ciertas tarjetas, identificadas por su BIN (RF-98).</summary>
 public sealed record DescuentoTarjetaCarga(
@@ -90,6 +91,11 @@ public sealed record DatosMoneda(string Codigo, string Nombre, string Simbolo);
 
 /// <summary>Motivo seleccionable de devolución (RF-232).</summary>
 public sealed record MotivoDevolucionCarga(int Codigo, string Nombre, bool Activo = true);
+
+/// <summary>Por qué el cajero deja la caja sola (RF-23); alimenta el reporte de tiempos de caja parada.</summary>
+/// <param name="Programado">Tiempo previsto, como el almuerzo: en el reporte no cuenta igual que una parada imprevista.</param>
+/// <param name="ExigeNota">Pide escribir en qué consistió; para el motivo «Otro».</param>
+public sealed record MotivoSuspensionCarga(int Codigo, string Nombre, bool Programado = false, bool ExigeNota = false, bool Activo = true);
 
 /// <summary>
 /// Rango de e-CF que el Central asigna a una caja (RF-28). Se identifica por su tipo y su inicio: un e-NCF es único en la empresa y los rangos no se

@@ -214,6 +214,42 @@ internal sealed class ServicioCierresCaja(ContextoDatosCentral contexto, IAudito
             .ToList();
     }
 
+    public async Task<DatosTiemposParada> TiemposParadaAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default)
+    {
+        var paradas = await contexto.SuspensionesCaja.AsNoTracking()
+            .Where(s => s.SucursalId == sucursalId && s.FechaOperacion >= desde && s.FechaOperacion <= hasta)
+            .ToListAsync(cancelacion);
+        if (paradas.Count == 0)
+            return new DatosTiemposParada(0, 0, 0, 0, [], [], [], []);
+
+        var cajas = await contexto.Cajas.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Codigo, cancelacion);
+
+        // Los minutos se redondean por parada, no al final: así el detalle suma exactamente lo mismo que el total.
+        var detalle = paradas
+            .Select(s => new DatosParadaCaja(s.FechaOperacion, cajas.GetValueOrDefault(s.CajaId) ?? string.Empty, s.TurnoNumero, s.UsuarioNombre,
+                s.MotivoNombre, s.Programado, s.Nota, s.SuspendidaEn, s.ReanudadaEn, (int)Math.Round(s.Segundos / 60d), s.CerradaPorCierreDeTurno))
+            .OrderByDescending(p => p.SuspendidaEn)
+            .ToList();
+
+        return new DatosTiemposParada(
+            detalle.Count,
+            detalle.Sum(p => p.Minutos),
+            detalle.Where(p => p.Programado).Sum(p => p.Minutos),
+            detalle.Where(p => !p.Programado).Sum(p => p.Minutos),
+            Agrupar(detalle, p => p.CajaCodigo),
+            Agrupar(detalle, p => p.UsuarioNombre),
+            Agrupar(detalle, p => p.MotivoNombre),
+            detalle);
+    }
+
+    /// <summary>El mismo total visto por caja, por cajera o por motivo: el reporte los muestra uno al lado del otro.</summary>
+    private static IReadOnlyList<DatosTotalParada> Agrupar(IEnumerable<DatosParadaCaja> paradas, Func<DatosParadaCaja, string> clave) =>
+        paradas.GroupBy(clave)
+            .Select(g => new DatosTotalParada(g.Key, g.Count(), g.Sum(p => p.Minutos),
+                g.Where(p => p.Programado).Sum(p => p.Minutos), g.Where(p => !p.Programado).Sum(p => p.Minutos)))
+            .OrderByDescending(t => t.Minutos)
+            .ToList();
+
     public async Task<ArchivoReporte?> CuadreEnPdfAsync(int cierreId, int? sucursalId, CancellationToken cancelacion = default)
     {
         var cierre = await contexto.CierresTurno.AsNoTracking()

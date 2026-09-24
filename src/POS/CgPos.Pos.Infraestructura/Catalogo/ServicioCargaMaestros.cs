@@ -196,6 +196,10 @@ internal sealed class ServicioCargaMaestros(
                 entrada.Property<string>(Persistencia.Configuraciones.CodigosSecuenciaEcf.Sucursal).CurrentValue = d.SucursalCodigo.Trim();
                 entrada.Property<string>(Persistencia.Configuraciones.CodigosSecuenciaEcf.Caja).CurrentValue = d.CajaCodigo.Trim();
             }
+            foreach (var d in paquete.MotivosSuspension ?? [])
+                await AplicarAsync(contexto.MotivosSuspension, e => e.Codigo == d.Codigo,
+                    () => CgPos.Dominio.Turnos.MotivoSuspension.Crear(d.Codigo, d.Nombre, d.Programado, d.ExigeNota),
+                    e => e.Actualizar(d.Nombre, d.Programado, d.ExigeNota, d.Activo), cancelacion);
             foreach (var d in paquete.MotivosDevolucion ?? [])
                 await AplicarAsync(contexto.MotivosDevolucion, e => e.Codigo == d.Codigo, () => MapeoMaestros.Crear(d), e => MapeoMaestros.Actualizar(e, d), cancelacion);
             foreach (var d in paquete.NivelesFidelidad ?? [])

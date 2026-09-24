@@ -124,6 +124,28 @@ internal sealed class CierreTurnoCentralConfiguracion : IEntityTypeConfiguration
     }
 }
 
+/// <summary>Los ratos de caja parada informados por las cajas (RF-23).</summary>
+internal sealed class SuspensionCajaCentralConfiguracion : IEntityTypeConfiguration<SuspensionCajaCentral>
+{
+    public void Configure(EntityTypeBuilder<SuspensionCajaCentral> constructor)
+    {
+        constructor.ToTable("SuspensionesCaja");
+        constructor.HasKey(s => s.Id);
+        constructor.Property(s => s.UsuarioNombre).HasMaxLength(SuspensionCajaCentral.LargoMaximoTexto).IsRequired();
+        constructor.Property(s => s.MotivoNombre).HasMaxLength(SuspensionCajaCentral.LargoMaximoTexto).IsRequired();
+        constructor.Property(s => s.Nota).HasMaxLength(SuspensionCajaCentral.LargoMaximoNota);
+
+        constructor.HasOne<Caja>().WithMany().HasForeignKey(s => s.CajaId).OnDelete(DeleteBehavior.Restrict);
+        constructor.HasOne<Sucursal>().WithMany().HasForeignKey(s => s.SucursalId).OnDelete(DeleteBehavior.Restrict);
+
+        // El reporte se pide por sucursal y rango de fechas.
+        constructor.HasIndex(s => new { s.FechaOperacion, s.SucursalId, s.CajaId });
+
+        // Un reenvío de la misma suspensión actualiza la fila en vez de duplicarla.
+        constructor.HasIndex(s => new { s.CajaId, s.Numero }).IsUnique();
+    }
+}
+
 /// <summary>El efectivo que contó el supervisor al cuadrar, denominación por denominación.</summary>
 internal sealed class CierreDenominacionCentralConfiguracion : IEntityTypeConfiguration<CierreDenominacionCentral>
 {

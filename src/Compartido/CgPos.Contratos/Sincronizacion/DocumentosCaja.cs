@@ -189,6 +189,25 @@ public sealed record DocumentoConsumoSecuenciaEcf(
     bool Agotada,
     DateTimeOffset InformadoEn);
 
+/// <summary>
+/// Mensaje <c>Caja.Suspension</c>: un rato de caja parada ya cerrado. Se manda al reanudar (o al cerrar el turno, si nadie volvió),
+/// nunca mientras sigue abierto: al Central le sirve el tiempo completo, no el que va corriendo.
+/// </summary>
+/// <param name="Numero">El identificador de la suspensión en esa caja; con la caja forma la llave que evita duplicarla.</param>
+/// <param name="CerradaPorCierreDeTurno">Nadie volvió a la caja: la cerró el cierre del turno.</param>
+public sealed record DocumentoSuspensionCaja(
+    int Numero,
+    long TurnoNumero,
+    DateOnly FechaOperacion,
+    string UsuarioNombre,
+    int? MotivoCodigo,
+    string MotivoNombre,
+    bool Programado,
+    string? Nota,
+    DateTimeOffset SuspendidaEn,
+    DateTimeOffset ReanudadaEn,
+    bool CerradaPorCierreDeTurno);
+
 /// <summary>Mensajes <c>Caja.RetiroEfectivo</c> y <c>Caja.RelevoCajero</c>.</summary>
 public sealed record DocumentoMovimientoCaja(long TurnoNumero, DocumentoMovimientoTurno Movimiento);
 

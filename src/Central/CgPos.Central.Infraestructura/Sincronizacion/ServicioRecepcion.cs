@@ -14,6 +14,7 @@ using CgPos.Dominio.Seguridad;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Entregas;
 using CgPos.Dominio.Fiscal;
+using CgPos.Dominio.Reportes;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -92,6 +93,8 @@ internal sealed class ServicioRecepcion(
             await RegistrarIngresoUsuarioAsync(documento, cancelacion);
         else if (mensaje.TipoMensaje == TiposMensaje.ConsumoSecuenciaEcf)
             await RegistrarConsumoSecuenciaAsync(documento, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.SuspensionCaja)
+            await RegistrarSuspensionAsync(documento, cancelacion);
 
         estado.RegistrarRecepcion(ahora);
 
@@ -225,6 +228,34 @@ internal sealed class ServicioRecepcion(
             s => s.CajaId == documento.CajaId && s.TipoComprobante == consumo.TipoComprobante && s.Desde == consumo.Desde, cancelacion);
 
         rango?.RegistrarConsumoDeLaCaja(consumo.Ultimo);
+    }
+
+    /// <summary>Guarda el rato de caja parada para el reporte de tiempos; un reenvío actualiza la fila, no la duplica.</summary>
+    private async Task RegistrarSuspensionAsync(DocumentoRecibido documento, CancellationToken cancelacion)
+    {
+        DocumentoSuspensionCaja? suspension = null;
+        try
+        {
+            suspension = JsonSerializer.Deserialize<DocumentoSuspensionCaja>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (suspension is null || suspension.Numero <= 0)
+            return;
+
+        var informada = new SuspensionInformada(suspension.Numero, suspension.TurnoNumero, suspension.FechaOperacion, suspension.UsuarioNombre,
+            suspension.MotivoCodigo, suspension.MotivoNombre, suspension.Programado, suspension.Nota,
+            suspension.SuspendidaEn, suspension.ReanudadaEn, suspension.CerradaPorCierreDeTurno);
+
+        var existente = await contexto.SuspensionesCaja.SingleOrDefaultAsync(
+            s => s.CajaId == documento.CajaId && s.Numero == suspension.Numero, cancelacion);
+
+        if (existente is null)
+            contexto.SuspensionesCaja.Add(SuspensionCajaCentral.Registrar(documento.SucursalId, documento.CajaId, informada));
+        else
+            existente.Actualizar(informada);
     }
 
     private async Task RegistrarIngresoUsuarioAsync(DocumentoRecibido documento, CancellationToken cancelacion)

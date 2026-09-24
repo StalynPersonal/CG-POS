@@ -18,6 +18,7 @@ public enum TipoMaestro
     TasaCambio,
     SecuenciaEcf,
     MotivoDevolucion,
+    MotivoSuspension,
     NivelFidelidad,
     ReglaAcumulacion,
     MiembroFidelidad,

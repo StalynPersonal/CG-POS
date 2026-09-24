@@ -1431,7 +1431,45 @@ internal sealed class ServicioVentas(
         return Correcta(retomada);
     }
 
-    public async Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default)
+    public async Task<IReadOnlyList<DatosMotivoSuspension>> ListarMotivosSuspensionAsync(CancellationToken cancelacion = default) =>
+        await contexto.MotivosSuspension.AsNoTracking()
+            .Where(m => m.Activo)
+            .OrderBy(m => m.Codigo)
+            .Select(m => new DatosMotivoSuspension(m.Codigo, m.Nombre, m.Programado, m.ExigeNota))
+            .ToListAsync(cancelacion);
+
+    public async Task<DatosSuspension?> SuspensionAbiertaAsync(SesionUsuario sesion, CancellationToken cancelacion = default) =>
+        await contexto.SuspensionesCaja.AsNoTracking()
+            .Where(s => s.CajaId == sesion.CajaId && s.ReanudadaEn == null)
+            .OrderByDescending(s => s.SuspendidaEn)
+            .Select(s => new DatosSuspension(s.Id, s.MotivoCodigo, s.MotivoNombre, s.Nota, s.UsuarioNombre, s.SuspendidaEn))
+            .FirstOrDefaultAsync(cancelacion);
+
+    /// <summary>Cierra el rato parado. Quien reanuda ya demostró su clave en el ingreso, así que aquí no se pide de nuevo.</summary>
+    public async Task ReanudarAsync(SesionUsuario sesion, CancellationToken cancelacion = default)
+    {
+        var abiertas = await contexto.SuspensionesCaja.Where(s => s.CajaId == sesion.CajaId && s.ReanudadaEn == null).ToListAsync(cancelacion);
+        if (abiertas.Count == 0)
+            return;
+
+        var ahora = reloj.Ahora();
+        var fechaOperacion = await contexto.Turnos.AsNoTracking()
+            .Where(t => t.Id == abiertas[0].TurnoId).Select(t => t.FechaOperacion).FirstOrDefaultAsync(cancelacion);
+
+        foreach (var suspension in abiertas)
+        {
+            suspension.Reanudar(ahora);
+            AvisoSuspensiones.Encolar(bandejaSalida, suspension, fechaOperacion);
+        }
+
+        auditoria.Registrar(new EntradaAuditoria("Caja.OperacionesReanudadas", "Caja", sesion.CajaCodigo,
+            Detalle: new { Minutos = abiertas.Sum(s => s.Duracion(ahora).TotalMinutes) },
+            Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre)));
+        await contexto.SaveChangesAsync(cancelacion);
+    }
+
+    public async Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, int? motivoCodigo, string? nota, Guid? autorizacionId,
+        CancellationToken cancelacion = default)
     {
         var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.SuspenderVenta, autorizacionId, "Caja", sesion.CajaCodigo, cancelacion);
         if (!permiso.Permitido)
@@ -1441,7 +1479,20 @@ internal sealed class ServicioVentas(
                 : new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "Suspender operaciones requiere autorización de un supervisor.", null, CatalogoPermisos.SuspenderVenta);
         }
 
+        var motivo = motivoCodigo is { } codigo
+            ? await contexto.MotivosSuspension.FirstOrDefaultAsync(m => m.Codigo == codigo && m.Activo, cancelacion)
+            : null;
+
+        if (motivo is { ExigeNota: true } && string.IsNullOrWhiteSpace(nota))
+            return new RespuestaVenta(CodigoResultadoVenta.MotivoRequerido, $"El motivo «{motivo.Nombre}» pide que escriba en qué consistió.", null);
+
+        // El turno es lo que ata el rato parado a la jornada y a la cajera; sin turno abierto no hay nada que medir.
+        var turno = await contexto.Turnos.FirstOrDefaultAsync(t => t.CajaId == sesion.CajaId && t.Estado == EstadoTurno.Abierto, cancelacion);
+        if (turno is not null)
+            contexto.SuspensionesCaja.Add(SuspensionCaja.Registrar(turno, sesion.UsuarioId, sesion.Nombre, motivo, nota, reloj.Ahora()));
+
         auditoria.Registrar(new EntradaAuditoria("Caja.OperacionesSuspendidas", "Caja", sesion.CajaCodigo,
+            Detalle: new { Motivo = motivo?.Nombre ?? "Sin motivo", Nota = nota },
             Motivo: permiso.Motivo,
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
             AutorizadoPor: Autorizador(permiso)));

@@ -192,6 +192,10 @@ CREATE SEQUENCE [SecuenciaMotivosDevolucion] AS int START WITH 1 INCREMENT BY 1 
 GO
 
 
+CREATE SEQUENCE [SecuenciaMotivosSuspension] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
 CREATE SEQUENCE [SecuenciaMovimientosCaja] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -237,6 +241,10 @@ GO
 
 
 CREATE SEQUENCE [SecuenciaSucursales] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+GO
+
+
+CREATE SEQUENCE [SecuenciaSuspensionesCaja] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -574,6 +582,18 @@ CREATE TABLE [MotivosDevolucion] (
     [Nombre] nvarchar(100) NOT NULL,
     [Activo] bit NOT NULL,
     CONSTRAINT [PK_MotivosDevolucion] PRIMARY KEY ([Id])
+);
+GO
+
+
+CREATE TABLE [MotivosSuspension] (
+    [Id] int NOT NULL,
+    [Codigo] int NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Programado] bit NOT NULL,
+    [ExigeNota] bit NOT NULL,
+    [Activo] bit NOT NULL,
+    CONSTRAINT [PK_MotivosSuspension] PRIMARY KEY ([Id])
 );
 GO
 
@@ -1101,6 +1121,26 @@ CREATE TABLE [MovimientosCaja] (
     [Fecha] datetimeoffset(3) NOT NULL,
     CONSTRAINT [PK_MovimientosCaja] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_MovimientosCaja_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [SuspensionesCaja] (
+    [Id] int NOT NULL,
+    [CajaId] int NOT NULL,
+    [TurnoId] int NOT NULL,
+    [TurnoNumero] bigint NOT NULL,
+    [UsuarioId] int NOT NULL,
+    [UsuarioNombre] nvarchar(150) NOT NULL,
+    [MotivoCodigo] int NULL,
+    [MotivoNombre] nvarchar(100) NOT NULL,
+    [Programado] bit NOT NULL,
+    [Nota] nvarchar(250) NULL,
+    [SuspendidaEn] datetimeoffset(3) NOT NULL,
+    [ReanudadaEn] datetimeoffset(3) NULL,
+    [CerradaPorCierreDeTurno] bit NOT NULL,
+    CONSTRAINT [PK_SuspensionesCaja] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_SuspensionesCaja_Turnos_TurnoId] FOREIGN KEY ([TurnoId]) REFERENCES [Turnos] ([Id]) ON DELETE NO ACTION
 );
 GO
 
@@ -1953,6 +1993,10 @@ CREATE UNIQUE INDEX [IX_MotivosDevolucion_Codigo] ON [MotivosDevolucion] ([Codig
 GO
 
 
+CREATE UNIQUE INDEX [IX_MotivosSuspension_Codigo] ON [MotivosSuspension] ([Codigo]);
+GO
+
+
 CREATE UNIQUE INDEX [IX_MovimientosCaja_TurnoId_Tipo_Numero] ON [MovimientosCaja] ([TurnoId], [Tipo], [Numero]);
 GO
 
@@ -2038,6 +2082,10 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_Sucursales_EmpresaId_Codigo] ON [Sucursales] ([EmpresaId], [Codigo]);
+GO
+
+
+CREATE INDEX [IX_SuspensionesCaja_TurnoId_ReanudadaEn] ON [SuspensionesCaja] ([TurnoId], [ReanudadaEn]);
 GO
 
 

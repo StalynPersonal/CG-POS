@@ -180,8 +180,23 @@ public static class RutasApiVentas
         api.MapPost("/caja/gaveta", (SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioCobro servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.AbrirGavetaAsync(sesion, solicitud.AutorizacionId, cancelacion))));
 
-        api.MapPost("/caja/suspender", (SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.SuspenderAsync(sesion, solicitud.AutorizacionId, cancelacion))));
+        api.MapPost("/caja/suspender", (SolicitudSuspenderCaja solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion =>
+                Resultado(await servicio.SuspenderAsync(sesion, solicitud.MotivoCodigo, solicitud.Nota, solicitud.AutorizacionId, cancelacion))));
+
+        // Los motivos y el rato parado que sigue abierto: con eso la pantalla bloqueada muestra por qué y desde cuándo.
+        api.MapGet("/caja/motivos-suspension", async (IServicioVentas servicio, CancellationToken cancelacion) =>
+            Results.Ok(await servicio.ListarMotivosSuspensionAsync(cancelacion)));
+
+        api.MapGet("/caja/suspension", (ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Results.Ok(await servicio.SuspensionAbiertaAsync(sesion, cancelacion))));
+
+        api.MapPost("/caja/reanudar", (ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion =>
+            {
+                await servicio.ReanudarAsync(sesion, cancelacion);
+                return Results.Ok();
+            }));
 
         api.MapGet("/sincronizacion/estado", async (IEstadoSincronizacion estado, CancellationToken cancelacion) =>
             Results.Ok(await estado.ObtenerAsync(cancelacion)));

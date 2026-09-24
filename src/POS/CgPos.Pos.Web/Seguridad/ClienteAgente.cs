@@ -200,8 +200,45 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> RetomarVentaAsync(int ventaId, string? referenciaActual, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/retomar", new SolicitudRetomarVenta(referenciaActual), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> SuspenderCajaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, "api/caja/suspender", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+    public Task<RespuestaVenta> SuspenderCajaAsync(int? motivoCodigo, string? nota, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, "api/caja/suspender", new SolicitudSuspenderCaja(motivoCodigo, nota, autorizacionId), ErrorVenta, cancelacion);
+
+    /// <summary>Los motivos por los que se puede dejar la caja sola; los configura el negocio en el Central.</summary>
+    public async Task<IReadOnlyList<DatosMotivoSuspension>> ListarMotivosSuspensionAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosMotivoSuspension>>("api/caja/motivos-suspension", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>El rato parado que sigue abierto, para el cronómetro de la pantalla bloqueada.</summary>
+    public async Task<DatosSuspension?> ObtenerSuspensionAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<DatosSuspension>("api/caja/suspension", OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task ReanudarCajaAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.PostAsync("api/caja/reanudar", content: null, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+        }
+    }
 
     // ---------- Cobro y periféricos (C6) ----------
 

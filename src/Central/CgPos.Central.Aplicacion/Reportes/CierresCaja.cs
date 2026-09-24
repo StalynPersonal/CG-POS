@@ -37,6 +37,9 @@ public interface IServicioCierresCaja
     /// <summary>Retiros, reembolsos y relevos de los turnos del período, con motivo y quién autorizó.</summary>
     Task<IReadOnlyList<DatosMovimientoTurno>> MovimientosAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default);
 
+    /// <summary>Cuánto estuvieron paradas las cajas de la sucursal en el período, y por qué (RF-23).</summary>
+    Task<DatosTiemposParada> TiemposParadaAsync(int sucursalId, DateOnly desde, DateOnly hasta, CancellationToken cancelacion = default);
+
     /// <summary>
     /// El cuadre de un cierre en PDF carta, para volver a imprimirlo; nulo si el cierre no existe o no es de esa sucursal.
     /// </summary>

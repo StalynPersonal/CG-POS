@@ -24,6 +24,37 @@ internal sealed class MovimientoCajaConfiguracion : IEntityTypeConfiguration<Mov
     }
 }
 
+/// <summary>Los motivos por los que una caja se queda sola; bajan del Central como los demás catálogos.</summary>
+internal sealed class MotivoSuspensionConfiguracion : IEntityTypeConfiguration<MotivoSuspension>
+{
+    public void Configure(EntityTypeBuilder<MotivoSuspension> constructor)
+    {
+        constructor.ToTable("MotivosSuspension");
+        constructor.HasKey(m => m.Id);
+        constructor.Property(m => m.Nombre).HasMaxLength(MotivoSuspension.LargoMaximoNombre).IsRequired();
+        constructor.HasIndex(m => m.Codigo).IsUnique();
+    }
+}
+
+/// <summary>Cada rato que la caja estuvo parada, con su motivo y su duración.</summary>
+internal sealed class SuspensionCajaConfiguracion : IEntityTypeConfiguration<SuspensionCaja>
+{
+    public void Configure(EntityTypeBuilder<SuspensionCaja> constructor)
+    {
+        constructor.ToTable("SuspensionesCaja");
+        constructor.HasKey(s => s.Id);
+        constructor.Property(s => s.UsuarioNombre).HasMaxLength(Turno.LargoMaximoUsuario).IsRequired();
+        constructor.Property(s => s.MotivoNombre).HasMaxLength(MotivoSuspension.LargoMaximoNombre).IsRequired();
+        constructor.Property(s => s.Nota).HasMaxLength(SuspensionCaja.LargoMaximoNota);
+        constructor.Ignore(s => s.Abierta);
+
+        constructor.HasOne<Turno>().WithMany().HasForeignKey(s => s.TurnoId).OnDelete(DeleteBehavior.Restrict);
+
+        // La que está abierta se busca en cada pantalla bloqueada; las del turno, al cerrarlo y para el reporte.
+        constructor.HasIndex(s => new { s.TurnoId, s.ReanudadaEn });
+    }
+}
+
 internal sealed class CierreTurnoConfiguracion : IEntityTypeConfiguration<CierreTurno>
 {
     public void Configure(EntityTypeBuilder<CierreTurno> constructor)
