@@ -37,6 +37,9 @@ internal sealed class DescargaMaestros(
         var desde = await MarcaAsync(cancelacion);
         var (creados, actualizados, paginas) = (0, 0, 0);
 
+        // Dónde terminó la tanda anterior, para saber si la bajada avanza de verdad.
+        var anterior = 0L;
+
         // La cuenta se pide una sola vez, en la primera tanda, y se arrastra por todas: así la pantalla dice «Clientes
         // 2,000 de 705,706» y el número sube, en vez de reiniciarse con cada tanda.
         var cuenta = new AvanceMaestros();
@@ -61,14 +64,19 @@ internal sealed class DescargaMaestros(
                 return pagina with { Creados = creados, Actualizados = actualizados };
             }
 
-            // El Central cortó el rango porque no cabía: se sigue desde donde quedó. Si no avanzó, se corta aquí en vez de
-            // quedarse pidiendo lo mismo para siempre; el próximo ciclo lo vuelve a intentar.
-            if (pagina.Hasta <= desde)
+            // El Central cortó el rango porque no cabía: se sigue desde donde quedó. Lo que no puede pasar es que dos
+            // tandas seguidas terminen en la misma versión; ahí sí se corta, en vez de pedir lo mismo para siempre.
+            //
+            // Se compara contra la tanda anterior y no contra lo que se pidió: cuando el Central atiende un «volver a
+            // sincronizar», responde desde la versión 0, mucho más abajo de lo pedido, y eso es justamente lo correcto.
+            if (paginas > 1 && pagina.Hasta == anterior)
             {
-                registro.LogWarning("El Central dice que falta más pero no avanzó de la versión {Desde}: se deja para el próximo ciclo.", desde);
+                registro.LogWarning("El Central dice que falta más pero no avanzó de la versión {Version}: se deja para el próximo ciclo.", pagina.Hasta);
                 progreso.Terminar(null);
                 return pagina with { Creados = creados, Actualizados = actualizados };
             }
+
+            anterior = pagina.Hasta;
 
             desde = pagina.Hasta;
             progreso.Etapa($"Actualizando la caja con los datos del Central (parte {paginas + 1})");
@@ -140,7 +148,9 @@ internal sealed class DescargaMaestros(
             return new ResultadoDescargaMaestros(false, desde, 0, 0, excepcion.Message);
         }
 
-        if (paquete.Hasta > desde)
+        // Se guarda siempre que cambie, también hacia atrás: cuando el Central atiende un «volver a sincronizar» responde
+        // desde la versión 0, y la caja tiene que quedarse ahí para seguir bajándolo todo desde ese punto.
+        if (paquete.Hasta != desde)
         {
             // Se lee aquí, después de aplicar: aplicar suelta lo que el contexto llevaba rastreado, y una marca leída antes
             // se quedaría desconectada y su cambio no se guardaría. Sin marca la caja volvería a bajar lo mismo sin fin.
@@ -156,7 +166,7 @@ internal sealed class DescargaMaestros(
         if (creados + actualizados > 0)
             registro.LogInformation("Maestros del Central aplicados hasta la versión {Hasta}: {Creados} creados, {Actualizados} actualizados", paquete.Hasta, creados, actualizados);
 
-        return new ResultadoDescargaMaestros(true, Math.Max(desde, paquete.Hasta), creados, actualizados, null, paquete.Completo);
+        return new ResultadoDescargaMaestros(true, paquete.Hasta, creados, actualizados, null, paquete.Completo);
     }
 
     /// <summary>

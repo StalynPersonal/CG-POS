@@ -1745,6 +1745,16 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(sinCambios.Descargado);
         Assert.Equal(desde + 600, await MarcaAsync());
 
+        // «Volver a sincronizar esta caja»: el Central responde desde la versión 0, muy por debajo de lo que la caja pidió,
+        // y la caja tiene que quedarse ahí para seguir bajándolo todo desde ese punto. Si la marca no retrocede, lo aplicado
+        // se pierde y la caja vuelve a creerse al día.
+        var desdeCero = await DescargarAsync(new PaqueteBajadaMaestros(0, 120, null, new PaqueteMaestros(Departamentos: [departamento])));
+        Assert.True(desdeCero.Descargado, desdeCero.Error);
+        Assert.Equal(120, await MarcaAsync());
+        Assert.Equal(120, desdeCero.Version);
+
+        await DescargarAsync(new PaqueteBajadaMaestros(120, desde + 600, null, null));
+
         // El Central devuelve el resultado que la DGII dio al e-CF: la caja lo aplica a su documento y lo alerta al cajero.
         var ventaCobrada = (await caja.CobrarCincelEnEfectivoAsync()).Venta!.Id;
         var encf = await caja.EjecutarAsync<ContextoDatosPos, string>(contexto =>
