@@ -40,11 +40,16 @@ internal sealed class ServicioCargaMaestros(
     private readonly Dictionary<string, CgPos.Dominio.Clientes.Cliente> _clientes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Los códigos que la caja ya tiene, pedidos de una sola vez. Sin esto cada registro del paquete pregunta a la base
-    /// si existe, y en la primera carga de una caja son más de medio millón de preguntas cuya respuesta siempre es no.
+    /// De los códigos que trae esta tanda, cuáles ya están en la caja. Sin esto cada registro del paquete pregunta a la
+    /// base si existe, y en la primera carga de una caja son más de medio millón de preguntas cuya respuesta siempre es no.
+    /// Se pregunta solo por los de la tanda: preguntar por el maestro entero era leer cientos de miles de filas para
+    /// aplicar dos mil, y cada tanda salía más lenta que la anterior.
     /// </summary>
     private HashSet<string> _articulosEnLaCaja = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _clientesEnLaCaja = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Cuántos códigos se preguntan por consulta: el tope de una lista IN de SQL Server es 2,100 parámetros.</summary>
+    private const int CodigosPorConsulta = 1_000;
 
     public async Task<ResultadoCargaMaestros> AplicarDesdeArchivoAsync(string ruta, CancellationToken cancelacion = default)
     {
@@ -120,8 +125,8 @@ internal sealed class ServicioCargaMaestros(
             {
                 registro.LogInformation("Aplicando {Total} artículos del paquete de maestros ({Origen}).", articulos.Count, origen);
                 progreso.Etapa("Actualizando la caja con artículos y precios");
-                _articulosEnLaCaja = (await contexto.Articulos.AsNoTracking().Select(a => a.Codigo).ToListAsync(cancelacion))
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                _articulosEnLaCaja = await CodigosYaEnLaCajaAsync(contexto.Articulos.AsNoTracking().Select(a => a.Codigo),
+                    articulos.Select(a => a.Codigo.Trim()), cancelacion);
             }
 
             var hechos = 0;
@@ -145,8 +150,8 @@ internal sealed class ServicioCargaMaestros(
             {
                 registro.LogInformation("Aplicando {Total} clientes del paquete de maestros ({Origen}).", clientes.Count, origen);
                 progreso.Etapa("Actualizando la caja con clientes");
-                _clientesEnLaCaja = (await contexto.Clientes.AsNoTracking().Select(c => c.Codigo).ToListAsync(cancelacion))
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                _clientesEnLaCaja = await CodigosYaEnLaCajaAsync(contexto.Clientes.AsNoTracking().Select(c => c.Codigo),
+                    clientes.Select(c => c.Codigo.Trim().ToUpperInvariant()), cancelacion);
             }
 
             hechos = 0;
@@ -238,6 +243,10 @@ internal sealed class ServicioCargaMaestros(
 
             registro.LogInformation("Maestros aplicados ({Origen}): {Creados} creados, {Actualizados} actualizados, {Precios} precios registrados",
                 origen, resultado.Creados, resultado.Actualizados, resultado.PreciosRegistrados);
+
+            // Lo guardado se suelta. En el aprovisionamiento son cientos de tandas seguidas con el mismo contexto: dejarlas
+            // rastreadas hace que cada guardado recorra todo lo anterior y la carga se va frenando sola.
+            contexto.ChangeTracker.Clear();
             return resultado;
         }
         catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException or DbUpdateException)
@@ -391,6 +400,20 @@ internal sealed class ServicioCargaMaestros(
     }
 
     /// <summary>El código interno, los de barras y los de proveedor identifican a un solo artículo: la caja busca por cualquiera.</summary>
+    /// <summary>Cuáles de estos códigos ya están en la caja, preguntando por bloques y solo por los de la tanda.</summary>
+    private static async Task<HashSet<string>> CodigosYaEnLaCajaAsync(IQueryable<string> enLaCaja, IEnumerable<string> delPaquete,
+        CancellationToken cancelacion)
+    {
+        var existentes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var bloque in delPaquete.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).Chunk(CodigosPorConsulta))
+        {
+            var codigos = bloque.ToList();
+            existentes.UnionWith(await enLaCaja.Where(codigo => codigos.Contains(codigo)).ToListAsync(cancelacion));
+        }
+
+        return existentes;
+    }
+
     private async Task ValidarCodigosArticulosAsync(IReadOnlyList<ArticuloCarga> articulos, CancellationToken cancelacion)
     {
         var errores = new List<string>();

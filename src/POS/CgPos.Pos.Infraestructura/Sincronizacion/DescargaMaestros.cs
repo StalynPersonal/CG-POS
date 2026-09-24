@@ -83,7 +83,6 @@ internal sealed class DescargaMaestros(
 
     private async Task<ResultadoDescargaMaestros> PaginaAsync(long desde, bool pedirTotales, AvanceMaestros cuenta, CancellationToken cancelacion)
     {
-        var marca = await contexto.MarcasSincronizacion.SingleOrDefaultAsync(m => m.Clave == MarcaSincronizacion.VersionMaestros, cancelacion);
         var resultado = await central.DescargarMaestrosAsync(desde, pedirTotales, cancelacion);
         var ahora = reloj.Ahora();
         if (resultado.Paquete is not { } paquete)
@@ -143,6 +142,9 @@ internal sealed class DescargaMaestros(
 
         if (paquete.Hasta > desde)
         {
+            // Se lee aquí, después de aplicar: aplicar suelta lo que el contexto llevaba rastreado, y una marca leída antes
+            // se quedaría desconectada y su cambio no se guardaría. Sin marca la caja volvería a bajar lo mismo sin fin.
+            var marca = await contexto.MarcasSincronizacion.SingleOrDefaultAsync(m => m.Clave == MarcaSincronizacion.VersionMaestros, cancelacion);
             if (marca is null)
                 contexto.MarcasSincronizacion.Add(MarcaSincronizacion.Crear(MarcaSincronizacion.VersionMaestros, paquete.Hasta, ahora));
             else
