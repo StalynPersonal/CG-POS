@@ -60,6 +60,8 @@
         </MudItem>
         <MudItem xs="12" sm="12" md="3" Class="d-flex align-center">
             <MudCheckBox T="bool" @bind-Value="_soloActivos" @bind-Value:after="Filtrar" Label="Solo activos" Color="Color.Primary" Dense="true" />
+            @* El rango agotado no se borra —es la constancia de qué se emitió— pero estorba en la lista del día a día. *@
+            <MudCheckBox T="bool" @bind-Value="_verAgotados" @bind-Value:after="Filtrar" Label="Ver agotados" Color="Color.Primary" Dense="true" />
             <MudSpacer />
             <MudText Typo="Typo.body2" Class="cg-central__detalle">@_filtradas.Count de @_secuencias.Count</MudText>
         </MudItem>
@@ -180,6 +182,9 @@
 
 @code {
     private IReadOnlyList<DatosSecuenciaEcfCentral> _secuencias = [];
+
+    /// <summary>Los rangos agotados se guardan como constancia, pero no se listan salvo que se pidan.</summary>
+    private bool _verAgotados;
     private IReadOnlyList<DatosCaja> _cajas = [];
     private IReadOnlyList<DatosAnulacionEcf> _anulaciones = [];
     private List<DatosSecuenciaEcfCentral> _filtradas = [];
@@ -227,6 +232,7 @@
             .Where(s => _cajaId is not { } caja || s.CajaId == caja)
             .Where(s => _tipo is not { } tipo || s.TipoComprobante == tipo)
             .Where(s => !_soloActivos || s.Activa)
+            .Where(s => _verAgotados || s.Proximo <= s.Hasta)
             .ToList();
     }
 

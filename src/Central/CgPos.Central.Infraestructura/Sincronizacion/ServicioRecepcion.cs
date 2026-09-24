@@ -90,6 +90,8 @@ internal sealed class ServicioRecepcion(
             await RegistrarPendienteAsync(documento, remitente, ahora, cancelacion);
         else if (mensaje.TipoMensaje == TiposMensaje.IngresoUsuario)
             await RegistrarIngresoUsuarioAsync(documento, cancelacion);
+        else if (mensaje.TipoMensaje == TiposMensaje.ConsumoSecuenciaEcf)
+            await RegistrarConsumoSecuenciaAsync(documento, cancelacion);
 
         estado.RegistrarRecepcion(ahora);
 
@@ -201,6 +203,30 @@ internal sealed class ServicioRecepcion(
     /// Anota en el usuario cuándo entró por última vez y en qué caja. Un aviso viejo que llega tarde (la caja estuvo sin red)
     /// no retrocede la fecha, y un usuario que ya no existe en el Central se ignora sin dar el mensaje por malo.
     /// </summary>
+    /// <summary>
+    /// Anota por dónde va la caja en un rango de e-CF. La cuenta la lleva la caja, así que aquí solo se avanza: un mensaje
+    /// viejo que llega tarde no puede retroceder lo ya emitido. Con esto el Monitor sabe a quién le queda poco.
+    /// </summary>
+    private async Task RegistrarConsumoSecuenciaAsync(DocumentoRecibido documento, CancellationToken cancelacion)
+    {
+        DocumentoConsumoSecuenciaEcf? consumo = null;
+        try
+        {
+            consumo = JsonSerializer.Deserialize<DocumentoConsumoSecuenciaEcf>(documento.Contenido, OpcionesJson.Predeterminadas);
+        }
+        catch (JsonException)
+        {
+        }
+
+        if (consumo is null)
+            return;
+
+        var rango = await contexto.SecuenciasEcf.SingleOrDefaultAsync(
+            s => s.CajaId == documento.CajaId && s.TipoComprobante == consumo.TipoComprobante && s.Desde == consumo.Desde, cancelacion);
+
+        rango?.RegistrarConsumoDeLaCaja(consumo.Ultimo);
+    }
+
     private async Task RegistrarIngresoUsuarioAsync(DocumentoRecibido documento, CancellationToken cancelacion)
     {
         DocumentoIngresoUsuario? ingreso = null;

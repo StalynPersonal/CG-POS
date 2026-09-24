@@ -93,6 +93,20 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         var (sucursal, codigoCaja) = resolutor.CodigoCaja(caja.CajaId);
         var secuencias = (await Lista<SecuenciaEcfCarga>(TablasMaestros.SecuenciasEcf))?.Where(s => s.SucursalCodigo == sucursal && s.CajaCodigo == codigoCaja).ToList();
 
+        // Un rango agotado no baja: la caja lo borra al terminarlo, y volver a mandárselo solo conseguiría que lo recreara
+        // con la cuenta del Central y empezara a repetir números ya emitidos.
+        if (secuencias is { Count: > 0 })
+        {
+            var agotados = await contexto.SecuenciasEcf.AsNoTracking()
+                .Where(s => s.CajaId == caja.CajaId && s.Ultimo >= s.Hasta)
+                .Select(s => new { s.TipoComprobante, s.Desde })
+                .ToListAsync(cancelacion);
+
+            secuencias = secuencias
+                .Where(s => !agotados.Any(a => a.TipoComprobante == s.TipoComprobante && a.Desde == s.Desde))
+                .ToList();
+        }
+
 
         var paquete = new PaqueteMaestros(
             Departamentos: await Lista<DepartamentoCarga>(TablasMaestros.Departamentos),

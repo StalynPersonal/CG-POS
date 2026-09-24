@@ -1,3 +1,4 @@
+using CgPos.Pos.Aplicacion.Abstracciones;
 using CgPos.Pos.Aplicacion.Ecf;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -22,7 +23,7 @@ public static class InyeccionDependenciasEcf
         servicios.AddSingleton<ICertificadoCaja>(proveedor => new CertificadoCaja(configuracion, proveedor.GetRequiredService<ILogger<CertificadoCaja>>()));
         servicios.AddScoped<IEmisorComprobantes>(proveedor => new EmisionComprobantes(proveedor.GetRequiredService<ContextoDatosPos>(),
             proveedor.GetRequiredService<ICertificadoCaja>(), proveedor.GetRequiredService<IParametros>(), configuracion,
-            proveedor.GetRequiredService<TimeProvider>()));
+            proveedor.GetRequiredService<IBandejaSalida>(), proveedor.GetRequiredService<TimeProvider>()));
         servicios.AddScoped<IServicioEcf, ServicioEcf>();
 
         return servicios;

@@ -18,6 +18,9 @@ public static class TiposMensaje
     public const string InscripcionFidelidad = "Fidelidad.Inscripcion";
     public const string IngresoUsuario = "Seguridad.IngresoUsuario";
 
+    /// <summary>La caja informa por dónde va un rango de e-CF: el Central no lleva esa cuenta, la lleva quien emite.</summary>
+    public const string ConsumoSecuenciaEcf = "Fiscal.ConsumoSecuenciaEcf";
+
     /// <summary>Documentos que llevan su e-CF firmado en la propiedad <c>ecf</c> (RF-276).</summary>
     public static IReadOnlySet<string> ConEcf { get; } = new HashSet<string>(StringComparer.Ordinal) { VentaCobrada, NotaCreditoEmitida };
 }

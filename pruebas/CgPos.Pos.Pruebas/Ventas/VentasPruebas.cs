@@ -1799,6 +1799,40 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task El_rango_de_ecf_agotado_se_borra_de_la_caja_y_se_le_informa_al_central()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, hastaSecuenciaConsumo: 1);
+
+        // El rango de consumo queda con un solo número: la venta que sigue lo agota.
+        var cobro = await caja.CobrarCincelEnEfectivoAsync();
+        Assert.True(cobro.Exitosa, cobro.Mensaje);
+
+        // La caja no se queda con un rango que ya no sirve: volver a bajarlo la haría repetir números.
+        Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto =>
+            contexto.SecuenciasEcf.AnyAsync(s => s.TipoComprobante == TipoComprobante.FacturaConsumo && s.CajaId == caja.Escenario.CajaUno)));
+
+        // Y el Central se entera de hasta dónde llegó, que es lo que le permite avisar a soporte.
+        // La base es compartida entre pruebas: se busca el mensaje de esta caja y este tipo, que van en la referencia.
+        var referencia = $"{caja.Escenario.CajaUno}-{(int)TipoComprobante.FacturaConsumo}-";
+        var mensaje = await caja.EjecutarAsync<ContextoDatosPos, MensajeSalida>(contexto =>
+            contexto.BandejaSalida.AsNoTracking()
+                .SingleAsync(m => m.TipoMensaje == TiposMensaje.ConsumoSecuenciaEcf && m.Referencia.StartsWith(referencia)));
+        var consumo = JsonSerializer.Deserialize<DocumentoConsumoSecuenciaEcf>(mensaje.Contenido, OpcionesJson.Predeterminadas)!;
+        Assert.True(consumo.Agotada);
+        Assert.Equal(consumo.Hasta, consumo.Ultimo);
+
+        // Sin rango de ese tipo no se factura, y el mensaje dice qué falta en vez de un error cualquiera.
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var sinRango = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaEfectivo, 5000m)], null));
+
+        Assert.Equal(CodigoResultadoVenta.ComprobanteNoDisponible, sinRango.Resultado);
+        Assert.Contains("No hay secuencia de e-CF disponible", sinRango.Mensaje);
+    }
+
+    [SkippableFact]
     public async Task Sin_terminal_conectado_la_tarjeta_se_cobra_con_la_aprobacion_del_volante_y_sin_autorizacion()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

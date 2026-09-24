@@ -48,6 +48,12 @@ public static class ParametrosExtensiones
         : bool.TryParse(texto, out var valor) ? valor
         : throw new ParametroNoConfiguradoExcepcion(clave, "debe ser true o false");
 
+    /// <summary>Como el decimal opcional, para los que se cuentan de uno en uno (comprobantes que quedan, días…).</summary>
+    public static async Task<int?> ObtenerEnteroOpcionalAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
+        await parametros.ObtenerAsync(clave, cajaId, cancelacion) is not { Length: > 0 } texto ? null
+        : int.TryParse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor) ? valor
+        : throw new ParametroNoConfiguradoExcepcion(clave, "no es un número entero");
+
     /// <summary>Para valores que el negocio puede no usar (ej. fondo sugerido): nulo si no está configurado, error si está mal escrito.</summary>
     public static async Task<decimal?> ObtenerDecimalOpcionalAsync(this IParametros parametros, string clave, int? cajaId, CancellationToken cancelacion = default) =>
         await parametros.ObtenerAsync(clave, cajaId, cancelacion) is not { Length: > 0 } texto ? null
@@ -201,6 +207,9 @@ public static class ClavesParametros
 
     /// <summary>Porcentaje restante de una secuencia de e-CF desde el cual se alerta (RF-225). Por defecto 10.</summary>
     public const string PorcentajeAlertaSecuenciaEcf = "Fiscal.PorcentajeAlertaSecuenciaEcf";
+
+    /// <summary>Cuántos comprobantes tienen que quedar para avisar; alerta el que se cumpla primero, este o el porcentaje.</summary>
+    public const string ComprobantesAlertaSecuenciaEcf = CatalogoParametros.ComprobantesAlertaSecuenciaEcf;
 
     /// <summary>Días antes del vencimiento del certificado para alertar (RF-230). Por defecto 30.</summary>
     public const string DiasAlertaCertificado = "Fiscal.DiasAlertaCertificado";

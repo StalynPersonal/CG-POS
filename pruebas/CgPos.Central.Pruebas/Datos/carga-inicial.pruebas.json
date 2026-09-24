@@ -224,6 +224,11 @@
       "descripcion": "Porcentaje restante de una secuencia de e-CF desde el cual se alerta"
     },
     {
+      "clave": "Fiscal.ComprobantesAlertaSecuenciaEcf",
+      "valor": "10",
+      "descripcion": "Comprobantes restantes de un rango de e-CF desde los cuales se alerta al facturar"
+    },
+    {
       "clave": "Fiscal.DiasAlertaCertificado",
       "valor": "30",
       "descripcion": "Días antes del vencimiento del certificado digital para alertar"

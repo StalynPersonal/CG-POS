@@ -361,14 +361,26 @@ internal sealed class PublicadorMaestros(
             if (entrada.State == EntityState.Modified && secuencia.Hasta < (long)entrada.Property(nameof(Dominio.Fiscal.SecuenciaEcf.Hasta)).OriginalValue!)
                 errores.Add($"El rango de e-CF E{(int)secuencia.TipoComprobante} {secuencia.Desde} no puede reducirse; la caja pudo haber emitido hasta su final.");
 
+            // Se compara contra toda la empresa, no contra la caja: lo normal es repartir un rango entre varias (1–5 a la
+            // uno, 6–10 a la dos), y el choque que importa es justo el de dos cajas con los mismos números.
             var solapado = await contexto.SecuenciasEcf.AsNoTracking()
                 .Where(s => s.Id != secuencia.Id && s.TipoComprobante == secuencia.TipoComprobante && s.Desde <= secuencia.Hasta && s.Hasta >= secuencia.Desde)
-                .Select(s => new { s.Desde, s.Hasta })
+                .Select(s => new { s.Desde, s.Hasta, s.CajaId })
                 .FirstOrDefaultAsync(cancelacion);
             var solapadoLocal = contexto.SecuenciasEcf.Local.FirstOrDefault(s => s.Id != secuencia.Id && s.TipoComprobante == secuencia.TipoComprobante
                                                                                   && s.Desde <= secuencia.Hasta && s.Hasta >= secuencia.Desde);
             if (solapado is not null || solapadoLocal is not null)
-                errores.Add($"Los rangos de e-CF E{(int)secuencia.TipoComprobante} {secuencia.Desde}–{secuencia.Hasta} y {solapado?.Desde ?? solapadoLocal!.Desde}–{solapado?.Hasta ?? solapadoLocal!.Hasta} se solapan.");
+            {
+                var (otroDesde, otroHasta, otraCaja) = solapado is not null
+                    ? (solapado.Desde, solapado.Hasta, solapado.CajaId)
+                    : (solapadoLocal!.Desde, solapadoLocal.Hasta, solapadoLocal.CajaId);
+                var codigoCaja = await contexto.Cajas.AsNoTracking().Where(c => c.Id == otraCaja)
+                    .Join(contexto.Sucursales.AsNoTracking(), c => c.SucursalId, s => s.Id, (c, s) => $"{s.Codigo}-{c.Codigo}")
+                    .FirstOrDefaultAsync(cancelacion);
+
+                errores.Add($"Los rangos de e-CF E{(int)secuencia.TipoComprobante} {secuencia.Desde}–{secuencia.Hasta} y {otroDesde}–{otroHasta}"
+                            + (codigoCaja is null ? string.Empty : $" (caja {codigoCaja})") + " se solapan.");
+            }
         }
 
         // Un documento de identidad es de un solo cliente: la caja busca al cliente por él.

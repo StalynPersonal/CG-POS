@@ -87,6 +87,7 @@ PARAMETROS_INICIALES = [
     # Fiscal y devoluciones.
     ('Fiscal.MontoIdentificacionConsumo', '250000', 'Total desde el cual la factura de consumo exige cédula o RNC'),
     ('Fiscal.PorcentajeAlertaSecuenciaEcf', '10', 'Porcentaje restante de un rango de e-CF desde el cual se alerta'),
+    ('Fiscal.ComprobantesAlertaSecuenciaEcf', '10', 'Cantidad de comprobantes restantes de un rango de e-CF desde la cual se alerta al facturar'),
     ('Fiscal.DiasAlertaCertificado', '30', 'Días antes del vencimiento del certificado para alertar'),
     ('Fiscal.PorcentajeRetencionLey3223', '0', 'Retención de la Ley 32-23 en facturas gubernamentales E45 (0 = sin retención)'),
     ('Devoluciones.DiasRetencionImpuesto', '30', 'Días desde la factura tras los cuales la devolución retiene el ITBIS'),

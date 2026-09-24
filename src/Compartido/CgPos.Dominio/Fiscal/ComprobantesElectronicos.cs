@@ -88,6 +88,26 @@ public sealed class SecuenciaEcf : Entidad
 
     public bool Disponible(DateOnly hoy) => Activa && Ultimo < Hasta && VenceEn >= hoy;
 
+    /// <summary>
+    /// Se usaron todos sus números. El rango agotado ya no sirve para nada: en el Central se guarda como constancia de qué
+    /// se emitió, y en la caja se borra, porque volver a bajarlo solo conseguiría que empezara a repetir números.
+    /// </summary>
+    public bool Agotada => Ultimo >= Hasta;
+
+    /// <summary>
+    /// Lo que la caja informa al Central sobre su consumo. La cuenta la lleva la caja —es la que emite—, así que el Central
+    /// solo puede avanzar hasta donde ella diga; nunca retrocede, porque un mensaje viejo llegando tarde no deshace lo emitido.
+    /// </summary>
+    /// <returns>Verdadero si el consumo informado adelantó la cuenta del Central.</returns>
+    public bool RegistrarConsumoDeLaCaja(long ultimo)
+    {
+        if (ultimo <= Ultimo || ultimo > Hasta)
+            return false;
+
+        Ultimo = ultimo;
+        return true;
+    }
+
     /// <summary>El e-NCF completo: serie, tipo de dos dígitos y secuencia de diez, como lo pide la DGII.</summary>
     public static string FormatearEncf(TipoComprobante tipo, long secuencia, string? serie = null) =>
         $"{NormalizarSerie(serie)}{(int)tipo:00}{secuencia:0000000000}";

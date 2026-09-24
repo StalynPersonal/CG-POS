@@ -8,6 +8,7 @@ using CgPos.Contratos.Central;
 using CgPos.Dominio.Sincronizacion;
 using Microsoft.EntityFrameworkCore;
 using CgPos.Dominio.Comun;
+using CgPos.Dominio.Organizacion;
 
 namespace CgPos.Central.Infraestructura.Sincronizacion;
 
@@ -43,6 +44,16 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
             .ToDictionary(c => c.CajaId, c => c.Cantidad);
         var conFallo = await contexto.ComprobantesRecibidos.CountAsync(c => c.EstadoDgii == EstadoEnvioDgii.Pendiente && c.IntentosEnvio > 0, cancelacion);
 
+        // Rangos de e-CF por agotarse. La cuenta la lleva la caja y la informa cuando queda poco: si nadie se entera aquí,
+        // la tienda descubre que no puede facturar con el cliente delante.
+        // Sin el parámetro configurado no se inventa un umbral: solo se avisa de los rangos ya agotados.
+        var avisoComprobantes = await parametros.ObtenerEnteroPositivoOpcionalAsync(CatalogoParametros.ComprobantesAlertaSecuenciaEcf, cancelacion) ?? 0;
+        var hoy = ahora.Dia();
+        var porAgotarse = await contexto.SecuenciasEcf.AsNoTracking()
+            .Where(s => s.Activa && s.VenceEn >= hoy && s.Hasta - s.Ultimo <= avisoComprobantes)
+            .Select(s => new { s.CajaId, s.TipoComprobante, Restantes = s.Hasta - s.Ultimo })
+            .ToListAsync(cancelacion);
+
         int Contar(int cajaId, params EstadoEnvioDgii[] estadosDgii) =>
             comprobantes.Where(c => c.CajaId == cajaId && estadosDgii.Contains(c.EstadoDgii)).Sum(c => c.Cantidad);
 
@@ -68,6 +79,10 @@ internal sealed class ServicioMonitorCentral(ContextoDatosCentral contexto, IPar
                     alertas.Add($"{rechazados} e-CF rechazados por la DGII");
                 if (abiertos > 0)
                     alertas.Add($"{abiertos} conflicto(s) de sincronización abierto(s)");
+                foreach (var rango in porAgotarse.Where(s => s.CajaId == caja.Id).OrderBy(s => s.Restantes))
+                    alertas.Add(rango.Restantes <= 0
+                        ? $"Sin comprobantes de E{(int)rango.TipoComprobante}: esa caja no puede facturar ese tipo"
+                        : $"Quedan {rango.Restantes} comprobantes de E{(int)rango.TipoComprobante}");
 
                 return new DatosEstadoCaja(caja.Id, caja.Codigo, caja.Nombre, sucursales.GetValueOrDefault(caja.SucursalId) ?? string.Empty, caja.Habilitada, ultima,
                     estado?.UltimaRecepcionEn, estado?.UltimaDescargaEn, estado?.MensajesRecibidos ?? 0, estado?.Duplicados ?? 0, estado?.Rechazados ?? 0,

@@ -50,6 +50,7 @@ internal sealed class ServicioMaestrosCentral(ContextoDatosCentral contexto, IPu
         if (!nuevo && existente is null)
             return ResultadoAdministracion.Inexistente("El registro no existe.");
 
+
         try
         {
             await publicador.PublicarAsync(Paquete(dato), actor.Nombre, cancelacion);

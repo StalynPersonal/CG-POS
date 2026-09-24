@@ -475,6 +475,13 @@ nota('Cuando dos promociones alcanzan al mismo artículo, la caja aplica la más
 titulo('2.9. Facturación electrónica y DGII', 2)
 viñeta('Rangos de e-CF (/fiscal/secuencias): se asignan a cada caja por tipo de comprobante, con inicio, fin y vencimiento. '
        'La lista muestra el último usado y cuánto queda.')
+viñeta('A una misma caja se le pueden cargar varios rangos del mismo tipo: la caja usa el de numeración más baja y, cuando se '
+       'acaba o se vence, sigue sola con el siguiente. No hay que hacer nada entre uno y otro.')
+viñeta('Dos rangos del mismo tipo no pueden pisarse, ni siquiera entre cajas distintas: si a la caja 01 se le dio del 1 al 5, '
+       'a la 02 no se le puede dar del 3 al 8, porque las dos emitirían los mismos números ante la DGII. El sistema lo '
+       'rechaza y dice con qué caja choca.')
+viñeta('El rango que se agota deja de listarse; sigue guardado como constancia de qué se emitió y se ve marcando «Ver '
+       'agotados». En la caja sí se borra: si volviera a bajar, empezaría a repetir números.')
 viñeta('Comprobantes enviados a la DGII (/monitor/comprobantes): estado de cada e-CF (aceptado, rechazado, en cola), su '
        'trackId, el mensaje de la DGII, la descarga del XML y el reenvío dirigido.')
 

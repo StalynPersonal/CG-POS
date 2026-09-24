@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Devoluciones;
 using CgPos.Dominio.Fiscal;
@@ -79,7 +80,7 @@ internal sealed class CertificadoCaja(IConfiguration configuracion, ILogger<Cert
 /// XML firmado en la carpeta de pendientes (RF-219). Si la transacción no se confirma, la secuencia vuelve atrás.
 /// </summary>
 internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificadoCaja certificado, IParametros parametros, IConfiguration configuracion,
-    TimeProvider reloj) : IEmisorComprobantes
+    IBandejaSalida bandejaSalida, TimeProvider reloj) : IEmisorComprobantes
 {
     private readonly FirmadorEcf _firmador = new();
 
@@ -135,6 +136,7 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
                 "está agotada, vencida o no asignada. Solicite un rango al Central: sin e-NCF disponible no se puede facturar.");
 
         var encf = SecuenciaEcf.FormatearEncf(tipo, asignada.Ultimo, asignada.Serie);
+        await InformarConsumoAsync(cajaId, tipo, asignada, cancelacion);
         var emisor = await EmisorAsync(sucursalId, cancelacion);
         var tipoIngresos = await parametros.ObtenerEnteroAsync(ClavesParametros.TipoIngresos, cajaId, cancelacion);
         // Las fechas del e-CF van en la hora local configurada en el equipo de la caja.
@@ -212,7 +214,13 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
     {
         public int Id { get; set; }
         public long Ultimo { get; set; }
+        public long Desde { get; set; }
+        public long Hasta { get; set; }
         public DateOnly VenceEn { get; set; }
+
+        public long Restantes => Hasta - Ultimo;
+
+        public bool Agotada => Ultimo >= Hasta;
 
         /// <summary>Serie del rango: la lleva el e-NCF, y cada rango conserva la suya.</summary>
         public string Serie { get; set; } = SecuenciaEcf.SeriePredeterminada;
@@ -228,10 +236,32 @@ internal sealed class EmisionComprobantes(ContextoDatosPos contexto, ICertificad
                 WHERE CajaId = {cajaId} AND TipoComprobante = {(int)tipo} AND Activa = 1 AND Ultimo < Hasta AND VenceEn >= {fecha}
                 ORDER BY Desde)
             UPDATE Candidata SET Ultimo = Ultimo + 1
-            OUTPUT inserted.Id AS Id, inserted.Ultimo AS Ultimo, inserted.VenceEn AS VenceEn, inserted.Serie AS Serie;
+            OUTPUT inserted.Id AS Id, inserted.Ultimo AS Ultimo, inserted.Desde AS Desde, inserted.Hasta AS Hasta,
+                   inserted.VenceEn AS VenceEn, inserted.Serie AS Serie;
             """).ToListAsync(cancelacion);
 
         return resultado.SingleOrDefault();
+    }
+
+    /// <summary>
+    /// Le dice al Central por dónde va el rango, pero solo cuando importa: al quedar poco o al agotarse. En cada factura
+    /// sería un mensaje por venta para un dato que nadie mira. El rango agotado se borra aquí mismo: en la caja no sirve
+    /// para nada y el Central deja de bajárselo, que es lo que evita que vuelva a aparecer con la cuenta en cero.
+    /// </summary>
+    private async Task InformarConsumoAsync(int cajaId, TipoComprobante tipo, SecuenciaAsignada asignada, CancellationToken cancelacion)
+    {
+        var aviso = await parametros.ObtenerEnteroOpcionalAsync(ClavesParametros.ComprobantesAlertaSecuenciaEcf, cajaId, cancelacion);
+        if (!asignada.Agotada && !(aviso is { } limite && asignada.Restantes <= limite))
+            return;
+
+        bandejaSalida.Encolar(TiposMensaje.ConsumoSecuenciaEcf, $"{cajaId}-{(int)tipo}-{asignada.Desde}",
+            new DocumentoConsumoSecuenciaEcf(tipo, asignada.Serie, asignada.Desde, asignada.Hasta, asignada.Ultimo, asignada.Agotada, reloj.Ahora()));
+
+        if (!asignada.Agotada)
+            return;
+
+        // Va en la misma transacción del cobro: si el cobro se deshace, el rango sigue ahí con su número sin usar.
+        await contexto.SecuenciasEcf.Where(s => s.Id == asignada.Id).ExecuteDeleteAsync(cancelacion);
     }
 
     private async Task<EmisorEcf> EmisorAsync(int sucursalId, CancellationToken cancelacion)
@@ -440,6 +470,9 @@ internal sealed class ServicioEcf(
         var faltantes = new List<string>();
         decimal? umbral = null;
         int? diasAlerta = null;
+        // Los dos umbrales conviven y alerta el que se cumpla primero: en un rango de 50,000 el 5 % son 2,500 comprobantes
+        // y no alarma a nadie; en uno de 100 son 5, y para entonces ya es tarde.
+        var porCantidad = await parametros.ObtenerEnteroOpcionalAsync(ClavesParametros.ComprobantesAlertaSecuenciaEcf, sesion.CajaId, cancelacion);
         try
         {
             umbral = await parametros.ObtenerDecimalAsync(ClavesParametros.PorcentajeAlertaSecuenciaEcf, sesion.CajaId, cancelacion);
@@ -467,7 +500,9 @@ internal sealed class ServicioEcf(
         var datos = secuencias.Select(s =>
         {
             var disponible = s.Disponible(hoy);
-            var enAlerta = !disponible || (umbral is { } limite && s.PorcentajeRestante <= limite);
+            var enAlerta = !disponible
+                           || (umbral is { } limite && s.PorcentajeRestante <= limite)
+                           || (porCantidad is { } restantes && s.Restantes <= restantes);
             return new DatosSecuenciaEcf(s.TipoComprobante, s.Desde, s.Hasta, s.Ultimo, s.Restantes, s.PorcentajeRestante, s.VenceEn, disponible, enAlerta);
         }).ToList();
 
@@ -478,7 +513,7 @@ internal sealed class ServicioEcf(
             if (!delTipo.Any(s => s.Disponible))
                 alertas.Add($"No hay secuencia disponible para {nombre}: agotada, vencida o no asignada.");
             else if (delTipo.Where(s => s.Disponible).Sum(s => s.Restantes) is var restantes && delTipo.Where(s => s.Disponible).All(s => s.EnAlerta))
-                alertas.Add($"Quedan {restantes:N0} comprobantes de {nombre}. Solicite un nuevo rango al Central.");
+                alertas.Add($"Quedan {restantes:N0} comprobantes de {nombre}. Avise a soporte técnico para que soliciten un nuevo rango.");
         }
 
         // Resultado que la DGII dio a los e-CF de esta caja, que el Central devuelve en la bajada de maestros (RF-223).

@@ -175,6 +175,20 @@ public sealed record DocumentoMovimientoTurno(
 /// </summary>
 public sealed record DocumentoIngresoUsuario(string UsuarioCodigo, DateTimeOffset IngresoEn);
 
+/// <summary>
+/// Mensaje <c>Fiscal.ConsumoSecuenciaEcf</c>: hasta qué número llegó la caja en un rango. Se manda cuando queda poco o
+/// cuando se agota, no en cada factura: el Central solo necesita saberlo cuando hay que actuar.
+/// </summary>
+/// <param name="Agotada">Se usó el último número. En la caja el rango ya se borró y el Central deja de bajárselo.</param>
+public sealed record DocumentoConsumoSecuenciaEcf(
+    TipoComprobante TipoComprobante,
+    string Serie,
+    long Desde,
+    long Hasta,
+    long Ultimo,
+    bool Agotada,
+    DateTimeOffset InformadoEn);
+
 /// <summary>Mensajes <c>Caja.RetiroEfectivo</c> y <c>Caja.RelevoCajero</c>.</summary>
 public sealed record DocumentoMovimientoCaja(long TurnoNumero, DocumentoMovimientoTurno Movimiento);
 

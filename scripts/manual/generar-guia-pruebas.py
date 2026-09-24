@@ -562,10 +562,15 @@ esperado('El e-NCF es correlativo, el ticket trae el código de seguridad y la f
 tablas('Caja: DocumentosElectronicos · SecuenciasEcf · Central: ComprobantesRecibidos · VentasCentral')
 marcar()
 
-prueba('J3', 'Aviso de secuencia baja')
-paso('Deje el rango de e-NCF casi agotado (o configure el aviso para que salte antes).')
-esperado('La barra de estado avisa que quedan pocos comprobantes, con tiempo para pedir más a la DGII.')
-tablas('Caja: SecuenciasEcf (lee)')
+prueba('J3', 'Aviso de secuencia baja y encadenado de rangos')
+paso('Deje el rango de e-NCF casi agotado, o baje el parámetro Fiscal.ComprobantesAlertaSecuenciaEcf para que salte antes.')
+paso('Cargue un segundo rango del mismo tipo para esa caja, con números siguientes, y facture hasta agotar el primero.')
+paso('En el Central, abra el Monitor.')
+esperado('La caja avisa cuántos comprobantes quedan al facturar y en su barra de estado. Al agotarse el primer rango, las '
+         'facturas siguen con el segundo sin que nadie haga nada, y el rango agotado desaparece de la caja y de la lista de '
+         'Fiscal (se ve marcando «Ver agotados»). El Monitor del Central avisa de la caja a la que le queda poco, para que '
+         'soporte se entere sin depender de que llamen.')
+tablas('Caja: SecuenciasEcf (el agotado se borra) · BandejaSalida · Central: SecuenciasEcf')
 marcar()
 
 prueba('J4', 'Estado en la DGII')

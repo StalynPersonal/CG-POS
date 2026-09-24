@@ -83,6 +83,12 @@ public static class CatalogoParametros
     public const string PorcentajeRetencionLey3223 = "Fiscal.PorcentajeRetencionLey3223";
 
     /// <summary>
+    /// Comprobantes que tienen que quedar en un rango de e-CF para avisar. Lo usa la caja al facturar y el Monitor del
+    /// Central, para que el aviso al cajero y el de soporte salten a la vez y digan lo mismo.
+    /// </summary>
+    public const string ComprobantesAlertaSecuenciaEcf = "Fiscal.ComprobantesAlertaSecuenciaEcf";
+
+    /// <summary>
     /// Hasta cuántas unidades puede digitar el cajero de un artículo de unidad entera (F4, cantidad*código o tocando la
     /// cantidad). De ahí en adelante tiene que pasarlo uno a uno por el lector.
     /// </summary>
@@ -108,6 +114,10 @@ public static class CatalogoParametros
 
         new("Fiscal.MontoIdentificacionConsumo", "Fiscal", "Total desde el cual la factura de consumo exige cédula o RNC", Decimal, true, Minimo: 0),
         new("Fiscal.PorcentajeAlertaSecuenciaEcf", "Fiscal", "Porcentaje restante de un rango de e-CF desde el cual se alerta", Decimal, true, Minimo: 0, Maximo: 100),
+        // En un rango de 50,000 el 5 % son 2,500 comprobantes y no alarma a nadie; en uno de 100, son 5 y ya es tarde. Por
+        // eso además del porcentaje hay una cantidad: alerta la que se cumpla primero.
+        new("Fiscal.ComprobantesAlertaSecuenciaEcf", "Fiscal",
+            "Cantidad de comprobantes restantes de un rango de e-CF desde la cual se alerta al facturar", Entero, true, Minimo: 0),
         new("Fiscal.DiasAlertaCertificado", "Fiscal", "Días antes del vencimiento del certificado digital para alertar", Entero, true, Minimo: 0),
         new("Fiscal.TipoIngresos", "Fiscal", "Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6)", Entero, true, Minimo: 1, Maximo: 6),
         new(PorcentajeRetencionLey3223, "Fiscal",
