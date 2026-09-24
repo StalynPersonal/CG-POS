@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CgPos.Contratos.Catalogo;
@@ -17,6 +17,34 @@ public sealed class ColeccionAgente : ICollectionFixture<AgenteEnPruebas>
 [Collection(ColeccionAgente.Nombre)]
 public class ApiCatalogoPruebas(AgenteEnPruebas agente)
 {
+    [SkippableFact]
+    public async Task Los_clientes_se_buscan_por_documento_y_por_nombre()
+    {
+        Skip.If(agente.MotivoOmision is not null, agente.MotivoOmision);
+        using var cliente = agente.Fabrica!.CreateClient();
+        await IniciarSesionAsync(cliente, "C001", "Cajero.2026");
+
+        // El cajero casi nunca se sabe el RNC: escribe el principio del nombre.
+        var porNombre = await BuscarClientesAsync(cliente, "Constructora");
+        Assert.NotEmpty(porNombre);
+        Assert.All(porNombre, c => Assert.StartsWith("Constructora", c.Nombre, StringComparison.OrdinalIgnoreCase));
+
+        // Y por una palabra de en medio, que no usa el índice pero igual encuentra.
+        Assert.Contains(await BuscarClientesAsync(cliente, "Ejemplo SRL"), c => c.Nombre.Contains("Constructora", StringComparison.OrdinalIgnoreCase));
+
+        // Y si escribe dígitos, se busca por documento.
+        var uno = porNombre[0];
+        var porDocumento = await BuscarClientesAsync(cliente, uno.Documento);
+        Assert.Contains(porDocumento, c => c.Documento == uno.Documento);
+
+        // Menos de tres caracteres no busca: entre cientos de miles de clientes, dos letras no acotan nada.
+        Assert.Empty(await BuscarClientesAsync(cliente, "Co"));
+    }
+
+    private static async Task<IReadOnlyList<DatosClienteEncontrado>> BuscarClientesAsync(HttpClient cliente, string texto) =>
+        await cliente.GetFromJsonAsync<List<DatosClienteEncontrado>>($"/api/clientes?texto={Uri.EscapeDataString(texto)}",
+            OpcionesJson.Predeterminadas) ?? [];
+
     [SkippableFact]
     public async Task Articulo_por_codigo_requiere_sesion_y_trae_precio_e_impuesto()
     {

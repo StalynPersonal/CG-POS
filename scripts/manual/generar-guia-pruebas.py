@@ -387,6 +387,16 @@ esperado('Sale como consumo (E32), sin cliente.')
 tablas('Caja: VentasEnProceso')
 marcar()
 
+prueba('D1b', 'Buscar el cliente por nombre')
+paso('Presione F12 y toque «Buscar por nombre».')
+paso('Escriba con el teclado en pantalla el principio del nombre de un cliente (por ejemplo «Constructora») y busque.')
+paso('Toque la fila del cliente y presione Asignar. Pruebe también escribiendo solo dos letras, y escribiendo su documento.')
+esperado('Con dos letras avisa que hacen falta al menos tres. Al buscar, el teclado deja su sitio a la lista, que se elige '
+         'tocando. Al asignar, el cliente queda en la venta con su comprobante y su lista de precios, igual que si se '
+         'hubiera digitado el documento. Escribiendo solo números busca por documento.')
+tablas('Caja: Clientes (lee) · VentasEnProceso')
+marcar()
+
 prueba('D2', 'Crédito fiscal con RNC (F12)')
 paso('Presione F12 y escriba un RNC válido (por ejemplo 401007551).')
 esperado('Trae el nombre del contribuyente y el comprobante cambia a crédito fiscal (E31). Con un RNC inventado, lo rechaza '

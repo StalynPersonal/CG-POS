@@ -298,6 +298,15 @@ public sealed record DatosDireccionCliente(
     string? Telefono,
     bool EsPrincipal);
 
+/// <summary>Una fila de la búsqueda de clientes: lo justo para reconocerlo y elegirlo.</summary>
+public sealed record DatosClienteEncontrado(
+    TipoDocumentoIdentidad TipoDocumento,
+    string Documento,
+    string Nombre,
+    TipoComprobante TipoComprobante,
+    ListaPrecio ListaPrecio,
+    string? Telefono);
+
 public sealed record DatosClienteResumen(
     int ClienteId,
     TipoDocumentoIdentidad TipoDocumento,

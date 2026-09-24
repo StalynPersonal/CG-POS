@@ -242,6 +242,20 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     // ---------- Cobro y periféricos (C6) ----------
 
+    /// <summary>Clientes que coinciden con lo escrito, por documento o por nombre.</summary>
+    public async Task<IReadOnlyList<DatosClienteEncontrado>> BuscarClientesAsync(string texto, int maximo = 50, CancellationToken cancelacion = default)
+    {
+        try
+        {
+            return await Http.GetFromJsonAsync<List<DatosClienteEncontrado>>(
+                $"api/clientes?texto={Uri.EscapeDataString(texto)}&maximo={maximo}", OpcionesJson.Predeterminadas, cancelacion) ?? [];
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
+        {
+            return [];
+        }
+    }
+
     public async Task<DatosCatalogoCobro?> ObtenerCatalogoCobroAsync(CancellationToken cancelacion = default)
     {
         try

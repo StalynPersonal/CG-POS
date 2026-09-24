@@ -1,0 +1,135 @@
+﻿@* Búsqueda de clientes por documento o por nombre. Devuelve el documento del elegido, que es con lo que se asigna. *@
+@inject ClienteAgente Cliente
+
+@* Como la búsqueda de artículos: primero se escribe con el teclado en pantalla y al buscar la lista ocupa el cuadro. *@
+<MudDialog Class="cg-dialogo-ajustado cg-dialogo-busqueda">
+    <DialogContent>
+        <div class="cg-busqueda">
+            @* Tocar el campo vuelve a mostrar el teclado para cambiar la búsqueda. *@
+            <div class="cg-busqueda__barra" @onclick="MostrarTeclado">
+                <MudTextField T="string" @bind-Value="_texto" Label="Documento o nombre del cliente" Variant="Variant.Outlined" Immediate="true"
+                              AutoFocus="true" OnKeyDown="AlTeclearAsync" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Class="cg-campo-activo" />
+                @* El botón no vuelve a abrir el teclado: busca. *@
+                <div @onclick:stopPropagation="true">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Search"
+                               Disabled="_buscando" OnClick="BuscarAsync" Class="cg-busqueda__buscar">Buscar</MudButton>
+                </div>
+            </div>
+
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">@_mensaje</MudAlert>
+            }
+
+            @if (_buscando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+
+            @if (_mostrandoResultados)
+            {
+                @* Cuántos coinciden y el botón para volver al teclado. *@
+                <div class="cg-busqueda__resumen">
+                    <span>@(_resultados.Count == 0 ? "Sin resultados" : $"{_resultados.Count:N0} cliente(s)")</span>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Keyboard" OnClick="MostrarTeclado">
+                        Cambiar búsqueda
+                    </MudButton>
+                </div>
+
+                @* La lista toma todo el alto del cuadro. Tocar una fila la elige; Asignar la pasa a la venta. *@
+                <GrillaTactil TElemento="DatosClienteEncontrado" Elementos="_resultados" Seleccionado="_seleccionado" SeleccionadoChanged="AlSeleccionar"
+                              Altura="100%" Clase="cg-busqueda__lista" TextoSinRegistros="No hay clientes que coincidan con la búsqueda">
+                    <Encabezado>
+                        <MudTh>Documento</MudTh>
+                        <MudTh>Nombre</MudTh>
+                        <MudTh>Comprobante</MudTh>
+                        <MudTh>Lista</MudTh>
+                    </Encabezado>
+                    <Fila Context="cliente">
+                        <MudTd>
+                            @cliente.Documento
+                            <span class="cg-busqueda__nota">· @NombreDocumento(cliente.TipoDocumento)</span>
+                        </MudTd>
+                        <MudTd>
+                            @cliente.Nombre
+                            @if (cliente.Telefono is { Length: > 0 } telefono)
+                            {
+                                <span class="cg-busqueda__nota">· @telefono</span>
+                            }
+                        </MudTd>
+                        <MudTd>E@((int)cliente.TipoComprobante)</MudTd>
+                        <MudTd>@cliente.ListaPrecio</MudTd>
+                    </Fila>
+                </GrillaTactil>
+            }
+            else
+            {
+                <TecladoTactil Valor="@_texto" ValorChanged="valor => _texto = valor" Modo="ModoTeclado.Alfanumerico" TextoConfirmar="Buscar"
+                               PermitirCambioModo="true" PermitirDecimal="false" AlConfirmar="_ => BuscarAsync()" />
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Size="Size.Large" Variant="Variant.Outlined" Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+        <MudButton Size="Size.Large" Variant="Variant.Filled" Color="Color.Secondary" Disabled="_seleccionado is null"
+                   Style="min-height: var(--cg-toque-minimo); min-width: 140px" OnClick="Asignar">Asignar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>
+    /// Tope de resultados. En la caja está el padrón entero de la DGII: un nombre común devuelve miles y ninguno sirve,
+    /// así que se muestran los primeros y se pide afinar.
+    /// </summary>
+    private const int MaximoResultados = 50;
+
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    private string _texto = string.Empty;
+    private IReadOnlyList<DatosClienteEncontrado> _resultados = [];
+    private DatosClienteEncontrado? _seleccionado;
+    private bool _mostrandoResultados;
+    private bool _buscando;
+    private string? _mensaje;
+
+    private Task AlTeclearAsync(KeyboardEventArgs evento) => evento.Key == "Enter" ? BuscarAsync() : Task.CompletedTask;
+
+    private void MostrarTeclado() => _mostrandoResultados = false;
+
+    private async Task BuscarAsync()
+    {
+        var texto = _texto.Trim();
+        if (texto.Length < 3)
+        {
+            _mensaje = "Escriba al menos 3 caracteres: el documento o el principio del nombre.";
+            return;
+        }
+
+        _buscando = true;
+        _mensaje = null;
+        _resultados = await Cliente.BuscarClientesAsync(texto, MaximoResultados);
+        _buscando = false;
+
+        _seleccionado = _resultados.Count > 0 ? _resultados[0] : null;
+        _mostrandoResultados = true;
+        _mensaje = _resultados.Count >= MaximoResultados
+            ? $"Se muestran los primeros {MaximoResultados}. Escriba algo más para afinar la búsqueda."
+            : null;
+    }
+
+    private void AlSeleccionar(DatosClienteEncontrado cliente) => _seleccionado = cliente;
+
+    private void Asignar()
+    {
+        if (_seleccionado is not null)
+            Dialogo.Close(DialogResult.Ok(_seleccionado.Documento));
+    }
+
+    private static string NombreDocumento(TipoDocumentoIdentidad tipo) => tipo switch
+    {
+        TipoDocumentoIdentidad.Rnc => "RNC",
+        TipoDocumentoIdentidad.Cedula => "Cédula",
+        _ => "Pasaporte",
+    };
+}

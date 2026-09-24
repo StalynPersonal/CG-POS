@@ -851,6 +851,11 @@ nota('Cada operación se guarda al instante: si la caja se apaga, al volver a en
 titulo('3.8. Cliente y tipo de comprobante (F12)', 2)
 p('Se digita la cédula o el RNC; la caja lo busca en los clientes, que bajan del Central. Si no aparece, se digita el nombre. '
   'El tipo de comprobante sale del cliente y cambiarlo a mano requiere permiso.')
+p('Si no se sabe el documento de memoria, el botón «Buscar por nombre» abre una lista táctil donde se escribe con el '
+  'teclado en pantalla y se elige tocando la fila. Busca lo mismo por documento (si se escriben solo números) o por '
+  'nombre, desde tres caracteres, y muestra los primeros 50: si salen demasiados, hay que escribir algo más. Encuentra '
+  'al instante por el principio del nombre; buscar una palabra de en medio también sirve, pero tarda un poco más porque '
+  'la caja tiene el padrón entero de la DGII.')
 tabla(['Comprobante', 'Cuándo se usa'],
       [['E32 – Consumo', 'Cliente común. Desde el monto configurado (RD$250,000 por defecto) exige cédula o RNC.'],
        ['E31 – Crédito fiscal', 'Empresa que necesita el ITBIS. Exige RNC o cédula.'],

@@ -233,6 +233,35 @@ internal sealed class ConsultaArticulos(
 
 internal sealed class ConsultaDocumentos(ContextoDatosPos contexto) : IConsultaDocumentos
 {
+    /// <summary>
+    /// Busca por documento o por nombre. Por nombre se intenta primero «empieza por», que usa el índice y responde al
+    /// instante; solo si eso no da nada se recorre buscando el texto en medio, que en el padrón entero cuesta medio
+    /// segundo. Así lo normal es inmediato y lo raro igual aparece.
+    /// </summary>
+    public async Task<IReadOnlyList<DatosClienteEncontrado>> BuscarAsync(string? texto, int maximo = 50, CancellationToken cancelacion = default)
+    {
+        var buscado = (texto ?? string.Empty).Trim();
+        if (buscado.Length < 3)
+            return [];
+
+        maximo = Math.Clamp(maximo, 1, 200);
+        var activos = contexto.Clientes.AsNoTracking().Where(c => c.Activo);
+
+        if (buscado.All(char.IsAsciiDigit))
+            return await ResumenAsync(activos.Where(c => c.Documento.StartsWith(buscado)).OrderBy(c => c.Nombre), maximo, cancelacion);
+
+        var empiezan = await ResumenAsync(activos.Where(c => c.Nombre.StartsWith(buscado)).OrderBy(c => c.Nombre), maximo, cancelacion);
+        return empiezan.Count > 0
+            ? empiezan
+            : await ResumenAsync(activos.Where(c => c.Nombre.Contains(buscado)).OrderBy(c => c.Nombre), maximo, cancelacion);
+    }
+
+    private static async Task<IReadOnlyList<DatosClienteEncontrado>> ResumenAsync(IQueryable<CgPos.Dominio.Clientes.Cliente> consulta, int maximo,
+        CancellationToken cancelacion) =>
+        await consulta.Take(maximo)
+            .Select(c => new DatosClienteEncontrado(c.TipoDocumento, c.Documento, c.Nombre, c.TipoComprobantePredeterminado, c.ListaPrecioPredeterminada, c.Telefono))
+            .ToListAsync(cancelacion);
+
     public async Task<DatosConsultaDocumento> ConsultarAsync(string documento, CancellationToken cancelacion = default)
     {
         var validacion = DocumentoIdentidad.Validar(documento);

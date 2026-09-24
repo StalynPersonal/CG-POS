@@ -2,6 +2,7 @@
    la cédula del miembro como ID/PIN, con inscripción sin interrumpir la venta (RF-126, RF-236, RF-237). *@
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
+@inject IDialogService Dialogos
 
 <MudDialog>
     <DialogContent>
@@ -77,6 +78,9 @@
                     }
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_procesando" OnClick="AsignarAsync"
                                StartIcon="@Icons.Material.Filled.PersonSearch" Style="min-height: var(--cg-toque-minimo)">Asignar</MudButton>
+                    @* Cuando el cajero no se sabe el RNC de memoria, que es lo normal: se busca por nombre y se elige tocando. *@
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" Disabled="_procesando" OnClick="BuscarClienteAsync"
+                               StartIcon="@Icons.Material.Filled.Search" Style="min-height: var(--cg-toque-minimo)">Buscar por nombre</MudButton>
                 </div>
 
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary">Programa de fidelidad</MudText>
@@ -236,6 +240,19 @@
         }
 
         await EjecutarAsync(async () => await Cliente.AsignarClienteAsync(_venta.Id, _documento.Trim(), _pedirNombre ? _nombre : null));
+    }
+
+    /// <summary>Abre la búsqueda de clientes y asigna el que se elija, sin tener que digitar su documento.</summary>
+    private async Task BuscarClienteAsync()
+    {
+        var opciones = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, BackdropClick = false, CloseOnEscapeKey = true };
+        var referencia = await Dialogos.ShowAsync<DialogoBusquedaCliente>("Buscar cliente", new DialogParameters(), opciones);
+        if (await referencia.Result is not { Canceled: false, Data: string documento })
+            return;
+
+        _documento = documento;
+        _pedirNombre = false;
+        await AsignarAsync();
     }
 
     private Task QuitarAsync() => EjecutarAsync(async () => await Cliente.QuitarClienteAsync(_venta.Id));

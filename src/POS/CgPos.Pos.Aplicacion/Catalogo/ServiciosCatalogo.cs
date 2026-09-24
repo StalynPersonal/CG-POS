@@ -93,6 +93,12 @@ public interface IConsultaDocumentos
 {
     /// <summary>Valida el RNC/cédula y lo busca en los clientes, que bajan del Central (RF-181, RF-182).</summary>
     Task<DatosConsultaDocumento> ConsultarAsync(string documento, CancellationToken cancelacion = default);
+
+    /// <summary>
+    /// Clientes que coinciden con lo escrito. Si son solo dígitos se busca por documento; si no, por nombre. Hace falta
+    /// porque el cajero muchas veces sabe el nombre del cliente y no su RNC de memoria.
+    /// </summary>
+    Task<IReadOnlyList<DatosClienteEncontrado>> BuscarAsync(string? texto, int maximo = 50, CancellationToken cancelacion = default);
 }
 
 public interface IConsultaCatalogoCobro
