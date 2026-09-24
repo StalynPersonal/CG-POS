@@ -4,9 +4,20 @@
 @* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que los campos y el teclado se vean juntos. *@
 <MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
-        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
-            Esta operación requiere autorización de un supervisor: <strong>@DescripcionOperacion</strong>
-        </MudAlert>
+        @* Un solo aviso arriba, que cambia de cara: mientras no hay error dice qué se va a autorizar, y cuando lo hay dice
+           qué pasó. Poner un segundo aviso empujaba el teclado fuera del cuadro en pantallas bajas. *@
+        @if (_mensaje is { } error)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">
+                @error <strong>@DescripcionOperacion</strong>
+            </MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">
+                Esta operación requiere autorización de un supervisor: <strong>@DescripcionOperacion</strong>
+            </MudAlert>
+        }
 
         @* El motivo también se escribe con el teclado en pantalla: al tocarlo queda como campo activo. *@
         <div @onclick="() => _campo = CampoActivo.Motivo" @onfocusin="() => _campo = CampoActivo.Motivo">
@@ -25,15 +36,9 @@
                                   Immediate="true" Style="-webkit-text-security: disc" Class="@($"cg-campo-clave {ClaseCampo(CampoActivo.Clave)}")" OnKeyDown="AlTeclearClaveAsync" />
                 </div>
             </div>
-            @* El aviso va aquí, entre los campos y el teclado: debajo del teclado queda fuera de la pantalla y el
-               supervisor no ve por qué no lo dejó pasar. *@
             @if (_procesando)
             {
                 <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
-            }
-            @if (_mensaje is not null)
-            {
-                <MudAlert Severity="Severity.Error" Dense="true">@_mensaje</MudAlert>
             }
 
             <TecladoTactil Valor="@ValorCampoActivo" ValorChanged="AlCambiarTeclado" AlConfirmar="AlConfirmarTecladoAsync"
