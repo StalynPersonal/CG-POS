@@ -747,7 +747,9 @@ else
         if (_venta is null)
             return;
 
-        var codigo = await MostrarDialogoAsync<DialogoBusquedaArticulo, string>("Buscar artículo", [], MaxWidth.Large);
+        // Del mismo ancho que «Agregar artículo»: los dos son el mismo gesto —escribir con el teclado en pantalla— y en la
+        // caja conviene que salgan del mismo tamaño y en el mismo sitio.
+        var codigo = await MostrarDialogoAsync<DialogoBusquedaArticulo, string>("Buscar artículo", [], MaxWidth.Medium);
         if (codigo is not null)
             await AgregarAsync(codigo);
     }
