@@ -106,14 +106,6 @@ public interface IConfiguracionCaja
     /// <returns>El motivo por el que no se pudo guardar, o nulo si quedó configurada.</returns>
     Task<string?> GuardarAsync(SolicitudConfigurarCaja solicitud, CancellationToken cancelacion = default);
 
-    /// <summary>
-    /// Olvida hasta dónde se bajaron los maestros, para que el Central los vuelva a mandar todos desde cero. Lo pide el
-    /// técnico cuando la base de la caja perdió datos: el Central solo manda lo que cambió allá, así que lo borrado aquí
-    /// no vuelve por su cuenta.
-    /// </summary>
-    /// <returns>El motivo por el que no se pudo, o nulo si la caja quedó lista para volver a bajarlo todo.</returns>
-    Task<string?> ReaprovisionarAsync(string usuario, string contrasena, CancellationToken cancelacion = default);
-
     /// <summary>El Central no acepta estos datos: se marca para que la caja avise y pida configurarse de nuevo.</summary>
     Task RechazarAsync(string motivo, CancellationToken cancelacion = default);
 

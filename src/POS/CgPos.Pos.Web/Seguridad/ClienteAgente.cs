@@ -47,21 +47,6 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
         }
     }
 
-    /// <summary>Pide que la caja vuelva a bajar todos los maestros del Central desde cero.</summary>
-    public async Task<RespuestaConfiguracion> ReaprovisionarCajaAsync(SolicitudReaprovisionarCaja solicitud, CancellationToken cancelacion = default)
-    {
-        try
-        {
-            using var respuesta = await Http.PostAsJsonAsync("api/configuracion/reaprovisionar", solicitud, OpcionesJson.Predeterminadas, cancelacion);
-            return await respuesta.Content.ReadFromJsonAsync<RespuestaConfiguracion>(OpcionesJson.Predeterminadas, cancelacion)
-                ?? new RespuestaConfiguracion(false, SinComunicacion);
-        }
-        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException)
-        {
-            return new RespuestaConfiguracion(false, SinComunicacion);
-        }
-    }
-
     public async Task<RespuestaConfiguracion> ConfigurarCajaAsync(SolicitudConfigurarCajaPantalla solicitud, CancellationToken cancelacion = default)
     {
         try
