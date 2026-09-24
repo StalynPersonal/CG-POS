@@ -25,6 +25,11 @@ public static class TiposMensaje
     public static IReadOnlySet<string> ConEcf { get; } = new HashSet<string>(StringComparer.Ordinal) { VentaCobrada, NotaCreditoEmitida };
 }
 
+/// <summary>Lo que pasó al sincronizar cuando alguien lo pidió desde la caja.</summary>
+/// <param name="YaEnCurso">Había una sincronización corriendo: esta esperó a que terminara en vez de lanzar otra.</param>
+/// <param name="Mensaje">El resumen tal como se le muestra al cajero.</param>
+public sealed record ResultadoSincronizacion(bool Exitosa, bool YaEnCurso, string Mensaje);
+
 /// <summary>SHA-256 (hex, mayúsculas) con el que caja y Central verifican la integridad del contenido y del XML.</summary>
 public static class HashSincronizacion
 {

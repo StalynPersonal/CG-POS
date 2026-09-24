@@ -5,6 +5,7 @@ using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Fidelidad;
 using CgPos.Contratos.Pantallas;
 using CgPos.Contratos.Seguridad;
+using CgPos.Contratos.Sincronizacion;
 using CgPos.Contratos.Serializacion;
 using CgPos.Contratos.Ventas;
 using CgPos.Dominio.Entregas;
@@ -288,6 +289,20 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
             return await Http.GetFromJsonAsync<DatosConsultaDocumento>($"api/documentos/{Uri.EscapeDataString(documento)}", OpcionesJson.Predeterminadas, cancelacion);
         }
         catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Pide al Agente que sincronice ahora mismo; la respuesta ya trae el resumen listo para mostrar.</summary>
+    public async Task<ResultadoSincronizacion?> SincronizarAsync(CancellationToken cancelacion = default)
+    {
+        try
+        {
+            using var respuesta = await Http.PostAsync("api/sincronizacion", content: null, cancelacion);
+            return await respuesta.Content.ReadFromJsonAsync<ResultadoSincronizacion>(OpcionesJson.Predeterminadas, cancelacion);
+        }
+        catch (Exception excepcion) when (excepcion is HttpRequestException or JsonException or TaskCanceledException)
         {
             return null;
         }

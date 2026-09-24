@@ -8,8 +8,8 @@ namespace CgPos.Pos.Agente.Sincronizacion;
 /// Sincronización con el Central dentro del Agente (RF-268, RF-270): cada ciclo baja los maestros cambiados cuando toca (RF-269) y envía la
 /// bandeja de salida. Si la red o el Central fallan, la caja sigue operando y el siguiente ciclo reintenta; un error nunca detiene el servicio.
 /// </summary>
-public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, TimeProvider reloj, ILogger<TrabajadorSincronizacion> registro)
-    : BackgroundService
+public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, ISincronizacionAPedido aPedido, TimeProvider reloj,
+    ILogger<TrabajadorSincronizacion> registro) : BackgroundService
 {
     /// <summary>Cada cuánto se vuelve a mirar el reloj. El intervalo real lo dicen los parámetros y se consulta en cada vuelta.</summary>
     private static readonly TimeSpan Latido = TimeSpan.FromSeconds(5);
@@ -52,25 +52,32 @@ public sealed class TrabajadorSincronizacion(IServiceScopeFactory ambitos, TimeP
                 ultimoAviso = null;
             }
 
-            // Primero bajan los maestros: una caja nueva se aprovisiona en el primer ciclo (RF-281).
-            if (reloj.Ahora() >= proximaDescarga)
+            // El turno lo comparte con el botón «Sincronizar ahora»: si el cajero acaba de pedirlo, este ciclo espera en
+            // vez de hacer el mismo trabajo dos veces a la vez.
+            await aPedido.EnTurnoAsync(async _ =>
             {
-                proximaDescarga = reloj.Ahora() + await RitmoAsync(r => r.IntervaloMaestrosAsync(detener), TimeSpan.FromMinutes(5), detener);
-                await EjecutarAsync<IDescargaMaestros>(async descarga =>
+                // Primero bajan los maestros: una caja nueva se aprovisiona en el primer ciclo (RF-281).
+                if (reloj.Ahora() >= proximaDescarga)
                 {
-                    var resultado = await descarga.DescargarAsync(detener);
-                    if (resultado.Error is not null)
-                        registro.LogWarning("Descarga de maestros sin aplicar: {Error}", resultado.Error);
-                }, "La descarga de maestros del Central falló", detener);
-            }
+                    proximaDescarga = reloj.Ahora() + await RitmoAsync(r => r.IntervaloMaestrosAsync(detener), TimeSpan.FromMinutes(5), detener);
+                    await EjecutarAsync<IDescargaMaestros>(async descarga =>
+                    {
+                        var resultado = await descarga.DescargarAsync(detener);
+                        if (resultado.Error is not null)
+                            registro.LogWarning("Descarga de maestros sin aplicar: {Error}", resultado.Error);
+                    }, "La descarga de maestros del Central falló", detener);
+                }
 
-            await EjecutarAsync<IProcesadorBandejaSalida>(async procesador =>
-            {
-                var resultado = await procesador.ProcesarAsync(detener);
-                if (resultado.Tomados > 0)
-                    registro.LogInformation("Sincronización: {Confirmados} confirmados y {Fallidos} con error de {Tomados} mensajes.",
-                        resultado.Confirmados, resultado.Fallidos, resultado.Tomados);
-            }, "La sincronización con el Central falló", detener);
+                await EjecutarAsync<IProcesadorBandejaSalida>(async procesador =>
+                {
+                    var resultado = await procesador.ProcesarAsync(detener);
+                    if (resultado.Tomados > 0)
+                        registro.LogInformation("Sincronización: {Confirmados} confirmados y {Fallidos} con error de {Tomados} mensajes.",
+                            resultado.Confirmados, resultado.Fallidos, resultado.Tomados);
+                }, "La sincronización con el Central falló", detener);
+
+                return true;
+            }, detener);
         }
         while (await temporizador.WaitForNextTickAsync(detener));
     }

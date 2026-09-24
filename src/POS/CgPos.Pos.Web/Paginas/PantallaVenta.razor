@@ -362,10 +362,47 @@ else
                     <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="() => DesdePanelAsync(AbrirGavetaAsync)" />
                     <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="() => DesdePanelAsync(ReimprimirAsync)" />
                     <TeclaFuncion Texto="Retiro" Icono="@Icons.Material.Filled.Savings" AlPresionar="() => DesdePanelAsync(RetirarEfectivoAsync)" />
+                    <TeclaFuncion Texto="Sincronizar" Icono="@Icons.Material.Filled.CloudSync" AlPresionar="() => DesdePanelAsync(SincronizarAsync)" />
                     <TeclaFuncion Texto="Cierre de turno" Icono="@Icons.Material.Filled.LockClock" AlPresionar="() => DesdePanelAsync(CerrarTurnoAsync)" />
                     <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="() => DesdePanelAsync(SalirAsync)" />
                 </div>
             </aside>
+        }
+
+        @if (_sincronizando || _resultadoSincronizacion is not null)
+        {
+            @* Se puede cerrar y seguir vendiendo: quien sincroniza es el servicio, no la pantalla. *@
+            <MudDialog Visible="true" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true })">
+                <TitleContent>
+                    <MudText Typo="Typo.h6">@(_sincronizando ? "Sincronizando con el Central…" : "Sincronización terminada")</MudText>
+                </TitleContent>
+                <DialogContent>
+                    @if (_sincronizando)
+                    {
+                        <MudText Typo="Typo.body1" Class="mb-3">@(_sincronizacion?.Actualizacion?.Detalle ?? "Hablando con el Central…")</MudText>
+                        @if (_sincronizacion?.Actualizacion is { Hechos: { } hechos, Total: { } total } && total > 0)
+                        {
+                            <MudProgressLinear Color="Color.Primary" Value="@(hechos * 100d / total)" Size="Size.Large" Class="mb-2" />
+                        }
+                        else
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Size="Size.Large" Class="mb-2" />
+                        }
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Puede seguir atendiendo mientras tanto: la sincronización continúa sola.
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body1">@_resultadoSincronizacion</MudText>
+                    }
+                </DialogContent>
+                <DialogActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="CerrarSincronizacion">
+                        @(_sincronizando ? "Seguir trabajando" : "Cerrar")
+                    </MudButton>
+                </DialogActions>
+            </MudDialog>
         }
 
         <footer class="cg-venta__estado">
@@ -415,6 +452,8 @@ else
     private bool _cargando = true;
     private bool _procesando;
     private bool _suspendida;
+    private bool _sincronizando;
+    private string? _resultadoSincronizacion;
     private bool _modoEliminar;
     private bool _dialogoAbierto;
     private bool _enfocar = true;
@@ -1068,6 +1107,48 @@ else
         _mensaje = null;
         _numeroSeleccionado = null;
         _codigosInternos.Clear();
+    }
+
+    /// <summary>
+    /// Sincroniza ahora, sin esperar el ciclo: es lo que se pide cuando acaban de cambiar un precio en el Central. No se
+    /// hace con una venta empezada, porque bajar precios a mitad de factura dejaría dos precios del mismo artículo en el
+    /// mismo ticket.
+    /// </summary>
+    private async Task SincronizarAsync()
+    {
+        if (_venta is { Lineas.Count: > 0 } && _venta.Lineas.Any(l => !l.Anulada))
+        {
+            _mensaje = "Termine o limpie la venta en curso antes de sincronizar: los precios pueden cambiar a mitad de factura.";
+            return;
+        }
+
+        _sincronizando = true;
+        _resultadoSincronizacion = null;
+        _ = SeguirProgresoAsync();
+
+        var respuesta = await Cliente.SincronizarAsync();
+        _sincronizando = false;
+        _resultadoSincronizacion = respuesta?.Mensaje ?? "No se pudo hablar con el servicio de la caja. Intente de nuevo.";
+
+        // Tras bajar maestros, la pantalla vuelve a leer la venta y el estado: los precios y las ofertas pueden haber cambiado.
+        await CargarAsync();
+    }
+
+    /// <summary>Mientras dura, el progreso se consulta cada segundo en vez de cada quince: el modal está a la vista.</summary>
+    private async Task SeguirProgresoAsync()
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        while (_sincronizando && await temporizador.WaitForNextTickAsync())
+        {
+            _sincronizacion = await Cliente.ObtenerEstadoSincronizacionAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CerrarSincronizacion()
+    {
+        _resultadoSincronizacion = null;
+        _enfocar = true;
     }
 
     private async Task SuspenderAsync()

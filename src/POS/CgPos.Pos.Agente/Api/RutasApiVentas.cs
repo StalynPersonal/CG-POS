@@ -4,6 +4,7 @@ using CgPos.Dominio.Seguridad;
 using CgPos.Pos.Agente.Pantallas;
 using CgPos.Pos.Agente.Seguridad;
 using CgPos.Pos.Aplicacion.Seguridad;
+using CgPos.Pos.Aplicacion.Sincronizacion;
 using CgPos.Pos.Aplicacion.Ventas;
 
 namespace CgPos.Pos.Agente.Api;
@@ -184,6 +185,10 @@ public static class RutasApiVentas
 
         api.MapGet("/sincronizacion/estado", async (IEstadoSincronizacion estado, CancellationToken cancelacion) =>
             Results.Ok(await estado.ObtenerAsync(cancelacion)));
+
+        // Sincronizar ahora, sin esperar el ciclo: para cuando en el Central acaban de cambiar algo y lo quieren ver ya.
+        api.MapPost("/sincronizacion", async (ISincronizacionAPedido sincronizacion, CancellationToken cancelacion) =>
+            Results.Ok(await sincronizacion.EjecutarAsync(cancelacion)));
 
         return aplicacion;
     }

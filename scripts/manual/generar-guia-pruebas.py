@@ -889,6 +889,16 @@ esperado('Los documentos suben solos, el contador de pendientes baja a cero y en
 tablas('Caja: BandejaSalida · MarcasSincronizacion · Central: DocumentosRecibidos · VentasCentral · EstadosSincronizacionCaja')
 marcar()
 
+prueba('R2b', 'Sincronizar ahora desde la caja')
+paso('En el Central, cambie el precio de un artículo.')
+paso('En la caja, con la venta vacía, abra el panel de funciones (☰) y presione «Sincronizar».')
+paso('Mientras corre, presione «Seguir trabajando» y siga en la pantalla de venta.')
+paso('Intente sincronizar otra vez con una venta que tenga artículos.')
+esperado('El modal dice en qué anda y al terminar resume qué bajó y qué subió. Al cerrarlo, la caja sigue funcionando y el '
+         'artículo ya tiene el precio nuevo. Con una venta empezada no deja sincronizar y explica por qué.')
+tablas('Caja: los maestros que hayan cambiado · BandejaSalida · MarcasSincronizacion')
+marcar()
+
 prueba('R3', 'Monitor de sincronización')
 paso('En el Central, revise Monitor.')
 esperado('Muestra la última comunicación de cada caja, los mensajes recibidos y, si hubo, los rechazos y conflictos con su '

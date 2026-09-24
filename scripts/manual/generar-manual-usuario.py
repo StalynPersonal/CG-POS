@@ -824,7 +824,7 @@ tabla(['Tecla', 'Qué hace'],
        ['F12', 'Cliente, comprobante y programa de fidelidad']],
       anchos=[3.0, 14.0])
 p('Más operaciones (en el mismo panel, debajo): catálogo en mosaicos, eliminar línea, eliminar por escaneo, '
-  'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, suspender, gaveta, '
+  'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, suspender, sincronizar, gaveta, '
   'reimprimir, retiro de efectivo, cierre de turno y salir.')
 nota('El teclado en pantalla de códigos, documentos y textos cambia entre números y letras con la tecla ABC / 123. El de '
      'cantidades y montos es solo numérico.')
@@ -991,6 +991,9 @@ viñeta('Sincronización: si la caja está comunicada con el Central y cuántos 
 viñeta('e-CF: si el certificado está cargado, cuántos comprobantes quedan en el rango y si algo está por vencer. '
        'Al tocarlo se digita el PIN del certificado cuando hace falta.')
 viñeta('Avisos de la base de datos, la hora del equipo y el respaldo.')
+nota('La caja sincroniza sola cada cierto tiempo. Si acaban de cambiar un precio o crear un artículo en el Central y hace '
+     'falta verlo ya, en el panel de funciones (☰) está «Sincronizar»: muestra en qué anda y se puede cerrar para seguir '
+     'atendiendo mientras termina. No se puede con una venta empezada, porque los precios cambiarían a mitad de factura.')
 
 doc.add_page_break()
 

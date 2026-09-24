@@ -65,6 +65,9 @@ public static class InyeccionDependencias
         // De todo el Agente: lo escribe el servicio de sincronización y lo lee la pantalla, cada uno en su propio ámbito.
         servicios.AddSingleton<IProgresoActualizacion, ProgresoActualizacionEnMemoria>();
 
+        // El candado que comparten el ciclo automático y el botón «Sincronizar ahora» es del Agente entero.
+        servicios.AddSingleton<Aplicacion.Sincronizacion.ISincronizacionAPedido, Sincronizacion.SincronizacionAPedido>();
+
         servicios.AddScoped<VerificadorCredenciales>();
         servicios.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
         servicios.AddScoped<IServicioAutorizacion, ServicioAutorizacion>();
