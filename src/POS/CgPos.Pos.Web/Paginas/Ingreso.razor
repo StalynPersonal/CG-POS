@@ -37,16 +37,12 @@
                         @(actualizacion.Detalle ?? "Actualizando la caja…")
                     </MudAlert>
 
-                    @* La barra va fuera del aviso: dentro no toma el ancho de la tarjeta y se queda sin verse.
-                       Con el total de verdad avanza; mientras no se sepa, se mueve sola para que se vea que trabaja. *@
-                    @if (actualizacion is { Total: > 0 } contado)
-                    {
-                        <MudProgressLinear Value="@Porcentaje(contado)" Color="Color.Secondary" Size="Size.Large" Rounded="true" Class="mt-2" />
-                    }
-                    else
-                    {
-                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Size="Size.Large" Rounded="true" Class="mt-2" />
-                    }
+                    @* La barra va fuera del aviso: dentro no toma el ancho de la tarjeta y se queda sin verse. Nunca va en
+                       movimiento continuo: entre una etapa y otra se queda donde estaba, que es lo que de verdad pasó. *@
+                    <div class="cg-progreso mt-2" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)_avance)">
+                        <div class="cg-progreso__relleno" style="width: @(((int)_avance).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                        <span class="cg-progreso__valor">@((int)_avance) %</span>
+                    </div>
                 }
                 else if (_estado.Problema is not null)
                 {
@@ -154,9 +150,23 @@
     /// </summary>
     private bool Bloqueada => _estado?.Actualizacion is { EnCurso: true };
 
-    /// <summary>Cuánto lleva la etapa, de 0 a 100, para la barra de progreso.</summary>
-    private static double Porcentaje(DatosActualizacionCaja actualizacion) =>
-        actualizacion.Total is { } total and > 0 ? Math.Clamp((actualizacion.Hechos ?? 0) * 100d / total, 0, 100) : 0;
+    /// <summary>
+    /// Lo que marca la barra. Las etapas que no se cuentan (pedirle los datos al Central, guardarlos) no la mueven ni la
+    /// devuelven a cero: se queda donde estaba, porque retroceder haría pensar que algo salió mal.
+    /// </summary>
+    private double _avance;
+
+    private void ActualizarAvance()
+    {
+        if (_estado?.Actualizacion is not { EnCurso: true } actualizacion)
+        {
+            _avance = 0;
+            return;
+        }
+
+        if (actualizacion is { Total: > 0 } contado)
+            _avance = Math.Clamp((contado.Hechos ?? 0) * 100d / contado.Total!.Value, 0, 100);
+    }
 
     private bool PuedeIngresar =>
         CajaDisponible && !Bloqueada && !_procesando && !string.IsNullOrWhiteSpace(_codigo) && !string.IsNullOrEmpty(_clave);
@@ -204,6 +214,7 @@
     private async Task RevisarEstadoAsync()
     {
         _estado = await Cliente.ObtenerEstadoCajaAsync();
+        ActualizarAvance();
         StateHasChanged();
 
         if (CajaDisponible && _estado?.Actualizacion is not { EnCurso: true })
