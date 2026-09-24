@@ -180,7 +180,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
 
-        var deOtroPermiso = await caja.AutorizarAsync(CatalogoPermisos.AnularVenta, "Otro permiso");
+        var deOtroPermiso = await caja.AutorizarAsync(CatalogoPermisos.SuspenderVenta, "Otro permiso");
         Assert.Equal(CodigoResultadoVenta.AutorizacionInvalida,
             (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.EliminarLineaAsync(caja.Cajero, venta.Id, 1, deOtroPermiso))).Resultado);
 
@@ -206,7 +206,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
 
         var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.LimpiarPantalla, "Cliente desistió");
-        var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, venta.Id, autorizacion));
+        var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, venta.Id, null, autorizacion));
 
         Assert.True(limpia.Exitosa, limpia.Mensaje);
         Assert.NotEqual(venta.Id, limpia.Venta!.Id);
@@ -215,8 +215,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // El borrador no era un documento: sale de la mesa de trabajo y lo que tenía queda en la auditoría.
         Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasEnProceso.AnyAsync(v => v.Id == venta.Id)));
+        // El cajero no dio motivo, así que queda el que escribió el supervisor al autorizar.
         Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
-            a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Pantalla limpiada")));
+            a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Cliente desistió")));
         Assert.Equal(0, await caja.EjecutarAsync<ContextoDatosPos, int>(contexto => contexto.Ventas.CountAsync(v => v.CajaId == caja.Escenario.CajaUno)));
     }
 
@@ -601,25 +602,26 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task Anular_y_suspender_requieren_autorizacion_y_quedan_auditados()
+    public async Task Limpiar_con_motivo_y_suspender_requieren_autorizacion_y_quedan_auditados()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
 
-        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AnularAsync(caja.Cajero, venta.Id, "Cliente se retiró", null));
+        // El cajero de la prueba no tiene el permiso: sin autorización no bota la venta, aunque dé el motivo.
+        var sinPermiso = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, venta.Id, "Cliente se retiró", null));
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, sinPermiso.Resultado);
 
-        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.AnularVenta, "Cliente se retiró");
-        var nueva = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AnularAsync(caja.Cajero, venta.Id, null, autorizacion));
+        var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.LimpiarPantalla, "Cliente se retiró");
+        var nueva = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, venta.Id, "Cliente se retiró", autorizacion));
         Assert.True(nueva.Exitosa, nueva.Mensaje);
         Assert.NotEqual(venta.Id, nueva.Venta!.Id);
 
-        // Anulada antes de cobrar no es un documento: se borra y el rastro queda en la auditoría.
+        // El borrador no era un documento: se borra y el motivo que dio el cajero queda en la auditoría.
         Assert.False(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.VentasEnProceso.AnyAsync(v => v.Id == venta.Id)));
         Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
-            a.Accion == "Ventas.Anulada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Cliente se retiró" && a.AutorizadoPorId != null)));
+            a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Cliente se retiró" && a.AutorizadoPorId != null)));
 
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion,
             (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null))).Resultado);
@@ -628,7 +630,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         var cajaCodigo = caja.Cajero.CajaCodigo;
         var registros = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
-            contexto.Auditoria.CountAsync(r => (r.Accion == "Ventas.Anulada" && r.EntidadId == $"B-{venta.Id:000000}")
+            contexto.Auditoria.CountAsync(r => (r.Accion == "Ventas.PantallaLimpiada" && r.EntidadId == $"B-{venta.Id:000000}")
                                                || (r.Accion == "Caja.OperacionesSuspendidas" && r.UsuarioId == caja.Escenario.Cajero)));
         Assert.Equal(2, registros);
     }
@@ -1097,7 +1099,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.Equal(CodigoResultadoVenta.TurnoDiaAnterior, cobro.Resultado);
 
         var autorizacion = await caja.AutorizarAsync(CatalogoPermisos.LimpiarPantalla, "Turno de ayer");
-        var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, retomadaVenta.Id, autorizacion));
+        var limpia = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.LimpiarAsync(caja.Cajero, retomadaVenta.Id, null, autorizacion));
         Assert.True(limpia.Exitosa, limpia.Mensaje);
 
         var cerrado = await caja.EjecutarAsync<IServicioCaja, RespuestaCaja>(s => s.CerrarAsync(caja.Cajero, null));

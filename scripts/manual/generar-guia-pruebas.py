@@ -229,7 +229,7 @@ marcar()
 
 prueba('A8', 'Roles y usuarios de caja')
 paso('En Cajas → Roles cree tres roles: CAJERO (abrir y cerrar turno, vender), SUPERVISOR (lo del cajero más autorizar, '
-     'descuentos, anular, retiros, devoluciones y los permisos de Cuadre) y DEVOLUCIONES (abrir y cerrar turno y registrar '
+     'descuentos, limpiar la pantalla, retiros, devoluciones y los permisos de Cuadre) y DEVOLUCIONES (abrir y cerrar turno y registrar '
      'devoluciones, sin vender).')
 paso('En Cajas → Usuarios cree un usuario para cada rol y asígneles la caja 01.')
 esperado('Los tres quedan creados con su clave. El de DEVOLUCIONES se usará en el bloque S.')
@@ -316,8 +316,10 @@ tablas('Caja: LineasVentaEnProceso · AutorizacionesOtorgadas · Auditoria')
 marcar()
 
 prueba('C4', 'Limpiar la pantalla')
-paso('Presione la opción de limpiar y autorice con el supervisor.')
-esperado('La venta se descarta entera y empieza otra vacía. La descartada no deja factura ni consume número.')
+paso('Presione la opción de limpiar. Pide el motivo: déjelo en blanco la primera vez y autorice con el supervisor.')
+paso('Arme otra venta, límpiela de nuevo y esta vez escriba un motivo.')
+esperado('Las dos veces la venta se descarta entera y empieza otra vacía, sin dejar factura ni consumir número. El motivo no '
+         'es obligatorio, pero cuando se escribe queda guardado en la auditoría (se comprueba en S3).')
 tablas('Caja: VentasEnProceso · LineasVentaEnProceso (las dos filas se borran) · Auditoria')
 marcar()
 

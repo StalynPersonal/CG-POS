@@ -215,7 +215,8 @@ public sealed record RespuestaCotizacion(CodigoResultadoVenta Resultado, string?
 public sealed record SolicitudLimiteCompra(decimal? Limite);
 
 /// <param name="Motivo">Si se omite y hubo autorización de supervisor, se usa el motivo de esa autorización.</param>
-public sealed record SolicitudAnularVenta(string? Motivo, Guid? AutorizacionId = null);
+/// <param name="Motivo">Por qué se botó la venta; opcional. Si se da, queda en la auditoría.</param>
+public sealed record SolicitudLimpiarVenta(string? Motivo, Guid? AutorizacionId = null);
 
 /// <param name="Motivo">Motivo de la lista configurable (RF-203).</param>
 public sealed record SolicitudDescuentoLinea(TipoDescuento Tipo, decimal Valor, string? Motivo, Guid? AutorizacionId = null);

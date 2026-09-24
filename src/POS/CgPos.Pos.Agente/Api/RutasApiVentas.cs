@@ -58,8 +58,8 @@ public static class RutasApiVentas
         ventas.MapPost("/{ventaId:int}/eliminar-por-codigo", (int ventaId, SolicitudEliminarPorCodigo solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.EliminarPorCodigoAsync(sesion, ventaId, solicitud.Codigo ?? string.Empty, solicitud.AutorizacionId, cancelacion))));
 
-        ventas.MapPost("/{ventaId:int}/limpiar", (int ventaId, SolicitudConAutorizacion solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.LimpiarAsync(sesion, ventaId, solicitud.AutorizacionId, cancelacion))));
+        ventas.MapPost("/{ventaId:int}/limpiar", (int ventaId, SolicitudLimpiarVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
+            ConSesion(usuario, async sesion => Resultado(await servicio.LimpiarAsync(sesion, ventaId, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
 
         // Cliente, comprobante y límite (C4)
         ventas.MapPost("/{ventaId:int}/cliente", (int ventaId, SolicitudAsignarCliente solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
@@ -125,9 +125,6 @@ public static class RutasApiVentas
         ventas.MapPost("/{ventaId:int}/retomar", (int ventaId, SolicitudRetomarVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio,
                 CancellationToken cancelacion) =>
             ConSesion(usuario, async sesion => Resultado(await servicio.RetomarAsync(sesion, ventaId, solicitud.ReferenciaActual, cancelacion))));
-
-        ventas.MapPost("/{ventaId:int}/anular", (int ventaId, SolicitudAnularVenta solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>
-            ConSesion(usuario, async sesion => Resultado(await servicio.AnularAsync(sesion, ventaId, solicitud.Motivo, solicitud.AutorizacionId, cancelacion))));
 
         // Descuentos y ofertas (C5)
         ventas.MapPost("/{ventaId:int}/lineas/{numeroLinea:int}/descuento", (int ventaId, int numeroLinea, SolicitudDescuentoLinea solicitud, ClaimsPrincipal usuario, IServicioVentas servicio, CancellationToken cancelacion) =>

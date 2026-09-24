@@ -389,7 +389,7 @@ p('Los roles dicen qué puede hacer cada quien y el nivel decide quién autoriza
   'permiso y un nivel igual o mayor al que lo pide.')
 tabla(['Código', 'Rol', 'Nivel', 'Qué puede hacer'],
       [['CAJERO', 'Cajero', '1', 'Abrir turno, vender, cobrar, imprimir y cerrar su turno. No descuenta ni anula.'],
-       ['SUPERVISOR', 'Supervisor', '5', 'Todo lo del cajero y además autoriza descuentos hasta su tope, anulaciones, devoluciones, retiros de efectivo, notas de crédito internas y apertura de gaveta.'],
+       ['SUPERVISOR', 'Supervisor', '5', 'Todo lo del cajero y además autoriza descuentos hasta su tope, limpiar la pantalla, devoluciones, retiros de efectivo, notas de crédito internas y apertura de gaveta.'],
        ['GERENTE', 'Gerente', '8', 'Todo lo anterior, más autorizar lo que pasa el tope del supervisor y cambiar el comprobante de una factura.'],
        ['DEVOLUCIONES', 'Devoluciones', '1', 'Abrir y cerrar su turno y emitir notas de crédito. No vende: en la pantalla de venta solo consulta artículos y clientes.']],
       anchos=[2.4, 2.6, 1.4, 10.0])
@@ -817,7 +817,7 @@ tabla(['Tecla', 'Qué hace'],
        ['F12', 'Cliente, comprobante y programa de fidelidad']],
       anchos=[3.0, 14.0])
 p('Más operaciones (en el mismo panel, debajo): catálogo en mosaicos, eliminar línea, eliminar por escaneo, '
-  'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, anular, suspender, gaveta, '
+  'limpiar pantalla, descuento a la línea, descuento a la factura, entrega o envío, suspender, gaveta, '
   'reimprimir, retiro de efectivo, cierre de turno y salir.')
 nota('El teclado en pantalla de códigos, documentos y textos cambia entre números y letras con la tecla ABC / 123. El de '
      'cantidades y montos es solo numérico.')
@@ -901,7 +901,7 @@ nota('La cotización vive en el Central: si la caja está sin comunicación, no 
      'palabras, y siempre se puede facturar a mano.')
 nota('La venta tiene que estar vacía: si ya tiene artículos, termínela o límpiela antes de traer la cotización.')
 
-titulo('3.13. Facturas en espera, anular y suspender', 2)
+titulo('3.13. Facturas en espera, limpiar y suspender', 2)
 viñeta('F7 – En espera: guarda la venta actual para atender a otro cliente y retomarla después. Se le pone una referencia '
        'corta, el nombre del cliente o unos dígitos («Sra. María», «102»), que es con lo que se encuentra en la lista al volver. '
        'Dos facturas en espera del mismo turno no pueden llamarse igual.')
@@ -911,8 +911,9 @@ viñeta('Mientras la venta se arma, la pantalla muestra el número de factura qu
        'al cobrar, en el orden en que se cobra: una factura en espera no se lleva el número de otro cliente, y una venta que no '
        'se cobró no deja un hueco en la numeración. En la auditoría, la venta sin cobrar aparece como B-000015.')
 viñeta('Una venta con tarjeta ya aprobada no se pone en espera: cóbrela o anule la tarjeta primero.')
-viñeta('Anular (panel de funciones ☰): cancela la transacción en curso con motivo y autorización. Como todavía no era una factura, '
-       'desaparece de la caja; lo que tenía, quién la anuló, quién lo autorizó y el motivo quedan en la auditoría.')
+viñeta('Limpiar pantalla (panel de funciones ☰): bota la transacción en curso y empieza otra. Pide el motivo, pero se puede '
+       'dejar en blanco: escanear lo que no era pasa varias veces al día. Como todavía no era una factura, desaparece de la '
+       'caja; lo que tenía, quién la botó, quién lo autorizó y el motivo —si lo dio— quedan en la auditoría.')
 viñeta('Suspender: bloquea la pantalla; se reanuda con la clave del cajero.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada en su lugar, con su mismo número, y sale del total. La numeración de las líneas sigue continua; quién la '

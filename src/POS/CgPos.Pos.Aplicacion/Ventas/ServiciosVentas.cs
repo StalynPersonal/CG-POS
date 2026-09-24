@@ -48,7 +48,8 @@ public interface IServicioVentas
     Task<RespuestaVenta> EliminarPorCodigoAsync(SesionUsuario sesion, int ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>Limpia la pantalla: anula la venta en curso y empieza una nueva (RF-146).</summary>
-    Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, int ventaId, Guid? autorizacionId, CancellationToken cancelacion = default);
+    /// <param name="motivo">Por qué se botó la venta; opcional, pero si se da queda en la auditoría.</param>
+    Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>
     /// Asigna el cliente por RNC/cédula: el registrado en el maestro o, si no está, el documento con el nombre indicado (RF-13, RF-181).
@@ -94,9 +95,6 @@ public interface IServicioVentas
 
     /// <summary>Retoma una venta en espera del cajero en su turno; la venta en curso pasa a espera (o se descarta si está vacía).</summary>
     Task<RespuestaVenta> RetomarAsync(SesionUsuario sesion, int ventaId, string? referenciaActual, CancellationToken cancelacion = default);
-
-    /// <summary>Anula la transacción con motivo y autorización; no consume NCF (RF-194).</summary>
-    Task<RespuestaVenta> AnularAsync(SesionUsuario sesion, int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default);
 
     /// <summary>Suspende las operaciones de la caja (bloqueo de pantalla) con permiso o clave de supervisor (RF-23).</summary>
     Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, Guid? autorizacionId, CancellationToken cancelacion = default);

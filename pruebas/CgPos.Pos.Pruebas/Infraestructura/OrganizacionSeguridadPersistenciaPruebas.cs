@@ -52,7 +52,7 @@ public class OrganizacionSeguridadPersistenciaPruebas(BaseDatosPruebas baseDatos
             var rolLeido = await contexto.Roles.Include(r => r.PermisosAsignados).SingleAsync(r => r.Id == rol.Id);
             Assert.True(rolLeido.TienePermiso(CatalogoPermisos.AutorizarOperaciones));
             Assert.True(rolLeido.TienePermiso(CatalogoPermisos.EliminarLinea));
-            Assert.False(rolLeido.TienePermiso(CatalogoPermisos.AnularVenta));
+            Assert.False(rolLeido.TienePermiso(CatalogoPermisos.SuspenderVenta));
 
             var usuarioLeido = await contexto.Usuarios.Include(u => u.CajasAsignadas).SingleAsync(u => u.Id == usuario.Id);
             Assert.True(usuarioLeido.PuedeOperarCaja(caja.Id));

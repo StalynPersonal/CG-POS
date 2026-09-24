@@ -358,7 +358,6 @@ else
                     <TeclaFuncion Texto="Desc. línea" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Percent" AlPresionar="() => DesdePanelAsync(DescuentoLineaSeleccionadaAsync)" />
                     <TeclaFuncion Texto="Desc. factura" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Discount" AlPresionar="() => DesdePanelAsync(AbrirDescuentoFacturaAsync)" />
                     <TeclaFuncion Texto="Entrega / envío" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.LocalShipping" AlPresionar="() => DesdePanelAsync(AbrirEntregaAsync)" />
-                    <TeclaFuncion Texto="Anular" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Block" AlPresionar="() => DesdePanelAsync(AnularAsync)" />
                     <TeclaFuncion Texto="Suspender" Deshabilitada="@(!PuedeVender)" Icono="@Icons.Material.Filled.Lock" AlPresionar="() => DesdePanelAsync(SuspenderAsync)" />
                     <TeclaFuncion Texto="Gaveta" Icono="@Icons.Material.Filled.PointOfSale" AlPresionar="() => DesdePanelAsync(AbrirGavetaAsync)" />
                     <TeclaFuncion Texto="Reimprimir" Icono="@Icons.Material.Filled.Print" AlPresionar="() => DesdePanelAsync(ReimprimirAsync)" />
@@ -768,16 +767,24 @@ else
         if (_venta is null)
             return;
 
-        _dialogoAbierto = true;
-        var confirmado = _venta.Lineas.Count == 0 || await Dialogos.ConfirmarAsync("Limpiar pantalla",
-            $"¿Anular la transacción {_venta.NumeroTransaccion} con {_venta.Totales.CantidadLineas} líneas por {_venta.Totales.Total:C}?", "Limpiar", esPeligrosa: true);
-        _dialogoAbierto = false;
-        _enfocar = true;
-        if (!confirmado)
+        // Una venta vacía no se pregunta ni se explica: no hay nada que botar.
+        if (_venta.Lineas.Count == 0)
+        {
+            await EjecutarConAutorizacionAsync(
+                autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, null, autorizacion),
+                $"Limpiar la transacción {_venta.NumeroTransaccion}");
+            return;
+        }
+
+        // El motivo es opcional: se puede dejar vacío y seguir. Si lo escriben, queda en la auditoría.
+        var motivo = await PedirTextoAsync($"Limpiar la transacción {_venta.NumeroTransaccion}",
+            $"Motivo (opcional) · {_venta.Totales.CantidadLineas} líneas por {_venta.Totales.Total:C}",
+            ayuda: "Puede dejarlo en blanco. Ej.: el cliente se arrepintió.", decimales: false, modo: ModoTeclado.Alfanumerico);
+        if (motivo is null)
             return;
 
         await EjecutarConAutorizacionAsync(
-            autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, autorizacion),
+            autorizacion => Cliente.LimpiarVentaAsync(_venta!.Id, string.IsNullOrWhiteSpace(motivo) ? null : motivo, autorizacion),
             $"Limpiar la transacción {_venta.NumeroTransaccion}");
         _codigosInternos.Clear();
     }
@@ -1060,29 +1067,6 @@ else
         _venta = venta;
         _mensaje = null;
         _numeroSeleccionado = null;
-        _codigosInternos.Clear();
-    }
-
-    private async Task AnularAsync()
-    {
-        if (_venta is null || _venta.Lineas.Count == 0)
-        {
-            _mensaje = "No hay artículos que anular.";
-            return;
-        }
-
-        // Con permiso propio se pide el motivo aquí; si no, el supervisor lo indica al autorizar.
-        string? motivo = null;
-        if (Almacen.TienePermiso(CatalogoPermisos.AnularVenta))
-        {
-            motivo = await PedirTextoAsync($"Anular la transacción {_venta.NumeroTransaccion}", "Motivo de la anulación", modo: ModoTeclado.Alfanumerico);
-            if (motivo is null)
-                return;
-        }
-
-        await EjecutarConAutorizacionAsync(
-            autorizacion => Cliente.AnularVentaAsync(_venta!.Id, motivo, autorizacion),
-            $"Anular la transacción {_venta.NumeroTransaccion} por {_venta.Totales.Total:C}");
         _codigosInternos.Clear();
     }
 

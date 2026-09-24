@@ -26,7 +26,6 @@ public static class CatalogoPermisos
     public const string RegistrarVenta = "Ventas.Registrar";
     public const string EliminarLinea = "Ventas.EliminarLinea";
     public const string LimpiarPantalla = "Ventas.LimpiarPantalla";
-    public const string AnularVenta = "Ventas.Anular";
     public const string SuspenderVenta = "Ventas.Suspender";
     public const string CambiarComprobante = "Ventas.CambiarComprobante";
     public const string FacturarCotizacionVencida = "Ventas.FacturarCotizacionVencida";
@@ -74,7 +73,6 @@ public static class CatalogoPermisos
         new(RegistrarVenta, "Ventas", "Registrar ventas"),
         new(EliminarLinea, "Ventas", "Eliminar líneas de una venta"),
         new(LimpiarPantalla, "Ventas", "Limpiar la pantalla de venta"),
-        new(AnularVenta, "Ventas", "Anular una venta antes de cerrarla"),
         new(SuspenderVenta, "Ventas", "Suspender operaciones"),
         new(CambiarComprobante, "Ventas", "Cambiar el tipo de comprobante fiscal"),
         new(FacturarCotizacionVencida, "Ventas", "Facturar una cotización cuya vigencia ya pasó"),

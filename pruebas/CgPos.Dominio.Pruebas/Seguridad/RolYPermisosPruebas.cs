@@ -32,7 +32,7 @@ public class RolYPermisosPruebas
 
         Assert.Equal(2, supervisor.PermisosAsignados.Count);
         Assert.True(supervisor.TienePermiso(CatalogoPermisos.EliminarLinea));
-        Assert.False(supervisor.TienePermiso(CatalogoPermisos.AnularVenta));
+        Assert.False(supervisor.TienePermiso(CatalogoPermisos.SuspenderVenta));
 
         supervisor.QuitarPermiso(CatalogoPermisos.EliminarLinea);
         Assert.False(supervisor.TienePermiso(CatalogoPermisos.EliminarLinea));

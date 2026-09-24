@@ -137,8 +137,8 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
     public Task<RespuestaVenta> EliminarPorCodigoAsync(int ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/eliminar-por-codigo", new SolicitudEliminarPorCodigo(codigo, autorizacionId), ErrorVenta, cancelacion);
 
-    public Task<RespuestaVenta> LimpiarVentaAsync(int ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/limpiar", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);
+    public Task<RespuestaVenta> LimpiarVentaAsync(int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/limpiar", new SolicitudLimpiarVenta(motivo, autorizacionId), ErrorVenta, cancelacion);
 
     // ---------- Cliente, comprobante, límite, espera, anular y suspender (C4) ----------
 
@@ -198,9 +198,6 @@ public sealed class ClienteAgente(IHttpClientFactory fabricaHttp, AlmacenSesion 
 
     public Task<RespuestaVenta> RetomarVentaAsync(int ventaId, string? referenciaActual, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/retomar", new SolicitudRetomarVenta(referenciaActual), ErrorVenta, cancelacion);
-
-    public Task<RespuestaVenta> AnularVentaAsync(int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
-        EnviarAsync(HttpMethod.Post, $"api/ventas/{ventaId}/anular", new SolicitudAnularVenta(motivo, autorizacionId), ErrorVenta, cancelacion);
 
     public Task<RespuestaVenta> SuspenderCajaAsync(Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EnviarAsync(HttpMethod.Post, "api/caja/suspender", new SolicitudConAutorizacion(autorizacionId), ErrorVenta, cancelacion);

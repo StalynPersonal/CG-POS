@@ -971,17 +971,12 @@ internal sealed class ServicioVentas(
     public Task<RespuestaVenta> EliminarPorCodigoAsync(SesionUsuario sesion, int ventaId, string codigo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
         EliminarAsync(sesion, ventaId, autorizacionId, venta => venta.EliminarPorCodigo(codigo, reloj.Ahora()), cancelacion);
 
-    public Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, int ventaId, Guid? autorizacionId, CancellationToken cancelacion = default) =>
-        AnularYContinuarAsync(sesion, ventaId, CatalogoPermisos.LimpiarPantalla, "Pantalla limpiada", autorizacionId, "Ventas.PantallaLimpiada", cancelacion);
-
-    public async Task<RespuestaVenta> AnularAsync(SesionUsuario sesion, int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default)
-    {
-        // Sin autorización el motivo es obligatorio; con autorización se toma el motivo que dio el supervisor.
-        if (string.IsNullOrWhiteSpace(motivo) && autorizacionId is null && sesion.TienePermiso(CatalogoPermisos.AnularVenta))
-            return new RespuestaVenta(CodigoResultadoVenta.MotivoRequerido, "Indique el motivo de la anulación.", null);
-
-        return await AnularYContinuarAsync(sesion, ventaId, CatalogoPermisos.AnularVenta, motivo, autorizacionId, "Ventas.Anulada", cancelacion);
-    }
+    /// <summary>
+    /// Bota la venta en curso y abre otra. El motivo es opcional: escanear lo que no era pasa varias veces al día y pedir
+    /// una explicación cada vez solo conseguiría que el cajero escriba cualquier cosa. Si lo da, queda en la auditoría.
+    /// </summary>
+    public Task<RespuestaVenta> LimpiarAsync(SesionUsuario sesion, int ventaId, string? motivo, Guid? autorizacionId, CancellationToken cancelacion = default) =>
+        AnularYContinuarAsync(sesion, ventaId, CatalogoPermisos.LimpiarPantalla, motivo, autorizacionId, "Ventas.PantallaLimpiada", cancelacion);
 
     public async Task<RespuestaVenta> AsignarClienteAsync(SesionUsuario sesion, int ventaId, string documento, string? nombre, CancellationToken cancelacion = default)
     {
@@ -1470,7 +1465,7 @@ internal sealed class ServicioVentas(
         if (!permiso.Permitido)
             return SinPermiso(permiso, codigoPermiso, venta);
 
-        var motivoFinal = string.IsNullOrWhiteSpace(motivo) ? permiso.Motivo : motivo.Trim();
+        var motivoFinal = string.IsNullOrWhiteSpace(motivo) ? permiso.Motivo ?? "Pantalla limpiada" : motivo.Trim();
         var totales = venta.CalcularTotales();
 
         // La venta que no se cobró no es un documento: sale de la mesa de trabajo sin dejar hueco en la numeración, y lo
