@@ -138,6 +138,12 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
             return true;
         }
 
+        // Lo que el registro referencia hoy, antes de tocarlo: para compararlo hay que traducir sus Ids a códigos, y esos
+        // son los de antes, no los que vienen en el dato nuevo. Sin esto, cambiarle el artículo a una promoción fallaba
+        // diciendo que no existe el artículo que justamente se estaba quitando.
+        if (antesDeLeer is not null)
+            await antesDeLeer(contexto, [entidad], resolutor, cancelacion);
+
         var antes = Serializar(aCarga(entidad, resolutor, Precios(contexto.Entry(entidad))));
         actualizar(entidad, carga, resolutor, opciones);
         alGuardar?.Invoke(contexto, entidad, carga, resolutor, opciones);

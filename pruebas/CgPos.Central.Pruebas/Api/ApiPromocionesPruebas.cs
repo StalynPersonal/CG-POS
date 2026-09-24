@@ -37,6 +37,18 @@ public class ApiPromocionesPruebas(CentralEnPruebas central)
             promocion with { Sucursales = ["99"] })).Cuerpo!.Mensaje);
         Assert.Contains("Ya existe", (await EnviarAsync(cliente, admin, HttpMethod.Post, "/api/promociones", promocion)).Cuerpo!.Mensaje);
 
+        // Cambiarle el artículo a una promoción ya publicada: para saber qué cambió hay que traducir a código el artículo
+        // que tenía, y eso fallaba diciendo que no existe justo el que se estaba quitando.
+        var (_, otro) = await CrearArticuloAsync(cliente, admin);
+        var cambiada = await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones", promocion with { Articulos = [otro.Codigo] });
+        Assert.True(cambiada.Cuerpo!.Exitosa, cambiada.Cuerpo.Mensaje);
+
+        var conOtro = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
+        Assert.Equal(otro.Codigo, Assert.Single(conOtro.Promocion.Articulos!));
+
+        // Y se deja como estaba, para lo que sigue.
+        Assert.True((await EnviarAsync(cliente, admin, HttpMethod.Put, "/api/promociones", promocion)).Cuerpo!.Exitosa);
+
         var listada = Assert.Single(await ObtenerAsync<List<DatosPromocionCentral>>(cliente, admin, "/api/promociones"), p => p.Promocion.Codigo == promocion.Codigo);
         Assert.Equal("-10%", listada.Oferta);
         Assert.True(listada.CajasDestino >= 1);
