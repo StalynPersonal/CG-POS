@@ -34,17 +34,19 @@
                 @if (_estado.Actualizacion is { EnCurso: true } actualizacion)
                 {
                     <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mt-4">
-                        <div>@(actualizacion.Detalle ?? "Actualizando la caja…")</div>
-                        @* Con el total de verdad la barra avanza; mientras no se sepa, se mueve sola para que se vea que trabaja. *@
-                        @if (actualizacion is { Total: > 0 } contado)
-                        {
-                            <MudProgressLinear Value="@Porcentaje(contado)" Color="Color.Inherit" Class="mt-2" Rounded="true" />
-                        }
-                        else
-                        {
-                            <MudProgressLinear Indeterminate="true" Color="Color.Inherit" Class="mt-2" Rounded="true" />
-                        }
+                        @(actualizacion.Detalle ?? "Actualizando la caja…")
                     </MudAlert>
+
+                    @* La barra va fuera del aviso: dentro no toma el ancho de la tarjeta y se queda sin verse.
+                       Con el total de verdad avanza; mientras no se sepa, se mueve sola para que se vea que trabaja. *@
+                    @if (actualizacion is { Total: > 0 } contado)
+                    {
+                        <MudProgressLinear Value="@Porcentaje(contado)" Color="Color.Secondary" Size="Size.Large" Rounded="true" Class="mt-2" />
+                    }
+                    else
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Size="Size.Large" Rounded="true" Class="mt-2" />
+                    }
                 }
                 else if (_estado.Problema is not null)
                 {
