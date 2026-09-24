@@ -77,6 +77,12 @@ public static class ClavesParametrosCentral
     /// <summary>Exige mayúscula, minúscula, número y símbolo, sin contener el usuario. Opcional: sin él solo se exige el largo.</summary>
     public const string ContrasenaCompleja = "Central.Seguridad.ContrasenaCompleja";
 
+    /// <summary>
+    /// Filas por página de la bajada de maestros. Opcional: sin él vale 5,000. El aprovisionamiento de una caja nueva son
+    /// cientos de miles de filas; en un solo viaje no llega, así que el Central corta el rango y la caja pide el resto.
+    /// </summary>
+    public const string FilasPorPaginaBajada = "Central.Sincronizacion.FilasPorPagina";
+
     /// <summary>Minutos de vigencia del token con el que una caja se comunica con el Central.</summary>
     public const string MinutosTokenDispositivo = "Central.Dispositivos.MinutosToken";
 

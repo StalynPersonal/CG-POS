@@ -76,13 +76,19 @@ public enum EstadoRecepcion
 /// <param name="Maestros">Catálogo, precios, promociones, fidelidad, rangos de e-CF…; nulo si nada cambió.</param>
 /// <param name="EstadosDgii">Resultados de la DGII de los e-CF de esa caja que cambiaron; nulo si ninguno cambió.</param>
 /// <param name="ParametrosVigentes">Todos los parámetros que hoy aplican a esa caja: los que la caja tenga y no estén aquí se borraron en el Central.</param>
+/// <param name="Completo">
+/// Ya no falta nada. Cuando es <c>false</c>, el Central cortó el rango en <paramref name="Hasta"/> porque no cabía en una
+/// página: la caja aplica lo que llegó, guarda esa marca y vuelve a pedir desde ahí. El aprovisionamiento de una caja
+/// nueva son cientos de miles de filas y en un solo viaje no llega nunca.
+/// </param>
 public sealed record PaqueteBajadaMaestros(
     long Desde,
     long Hasta,
     CargaInicial.PaqueteCargaInicial? Organizacion,
     Catalogo.PaqueteMaestros? Maestros,
     IReadOnlyList<EstadoDgiiCarga>? EstadosDgii = null,
-    IReadOnlyList<CargaInicial.ParametroReferencia>? ParametrosVigentes = null)
+    IReadOnlyList<CargaInicial.ParametroReferencia>? ParametrosVigentes = null,
+    bool Completo = true)
 {
     public bool SinCambios => Organizacion is null && Maestros is null && EstadosDgii is not { Count: > 0 };
 }

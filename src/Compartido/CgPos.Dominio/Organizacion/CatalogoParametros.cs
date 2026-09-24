@@ -203,6 +203,7 @@ public static class CatalogoParametros
         new("Central.Seguridad.LargoMaximoClaveCaja", "Seguridad del Central", "Largo máximo de la clave de los usuarios de caja (vacío = sin tope)", Entero, false, Central, Minimo: 1),
         new("Central.Seguridad.ContrasenaCompleja", "Seguridad del Central", "Exige mayúsculas, minúsculas, números y símbolos, sin contener el usuario", Booleano, false, Central),
         new("Central.Dispositivos.MinutosToken", "Seguridad del Central", "Minutos de vigencia del token con el que las cajas se comunican con el Central", Entero, true, Central, Minimo: 1),
+        new("Central.Sincronizacion.FilasPorPagina", "Sincronización", "Filas por página de la bajada de maestros a las cajas: el aprovisionamiento completo se manda en tandas de este tamaño", Entero, false, Central, Minimo: 100),
 
         new("Central.Dgii.Habilitado", "Envío a la DGII", "Envía a la DGII los e-CF recibidos de las cajas", Booleano, false, Central),
         new("Central.Dgii.UrlSemilla", "Envío a la DGII", "Dirección del servicio que entrega la semilla de autenticación", Texto, false, Central),

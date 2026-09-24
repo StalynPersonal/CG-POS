@@ -54,6 +54,7 @@ PARAMETROS_INICIALES = [
     ('Central.Seguridad.LargoMinimoClaveCaja', '6', 'Largo mínimo de la clave de los usuarios de caja'),
     ('Central.Seguridad.ContrasenaCompleja', 'true', 'Exige mayúscula, minúscula, número y símbolo'),
     ('Central.Dispositivos.MinutosToken', '30', 'Minutos de vigencia del token de una caja'),
+    ('Central.Sincronizacion.FilasPorPagina', '5000', 'Filas por página de la bajada de maestros a las cajas'),
 
     # Ritmo de los procesos del Central.
     ('Central.Dgii.SegundosCiclo', '30', 'Segundos entre envíos de e-CF a la DGII'),

@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using CgPos.Central.Aplicacion.Organizacion;
 using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Pruebas.Soporte;
 using CgPos.Contratos.Catalogo;
@@ -235,6 +236,54 @@ public class ApiMaestrosPruebas(CentralEnPruebas central)
 
         var conflicto = await central.UsarContextoAsync(contexto => contexto.ConflictosSincronizacion.SingleAsync(c => c.MensajeId == repetida.Mensaje.Id));
         Assert.Equal(TipoConflictoSincronizacion.MiembroDuplicado, conflicto.Tipo);
+    }
+
+    [SkippableFact]
+    public async Task La_bajada_viene_por_paginas_y_no_se_salta_ningun_maestro()
+    {
+        Skip.If(central.MotivoOmision is not null, central.MotivoOmision);
+        using var cliente = central.CrearCliente();
+        var tokenCaja = await CentralEnPruebas.TokenCajaAsync(cliente, CentralEnPruebas.CajaUno);
+        var marca = (await BajarAsync(cliente, tokenCaja, 0)).Hasta;
+
+        // Siete departamentos nuevos con páginas de dos: el aprovisionamiento de verdad son cientos de miles de filas y
+        // en un solo viaje no llega, así que el Central corta el rango y la caja pide el resto.
+        var departamentos = Enumerable.Range(0, 7).Select(_ => new DepartamentoCarga(Codigos.Siguiente(), "Departamento por páginas")).ToList();
+        await PublicarAsync(new PaqueteMaestros(Departamentos: departamentos));
+
+        var anterior = await central.CambiarParametroAsync(ClavesParametrosCentral.FilasPorPaginaBajada, "2");
+        try
+        {
+            var recibidos = new List<int>();
+            var paginas = 0;
+            var desde = marca;
+
+            while (true)
+            {
+                var pagina = await BajarAsync(cliente, tokenCaja, desde);
+                paginas++;
+                recibidos.AddRange((pagina.Maestros?.Departamentos ?? []).Select(d => d.Codigo));
+
+                // Cada página avanza: si no, la caja se quedaría pidiendo lo mismo para siempre.
+                Assert.True(pagina.Hasta > desde || pagina.Completo, $"La página {paginas} no avanzó de la versión {desde}.");
+                desde = pagina.Hasta;
+
+                if (pagina.Completo)
+                    break;
+
+                Assert.True(paginas < 50, "La bajada por páginas no terminó.");
+            }
+
+            Assert.True(paginas > 1, "Con siete departamentos y páginas de dos tenía que venir en varias partes.");
+            Assert.Equal(departamentos.Select(d => d.Codigo).Order(), recibidos.Where(c => departamentos.Any(d => d.Codigo == c)).Order());
+
+            // Y al terminar no queda nada pendiente: pedir otra vez no trae nada.
+            Assert.True((await BajarAsync(cliente, tokenCaja, desde)).Completo);
+        }
+        finally
+        {
+            await central.CambiarParametroAsync(ClavesParametrosCentral.FilasPorPaginaBajada, anterior);
+        }
     }
 
     [SkippableFact]

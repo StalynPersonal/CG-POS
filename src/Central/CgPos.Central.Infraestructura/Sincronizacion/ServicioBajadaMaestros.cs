@@ -1,4 +1,5 @@
-﻿using CgPos.Central.Aplicacion.Sincronizacion;
+﻿using CgPos.Central.Aplicacion.Organizacion;
+using CgPos.Central.Aplicacion.Sincronizacion;
 using CgPos.Central.Infraestructura.Maestros;
 using CgPos.Central.Infraestructura.Persistencia;
 using CgPos.Contratos.CargaInicial;
@@ -11,8 +12,11 @@ using CgPos.Dominio.Comun;
 
 namespace CgPos.Central.Infraestructura.Sincronizacion;
 
-internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, TimeProvider reloj) : IServicioBajadaMaestros
+internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, IParametrosCentral parametros, TimeProvider reloj) : IServicioBajadaMaestros
 {
+    /// <summary>Filas por página si el negocio no fijó otra cosa: suficientes para que el aprovisionamiento no eternice y no ahogue la caja.</summary>
+    private const int FilasPorPaginaPredeterminadas = 5_000;
+
     public async Task<PaqueteBajadaMaestros> ObtenerAsync(CajaRemitente caja, long desde, CancellationToken cancelacion = default)
     {
         ArgumentNullException.ThrowIfNull(caja);
@@ -22,6 +26,12 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         var hasta = Math.Max(desde, await contexto.Database
             .SqlQueryRaw<long>("SELECT CAST(MIN_ACTIVE_ROWVERSION() AS bigint) - 1 AS [Value]")
             .SingleAsync(cancelacion));
+
+        // Si lo que cambió no cabe en una página, el rango se corta aquí y la caja vuelve a pedir desde este punto.
+        var hastaTodo = hasta;
+        var tope = await parametros.ObtenerEnteroPositivoOpcionalAsync(ClavesParametrosCentral.FilasPorPaginaBajada, cancelacion)
+                   ?? FilasPorPaginaPredeterminadas;
+        hasta = await CorteDeLaPaginaAsync(caja, desde, hasta, tope, cancelacion);
 
         var resolutor = new ResolutorCodigosCentral(contexto);
         await resolutor.PrepararAsync(cancelacion);
@@ -78,7 +88,30 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, Time
         estado.RegistrarDescarga(reloj.Ahora(), desde, hasta);
         await contexto.SaveChangesAsync(cancelacion);
 
-        return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null, vigentes);
+        return new PaqueteBajadaMaestros(desde, hasta, organizacion, maestros, estadosDgii is { Count: > 0 } ? estadosDgii : null, vigentes,
+            Completo: hasta >= hastaTodo);
+    }
+
+    /// <summary>
+    /// Hasta dónde llega esta página: la versión más baja en la que alguna tabla se llena. Se mira tabla por tabla porque
+    /// cada una tiene su propio volumen —los clientes y los artículos son cientos de miles y los bancos, diez—, y basta con
+    /// que una se pase para que la respuesta no quepa.
+    /// </summary>
+    private async Task<long> CorteDeLaPaginaAsync(CajaRemitente caja, long desde, long hasta, int tope, CancellationToken cancelacion)
+    {
+        var corte = hasta;
+
+        foreach (var tabla in TablasMaestros.Todas)
+            if (await tabla.CorteAsync(contexto, desde, corte, tope, cancelacion) is { } version)
+                corte = Math.Min(corte, version);
+
+        // Los resultados de la DGII de esta caja también pueden ser muchos: un mes de facturación son miles de e-CF.
+        var comprobantes = contexto.ComprobantesRecibidos.Where(c => c.CajaId == caja.CajaId && c.EstadoDgii != EstadoEnvioDgii.Pendiente);
+        if (await TablaMaestro.CorteDeConsultaAsync(comprobantes, desde, corte, tope, cancelacion) is { } tope2)
+            corte = Math.Min(corte, tope2);
+
+        // Nunca por debajo de lo que la caja ya tiene: eso dejaría la bajada dando vueltas sin avanzar.
+        return Math.Max(desde, corte);
     }
 
     /// <summary>Catálogo, precios, promociones, fidelidad… cambiados en el rango; los rangos de e-CF solo los de esta caja. Nulo si nada cambió.</summary>

@@ -42,6 +42,26 @@ internal abstract class TablaMaestro
     public abstract Task<IReadOnlyList<object>> CambiosAsync(ContextoDatosCentral contexto, ResolutorCodigosCentral resolutor, long desde, long hasta,
         CancellationToken cancelacion);
 
+    /// <summary>
+    /// Versión de la fila que hace número <paramref name="tope"/> en el rango, o nulo si esta tabla cabe entera. Cortando
+    /// el rango ahí, la página lleva a lo sumo <paramref name="tope"/> filas de esta tabla y no se salta ninguna.
+    /// </summary>
+    public abstract Task<long?> CorteAsync(ContextoDatosCentral contexto, long desde, long hasta, int tope, CancellationToken cancelacion);
+
+    /// <summary>Las versiones son únicas en toda la base, así que cortar por una es exacto: ninguna fila queda a caballo.</summary>
+    public static async Task<long?> CorteDeConsultaAsync<T>(IQueryable<T> consulta, long desde, long hasta, int tope, CancellationToken cancelacion) where T : class
+    {
+        var version = await consulta.AsNoTracking()
+            .Where(e => EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) > desde && EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion) <= hasta)
+            .Select(e => EF.Property<long>(e, ContextoDatosCentral.ColumnaVersion))
+            .OrderBy(v => v)
+            .Skip(tope - 1)
+            .Take(1)
+            .FirstOrDefaultAsync(cancelacion);
+
+        return version == 0 ? null : version;
+    }
+
     protected static void Marcar(ContextoDatosCentral contexto, object entidad, OpcionesPublicacion opciones) =>
         ColumnasMaestro.Marcar(contexto, entidad, opciones.Ahora, opciones.Usuario);
 
@@ -148,6 +168,9 @@ internal sealed class TablaMaestro<TEntidad, TCarga>(
             .ToListAsync(cancelacion);
         return (await CargasAsync(contexto, resolutor, entidades, cancelacion)).Select(d => (object)d.Dato).ToList();
     }
+
+    public override Task<long?> CorteAsync(ContextoDatosCentral contexto, long desde, long hasta, int tope, CancellationToken cancelacion) =>
+        CorteDeConsultaAsync(conjunto(contexto), desde, hasta, tope, cancelacion);
 
     /// <summary>Página del Manager ordenada por código, con cuándo y quién cambió cada registro.</summary>
     /// <param name="campo">Acota la búsqueda a un campo; sin él se busca en todos los que tenga el maestro.</param>

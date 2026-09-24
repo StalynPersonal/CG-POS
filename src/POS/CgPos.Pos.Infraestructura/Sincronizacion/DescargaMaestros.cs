@@ -21,17 +21,65 @@ internal sealed class DescargaMaestros(
     TimeProvider reloj,
     ILogger<DescargaMaestros> registro) : IDescargaMaestros
 {
+    /// <summary>
+    /// Trae los maestros del Central. Vienen por páginas: cada una se aplica y se guarda su marca antes de pedir la
+    /// siguiente, así que si se corta la red en el medio no se pierde lo que ya entró y la próxima vez se retoma desde ahí.
+    /// </summary>
     public async Task<ResultadoDescargaMaestros> DescargarAsync(CancellationToken cancelacion = default)
     {
         if (!central.Configurado)
             return new ResultadoDescargaMaestros(false, 0, 0, 0, null);
 
-        var marca = await contexto.MarcasSincronizacion.SingleOrDefaultAsync(m => m.Clave == MarcaSincronizacion.VersionMaestros, cancelacion);
-        var desde = marca?.Valor ?? 0;
-
         // Desde aquí hasta el final la pantalla muestra que se está actualizando: una caja nueva tarda, y sin este aviso
         // parece que está rota.
         using var enCurso = progreso.Comenzar("Pidiendo los datos al Central");
+
+        var desde = await MarcaAsync(cancelacion);
+        var (creados, actualizados, paginas) = (0, 0, 0);
+
+        while (true)
+        {
+            var pagina = await PaginaAsync(desde, cancelacion);
+            creados += pagina.Creados;
+            actualizados += pagina.Actualizados;
+
+            if (!pagina.Exitosa)
+                return pagina with { Creados = creados, Actualizados = actualizados };
+
+            paginas++;
+            if (pagina.Completo)
+            {
+                progreso.Terminar(null);
+                if (paginas > 1)
+                    registro.LogInformation("Aprovisionamiento terminado en {Paginas} páginas: {Creados} creados, {Actualizados} actualizados",
+                        paginas, creados, actualizados);
+
+                return pagina with { Creados = creados, Actualizados = actualizados };
+            }
+
+            // El Central cortó el rango porque no cabía: se sigue desde donde quedó. Si no avanzó, se corta aquí en vez de
+            // quedarse pidiendo lo mismo para siempre; el próximo ciclo lo vuelve a intentar.
+            if (pagina.Hasta <= desde)
+            {
+                registro.LogWarning("El Central dice que falta más pero no avanzó de la versión {Desde}: se deja para el próximo ciclo.", desde);
+                progreso.Terminar(null);
+                return pagina with { Creados = creados, Actualizados = actualizados };
+            }
+
+            desde = pagina.Hasta;
+            progreso.Etapa($"Trayendo los datos del Central (parte {paginas + 1})");
+        }
+    }
+
+    private async Task<long> MarcaAsync(CancellationToken cancelacion) =>
+        (await contexto.MarcasSincronizacion.AsNoTracking()
+            .Where(m => m.Clave == MarcaSincronizacion.VersionMaestros)
+            .Select(m => (long?)m.Valor)
+            .FirstOrDefaultAsync(cancelacion)) ?? 0;
+
+    private async Task<ResultadoDescargaMaestros> PaginaAsync(long desde, CancellationToken cancelacion)
+    {
+        var marca = await contexto.MarcasSincronizacion.SingleOrDefaultAsync(m => m.Clave == MarcaSincronizacion.VersionMaestros, cancelacion);
         var resultado = await central.DescargarMaestrosAsync(desde, cancelacion);
         var ahora = reloj.Ahora();
         if (resultado.Paquete is not { } paquete)
@@ -76,7 +124,7 @@ internal sealed class DescargaMaestros(
             if (paquete.EstadosDgii is { Count: > 0 } estados)
                 actualizados += await AplicarEstadosDgiiAsync(estados, ahora, cancelacion);
 
-            if (paquete.ParametrosVigentes is { Count: > 0 } vigentes)
+            if (paquete.Completo && paquete.ParametrosVigentes is { Count: > 0 } vigentes)
                 actualizados += await BorrarParametrosEliminadosAsync(vigentes, cancelacion);
         }
         catch (Exception excepcion) when (excepcion is CargaInicialInvalidaExcepcion or CargaMaestrosInvalidaExcepcion)
@@ -87,7 +135,6 @@ internal sealed class DescargaMaestros(
             return new ResultadoDescargaMaestros(false, desde, 0, 0, excepcion.Message);
         }
 
-        progreso.Terminar(null);
         if (paquete.Hasta > desde)
         {
             if (marca is null)
@@ -101,7 +148,7 @@ internal sealed class DescargaMaestros(
         if (creados + actualizados > 0)
             registro.LogInformation("Maestros del Central aplicados hasta la versión {Hasta}: {Creados} creados, {Actualizados} actualizados", paquete.Hasta, creados, actualizados);
 
-        return new ResultadoDescargaMaestros(true, Math.Max(desde, paquete.Hasta), creados, actualizados, null);
+        return new ResultadoDescargaMaestros(true, Math.Max(desde, paquete.Hasta), creados, actualizados, null, paquete.Completo);
     }
 
     /// <summary>

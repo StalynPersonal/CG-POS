@@ -285,7 +285,15 @@ public interface IProcesadorBandejaSalida
 
 /// <param name="Descargado">Se recibió y aplicó un paquete (aunque viniera sin cambios).</param>
 /// <param name="Version">Versión de maestros que la caja tiene aplicada después de la descarga.</param>
-public sealed record ResultadoDescargaMaestros(bool Descargado, long Version, int Creados, int Actualizados, string? Error);
+/// <param name="Version">La versión de maestros que la caja tiene aplicada al terminar.</param>
+/// <param name="Completo">Ya no falta nada por bajar; en <c>false</c> el Central cortó el rango y queda otra página por pedir.</param>
+public sealed record ResultadoDescargaMaestros(bool Descargado, long Version, int Creados, int Actualizados, string? Error, bool Completo = true)
+{
+    /// <summary>La versión a la que llegó esta página, que es desde donde se pide la siguiente.</summary>
+    public long Hasta => Version;
+
+    public bool Exitosa => Descargado;
+}
 
 /// <summary>
 /// Baja del Central la organización, la seguridad y los maestros cambiados y los aplica con las mismas cargas de la caja (RF-269, RF-273).

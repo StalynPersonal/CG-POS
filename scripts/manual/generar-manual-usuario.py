@@ -1026,6 +1026,10 @@ titulo('Después, en la caja', 2)
 paso('Cree la base de la caja con scripts/base-datos/estructura_base_datos_pos.sql e instale la caja con su sucursal, su número y la dirección del Central.')
 paso('Llene la pantalla de configuración de la caja con su sucursal, su código, su IP, la dirección del Central y la credencial.')
 paso('Espere el primer ciclo de sincronización: la caja baja artículos, precios, usuarios y parámetros del Central.')
+nota('La primera bajada de una caja nueva es la más larga: con un catálogo grande son cientos de miles de filas. Vienen en '
+     'tandas —la pantalla va diciendo «parte 2», «parte 3»— y cada tanda se guarda al llegar, así que si se corta la red o '
+     'se reinicia el servicio, al volver se retoma donde iba y no hay que empezar de nuevo. El tamaño de la tanda se '
+     'configura en el Central con «Central.Sincronizacion.FilasPorPagina»; sin tocarlo son 5,000 filas.')
 paso('Entre con el usuario del cajero y abra el turno con su fondo.')
 paso('Escanee artículos, cambie una cantidad y elimine una línea (le pedirá la clave del supervisor).')
 paso('Con F12 asigne un cliente con RNC y verifique que el comprobante cambia a crédito fiscal.')
