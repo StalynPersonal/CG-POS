@@ -59,6 +59,21 @@
                 </section>
 
                 <section class="cg-cobro__captura">
+                    @* Los avisos van arriba del todo: son lo que explica por qué el terminal no aprobó o qué falta por
+                       digitar, y abajo del teclado el cajero no los ve. *@
+                    @if (_procesando)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                    }
+                    @if (_estado is not null)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">@_estado</MudAlert>
+                    }
+                    @if (_mensaje is not null)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+                    }
+
                     @if (_forma is { } seleccionada)
                     {
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary">
@@ -159,19 +174,6 @@
                     else
                     {
                         <MudText Typo="Typo.body1" Color="Color.Secondary">Seleccione la forma de pago.</MudText>
-                    }
-
-                    @if (_procesando)
-                    {
-                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
-                    }
-                    @if (_estado is not null)
-                    {
-                        <MudAlert Severity="Severity.Info" Dense="true">@_estado</MudAlert>
-                    }
-                    @if (_mensaje is not null)
-                    {
-                        <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
                     }
                 </section>
             </div>

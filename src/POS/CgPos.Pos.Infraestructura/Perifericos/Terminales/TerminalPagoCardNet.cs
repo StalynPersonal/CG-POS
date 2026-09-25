@@ -75,6 +75,9 @@ internal sealed class TerminalPagoCardNet(IConfiguration configuracion, ILogger<
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(cancelacion);
         limite.CancelAfter(espera + EsperaSaludo + EsperaSaludo);
 
+        // El paso en el que va la conversación: si algo falla, es lo único que distingue «el terminal no me conoce» de
+        // «el cajero no pasó la tarjeta a tiempo», y sin eso no hay forma de saber qué arreglar en la tienda.
+        var paso = "conectar";
         try
         {
             using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
@@ -82,27 +85,32 @@ internal sealed class TerminalPagoCardNet(IConfiguration configuracion, ILogger<
             var lector = new LectorSocket(socket);
 
             // Saludo: el terminal solo contesta si la IP de la caja está en su lista blanca.
+            paso = "saludo (el terminal no reconoce la dirección de esta caja)";
             await EnviarAsync(socket, [ProtocoloCardNet.Enq], limite.Token);
             await lector.EsperarAsync(ProtocoloCardNet.Ack, EsperaSaludo, limite.Token);
 
             // Se le pide pasar a recibir: responde EOM y luego ENQ cuando está listo.
+            paso = "el terminal no se puso a la escucha (puede estar ocupado o en otra pantalla)";
             await EnviarAsync(socket, [ProtocoloCardNet.Syn], limite.Token);
             await lector.EsperarAsync(ProtocoloCardNet.Enq, EsperaSaludo, limite.Token);
 
+            paso = "enviar la transacción";
             await EnviarAsync(socket, Encoding.ASCII.GetBytes(mensaje), limite.Token);
             if (await lector.SiguienteAsync(EsperaSaludo, limite.Token) == ProtocoloCardNet.Nak)
                 return ProtocoloCardNet.RespuestaNak;
 
+            paso = "esperar la respuesta (nadie pasó la tarjeta, o el terminal no terminó)";
             var respuesta = await lector.LeerTramaAsync(espera, limite.Token);
 
             // Sin este ACK el terminal reversa la transacción aprobada.
+            paso = "confirmar la respuesta";
             await EnviarAsync(socket, [ProtocoloCardNet.Ack], limite.Token);
             await lector.DescartarAsync(TimeSpan.FromSeconds(2), limite.Token);
             return respuesta;
         }
         catch (Exception excepcion) when (excepcion is SocketException or IOException or TimeoutException or OperationCanceledException)
         {
-            registro.LogWarning(excepcion, "El terminal CardNet no completó la conversación");
+            registro.LogWarning(excepcion, "El terminal CardNet {Host}:{Puerto} falló en: {Paso}", host, puerto, paso);
             return null;
         }
     }
