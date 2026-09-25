@@ -173,7 +173,7 @@ tabla(['La base recién creada trae', 'No trae (lo crea usted)'],
        ['Unidades de medida: unidad, libra, pie, yarda, galón', 'Clientes'],
        ['Denominaciones de billetes y monedas, para el cuadre', 'Bancos'],
        ['Formas de pago: efectivo, tarjeta, transferencia, cheque, dólares, nota de crédito, bonos, puntos…', 'Promociones'],
-       ['Tipos de tarjeta y motivos de descuento y de devolución', 'Rangos de comprobantes fiscales']],
+       ['Motivos de descuento y de devolución', 'Rangos de comprobantes fiscales']],
       anchos=[8.5, 8.5])
 paso('Configure la conexión del Central a esa base (lo hace tecnología en el archivo de configuración del servidor) y levante el Central.')
 paso('Abra el Central en el navegador y entre con el administrador:')
@@ -243,7 +243,7 @@ nota('Para entrar a esta pantalla hace falta el permiso «Consultar la auditorí
 
 titulo('2.5. Maestros, artículos y precios', 2)
 tabla(['Opción', 'Ruta', 'Para qué sirve'],
-      [['Catálogos', '/maestros', 'Monedas, tasas de cambio, departamentos, categorías, marcas, unidades, impuestos, formas de pago, denominaciones, bancos, tipos de tarjeta, motivos de descuento y devolución, almacenes, niveles y reglas de fidelidad y descuentos por tarjeta (BIN).'],
+      [['Catálogos', '/maestros', 'Monedas, tasas de cambio, departamentos, categorías, marcas, unidades, impuestos, formas de pago, denominaciones, bancos, motivos de descuento y devolución, niveles y reglas de fidelidad y descuentos por tarjeta (BIN).'],
        ['Artículos', '/articulos', 'Alta y edición de artículos, con sus códigos de barras y de proveedor.'],
        ['Precios', '/precios/articulos', 'Precio de detalle, precio por mayor con su cantidad mínima, precio mínimo y costo. El precio nuevo reemplaza al anterior; quién lo cambió y de cuánto a cuánto queda en Auditoría.'],
        ['Topes de descuento', '/precios/topes', 'Hasta cuánto puede descontar cada nivel, en general o por departamento o artículo.'],
@@ -912,7 +912,8 @@ p('En la pantalla de cobro elija la forma de pago, digite el monto y agréguelo.
   'arriba siempre se ve lo pagado, lo que falta o la devuelta.')
 tabla(['Forma de pago', 'Qué pide y qué hay que saber'],
       [['Efectivo', 'Es el único que da devuelta. Hay botones de billetes rápidos y “Exacto”.'],
-       ['Tarjeta', 'Se presiona Pasar tarjeta: el terminal pide la tarjeta al cliente. Si el terminal lee el BIN, el descuento del banco se aplica solo antes de cobrar y se le cobra menos. Si el terminal no responde, se puede registrar la aprobación manual con autorización de supervisor.'],
+       ['CardNet o Azul', 'Cobran en el panel de firma de su equipo. No piden nada: se presiona Pasar tarjeta y el terminal atiende al cliente. La aprobación, la marca y los últimos dígitos los devuelve él. Si el negocio activó los descuentos de banco, el equipo también informa el BIN y el descuento se aplica antes de cobrar, así que la factura sale por lo que el cliente pagó. Una caja tiene un solo equipo: la forma de pago del otro procesador se ve apagada.'],
+       ['Tarjeta o Amex', 'Se cobró en un equipo aparte. Solo piden el número de aprobación del volante, que es obligatorio: es lo único con que después se cuadra el turno contra los comprobantes. No llevan marca ni descuento de banco, porque nadie leyó la tarjeta.'],
        ['Dólares u otra moneda', 'Se convierte con la tasa del día; la devuelta se da en pesos.'],
        ['Transferencia o cheque', 'Piden banco y número.'],
        ['Bono o tarjeta de regalo', 'Pide el serial. No se acepta con crédito fiscal.'],
@@ -1021,9 +1022,13 @@ viñeta('No se puede cerrar con facturas en espera, transacciones con artículos
        'firmada: la pantalla dice exactamente qué falta.')
 viñeta('Con un turno de un día anterior, las facturas en espera ya no se pueden cobrar: el cierre avisa cuáles son y pide '
        'retomarlas y limpiarlas (con la autorización de un supervisor) antes de cerrar.')
-viñeta('Cobro con tarjeta: si la caja tiene el terminal conectado, ella le manda el monto y recibe sola la aprobación. Si la '
-       'tienda cobra con un equipo aparte (un inalámbrico, por ejemplo), el cajero digita el número de aprobación del volante: '
-       'es obligatorio, porque es lo único con que después se cuadra el turno contra los comprobantes.')
+viñeta('Cobro con tarjeta: la forma de pago decide con qué equipo se cobra. CardNet y Azul le mandan el monto a su terminal '
+       'y reciben solas la aprobación. Tarjeta y Amex son para lo que se cobró en un equipo aparte: piden el número de '
+       'aprobación del volante, que es obligatorio porque es lo único con que después se cuadra el turno.')
+viñeta('La marca de la tarjeta (Visa, Mastercard…) no se configura en ninguna parte ni la elige el cajero: la informa el '
+       'terminal al aprobar, y desde ahí va al ticket y al cuadre de tarjetas.')
+viñeta('Descuento del banco por la tarjeta: solo funciona si el negocio encendió «Caja.DescuentoTarjetaPorBin» en los '
+       'parámetros del Central. Los primeros dígitos de la tarjeta (el BIN) nunca se digitan: los devuelve el terminal.')
 viñeta('Cerrar lote: cierra el lote del terminal de tarjetas y compara lo aprobado en la caja con lo que reporta el terminal. El resultado '
        'queda guardado y sube con el cierre, así que el supervisor lo ve en el Central sin depender del papel.')
 viñeta('Al cerrar se imprime el reporte del turno: lo esperado por forma de pago, los retiros, los reembolsos y los relevos.')
@@ -1101,7 +1106,7 @@ titulo('5. Qué hacer si…')
 tabla(['Situación', 'Qué pasa y qué hacer'],
       [['La caja o el Central avisan que falta la base de datos', 'No se ejecutó el script de creación en ese equipo, o el sistema está apuntando a otra base. Ejecute scripts/base-datos/estructura_base_datos_central.sql en el servidor o scripts/base-datos/estructura_base_datos_pos.sql en la caja.'],
        ['No hay internet', 'La caja sigue vendiendo, cobrando y facturando normal: todo se guarda y se envía cuando vuelva la comunicación. Solo quedan sin servicio las listas de boda, las notas de crédito de otra sucursal y el chequeador.'],
-       ['El terminal de tarjeta no responde', 'La caja lo avisa. Se puede registrar la aprobación manual del banco con autorización de supervisor, y queda marcada para conciliar.'],
+       ['El terminal de tarjeta no responde', 'La caja lo avisa y dice con qué forma de pago registrar el cobro. Se cobra en el equipo aparte y se registra con «Tarjeta» o «Amex», digitando el número de aprobación del volante; eso no pide autorización, es su forma normal de cobrar. Digitar una aprobación dentro de CardNet o Azul —saltarse el equipo que sí está— sí pide autorización de supervisor y queda marcado para conciliar.'],
        ['La caja no baja los artículos nuevos', 'Pase el mouse por el indicador de sincronización de la barra de estado: si la última actualización falló, ahí dice por qué y de qué artículo se trata. Casi siempre es un dato del Central que la caja no acepta (un artículo activo sin precio, una categoría que no es de su departamento). Se corrige en el Central y la caja lo aplica sola en el siguiente ciclo, sin perder nada.'],
        ['A una caja le faltan artículos o clientes que en el Central sí están', 'La caja solo pide lo que cambió en el Central, así que lo que se haya perdido en su base no vuelve por su cuenta: allá no pasó nada. En el Central, Organización → Cajas, en el menú de esa caja, «Volver a sincronizar esta caja». Baja el catálogo entero otra vez la próxima vez que pregunte; tarda varios minutos y mientras dura esa caja no vende. Lo que ya tiene no se duplica: se actualiza.'],
        ['Se acabaron los e-NCF o venció el rango', 'No se puede facturar. Administración debe asignar un rango nuevo en el Central; la caja lo recibe en su próxima sincronización. La barra de estado avisa antes de que se acabe.'],

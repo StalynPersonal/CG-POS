@@ -45,9 +45,10 @@
 
  Ese archivo crea la base CgPosCentral con todas sus tablas y con los datos con
  los que arranca el sistema: monedas, impuestos (ITBIS 18 %, 16 %, 0 % y
- exento), unidades de medida, formas de pago, tipos de tarjeta, denominaciones,
- motivos de descuento y de devolución, los parámetros, el rol de administrador
- y el usuario ADMIN.
+ exento), unidades de medida, formas de pago (Tarjeta y Amex, que se cobran en
+ un equipo aparte, y CardNet y Azul, que cobran en su panel de firma),
+ denominaciones, motivos de descuento y de devolución, los parámetros, el rol
+ de administrador y el usuario ADMIN.
 
  Es el ÚNICO script de estructura que existe. Si más adelante hay un cambio en
  la base, se le entregará el ALTER aparte para que lo ejecute usted.
