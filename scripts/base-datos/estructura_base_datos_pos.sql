@@ -499,6 +499,7 @@ CREATE TABLE [FormasPago] (
     [RequiereBanco] bit NOT NULL,
     [PermiteComprobanteFiscal] bit NOT NULL,
     [Activa] bit NOT NULL,
+    [Terminal] int NOT NULL,
     CONSTRAINT [PK_FormasPago] PRIMARY KEY ([Id])
 );
 GO

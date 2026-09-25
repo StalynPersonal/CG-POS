@@ -1936,14 +1936,31 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task Sin_terminal_conectado_la_tarjeta_se_cobra_con_la_aprobacion_del_volante_y_sin_autorizacion()
+    public async Task La_tarjeta_de_su_terminal_digitada_a_mano_si_pide_autorizacion()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
-        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa, terminal: new TerminalAusente());
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
 
-        // La pantalla se entera por el catálogo de cobro: así pide la aprobación en vez de ofrecer «Pasar tarjeta».
-        var catalogo = await caja.EjecutarAsync<IConsultaCatalogoCobro, DatosCatalogoCobro>(s => s.ObtenerAsync());
-        Assert.False(catalogo.TerminalIntegrado);
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var total = (await caja.VentaActualAsync()).Totales.Total;
+
+        // Saltarse el panel de firma del terminal que la caja sí tiene es contingencia, y eso lo autoriza un supervisor
+        // (RF-213): si no, cualquiera registraría cobros de tarjeta que nunca pasaron por el banco.
+        var respuesta = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, "874512", TipoTarjetaId: caja.Catalogo.TipoTarjeta, AprobacionManual: true)], null));
+
+        Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, respuesta.Resultado);
+    }
+
+    [SkippableFact]
+    public async Task La_tarjeta_sin_terminal_se_cobra_con_la_aprobacion_del_volante_y_sin_autorizacion()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+
+        // La caja sí tiene terminal: es el caso real de cuando el equipo no responde y se cobra en otro aparte. Que la
+        // forma de pago no hable con ningún terminal es lo que la hace normal aquí, no que la caja no lo tenga.
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
 
         var venta = await caja.VentaActualAsync();
         await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
@@ -1951,13 +1968,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // Sin el número del volante no se cobra: sería un cobro que nadie puede comprobar.
         var sinAprobacion = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, TipoTarjetaId: caja.Catalogo.TipoTarjeta, AprobacionManual: true)], null));
+            [new SolicitudPago(caja.Catalogo.FormaTarjetaManual, total, TipoTarjetaId: caja.Catalogo.TipoTarjeta, AprobacionManual: true)], null));
         Assert.Equal(CodigoResultadoVenta.PagoInvalido, sinAprobacion.Resultado);
         Assert.Contains("número de aprobación", sinAprobacion.Mensaje);
 
-        // Con el número sí, y sin pedir autorización de supervisor: en esta caja es la forma normal de cobrar.
+        // Con el número sí, y sin pedir autorización de supervisor: esa forma de pago se cobra así siempre.
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, "874512", TipoTarjetaId: caja.Catalogo.TipoTarjeta, UltimosDigitos: "4242",
+            [new SolicitudPago(caja.Catalogo.FormaTarjetaManual, total, "874512", TipoTarjetaId: caja.Catalogo.TipoTarjeta,
                 AprobacionManual: true)], null));
 
         Assert.True(cobro.Exitosa, cobro.Mensaje);

@@ -175,17 +175,22 @@ MOTIVOS_SUSPENSION = [
 ]
 
 # Código, nombre, tipo (TipoFormaPago), moneda, orden, abre gaveta, da devuelta, pide referencia, pide banco, admite comprobante fiscal.
+# La última columna es el terminal con el que cobra: 0 ninguno, 1 CardNet, 2 Azul. «Tarjeta» se cobra en un equipo
+# aparte y solo registra el número de aprobación; «CardNet» y «Azul» cobran en su panel de firma y no piden nada.
+# Una caja tiene un solo terminal, así que solo se le ofrece la forma de pago de su procesador.
 FORMAS_PAGO = [
-    ('EFE', 'Efectivo', 0, 'DOP', 1, 1, 1, 0, 0, 1),
-    ('TAR', 'Tarjeta', 1, 'DOP', 2, 0, 0, 1, 0, 1),
-    ('TRA', 'Transferencia', 2, 'DOP', 3, 0, 0, 1, 1, 1),
-    ('CHE', 'Cheque', 3, 'DOP', 4, 0, 0, 1, 1, 1),
-    ('USD', 'Dólares', 9, 'USD', 5, 1, 1, 0, 0, 1),
-    ('NC', 'Nota de crédito', 5, 'DOP', 6, 0, 0, 1, 0, 1),
-    ('BONO', 'Bono de regalo', 4, 'DOP', 7, 0, 0, 1, 0, 0),
-    ('GIFT', 'Tarjeta de regalo', 7, 'DOP', 8, 0, 0, 1, 0, 0),
-    ('PRE', 'Préstamo bancario', 6, 'DOP', 9, 0, 0, 1, 1, 1),
-    ('PUN', 'Puntos', 8, 'DOP', 10, 0, 0, 0, 0, 1),
+    ('EFE', 'Efectivo', 0, 'DOP', 1, 1, 1, 0, 0, 1, 0),
+    ('TAR', 'Tarjeta', 1, 'DOP', 2, 0, 0, 1, 0, 1, 0),
+    ('CARDNET', 'CardNet', 1, 'DOP', 3, 0, 0, 0, 0, 1, 1),
+    ('AZUL', 'Azul', 1, 'DOP', 4, 0, 0, 0, 0, 1, 2),
+    ('TRA', 'Transferencia', 2, 'DOP', 5, 0, 0, 1, 1, 1, 0),
+    ('CHE', 'Cheque', 3, 'DOP', 6, 0, 0, 1, 1, 1, 0),
+    ('USD', 'Dólares', 9, 'USD', 7, 1, 1, 0, 0, 1, 0),
+    ('NC', 'Nota de crédito', 5, 'DOP', 8, 0, 0, 1, 0, 1, 0),
+    ('BONO', 'Bono de regalo', 4, 'DOP', 9, 0, 0, 1, 0, 0, 0),
+    ('GIFT', 'Tarjeta de regalo', 7, 'DOP', 10, 0, 0, 1, 0, 0, 0),
+    ('PRE', 'Préstamo bancario', 6, 'DOP', 11, 0, 0, 1, 1, 1, 0),
+    ('PUN', 'Puntos', 8, 'DOP', 12, 0, 0, 0, 0, 1, 0),
 ]
 
 # Permisos del Central: se leen del catálogo del código, para que el script no se desfase.
@@ -326,9 +331,10 @@ def catalogos_tecnicos():
 
     bloque('Formas de pago', 'FormasPago',
            "[Codigo], [Nombre], [Tipo], [Moneda], [Orden], [AbreGaveta], [PermiteDevuelta], [RequiereReferencia], "
-           "[RequiereBanco], [PermiteComprobanteFiscal], [Activa]",
-           [f"N'{codigo}', N'{nombre}', {tipo}, '{moneda}', {orden}, {gaveta}, {devuelta}, {referencia}, {banco}, {fiscal}"
-            for codigo, nombre, tipo, moneda, orden, gaveta, devuelta, referencia, banco, fiscal in FORMAS_PAGO])
+           "[RequiereBanco], [PermiteComprobanteFiscal], [Terminal], [Activa]",
+           [f"N'{codigo}', N'{nombre}', {tipo}, '{moneda}', {orden}, {gaveta}, {devuelta}, {referencia}, {banco}, "
+            f"{fiscal}, {terminal}"
+            for codigo, nombre, tipo, moneda, orden, gaveta, devuelta, referencia, banco, fiscal, terminal in FORMAS_PAGO])
 
     return '\n'.join(partes)
 

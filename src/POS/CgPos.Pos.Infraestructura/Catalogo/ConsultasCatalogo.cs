@@ -311,7 +311,7 @@ internal sealed class ConsultaCatalogoCobro(
     public async Task<DatosCatalogoCobro> ObtenerAsync(CancellationToken cancelacion = default)
     {
         var formas = await contexto.FormasPago.AsNoTracking().Where(f => f.Activa).OrderBy(f => f.Orden).ThenBy(f => f.Nombre)
-            .Select(f => new DatosFormaPago(f.Id, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Orden, f.AbreGaveta, f.PermiteDevuelta, f.RequiereReferencia, f.RequiereBanco, f.PermiteComprobanteFiscal))
+            .Select(f => new DatosFormaPago(f.Id, f.Codigo, f.Nombre, f.Tipo, f.Moneda, f.Orden, f.AbreGaveta, f.PermiteDevuelta, f.RequiereReferencia, f.RequiereBanco, f.PermiteComprobanteFiscal, f.Terminal))
             .ToListAsync(cancelacion);
         var bancos = await contexto.Bancos.AsNoTracking().Where(b => b.Activo).OrderBy(b => b.Nombre)
             .Select(b => new DatosBanco(b.Id, b.Codigo, b.Nombre, b.RutaLogo))
@@ -336,6 +336,6 @@ internal sealed class ConsultaCatalogoCobro(
         var descuentoPorBin = await parametros.ObtenerBooleanoOpcionalAsync(
             CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.DescuentoTarjetaPorBin, contextoCaja.CajaId, cancelacion);
 
-        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas, terminal.Integrado, descuentoPorBin);
+        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas, terminal.Integrado, descuentoPorBin, terminal.Marca);
     }
 }

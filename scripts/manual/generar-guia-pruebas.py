@@ -231,8 +231,11 @@ marcar()
 
 prueba('A5', 'Catálogos mínimos')
 paso('En Maestros → Catálogos revise (o cree) al menos: la moneda local, un impuesto del 18 %, una unidad de medida '
-     '«Unidad», un departamento, las formas de pago Efectivo y Tarjeta, un banco, un tipo de tarjeta, los motivos de '
+     '«Unidad», un departamento, las formas de pago, un banco, un tipo de tarjeta, los motivos de '
      'descuento y de devolución, y las denominaciones de billetes y monedas.')
+paso('En Formas de pago mire la columna «Terminal». Vienen tres de tarjeta: «Tarjeta» sin terminal, que se cobra en un '
+     'equipo aparte y solo registra el número de aprobación; «CardNet» y «Azul», que cobran en el panel de firma de su '
+     'equipo. Deje la de su procesador y desactive la del otro si no la va a usar.')
 esperado('Todo aparece listado y activo. Las denominaciones son las que después usará el supervisor para contar el efectivo.')
 tablas('Central: Monedas · Impuestos · UnidadesMedida · Departamentos · Categorias · Marcas · FormasPago · Bancos · TiposTarjeta · Denominaciones · MotivosDescuento · MotivosDevolucion')
 marcar()
@@ -636,41 +639,47 @@ esperado('El saldo pendiente se va actualizando con cada pago y no deja cerrar h
 tablas('Caja: PagosVenta')
 marcar()
 
-prueba('I3', 'Tarjeta con el terminal conectado, rechazo y contingencia')
-paso('Cobre una venta con tarjeta: la caja le manda el monto al terminal y el cliente paga ahí.')
+prueba('I3', 'Cobrar con el terminal (CardNet o Azul)')
+paso('Cobre una venta eligiendo la forma de pago de su procesador (CardNet o Azul).')
+paso('Mire la pantalla antes de confirmar: no debe pedirle nada, solo el monto.')
 paso('Haga que el terminal rechace un cobro (o simúlelo) y observe qué pasa.')
-paso('Desconecte el terminal de la red y pruebe otra vez: use la aprobación manual con el permiso correspondiente.')
-paso('Vuelva a conectarlo y, con el terminal funcionando, presione «Cobrar a mano»: digite el número de aprobación de un '
-     'volante y cobre.')
-esperado('Con el terminal conectado, la aprobación llega sola y nadie digita nada. El rechazo no cobra la venta ni la daña: '
-         'se puede reintentar. Si el terminal no responde, la pantalla pasa sola a la aprobación manual. Y aunque el '
-         'terminal funcione, el cajero puede pasar a mano con «Cobrar a mano», porque un terminal se cuelga o se queda sin '
-         'papel y el cobro no se puede detener por eso: en ese caso pide autorización de supervisor y queda marcado para '
-         'conciliarlo contra el lote.')
+esperado('La caja le manda el monto al terminal y el cliente paga en su panel de firma. No se digita ni la aprobación ni '
+         'los dígitos de la tarjeta: eso lo devuelve el equipo. El rechazo no cobra la venta ni la daña: se puede '
+         'reintentar. La forma de pago del otro procesador sale apagada, porque su equipo no está en ese mostrador.')
 tablas('Caja: OperacionesTerminal · PagosVenta · Auditoria')
 marcar()
 
-prueba('I3b', 'Caja sin terminal conectado (se cobra en un equipo aparte)')
-paso('En la configuración de la caja, ponga el terminal en «Ninguno» y reinicie el servicio.')
-paso('Cobre una venta con tarjeta: cobre en el verifone aparte y digite el número de aprobación de su volante y los '
-     'últimos cuatro dígitos.')
-paso('Intente también cobrar con tarjeta sin escribir el número de aprobación.')
-esperado('La pantalla no ofrece «Pasar tarjeta» sino el número de aprobación, y no pide autorización de supervisor: en esa '
-         'caja es la forma normal de cobrar. Sin el número no deja cobrar, porque después no habría con qué cuadrar el '
-         'turno contra los volantes.')
-tablas('Caja: Ventas · LineasVenta · PagosVenta (con la aprobación digitada) · Auditoria')
+prueba('I3a', 'El terminal no responde: se cobra por «Tarjeta»')
+paso('Desconecte el terminal de la red e intente cobrar con CardNet (o Azul).')
+paso('Cuando salga el aviso, cobre en el equipo aparte y registre el pago con la forma de pago «Tarjeta», digitando el '
+     'número de aprobación del volante.')
+paso('Pruebe también a cobrar con «Tarjeta» sin escribir el número de aprobación.')
+esperado('El aviso dice que el terminal no respondió y con qué forma de pago registrar la aprobación. «Tarjeta» pide solo '
+         'el número de aprobación —ni marca ni últimos dígitos— y no pide autorización de supervisor: es su forma normal '
+         'de cobrar. Sin el número no deja cobrar, porque después no habría con qué cuadrar el turno contra los volantes.')
+tablas('Caja: PagosVenta (con la aprobación digitada) · Auditoria')
 marcar()
-nota('Deje el terminal como estaba antes de seguir. Este modo es para las tiendas que cobran con un equipo inalámbrico que '
-     'no habla con la caja; en «Simulado» el sistema aprueba solo, y eso en una tienda registraría cobros que no ocurrieron.')
+
+prueba('I3b', 'Saltarse el terminal que sí está sí pide autorización')
+paso('Con el terminal conectado y funcionando, intente registrar un cobro de CardNet (o Azul) digitando una aprobación, '
+     'sin pasar la tarjeta por el panel.')
+esperado('Pide autorización de un supervisor y queda marcado para conciliarlo contra el lote. Cobrar por «Tarjeta» no la '
+         'pide, pero saltarse el equipo que la tienda sí tiene enfrente es otra cosa: si no, cualquiera registraría '
+         'cobros de tarjeta que nunca pasaron por el banco.')
+tablas('Caja: AutorizacionesOtorgadas · PagosVenta · Auditoria')
+marcar()
+nota('En «Simulado» el terminal aprueba solo; eso en una tienda registraría cobros que no ocurrieron. Use «Simulado» solo '
+     'para probar el recorrido sin equipo.')
 
 prueba('I3d', 'Descuento del banco por la tarjeta')
 paso('En el Central, cree un descuento de tarjeta (Promociones → Descuentos de tarjeta) con el BIN de una tarjeta que '
      'tenga a mano y un 10 %.')
-paso('Con «Caja.DescuentoTarjetaPorBin» apagado, cobre con esa tarjeta.')
+paso('Con «Caja.DescuentoTarjetaPorBin» apagado, cobre con CardNet (o Azul) pasando esa tarjeta por el terminal.')
 paso('Enciéndalo en el Central, espere a que la caja sincronice y cobre otra vez con la misma tarjeta.')
-esperado('Apagado, la pantalla de cobro ni siquiera pide los primeros dígitos y el total no baja. Encendido, el descuento '
-         'se aplica ANTES de emitir el comprobante, así que la factura electrónica sale por lo que el cliente pagó de '
-         'verdad, y el descuento aparece detallado con el nombre del banco.')
+esperado('El BIN nunca se digita: lo devuelve el terminal al cobrar. Apagado el parámetro, ese BIN se ignora y el total no '
+         'baja. Encendido, el descuento se aplica ANTES de emitir el comprobante, así que la factura electrónica sale por '
+         'lo que el cliente pagó de verdad, y el descuento aparece detallado con el nombre del banco. Cobrando por '
+         '«Tarjeta» no hay descuento, porque nadie leyó la tarjeta.')
 tablas('Caja: DescuentosTarjeta (lee) · Parametros (lee) · VentasEnProceso · Auditoria')
 marcar()
 

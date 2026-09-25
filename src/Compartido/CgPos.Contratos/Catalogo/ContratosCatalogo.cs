@@ -224,7 +224,10 @@ public sealed record FormaPagoCarga(
     bool? RequiereReferencia = null,
     bool? RequiereBanco = null,
     bool? PermiteComprobanteFiscal = null,
-    bool Activa = true);
+    bool Activa = true,
+
+    /// <summary>Equipo con el que cobra, si es de tarjeta: sin él se digita la aprobación del volante.</summary>
+    TerminalFormaPago Terminal = TerminalFormaPago.Ninguno);
 
 public sealed record BancoCarga(string Codigo, string Nombre, string? RutaLogo = null, bool Activo = true);
 
@@ -342,7 +345,10 @@ public sealed record DatosFormaPago(
     bool PermiteDevuelta,
     bool RequiereReferencia,
     bool RequiereBanco,
-    bool PermiteComprobanteFiscal);
+    bool PermiteComprobanteFiscal,
+
+    /// <summary>Equipo con el que cobra. Sin terminal, el cajero digita el número de aprobación del volante.</summary>
+    TerminalFormaPago Terminal = TerminalFormaPago.Ninguno);
 
 public sealed record DatosBanco(int Id, string Codigo, string Nombre, string? RutaLogo);
 
@@ -365,9 +371,15 @@ public sealed record DatosCatalogoCobro(
     bool TerminalIntegrado = true,
 
     /// <summary>
-    /// El negocio usa los descuentos que dan los bancos según el BIN de la tarjeta. Si es falso, el cobro no pide esos
-    /// dígitos ni ofrece aplicar el descuento: no hay nada que aplicar.
+    /// El negocio usa los descuentos que dan los bancos según el BIN de la tarjeta. Si es falso, el BIN que devuelve el
+    /// terminal se ignora y no se aplica ningún descuento.
     /// </summary>
-    bool DescuentoPorBin = false);
+    bool DescuentoPorBin = false,
+
+    /// <summary>
+    /// Terminal que tiene esta caja. Solo se pueden cobrar las formas de pago de tarjeta que coincidan con él; las del
+    /// otro procesador se muestran apagadas, porque el equipo para cobrarlas no está en este mostrador.
+    /// </summary>
+    TerminalFormaPago Terminal = TerminalFormaPago.Ninguno);
 
 public sealed record DatosDepartamento(int Id, int Codigo, string Nombre, bool EsNoCodificada);

@@ -62,6 +62,19 @@ public sealed class Moneda : Entidad
 }
 
 /// <summary>Forma de pago configurable (RF-184). El orden define su posición en la pantalla de cobro (RF-150).</summary>
+/// <summary>
+/// Con qué equipo cobra una forma de pago de tarjeta. Es del maestro y no de la caja, porque es lo que distingue
+/// «Tarjeta» —que se cobra en un equipo aparte y solo se registra su número de aprobación— de «CardNet» y «Azul», que
+/// cobran en su propio panel de firma y devuelven la aprobación y el BIN sin que nadie digite nada.
+/// </summary>
+public enum TerminalFormaPago
+{
+    /// <summary>No habla con ningún equipo: el cajero digita el número de aprobación del volante.</summary>
+    Ninguno,
+    CardNet,
+    Azul,
+}
+
 public sealed class FormaPago : Entidad
 {
     public const int LargoMaximoCodigo = 20;
@@ -94,6 +107,16 @@ public sealed class FormaPago : Entidad
 
     public bool Activa { get; private set; } = true;
 
+    /// <summary>
+    /// Equipo con el que cobra, si es de tarjeta. Con un terminal, el cobro se hace en su panel y no se digita nada; sin
+    /// él, el cajero registra el número de aprobación del volante. Una caja solo tiene un terminal, así que las formas de
+    /// pago del otro procesador no se le ofrecen.
+    /// </summary>
+    public TerminalFormaPago Terminal { get; private set; }
+
+    /// <summary>Cobra en su propio panel de firma: la caja le manda el monto y él devuelve la aprobación y el BIN.</summary>
+    public bool CobraPorTerminal => Terminal != TerminalFormaPago.Ninguno;
+
     public static FormaPago Crear(string codigo, string nombre, TipoFormaPago tipo, int orden, string moneda)
     {
         if (!Enum.IsDefined(tipo))
@@ -111,9 +134,14 @@ public sealed class FormaPago : Entidad
         return forma;
     }
 
-    public void Configurar(string nombre, int orden, bool abreGaveta, bool permiteDevuelta, bool requiereReferencia, bool requiereBanco, bool permiteComprobanteFiscal)
+    public void Configurar(string nombre, int orden, bool abreGaveta, bool permiteDevuelta, bool requiereReferencia, bool requiereBanco,
+        bool permiteComprobanteFiscal, TerminalFormaPago terminal = TerminalFormaPago.Ninguno)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(orden);
+        if (!Enum.IsDefined(terminal))
+            throw new ArgumentOutOfRangeException(nameof(terminal), terminal, "Terminal de forma de pago no válido.");
+        if (terminal != TerminalFormaPago.Ninguno && Tipo != TipoFormaPago.Tarjeta)
+            throw new ArgumentException("Solo una forma de pago de tarjeta cobra por un terminal.", nameof(terminal));
 
         Nombre = Validar.Texto(nombre, "Nombre de forma de pago", LargoMaximoNombre);
         Orden = orden;
@@ -122,6 +150,7 @@ public sealed class FormaPago : Entidad
         RequiereReferencia = requiereReferencia;
         RequiereBanco = requiereBanco;
         PermiteComprobanteFiscal = permiteComprobanteFiscal;
+        Terminal = terminal;
     }
 
     /// <summary>Valores sugeridos según el tipo; se pueden ajustar con <see cref="Configurar"/>.</summary>

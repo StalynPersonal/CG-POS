@@ -400,7 +400,7 @@ internal static class TablasMaestros
         (d, r, o) => MapeoMaestros.Crear(d),
         (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
         (e, r, p) => new FormaPagoCarga(e.Codigo, e.Nombre, e.Tipo, e.Orden, e.Moneda, e.AbreGaveta, e.PermiteDevuelta, e.RequiereReferencia, e.RequiereBanco,
-            e.PermiteComprobanteFiscal, e.Activa),
+            e.PermiteComprobanteFiscal, e.Activa, e.Terminal),
         q => q.OrderBy(e => e.Orden).ThenBy(e => e.Codigo));
 
     public static TablaMaestro<Banco, BancoCarga> Bancos { get; } = new(

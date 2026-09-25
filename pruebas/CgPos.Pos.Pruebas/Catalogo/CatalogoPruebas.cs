@@ -5,6 +5,7 @@ using CgPos.Dominio.Sincronizacion;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Organizacion;
+using CgPos.Dominio.Pagos;
 using CgPos.Pos.Aplicacion.Catalogo;
 using CgPos.Pos.Aplicacion.Organizacion;
 using CgPos.Pos.Infraestructura.Persistencia;
@@ -310,8 +311,14 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         var cobro = await ambito.ServiceProvider.GetRequiredService<IConsultaCatalogoCobro>().ObtenerAsync();
 
         var mias = cobro.FormasPago.Where(f => f.Codigo.EndsWith(escenario.Sufijo)).ToList();
-        Assert.Equal(new[] { $"EFE{escenario.Sufijo}", $"TAR{escenario.Sufijo}", $"NC{escenario.Sufijo}", $"PUN{escenario.Sufijo}" }, mias.Select(f => f.Codigo));
+        Assert.Equal(
+            new[] { $"EFE{escenario.Sufijo}", $"TAR{escenario.Sufijo}", $"NC{escenario.Sufijo}", $"PUN{escenario.Sufijo}", $"TMA{escenario.Sufijo}" },
+            mias.Select(f => f.Codigo));
         Assert.True(mias[0].AbreGaveta);
+
+        // La pantalla necesita saber cuál cobra por terminal para no pedirle nada, y con cuál se digita la aprobación.
+        Assert.Equal(TerminalFormaPago.CardNet, mias.Single(f => f.Codigo == $"TAR{escenario.Sufijo}").Terminal);
+        Assert.Equal(TerminalFormaPago.Ninguno, mias.Single(f => f.Codigo == $"TMA{escenario.Sufijo}").Terminal);
         Assert.Contains(cobro.Bancos, b => b.Id == escenario.Banco);
         Assert.Contains(cobro.TiposTarjeta, t => t.Id == escenario.TipoTarjeta);
         Assert.Contains(cobro.Denominaciones, d => d.Id == escenario.BilleteMil);

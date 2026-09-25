@@ -122,35 +122,9 @@
                             </div>
                         }
 
-                        @* Con terminal conectado el cajero puede cobrar a mano igual: el terminal se cuelga, se queda sin
-                           papel o la tarjeta no pasa, y el cobro no se puede detener por eso. Queda pedida la autorización
-                           del supervisor al cobrar (RF-213), así que el atajo no se usa por costumbre. *@
-                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta && !SinTerminal)
-                        {
-                            <div class="cg-descuento__motivos">
-                                <button type="button" class="cg-catalogo__departamento @(_contingencia ? "cg-catalogo__departamento--activa" : null)"
-                                        @onclick="AlternarManualAsync">
-                                    @(_contingencia ? "Cobrando a mano" : "Cobrar a mano (el terminal no responde)")
-                                </button>
-                            </div>
-                        }
-
-                        @* Descuento del banco por la tarjeta (RF-98): se aplica antes de cobrar, así el e-CF sale con el
-                           monto real. Solo se pide si el negocio encendió el parámetro y el terminal no leyó la tarjeta:
-                           cuando el terminal la lee, el BIN llega solo y digitarlo no aporta nada. *@
-                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta && _catalogo.DescuentoPorBin && _contingencia)
-                        {
-                            <div class="cg-cobro__bin">
-                                @* Se escribe también con el teclado en pantalla: al tocarlo queda como campo activo. *@
-                                <div @onclick="() => _campo = Campo.Bin" @onfocusin="() => _campo = Campo.Bin">
-                                    <MudTextField T="string" @bind-Value="_bin" Label="Primeros dígitos de la tarjeta (si el terminal no la lee)" Variant="Variant.Outlined"
-                                                  Margin="Margin.Dense" Immediate="true" Class="@ClaseCampo(Campo.Bin)" />
-                                </div>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_procesando || string.IsNullOrWhiteSpace(_bin))"
-                                           OnClick="AplicarDescuentoTarjetaAsync">Aplicar descuento</MudButton>
-                            </div>
-                        }
-
+                        @* El BIN no se digita nunca: lo devuelve el terminal al cobrar, y con él se aplica solo el
+                           descuento del banco (RF-98) si el negocio lo tiene encendido. La forma de pago sin terminal no
+                           tiene descuento porque nadie leyó la tarjeta. *@
                         @if (seleccionada.RequiereBanco)
                         {
                             <div class="cg-descuento__motivos">
@@ -169,22 +143,14 @@
                                     <MudTextField T="string" @bind-Value="_referencia" Label="@EtiquetaReferencia(seleccionada)" Variant="Variant.Outlined" Immediate="true"
                                                   Class="@ClaseCampo(Campo.Referencia)" />
                                 </div>
-                                @if (_contingencia)
-                                {
-                                    @* Sin terminal conectado hay que saber de qué tarjeta fue, para cuadrar contra los volantes. *@
-                                    <div @onclick="() => _campo = Campo.Digitos">
-                                        <MudTextField T="string" @bind-Value="_digitos" Label="Últimos 4 dígitos" Variant="Variant.Outlined" Immediate="true" MaxLength="4"
-                                                      Class="@ClaseCampo(Campo.Digitos)" />
-                                    </div>
-                                }
                             </div>
                         }
 
                         <TecladoTactil Valor="@ValorCampo" ValorChanged="AlCambiarTeclado"
-                                       AlConfirmar="@(_ => _campo == Campo.Bin ? AplicarDescuentoTarjetaAsync() : AgregarPagoAsync())"
+                                       AlConfirmar="@(_ => AgregarPagoAsync())"
                                        Modo="@(_campo == Campo.Referencia ? ModoTeclado.Alfanumerico : ModoTeclado.Numerico)" PermitirDecimal="@(_campo == Campo.Monto)"
                                        PermitirCambioModo="@(_campo == Campo.Referencia)"
-                                       TextoConfirmar="@(_campo == Campo.Bin ? "Aplicar descuento" : TextoAgregar)" />
+                                       TextoConfirmar="@TextoAgregar" />
                     }
                     else
                     {
@@ -210,7 +176,6 @@
         Monto,
         Referencia,
         Digitos,
-        Bin,
     }
 
     private sealed record PagoAgregado(SolicitudPago Solicitud, string Descripcion, string? Detalle, decimal Aplicado, bool EsTerminal);
@@ -228,11 +193,20 @@
     private string _digitos = string.Empty;
     private int? _banco;
     private int? _tipoTarjeta;
-    private string? _bin;
-    private bool _contingencia;
 
-    /// <summary>Esta caja no tiene terminal conectado: la tarjeta se cobra en otro equipo y se digita su aprobación.</summary>
-    private bool SinTerminal => _catalogo is { TerminalIntegrado: false };
+    /// <summary>
+    /// Esa forma de pago cobra en el panel de firma de su terminal, y este mostrador tiene ese terminal. No pide nada:
+    /// se manda el monto y el equipo devuelve la aprobación y el BIN.
+    /// </summary>
+    private bool PorTerminal(DatosFormaPago forma) =>
+        forma.Terminal != TerminalFormaPago.Ninguno && _catalogo?.Terminal == forma.Terminal;
+
+    /// <summary>
+    /// La forma de pago es de un procesador que esta caja no tiene enfrente. No se puede cobrar con ella: el cajero usa
+    /// la del procesador de la tienda, o la de tarjeta digitada.
+    /// </summary>
+    private bool TerminalAjeno(DatosFormaPago forma) =>
+        forma.Terminal != TerminalFormaPago.Ninguno && _catalogo?.Terminal != forma.Terminal;
     private bool _procesando;
     private string? _mensaje;
     private string? _estado;
@@ -249,11 +223,10 @@
     {
         Campo.Monto => _monto,
         Campo.Referencia => _referencia,
-        Campo.Bin => _bin ?? string.Empty,
         _ => _digitos,
     };
 
-    private string TextoAgregar => _forma?.Tipo == TipoFormaPago.Tarjeta && !_contingencia ? "Pasar tarjeta" : "Agregar";
+    private string TextoAgregar => _forma is { } forma && PorTerminal(forma) ? "Pasar tarjeta" : "Agregar";
 
     protected override async Task OnInitializedAsync()
     {
@@ -276,15 +249,21 @@
 
     private decimal? Tasa(string moneda) => _catalogo?.Tasas?.FirstOrDefault(t => t.Moneda == moneda)?.Tasa;
 
-    /// <summary>Los puntos llegan con la fidelidad; bonos no aplican con crédito fiscal (RF-117); sin tasa no hay dólares.</summary>
+    /// <summary>
+    /// Los puntos llegan con la fidelidad; bonos no aplican con crédito fiscal (RF-117); sin tasa no hay dólares; y la
+    /// forma de pago de un procesador que no es el de esta caja se ve apagada, porque su equipo no está en este mostrador.
+    /// </summary>
     private bool Disponible(DatosFormaPago forma) =>
         (forma.Tipo is not TipoFormaPago.Puntos || Venta.Fidelidad is not null)
         && (forma.Moneda == MonedaLocal || Tasa(forma.Moneda) is not null)
-        && (forma.PermiteComprobanteFiscal || Venta.TipoComprobante == TipoComprobante.FacturaConsumo);
+        && (forma.PermiteComprobanteFiscal || Venta.TipoComprobante == TipoComprobante.FacturaConsumo)
+        && !TerminalAjeno(forma);
 
     private bool PideReferencia(DatosFormaPago forma) => forma.Tipo switch
     {
-        TipoFormaPago.Tarjeta => _contingencia,
+        // La tarjeta que no cobra por terminal se cobró en un equipo aparte: su número de aprobación es lo único que
+        // queda para cuadrar el turno contra los volantes, así que es obligatorio.
+        TipoFormaPago.Tarjeta => !PorTerminal(forma),
         TipoFormaPago.NotaCredito => true,
         _ => forma.RequiereReferencia,
     };
@@ -309,7 +288,6 @@
         _digitos = string.Empty;
         _banco = null;
         _tipoTarjeta = null;
-        _contingencia = SinTerminal && forma.Tipo == TipoFormaPago.Tarjeta;
         _mensaje = null;
         _campo = Campo.Monto;
         _monto = SaldoEn(forma).ToString("0.##", CultureInfo.InvariantCulture);
@@ -350,8 +328,6 @@
             case Campo.Referencia:
                 _referencia = valor;
                 break;
-            case Campo.Bin:
-                _bin = valor.Length > 10 ? valor[..10] : valor;
                 break;
             default:
                 _digitos = valor.Length > 4 ? valor[..4] : valor;
@@ -383,7 +359,7 @@
             return;
         }
 
-        if (forma.Tipo == TipoFormaPago.Tarjeta && !_contingencia)
+        if (PorTerminal(forma))
         {
             await PasarTarjetaAsync(forma, monto);
             return;
@@ -403,52 +379,17 @@
             forma.Moneda == MonedaLocal ? null : $"{monto:N2} {forma.Moneda} @ {tasa:N2}",
             banco,
             string.IsNullOrWhiteSpace(_referencia) ? null : $"Ref. {_referencia}",
-            _contingencia ? (SinTerminal ? "Cobrada en el equipo" : "Aprobación manual") : null,
+            forma.Tipo == TipoFormaPago.Tarjeta ? "Cobrada en el equipo" : null,
         }.Where(texto => texto is not null));
 
         _pagos.Add(new PagoAgregado(
-            new SolicitudPago(forma.Id, monto, Vacio(_referencia), _banco, _tipoTarjeta, Vacio(_digitos), _contingencia),
+            new SolicitudPago(forma.Id, monto, Vacio(_referencia), _banco, _tipoTarjeta, Vacio(_digitos), AprobacionManual: forma.Tipo == TipoFormaPago.Tarjeta),
             forma.Nombre,
             detalle.Length > 0 ? detalle : null,
             decimal.Round(monto * tasa, 2, MidpointRounding.AwayFromZero),
             EsTerminal: false));
 
         SeleccionarForma(forma);
-    }
-
-    /// <summary>Pide el descuento del banco para esa tarjeta; si aplica, la venta baja de total antes de cobrar (RF-98).</summary>
-    private async Task AplicarDescuentoTarjetaAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_bin))
-            return;
-
-        _procesando = true;
-        _mensaje = null;
-        var respuesta = await Cliente.AplicarDescuentoTarjetaAsync(Venta.Id, _bin);
-        _procesando = false;
-
-        if (!respuesta.Exitosa)
-        {
-            _mensaje = respuesta.Mensaje;
-            return;
-        }
-
-        if (respuesta.Venta is { } actualizada)
-            Venta = actualizada;
-
-        _estado = respuesta.Mensaje;
-    }
-
-    /// <summary>
-    /// Pasa a cobrar la tarjeta a mano, o vuelve al terminal. Al entrar en manual el foco va al número de aprobación,
-    /// que es el dato que el cajero tiene delante en el volante.
-    /// </summary>
-    private Task AlternarManualAsync()
-    {
-        _contingencia = !_contingencia;
-        _mensaje = null;
-        _campo = _contingencia ? Campo.Referencia : Campo.Monto;
-        return Task.CompletedTask;
     }
 
     private async Task PasarTarjetaAsync(DatosFormaPago forma, decimal monto)
@@ -482,10 +423,12 @@
         _mensaje = respuesta.Mensaje;
         if (respuesta.Resultado == CodigoResultadoVenta.TerminalSinConexion)
         {
-            // Contingencia (RF-213): se registra la aprobación del banco a mano y queda para conciliar.
-            _contingencia = true;
-            _campo = Campo.Referencia;
-            _mensaje += " Registre la aprobación manual; se pedirá autorización al cobrar.";
+            // El terminal no contestó. No se cobra a medias por aquí: el cajero se lo dice al cliente y cobra en el
+            // equipo aparte, con la forma de pago de tarjeta, que es la que registra el número de aprobación.
+            var manual = _catalogo!.FormasPago.FirstOrDefault(f => f.Tipo == TipoFormaPago.Tarjeta && f.Terminal == TerminalFormaPago.Ninguno);
+            _mensaje += manual is null
+                ? " Cobre en otro equipo; no hay una forma de pago para registrar la aprobación."
+                : $" Cobre en el otro equipo y registre la aprobación con «{manual.Nombre}».";
         }
     }
 

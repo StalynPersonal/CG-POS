@@ -12,6 +12,12 @@ namespace CgPos.Pos.Infraestructura.Perifericos.Terminales;
 /// </summary>
 internal sealed class TerminalPagoSimulado(IConfiguration configuracion) : ITerminalPago
 {
+    /// <summary>El simulado hace de cualquier marca: se elige con «Modelo» para probar el flujo de CardNet o el de Azul.</summary>
+    public CgPos.Dominio.Pagos.TerminalFormaPago Marca =>
+        string.Equals(configuracion["Perifericos:Terminal:Modelo"], "Azul", StringComparison.OrdinalIgnoreCase)
+            ? CgPos.Dominio.Pagos.TerminalFormaPago.Azul
+            : CgPos.Dominio.Pagos.TerminalFormaPago.CardNet;
+
     public bool ConsultaTarjeta => configuracion["Perifericos:TerminalSimulado:Bin"] is { Length: > 0 };
 
     public async Task<ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default)

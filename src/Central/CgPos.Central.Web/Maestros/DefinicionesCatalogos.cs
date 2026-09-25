@@ -84,6 +84,17 @@ public static class DefinicionesCatalogos
         new("MonedaExtranjera", "Moneda extranjera"),
     ];
 
+    /// <summary>
+    /// Equipo con el que cobra una forma de pago de tarjeta. Sin terminal, el cajero digita el número de aprobación del
+    /// volante; con terminal, el cobro se hace en su panel de firma y no se digita nada.
+    /// </summary>
+    public static IReadOnlyList<OpcionCatalogo> TerminalesFormaPago { get; } =
+    [
+        new("Ninguno", "Sin terminal (se digita la aprobación)"),
+        new("CardNet", "CardNet"),
+        new("Azul", "Azul"),
+    ];
+
     public static IReadOnlyList<OpcionCatalogo> TiposReglaAcumulacion { get; } =
     [
         new("Monto", "Todo lo comprado"),
@@ -182,6 +193,13 @@ public static class DefinicionesCatalogos
                 new("requiereReferencia", "Requiere referencia", TipoCampoCatalogo.SiNoSegunTipo) { EnTabla = false },
                 new("requiereBanco", "Requiere banco", TipoCampoCatalogo.SiNoSegunTipo) { EnTabla = false },
                 new("permiteComprobanteFiscal", "Permite crédito fiscal", TipoCampoCatalogo.SiNoSegunTipo) { EnTabla = false },
+                new("terminal", "Terminal", TipoCampoCatalogo.Opciones)
+                {
+                    Opciones = TerminalesFormaPago,
+                    Predeterminado = "Ninguno",
+                    Ayuda = "Solo para tarjetas. Con terminal, el cobro se hace en su panel y no se digita nada; "
+                            + "la caja solo ofrece la del terminal que tiene instalado.",
+                },
                 Estado("activa"),
             ]),
 

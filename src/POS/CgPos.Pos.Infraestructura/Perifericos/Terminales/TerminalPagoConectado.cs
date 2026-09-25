@@ -18,6 +18,12 @@ namespace CgPos.Pos.Infraestructura.Perifericos.Terminales;
 /// </summary>
 internal sealed class TerminalPagoConectado(IConfiguration configuracion, TimeProvider reloj, ILogger<TerminalPagoConectado> registro) : ITerminalPago
 {
+    /// <summary>El perfil genérico se usa con equipos de cualquier marca: la dice el modelo configurado.</summary>
+    public CgPos.Dominio.Pagos.TerminalFormaPago Marca =>
+        string.Equals(configuracion["Perifericos:Terminal:Modelo"], "Azul", StringComparison.OrdinalIgnoreCase)
+            ? CgPos.Dominio.Pagos.TerminalFormaPago.Azul
+            : CgPos.Dominio.Pagos.TerminalFormaPago.CardNet;
+
     public bool ConsultaTarjeta => false;
 
     public Task<ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default) =>

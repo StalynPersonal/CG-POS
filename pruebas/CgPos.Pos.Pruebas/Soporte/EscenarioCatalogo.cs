@@ -53,6 +53,9 @@ public sealed class EscenarioCatalogo
     public int DireccionObra { get; private set; }
     public int FormaEfectivo { get; private set; }
     public int FormaTarjeta { get; private set; }
+
+    /// <summary>Tarjeta cobrada en un equipo aparte: no habla con ningún terminal y pide el número de aprobación.</summary>
+    public int FormaTarjetaManual { get; private set; }
     public int Banco { get; private set; }
     public int TipoTarjeta { get; private set; }
     public int BilleteMil { get; private set; }
@@ -87,6 +90,7 @@ public sealed class EscenarioCatalogo
     public string CodigoFueraDePos => $"NOP-{Sufijo}";
     public string CodigoEfectivo => $"EFE{Sufijo}";
     public string CodigoTarjeta => $"TAR{Sufijo}";
+    public string CodigoTarjetaManual => $"TMA{Sufijo}";
     public string CodigoNotaCredito => $"NC{Sufijo}";
     public string CodigoPuntos => $"PUN{Sufijo}";
     public string CodigoBanco => $"BAN{Sufijo}";
@@ -117,6 +121,7 @@ public sealed class EscenarioCatalogo
 
         var formas = await contexto.FormasPago.Where(f => f.Codigo.EndsWith(Sufijo)).ToDictionaryAsync(f => f.Codigo, f => f.Id);
         (FormaEfectivo, FormaTarjeta, FormaNotaCredito, FormaPuntos) = (formas[CodigoEfectivo], formas[CodigoTarjeta], formas[CodigoNotaCredito], formas[CodigoPuntos]);
+        FormaTarjetaManual = formas[CodigoTarjetaManual];
         Banco = await contexto.Bancos.Where(b => b.Codigo == CodigoBanco).Select(b => b.Id).SingleAsync();
         TipoTarjeta = await contexto.TiposTarjeta.Where(t => t.Codigo == CodigoTipoTarjeta).Select(t => t.Id).SingleAsync();
         BilleteMil = await contexto.Denominaciones.Where(d => d.Moneda == "DOP" && d.Valor == ValorBillete && d.Tipo == TipoDenominacion.Billete).Select(d => d.Id).SingleAsync();
@@ -187,7 +192,10 @@ public sealed class EscenarioCatalogo
             ],
             FormasPago:
             [
-                new FormaPagoCarga(CodigoTarjeta, "Tarjeta", TipoFormaPago.Tarjeta, 2, "DOP"),
+                // La del terminal: cobra en su panel de firma y devuelve la aprobación y el BIN.
+                new FormaPagoCarga(CodigoTarjeta, "CardNet", TipoFormaPago.Tarjeta, 2, "DOP", Terminal: TerminalFormaPago.CardNet),
+                // La digitada: se cobró en un equipo aparte y solo se registra su número de aprobación.
+                new FormaPagoCarga(CodigoTarjetaManual, "Tarjeta", TipoFormaPago.Tarjeta, 5, "DOP", RequiereReferencia: true),
                 new FormaPagoCarga(CodigoEfectivo, "Efectivo", TipoFormaPago.Efectivo, 1, "DOP"),
                 new FormaPagoCarga(CodigoNotaCredito, "Nota de crédito", TipoFormaPago.NotaCredito, 3, "DOP", RequiereReferencia: true, PermiteDevuelta: false),
                 new FormaPagoCarga(CodigoPuntos, "Puntos", TipoFormaPago.Puntos, 4, "DOP"),

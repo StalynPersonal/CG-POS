@@ -429,6 +429,7 @@ CREATE TABLE [FormasPago] (
     [RequiereBanco] bit NOT NULL,
     [PermiteComprobanteFiscal] bit NOT NULL,
     [Activa] bit NOT NULL,
+    [Terminal] int NOT NULL,
     [ModificadoEn] datetimeoffset(3) NOT NULL,
     [ModificadoPor] nvarchar(150) NOT NULL,
     [Version] rowversion NOT NULL,
@@ -2574,18 +2575,20 @@ VALUES
 GO
 
 /* Formas de pago */
-INSERT INTO [FormasPago] ([Id], [Codigo], [Nombre], [Tipo], [Moneda], [Orden], [AbreGaveta], [PermiteDevuelta], [RequiereReferencia], [RequiereBanco], [PermiteComprobanteFiscal], [Activa], [ModificadoEn], [ModificadoPor])
+INSERT INTO [FormasPago] ([Id], [Codigo], [Nombre], [Tipo], [Moneda], [Orden], [AbreGaveta], [PermiteDevuelta], [RequiereReferencia], [RequiereBanco], [PermiteComprobanteFiscal], [Terminal], [Activa], [ModificadoEn], [ModificadoPor])
 VALUES
-    (1, N'EFE', N'Efectivo', 0, 'DOP', 1, 1, 1, 0, 0, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (2, N'TAR', N'Tarjeta', 1, 'DOP', 2, 0, 0, 1, 0, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (3, N'TRA', N'Transferencia', 2, 'DOP', 3, 0, 0, 1, 1, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (4, N'CHE', N'Cheque', 3, 'DOP', 4, 0, 0, 1, 1, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (5, N'USD', N'Dólares', 9, 'USD', 5, 1, 1, 0, 0, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (6, N'NC', N'Nota de crédito', 5, 'DOP', 6, 0, 0, 1, 0, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (7, N'BONO', N'Bono de regalo', 4, 'DOP', 7, 0, 0, 1, 0, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (8, N'GIFT', N'Tarjeta de regalo', 7, 'DOP', 8, 0, 0, 1, 0, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (9, N'PRE', N'Préstamo bancario', 6, 'DOP', 9, 0, 0, 1, 1, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
-    (10, N'PUN', N'Puntos', 8, 'DOP', 10, 0, 0, 0, 0, 1, 1, SYSDATETIMEOFFSET(), N'Instalación');
+    (1, N'EFE', N'Efectivo', 0, 'DOP', 1, 1, 1, 0, 0, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (2, N'TAR', N'Tarjeta', 1, 'DOP', 2, 0, 0, 1, 0, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (3, N'CARDNET', N'CardNet', 1, 'DOP', 3, 0, 0, 0, 0, 1, 1, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (4, N'AZUL', N'Azul', 1, 'DOP', 4, 0, 0, 0, 0, 1, 2, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (5, N'TRA', N'Transferencia', 2, 'DOP', 5, 0, 0, 1, 1, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (6, N'CHE', N'Cheque', 3, 'DOP', 6, 0, 0, 1, 1, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (7, N'USD', N'Dólares', 9, 'USD', 7, 1, 1, 0, 0, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (8, N'NC', N'Nota de crédito', 5, 'DOP', 8, 0, 0, 1, 0, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (9, N'BONO', N'Bono de regalo', 4, 'DOP', 9, 0, 0, 1, 0, 0, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (10, N'GIFT', N'Tarjeta de regalo', 7, 'DOP', 10, 0, 0, 1, 0, 0, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (11, N'PRE', N'Préstamo bancario', 6, 'DOP', 11, 0, 0, 1, 1, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación'),
+    (12, N'PUN', N'Puntos', 8, 'DOP', 12, 0, 0, 0, 0, 1, 0, 1, SYSDATETIMEOFFSET(), N'Instalación');
 ALTER SEQUENCE [SecuenciaFormasPago] RESTART WITH 21;
 GO
 

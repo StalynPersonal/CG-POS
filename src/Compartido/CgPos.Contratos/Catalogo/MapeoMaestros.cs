@@ -179,7 +179,8 @@ public static class MapeoMaestros
 
         var sugeridos = FormaPago.ValoresPorTipo(d.Tipo);
         e.Configurar(d.Nombre, d.Orden, d.AbreGaveta ?? sugeridos.AbreGaveta, d.PermiteDevuelta ?? sugeridos.PermiteDevuelta,
-            d.RequiereReferencia ?? sugeridos.RequiereReferencia, d.RequiereBanco ?? sugeridos.RequiereBanco, d.PermiteComprobanteFiscal ?? sugeridos.PermiteComprobanteFiscal);
+            d.RequiereReferencia ?? sugeridos.RequiereReferencia, d.RequiereBanco ?? sugeridos.RequiereBanco, d.PermiteComprobanteFiscal ?? sugeridos.PermiteComprobanteFiscal,
+            d.Terminal);
         if (d.Activa) e.Activar(); else e.Desactivar();
     }
 

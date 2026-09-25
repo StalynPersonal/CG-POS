@@ -25,6 +25,8 @@ internal sealed class TerminalPagoCardNet(IConfiguration configuracion, ILogger<
 
     private IConfigurationSection Seccion => configuracion.GetSection("Perifericos:Terminal");
 
+    public CgPos.Dominio.Pagos.TerminalFormaPago Marca => CgPos.Dominio.Pagos.TerminalFormaPago.CardNet;
+
     public bool ConsultaTarjeta => !string.Equals(Seccion["ConsultaTarjeta"], "false", StringComparison.OrdinalIgnoreCase);
 
     public async Task<ResultadoConsultaTarjeta> ConsultarTarjetaAsync(CancellationToken cancelacion = default)

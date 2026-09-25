@@ -372,10 +372,16 @@ internal sealed class ServicioVentas(
         var ahora = reloj.Ahora();
         venta!.RecalcularPromociones(await PromocionesAsync(cancelacion), venta.SucursalId, reloj.Ahora());
 
-        // La aprobación manual de tarjeta por contingencia de la pasarela requiere permiso (RF-213). En una caja sin
-        // terminal conectado no es contingencia: es como se cobra siempre ahí, y pedir autorización en cada venta sobra.
+        // La aprobación digitada solo requiere permiso cuando la forma de pago tenía su propio terminal y aun así se
+        // digitó: eso sí es contingencia (RF-213). La forma de pago de tarjeta sin terminal se cobra en un equipo aparte
+        // y digitar su aprobación es lo normal, así que pedir autorización en cada venta sobra.
+        var formasConTerminal = await contexto.FormasPago.AsNoTracking()
+            .Where(f => f.Terminal != TerminalFormaPago.Ninguno)
+            .Select(f => f.Id)
+            .ToListAsync(cancelacion);
+
         ResultadoPermiso? permiso = null;
-        if (terminal.Integrado && pagos.Any(p => p.AprobacionManual))
+        if (pagos.Any(p => p.AprobacionManual && formasConTerminal.Contains(p.FormaPagoId)))
         {
             permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.AprobacionManualTarjeta, autorizacionId, TipoEntidadVenta, venta.Identificacion, cancelacion);
             if (!permiso.Permitido)

@@ -1,4 +1,6 @@
-﻿namespace CgPos.Pos.Aplicacion.Perifericos;
+﻿using CgPos.Dominio.Pagos;
+
+namespace CgPos.Pos.Aplicacion.Perifericos;
 
 /// <param name="Estable">La balanza reporta el peso detenido; solo así se factura.</param>
 /// <param name="Unidad">Unidad en la que pesa la balanza (ej. "LB", "KG").</param>
@@ -33,6 +35,12 @@ public interface ITerminalPago
     /// el cajero digita el número de aprobación del volante: no es una contingencia, es como trabaja esa caja.
     /// </summary>
     bool Integrado => true;
+
+    /// <summary>
+    /// Qué equipo tiene esta caja. Una caja solo tiene uno, así que es lo que decide cuáles formas de pago de tarjeta
+    /// puede cobrar: en una caja con CardNet, la forma de pago de Azul no se ofrece.
+    /// </summary>
+    TerminalFormaPago Marca => TerminalFormaPago.Ninguno;
 
     /// <summary>
     /// El terminal lee la tarjeta antes de cobrar y entrega su BIN, para aplicar el descuento del banco (RF-98) y cobrar ya con el monto
