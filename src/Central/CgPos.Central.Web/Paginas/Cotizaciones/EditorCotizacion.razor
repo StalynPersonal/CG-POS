@@ -48,8 +48,11 @@ else if (_cotizacion is { } cotizacion)
 
         @* Datos del cliente y vigencia. *@
         <div class="d-flex gap-3 flex-wrap">
+            @* La lupa abre el maestro de clientes: casi nadie se sabe el RNC, pero sí el nombre. *@
             <MudTextField @bind-Value="_clienteNombre" Label="Nombre del cliente" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Style="min-width: 280px" Disabled="!_editable" />
+                          Style="min-width: 280px" Disabled="!_editable" OnKeyDown="AlTeclearNombre"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.PersonSearch" OnAdornmentClick="BuscarEnClientesAsync"
+                          AdornmentAriaLabel="Buscar cliente en el maestro" />
             @* La lupa (o Enter) busca el documento en el maestro de clientes y completa sus datos. *@
             <MudTextField @bind-Value="_clienteDocumento" Label="Cédula o RNC (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense"
                           Style="max-width: 240px" Disabled="!_editable" OnKeyDown="AlTeclearDocumento"
@@ -252,6 +255,32 @@ else if (_cotizacion is { } cotizacion)
     }
 
     /// <summary>Busca el cliente con ese documento y completa nombre, teléfono y correo con los del maestro.</summary>
+    /// <summary>Enter en el nombre abre el maestro de clientes con lo escrito ya buscado.</summary>
+    private Task AlTeclearNombre(KeyboardEventArgs tecla) =>
+        tecla.Key is "Enter" or "NumpadEnter" ? BuscarEnClientesAsync() : Task.CompletedTask;
+
+    /// <summary>Elige un cliente del maestro y llena sus datos, en vez de digitarlos uno por uno.</summary>
+    private async Task BuscarEnClientesAsync()
+    {
+        if (!_editable)
+            return;
+
+        var parametros = new DialogParameters<DialogoBuscarCliente>
+        {
+            { d => d.TextoInicial, string.IsNullOrWhiteSpace(_clienteNombre) ? _clienteDocumento : _clienteNombre },
+        };
+        var referencia = await Dialogos.ShowAsync<DialogoBuscarCliente>("Buscar cliente",
+            parametros, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+
+        if (await referencia.Result is not { Canceled: false, Data: ClienteCarga cliente })
+            return;
+
+        _clienteDocumento = cliente.Documento;
+        _clienteNombre = cliente.Nombre;
+        _telefono = cliente.Telefono;
+        _correo = cliente.Correo;
+    }
+
     private async Task BuscarClienteAsync()
     {
         if (!_editable)

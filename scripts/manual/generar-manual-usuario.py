@@ -554,9 +554,10 @@ p('Ruta: /cotizaciones. Es el presupuesto que se le arma a un cliente desde cual
   'cualquier sucursal la convierte en factura buscándola por su número (F9).')
 paso('Para hacer una nueva, use «Nueva cotización» del menú o el botón del listado: se abre una pantalla completa, no una '
      'ventanita.')
-paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo. Si el cliente ya está registrado, '
-     'digite su cédula o RNC y presione la lupa del campo (o Enter): el nombre, el teléfono y el correo se completan solos '
-     'con los del maestro de clientes.')
+paso('Escriba el nombre del cliente y, si lo tiene, su cédula o RNC, teléfono y correo. Si el cliente ya está registrado hay '
+     'dos maneras de traerlo del maestro y no digitar nada: la lupa del campo del NOMBRE abre la lista de clientes, donde se '
+     'busca por nombre o por documento y se elige la fila; y la lupa del campo del DOCUMENTO lo busca directo, si se sabe. '
+     'Con cualquiera de las dos, el nombre, el documento, el teléfono y el correo se llenan solos.')
 paso('«Vale hasta» ya viene con la fecha de vencimiento: hoy más los días configurados en Parámetros '
      '(Central.Cotizaciones.DiasVigencia, 15 de fábrica). Se puede cambiar antes de guardar.')
 paso('Agregue los artículos sin soltar el teclado: digite el código y presione Enter (trae la descripción y el precio del '

@@ -1,0 +1,70 @@
+﻿@* Busca un cliente del maestro por documento o nombre y devuelve el elegido, para llenar sus datos sin digitarlos. *@
+@using CgPos.Contratos.Catalogo
+@inject ClienteCentral Cliente
+
+<MudDialog>
+    <DialogContent>
+        @* El buscador y la lista: se escribe arriba y se elige tocando la fila. *@
+        <div style="min-width: 640px">
+            <MudTextField T="string" Value="_buscar" ValueChanged="BuscarAsync" DebounceInterval="300" Immediate="true" AutoFocus="true"
+                          Placeholder="Cédula, RNC o nombre del cliente" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+
+            <MudTable T="ClienteCarga" Items="_clientes" Dense="true" Hover="true" Elevation="0" Loading="_cargando" Breakpoint="Breakpoint.None"
+                      Class="mt-2" RowStyle="cursor: pointer" OnRowClick="@(evento => Elegir(evento.Item))" FixedHeader="true" Height="380px">
+                <HeaderContent>
+                    <MudTh Style="width: 160px">Documento</MudTh>
+                    <MudTh>Nombre</MudTh>
+                    <MudTh Style="width: 150px">Teléfono</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Documento">@context.Documento</MudTd>
+                    <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+                    <MudTd DataLabel="Teléfono">@context.Telefono</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(_buscar) ? "Escriba para buscar un cliente." : "Ningún cliente coincide.")</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => Dialogo.Cancel()">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialogo { get; set; } = default!;
+
+    /// <summary>Lo que ya se había digitado: la búsqueda arranca con eso escrito.</summary>
+    [Parameter] public string? TextoInicial { get; set; }
+
+    private string? _buscar;
+    private IReadOnlyList<ClienteCarga> _clientes = [];
+    private bool _cargando;
+
+    /// <summary>Se busca en el Central, no en memoria: el maestro trae el padrón entero de la DGII.</summary>
+    private async Task BuscarAsync(string? texto)
+    {
+        _buscar = texto;
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            _clientes = [];
+            return;
+        }
+
+        _cargando = true;
+        var pagina = await Cliente.BuscarClientesCotizacionAsync(texto);
+        _cargando = false;
+        _clientes = pagina?.Elementos.Select(e => e.Dato).ToList() ?? [];
+    }
+
+    protected override Task OnInitializedAsync() =>
+        string.IsNullOrWhiteSpace(TextoInicial) ? Task.CompletedTask : BuscarAsync(TextoInicial);
+
+    private void Elegir(ClienteCarga? cliente)
+    {
+        if (cliente is { } elegido)
+            Dialogo.Close(DialogResult.Ok(elegido));
+    }
+}
