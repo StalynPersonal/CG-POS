@@ -57,6 +57,7 @@
     private string _clave = string.Empty;
     private string? _mensaje;
     private bool _procesando;
+    private bool _terminado;
 
     /// <summary>Quién dejó la caja y por qué. La caja no se nombra: ya se sabe en cuál se está parado.</summary>
     private string Encabezado => _suspension is { } suspension
@@ -75,20 +76,25 @@
         _ = ContarAsync();
     }
 
-    /// <summary>El conteo corre contra la hora en que se suspendió, no contra un contador propio: si la pantalla se recarga, sigue cuadrando.</summary>
+    /// <summary>
+    /// El conteo corre contra la hora en que se suspendió, no contra un contador propio: si la pantalla se recarga, sigue
+    /// cuadrando. Va suelto, sin nadie que lo espere, así que no puede dejar escapar ninguna excepción: la pantalla la
+    /// mostraría como «ocurrió un error inesperado» y taparía la caja entera por un reloj.
+    /// </summary>
     private async Task ContarAsync()
     {
-        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
         {
-            while (await temporizador.WaitForNextTickAsync(_cancelacion.Token))
+            using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (!_terminado && await temporizador.WaitForNextTickAsync(_cancelacion.Token))
             {
                 _transcurrido = DateTimeOffset.Now - Desde;
                 await InvokeAsync(StateHasChanged);
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception excepcion) when (excepcion is OperationCanceledException or ObjectDisposedException)
         {
+            // La pantalla se cerró mientras el reloj esperaba su turno: no hay nada que contar ni que avisar.
         }
     }
 
@@ -117,6 +123,9 @@
 
     public void Dispose()
     {
+        // Primero se marca terminado y después se cancela: así el ciclo sale por su propia condición aunque la cancelación
+        // llegue justo entre dos vueltas.
+        _terminado = true;
         _cancelacion.Cancel();
         _cancelacion.Dispose();
     }

@@ -246,8 +246,11 @@
 
 /* ---------- Caja suspendida ---------- */
 /* El cronómetro se lee desde lejos: es lo que mira el supervisor al pasar por la caja parada. */
+/* El cuadro de la caja parada entra completo en la pantalla: el teclado tiene que verse sin desplazar nada. */
+.cg-suspension { display: flex; flex-direction: column; align-items: center; }
+
 .cg-suspension__conteo {
-    font-size: clamp(4rem, 14vw, 9rem);
+    font-size: clamp(3rem, 9vh, 6rem);
     font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
@@ -256,7 +259,10 @@
     text-align: center;
 }
 
-.cg-suspension__linea { text-align: center; margin-top: 8px; }
+.cg-suspension__linea { text-align: center; margin-top: 4px; }
+/* Menos aire alrededor que en la apertura de turno: aquí hay un cronómetro grande y un teclado que no se pueden cortar. */
+.cg-turno:has(.cg-suspension) { padding: 16px; }
+.cg-turno:has(.cg-suspension) .cg-turno__tarjeta { padding: 16px 24px; }
 
 /* Un motivo por botón, tan grandes como el dedo del cajero. */
 .cg-motivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
