@@ -3,9 +3,22 @@
 @inject ClienteAgente Cliente
 @inject ServicioAutorizacionPantalla Autorizaciones
 
-<MudDialog>
+@* Sin barra de desplazamiento: si la pantalla es baja, las teclas se achican para que el aviso, los campos y el teclado
+   se vean juntos. Un aviso al que hay que bajar con la rueda no lo lee nadie. *@
+<MudDialog Class="cg-dialogo-ajustado">
     <DialogContent>
         <div class="cg-descuento">
+            @* El aviso va arriba del todo: al final quedaba debajo del teclado y había que desplazar el cuadro para
+               enterarse de por qué no se aplicó el descuento. *@
+            @if (_mensaje is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
+            }
+            @if (_procesando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+            }
+
             <div class="cg-cliente__actual">
                 <div>
                     <MudText Typo="Typo.subtitle2" Color="Color.Primary">
@@ -100,14 +113,6 @@
                                LongitudMaxima="@(_escribeMotivo ? 200 : 10)" TextoConfirmar="Aplicar" />
             </div>
 
-            @if (_procesando)
-            {
-                <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
-            }
-            @if (_mensaje is not null)
-            {
-                <MudAlert Severity="Severity.Warning" Dense="true">@_mensaje</MudAlert>
-            }
         </div>
     </DialogContent>
     <DialogActions>

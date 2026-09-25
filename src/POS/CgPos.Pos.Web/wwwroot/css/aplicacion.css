@@ -584,6 +584,11 @@
 .cg-venta__promo--manual { background: var(--cg-advertencia); cursor: default; }
 
 .cg-descuento { display: flex; flex-direction: column; gap: 12px; }
+/* Dentro del cuadro ajustado, lo que cede es el teclado; el aviso y los campos conservan su alto. */
+.mud-dialog.cg-dialogo-ajustado .mud-dialog-content > .cg-descuento { flex: 1 1 auto; min-height: 0; }
+.mud-dialog.cg-dialogo-ajustado .cg-descuento > * { flex-shrink: 0; }
+.mud-dialog.cg-dialogo-ajustado .cg-descuento > .cg-descuento__cuerpo { flex: 1 1 auto; min-height: 0; }
+.cg-dialogo-ajustado .cg-descuento .cg-teclado__fila { flex: 1 1 var(--cg-toque-minimo); min-height: 38px; }
 .cg-descuento__cuerpo { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
 .cg-descuento__datos { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .cg-descuento__tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
