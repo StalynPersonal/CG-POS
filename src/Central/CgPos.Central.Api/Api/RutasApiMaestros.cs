@@ -31,7 +31,6 @@ public static class RutasApiMaestros
         Catalogo<ImpuestoCarga>(maestros, "impuestos");
         Catalogo<FormaPagoCarga>(maestros, "formas-pago");
         Catalogo<BancoCarga>(maestros, "bancos");
-        Catalogo<TipoTarjetaCarga>(maestros, "tipos-tarjeta", codigoNumerico: true);
         Catalogo<DenominacionCarga>(maestros, "denominaciones");
         Catalogo<TasaCambioCarga>(maestros, "tasas-cambio");
         Catalogo<MotivoDescuentoCarga>(maestros, "motivos-descuento", codigoNumerico: true);

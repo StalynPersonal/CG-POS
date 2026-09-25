@@ -64,7 +64,7 @@ public sealed record DocumentoPagoVenta(
     decimal MontoAplicado,
     string? Referencia,
     string? BancoNombre,
-    string? TipoTarjetaNombre,
+    string? MarcaTarjeta,
     string? UltimosDigitos,
     bool AprobacionManual);
 

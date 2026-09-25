@@ -170,7 +170,6 @@ internal sealed class ServicioBajadaMaestros(ContextoDatosCentral contexto, IPar
             Clientes: await Lista<ClienteCarga>(TablasMaestros.Clientes),
             FormasPago: await Lista<FormaPagoCarga>(TablasMaestros.FormasPago),
             Bancos: await Lista<BancoCarga>(TablasMaestros.Bancos),
-            TiposTarjeta: await Lista<TipoTarjetaCarga>(TablasMaestros.TiposTarjeta),
             Denominaciones: await Lista<DenominacionCarga>(TablasMaestros.Denominaciones),
             Promociones: await Lista<PromocionCarga>(TablasMaestros.Promociones),
             MotivosDescuento: await Lista<MotivoDescuentoCarga>(TablasMaestros.MotivosDescuento),

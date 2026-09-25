@@ -88,7 +88,7 @@ internal sealed class PagoVentaConfiguracion : IEntityTypeConfiguration<PagoVent
         constructor.Property(p => p.MontoAplicado).HasPrecision(18, 2);
         constructor.Property(p => p.Referencia).HasMaxLength(PagoVenta.LargoMaximoReferencia);
         constructor.Property(p => p.BancoNombre).HasMaxLength(PagoVenta.LargoMaximoNombre);
-        constructor.Property(p => p.TipoTarjetaNombre).HasMaxLength(PagoVenta.LargoMaximoNombre);
+        constructor.Property(p => p.MarcaTarjeta).HasMaxLength(PagoVenta.LargoMaximoNombre);
         constructor.Property(p => p.UltimosDigitos).HasMaxLength(4).IsUnicode(false);
         constructor.HasIndex(p => new { p.VentaId, p.Numero }).IsUnique();
         constructor.HasIndex(p => p.OperacionTerminalId);

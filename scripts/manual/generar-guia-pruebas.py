@@ -231,13 +231,15 @@ marcar()
 
 prueba('A5', 'Catálogos mínimos')
 paso('En Maestros → Catálogos revise (o cree) al menos: la moneda local, un impuesto del 18 %, una unidad de medida '
-     '«Unidad», un departamento, las formas de pago, un banco, un tipo de tarjeta, los motivos de '
+     '«Unidad», un departamento, las formas de pago, un banco, los motivos de '
      'descuento y de devolución, y las denominaciones de billetes y monedas.')
-paso('En Formas de pago mire la columna «Terminal». Vienen tres de tarjeta: «Tarjeta» sin terminal, que se cobra en un '
-     'equipo aparte y solo registra el número de aprobación; «CardNet» y «Azul», que cobran en el panel de firma de su '
-     'equipo. Deje la de su procesador y desactive la del otro si no la va a usar.')
+paso('En Formas de pago mire la columna «Terminal». Vienen cuatro de tarjeta: «Tarjeta» y «Amex», sin terminal, que se '
+     'cobran en un equipo aparte y solo registran el número de aprobación; «CardNet» y «Azul», que cobran en el panel '
+     'de firma de su equipo. Deje la de su procesador y desactive la del otro si no la va a usar.')
+esperado('La marca de la tarjeta (Visa, Mastercard…) no se configura en ninguna parte: la informa el terminal al aprobar, '
+         'y sale en el ticket y en el cuadre. Cobrando por «Tarjeta» o «Amex» no hay marca, porque nadie leyó la tarjeta.')
 esperado('Todo aparece listado y activo. Las denominaciones son las que después usará el supervisor para contar el efectivo.')
-tablas('Central: Monedas · Impuestos · UnidadesMedida · Departamentos · Categorias · Marcas · FormasPago · Bancos · TiposTarjeta · Denominaciones · MotivosDescuento · MotivosDevolucion')
+tablas('Central: Monedas · Impuestos · UnidadesMedida · Departamentos · Categorias · Marcas · FormasPago · Bancos · Denominaciones · MotivosDescuento · MotivosDevolucion')
 marcar()
 nota('Sin denominaciones no se puede cuadrar un turno, y sin motivos de devolución no se emite una nota de crédito. '
      'Conviene revisarlos ahora y no cuando la cajera esté esperando.')

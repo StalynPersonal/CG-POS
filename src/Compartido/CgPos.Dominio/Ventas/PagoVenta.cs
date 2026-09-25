@@ -27,8 +27,7 @@ public sealed record PagoSolicitado(
     string? Referencia = null,
     int? BancoId = null,
     string? BancoNombre = null,
-    int? TipoTarjetaId = null,
-    string? TipoTarjetaNombre = null,
+    string? MarcaTarjeta = null,
     string? UltimosDigitos = null,
     bool AprobacionManual = false,
     int? OperacionTerminalId = null);
@@ -63,8 +62,8 @@ public sealed class PagoVenta : Entidad
     public string? Referencia { get; private set; }
     public int? BancoId { get; private set; }
     public string? BancoNombre { get; private set; }
-    public int? TipoTarjetaId { get; private set; }
-    public string? TipoTarjetaNombre { get; private set; }
+    /// <summary>Marca que informó el terminal (VISA, MASTERCARD…). Vacía en la tarjeta que se cobró en otro equipo.</summary>
+    public string? MarcaTarjeta { get; private set; }
     public string? UltimosDigitos { get; private set; }
     public bool AprobacionManual { get; private set; }
 
@@ -93,8 +92,7 @@ public sealed class PagoVenta : Entidad
             Referencia = Validar.TextoOpcional(pago.Referencia, "Referencia del pago", LargoMaximoReferencia),
             BancoId = pago.BancoId,
             BancoNombre = Validar.TextoOpcional(pago.BancoNombre, "Banco", LargoMaximoNombre),
-            TipoTarjetaId = pago.TipoTarjetaId,
-            TipoTarjetaNombre = Validar.TextoOpcional(pago.TipoTarjetaNombre, "Tipo de tarjeta", LargoMaximoNombre),
+            MarcaTarjeta = Validar.TextoOpcional(pago.MarcaTarjeta, "Marca de la tarjeta", LargoMaximoNombre),
             UltimosDigitos = Validar.TextoOpcional(pago.UltimosDigitos, "Últimos dígitos", 4),
             AprobacionManual = pago.AprobacionManual,
             ParaConciliar = pago.AprobacionManual,

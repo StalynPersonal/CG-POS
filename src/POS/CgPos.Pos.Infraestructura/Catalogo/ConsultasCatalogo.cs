@@ -316,9 +316,6 @@ internal sealed class ConsultaCatalogoCobro(
         var bancos = await contexto.Bancos.AsNoTracking().Where(b => b.Activo).OrderBy(b => b.Nombre)
             .Select(b => new DatosBanco(b.Id, b.Codigo, b.Nombre, b.RutaLogo))
             .ToListAsync(cancelacion);
-        var tipos = await contexto.TiposTarjeta.AsNoTracking().Where(t => t.Activo).OrderBy(t => t.Nombre)
-            .Select(t => new DatosTipoTarjeta(t.Id, t.Codigo, t.Nombre))
-            .ToListAsync(cancelacion);
         var denominaciones = await contexto.Denominaciones.AsNoTracking().Where(d => d.Activa).OrderBy(d => d.Moneda).ThenByDescending(d => d.Valor)
             .Select(d => new DatosDenominacion(d.Id, d.Moneda, d.Valor, d.Tipo))
             .ToListAsync(cancelacion);
@@ -336,6 +333,6 @@ internal sealed class ConsultaCatalogoCobro(
         var descuentoPorBin = await parametros.ObtenerBooleanoOpcionalAsync(
             CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.DescuentoTarjetaPorBin, contextoCaja.CajaId, cancelacion);
 
-        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas, terminal.Integrado, descuentoPorBin, terminal.Marca);
+        return new DatosCatalogoCobro(formas, bancos, denominaciones, tasas, terminal.Integrado, descuentoPorBin, terminal.Marca);
     }
 }

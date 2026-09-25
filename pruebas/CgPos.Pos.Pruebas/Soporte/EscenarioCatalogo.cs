@@ -1,4 +1,4 @@
-﻿using CgPos.Contratos.Catalogo;
+using CgPos.Contratos.Catalogo;
 using CgPos.Dominio.Catalogo;
 using CgPos.Dominio.Fiscal;
 using CgPos.Dominio.Pagos;
@@ -22,7 +22,6 @@ public sealed class EscenarioCatalogo
     public int CodigoCategoriaVegetales { get; } = Codigos.Siguiente();
     public int CodigoUnidad { get; } = Codigos.Siguiente();
     public int CodigoLibraNumerico { get; } = Codigos.Siguiente();
-    public int CodigoTipoTarjeta { get; } = Codigos.Siguiente();
     public int CodigoTopeGeneral { get; } = Codigos.Siguiente();
     public int CodigoMotivoDevolucion { get; } = Codigos.Siguiente();
     public int CodigoNivelOro { get; } = Codigos.Siguiente();
@@ -57,7 +56,6 @@ public sealed class EscenarioCatalogo
     /// <summary>Tarjeta cobrada en un equipo aparte: no habla con ningún terminal y pide el número de aprobación.</summary>
     public int FormaTarjetaManual { get; private set; }
     public int Banco { get; private set; }
-    public int TipoTarjeta { get; private set; }
     public int BilleteMil { get; private set; }
     public int FormaNotaCredito { get; private set; }
     public int TopeGeneral { get; private set; }
@@ -123,7 +121,6 @@ public sealed class EscenarioCatalogo
         (FormaEfectivo, FormaTarjeta, FormaNotaCredito, FormaPuntos) = (formas[CodigoEfectivo], formas[CodigoTarjeta], formas[CodigoNotaCredito], formas[CodigoPuntos]);
         FormaTarjetaManual = formas[CodigoTarjetaManual];
         Banco = await contexto.Bancos.Where(b => b.Codigo == CodigoBanco).Select(b => b.Id).SingleAsync();
-        TipoTarjeta = await contexto.TiposTarjeta.Where(t => t.Codigo == CodigoTipoTarjeta).Select(t => t.Id).SingleAsync();
         BilleteMil = await contexto.Denominaciones.Where(d => d.Moneda == "DOP" && d.Valor == ValorBillete && d.Tipo == TipoDenominacion.Billete).Select(d => d.Id).SingleAsync();
         TopeGeneral = await contexto.TopesDescuento.Where(t => t.Codigo == CodigoTopeGeneral).Select(t => t.Id).SingleAsync();
         MotivoDevolucion = await contexto.MotivosDevolucion.Where(m => m.Codigo == CodigoMotivoDevolucion).Select(m => m.Id).SingleAsync();
@@ -215,7 +212,6 @@ public sealed class EscenarioCatalogo
             ],
             MotivosDevolucion: [new MotivoDevolucionCarga(CodigoMotivoDevolucion, "Artículo defectuoso")],
             Bancos: [new BancoCarga(CodigoBanco, $"Banco {Sufijo}")],
-            TiposTarjeta: [new TipoTarjetaCarga(CodigoTipoTarjeta, "Visa prueba")],
             Denominaciones: [new DenominacionCarga("DOP", ValorBillete, TipoDenominacion.Billete)],
             // Sin topes configurados no hay descuento manual: las pruebas trabajan con un tope general amplio.
             TopesDescuento: [new TopeDescuentoCarga(CodigoTopeGeneral, 1, 100m, null)]);

@@ -42,7 +42,7 @@ internal static class DocumentosParaCentral
             datos.Totales,
             datos.DescuentoFactura,
             (datos.Pagos ?? []).Select(p => new DocumentoPagoVenta(p.Numero, p.FormaPagoCodigo, p.FormaPagoNombre, p.Tipo, p.Moneda, p.MontoRecibido,
-                p.TasaCambio, p.MontoAplicado, p.Referencia, p.BancoNombre, p.TipoTarjetaNombre, p.UltimosDigitos, p.AprobacionManual)).ToList(),
+                p.TasaCambio, p.MontoAplicado, p.Referencia, p.BancoNombre, p.MarcaTarjeta, p.UltimosDigitos, p.AprobacionManual)).ToList(),
             datos.TotalCobrado ?? datos.Totales.Total,
             datos.Devuelta,
             datos.RedondeoEfectivo,

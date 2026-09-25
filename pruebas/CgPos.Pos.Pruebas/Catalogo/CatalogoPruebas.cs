@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using CgPos.Contratos.Catalogo;
 using CgPos.Contratos.Sincronizacion;
 using CgPos.Dominio.Sincronizacion;
@@ -320,7 +320,6 @@ public class CatalogoPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDat
         Assert.Equal(TerminalFormaPago.CardNet, mias.Single(f => f.Codigo == $"TAR{escenario.Sufijo}").Terminal);
         Assert.Equal(TerminalFormaPago.Ninguno, mias.Single(f => f.Codigo == $"TMA{escenario.Sufijo}").Terminal);
         Assert.Contains(cobro.Bancos, b => b.Id == escenario.Banco);
-        Assert.Contains(cobro.TiposTarjeta, t => t.Id == escenario.TipoTarjeta);
         Assert.Contains(cobro.Denominaciones, d => d.Id == escenario.BilleteMil);
     }
 

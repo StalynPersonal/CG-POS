@@ -412,14 +412,6 @@ internal static class TablasMaestros
         q => q.OrderBy(e => e.Codigo),
         alGuardar: (c, e, d, r, o) => r.RegistrarBanco(e.Codigo, e.Id));
 
-    public static TablaMaestro<TipoTarjeta, TipoTarjetaCarga> TiposTarjeta { get; } = new(
-        TipoMaestro.TipoTarjeta, c => c.TiposTarjeta,
-        d => e => e.Codigo == d.Codigo,
-        (d, r, o) => MapeoMaestros.Crear(d),
-        (e, d, r, o) => MapeoMaestros.Actualizar(e, d),
-        (e, r, p) => new TipoTarjetaCarga(e.Codigo, e.Nombre, e.Activo),
-        q => q.OrderBy(e => e.Codigo));
-
     public static TablaMaestro<Denominacion, DenominacionCarga> Denominaciones { get; } = new(
         TipoMaestro.Denominacion, c => c.Denominaciones,
         d => e => e.Moneda == d.Moneda.Trim().ToUpper() && e.Valor == d.Valor && e.Tipo == d.Tipo,
@@ -584,7 +576,7 @@ internal static class TablasMaestros
     /// <summary>En orden de aplicación.</summary>
     public static IReadOnlyList<TablaMaestro> Todas { get; } =
     [
-        Monedas, Departamentos, Categorias, Marcas, UnidadesMedida, Impuestos, Articulos, Clientes, FormasPago, Bancos, TiposTarjeta, Denominaciones,
+        Monedas, Departamentos, Categorias, Marcas, UnidadesMedida, Impuestos, Articulos, Clientes, FormasPago, Bancos, Denominaciones,
         Promociones, MotivosDescuento, TopesDescuento, TasasCambio, SecuenciasEcf, MotivosDevolucion, MotivosSuspension, NivelesFidelidad, ReglasAcumulacion,
         MiembrosFidelidad, DescuentosTarjeta, RolesCaja, UsuariosCaja,
     ];

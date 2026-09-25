@@ -57,9 +57,6 @@ public static class ValidacionMaestros
         foreach (var d in paquete.Bancos ?? [])
             Probar($"Banco '{d.Codigo}'", () => MapeoMaestros.Crear(d));
 
-        foreach (var d in paquete.TiposTarjeta ?? [])
-            Probar($"Tipo de tarjeta {d.Codigo}", () => MapeoMaestros.Crear(d));
-
         foreach (var d in paquete.Denominaciones ?? [])
             Probar($"Denominación {d.Moneda} {d.Valor}", () => MapeoMaestros.Crear(d));
 

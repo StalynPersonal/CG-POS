@@ -192,13 +192,6 @@ public static class MapeoMaestros
         Activar(e, d.Activo, x => x.Activar(), x => x.Desactivar());
     }
 
-    public static TipoTarjeta Crear(TipoTarjetaCarga d) => Activar(TipoTarjeta.Crear(d.Codigo, d.Nombre), d.Activo, x => x.Activar(), x => x.Desactivar());
-
-    public static void Actualizar(TipoTarjeta e, TipoTarjetaCarga d)
-    {
-        e.CambiarNombre(d.Nombre);
-        Activar(e, d.Activo, x => x.Activar(), x => x.Desactivar());
-    }
 
     public static Denominacion Crear(DenominacionCarga d) =>
         Activar(Denominacion.Crear(d.Moneda, d.Valor, d.Tipo), d.Activa, x => x.Activar(), x => x.Desactivar());

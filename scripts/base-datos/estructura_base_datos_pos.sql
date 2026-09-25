@@ -252,10 +252,6 @@ CREATE SEQUENCE [SecuenciaTasasCambio] AS int START WITH 1 INCREMENT BY 1 NO CYC
 GO
 
 
-CREATE SEQUENCE [SecuenciaTiposTarjeta] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
-GO
-
-
 CREATE SEQUENCE [SecuenciaTopesDescuento] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
@@ -764,16 +760,6 @@ CREATE TABLE [TasasCambio] (
     [Tasa] decimal(18,4) NOT NULL,
     [VigenteDesde] datetimeoffset(3) NOT NULL,
     CONSTRAINT [PK_TasasCambio] PRIMARY KEY ([Id])
-);
-GO
-
-
-CREATE TABLE [TiposTarjeta] (
-    [Id] int NOT NULL,
-    [Codigo] int NOT NULL,
-    [Nombre] nvarchar(50) NOT NULL,
-    [Activo] bit NOT NULL,
-    CONSTRAINT [PK_TiposTarjeta] PRIMARY KEY ([Id])
 );
 GO
 
@@ -1492,8 +1478,7 @@ CREATE TABLE [PagosVenta] (
     [Referencia] nvarchar(60) NULL,
     [BancoId] int NULL,
     [BancoNombre] nvarchar(100) NULL,
-    [TipoTarjetaId] int NULL,
-    [TipoTarjetaNombre] nvarchar(100) NULL,
+    [MarcaTarjeta] nvarchar(100) NULL,
     [UltimosDigitos] varchar(4) NULL,
     [AprobacionManual] bit NOT NULL,
     [ParaConciliar] bit NOT NULL,
@@ -2091,10 +2076,6 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_TasasCambio_Moneda_VigenteDesde] ON [TasasCambio] ([Moneda], [VigenteDesde]);
-GO
-
-
-CREATE UNIQUE INDEX [IX_TiposTarjeta_Codigo] ON [TiposTarjeta] ([Codigo]);
 GO
 
 

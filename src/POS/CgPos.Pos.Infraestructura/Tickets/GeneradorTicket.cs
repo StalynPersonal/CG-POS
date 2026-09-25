@@ -164,7 +164,7 @@ internal static class GeneradorTicket
 
                 var referencia = string.Join(" ", new[]
                 {
-                    pago.TipoTarjetaNombre,
+                    pago.MarcaTarjeta,
                     pago.UltimosDigitos is { } digitos ? $"****{digitos}" : null,
                     pago.BancoNombre,
                     pago.Referencia is { } numero ? $"Ref. {numero}" : null,

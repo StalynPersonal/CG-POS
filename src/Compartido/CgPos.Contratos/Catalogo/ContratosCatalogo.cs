@@ -19,7 +19,6 @@ public sealed record PaqueteMaestros(
     IReadOnlyList<ClienteCarga>? Clientes = null,
     IReadOnlyList<FormaPagoCarga>? FormasPago = null,
     IReadOnlyList<BancoCarga>? Bancos = null,
-    IReadOnlyList<TipoTarjetaCarga>? TiposTarjeta = null,
     IReadOnlyList<DenominacionCarga>? Denominaciones = null,
     IReadOnlyList<PromocionCarga>? Promociones = null,
     IReadOnlyList<MotivoDescuentoCarga>? MotivosDescuento = null,
@@ -231,8 +230,6 @@ public sealed record FormaPagoCarga(
 
 public sealed record BancoCarga(string Codigo, string Nombre, string? RutaLogo = null, bool Activo = true);
 
-public sealed record TipoTarjetaCarga(int Codigo, string Nombre, bool Activo = true);
-
 /// <summary>Billete o moneda; se identifica por la moneda, el valor y el tipo.</summary>
 public sealed record DenominacionCarga(string Moneda, decimal Valor, TipoDenominacion Tipo, bool Activa = true);
 
@@ -352,15 +349,12 @@ public sealed record DatosFormaPago(
 
 public sealed record DatosBanco(int Id, string Codigo, string Nombre, string? RutaLogo);
 
-public sealed record DatosTipoTarjeta(int Id, int Codigo, string Nombre);
-
 public sealed record DatosDenominacion(int Id, string Moneda, decimal Valor, TipoDenominacion Tipo);
 
 /// <summary>Maestros que necesita la pantalla de cobro (RF-150, RF-184).</summary>
 public sealed record DatosCatalogoCobro(
     IReadOnlyList<DatosFormaPago> FormasPago,
     IReadOnlyList<DatosBanco> Bancos,
-    IReadOnlyList<DatosTipoTarjeta> TiposTarjeta,
     IReadOnlyList<DatosDenominacion> Denominaciones,
     IReadOnlyList<DatosTasaCambio>? Tasas = null,
 

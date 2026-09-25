@@ -111,16 +111,8 @@
                             </div>
                         }
 
-                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta && _catalogo.TiposTarjeta.Count > 0)
-                        {
-                            <div class="cg-descuento__motivos">
-                                @foreach (var tipo in _catalogo.TiposTarjeta)
-                                {
-                                    <button type="button" class="cg-catalogo__departamento @(tipo.Id == _tipoTarjeta ? "cg-catalogo__departamento--activa" : null)"
-                                            @onclick="() => _tipoTarjeta = tipo.Id">@tipo.Nombre</button>
-                                }
-                            </div>
-                        }
+                        @* La marca de la tarjeta no se elige: la informa el terminal al aprobar, y va al ticket y al
+                           cuadre. La forma de pago que se cobró en otro equipo no la lleva. *@
 
                         @* El BIN no se digita nunca: lo devuelve el terminal al cobrar, y con él se aplica solo el
                            descuento del banco (RF-98) si el negocio lo tiene encendido. La forma de pago sin terminal no
@@ -192,7 +184,6 @@
     private string _referencia = string.Empty;
     private string _digitos = string.Empty;
     private int? _banco;
-    private int? _tipoTarjeta;
 
     /// <summary>
     /// Esa forma de pago cobra en el panel de firma de su terminal, y este mostrador tiene ese terminal. No pide nada:
@@ -287,7 +278,6 @@
         _referencia = string.Empty;
         _digitos = string.Empty;
         _banco = null;
-        _tipoTarjeta = null;
         _mensaje = null;
         _campo = Campo.Monto;
         _monto = SaldoEn(forma).ToString("0.##", CultureInfo.InvariantCulture);
@@ -383,7 +373,7 @@
         }.Where(texto => texto is not null));
 
         _pagos.Add(new PagoAgregado(
-            new SolicitudPago(forma.Id, monto, Vacio(_referencia), _banco, _tipoTarjeta, Vacio(_digitos), AprobacionManual: forma.Tipo == TipoFormaPago.Tarjeta),
+            new SolicitudPago(forma.Id, monto, Vacio(_referencia), _banco, Vacio(_digitos), AprobacionManual: forma.Tipo == TipoFormaPago.Tarjeta),
             forma.Nombre,
             detalle.Length > 0 ? detalle : null,
             decimal.Round(monto * tasa, 2, MidpointRounding.AwayFromZero),
@@ -408,10 +398,10 @@
 
         if (respuesta is { Exitosa: true, Operacion: { } operacion })
         {
-            var tipo = _catalogo!.TiposTarjeta.FirstOrDefault(t => t.Id == _tipoTarjeta)?.Nombre ?? operacion.Marca;
+            // La marca sale del terminal, que es quien leyó la tarjeta.
             _pagos.Add(new PagoAgregado(
-                new SolicitudPago(forma.Id, operacion.Monto, TipoTarjetaId: _tipoTarjeta, OperacionTerminalId: operacion.Id),
-                $"{forma.Nombre} {tipo}",
+                new SolicitudPago(forma.Id, operacion.Monto, OperacionTerminalId: operacion.Id),
+                $"{forma.Nombre} {operacion.Marca}".TrimEnd(),
                 $"****{operacion.UltimosDigitos} · Aprob. {operacion.Aprobacion}",
                 operacion.Monto,
                 EsTerminal: true));

@@ -70,7 +70,6 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Pagos.FormaPago> FormasPago => Set<CgPos.Dominio.Pagos.FormaPago>();
     public DbSet<CgPos.Dominio.Pagos.Banco> Bancos => Set<CgPos.Dominio.Pagos.Banco>();
     public DbSet<CgPos.Dominio.Reportes.CierreSucursal> CierresSucursal => Set<CgPos.Dominio.Reportes.CierreSucursal>();
-    public DbSet<CgPos.Dominio.Pagos.TipoTarjeta> TiposTarjeta => Set<CgPos.Dominio.Pagos.TipoTarjeta>();
     public DbSet<CgPos.Dominio.Pagos.Denominacion> Denominaciones => Set<CgPos.Dominio.Pagos.Denominacion>();
     public DbSet<CgPos.Dominio.Pagos.TasaCambio> TasasCambio => Set<CgPos.Dominio.Pagos.TasaCambio>();
     public DbSet<CgPos.Dominio.Promociones.Promocion> Promociones => Set<CgPos.Dominio.Promociones.Promocion>();

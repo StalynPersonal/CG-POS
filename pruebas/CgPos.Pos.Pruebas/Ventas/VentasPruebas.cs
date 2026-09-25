@@ -916,7 +916,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var segunda = await caja.EjecutarAsync<IServicioCobro, RespuestaOperacionTerminal>(s => s.CobrarConTerminalAsync(caja.Cajero, venta.Id, 1003m));
         var cobrada = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s =>
             s.CobrarAsync(caja.Cajero, venta.Id,
-                [new SolicitudPago(caja.Catalogo.FormaTarjeta, 1003m, TipoTarjetaId: caja.Catalogo.TipoTarjeta, OperacionTerminalId: segunda.Operacion!.Id)], null));
+                [new SolicitudPago(caja.Catalogo.FormaTarjeta, 1003m, OperacionTerminalId: segunda.Operacion!.Id)], null));
 
         Assert.True(cobrada.Exitosa, cobrada.Mensaje);
         var pago = Assert.Single(cobrada.Venta!.Pagos!);
@@ -1948,7 +1948,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         // Saltarse el panel de firma del terminal que la caja sí tiene es contingencia, y eso lo autoriza un supervisor
         // (RF-213): si no, cualquiera registraría cobros de tarjeta que nunca pasaron por el banco.
         var respuesta = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, "874512", TipoTarjetaId: caja.Catalogo.TipoTarjeta, AprobacionManual: true)], null));
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, total, "874512", AprobacionManual: true)], null));
 
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion, respuesta.Resultado);
     }
@@ -1968,13 +1968,13 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // Sin el número del volante no se cobra: sería un cobro que nadie puede comprobar.
         var sinAprobacion = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaTarjetaManual, total, TipoTarjetaId: caja.Catalogo.TipoTarjeta, AprobacionManual: true)], null));
+            [new SolicitudPago(caja.Catalogo.FormaTarjetaManual, total, AprobacionManual: true)], null));
         Assert.Equal(CodigoResultadoVenta.PagoInvalido, sinAprobacion.Resultado);
         Assert.Contains("número de aprobación", sinAprobacion.Mensaje);
 
         // Con el número sí, y sin pedir autorización de supervisor: esa forma de pago se cobra así siempre.
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaTarjetaManual, total, "874512", TipoTarjetaId: caja.Catalogo.TipoTarjeta,
+            [new SolicitudPago(caja.Catalogo.FormaTarjetaManual, total, "874512",
                 AprobacionManual: true)], null));
 
         Assert.True(cobro.Exitosa, cobro.Mensaje);
@@ -2021,7 +2021,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
 
         // El e-CF sale por lo que el cliente realmente pagó.
         var cobro = await caja.EjecutarAsync<IServicioCobro, RespuestaCobro>(s => s.CobrarAsync(caja.Cajero, venta.Id,
-            [new SolicitudPago(caja.Catalogo.FormaTarjeta, rebajado, TipoTarjetaId: caja.Catalogo.TipoTarjeta,
+            [new SolicitudPago(caja.Catalogo.FormaTarjeta, rebajado,
                 OperacionTerminalId: conDescuento.Operacion!.Id)], null));
         Assert.True(cobro.Exitosa, cobro.Mensaje);
         Assert.Equal(rebajado, cobro.Venta!.TotalCobrado);

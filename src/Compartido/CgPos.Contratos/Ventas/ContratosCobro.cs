@@ -14,7 +14,7 @@ public sealed record DatosPagoVenta(
     decimal MontoAplicado,
     string? Referencia,
     string? BancoNombre,
-    string? TipoTarjetaNombre,
+    string? MarcaTarjeta,
     string? UltimosDigitos,
     bool AprobacionManual);
 
@@ -26,7 +26,6 @@ public sealed record SolicitudPago(
     decimal MontoRecibido,
     string? Referencia = null,
     int? BancoId = null,
-    int? TipoTarjetaId = null,
     string? UltimosDigitos = null,
     bool AprobacionManual = false,
     int? OperacionTerminalId = null);

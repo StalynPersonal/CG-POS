@@ -217,9 +217,6 @@ public static class DefinicionesCatalogos
             Icons.Material.Filled.AccountBalance,
             [Codigo(), Nombre, new("rutaLogo", "Ruta del logo") { EnTabla = false }, Estado()]),
 
-        new("tipos-tarjeta", "Tipos de tarjeta", "Nuevo tipo de tarjeta", "Marcas de tarjeta que registra el cobro.",
-            Icons.Material.Filled.CreditCard,
-            [CodigoNumerico(), Nombre, Estado()]),
 
         new("motivos-descuento", "Motivos de descuento", "Nuevo motivo", "Lista de motivos que el cajero elige al aplicar un descuento manual.",
             Icons.Material.Filled.Discount,

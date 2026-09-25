@@ -100,7 +100,7 @@ internal static class ConversionesVenta
                 ? null
                 : venta.Pagos.OrderBy(p => p.Numero)
                     .Select(p => new DatosPagoVenta(p.Numero, p.FormaPagoId, p.FormaPagoCodigo, p.FormaPagoNombre, p.Tipo, p.Moneda, p.MontoRecibido,
-                        p.TasaCambio, p.MontoAplicado, p.Referencia, p.BancoNombre, p.TipoTarjetaNombre, p.UltimosDigitos, p.AprobacionManual))
+                        p.TasaCambio, p.MontoAplicado, p.Referencia, p.BancoNombre, p.MarcaTarjeta, p.UltimosDigitos, p.AprobacionManual))
                     .ToList(),
             venta.TotalCobrado,
             venta.Devuelta,
@@ -688,8 +688,6 @@ internal sealed class ServicioVentas(
         var formas = await contexto.FormasPago.AsNoTracking().Where(f => idsFormas.Contains(f.Id) && f.Activa).ToDictionaryAsync(f => f.Id, cancelacion);
         var idsBancos = pagos.Select(p => p.BancoId).OfType<int>().Distinct().ToList();
         var bancos = await contexto.Bancos.AsNoTracking().Where(b => idsBancos.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Nombre, cancelacion);
-        var idsTipos = pagos.Select(p => p.TipoTarjetaId).OfType<int>().Distinct().ToList();
-        var tipos = await contexto.TiposTarjeta.AsNoTracking().Where(t => idsTipos.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Nombre, cancelacion);
         var tasas = await contexto.TasasCambio.AsNoTracking().ToListAsync(cancelacion);
         var idsOperaciones = pagos.Select(p => p.OperacionTerminalId).OfType<int>().Distinct().ToList();
         var operaciones = await contexto.OperacionesTerminal.Where(o => idsOperaciones.Contains(o.Id)).ToDictionaryAsync(o => o.Id, cancelacion);
@@ -811,8 +809,7 @@ internal sealed class ServicioVentas(
                 referencia,
                 pago.BancoId,
                 pago.BancoId is { } bancoId && bancos.TryGetValue(bancoId, out var banco) ? banco : null,
-                pago.TipoTarjetaId,
-                pago.TipoTarjetaId is { } tipoId && tipos.TryGetValue(tipoId, out var tipo) ? tipo : marca,
+                marca,
                 ultimosDigitos,
                 pago.AprobacionManual,
                 operacionId));

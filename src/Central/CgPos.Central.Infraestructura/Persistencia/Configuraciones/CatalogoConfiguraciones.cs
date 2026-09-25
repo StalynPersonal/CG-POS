@@ -242,18 +242,6 @@ internal sealed class BancoConfiguracion : IEntityTypeConfiguration<Banco>
     }
 }
 
-internal sealed class TipoTarjetaConfiguracion : IEntityTypeConfiguration<TipoTarjeta>
-{
-    public void Configure(EntityTypeBuilder<TipoTarjeta> constructor)
-    {
-        constructor.ToTable("TiposTarjeta");
-        constructor.HasKey(t => t.Id);
-        constructor.Property(t => t.Nombre).HasMaxLength(TipoTarjeta.LargoMaximoNombre).IsRequired();
-        constructor.HasIndex(t => t.Codigo).IsUnique();
-        ColumnasMaestro.Configurar(constructor);
-    }
-}
-
 internal sealed class DenominacionConfiguracion : IEntityTypeConfiguration<Denominacion>
 {
     public void Configure(EntityTypeBuilder<Denominacion> constructor)

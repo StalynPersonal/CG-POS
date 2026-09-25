@@ -219,32 +219,6 @@ public sealed class Banco : Entidad
     public void Desactivar() => Activo = false;
 }
 
-public sealed class TipoTarjeta : Entidad
-{
-    public const int LargoMaximoNombre = 50;
-
-    private TipoTarjeta()
-    {
-    }
-
-    public int Codigo { get; private set; }
-    public string Nombre { get; private set; } = string.Empty;
-    public bool Activo { get; private set; } = true;
-
-    public static TipoTarjeta Crear(int codigo, string nombre) =>
-        new()
-        {
-            Codigo = Validar.Codigo(codigo, "Código de tipo de tarjeta"),
-            Nombre = Validar.Texto(nombre, "Nombre de tipo de tarjeta", LargoMaximoNombre),
-        };
-
-    public void CambiarNombre(string nombre) => Nombre = Validar.Texto(nombre, "Nombre de tipo de tarjeta", LargoMaximoNombre);
-
-    public void Activar() => Activo = true;
-
-    public void Desactivar() => Activo = false;
-}
-
 public enum TipoDenominacion
 {
     Billete,

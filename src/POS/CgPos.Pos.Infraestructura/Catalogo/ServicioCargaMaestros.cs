@@ -176,8 +176,6 @@ internal sealed class ServicioCargaMaestros(
             foreach (var d in paquete.Bancos ?? [])
                 resolutor.RegistrarBanco(d.Codigo.Trim().ToUpperInvariant(),
                     await AplicarAsync(contexto.Bancos, e => e.Codigo == d.Codigo.Trim().ToUpper(), () => MapeoMaestros.Crear(d), e => MapeoMaestros.Actualizar(e, d), cancelacion));
-            foreach (var d in paquete.TiposTarjeta ?? [])
-                await AplicarAsync(contexto.TiposTarjeta, e => e.Codigo == d.Codigo, () => MapeoMaestros.Crear(d), e => MapeoMaestros.Actualizar(e, d), cancelacion);
             foreach (var d in paquete.Denominaciones ?? [])
             {
                 await ValidarMonedaAsync(d.Moneda, $"La denominación {d.Valor}", cancelacion);

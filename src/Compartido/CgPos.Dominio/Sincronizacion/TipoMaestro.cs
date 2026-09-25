@@ -10,7 +10,6 @@ public enum TipoMaestro
     Cliente,
     FormaPago,
     Banco,
-    TipoTarjeta,
     Denominacion,
     Promocion,
     MotivoDescuento,

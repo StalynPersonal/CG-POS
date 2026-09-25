@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Genera los scripts de estructura de las bases de datos a partir del modelo de EF Core.
 
@@ -146,7 +146,6 @@ DENOMINACIONES = [
     ('USD', '5.00', 0), ('USD', '1.00', 0),
 ]
 
-TIPOS_TARJETA = [(1, 'Visa'), (2, 'Mastercard'), (3, 'American Express'), (4, 'Discover')]
 
 MOTIVOS_DESCUENTO = [
     (1, 'Cliente frecuente'), (2, 'Producto con daño o defecto'), (3, 'Ajuste de precio'), (4, 'Autorizado por gerencia'),
@@ -181,16 +180,17 @@ MOTIVOS_SUSPENSION = [
 FORMAS_PAGO = [
     ('EFE', 'Efectivo', 0, 'DOP', 1, 1, 1, 0, 0, 1, 0),
     ('TAR', 'Tarjeta', 1, 'DOP', 2, 0, 0, 1, 0, 1, 0),
-    ('CARDNET', 'CardNet', 1, 'DOP', 3, 0, 0, 0, 0, 1, 1),
-    ('AZUL', 'Azul', 1, 'DOP', 4, 0, 0, 0, 0, 1, 2),
-    ('TRA', 'Transferencia', 2, 'DOP', 5, 0, 0, 1, 1, 1, 0),
-    ('CHE', 'Cheque', 3, 'DOP', 6, 0, 0, 1, 1, 1, 0),
-    ('USD', 'Dólares', 9, 'USD', 7, 1, 1, 0, 0, 1, 0),
-    ('NC', 'Nota de crédito', 5, 'DOP', 8, 0, 0, 1, 0, 1, 0),
-    ('BONO', 'Bono de regalo', 4, 'DOP', 9, 0, 0, 1, 0, 0, 0),
-    ('GIFT', 'Tarjeta de regalo', 7, 'DOP', 10, 0, 0, 1, 0, 0, 0),
-    ('PRE', 'Préstamo bancario', 6, 'DOP', 11, 0, 0, 1, 1, 1, 0),
-    ('PUN', 'Puntos', 8, 'DOP', 12, 0, 0, 0, 0, 1, 0),
+    ('AMEX', 'Amex', 1, 'DOP', 3, 0, 0, 1, 0, 1, 0),
+    ('CARDNET', 'CardNet', 1, 'DOP', 4, 0, 0, 0, 0, 1, 1),
+    ('AZUL', 'Azul', 1, 'DOP', 5, 0, 0, 0, 0, 1, 2),
+    ('TRA', 'Transferencia', 2, 'DOP', 6, 0, 0, 1, 1, 1, 0),
+    ('CHE', 'Cheque', 3, 'DOP', 7, 0, 0, 1, 1, 1, 0),
+    ('USD', 'Dólares', 9, 'USD', 8, 1, 1, 0, 0, 1, 0),
+    ('NC', 'Nota de crédito', 5, 'DOP', 9, 0, 0, 1, 0, 1, 0),
+    ('BONO', 'Bono de regalo', 4, 'DOP', 10, 0, 0, 1, 0, 0, 0),
+    ('GIFT', 'Tarjeta de regalo', 7, 'DOP', 11, 0, 0, 1, 0, 0, 0),
+    ('PRE', 'Préstamo bancario', 6, 'DOP', 12, 0, 0, 1, 1, 1, 0),
+    ('PUN', 'Puntos', 8, 'DOP', 13, 0, 0, 0, 0, 1, 0),
 ]
 
 # Permisos del Central: se leen del catálogo del código, para que el script no se desfase.
@@ -307,9 +307,6 @@ def catalogos_tecnicos():
 
     bloque('Denominaciones del efectivo (para el cuadre)', 'Denominaciones', "[Moneda], [Valor], [Tipo], [Activa]",
            [f"'{moneda}', {valor}, {tipo}" for moneda, valor, tipo in DENOMINACIONES])
-
-    bloque('Tipos de tarjeta', 'TiposTarjeta', "[Codigo], [Nombre], [Activo]",
-           [f"{codigo}, N'{nombre}'" for codigo, nombre in TIPOS_TARJETA])
 
     bloque('Motivos de descuento', 'MotivosDescuento', "[Codigo], [Nombre], [Activo]",
            [f"{codigo}, N'{nombre}'" for codigo, nombre in MOTIVOS_DESCUENTO])

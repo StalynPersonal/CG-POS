@@ -188,7 +188,6 @@ internal sealed class PublicadorMaestros(
             .Concat(De(TablasMaestros.Clientes, paquete.Clientes, d => $"Cliente '{d.Codigo}'"))
             .Concat(De(TablasMaestros.FormasPago, paquete.FormasPago, d => $"Forma de pago '{d.Codigo}'"))
             .Concat(De(TablasMaestros.Bancos, paquete.Bancos, d => $"Banco '{d.Codigo}'"))
-            .Concat(De(TablasMaestros.TiposTarjeta, paquete.TiposTarjeta, d => $"Tipo de tarjeta {d.Codigo}"))
             .Concat(De(TablasMaestros.Denominaciones, paquete.Denominaciones, d => $"Denominación {d.Moneda} {d.Valor}"))
             .Concat(De(TablasMaestros.Promociones, paquete.Promociones, d => $"Promoción '{d.Codigo}'"))
             .Concat(De(TablasMaestros.MotivosDescuento, paquete.MotivosDescuento, d => $"Motivo de descuento {d.Codigo}"))
@@ -490,7 +489,6 @@ public static class ExtensionesPublicacionMaestros
             await Nuevos(TablasMaestros.Clientes, paquete.Clientes),
             await Nuevos(TablasMaestros.FormasPago, paquete.FormasPago),
             await Nuevos(TablasMaestros.Bancos, paquete.Bancos),
-            await Nuevos(TablasMaestros.TiposTarjeta, paquete.TiposTarjeta),
             await Nuevos(TablasMaestros.Denominaciones, paquete.Denominaciones),
             await Nuevos(TablasMaestros.Promociones, paquete.Promociones),
             await Nuevos(TablasMaestros.MotivosDescuento, paquete.MotivosDescuento),
