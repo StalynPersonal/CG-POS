@@ -122,8 +122,23 @@
                             </div>
                         }
 
-                        @* Descuento del banco por la tarjeta (RF-98): se aplica antes de cobrar, así el e-CF sale con el monto real. *@
-                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta)
+                        @* Con terminal conectado el cajero puede cobrar a mano igual: el terminal se cuelga, se queda sin
+                           papel o la tarjeta no pasa, y el cobro no se puede detener por eso. Queda pedida la autorización
+                           del supervisor al cobrar (RF-213), así que el atajo no se usa por costumbre. *@
+                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta && !SinTerminal)
+                        {
+                            <div class="cg-descuento__motivos">
+                                <button type="button" class="cg-catalogo__departamento @(_contingencia ? "cg-catalogo__departamento--activa" : null)"
+                                        @onclick="AlternarManualAsync">
+                                    @(_contingencia ? "Cobrando a mano" : "Cobrar a mano (el terminal no responde)")
+                                </button>
+                            </div>
+                        }
+
+                        @* Descuento del banco por la tarjeta (RF-98): se aplica antes de cobrar, así el e-CF sale con el
+                           monto real. Solo se pide si el negocio encendió el parámetro y el terminal no leyó la tarjeta:
+                           cuando el terminal la lee, el BIN llega solo y digitarlo no aporta nada. *@
+                        @if (seleccionada.Tipo == TipoFormaPago.Tarjeta && _catalogo.DescuentoPorBin && _contingencia)
                         {
                             <div class="cg-cobro__bin">
                                 @* Se escribe también con el teclado en pantalla: al tocarlo queda como campo activo. *@
@@ -422,6 +437,18 @@
             Venta = actualizada;
 
         _estado = respuesta.Mensaje;
+    }
+
+    /// <summary>
+    /// Pasa a cobrar la tarjeta a mano, o vuelve al terminal. Al entrar en manual el foco va al número de aprobación,
+    /// que es el dato que el cajero tiene delante en el volante.
+    /// </summary>
+    private Task AlternarManualAsync()
+    {
+        _contingencia = !_contingencia;
+        _mensaje = null;
+        _campo = _contingencia ? Campo.Referencia : Campo.Monto;
+        return Task.CompletedTask;
     }
 
     private async Task PasarTarjetaAsync(DatosFormaPago forma, decimal monto)

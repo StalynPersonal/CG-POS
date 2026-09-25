@@ -172,6 +172,8 @@ public sealed class EscenarioSeguridad
                 new ParametroCarga(ClavesParametros.MinutosVigenciaAutorizacion, "5", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.HorasSesion, "12", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.TipoIngresos, "1", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
+                // El descuento del banco por BIN viene apagado de fábrica; el escenario lo enciende porque hay pruebas que lo cubren.
+                new ParametroCarga(ClavesParametros.DescuentoTarjetaPorBin, "true", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(CgPos.Dominio.Organizacion.CatalogoParametros.DigitosSecuenciaDocumentos, "7", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.UrlConsultaTimbre, "https://ecf.dgii.gov.do/testecf/consultatimbre", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),
                 new ParametroCarga(ClavesParametros.UrlConsultaTimbreConsumo, "https://fc.dgii.gov.do/testecf/ConsultaTimbreFC", SucursalCodigo: CodigoSucursal, CajaCodigo: CodigoCajaUno),

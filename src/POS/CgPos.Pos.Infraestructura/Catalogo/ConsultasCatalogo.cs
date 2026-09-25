@@ -301,7 +301,12 @@ internal sealed class ConsultaDocumentos(ContextoDatosPos contexto) : IConsultaD
     }
 }
 
-internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvider reloj, CgPos.Pos.Aplicacion.Perifericos.ITerminalPago terminal) : IConsultaCatalogoCobro
+internal sealed class ConsultaCatalogoCobro(
+    ContextoDatosPos contexto,
+    TimeProvider reloj,
+    CgPos.Pos.Aplicacion.Perifericos.ITerminalPago terminal,
+    CgPos.Pos.Aplicacion.Organizacion.IContextoCaja contextoCaja,
+    CgPos.Pos.Aplicacion.Organizacion.IParametros parametros) : IConsultaCatalogoCobro
 {
     public async Task<DatosCatalogoCobro> ObtenerAsync(CancellationToken cancelacion = default)
     {
@@ -327,6 +332,10 @@ internal sealed class ConsultaCatalogoCobro(ContextoDatosPos contexto, TimeProvi
             .Select(t => new DatosTasaCambio(t.Moneda, t.Tasa, t.VigenteDesde))
             .ToList();
 
-        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas, terminal.Integrado);
+        // El descuento del banco por el BIN solo existe si el negocio lo encendió: apagado, el cobro no pide esos dígitos.
+        var descuentoPorBin = await parametros.ObtenerBooleanoOpcionalAsync(
+            CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.DescuentoTarjetaPorBin, contextoCaja.CajaId, cancelacion);
+
+        return new DatosCatalogoCobro(formas, bancos, tipos, denominaciones, tasas, terminal.Integrado, descuentoPorBin);
     }
 }

@@ -143,6 +143,9 @@ public static class CatalogoParametros
         new("Caja.SuspenderRequiereAutorizacion", "Caja y cierre",
             "Suspender la caja (bloquear la pantalla) pide autorización de un supervisor. Apagado, el cajero la bloquea solo",
             Booleano, false),
+        new("Caja.DescuentoTarjetaPorBin", "Caja y cierre",
+            "La caja aplica el descuento que da el banco según los primeros dígitos de la tarjeta. Apagado, ni se leen ni se piden",
+            Booleano, false),
         new("Caja.BloquearVentaTurnoDiaAnterior", "Caja y cierre",
             "Con un turno abierto de un día anterior la caja no vende ni cobra: hay que cerrarlo y abrir uno nuevo", Booleano, true),
 

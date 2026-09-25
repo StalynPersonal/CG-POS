@@ -362,6 +362,12 @@ public sealed record DatosCatalogoCobro(
     /// La caja habla con el terminal de tarjetas. Si es falso, esta caja cobra con un equipo aparte y el cajero digita el
     /// número de aprobación del volante.
     /// </summary>
-    bool TerminalIntegrado = true);
+    bool TerminalIntegrado = true,
+
+    /// <summary>
+    /// El negocio usa los descuentos que dan los bancos según el BIN de la tarjeta. Si es falso, el cobro no pide esos
+    /// dígitos ni ofrece aplicar el descuento: no hay nada que aplicar.
+    /// </summary>
+    bool DescuentoPorBin = false);
 
 public sealed record DatosDepartamento(int Id, int Codigo, string Nombre, bool EsNoCodificada);

@@ -1722,6 +1722,11 @@ internal sealed class ServicioVentas(
         if (digitos.Length < DescuentoTarjeta.LargoMinimoBin || EsDescuentoManual(venta))
             return null;
 
+        // Apagado el parámetro, el descuento del banco no existe: da igual que el terminal haya leído la tarjeta o que
+        // el cajero digite el BIN. Se comprueba aquí, en el único sitio por el que pasan los dos caminos.
+        if (!await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.DescuentoTarjetaPorBin, sesion.CajaId, cancelacion))
+            return null;
+
         // El descuento del banco se calcula sobre el subtotal sin ITBIS, como todo descuento a la factura, y sin otro descuento
         // de factura, para que pasar dos tarjetas no lo encadene. El ITBIS se recalcula después sobre lo que queda.
         var total = venta.CalcularTotales().Subtotal + venta.Lineas.Sum(l => l.DescuentoFactura);

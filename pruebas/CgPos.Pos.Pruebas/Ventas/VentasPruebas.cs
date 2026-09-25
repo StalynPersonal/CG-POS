@@ -1869,6 +1869,39 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
+    public async Task Apagado_el_parametro_el_bin_no_descuenta_aunque_el_banco_tenga_su_promocion()
+    {
+        Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
+        await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
+
+        var ahora = caja.Reloj.GetLocalNow();
+        await caja.EjecutarAsync<ICargaMaestros, ResultadoCargaMaestros>(s => s.AplicarAsync(new PaqueteMaestros(DescuentosTarjeta:
+        [
+            new DescuentoTarjetaCarga($"BIN{caja.Escenario.Sufijo}", "10 % con tarjetas del banco", "455123",
+                CgPos.Dominio.Promociones.TipoDescuentoTarjeta.Porcentaje, 10m, ahora.AddDays(-1), ahora.AddMonths(1)),
+        ]), "Pruebas"));
+
+        // El negocio apaga la función solo en esta caja: la base la comparten las demás pruebas, que lo quieren encendido.
+        var cajaId = caja.Cajero.CajaId;
+        await caja.EjecutarAsync<ContextoDatosPos, int>(async contexto =>
+        {
+            var parametro = await contexto.Parametros.SingleAsync(
+                p => p.Clave == CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.DescuentoTarjetaPorBin && p.CajaId == cajaId);
+            parametro.CambiarValor("false");
+            return await contexto.SaveChangesAsync();
+        });
+
+        var venta = await caja.VentaActualAsync();
+        await caja.AgregarAsync(venta.Id, caja.Catalogo.BarrasCincel);
+        var total = (await caja.VentaActualAsync()).Totales.Total;
+
+        // El mismo BIN que en la prueba de al lado sí descuenta; aquí no toca el total.
+        var respuesta = await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.AplicarDescuentoTarjetaAsync(caja.Cajero, venta.Id, "4551234567"));
+        Assert.True(respuesta.Exitosa, respuesta.Mensaje);
+        Assert.Equal(total, respuesta.Venta!.Totales.Total);
+    }
+
+    [SkippableFact]
     public async Task El_rango_de_ecf_agotado_se_borra_de_la_caja_y_se_le_informa_al_central()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);

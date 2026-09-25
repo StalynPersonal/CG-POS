@@ -283,6 +283,8 @@ prueba('A9', 'Parámetros del negocio')
 paso('En Organización → Parámetros revise los que cambian cómo trabaja la caja: fondo de caja, redondeo del efectivo, '
      'días de vigencia de la nota de crédito, días de retención del ITBIS en devoluciones, monto que exige identificación '
      'y cantidad máxima que el cajero puede digitar.')
+paso('Revise «Caja.DescuentoTarjetaPorBin». Viene apagado: enciéndalo solo si algún banco le da descuento a sus '
+     'tarjetahabientes en su tienda. Apagado, la caja ni lee ni pide los primeros dígitos de la tarjeta.')
 paso('Revise también dos que gobiernan la pantalla: «Pantallas.SegundosAviso» (cuánto dura en pantalla un aviso rojo antes de '
      'quitarse solo) y «Caja.SuspenderRequiereAutorizacion» (si suspender la caja llama a un supervisor). Déjelos como '
      'vienen; se prueban en C4b y en H5.')
@@ -638,9 +640,13 @@ prueba('I3', 'Tarjeta con el terminal conectado, rechazo y contingencia')
 paso('Cobre una venta con tarjeta: la caja le manda el monto al terminal y el cliente paga ahí.')
 paso('Haga que el terminal rechace un cobro (o simúlelo) y observe qué pasa.')
 paso('Desconecte el terminal de la red y pruebe otra vez: use la aprobación manual con el permiso correspondiente.')
+paso('Vuelva a conectarlo y, con el terminal funcionando, presione «Cobrar a mano»: digite el número de aprobación de un '
+     'volante y cobre.')
 esperado('Con el terminal conectado, la aprobación llega sola y nadie digita nada. El rechazo no cobra la venta ni la daña: '
-         'se puede reintentar. Si el terminal no responde, la aprobación manual pide autorización de supervisor y queda '
-         'marcada para conciliarla después contra el lote.')
+         'se puede reintentar. Si el terminal no responde, la pantalla pasa sola a la aprobación manual. Y aunque el '
+         'terminal funcione, el cajero puede pasar a mano con «Cobrar a mano», porque un terminal se cuelga o se queda sin '
+         'papel y el cobro no se puede detener por eso: en ese caso pide autorización de supervisor y queda marcado para '
+         'conciliarlo contra el lote.')
 tablas('Caja: OperacionesTerminal · PagosVenta · Auditoria')
 marcar()
 
@@ -656,6 +662,17 @@ tablas('Caja: Ventas · LineasVenta · PagosVenta (con la aprobación digitada) 
 marcar()
 nota('Deje el terminal como estaba antes de seguir. Este modo es para las tiendas que cobran con un equipo inalámbrico que '
      'no habla con la caja; en «Simulado» el sistema aprueba solo, y eso en una tienda registraría cobros que no ocurrieron.')
+
+prueba('I3d', 'Descuento del banco por la tarjeta')
+paso('En el Central, cree un descuento de tarjeta (Promociones → Descuentos de tarjeta) con el BIN de una tarjeta que '
+     'tenga a mano y un 10 %.')
+paso('Con «Caja.DescuentoTarjetaPorBin» apagado, cobre con esa tarjeta.')
+paso('Enciéndalo en el Central, espere a que la caja sincronice y cobre otra vez con la misma tarjeta.')
+esperado('Apagado, la pantalla de cobro ni siquiera pide los primeros dígitos y el total no baja. Encendido, el descuento '
+         'se aplica ANTES de emitir el comprobante, así que la factura electrónica sale por lo que el cliente pagó de '
+         'verdad, y el descuento aparece detallado con el nombre del banco.')
+tablas('Caja: DescuentosTarjeta (lee) · Parametros (lee) · VentasEnProceso · Auditoria')
+marcar()
 
 prueba('I3c', 'Un terminal mal configurado se nota')
 paso('Escriba un modelo de terminal que no exista (por ejemplo «Azul») y reinicie el servicio.')

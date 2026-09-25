@@ -174,6 +174,12 @@ public static class ClavesParametros
     /// </summary>
     public const string SuspenderRequiereAutorizacion = "Caja.SuspenderRequiereAutorizacion";
 
+    /// <summary>
+    /// La caja aplica el descuento que da el banco según el BIN de la tarjeta (RF-98). Apagado, ni se lee el BIN al pasar
+    /// la tarjeta ni se le pide al cajero: un campo que no sirve para nada en el cobro solo estorba y confunde.
+    /// </summary>
+    public const string DescuentoTarjetaPorBin = "Caja.DescuentoTarjetaPorBin";
+
     /// <summary>Mensaje de bienvenida de la pantalla del cliente. Opcional.</summary>
     public const string MensajeBienvenidaPantalla = "Pantallas.MensajeBienvenida";
 
