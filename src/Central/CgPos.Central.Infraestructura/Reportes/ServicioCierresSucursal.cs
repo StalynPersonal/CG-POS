@@ -145,7 +145,7 @@ internal sealed class ServicioCierresSucursal(ContextoDatosCentral contexto, IAu
     {
         var pendientes = new List<string>();
 
-        var turnosConVentas = await contexto.VentasCentral.AsNoTracking()
+        var turnosConVentas = await contexto.Ventas.AsNoTracking()
             .Where(v => v.SucursalId == sucursalId && v.FechaOperacion == fechaOperacion && v.TurnoNumero != null)
             .Select(v => new { v.CajaId, TurnoNumero = v.TurnoNumero!.Value })
             .Distinct()

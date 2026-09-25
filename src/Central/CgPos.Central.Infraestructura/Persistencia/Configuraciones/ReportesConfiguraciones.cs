@@ -29,8 +29,16 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
 {
     public void Configure(EntityTypeBuilder<ComprobanteVentaCentral> constructor)
     {
-        constructor.ToTable("VentasCentral");
+        constructor.ToTable("Ventas");
         constructor.HasKey(c => c.Id);
+
+        // El tipo se guarda con sus siglas y no como número: quien consulta la tabla a mano ve «VEN» o «DEV» y sabe qué
+        // documento está mirando, sin tener que acordarse de qué significaba el 0.
+        constructor.Property(c => c.Tipo)
+            .HasConversion(
+                tipo => tipo == TipoComprobanteVenta.NotaCredito ? ComprobanteVentaCentral.SiglaNotaCredito : ComprobanteVentaCentral.SiglaFactura,
+                sigla => sigla == ComprobanteVentaCentral.SiglaNotaCredito ? TipoComprobanteVenta.NotaCredito : TipoComprobanteVenta.Factura)
+            .HasMaxLength(ComprobanteVentaCentral.LargoSigla).IsFixedLength().IsUnicode(false).IsRequired();
 
         constructor.Property(c => c.Numero).HasMaxLength(ComprobanteVentaCentral.LargoMaximoNumero).IsRequired();
         constructor.Property(c => c.NumeroCentral).HasMaxLength(ComprobanteVentaCentral.LargoMaximoNumero).IsUnicode(false);
@@ -46,9 +54,9 @@ internal sealed class ComprobanteVentaCentralConfiguracion : IEntityTypeConfigur
         constructor.HasOne<Caja>().WithMany().HasForeignKey(c => c.CajaId).OnDelete(DeleteBehavior.Restrict);
         constructor.HasOne<Sucursal>().WithMany().HasForeignKey(c => c.SucursalId).OnDelete(DeleteBehavior.Restrict);
 
-        constructor.HasMany(c => c.Impuestos).WithOne().HasForeignKey(i => i.ComprobanteId).OnDelete(DeleteBehavior.Cascade);
-        constructor.HasMany(c => c.Pagos).WithOne().HasForeignKey(p => p.ComprobanteId).OnDelete(DeleteBehavior.Cascade);
-        constructor.HasMany(c => c.Lineas).WithOne().HasForeignKey(l => l.ComprobanteId).OnDelete(DeleteBehavior.Cascade);
+        constructor.HasMany(c => c.Impuestos).WithOne().HasForeignKey(i => i.VentaId).OnDelete(DeleteBehavior.Cascade);
+        constructor.HasMany(c => c.Pagos).WithOne().HasForeignKey(p => p.VentaId).OnDelete(DeleteBehavior.Cascade);
+        constructor.HasMany(c => c.Lineas).WithOne().HasForeignKey(l => l.VentaId).OnDelete(DeleteBehavior.Cascade);
         constructor.Navigation(c => c.Impuestos).AutoInclude(false);
         constructor.Navigation(c => c.Pagos).AutoInclude(false);
         constructor.Navigation(c => c.Lineas).AutoInclude(false);
@@ -69,7 +77,7 @@ internal sealed class ImpuestoVentaCentralConfiguracion : IEntityTypeConfigurati
         constructor.ToTable("ImpuestosVenta");
         constructor.HasKey(i => i.Id);
 
-        constructor.HasIndex(i => i.ComprobanteId);
+        constructor.HasIndex(i => i.VentaId);
     }
 }
 
@@ -81,7 +89,7 @@ internal sealed class PagoVentaCentralConfiguracion : IEntityTypeConfiguration<P
         constructor.HasKey(p => p.Id);
         constructor.Property(p => p.FormaPagoNombre).HasMaxLength(ComprobanteVentaCentral.LargoMaximoTexto);
         constructor.Property(p => p.Moneda).HasMaxLength(ComprobanteVentaCentral.LargoMaximoMoneda).IsFixedLength().IsUnicode(false);
-        constructor.HasIndex(p => p.ComprobanteId);
+        constructor.HasIndex(p => p.VentaId);
     }
 }
 

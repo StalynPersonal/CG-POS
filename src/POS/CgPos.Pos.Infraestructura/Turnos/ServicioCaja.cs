@@ -382,12 +382,14 @@ internal sealed class ServicioCaja(
                 ? $"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. El turno es de un día anterior y ya no se pueden cobrar: "
                   + "retómelas y límpielas para poder hacer el cierre."
                 : $"Hay {enEspera.Count} factura(s) en espera: {string.Join(", ", enEspera)}. Retómelas y cóbrelas o anúlelas.");
+        // La venta en curso se nombra por su cajero y nada más: el identificador del borrador es de la auditoría, y al
+        // cajero, que tiene esa venta delante en su pantalla, un «B-000009» solo le contradice el número del encabezado.
         var enCurso = await contexto.VentasEnProceso.AsNoTracking().Where(v => v.TurnoId == turno.Id).ToListAsync(cancelacion);
         foreach (var venta in enCurso.Where(v => v.TieneLineasActivas))
             bloqueos.Add(diaAnterior
-                ? $"La transacción {venta.Identificacion} de {venta.UsuarioNombre} está en curso con artículos y el turno es de un día anterior: "
+                ? $"{venta.UsuarioNombre} tiene una venta en pantalla con artículos y el turno es de un día anterior: "
                   + "límpiela para poder hacer el cierre."
-                : $"La transacción {venta.Identificacion} de {venta.UsuarioNombre} está en curso con artículos: cóbrela o anúlela.");
+                : $"{venta.UsuarioNombre} tiene una venta en pantalla con artículos: cóbrela o anúlela.");
 
         var idsCobradas = cobradas.Select(v => v.Id).ToList();
         var conEcf = idsCobradas.Count == 0

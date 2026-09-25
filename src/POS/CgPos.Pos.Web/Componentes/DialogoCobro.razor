@@ -5,7 +5,8 @@
 @inject ServicioAutorizacionPantalla Autorizaciones
 @inject IDialogService Dialogos
 
-<MudDialog>
+@* El cobro cabe entero en la ventana: el cajero no puede desplazar nada para llegar al teclado ni al botón de cobrar. *@
+<MudDialog Class="cg-dialogo-ajustado cg-dialogo-cobro">
     <DialogContent>
         @if (_catalogo is null)
         {

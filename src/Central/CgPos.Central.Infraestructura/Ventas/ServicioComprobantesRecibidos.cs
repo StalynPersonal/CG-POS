@@ -29,7 +29,7 @@ internal sealed class ServicioComprobantesRecibidos(ContextoDatosCentral context
 
     public async Task<DatosComprobanteRecibidoDetalle?> ObtenerAsync(int comprobanteId, CancellationToken cancelacion = default)
     {
-        var comprobante = await contexto.VentasCentral.AsNoTracking()
+        var comprobante = await contexto.Ventas.AsNoTracking()
             .Include(c => c.Lineas)
             .Include(c => c.Impuestos)
             .Include(c => c.Pagos)
@@ -67,7 +67,7 @@ internal sealed class ServicioComprobantesRecibidos(ContextoDatosCentral context
 
     private IQueryable<ComprobanteVentaCentral> Filtrar(FiltroComprobantesRecibidos filtro)
     {
-        var consulta = contexto.VentasCentral.AsNoTracking()
+        var consulta = contexto.Ventas.AsNoTracking()
             .Where(c => c.FechaOperacion >= filtro.Desde && c.FechaOperacion <= filtro.Hasta);
 
         if (filtro.SucursalId is { } sucursalId)

@@ -304,7 +304,7 @@ CREATE SEQUENCE [SecuenciaUsuariosCentral] AS int START WITH 1 INCREMENT BY 1 NO
 GO
 
 
-CREATE SEQUENCE [SecuenciaVentasCentral] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
+CREATE SEQUENCE [SecuenciaVentas] AS int START WITH 1 INCREMENT BY 1 NO CYCLE;
 GO
 
 
@@ -1309,9 +1309,9 @@ CREATE TABLE [UsuariosCajaCajas] (
 GO
 
 
-CREATE TABLE [VentasCentral] (
+CREATE TABLE [Ventas] (
     [Id] int NOT NULL,
-    [Tipo] int NOT NULL,
+    [Tipo] char(3) NOT NULL,
     [Numero] nvarchar(40) NOT NULL,
     [NumeroCentral] varchar(40) NULL,
     [SucursalId] int NOT NULL,
@@ -1334,9 +1334,9 @@ CREATE TABLE [VentasCentral] (
     [Total] decimal(18,4) NOT NULL,
     [CantidadLineas] int NOT NULL,
     [RegistradoEn] datetimeoffset(3) NOT NULL,
-    CONSTRAINT [PK_VentasCentral] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_VentasCentral_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_VentasCentral_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
+    CONSTRAINT [PK_Ventas] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Ventas_Cajas_CajaId] FOREIGN KEY ([CajaId]) REFERENCES [Cajas] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Ventas_Sucursales_SucursalId] FOREIGN KEY ([SucursalId]) REFERENCES [Sucursales] ([Id]) ON DELETE NO ACTION
 );
 GO
 
@@ -1603,19 +1603,19 @@ GO
 
 CREATE TABLE [ImpuestosVenta] (
     [Id] int NOT NULL,
-    [ComprobanteId] int NOT NULL,
+    [VentaId] int NOT NULL,
     [Porcentaje] decimal(18,4) NOT NULL,
     [Base] decimal(18,4) NOT NULL,
     [Impuesto] decimal(18,4) NOT NULL,
     CONSTRAINT [PK_ImpuestosVenta] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_ImpuestosVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_ImpuestosVenta_Ventas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [Ventas] ([Id]) ON DELETE CASCADE
 );
 GO
 
 
 CREATE TABLE [LineasVenta] (
     [Id] int NOT NULL,
-    [ComprobanteId] int NOT NULL,
+    [VentaId] int NOT NULL,
     [NumeroLinea] int NOT NULL,
     [Codigo] varchar(30) NOT NULL,
     [Descripcion] nvarchar(200) NOT NULL,
@@ -1628,20 +1628,20 @@ CREATE TABLE [LineasVenta] (
     [Serial] nvarchar(200) NULL,
     [PromocionCodigo] varchar(30) NULL,
     CONSTRAINT [PK_LineasVenta] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_LineasVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_LineasVenta_Ventas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [Ventas] ([Id]) ON DELETE CASCADE
 );
 GO
 
 
 CREATE TABLE [PagosVenta] (
     [Id] int NOT NULL,
-    [ComprobanteId] int NOT NULL,
+    [VentaId] int NOT NULL,
     [Tipo] int NOT NULL,
     [FormaPagoNombre] nvarchar(200) NOT NULL,
     [Moneda] char(3) NOT NULL,
     [Monto] decimal(18,4) NOT NULL,
     CONSTRAINT [PK_PagosVenta] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_PagosVenta_VentasCentral_ComprobanteId] FOREIGN KEY ([ComprobanteId]) REFERENCES [VentasCentral] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_PagosVenta_Ventas_VentaId] FOREIGN KEY ([VentaId]) REFERENCES [Ventas] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -1963,7 +1963,7 @@ CREATE INDEX [IX_Impuestos_Version] ON [Impuestos] ([Version]);
 GO
 
 
-CREATE INDEX [IX_ImpuestosVenta_ComprobanteId] ON [ImpuestosVenta] ([ComprobanteId]);
+CREATE INDEX [IX_ImpuestosVenta_VentaId] ON [ImpuestosVenta] ([VentaId]);
 GO
 
 
@@ -1987,7 +1987,7 @@ CREATE INDEX [IX_LineasVenta_Codigo] ON [LineasVenta] ([Codigo]);
 GO
 
 
-CREATE INDEX [IX_LineasVenta_ComprobanteId] ON [LineasVenta] ([ComprobanteId]);
+CREATE INDEX [IX_LineasVenta_VentaId] ON [LineasVenta] ([VentaId]);
 GO
 
 
@@ -2111,7 +2111,7 @@ CREATE INDEX [IX_NotasCredito_SucursalId] ON [NotasCredito] ([SucursalId]);
 GO
 
 
-CREATE INDEX [IX_PagosVenta_ComprobanteId] ON [PagosVenta] ([ComprobanteId]);
+CREATE INDEX [IX_PagosVenta_VentaId] ON [PagosVenta] ([VentaId]);
 GO
 
 
@@ -2311,27 +2311,27 @@ CREATE INDEX [IX_UsuariosCentral_RolId] ON [UsuariosCentral] ([RolId]);
 GO
 
 
-CREATE INDEX [IX_VentasCentral_CajaId] ON [VentasCentral] ([CajaId]);
+CREATE INDEX [IX_Ventas_CajaId] ON [Ventas] ([CajaId]);
 GO
 
 
-CREATE INDEX [IX_VentasCentral_Encf] ON [VentasCentral] ([Encf]);
+CREATE INDEX [IX_Ventas_Encf] ON [Ventas] ([Encf]);
 GO
 
 
-CREATE INDEX [IX_VentasCentral_FechaOperacion_SucursalId_CajaId] ON [VentasCentral] ([FechaOperacion], [SucursalId], [CajaId]);
+CREATE INDEX [IX_Ventas_FechaOperacion_SucursalId_CajaId] ON [Ventas] ([FechaOperacion], [SucursalId], [CajaId]);
 GO
 
 
-CREATE UNIQUE INDEX [IX_VentasCentral_NumeroCentral] ON [VentasCentral] ([NumeroCentral]) WHERE [NumeroCentral] IS NOT NULL;
+CREATE UNIQUE INDEX [IX_Ventas_NumeroCentral] ON [Ventas] ([NumeroCentral]) WHERE [NumeroCentral] IS NOT NULL;
 GO
 
 
-CREATE INDEX [IX_VentasCentral_SucursalId] ON [VentasCentral] ([SucursalId]);
+CREATE INDEX [IX_Ventas_SucursalId] ON [Ventas] ([SucursalId]);
 GO
 
 
-CREATE UNIQUE INDEX [IX_VentasCentral_Tipo_Numero] ON [VentasCentral] ([Tipo], [Numero]);
+CREATE UNIQUE INDEX [IX_Ventas_Tipo_Numero] ON [Ventas] ([Tipo], [Numero]);
 GO
 
 /* ------------------------------------------------------------------------

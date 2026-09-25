@@ -195,10 +195,12 @@
 
 .mud-dialog.cg-dialogo-ajustado .mud-dialog-content > .cg-dialogo-teclado,
 .mud-dialog.cg-dialogo-ajustado .mud-dialog-content > .cg-busqueda,
+.mud-dialog.cg-dialogo-ajustado .mud-dialog-content > .cg-cobro,
 .mud-dialog.cg-dialogo-ajustado .mud-dialog-content > .cg-autorizacion__pin { flex: 1 1 auto; min-height: 0; }
 
 .mud-dialog.cg-dialogo-ajustado .cg-dialogo-teclado > .cg-teclado,
 .mud-dialog.cg-dialogo-ajustado .cg-busqueda > .cg-teclado,
+.mud-dialog.cg-dialogo-ajustado .cg-cobro__captura > .cg-teclado,
 .mud-dialog.cg-dialogo-ajustado .cg-autorizacion__pin > .cg-teclado { flex: 0 1 auto; min-height: 0; }
 
 .cg-dialogo-ajustado .cg-teclado__fila { flex: 1 1 var(--cg-toque-minimo); min-height: 38px; }
@@ -541,26 +543,23 @@
 .cg-cobro__captura { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cg-cobro__captura .cg-teclado__tecla { min-height: 50px; font-size: 1.3rem; }
 
+/* El cobro entra completo en la ventana: las tres columnas se estiran a lo alto del diálogo y lo que cede es el teclado,
+   que baja el alto de sus teclas. El cajero tiene que ver el monto, la devuelta y el botón de cobrar a la vez, sin
+   desplazar nada: cobrar a ciegas o tocar «Cobrar» sin ver lo que falta es como se dan las devueltas equivocadas. */
+.cg-dialogo-cobro .cg-cobro { height: 100%; align-items: stretch; }
+.cg-dialogo-cobro .cg-cobro > section { min-height: 0; }
+/* Si hay más formas de pago o más pagos de los que caben, esas dos columnas se desplazan por dentro; el teclado no. */
+.cg-dialogo-cobro .cg-cobro__resumen,
+.cg-dialogo-cobro .cg-cobro__formas { overflow-y: auto; }
+.cg-dialogo-cobro .cg-cobro__pagos { max-height: none; }
+.cg-dialogo-cobro .cg-cobro__captura > * { flex-shrink: 0; }
+.cg-dialogo-cobro .cg-cobro__captura .cg-teclado__tecla { min-height: 0; }
+.cg-dialogo-cobro .cg-cobro__captura .cg-teclado__fila { flex: 1 1 50px; min-height: 40px; }
+
 @media (max-width: 1100px) {
     .cg-cobro { grid-template-columns: 1fr 1fr; }
     .cg-cobro__captura { grid-column: 1 / -1; }
 }
-
-.cg-venta__cobro-final {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    margin: 6px 16px 0;
-    padding: 10px 18px;
-    border-left: 6px solid var(--cg-accion);
-    border-radius: var(--cg-radio);
-    background: var(--cg-superficie);
-}
-
-.cg-venta__cobro-final > div { display: flex; flex-direction: column; }
-.cg-venta__cobro-final strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
-.cg-venta__devuelta strong { font-size: 2.2rem; color: var(--cg-accion); }
-.cg-venta__cobro-final .cg-espaciador { flex: 1; }
 
 .cg-pantalla-cliente__gracias { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #fff; }
 .cg-pantalla-cliente__gracias-titulo { font-size: 2.6rem; font-weight: 800; color: var(--cg-primario); }

@@ -165,29 +165,8 @@ else
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _mensaje = null">@_mensaje</MudAlert>
         }
-        @if (_ultimoCobro is { } cobro && _venta.Lineas.Count == 0)
-        {
-            @* Resumen de la última venta cobrada, mientras no se escanea el primer artículo de la siguiente. *@
-            <div class="cg-venta__cobro-final">
-                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
-                @* Número de la transacción cobrada, sus pendientes de entrega y el total. *@
-                <div>
-                    <span>Transacción @cobro.NumeroTransaccion cobrada</span>
-                    @if (cobro.PendientesEntrega is { Count: > 0 } pendientes)
-                    {
-                        <span>Pendientes: @string.Join(", ", pendientes)</span>
-                    }
-                    <strong>Total @cobro.TotalCobrado.ToString("C")</strong>
-                </div>
-                @* Devuelta del cobro, visible hasta empezar la próxima venta. *@
-                <div class="cg-venta__devuelta">
-                    <span>Devuelta</span>
-                    <strong>@cobro.Devuelta.ToString("C")</strong>
-                </div>
-                <span class="cg-espaciador"></span>
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Print" OnClick="ReimprimirAsync">Reimprimir</MudButton>
-            </div>
-        }
+        @* Cobrada la venta, la pantalla queda limpia para el próximo cliente: la devuelta la dice el diálogo de cobro
+           mientras se cuenta el dinero y queda impresa en la factura, y reimprimir está en el panel de funciones. *@
         @if (_aviso is not null)
         {
             <MudAlert Severity="Severity.Info" Dense="true" Class="cg-venta__aviso" ShowCloseIcon="true" CloseIconClicked="() => _aviso = null">@_aviso</MudAlert>
@@ -462,7 +441,6 @@ else
     private string _entrada = string.Empty;
     private string? _mensaje;
     private string? _aviso;
-    private DatosCobro? _ultimoCobro;
     private int? _numeroSeleccionado;
     private bool _cargando = true;
     private bool _procesando;
@@ -918,7 +896,6 @@ else
             return;
 
         _venta = nueva;
-        _ultimoCobro = respuesta.Cobro;
         _mensaje = null;
         _aviso = respuesta.Mensaje;
         _numeroSeleccionado = null;

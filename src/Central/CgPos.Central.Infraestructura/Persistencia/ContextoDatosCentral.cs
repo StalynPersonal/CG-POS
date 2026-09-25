@@ -47,7 +47,7 @@ public sealed class ContextoDatosCentral(DbContextOptions<ContextoDatosCentral> 
     public DbSet<CgPos.Dominio.Entregas.PendienteEntrega> PendientesEntrega => Set<CgPos.Dominio.Entregas.PendienteEntrega>();
 
     // Modelo de lectura para los reportes (M16)
-    public DbSet<CgPos.Dominio.Reportes.ComprobanteVentaCentral> VentasCentral => Set<CgPos.Dominio.Reportes.ComprobanteVentaCentral>();
+    public DbSet<CgPos.Dominio.Reportes.ComprobanteVentaCentral> Ventas => Set<CgPos.Dominio.Reportes.ComprobanteVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.ImpuestoVentaCentral> ImpuestosVenta => Set<CgPos.Dominio.Reportes.ImpuestoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.PagoVentaCentral> PagosVenta => Set<CgPos.Dominio.Reportes.PagoVentaCentral>();
     public DbSet<CgPos.Dominio.Reportes.CierreTurnoCentral> CierresTurno => Set<CgPos.Dominio.Reportes.CierreTurnoCentral>();

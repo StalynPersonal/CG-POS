@@ -22,7 +22,7 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
         if (buscado.Length == 0)
             return null;
 
-        var factura = await contexto.VentasCentral.AsNoTracking()
+        var factura = await contexto.Ventas.AsNoTracking()
             .FirstOrDefaultAsync(v => v.Tipo == TipoComprobanteVenta.Factura && (v.Numero == buscado || v.Encf == buscado), cancelacion);
         if (factura is null)
             return null;
@@ -99,7 +99,7 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
         if (texto.Length == 0)
             return [];
 
-        var consulta = contexto.VentasCentral.AsNoTracking()
+        var consulta = contexto.Ventas.AsNoTracking()
             .Where(v => v.Tipo == TipoComprobanteVenta.Factura && v.FechaOperacion >= desde && v.FechaOperacion <= hasta)
             .Where(v => v.Numero.Contains(texto)
                 || (v.Encf != null && v.Encf.Contains(texto))
@@ -126,7 +126,7 @@ internal sealed class ServicioFacturasParaCaja(ContextoDatosCentral contexto, IP
         if (numero.Length == 0 || pedidas.Count == 0)
             return new RespuestaReservaFactura(false, "Indique la factura y las líneas a reservar.");
 
-        var factura = await contexto.VentasCentral.AsNoTracking().Include(v => v.Lineas)
+        var factura = await contexto.Ventas.AsNoTracking().Include(v => v.Lineas)
             .FirstOrDefaultAsync(v => v.Tipo == TipoComprobanteVenta.Factura && v.Numero == numero, cancelacion);
         if (factura is null)
             return new RespuestaReservaFactura(false, $"La factura {numero} no existe en el Central.");

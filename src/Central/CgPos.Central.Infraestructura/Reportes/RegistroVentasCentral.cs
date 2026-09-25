@@ -41,7 +41,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
                 linea.Impuesto, linea.ImporteConImpuesto, linea.Serial, linea.PromocionCodigo);
 
         await NumerarAsync(comprobante, DocumentosNumerados.Factura, cancelacion);
-        contexto.VentasCentral.Add(comprobante);
+        contexto.Ventas.Add(comprobante);
     }
 
     public async Task RegistrarNotaCreditoAsync(DocumentoNotaCreditoEmitida nota, int sucursalId, int cajaId, CancellationToken cancelacion)
@@ -60,7 +60,7 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
                 linea.PrecioUnitario, 0m, linea.Impuesto, linea.Importe, linea.Serial, null);
 
         await NumerarAsync(comprobante, DocumentosNumerados.NotaCredito, cancelacion);
-        contexto.VentasCentral.Add(comprobante);
+        contexto.Ventas.Add(comprobante);
     }
 
     /// <summary>
@@ -70,8 +70,8 @@ internal sealed class RegistroVentasCentral(ContextoDatosCentral contexto, INume
     private async Task<bool> YaRegistradoAsync(TipoComprobanteVenta tipo, string numero, CancellationToken cancelacion)
     {
         var buscado = numero.Trim();
-        return contexto.VentasCentral.Local.Any(c => c.Tipo == tipo && c.Numero == buscado)
-               || await contexto.VentasCentral.AsNoTracking().AnyAsync(c => c.Tipo == tipo && c.Numero == buscado, cancelacion);
+        return contexto.Ventas.Local.Any(c => c.Tipo == tipo && c.Numero == buscado)
+               || await contexto.Ventas.AsNoTracking().AnyAsync(c => c.Tipo == tipo && c.Numero == buscado, cancelacion);
     }
 
     /// <summary>

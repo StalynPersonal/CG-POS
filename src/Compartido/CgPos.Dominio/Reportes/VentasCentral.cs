@@ -18,6 +18,11 @@ public enum TipoComprobanteVenta
 /// </summary>
 public sealed class ComprobanteVentaCentral : Entidad
 {
+    /// <summary>Siglas con las que el tipo se guarda en la base, para que la tabla se lea sin descifrar un número.</summary>
+    public const string SiglaFactura = "VEN";
+    public const string SiglaNotaCredito = "DEV";
+    public const int LargoSigla = 3;
+
     public const int LargoMaximoNumero = 40;
     public const int LargoMaximoEncf = 13;
     public const int LargoMaximoTexto = 200;
@@ -132,7 +137,7 @@ public sealed class ComprobanteVentaCentral : Entidad
         var signo = Tipo == TipoComprobanteVenta.NotaCredito ? -1m : 1m;
         _impuestos.Add(new ImpuestoVentaCentral
         {
-            ComprobanteId = Id,
+            VentaId = Id,
             Porcentaje = porcentaje,
             Base = signo * baseImponible,
             Impuesto = signo * impuesto,
@@ -146,7 +151,7 @@ public sealed class ComprobanteVentaCentral : Entidad
         var signo = Tipo == TipoComprobanteVenta.NotaCredito ? -1m : 1m;
         _lineas.Add(new LineaVentaCentral
         {
-            ComprobanteId = Id,
+            VentaId = Id,
             NumeroLinea = numeroLinea,
             Codigo = Validar.TextoOpcional(codigo, "Código del artículo", LargoMaximoCodigoArticulo) ?? string.Empty,
             Descripcion = Validar.TextoOpcional(descripcion, "Descripción", LargoMaximoTexto) ?? string.Empty,
@@ -166,7 +171,7 @@ public sealed class ComprobanteVentaCentral : Entidad
         var signo = Tipo == TipoComprobanteVenta.NotaCredito ? -1m : 1m;
         _pagos.Add(new PagoVentaCentral
         {
-            ComprobanteId = Id,
+            VentaId = Id,
             Tipo = tipo,
             FormaPagoNombre = Validar.TextoOpcional(formaPagoNombre, "Forma de pago", LargoMaximoTexto) ?? string.Empty,
             Moneda = Validar.TextoOpcional(moneda, "Moneda", LargoMaximoMoneda)?.ToUpperInvariant() ?? Moneda,
@@ -178,7 +183,7 @@ public sealed class ComprobanteVentaCentral : Entidad
 /// <summary>ITBIS por tasa del comprobante, para el reporte de impuestos y el 607.</summary>
 public sealed class ImpuestoVentaCentral : Entidad
 {
-    public int ComprobanteId { get; internal set; }
+    public int VentaId { get; internal set; }
     public decimal Porcentaje { get; internal set; }
     public decimal Base { get; internal set; }
     public decimal Impuesto { get; internal set; }
@@ -187,7 +192,7 @@ public sealed class ImpuestoVentaCentral : Entidad
 /// <summary>Línea del comprobante que informó la caja: lo que se ve al abrir la factura en el Central.</summary>
 public sealed class LineaVentaCentral : Entidad
 {
-    public int ComprobanteId { get; internal set; }
+    public int VentaId { get; internal set; }
     public int NumeroLinea { get; internal set; }
     public string Codigo { get; internal set; } = string.Empty;
     public string Descripcion { get; internal set; } = string.Empty;
@@ -204,7 +209,7 @@ public sealed class LineaVentaCentral : Entidad
 /// <summary>Lo cobrado por forma de pago, para el cuadre y el reporte de ventas.</summary>
 public sealed class PagoVentaCentral : Entidad
 {
-    public int ComprobanteId { get; internal set; }
+    public int VentaId { get; internal set; }
     public TipoFormaPago Tipo { get; internal set; }
     public string FormaPagoNombre { get; internal set; } = string.Empty;
     public string Moneda { get; internal set; } = string.Empty;

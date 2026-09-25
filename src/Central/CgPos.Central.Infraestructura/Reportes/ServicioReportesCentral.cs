@@ -46,9 +46,9 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
     {
         var comprobantes = Comprobantes(filtro).Select(c => c.Id);
         var filas = await contexto.ImpuestosVenta.AsNoTracking()
-            .Where(i => comprobantes.Contains(i.ComprobanteId))
+            .Where(i => comprobantes.Contains(i.VentaId))
             .GroupBy(i => i.Porcentaje)
-            .Select(g => new DatosItbisReporte(g.Key, g.Sum(i => i.Base), g.Sum(i => i.Impuesto), g.Select(i => i.ComprobanteId).Distinct().Count()))
+            .Select(g => new DatosItbisReporte(g.Key, g.Sum(i => i.Base), g.Sum(i => i.Impuesto), g.Select(i => i.VentaId).Distinct().Count()))
             .ToListAsync(cancelacion);
 
         return filas.OrderByDescending(f => f.Porcentaje).ToList();
@@ -210,7 +210,7 @@ internal sealed class ServicioReportesCentral(ContextoDatosCentral contexto, ISe
 
     private IQueryable<ComprobanteVentaCentral> Comprobantes(FiltroReporte filtro)
     {
-        var consulta = contexto.VentasCentral.AsNoTracking()
+        var consulta = contexto.Ventas.AsNoTracking()
             .Where(c => c.FechaOperacion >= filtro.Desde && c.FechaOperacion <= filtro.Hasta);
         if (filtro.SucursalId is { } sucursal)
             consulta = consulta.Where(c => c.SucursalId == sucursal);
