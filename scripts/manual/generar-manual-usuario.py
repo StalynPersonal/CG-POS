@@ -960,6 +960,12 @@ viñeta('Cada rato de caja parada sube al Central y sale en el módulo de cuadre
        'nadie reanudó y el turno cerró, la parada se cierra ahí y queda marcada, para que no aparezca de catorce horas.')
 viñeta('Los motivos los decide el negocio en el Central, en Maestros → Motivos de caja parada: ahí se dice cuáles son tiempo '
        'previsto y cuál pide explicación.')
+viñeta('Suspender no pide autorización de supervisor: es la única manera de dejar la caja sola, y si hubiera que llamar a alguien '
+       'para ir al baño nadie la usaría y el reporte de caja parada no mediría nada. Si el negocio prefiere que sí la pida, se '
+       'enciende el parámetro «Caja.SuspenderRequiereAutorizacion» en el Central, en general, por sucursal o por caja.')
+nota('En el panel de funciones ya no está «Salir». Para ausentarse está Suspender, y desde la pantalla bloqueada se vuelve con la '
+     'clave del mismo cajero o se cambia de usuario. Así no queda una salida por la que el tiempo parado no se mida; para terminar '
+     'la jornada sigue estando Cierre de turno.')
 viñeta('Eliminar línea, eliminar por escaneo y limpiar pantalla piden autorización de supervisor; la línea eliminada queda '
        'tachada en su lugar, con su mismo número, y sale del total. La numeración de las líneas sigue continua; quién la '
        'eliminó y quién lo autorizó queda en la auditoría.')

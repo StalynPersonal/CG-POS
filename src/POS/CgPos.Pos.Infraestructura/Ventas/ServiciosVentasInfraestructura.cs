@@ -1468,15 +1468,24 @@ internal sealed class ServicioVentas(
         await contexto.SaveChangesAsync(cancelacion);
     }
 
+    /// <summary>
+    /// Bloquea la pantalla de la caja. Que pida o no autorización lo decide el negocio en el Central: de fábrica no la
+    /// pide, porque es la única manera de dejar la caja sola y si hubiera que llamar a un supervisor para ir al baño nadie
+    /// la usaría, y entonces el reporte de caja parada no mediría nada.
+    /// </summary>
     public async Task<RespuestaVenta> SuspenderAsync(SesionUsuario sesion, int? motivoCodigo, string? nota, Guid? autorizacionId,
         CancellationToken cancelacion = default)
     {
-        var permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.SuspenderVenta, autorizacionId, "Caja", sesion.CajaCodigo, cancelacion);
-        if (!permiso.Permitido)
+        ResultadoPermiso? permiso = null;
+        if (await parametros.ObtenerBooleanoOpcionalAsync(ClavesParametros.SuspenderRequiereAutorizacion, sesion.CajaId, cancelacion))
         {
-            return permiso.AutorizacionRechazada
-                ? new RespuestaVenta(CodigoResultadoVenta.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", null, CatalogoPermisos.SuspenderVenta)
-                : new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "Suspender operaciones requiere autorización de un supervisor.", null, CatalogoPermisos.SuspenderVenta);
+            permiso = await autorizaciones.VerificarAsync(sesion, CatalogoPermisos.SuspenderVenta, autorizacionId, "Caja", sesion.CajaCodigo, cancelacion);
+            if (!permiso.Permitido)
+            {
+                return permiso.AutorizacionRechazada
+                    ? new RespuestaVenta(CodigoResultadoVenta.AutorizacionInvalida, "La autorización no es válida, ya se usó o venció.", null, CatalogoPermisos.SuspenderVenta)
+                    : new RespuestaVenta(CodigoResultadoVenta.RequiereAutorizacion, "Suspender operaciones requiere autorización de un supervisor.", null, CatalogoPermisos.SuspenderVenta);
+            }
         }
 
         var motivo = motivoCodigo is { } codigo
@@ -1493,9 +1502,9 @@ internal sealed class ServicioVentas(
 
         auditoria.Registrar(new EntradaAuditoria("Caja.OperacionesSuspendidas", "Caja", sesion.CajaCodigo,
             Detalle: new { Motivo = motivo?.Nombre ?? "Sin motivo", Nota = nota },
-            Motivo: permiso.Motivo,
+            Motivo: permiso?.Motivo,
             Usuario: new UsuarioAuditoria(sesion.UsuarioId, sesion.Nombre),
-            AutorizadoPor: Autorizador(permiso)));
+            AutorizadoPor: permiso is null ? null : Autorizador(permiso)));
         await contexto.SaveChangesAsync(cancelacion);
 
         return new RespuestaVenta(CodigoResultadoVenta.Correcto, null, null);

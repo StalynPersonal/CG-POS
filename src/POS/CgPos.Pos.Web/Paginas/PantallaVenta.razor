@@ -373,7 +373,10 @@ else
                     <TeclaFuncion Texto="Retiro" Icono="@Icons.Material.Filled.Savings" AlPresionar="() => DesdePanelAsync(RetirarEfectivoAsync)" />
                     <TeclaFuncion Texto="Sincronizar" Icono="@Icons.Material.Filled.CloudSync" AlPresionar="() => DesdePanelAsync(SincronizarAsync)" />
                     <TeclaFuncion Texto="Cierre de turno" Icono="@Icons.Material.Filled.LockClock" AlPresionar="() => DesdePanelAsync(CerrarTurnoAsync)" />
-                    <TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="() => DesdePanelAsync(SalirAsync)" />
+                    @* «Salir» queda oculto a propósito, no borrado: era la puerta por la que se dejaba la caja sin que el
+                       rato parado quedara medido. Para ausentarse está Suspender, y desde la pantalla bloqueada se cambia
+                       de usuario. La función se conserva porque la usan el relevo y el cierre de turno. *@
+                    @*<TeclaFuncion Texto="Salir" Icono="@Icons.Material.Filled.Logout" AlPresionar="() => DesdePanelAsync(SalirAsync)" />*@
                 </div>
             </aside>
         }

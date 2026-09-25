@@ -558,11 +558,13 @@ marcar()
 
 prueba('H5', 'Suspender la caja con su motivo')
 paso('Con una venta a medias en pantalla, abra el panel de funciones (☰) y presione «Suspender».')
-paso('Elija el motivo «Almuerzo» y autorice con el supervisor.')
+paso('Elija el motivo «Almuerzo». No debe pedir autorización de supervisor.')
+paso('Encienda en el Central el parámetro «Caja.SuspenderRequiereAutorizacion», espere a que la caja sincronice y suspenda otra vez.')
 paso('Vuelva un rato después: digite la clave del mismo cajero y presione «Regresar», debajo del conteo.')
 paso('Repita con el motivo «Otro» y déjelo sin escribir la explicación.')
-esperado('La pantalla se bloquea con un cronómetro grande y la línea «cajero · motivo». Al regresar, la venta que estaba en '
-         'pantalla sigue ahí completa. El motivo «Otro» no deja seguir hasta que se escriba en qué consistió.')
+esperado('Sin el parámetro no pide autorización; con él encendido sí la pide. La pantalla se bloquea con un cronómetro grande '
+         'y la línea «cajero · motivo». Al regresar, la venta que estaba en pantalla sigue ahí completa. El motivo «Otro» no '
+         'deja seguir hasta que se escriba en qué consistió. En el panel de funciones ya no hay «Salir».')
 tablas('Caja: MotivosSuspension (lee) · SuspensionesCaja · AutorizacionesOtorgadas · Auditoria · BandejaSalida')
 marcar()
 

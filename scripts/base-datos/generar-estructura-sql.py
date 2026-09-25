@@ -83,6 +83,7 @@ PARAMETROS_INICIALES = [
     ('Caja.PasoRedondeoEfectivo', '0', 'Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)'),
     ('Caja.FondoEnCuadre', 'false', 'El fondo forma parte del efectivo esperado en el cierre'),
     ('Caja.BloquearVentaTurnoDiaAnterior', 'true', 'Con un turno abierto de un día anterior la caja no vende ni cobra'),
+    ('Caja.SuspenderRequiereAutorizacion', 'false', 'Suspender la caja pide autorización de un supervisor'),
     ('Numeracion.DigitosSecuencia', '7', 'Dígitos de la secuencia en el número de los documentos'),
     ('Pantallas.SegundosAviso', '6', 'Segundos que dura un aviso en la pantalla de la caja antes de quitarse solo (0 = hasta que lo cierren)'),
 

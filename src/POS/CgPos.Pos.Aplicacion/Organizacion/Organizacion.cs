@@ -167,6 +167,13 @@ public static class ClavesParametros
     /// <summary>Tipo de ingresos de los e-CF según la tabla de la DGII (1 a 6, ej. 1 = ingresos por operaciones).</summary>
     public const string TipoIngresos = "Fiscal.TipoIngresos";
 
+    /// <summary>
+    /// Suspender la caja pide autorización de un supervisor. Opcional: sin él, no la pide. Apagado es lo normal: es la
+    /// única manera de dejar la caja sola, y si hubiera que llamar a un supervisor para ir al baño nadie la usaría y el
+    /// reporte de caja parada no mediría nada.
+    /// </summary>
+    public const string SuspenderRequiereAutorizacion = "Caja.SuspenderRequiereAutorizacion";
+
     /// <summary>Mensaje de bienvenida de la pantalla del cliente. Opcional.</summary>
     public const string MensajeBienvenidaPantalla = "Pantallas.MensajeBienvenida";
 

@@ -605,7 +605,7 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
     }
 
     [SkippableFact]
-    public async Task Limpiar_con_motivo_y_suspender_requieren_autorizacion_y_quedan_auditados()
+    public async Task Limpiar_pide_autorizacion_siempre_y_suspender_solo_si_el_negocio_lo_activa()
     {
         Skip.If(baseDatos.MotivoOmision is not null, baseDatos.MotivoOmision);
         await using var caja = await CajaEnPruebas.CrearAsync(baseDatos, Empresa);
@@ -626,6 +626,18 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         Assert.True(await caja.EjecutarAsync<ContextoDatosPos, bool>(contexto => contexto.Auditoria.AnyAsync(a =>
             a.Accion == "Ventas.PantallaLimpiada" && a.EntidadId == $"B-{venta.Id:000000}" && a.Motivo == "Cliente se retiró" && a.AutorizadoPorId != null)));
 
+        // Suspender no pide autorización salvo que el negocio lo active: es la única manera de dejar la caja sola.
+        Assert.True((await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null, null, null))).Exitosa);
+
+        await caja.EjecutarAsync<ContextoDatosPos, bool>(async contexto =>
+        {
+            contexto.Parametros.Add(CgPos.Dominio.Organizacion.Parametro.Crear(CgPos.Pos.Aplicacion.Organizacion.ClavesParametros.SuspenderRequiereAutorizacion, "true",
+                cajaId: caja.Escenario.CajaUno));
+            await contexto.SaveChangesAsync();
+            return true;
+        });
+
+        // Con el parámetro encendido sí la pide, y con la autorización del supervisor pasa.
         Assert.Equal(CodigoResultadoVenta.RequiereAutorizacion,
             (await caja.EjecutarAsync<IServicioVentas, RespuestaVenta>(s => s.SuspenderAsync(caja.Cajero, null, null, null))).Resultado);
         var suspension = await caja.AutorizarAsync(CatalogoPermisos.SuspenderVenta, "Almuerzo");
@@ -635,7 +647,9 @@ public class VentasPruebas(BaseDatosPruebas baseDatos) : IClassFixture<BaseDatos
         var registros = await caja.EjecutarAsync<ContextoDatosPos, int>(contexto =>
             contexto.Auditoria.CountAsync(r => (r.Accion == "Ventas.PantallaLimpiada" && r.EntidadId == $"B-{venta.Id:000000}")
                                                || (r.Accion == "Caja.OperacionesSuspendidas" && r.UsuarioId == caja.Escenario.Cajero)));
-        Assert.Equal(2, registros);
+
+        // Las dos suspensiones quedan registradas: la que no pidió autorización y la que sí.
+        Assert.Equal(3, registros);
     }
 
     [SkippableFact]

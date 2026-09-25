@@ -140,6 +140,9 @@ public static class CatalogoParametros
         new("Caja.PasoRedondeoEfectivo", "Caja y cierre", "Múltiplo al que se redondea el cobro en efectivo (0 = sin redondeo)", Decimal, true, Minimo: 0),
         new("Caja.FondoEnCuadre", "Caja y cierre", "El fondo de caja forma parte del efectivo esperado en el cierre", Booleano, true),
         new("Caja.FondoPredeterminado", "Caja y cierre", "Fondo sugerido al abrir turno", Decimal, false, Minimo: 0),
+        new("Caja.SuspenderRequiereAutorizacion", "Caja y cierre",
+            "Suspender la caja (bloquear la pantalla) pide autorización de un supervisor. Apagado, el cajero la bloquea solo",
+            Booleano, false),
         new("Caja.BloquearVentaTurnoDiaAnterior", "Caja y cierre",
             "Con un turno abierto de un día anterior la caja no vende ni cobra: hay que cerrarlo y abrir uno nuevo", Booleano, true),
 
