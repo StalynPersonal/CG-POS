@@ -490,16 +490,18 @@ else
         _avisos.Programar(_mensaje ?? _aviso, QuitarAvisoAsync);
 
         // El lector de barras escribe donde esté el foco: se devuelve al campo de escaneo tras cada operación.
-        if (_enfocar && _venta is not null && !_dialogoAbierto)
+        // Con la caja suspendida el campo no está dibujado, y devolverle el foco a lo que ya no existe tumbaba la pantalla
+        // entera con «ocurrió un error inesperado». Poner el foco nunca puede ser motivo de eso: si falla, se deja pasar.
+        if (_enfocar && _venta is not null && !_dialogoAbierto && !_suspendida)
         {
             _enfocar = false;
             try
             {
                 await _campoEscaneo.FocusAsync();
             }
-            catch (InvalidOperationException)
+            catch (Exception excepcion) when (excepcion is InvalidOperationException or JSException)
             {
-                // El campo aún no está en pantalla.
+                // El campo ya no está en pantalla.
             }
         }
     }
