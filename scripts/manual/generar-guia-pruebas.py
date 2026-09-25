@@ -253,9 +253,20 @@ esperado('Los cinco quedan creados con su código interno, y el buscador los enc
 tablas('Central: Articulos · CodigosArticulo')
 marcar()
 
+prueba('A6b', 'Buscar artículos por estado')
+paso('En Maestros → Artículos, inactive uno de los cinco desde su ficha.')
+paso('Mire el filtro de estado, a la derecha del de tipo, y pruebe las tres opciones: Activos, Inactivos y Todos.')
+esperado('La pantalla abre en «Activos», así que el que inactivó desaparece de la lista sin tener que filtrar nada. '
+         'En «Inactivos» sale solo él, y en «Todos» salen los cinco. Vuelva a activarlo antes de seguir: se usa en todo '
+         'el recorrido.')
+tablas('Central: Articulos')
+marcar()
+
 prueba('A7', 'Precios')
-paso('En Precios → Artículos póngale precio de detalle a los cinco, y precio de mayor al que corresponda.')
-esperado('El precio queda guardado y el chequeador y la caja lo muestran igual.')
+paso('En Precios → Artículos mire el «Buscar por» antes de escribir nada, y busque el primer artículo por su código.')
+paso('Póngale precio de detalle a los cinco, y precio de mayor al que corresponda.')
+esperado('El «Buscar por» viene en «Código», que es como se busca casi siempre, así que se escribe el código y se busca '
+         'sin tocar nada más. El precio queda guardado y el chequeador y la caja lo muestran igual.')
 tablas('Central: Articulos (el precio vive en el artículo) · Auditoria')
 marcar()
 
@@ -272,6 +283,9 @@ prueba('A9', 'Parámetros del negocio')
 paso('En Organización → Parámetros revise los que cambian cómo trabaja la caja: fondo de caja, redondeo del efectivo, '
      'días de vigencia de la nota de crédito, días de retención del ITBIS en devoluciones, monto que exige identificación '
      'y cantidad máxima que el cajero puede digitar.')
+paso('Revise también dos que gobiernan la pantalla: «Pantallas.SegundosAviso» (cuánto dura en pantalla un aviso rojo antes de '
+     'quitarse solo) y «Caja.SuspenderRequiereAutorizacion» (si suspender la caja llama a un supervisor). Déjelos como '
+     'vienen; se prueban en C4b y en H5.')
 esperado('Cada uno se puede cambiar y dice desde cuándo aplica. Anote los valores con los que va a probar: los va a '
          'necesitar para saber si el sistema hizo lo correcto.')
 tablas('Central: Parametros')
@@ -297,9 +311,13 @@ tablas('Caja: ConfiguracionCaja · Central: CredencialesDispositivo · EstadosSi
 marcar()
 
 prueba('B2', 'Bajada de maestros')
+paso('Mire la pantalla mientras la caja se llena por primera vez: no espere a que termine para mirarla.')
 paso('Espere a que la barra de estado deje de decir «Actualizando».')
-esperado('La caja tiene ya los artículos, precios, formas de pago y demás que creó en el bloque A, y puede trabajar sin red '
-         'desde este momento.')
+esperado('Mientras baja, la caja dice qué está trayendo («Actualizando la caja con clientes») y avanza una barra verde; el '
+         'maestro no viene de un solo golpe sino por tandas, así que la barra avanza varias veces y la caja no se queda '
+         'callada ni se cae por tiempo de espera, aunque el maestro tenga cientos de miles de filas. Al terminar, la caja '
+         'tiene los artículos, precios, formas de pago y demás que creó en el bloque A, y puede trabajar sin red desde '
+         'este momento.')
 tablas('Caja: Articulos · CodigosArticulo · FormasPago · Impuestos · Denominaciones · Parametros · Usuarios · Roles · MarcasSincronizacion (y los demás maestros)')
 marcar()
 
@@ -342,6 +360,16 @@ esperado('La primera vez aparece una línea que va sumando cantidad; la segunda 
 tablas('Caja: VentasEnProceso · LineasVentaEnProceso')
 marcar()
 
+prueba('C1b', 'Borrar lo digitado y ver siempre el último')
+paso('Escriba un código a medias en el campo de escaneo y toque la ✕ que sale dentro del campo.')
+paso('Haga lo mismo y, en vez de la ✕, presione Esc.')
+paso('Ahora escanee doce artículos seguidos y mire la grilla sin desplazarla.')
+esperado('La ✕ y Esc dejan el campo vacío y listo para el próximo código, sin borrar de a una letra y sin tocar la venta. '
+         'La grilla muestra primero la última línea agregada, así que el cajero ve lo que acaba de pasar por el lector '
+         'aunque la venta tenga cincuenta artículos.')
+tablas('Caja: LineasVentaEnProceso (lee)')
+marcar()
+
 prueba('C2', 'Cambiar la cantidad (F4)')
 paso('Seleccione una línea, presione F4 y ponga 2.')
 paso('Ahora intente poner una cantidad mayor a la del parámetro (de fábrica, más de 10).')
@@ -367,6 +395,16 @@ esperado('No hay dos cuadros: el motivo se pide dentro del de autorización y es
          'entera y empieza otra vacía, sin dejar factura ni consumir número. El motivo, cuando se escribe, queda guardado en '
          'la auditoría (se comprueba en S3).')
 tablas('Caja: VentasEnProceso · LineasVentaEnProceso (las dos filas se borran) · Auditoria')
+marcar()
+
+prueba('C4b', 'Los avisos se quitan solos')
+paso('Provoque un aviso rojo cualquiera: escanee un código que no exista.')
+paso('No toque nada y cuente los segundos hasta que el aviso desaparezca.')
+paso('En el Central, cambie «Pantallas.SegundosAviso» a 15, espere a que la caja sincronice y repita.')
+esperado('El aviso se quita solo a los 6 segundos, sin que el cajero tenga que cerrarlo ni tocar la pantalla, y la venta '
+         'sigue donde estaba. Con el parámetro en 15 dura más, y así se ajusta a lo que la tienda prefiera: la caja no '
+         'trae ese tiempo fijo por dentro.')
+tablas('Caja: Parametros (lee)')
 marcar()
 
 prueba('C5', 'La venta sobrevive a un corte')
@@ -537,9 +575,13 @@ marcar()
 
 prueba('H2', 'Cotizar en el Central')
 paso('En una computadora que no sea la caja, entre al Central y cree una cotización (Cotizaciones → Nueva) con dos '
-     'artículos y un cliente.')
+     'artículos.')
+paso('Para el cliente, use «Buscar cliente» y escriba el principio de su nombre; elija uno de la lista. Pruebe también '
+     'escribiendo su documento.')
 paso('Descárguela en PDF e imprímala.')
-esperado('El PDF sale en hoja carta, con los datos de la empresa, el detalle, los totales, la vigencia y las condiciones.')
+esperado('Al elegir de la lista se llenan solos el documento, el nombre, el teléfono y el correo, sin digitarlos ni tener '
+         'que saberse la cédula de memoria. El PDF sale en hoja carta, con los datos de la empresa, el detalle, los '
+         'totales, la vigencia y las condiciones.')
 tablas('Central: Cotizaciones · LineasCotizacion · SecuenciasCentral')
 marcar()
 
