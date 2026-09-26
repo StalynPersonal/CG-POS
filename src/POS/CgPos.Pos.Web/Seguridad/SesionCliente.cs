@@ -49,18 +49,20 @@ public sealed class AlmacenSesion
     public bool PuedeDevolver => TienePermiso(CatalogoPermisos.RegistrarDevolucion);
 
     /// <summary>
-    /// A qué pantalla entra este usuario: la que la terminal tiene configurada si puede usarla, y si no, la que su rol le
-    /// permite. Así una caja queda dedicada a devoluciones solo con poner ahí un usuario que únicamente devuelve.
+    /// A qué pantalla entra este usuario: la que la terminal tiene configurada, salvo que su rol no le permita usarla.
+    /// El que solo devuelve entra igual a la pantalla de venta —con todo lo de vender apagado— y pasa a devoluciones
+    /// cuando él lo decide: así ve el estado de la caja, el turno y la sincronización, como cualquier otro cajero, y no
+    /// se encuentra en una pantalla distinta sin saber por qué.
     /// </summary>
     public string RutaInicial(PantallaCaja configurada)
     {
         ArgumentNullException.ThrowIfNull(configurada);
 
+        // La terminal dedicada a devoluciones solo sirve a quien puede devolver; los demás entran a la de venta.
         if (configurada == PantallasCaja.Devoluciones)
             return PuedeDevolver ? configurada.Ruta : PantallasCaja.Principal.Ruta;
 
-        // Las pantallas de venta (principal y táctil): el que no vende pero devuelve entra a devoluciones.
-        return !PuedeVender && PuedeDevolver ? PantallasCaja.Devoluciones.Ruta : configurada.Ruta;
+        return configurada.Ruta;
     }
 }
 

@@ -412,7 +412,7 @@ p('Lo que la caja hace lo deciden los permisos del usuario que entra, no un ajus
 tabla(['El rol tiene', 'Qué pasa al entrar'],
       [['Ventas.Registrar y Devoluciones.Registrar', 'Todo como siempre: vende y devuelve (F10).'],
        ['Solo Ventas.Registrar', 'Vende. La tecla F10 queda apagada y escribir la dirección de devoluciones no le abre nada.'],
-       ['Solo Devoluciones.Registrar', 'Entra directo a devoluciones. En la pantalla de venta solo consulta artículos y clientes: no escanea, no cobra.'],
+       ['Solo Devoluciones.Registrar', 'Entra a la pantalla de la caja como cualquier cajero, con todo lo de vender apagado: no escanea ni cobra, solo consulta artículos y clientes. Un aviso arriba lo explica y trae el botón «Ir a devoluciones». Desde devoluciones vuelve con «Volver a la caja», porque el turno, el cierre y el estado de la caja también son suyos.'],
        ['Ninguno de los dos', 'Se le avisa que su usuario no tiene ventas ni devoluciones y solo puede salir.']],
       anchos=[5.0, 12.0])
 nota('Para dejar una caja solo de devoluciones basta con poner ahí un usuario con ese rol: no hay que configurar el equipo. '

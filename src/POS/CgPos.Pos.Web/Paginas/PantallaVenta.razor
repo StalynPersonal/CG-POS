@@ -149,9 +149,17 @@ else
 
         @if (!PuedeVender)
         {
-            @* Su rol solo hace devoluciones: aquí únicamente consulta artículos y clientes. *@
+            @* Su rol solo hace devoluciones: aquí únicamente consulta artículos y clientes. El botón va en el propio
+               aviso porque es lo único que ese usuario viene a hacer: buscarlo dentro del panel de funciones sobra. *@
             <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true" Class="cg-venta__aviso" Icon="@Icons.Material.Filled.Lock">
-                Su usuario no registra ventas: en esta pantalla solo puede consultar artículos y clientes. Las devoluciones están en F10.
+                <div class="cg-venta__aviso-accion">
+                    <span>Su usuario no registra ventas: en esta pantalla solo puede consultar artículos y clientes.</span>
+                    @if (Almacen.PuedeDevolver)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Undo"
+                                   Style="min-height: var(--cg-toque-minimo)" OnClick="IrADevolucionesAsync">Ir a devoluciones</MudButton>
+                    }
+                </div>
             </MudAlert>
         }
         @if (_estadoTurno?.BloqueoDiaAnterior is { } bloqueo)

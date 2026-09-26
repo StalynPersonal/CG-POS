@@ -1059,8 +1059,11 @@ titulo('Bloque S — Cajas dedicadas y permisos')
 
 prueba('S1', 'Una caja solo de devoluciones')
 paso('Entre a la caja con el usuario del rol DEVOLUCIONES que creó en A8.')
-esperado('Entra directo a la pantalla de devoluciones. Si va a la pantalla de venta, puede consultar artículos y clientes '
-         'pero no escanear ni cobrar, y un aviso lo explica.')
+paso('Intente escanear un artículo y mire la barra de teclas.')
+paso('Presione «Ir a devoluciones» en el aviso, y desde allí «Volver a la caja».')
+esperado('Entra a la pantalla de la caja como cualquier cajero, no a otra distinta. El campo de escaneo y las teclas de '
+         'venta están apagados, y arriba un aviso lo explica y trae el botón para ir a devoluciones. Sí puede consultar '
+         'artículos y clientes. Desde devoluciones vuelve a la caja con su botón: el turno y el cierre también son suyos.')
 tablas('Caja: Usuarios · Roles · RolesPermisos (lee)')
 marcar()
 

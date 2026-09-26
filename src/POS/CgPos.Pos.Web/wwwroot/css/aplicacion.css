@@ -894,6 +894,10 @@
 .cg-devolucion__motivos { display: flex; flex-wrap: wrap; gap: 8px; }
 .cg-devolucion__motivo-boton { min-height: var(--cg-toque-minimo); }
 
+/* Aviso con su botón al lado: el texto se estira y el botón queda a la derecha, sin apretarse en pantallas estrechas. */
+.cg-venta__aviso-accion { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cg-venta__aviso-accion > span { flex: 1 1 320px; }
+
 /* El desplegable de motivos se toca con el dedo: el campo y cada opción de la lista van al alto táctil. */
 .cg-devolucion__motivo-select .mud-input-control { min-height: var(--cg-toque-minimo); }
 .mud-list-item.mud-list-item-clickable { min-height: var(--cg-toque-minimo); font-size: 1.05rem; }

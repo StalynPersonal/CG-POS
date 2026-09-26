@@ -36,11 +36,12 @@ else
                           AdornmentIcon="@Icons.Material.Filled.QrCodeScanner" Class="cg-campo-activo" />
             <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" StartIcon="@Icons.Material.Filled.Search" Disabled="_procesando"
                        Class="cg-devolucion__boton" OnClick="BuscarAsync">Buscar factura</MudButton>
-            @if (Almacen.PuedeVender)
-            {
-                <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale" Class="cg-devolucion__boton"
-                           OnClick="@(() => Navegacion.NavigateTo(string.Empty))">Volver a la venta</MudButton>
-            }
+            @* Vuelve también el que solo devuelve: en la pantalla principal están el turno, el cierre y el estado de la
+               caja, que son suyos igual que de cualquier cajero. *@
+            <MudButton Variant="Variant.Outlined" Size="Size.Large" StartIcon="@Icons.Material.Filled.PointOfSale" Class="cg-devolucion__boton"
+                       OnClick="@(() => Navegacion.NavigateTo(string.Empty))">
+                @(Almacen.PuedeVender ? "Volver a la venta" : "Volver a la caja")
+            </MudButton>
         </section>
 
         @if (_procesando)
