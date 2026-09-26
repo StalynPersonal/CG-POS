@@ -893,6 +893,10 @@
 .cg-devolucion__motivo { display: flex; flex-direction: column; gap: 8px; }
 .cg-devolucion__motivos { display: flex; flex-wrap: wrap; gap: 8px; }
 .cg-devolucion__motivo-boton { min-height: var(--cg-toque-minimo); }
+
+/* El desplegable de motivos se toca con el dedo: el campo y cada opción de la lista van al alto táctil. */
+.cg-devolucion__motivo-select .mud-input-control { min-height: var(--cg-toque-minimo); }
+.mud-list-item.mud-list-item-clickable { min-height: var(--cg-toque-minimo); font-size: 1.05rem; }
 .cg-devolucion__acciones { display: flex; flex-wrap: wrap; gap: 12px; }
 .cg-devolucion__total { font-size: 2.2rem; font-weight: 800; color: var(--cg-accion); text-align: right; font-variant-numeric: tabular-nums; }
 .cg-devolucion__emitida { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 24px; }

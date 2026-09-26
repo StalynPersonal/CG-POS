@@ -116,6 +116,20 @@ else
                     }
                 </div>
 
+                @* El motivo va antes de los artículos: es lo primero que el cliente dice al llegar al mostrador, y así el
+                   cajero lo elige de una vez en lugar de buscarlo debajo de una lista que puede ser larga. Los motivos son
+                   muchos y el negocio los alarga, por eso es un desplegable y no botones: en botones llenaban la pantalla. *@
+                <div class="cg-devolucion__motivo">
+                    <MudSelect T="int?" Value="_motivo" ValueChanged="valor => _motivo = valor" Label="Motivo de la devolución"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="cg-devolucion__motivo-select"
+                               AnchorOrigin="Origin.BottomCenter" ToStringFunc="@(codigo => NombreMotivo(factura, codigo))">
+                        @foreach (var motivo in factura.Motivos)
+                        {
+                            <MudSelectItem T="int?" Value="@motivo.Codigo">@motivo.Nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+
                 <div class="cg-tabla-desplazable">
                     <table class="cg-devolucion__tabla">
                         <thead>
@@ -157,14 +171,6 @@ else
 
                 <div class="cg-devolucion__pie">
                     <div class="cg-devolucion__motivo">
-                        <div class="cg-devolucion__etiqueta">Motivo de la devolución</div>
-                        <div class="cg-devolucion__motivos">
-                            @foreach (var motivo in factura.Motivos)
-                            {
-                                <MudButton Variant="@(_motivo == motivo.Codigo ? Variant.Filled : Variant.Outlined)" Color="Color.Primary"
-                                           Class="cg-devolucion__motivo-boton" OnClick="() => _motivo = motivo.Codigo">@motivo.Nombre</MudButton>
-                            }
-                        </div>
                         <MudTextField T="string" @bind-Value="_observacion" Label="Observación (opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" />
 
                         @* Nota interna: solo ajusta la factura, sin comprobante fiscal, y la autoriza un supervisor. *@
@@ -277,6 +283,10 @@ else
     private bool _interna;
     private string? _reembolsoReferencia;
     private string? _reembolsoDetalle;
+
+    /// <summary>Nombre del motivo elegido, para que el desplegable cerrado muestre texto y no su número.</summary>
+    private static string NombreMotivo(DatosFacturaDevolucion factura, int? codigo) =>
+        codigo is null ? string.Empty : factura.Motivos.FirstOrDefault(m => m.Codigo == codigo)?.Nombre ?? string.Empty;
 
     /// <summary>Formas de devolver el dinero; el Agente rechaza las que el negocio no habilitó.</summary>
     private static readonly (TipoReembolso Tipo, string Etiqueta)[] Reembolsos =
