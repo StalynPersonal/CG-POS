@@ -177,6 +177,46 @@
  La gaveta de dinero se abre por la misma impresora, con su pulso, así que no
  se configura aparte: conéctela al conector RJ11 de la impresora.
 
+
+ EL TERMINAL DE TARJETAS
+-------------------------------------------------------------------------------
+
+ Va en la misma sección Perifericos, al lado de la impresora. Manda el "Tipo":
+
+ 1) Conectado  -  la caja le habla al equipo. "Modelo" dice cuál: CardNet o
+    Generico.
+
+     "Perifericos": {
+       "Terminal": {
+         "Tipo": "Conectado", "Modelo": "CardNet",
+         "Host": "10.12.3.140", "Puerto": 7060,
+         "IdMultiMerchant": "", "ConsultaTarjeta": "true"
+       }
+     }
+
+ 2) Simulado  -  aprueba solo, sin conectarse a nada. NO usar en una tienda:
+    registraría cobros de tarjeta que nunca ocurrieron.
+
+ 3) Ninguno  -  esta caja no tiene terminal. Se cobra con las formas de pago
+    "Tarjeta" o "Amex", que piden el número de aprobación del volante.
+
+ El terminal se conecta por RJ45 y solo habla dentro de su subred: este equipo
+ necesita una dirección de esa misma red en su tarjeta Ethernet, Y el terminal
+ tiene que tener esa dirección autorizada (eso lo hace el proveedor). Un ping
+ que responde NO basta: el equipo puede aceptar la conexión y aun así no
+ contestarle a una caja que no reconoce.
+
+ Para comprobarlo sin abrir la caja, desde la carpeta del proyecto:
+
+     scripts\caja\probar-terminal-cardnet.ps1
+
+ Dice en cuál de los tres escalones se queda: no conecta (red o cable),
+ conecta pero no saluda (la dirección no está autorizada), o saluda bien.
+
+ OJO: si no se pone la sección Perifericos, el Agente NO avisa a gritos: se
+ queda con el terminal y la impresora simulados. Compruébelo en /salud, que
+ dice con qué quedó configurada la caja.
+
  Después de cambiarlo hay que reiniciar el servicio:
 
      Restart-Service CgPosAgente

@@ -128,8 +128,9 @@
  LA IMPRESORA
 -------------------------------------------------------------------------------
 
- En desarrollo la caja no imprime: deja cada ticket como archivo. Eso se cambia
- en appsettings.Development.json, en Perifericos:Impresora. Hay tres tipos:
+ Los periféricos están en appsettings.json, no en appsettings.Development.json:
+ son del equipo y no del entorno, así que la caja instalada como servicio usa
+ los mismos. En Perifericos:Impresora hay tres tipos:
 
  1) Archivo  -  no imprime, guarda el ticket en una carpeta. Es lo que trae.
 
@@ -151,10 +152,18 @@
 
  En los tres casos la gaveta se abre por la misma impresora, con su pulso.
 
- Lo demás que se simula en desarrollo, en la misma sección Perifericos:
+ Lo demás que se simula, en la misma sección Perifericos:
 
      BalanzaSimulada    devuelve siempre el peso que usted le ponga.
-     TerminalSimulado   aprueba las tarjetas sin conectarse a nada.
+     TerminalSimulado   aprueba las tarjetas sin conectarse a nada; solo se usa
+                        si Terminal:Tipo es "Simulado".
+
+ Para trabajar sin terminal ni impresora sin tocar la configuración del equipo,
+ appsettings.Development.json trae comentada una sección Perifericos que los
+ pone en simulado: descoméntela y vuelva a arrancar.
+
+ Con qué quedó configurada la caja se ve en http://localhost:5180/salud,
+ sección Periféricos, que además dice cuáles están simulados.
 
 -------------------------------------------------------------------------------
  PROBAR CON DOS CAJAS
